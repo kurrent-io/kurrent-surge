@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Kurrent.Client.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Kurrent.Testing" />
+    <Using Include="Shouldly" />
+    <Using Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Remove="Users\**" />
+    <None Remove="Registry\**" />
+    <None Remove="Projections\**" />
+    <None Remove="Admin\**" />
+    <None Remove="Subscriptions\**" />
+    <None Remove="Streams\CatchUpSubscriptions\**" />
+    <None Remove="Streams\Read\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\certs\**\*">
+      <Link>certs\%(RecursiveDir)/%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Users\**" />
+    <Compile Remove="Registry\**" />
+    <Compile Remove="Projections\**" />
+    <Compile Remove="Admin\**" />
+    <Compile Remove="Subscriptions\**" />
+    <Compile Remove="Streams\CatchUpSubscriptions\**" />
+    <Compile Remove="Streams\Read\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="Users\**" />
+    <EmbeddedResource Remove="Registry\**" />
+    <EmbeddedResource Remove="Projections\**" />
+    <EmbeddedResource Remove="Admin\**" />
+    <EmbeddedResource Remove="Subscriptions\**" />
+    <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
+    <EmbeddedResource Remove="Streams\Read\**" />
+  </ItemGroup>
+</Project>

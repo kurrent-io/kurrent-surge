@@ -1,0 +1,49 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+
+  "output": {
+    "filePath": ".project/repomix/output/repomix-output.full.xml",
+    "style": "xml",
+    "compress": false,
+    "removeComments": false,
+    "removeEmptyLines": true,
+    "includeFullDirectoryStructure": true,
+    "includeEmptyDirectories": true,
+    "git": {
+      "sortByChanges": false
+    },
+    "instructionFilePath": ".project/project.md"
+  },
+
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".agents/**",
+      ".claude/**",
+      ".github/ISSUE_TEMPLATE/**",
+      ".github/prompts/**",
+      ".github/instructions/**",
+      ".github/**/*.instruction.md",
+      ".project/**",
+      "certs/**",
+      "**/*.DotSettings",
+      "**/*.md",
+      "**/*.svg",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.ico",
+      "**/*.bak.*"
+    ]
+  },
+
+  "security": {
+    "enableSecurityCheck": true
+  },
+
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

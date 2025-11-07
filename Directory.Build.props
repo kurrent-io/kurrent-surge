@@ -1,0 +1,90 @@
+<Project>
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <LangVersion>preview</LangVersion>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+
+    <!-- Include only en-US satellite resources to reduce package size -->
+    <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+
+    <!-- Exclude all .DotSettings files from being included -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/*.DotSettings</DefaultItemExcludes>
+
+    <!-- Warnings -->
+    <!-- NETSDK1057 - You are using a preview version of .NET -->
+    <NoWarn>$(NoWarn);NETSDK1057</NoWarn>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+
+    <!-- Deterministic builds -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Define the repository root directory -->
+    <RepoRoot>$([System.IO.Directory]::GetParent($(MSBuildThisFileDirectory)).FullName)</RepoRoot>
+
+  </PropertyGroup>
+
+  <ItemGroup Label="Default Packages">
+    <PackageReference Include="JetBrains.Annotations" PrivateAssets="All" />
+    <Using Include="JetBrains.Annotations" />
+  </ItemGroup>
+
+  <!--
+  ================================================================
+  NuGet Package Metadata
+  ================================================================
+  -->
+  <PropertyGroup Label="NuGet Package Metadata" Condition="'$(IsPackable)' == 'true'">
+    <Title>KurrentDB .NET Client</Title>
+    <Product>KurrentDB .NET Client</Product>
+    <Description>Teh client library for the Kurrent Platform. Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
+    <Authors>Kurrent Inc.</Authors>
+    <Company>Kurrent Inc.</Company>
+    <Copyright>Copyright © 2011-$([System.DateTime]::Now.Year) $(Company)</Copyright>
+
+    <PackageIcon>ouro.png</PackageIcon>
+    <PackageTags>kurrent kurrentdb client eventstore</PackageTags>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageProjectUrl>https://github.com/kurrent-io/Kurrent.Client</PackageProjectUrl>
+    <PackageReleaseNotes>https://kurrent.io/blog/</PackageReleaseNotes>
+
+    <RepositoryUrl>https://github.com/kurrent-io/Kurrent.Client</RepositoryUrl>
+  </PropertyGroup>
+
+  <!--
+  ================================================================
+  Versioning with MinVer
+  ================================================================
+  - Automatically sets the version based on Git tags.
+  - Tags should be in the format vMajor.Minor.Patch (e.g., v1.2.3).
+  - Pre-release versions will be marked as alpha by default.
+  - Auto-increments patch version after releases
+  -->
+  <PropertyGroup Label="MinVer Settings" Condition="'$(IsPackable)' == 'true'">
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerVerbosity>diagnostic</MinVerVerbosity>
+    <MinVerDefaultPreReleasePhase>alpha</MinVerDefaultPreReleasePhase>
+    <MinVerAutoIncrement>patch</MinVerAutoIncrement>
+    <MinVerIgnoreHeight>true</MinVerIgnoreHeight>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Symbol Package Settings" Condition="'$(IsPackable)'=='true'">
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup Label="NuGet Package Dependencies" Condition="'$(IsPackable)'=='true'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+    <None Include="$(RepoRoot)\ouro.png" Pack="true" PackagePath="\" />
+    <None Include="$(RepoRoot)\LICENSE.md" Pack="true" PackagePath="\" />
+    <None Include="$(RepoRoot)\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

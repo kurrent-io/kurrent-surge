@@ -1,0 +1,99 @@
+//syntax = "proto3";
+//
+//package kurrentdb.protocol.v2;
+//
+//option csharp_namespace    = "KurrentDB.Protocol.Projections.V2";
+//option java_package        = "io.kurrentdb.protocol.projections.v2";
+//option java_multiple_files = true;
+//
+//import "google/protobuf/timestamp.proto";
+//import "google/protobuf/duration.proto";
+//import "google/protobuf/descriptor.proto";
+//
+//import "projections/error_details.proto";
+//import "core.proto";
+//
+//service ProjectionsService {
+//  rpc Create(CreateProjectionRequest) returns (CreateProjectionResponse);
+////  rpc UpdateDefinition(UpdateProjectionDefinitionRequest) returns (UpdateProjectionDefinitionResponse);
+////  rpc UpdateSettings(UpdateProjectionSettingsRequest) returns (UpdateProjectionSettingsResponse);
+////  rpc Delete(DeleteProjectionRequest) returns (DeleteProjectionResponse);
+////
+////  rpc Enable(EnableProjectionRequest) returns (EnableProjectionResponse);
+////  rpc Disable(DisableProjectionRequest) returns (DisableProjectionResponse);
+////  rpc Reset(ResetProjectionRequest) returns (ResetProjectionResponse);
+////
+////  rpc GetSettings(GetProjectionSettingsRequest) returns (GetProjectionSettingsResponse);
+////
+////  rpc Get(GetProjectionRequest) returns (GetProjectionResponse);
+////  rpc List(ListProjectionsRequest) returns (ListProjectionsResponse);
+////  rpc GetState(GetProjectionStatusRequest) returns (GetProjectionStatusResponse);
+//}
+//
+//message CreateProjectionRequest {
+//  // The name of the projection to create.
+//  string projection_name = 1;
+//
+//  // The definition of the projection, which includes the query and other settings.
+//  string definition = 2;
+//
+//  // The settings for the projection, such as whether it is enabled or not.
+//  ProjectionSettings settings = 3;
+//
+//  // Whether the projection should start automatically after creation.
+//  bool autoStart = 4;
+//}
+//
+//message CreateProjectionResponse {
+//  oneof result {
+//    CreateProjectionSuccess success = 1;
+//    CreateProjectionFailure failure = 2;
+//  }
+//}
+//
+//message CreateProjectionSuccess { }
+//
+//message CreateProjectionFailure {
+//  oneof error {
+//    CoreErrorDetails.AccessDenied  access_denied  = 2;
+//    CoreErrorDetails.AlreadyExists already_exists = 3;
+//  }
+//}
+//
+//message ProjectionSettings {
+//  // Whether the projection is enabled or not.
+//  bool emit_enabled = 1;
+//
+//  // Whether to track emitted streams.
+//  bool track_emitted_streams = 2;
+//
+//  // The number of records after which a checkpoint will be created.
+//  int64 checkpoint_after = 3;
+//
+//  // The threshold for the number of handled records before a checkpoint is created.
+//  int64 checkpoint_handled_threshold = 4;
+//
+//  // The threshold for the number of unhandled bytes before a checkpoint is created.
+//  int64 checkpoint_unhandled_bytes_threshold = 5;
+//
+//  // The maximum number of pending records before the projection is considered overloaded.
+//  int64 pending_records_threshold = 6;
+//
+//  // The maximum length of a write batch.
+//  int64 max_write_batch_length = 7;
+//
+//  // The maximum number of writes that can be in flight at any time.
+//  int64 max_allowed_writes_in_flight = 8;
+//
+//  // The timeout for projection execution in milliseconds.
+//  int64 projection_execution_timeout = 9;
+//
+//}
+//
+//
+//enum ProjectionMode {
+//  Unspecified = 0;
+//  Continuous  = 1;
+//  OneTime     = 2;
+//  Transient   = 3;
+//}

@@ -1,0 +1,38 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Tests/">
+    <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj">
+      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+    </Project>
+    <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj">
+      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+    </Project>
+    <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" Type="C#" />
+  </Folder>
+  <Folder Name="/Variant/">
+    <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj">
+      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+    </Project>
+    <Project Path="src\Variant\Variant.csproj">
+      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+    </Project>
+    <Project Path="test\Variant.Tests\Variant.Tests.csproj">
+      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+    </Project>
+  </Folder>
+  <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj">
+    <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+    <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+  </Project>
+  <Project Path="src\KurrentDB.Client\KurrentDB.Client.csproj">
+    <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
+    <Configuration Solution="Release|x64" Project="Release|Any CPU" />
+  </Project>
+</Solution>

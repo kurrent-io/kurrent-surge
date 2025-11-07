@@ -1,0 +1,40 @@
+// ******************************************************************************************
+// This protocol is UNSTABLE in the sense of being subject to change.
+// ******************************************************************************************
+
+syntax = "proto3";
+
+package kurrentdb.protocol.v2.subscriptions.errors;
+
+option csharp_namespace = "KurrentDB.Protocol.V2.PersistentSubscriptions.Errors";
+
+import "kurrent/rpc/rpc.proto";
+
+// Error codes specific to the Persistent Subscriptions API.
+enum PersistentSubscriptionsError {
+  // Default value. This value is not used.
+  // An error code MUST always be set to a non-zero value.
+  // If an error code is not explicitly set, it MUST be treated as
+  // an internal server error (INTERNAL).
+  PERSISTENT_SUBSCRIPTIONS_ERROR_UNSPECIFIED = 0;
+
+  // The specified persistent subscription failed.
+  // This may indicate a configuration issue or a problem with the underlying system.
+  // Please check the logs for more details.
+  PERSISTENT_SUBSCRIPTIONS_ERROR_FAILED = 1 [(kurrent.rpc.error) = {
+    status_code: INTERNAL
+  }];
+
+  // The maximum number of subscribers for the stream has been reached.
+  // Please try again later or increase the limit.
+  PERSISTENT_SUBSCRIPTIONS_ERROR_MAXIMUM_SUBSCRIBERS_REACHED = 2 [(kurrent.rpc.error) = {
+    status_code: FAILED_PRECONDITION
+  }];
+
+  // The persistent subscription has been dropped.
+  // This can happen due to various reasons such as network issues, server overload, or manual intervention.
+  // Please check the subscription status and try again.
+  PERSISTENT_SUBSCRIPTIONS_ERROR_SUBSCRIPTION_DROPPED = 3 [(kurrent.rpc.error) = {
+    status_code: UNAVAILABLE
+  }];
+}

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Kurrent.Client.SourceGenerators</RootNamespace>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- This ensures the project itself is treated as an analyzer package -->
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Humanizer.Core"/>
+
+    <!-- Roslyn API for writing C# Source Generators -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="All" />
+    <!-- Analyzers package, often included with CSharp but good to be explicit -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="All" />
+  </ItemGroup>
+</Project>
