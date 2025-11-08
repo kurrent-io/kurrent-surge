@@ -74,7 +74,7 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build -c Release -f net${{ matrix.dotnet }} --no-restore
+        run: dotnet build -c Release --no-restore
 
       - name: Run Unit Tests
         run: |
