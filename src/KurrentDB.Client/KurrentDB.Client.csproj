@@ -108,6 +108,8 @@
     <Compile Remove="Kurrent.Client\Modules\Connectors\**" />
     <Compile Include="Kurrent.Client\Modules\PersistentSubscriptions\ErrorDetails.cs" />
     <Compile Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
+    <Compile Remove="Kurrent.Client\Modules\Streams\Operations\Subscribe\**" />
+    <Compile Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -118,6 +120,8 @@
     <EmbeddedResource Remove="Kurrent.Client\Modules\Admin\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\Connectors\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
+    <EmbeddedResource Remove="Kurrent.Client\Modules\Streams\Operations\Subscribe\**" />
+    <EmbeddedResource Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -128,9 +132,14 @@
     <None Remove="Kurrent.Client\Modules\Admin\**" />
     <None Remove="Kurrent.Client\Modules\Connectors\**" />
     <None Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
+    <None Remove="Kurrent.Client\Modules\Streams\Operations\Subscribe\**" />
+    <None Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\global,json">
+      <Link>global,json</Link>
+    </Content>
     <Content Include="Kurrent.Client\Modules\Registry\.DS_Store" />
   </ItemGroup>
 

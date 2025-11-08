@@ -36,7 +36,7 @@ public sealed record Messages : IAsyncEnumerable<ReadMessage>, IAsyncDisposable 
     }
 
     public async IAsyncEnumerator<ReadMessage> GetAsyncEnumerator(CancellationToken cancellationToken = default) {
-        ObjectDisposedException.ThrowIf(CompareExchange(ref _disposed, 0, 0) == 1, nameof(Subscription));
+        ObjectDisposedException.ThrowIf(CompareExchange(ref _disposed, 0, 0) == 1, nameof(Messages));
 
         if (CompareExchange(ref _enumeratorCreated, 1, 0) == 1)
             throw new InvalidOperationException("Only one enumerator can be active at a time");

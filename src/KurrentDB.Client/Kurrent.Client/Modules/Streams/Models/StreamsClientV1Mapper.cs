@@ -17,26 +17,26 @@ static class StreamsClientV1Mapper {
     static readonly Empty                                                     DefaultEmpty               = new();
 
     public static class Requests {
-        public static Contracts.ReadReq CreateSubscriptionRequest(AllSubscriptionOptions options) {
-            return new() { Options = new Contracts.ReadReq.Types.Options {
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                Subscription  = DefaultSubscriptionOptions,
-                UuidOption    = DefaultUuidOptions,
-                NoFilter      = DefaultEmpty,
-                All           = ConvertToAllOptions(options.Start),
-                Filter        = ConvertToFilterOptions(options.Filter, options.Heartbeat)
-            }};
-        }
-
-        public static Contracts.ReadReq CreateStreamSubscriptionRequest(StreamSubscriptionOptions options) {
-            return new() { Options = new() {
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                Subscription  = DefaultSubscriptionOptions,
-                UuidOption    = DefaultUuidOptions,
-                NoFilter      = DefaultEmpty,
-                Stream        = ConvertToStreamOptions(options.Stream, options.Start)
-            }};
-        }
+        // public static Contracts.ReadReq CreateSubscriptionRequest(AllSubscriptionOptions options) {
+        //     return new() { Options = new Contracts.ReadReq.Types.Options {
+        //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+        //         Subscription  = DefaultSubscriptionOptions,
+        //         UuidOption    = DefaultUuidOptions,
+        //         NoFilter      = DefaultEmpty,
+        //         All           = ConvertToAllOptions(options.Start),
+        //         Filter        = ConvertToFilterOptions(options.Filter, options.Heartbeat)
+        //     }};
+        // }
+        //
+        // public static Contracts.ReadReq CreateStreamSubscriptionRequest(StreamSubscriptionOptions options) {
+        //     return new() { Options = new() {
+        //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+        //         Subscription  = DefaultSubscriptionOptions,
+        //         UuidOption    = DefaultUuidOptions,
+        //         NoFilter      = DefaultEmpty,
+        //         Stream        = ConvertToStreamOptions(options.Stream, options.Start)
+        //     }};
+        // }
 
         public static Contracts.ReadReq CreateReadRequest(ReadAllOptions options) {
             return new Contracts.ReadReq {

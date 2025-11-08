@@ -15,6 +15,7 @@
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" Version="9.10.0" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.10.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.1.0" />
     <PackageVersion Include="NJsonSchema" Version="11.5.1" />
     <PackageVersion Include="OpenTelemetry.Api" Version="1.13.1" />
     <PackageVersion Include="Serilog.Enrichers.Demystifier" Version="1.0.3" />

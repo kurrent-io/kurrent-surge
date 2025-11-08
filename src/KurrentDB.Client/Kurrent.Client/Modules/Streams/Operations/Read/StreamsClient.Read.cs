@@ -103,7 +103,7 @@ public partial class StreamsClient {
                 // --------------------------------------------------------------
                 // since we are checking the stream details on a failure path,
                 // we must use the original cancellation token
-                var error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
+                dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
                     ok => ok.State switch {
                         StreamState.Deleted    => new StreamDeletedException(stream), // this cannot be an error right?
                         StreamState.Tombstoned => new StreamTombstonedException(stream),

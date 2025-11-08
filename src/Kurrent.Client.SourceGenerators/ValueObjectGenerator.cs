@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -8,6 +9,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Kurrent.Client.SourceGenerators;
 
 [Generator]
+[SuppressMessage("MicrosoftCodeAnalysisReleaseTracking", "RS2008:Enable analyzer release tracking")]
 public class ValueObjectGenerator : ISourceGenerator {
     const string ValueObjectAttributeKey = "Kurrent.ValueObjectAttribute";
 
@@ -104,7 +106,7 @@ public class ValueObjectGenerator : ISourceGenerator {
         nameof(ValueObjectGenerator),
         $"[{nameof(ValueObjectGenerator)}] starting",
         "CodeGeneration",
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor FoundTarget = new(
@@ -112,7 +114,7 @@ public class ValueObjectGenerator : ISourceGenerator {
         nameof(ValueObjectGenerator),
         $"[{nameof(ValueObjectGenerator)}] found type: {{0}} with value type: {{1}}",
         "CodeGeneration",
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor Failed = new(
@@ -120,7 +122,7 @@ public class ValueObjectGenerator : ISourceGenerator {
         nameof(ValueObjectGenerator),
         $"[{nameof(ValueObjectGenerator)}] failed: {{0}}",
         "Error",
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor ImplementationGenerated = new(
@@ -128,7 +130,7 @@ public class ValueObjectGenerator : ISourceGenerator {
         nameof(ValueObjectGenerator),
         $"[{nameof(ValueObjectGenerator)}] completed code generation for: {{0}}",
         "CodeGeneration",
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
     static void ReportDiagnostic(GeneratorExecutionContext context, DiagnosticDescriptor descriptor, params object?[]? messageArgs) {

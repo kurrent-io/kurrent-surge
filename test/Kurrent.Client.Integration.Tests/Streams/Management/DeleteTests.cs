@@ -5,7 +5,9 @@ using Kurrent.Client.Tests.Tools;
 
 namespace Kurrent.Client.Tests.Streams;
 
-[Category("Streams"), Category("Management"), Category("Delete")]
+[Category("Streams")]
+[Category("Delete")]
+[Category("Integration")]
 public class DeleteTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }

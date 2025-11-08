@@ -117,7 +117,7 @@ public partial class StreamsClient {
             return resp.Position.MapToLogPosition();
         }
         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
-            var error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
+            dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
                 ok => ok.State switch {
                     StreamState.Active     => new StreamRevisionConflictException(nameof(Delete), stream, revision, ok.LastStreamRevision),
                     StreamState.Deleted    => new StreamDeletedException(stream),
@@ -145,7 +145,7 @@ public partial class StreamsClient {
             return resp?.Position?.MapToLogPosition() ?? LogPosition.Unset;
         }
         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
-            var error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
+            dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
                 ok => ok.State switch {
                     StreamState.Active     => new StreamRevisionConflictException(nameof(Tombstone), stream, revision, ok.LastStreamRevision),
                     StreamState.Deleted    => new StreamDeletedException(stream),

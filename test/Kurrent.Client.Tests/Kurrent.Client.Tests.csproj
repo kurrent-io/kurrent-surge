@@ -5,6 +5,13 @@
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
+<!--  <ItemGroup>-->
+<!--    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />-->
+<!--    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />-->
+<!--    &lt;!&ndash;    <PackageReference Include="Microsoft.Testing.Extensions.CrashDump" />&ndash;&gt;-->
+<!--    &lt;!&ndash;    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />&ndash;&gt;-->
+<!--  </ItemGroup>-->
+
   <ItemGroup>
     <Using Include="Kurrent.Testing" />
     <Using Include="Shouldly" />
@@ -30,5 +37,10 @@
   <ItemGroup>
     <None Remove="Experimental\**" />
     <None Remove="Infra\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Integration\" />
+    <Folder Include="Modules\" />
   </ItemGroup>
 </Project>

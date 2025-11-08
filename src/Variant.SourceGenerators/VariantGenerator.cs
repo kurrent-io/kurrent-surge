@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -8,6 +9,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Kurrent.Variant.SourceGenerators;
 
 [Generator]
+[SuppressMessage("MicrosoftCodeAnalysisReleaseTracking", "RS2008:Enable analyzer release tracking")]
 public class VariantGenerator : ISourceGenerator {
     public void Initialize(GeneratorInitializationContext context) {
         #if DEBUG

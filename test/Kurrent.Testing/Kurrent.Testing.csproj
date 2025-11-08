@@ -7,7 +7,7 @@
     <Using Include="Shouldly" />
     <Using Include="TUnit" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Bogus" />
     <PackageReference Include="DiffEngine" />
@@ -21,10 +21,11 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
-<!--    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />-->
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
 <!--    <PackageReference Include="Microsoft.Testing.Extensions.CrashDump" />-->
 <!--    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />-->
-    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+
     <PackageReference Include="Polly" />
     <PackageReference Include="Polly.Contrib.WaitAndRetry" />
     <PackageReference Include="Serilog" />

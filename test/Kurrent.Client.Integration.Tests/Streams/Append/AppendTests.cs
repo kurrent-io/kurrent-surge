@@ -5,7 +5,8 @@ using Kurrent.Testing.TUnit;
 
 namespace Kurrent.Client.Tests.Streams;
 
-[Category("Streams"), Category("Streams_Append")]
+[Category("Streams")]
+[Category("Integration")]
 public class AppendTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }

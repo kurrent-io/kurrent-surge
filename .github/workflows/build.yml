@@ -1,0 +1,137 @@
+# Build, Test and Publish Workflow
+#
+# This workflow handles the CI/CD pipeline for Kurrent.Client:
+# - Builds and tests the code on every push to main and on PRs
+# - Runs tests and outputs results to GitHub Actions interface
+# - Creates and publishes NuGet packages when a tag is pushed
+#
+# To trigger a new package release:
+# 1. Create a tag: git tag v1.0.0
+# 2. Push the tag: git push origin v1.0.0
+#
+# The workflow will automatically build, test, and publish packages to GitHub Packages
+# when tags starting with 'v' are pushed.
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+  NuGetAudit: false
+  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+
+  MinVerDefaultPreReleasePhase: alpha
+  MinVerDefaultPreReleaseIdentifiers: ${{ github.event_name == 'pull_request' && format('pr.{0}.{1}', github.event.pull_request.number, github.run_number) || format('alpha.{0}', github.run_number) }}
+  MinVerAutoIncrement: patch
+  MinVerIgnoreHeight: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet: [ '8.0', '9.0', '10.0' ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Login to Cloudsmith Container Registry
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: docker.kurrent.io
+          username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+          password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.0.0
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release -f net${{ matrix.dotnet }} --no-restore
+
+      - name: Run Unit Tests
+        run: |
+          dotnet run -c Release -f net${{ matrix.dotnet }} --no-build \
+          --project test/Kurrent.Client.Integration.Tests \
+          --results-directory "./artifacts/test-results" \
+          --report-trx --report-trx-filename "unit-tests.trx"  \
+          --treenode-filter "/*/*/*/*[Category!=Integration]"
+
+      - name: Run Integration Tests
+        run: |
+          dotnet run -c Release -f net${{ matrix.dotnet }} --no-build \
+          --project test/Kurrent.Client.Integration.Tests \
+          --results-directory "./artifacts/test-results" \
+          --report-trx --report-trx-filename "integration-tests.trx"  \
+          --treenode-filter "/*/*/*/*[Category=Integration]"
+
+      - name: Test Reports
+        uses: dorny/test-reporter@v2.1.1
+        if: success() || failure()
+        with:
+          name: .NET ${{ matrix.dotnet }} Tests
+          path: '**/artifacts/test-results/*.trx'
+          reporter: dotnet-trx
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v5.0.0
+        if: always()
+        continue-on-error: true
+        with:
+          name: Test Results ${{ matrix.dotnet }}
+          path: ./artifacts/test-results
+          overwrite: true
+          include-hidden-files: true
+
+      - name: Pack
+        run: dotnet pack --configuration Release --no-build -o ./artifacts/packages
+
+      - name: Push Packages to GitHub
+        if: github.event_name != 'pull_request'
+        run: |
+          dotnet nuget add source \
+          --username ${{ github.actor }} \
+          --password ${{ secrets.GITHUB_TOKEN }} \
+          --store-password-in-clear-text \
+          --name github \
+          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+          dotnet nuget push ./artifacts/packages/*.nupkg \
+          --skip-duplicate \
+          --source github \
+          --api-key ${{ secrets.GITHUB_TOKEN }}
+
+#      - name: Push Packages to NuGet
+#        if: github.event_name != 'pull_request'
+#        run: |
+#          dotnet nuget push ./artifacts/packages/*.nupkg \
+#          --skip-duplicate \
+#          --source https://api.nuget.org/v3/index.json \
+#          --api-key ${{ secrets.KURRENT_NUGET_KEY }}

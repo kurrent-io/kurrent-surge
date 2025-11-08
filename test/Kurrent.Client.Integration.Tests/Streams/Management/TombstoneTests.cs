@@ -4,7 +4,9 @@ using Kurrent.Client.Tests.Tools;
 
 namespace Kurrent.Client.Tests.Streams;
 
-[Category("Streams"), Category("Management"), Category("Tombstone")]
+[Category("Streams")]
+[Category("Tombstone")]
+[Category("Integration")]
 public class TombstoneTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }

@@ -15,7 +15,8 @@
 
     <!-- Warnings -->
     <!-- NETSDK1057 - You are using a preview version of .NET -->
-    <NoWarn>$(NoWarn);NETSDK1057</NoWarn>
+    <!-- RS2008: Enable analyzer release tracking for the analyzer project containing rule `[RULE_CODE]` -->
+    <NoWarn>$(NoWarn);NETSDK1057;RS2008</NoWarn>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
 
     <!-- Deterministic builds -->
@@ -24,6 +25,9 @@
 
     <!-- Define the repository root directory -->
     <RepoRoot>$([System.IO.Directory]::GetParent($(MSBuildThisFileDirectory)).FullName)</RepoRoot>
+
+<!--    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>-->
+<!--    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>-->
 
   </PropertyGroup>
 

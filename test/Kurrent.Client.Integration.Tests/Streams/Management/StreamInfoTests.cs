@@ -7,7 +7,9 @@ using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Streams;
 
-[Category("Streams"), Category("Management"), Category("StreamInfo")]
+[Category("Streams")]
+[Category("StreamInfo")]
+[Category("Integration")]
 public class StreamInfoTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }

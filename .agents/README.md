@@ -20,7 +20,7 @@ This directory contains centralized instruction files for AI coding agents worki
 - `/AGENTS.md` → `.agents/instructions.md`
 - `/CLAUDE.md` → `.agents/instructions.md`
 - `/.junie/guidelines.md` → `.agents/instructions.md`
-- `/.github/copilot-instructions.md` → `.agents/prompt.md` (separate file)
+- `/.github/copilot-instructions.md` → `.agents/instructions.md`
 
 ## Why This Structure?
 
@@ -38,12 +38,4 @@ To modify agent instructions:
 2. Changes automatically propagate to all symlinked locations
 3. No need to update multiple files
 
-## Related Documentation
-
-- **`.project/project.md`** - Comprehensive AI agent guidance (architecture, patterns, workflows)
-- **`.project/reports/`** - Pattern validation and discrepancy reports
-
 ---
-
-*Maintained by: Engineering Team*
-*Last Updated: 2025-11-05*
