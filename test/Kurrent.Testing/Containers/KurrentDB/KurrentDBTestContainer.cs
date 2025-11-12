@@ -30,11 +30,7 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
             AuthenticatedConnectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=false";
             AnonymousConnectionString     = "kurrentdb://localhost:2113/?tls=false";
         }
-
-        Network = new Builder().UseNetwork("host").ReuseIfExist().Build();
     }
-
-    INetworkService Network { get; set; }
 
     public KurrentDBTestContainer() : this(KurrentDBConfiguration.Insecure.ToDictionary()) { }
 
@@ -56,7 +52,6 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
         }
 
         return builder
-            .UseNetwork(Network)
             .WithPublicEndpointResolver()
             .WithEnvironment(ActiveConfiguration)
             .ExposePort(DefaultPort, DefaultPort)
@@ -159,8 +154,11 @@ public static class KurrentDBConfiguration {
         ["KURRENTDB_USER_CERTIFICATES__ENABLED"] = "false",
 
         ["OTEL_LOG_LEVEL"]                           = "debug",
-        ["KURRENTDB__OPENTELEMETRY__LOGS__ENABLED"]  = "true",
-        ["KURRENTDB__OPENTELEMETRY__OTLP__ENDPOINT"] = "http://localhost:4317",
+
+        // TODO: Need License key environment variable
+        // ["KURRENTDB__OPENTELEMETRY__LOGS__ENABLED"]  = "true",
+        // ["KURRENTDB__OPENTELEMETRY__OTLP__ENDPOINT"] = "http://localhost:4317",
+
         // ["KURRENTDB__OPENTELEMETRY__LOGS__ENABLED"]  = "true",
         // ["KURRENTDB__OPENTELEMETRY__OTLP__ENDPOINT"] = "http://host.docker.internal:4317",
         // ["OPENTELEMETRY__LOGS__ENABLED"]             = "true",
