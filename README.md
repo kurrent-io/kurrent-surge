@@ -5,7 +5,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="/profile/KurrentLogo-White.png">
     <source media="(prefers-color-scheme: light)" srcset="/profile/KurrentLogo-Black.png">
-    <img alt="Kurrent" src="https://github.com/kurrent-io/.github/blob/master/profile/KurrentLogo-Plum.png" height="35%" width="35%">
+    <img alt="Kurrent" src="https://github.com/kurrent-io/.github/blob/main/profile/KurrentLogo-Plum.png" height="35%" width="35%">
   </picture>
 </a>
 
