@@ -1,3 +1,5 @@
+// ReSharper disable ConvertToLocalFunction
+
 namespace Kurrent.Variant.Tests.Result;
 
 public class ResultStaticMethodsTests {

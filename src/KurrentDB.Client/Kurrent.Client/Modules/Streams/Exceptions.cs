@@ -1,63 +1,14 @@
 // ReSharper disable CheckNamespace
 
-using System.CodeDom.Compiler;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using Google.Rpc;
-using Humanizer;
-using Kurrent.Client.Errors;
 using Kurrent.Client.Streams;
-using Kurrent.GoogleRpc;
 using KurrentDB.Protocol.V2.Streams.Errors;
 using Resources;
 using static System.String;
 
 namespace Kurrent.Client.Exceptions;
 
-[PublicAPI, CompilerGenerated, GeneratedCode("KurrentOperationExceptionGenerator", "1.0.0")]
-public partial class StreamNotFoundException : KurrentException, IKurrentOperationException<StreamNotFoundException> {
-    // public static ErrorCode Code { get; } = typeof(StreamNotFoundException).GetCustomAttribute<KurrentOperationErrorAttribute>()!.ErrorCode;
-
-    public static ErrorCode Code { get; } = ErrorCode.FromEnum(StreamsError.StreamNotFound);
-
-    public StreamNotFoundException(string message) : base(Code, message, innerException: null) { }
-
-    public StreamNotFoundException(Status status) : base(Code, status) {
-        try {
-            ((IKurrentOperationException<StreamNotFoundException>)this).AfterParseRpcStatus(status, this);
-        }
-        catch (Exception ex) {
-            throw new UnreachableException("EVERYTHING IS BROKEN! The StreamNotFoundException::AfterParseRpcStatus hook threw an exception.", ex);
-        }
-    }
-
-    public static bool TryParseRpcStatus(Status status, ErrorInfo? errorInfo, [MaybeNullWhen(false)] out StreamNotFoundException ex) {
-
-        var omg =    Code.Value.Equals(errorInfo?.Reason ?? "", StringComparison.OrdinalIgnoreCase) ||
-                     status.GetGrpcStatusCode().ToString().Underscore().ToUpperInvariant().Equals(Code.Value, StringComparison.OrdinalIgnoreCase);
-
-        //var fodax = Code.MatchesRpcStatusReason(status, errorInfo);
-
-        if (omg) {
-            ex = new StreamNotFoundException(status);
-            return true;
-        }
-
-        ex = null;
-        return false;
-
-        //return (ex = Code.MatchesRpcStatusReason(status, errorInfo) ? new StreamNotFoundException(status) : null) is not null;
-    }
-
-    public static StreamNotFoundException? From(Status status, ErrorInfo? errorInfo = null) =>
-        TryParseRpcStatus(status, errorInfo, out var ex)
-            ? ex
-            : null;
-}
-
-// [KurrentOperationError(StreamsError.StreamNotFound)]
+[KurrentOperationError(StreamsError.StreamNotFound)]
 public partial class StreamNotFoundException {
     public StreamNotFoundException(StreamName stream)
         : this(Format(ErrorMessages.StreamNotFoundException, stream)) { }

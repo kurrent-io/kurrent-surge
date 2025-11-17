@@ -1,10 +1,6 @@
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using Google.Protobuf;
-using Google.Protobuf.Collections;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 

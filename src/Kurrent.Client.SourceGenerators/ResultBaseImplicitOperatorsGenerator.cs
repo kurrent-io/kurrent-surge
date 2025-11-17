@@ -36,12 +36,10 @@ public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
     }
 
     static bool IsRecordDeclaration(SyntaxNode node) {
-        if (node is not RecordDeclarationSyntax recordDecl)
+        if (node is not RecordDeclarationSyntax)
             return false;
 
         return true;
-        // // Must be a record with a base type
-        // return recordDecl.BaseList?.Types.Count > 0;
     }
 
     static INamedTypeSymbol? GetSemanticTargetForGeneration(GeneratorSyntaxContext context) {

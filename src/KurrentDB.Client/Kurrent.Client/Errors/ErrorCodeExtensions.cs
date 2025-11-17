@@ -4,6 +4,7 @@ using Kurrent.GoogleRpc;
 
 namespace Kurrent.Client.Errors;
 
+[PublicAPI]
 public static class ErrorCodeExtensions {
     extension(ErrorCode errorCode) {
         public bool MatchesRpcStatusReason(Status status, ErrorInfo? errorInfo = null) =>

@@ -1,5 +1,4 @@
 ﻿using Kurrent;
-using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 
 namespace KurrentDB.Client;

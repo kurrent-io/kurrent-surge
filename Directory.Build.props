@@ -25,10 +25,6 @@
 
     <!-- Define the repository root directory -->
     <RepoRoot>$([System.IO.Directory]::GetParent($(MSBuildThisFileDirectory)).FullName)</RepoRoot>
-
-<!--    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>-->
-<!--    <TestingPlatformCaptureOutput>false</TestingPlatformCaptureOutput>-->
-
   </PropertyGroup>
 
   <ItemGroup Label="Default Packages">

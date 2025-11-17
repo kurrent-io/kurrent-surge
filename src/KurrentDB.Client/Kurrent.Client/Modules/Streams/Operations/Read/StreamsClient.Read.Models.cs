@@ -1,5 +1,3 @@
-#pragma warning disable CS8604 // Possible null reference argument.
-
 using Kurrent.Client.Exceptions;
 using Kurrent.Variant;
 

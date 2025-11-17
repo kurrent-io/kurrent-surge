@@ -1,6 +1,5 @@
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Model.Builders;
-using Ductus.FluentDocker.Services;
 using Kurrent.Testing.Containers.FluentDocker;
 using Microsoft.Extensions.Configuration;
 using TUnit.Core.Interfaces;

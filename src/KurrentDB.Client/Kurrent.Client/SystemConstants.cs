@@ -1,5 +1,3 @@
-// using Kurrent.Client.Registry;
-
 namespace Kurrent.Client;
 
 public static class SystemConstants {

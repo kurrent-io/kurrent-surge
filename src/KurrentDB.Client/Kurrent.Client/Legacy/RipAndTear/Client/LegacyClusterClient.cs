@@ -14,7 +14,7 @@ namespace KurrentDB.Client;
 /// Just an attempt to make the components a bit more usable and readable until we can
 /// get rid of the legacy code related with .NET48 and custom gRPC channels and discovery.
 /// </summary>
-class LegacyClusterClient {
+class LegacyClusterClient : IAsyncDisposable {
     readonly CancellationTokenSource                            _cancellator;
     readonly ChannelCache                                       _channelCache;
     readonly SharingProvider<ReconnectionRequired, ChannelInfo> _channelInfoProvider;

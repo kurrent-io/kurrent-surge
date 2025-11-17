@@ -4,17 +4,18 @@ using Serilog;
 
 namespace Kurrent.Testing.Containers.FluentDocker;
 
+[PublicAPI]
 public abstract class TestStack {
 	static readonly ILogger Logger = Log.ForContext<TestStack>();
 
-	static TestStack() => Ductus.FluentDocker.Services.Logging.Enabled();
+	static TestStack() => Logging.Enabled();
 
 	protected TestStack(string? serviceName = null) =>
 		ServiceName = serviceName ?? GetType().Name.Replace("TestStack", string.Empty).ToLowerInvariant();
 
 	string ServiceName { get; }
 
-	protected ICompositeService Service { get; set; } = default!;
+	protected ICompositeService Service { get; set; } = null!;
 
 	protected abstract ICompositeService CreateService();
 

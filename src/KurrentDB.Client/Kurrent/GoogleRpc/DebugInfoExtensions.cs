@@ -1,4 +1,3 @@
-using System.Runtime.ExceptionServices;
 using Google.Rpc;
 
 namespace Kurrent.GoogleRpc;

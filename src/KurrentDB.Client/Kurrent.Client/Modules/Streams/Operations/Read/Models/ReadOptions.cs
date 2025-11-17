@@ -1,5 +1,3 @@
-using Kurrent.Variant;
-
 namespace Kurrent.Client.Streams;
 
 // /// <summary>
@@ -124,25 +122,25 @@ public record ReadAllOptions : ReadOptionsBase {
 
     public override void EnsureValid() {
         base.EnsureValid();
-        ArgumentOutOfRangeException.ThrowIfLessThan(Start, LogPosition.Earliest);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Start, LogPosition.Earliest, nameof(Start));
     }
 
-    internal static ReadAllOptions FirstRecord(CancellationToken cancellationToken = default) =>
+    internal static ReadAllOptions FirstRecord(CancellationToken ct = default) =>
         new() {
             Start             = LogPosition.Earliest,
             Direction         = ReadDirection.Forwards,
             Limit             = 1,
             Heartbeat         = HeartbeatOptions.Disabled,
-            CancellationToken = cancellationToken
+            CancellationToken = ct
         };
 
-    internal static ReadAllOptions LastRecord(CancellationToken cancellationToken = default) =>
+    internal static ReadAllOptions LastRecord(CancellationToken ct = default) =>
         new() {
             Start             = LogPosition.Latest,
             Direction         = ReadDirection.Backwards,
             Limit             = 1,
             Heartbeat         = HeartbeatOptions.Disabled,
-            CancellationToken = cancellationToken
+            CancellationToken = ct
         };
 }
 
@@ -155,8 +153,8 @@ public record ReadStreamOptions : ReadOptionsBase {
     public override void EnsureValid() {
         base.EnsureValid();
 
-        ArgumentException.ThrowIfNullOrEmpty(Stream);
-        ArgumentOutOfRangeException.ThrowIfLessThan(Start, StreamRevision.Min);
+        ArgumentException.ThrowIfNullOrEmpty(Stream, nameof(Stream));
+        ArgumentOutOfRangeException.ThrowIfLessThan(Start, StreamRevision.Min, nameof(Start));
 
         if (Direction == ReadDirection.Forwards && Start == StreamRevision.Max)
             throw new ArgumentException(

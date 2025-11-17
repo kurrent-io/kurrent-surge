@@ -1,3 +1,5 @@
+// ReSharper disable UnusedParameter.Local
+
 using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;

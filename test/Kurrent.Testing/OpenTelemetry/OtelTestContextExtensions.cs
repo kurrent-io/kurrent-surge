@@ -1,5 +1,6 @@
 namespace Kurrent.Testing.OpenTelemetry;
 
+[PublicAPI]
 public static class OtelTestContextExtensions {
     extension(TestContext? context) {
         public void ConfigureOtel(OtelServiceMetadata metadata) {
@@ -11,7 +12,7 @@ public static class OtelTestContextExtensions {
             context is not null && context.StateBag.Items.TryGetValue("OTEL_RESOURCE_ATTRIBUTES", out var value) && value is string resourceAttributes
                 ? OtelServiceMetadata.Parse(resourceAttributes)
                 : OtelServiceMetadata.None;
-    }
 
-    public static void SetOtelServiceName(this TestContext context, string serviceName) => ConfigureOtel(context, new OtelServiceMetadata(serviceName));
+        public void SetOtelServiceName(string serviceName) => ConfigureOtel(context, new OtelServiceMetadata(serviceName));
+    }
 }

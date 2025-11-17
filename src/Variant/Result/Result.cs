@@ -1,3 +1,6 @@
+// ReSharper disable RedundantAssignment
+// ReSharper disable CheckNamespace
+
 using System.Diagnostics;
 
 namespace Kurrent;

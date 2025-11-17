@@ -7,9 +7,9 @@ public readonly record struct GameId(Guid Value);
 
 public record GameStarted(Guid GameId, Player FirstPlayer);
 
-public record PlayerTurn(Player Player, Position Position, string? MoveDescription = null);
-
-public record GameUpdated(Guid GameId, GameStatus NewStatus, string? UpdateNotes = null);
+// public record PlayerTurn(Player Player, Position Position, string? MoveDescription = null);
+//
+// public record GameUpdated(Guid GameId, GameStatus NewStatus, string? UpdateNotes = null);
 
 public record InvalidMoveError(Guid GameId, string Reason, string? StateContext = null) : IResultError {
 	public ErrorCode ErrorCode => ErrorCode.From("INVALID_MOVE");

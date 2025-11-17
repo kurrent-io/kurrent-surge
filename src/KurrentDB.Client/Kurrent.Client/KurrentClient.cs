@@ -10,7 +10,7 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Client;
 
 [PublicAPI]
-public class KurrentClient : IAsyncDisposable {
+public sealed class KurrentClient : IAsyncDisposable {
 	public static KurrentClientOptionsBuilder New => new KurrentClientOptionsBuilder();
 
     public KurrentClient(KurrentClientOptions options) {

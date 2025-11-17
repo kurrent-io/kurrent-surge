@@ -9,6 +9,7 @@ namespace Kurrent.Client.Errors;
 /// It provides a way to centralize and convey rich error information.
 /// </remarks>
 /// </summary>
+[PublicAPI]
 public class KurrentErrorDetails {
     public static readonly KurrentErrorDetails None = new();
 

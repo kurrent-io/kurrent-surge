@@ -1,5 +1,3 @@
-using Kurrent.Validation;
-
 namespace Kurrent.Client.Streams;
 
 // [PublicAPI]
@@ -38,6 +36,6 @@ public readonly record struct CategoryName {
             : new(value);
     }
 
-    public static implicit operator CategoryName(string _)  => From(_);
-    public static implicit operator string(CategoryName id) => id.ToString();
+    public static implicit operator CategoryName(string _) => From(_);
+    public static implicit operator string(CategoryName _) => _.ToString();
 }

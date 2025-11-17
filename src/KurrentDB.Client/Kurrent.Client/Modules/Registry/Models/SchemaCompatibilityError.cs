@@ -1,6 +1,5 @@
 using System.Collections;
 using Google.Protobuf.Collections;
-using Kurrent.Client.Exceptions;
 using NJsonSchema;
 
 using Contracts = KurrentDB.Protocol.V2.Registry;

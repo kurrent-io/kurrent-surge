@@ -1,9 +1,8 @@
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+#pragma warning disable SYSLIB0057
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-
-#pragma warning disable SYSLIB0057
 
 namespace KurrentDB.Client;
 
@@ -27,7 +26,7 @@ static class RsaExtensions {
 
 		if (label == RsaPemLabels.Pkcs8PrivateKey)
 			rsa.ImportPkcs8PrivateKey(privateKeyBytes, out _);
-		else if (label == RsaPemLabels.RSAPrivateKey)
+		else if (label == RsaPemLabels.RsaPrivateKey)
 			rsa.ImportRSAPrivateKey(privateKeyBytes, out _);
 
 		return rsa;
@@ -45,11 +44,11 @@ static class RsaExtensions {
 }
 
 static class RsaPemLabels {
-	public const string RSAPrivateKey            = "RSA PRIVATE KEY";
+	public const string RsaPrivateKey            = "RSA PRIVATE KEY";
 	public const string Pkcs8PrivateKey          = "PRIVATE KEY";
 	public const string EncryptedPkcs8PrivateKey = "ENCRYPTED PRIVATE KEY";
 
-	public static readonly string[] PrivateKeyLabels = [RSAPrivateKey, Pkcs8PrivateKey, EncryptedPkcs8PrivateKey];
+	public static readonly string[] PrivateKeyLabels = [RsaPrivateKey, Pkcs8PrivateKey, EncryptedPkcs8PrivateKey];
 
 	public static bool IsPrivateKey(string label) => Array.IndexOf(PrivateKeyLabels, label) != -1;
 

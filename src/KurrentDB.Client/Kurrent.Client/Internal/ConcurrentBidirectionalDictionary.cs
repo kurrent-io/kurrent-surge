@@ -397,7 +397,7 @@ class ConcurrentBidirectionalDictionary<TKey, TValue> : IDictionary<TKey, TValue
         if (_disposed) return;
 
         if (disposing)
-            _lock?.Dispose();
+            _lock.Dispose();
 
         _disposed = true;
     }

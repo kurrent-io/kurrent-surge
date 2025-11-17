@@ -1,5 +1,3 @@
-using Kurrent.Variant;
-
 namespace Kurrent.Client.Streams;
 
 // public readonly record struct MyRecordFilter {

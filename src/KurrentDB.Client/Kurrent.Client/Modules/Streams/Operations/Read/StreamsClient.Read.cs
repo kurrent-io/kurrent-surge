@@ -17,6 +17,18 @@ using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient {
+    /// <summary>
+    /// Inspects a record at the specified log position.
+    /// </summary>
+    /// <param name="position">
+    /// The log position to inspect. Must not be <see cref="LogPosition.Unset"/>. Use <see cref="LogPosition.Earliest"/> or <see cref="LogPosition.Latest"/> to inspect the first or last record respectively.
+    /// </param>
+    /// <param name="skipDecoding">
+    /// If true, the record's data and metadata will not be deserialized.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A cancellation token to observe while waiting for the task to complete.
+    /// </param>
     public async ValueTask<Result<Record, InspectRecordError>> InspectRecord(LogPosition position, bool skipDecoding = true, CancellationToken cancellationToken = default) {
         try {
             var request = position switch {
@@ -47,6 +59,21 @@ public partial class StreamsClient {
         }
     }
 
+    /// <summary>
+    /// Reads the first or last record from a stream.
+    /// </summary>
+    /// <param name="stream">
+    /// The name of the stream to read from.
+    /// </param>
+    /// <param name="direction">
+    /// The direction in which to read the stream edge. Use <see cref="ReadDirection.Forwards"/> to read the first record, or <see cref="ReadDirection.Backwards"/> to read the last record.
+    /// </param>
+    /// <param name="skipDecoding">
+    /// If true, the record's data and metadata will not be deserialized.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A cancellation token to observe while waiting for the task to complete.
+    /// </param>
     public async ValueTask<Result<Record, ReadError>> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding, CancellationToken cancellationToken) {
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction);
@@ -122,7 +149,8 @@ public partial class StreamsClient {
         }
 
         // Creates a factory function instead of starting immediately
-        var channelFactory = new Func<Channel<ReadMessage>>(() => StartReadMessageRelay(session, bufferSize, timeout, skipDecoding, cancellator));
+        var channelFactory = new Func<Channel<ReadMessage>>(
+            () => StartReadMessageRelay(session, bufferSize, timeout, skipDecoding, cancellator));
 
         return new Messages(channelFactory);
     }

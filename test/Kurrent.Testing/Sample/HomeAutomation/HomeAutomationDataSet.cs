@@ -1,11 +1,13 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
+// ReSharper disable UnusedParameter.Local
+
 using Bogus;
 
 namespace Kurrent.Testing.Sample.HomeAutomation;
 
-public partial class HomeAutomationDataSet : DataSet {
+public class HomeAutomationDataSet : DataSet {
     public static readonly HomeAutomationDataSet Default = new();
 
     public HomeAutomationDataSet(string locale = "en") : base(locale) =>

@@ -1,3 +1,5 @@
+// ReSharper disable UnusedParameter.Local
+
 using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
@@ -12,8 +14,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => gameId,
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            () => gameId,
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -27,11 +30,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => {
-                throw new InvalidOperationException(exceptionMessage);
-                return new GameId(Guid.Empty);
-            },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            () => throw new InvalidOperationException(exceptionMessage),
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -45,11 +46,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => {
-                throw new ArgumentException("Invalid game");
-                return new GameId(Guid.Empty);
-            },
-            exceptionFactory: ex => new GameEndedError(gameId, GameStatus.Draw));
+            () => throw new ArgumentException("Invalid game"),
+            ex => new GameEndedError(gameId, GameStatus.Draw)
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -64,11 +63,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => {
-                throw new InvalidOperationException(exceptionMessage);
-                return new Position(0, 0);
-            },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, $"Caught: {ex.Message}"));
+            () => throw new InvalidOperationException(exceptionMessage),
+            ex => new InvalidMoveError(Guid.Empty, $"Caught: {ex.Message}")
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -80,13 +77,14 @@ public class ResultTryTests {
     public void try_with_state_executes_operation_with_provided_state() {
         // Arrange
         var multiplier = Faker.Random.Int(2, 10);
-        var baseValue = Faker.Random.Int(1, 100);
+        var baseValue  = Faker.Random.Int(1, 100);
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: state => state * baseValue,
-            exceptionFactory: (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
-            state: multiplier);
+            state => state * baseValue,
+            (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
+            multiplier
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -100,12 +98,10 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: (Guid id) => {
-                throw new InvalidOperationException("Error");
-                return new GameId(id);
-            },
-            exceptionFactory: (id, ex) => new InvalidMoveError(id, ex.Message),
-            state: gameId);
+            id => throw new InvalidOperationException("Error"),
+            (id, ex) => new InvalidMoveError(id, ex.Message),
+            gameId
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -115,17 +111,18 @@ public class ResultTryTests {
     [Test]
     public void try_with_state_avoids_closure_allocation() {
         // Arrange
-        var stateValue = Faker.Random.Int(1, 100);
+        var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: state => {
+            state => {
                 capturedState = state;
                 return new GameId(Guid.NewGuid());
             },
-            exceptionFactory: (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
-            state: stateValue);
+            (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
+            stateValue
+        );
 
         // Assert
         capturedState.ShouldBe(stateValue);
@@ -139,11 +136,12 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.Delay(1);
                 return gameId;
             },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -157,12 +155,12 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.Delay(1);
                 throw new InvalidOperationException(exceptionMessage);
-                return new GameId(Guid.Empty);
             },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -173,16 +171,17 @@ public class ResultTryTests {
     public async ValueTask try_async_with_state_executes_with_provided_state() {
         // Arrange
         var multiplier = Faker.Random.Int(2, 10);
-        var baseValue = Faker.Random.Int(1, 100);
+        var baseValue  = Faker.Random.Int(1, 100);
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async state => {
+            async state => {
                 await Task.Delay(1);
                 return state * baseValue;
             },
-            exceptionFactory: (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
-            state: multiplier);
+            (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
+            multiplier
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -196,13 +195,13 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async (Guid id) => {
+            async id => {
                 await Task.Delay(1);
                 throw new InvalidOperationException("Async error");
-                return new GameId(id);
             },
-            exceptionFactory: (id, ex) => new InvalidMoveError(id, ex.Message),
-            state: gameId);
+            (id, ex) => new InvalidMoveError(id, ex.Message),
+            gameId
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -216,8 +215,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => sideEffectExecuted = true,
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            () => sideEffectExecuted = true,
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -231,8 +231,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => throw new InvalidOperationException(exceptionMessage),
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            () => throw new InvalidOperationException(exceptionMessage),
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -242,14 +243,15 @@ public class ResultTryTests {
     [Test]
     public void try_with_action_and_state_executes_with_provided_state() {
         // Arrange
-        var stateValue = Faker.Random.Int(1, 100);
+        var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: state => capturedState = state,
-            exceptionFactory: (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
-            state: stateValue);
+            state => capturedState = state,
+            (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
+            stateValue
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -263,9 +265,10 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: (Guid id) => throw new InvalidOperationException("State action error"),
-            exceptionFactory: (id, ex) => new InvalidMoveError(id, ex.Message),
-            state: gameId);
+            id => throw new InvalidOperationException("State action error"),
+            (id, ex) => new InvalidMoveError(id, ex.Message),
+            gameId
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -279,11 +282,12 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.Delay(1);
                 sideEffectExecuted = true;
             },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -297,11 +301,12 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.Delay(1);
                 throw new InvalidOperationException(exceptionMessage);
             },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            ex => new InvalidMoveError(Guid.Empty, ex.Message)
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -311,17 +316,18 @@ public class ResultTryTests {
     [Test]
     public async ValueTask try_async_with_action_and_state_executes_with_provided_state() {
         // Arrange
-        var stateValue = Faker.Random.Int(1, 100);
+        var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async state => {
+            async state => {
                 await Task.Delay(1);
                 capturedState = state;
             },
-            exceptionFactory: (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
-            state: stateValue);
+            (state, ex) => new InvalidMoveError(Guid.Empty, ex.Message),
+            stateValue
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -335,12 +341,13 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async (Guid id) => {
+            async id => {
                 await Task.Delay(1);
                 throw new InvalidOperationException("Async state action error");
             },
-            exceptionFactory: (id, ex) => new InvalidMoveError(id, ex.Message),
-            state: gameId);
+            (id, ex) => new InvalidMoveError(id, ex.Message),
+            gameId
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -351,18 +358,12 @@ public class ResultTryTests {
     public void try_handles_different_exception_types() {
         // Arrange & Act
         var argumentResult = Kurrent.Result.Try(
-            operation: () => {
-                throw new ArgumentException("Argument");
-                return 1;
-            },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name));
+            () => throw new ArgumentException("Argument"),
+            ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name));
 
         var invalidOpResult = Kurrent.Result.Try(
-            operation: () => {
-                throw new InvalidOperationException("InvalidOp");
-                return 1;
-            },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name));
+            () => throw new InvalidOperationException("InvalidOp"),
+            ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name));
 
         // Assert
         argumentResult.Error.Reason.ShouldBe("ArgumentException");
@@ -374,16 +375,14 @@ public class ResultTryTests {
         // Arrange
         var zero = 0;
         var operations = new List<Func<int>> {
-            () => 10 / 2,     // Safe
-            () => 10 / zero,  // Throws
-            () => 10 / 5      // Safe but won't execute due to previous error
+            () => 10 / 2,    // Safe
+            () => 10 / zero, // Throws
+            () => 10 / 5     // Safe but won't execute due to previous error
         };
 
         // Act
         var results = operations
-            .Select(op => Kurrent.Result.Try(
-                operation: op,
-                exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message)))
+            .Select(op => Kurrent.Result.Try(op, ex => new InvalidMoveError(Guid.Empty, ex.Message)))
             .ToList();
 
         // Assert
@@ -398,32 +397,32 @@ public class ResultTryTests {
     public async ValueTask try_async_handles_task_cancellation() {
         // Arrange
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.Delay(100, cts.Token);
                 return new GameId(Guid.NewGuid());
             },
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name));
+            ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name)
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
         result.Error.Reason.ShouldContain("Cancel");
     }
 
-
     [Test]
     public void try_with_multiple_error_types() {
         // Arrange & Act
         var gameResult = Kurrent.Result.Try(
-            operation: () => throw new InvalidOperationException("Game error"),
-            exceptionFactory: ex => new InvalidMoveError(Guid.Empty, ex.Message));
+            () => throw new InvalidOperationException("Game error"),
+            ex => new InvalidMoveError(Guid.Empty, ex.Message));
 
         var endedResult = Kurrent.Result.Try(
-            operation: () => throw new ArgumentException("Ended error"),
-            exceptionFactory: ex => new GameEndedError(Guid.Empty, GameStatus.Draw));
+            () => throw new ArgumentException("Ended error"),
+            ex => new GameEndedError(Guid.Empty, GameStatus.Draw));
 
         // Assert
         gameResult.IsFailure.ShouldBeTrue();
@@ -438,9 +437,10 @@ public class ResultTryTests {
         var input = Faker.Random.Int(1, 100);
 
         // Act
-        var pipeline = Kurrent.Result.Try(
-                operation: () => input,
-                exceptionFactory: ex => new SimpleError(ex.Message))
+        var pipeline = Kurrent.Result
+            .Try(
+                () => input,
+                ex => new SimpleError(ex.Message))
             .Map(val => val * 2)
             .Map(val => val.ToString());
 
@@ -455,9 +455,10 @@ public class ResultTryTests {
         var validInput = Faker.Random.Int(1, 100);
 
         // Act
-        var pipeline = Kurrent.Result.Try(
-                operation: () => validInput,
-                exceptionFactory: ex => new SimpleError(ex.Message))
+        var pipeline = Kurrent.Result
+            .Try(
+                () => validInput,
+                ex => new SimpleError(ex.Message))
             .Bind(val => val > 0
                 ? Kurrent.Result.Success<int, SimpleError>(val * 2)
                 : Kurrent.Result.Failure<int, SimpleError>(new SimpleError("Negative value")));
@@ -474,8 +475,8 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => nullString!.Length,
-            exceptionFactory: ex => new SimpleError($"Null reference: {ex.GetType().Name}"));
+            () => nullString!.Length,
+            ex => new SimpleError($"Null reference: {ex.GetType().Name}"));
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -489,8 +490,8 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => 10 / zero,
-            exceptionFactory: ex => new SimpleError($"Math error: {ex.Message}"));
+            () => 10 / zero,
+            ex => new SimpleError($"Math error: {ex.Message}"));
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -504,8 +505,9 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => array[10],
-            exceptionFactory: ex => new SimpleError($"Index error: {ex.GetType().Name}"));
+            () => array[10],
+            ex => new SimpleError($"Index error: {ex.GetType().Name}")
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -516,11 +518,8 @@ public class ResultTryTests {
     public void try_preserves_stack_trace_information() {
         // Arrange & Act
         var result = Kurrent.Result.Try(
-            operation: () => {
-                throw new InvalidOperationException("Deep error");
-                return 42;
-            },
-            exceptionFactory: ex => new SimpleError(ex.StackTrace ?? "No stack trace"));
+            () => throw new InvalidOperationException("Deep error"),
+            ex => new SimpleError(ex.StackTrace ?? "No stack trace"));
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -530,16 +529,13 @@ public class ResultTryTests {
     [Test]
     public void try_with_custom_exception_factory_adds_context() {
         // Arrange
-        var gameId = Faker.Random.Guid();
+        var gameId      = Faker.Random.Guid();
         var contextInfo = Faker.Lorem.Sentence();
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => {
-                throw new InvalidOperationException("Operation failed");
-                return new Position(0, 0);
-            },
-            exceptionFactory: ex => new InvalidMoveError(gameId, $"{contextInfo}: {ex.Message}"));
+            () => throw new InvalidOperationException("Operation failed"),
+            ex => new InvalidMoveError(gameId, $"{contextInfo}: {ex.Message}"));
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -550,16 +546,17 @@ public class ResultTryTests {
     [Test]
     public async ValueTask try_async_with_timeout_simulation() {
         // Arrange
-        using var cts = new CancellationTokenSource();
-        var delay = 100;
+        using var cts   = new CancellationTokenSource();
+        const int delay = 100;
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.Delay(delay, cts.Token);
                 return new GameId(Guid.NewGuid());
             },
-            exceptionFactory: ex => new SimpleError($"Timeout: {ex.GetType().Name}"));
+            ex => new SimpleError($"Timeout: {ex.GetType().Name}")
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -572,10 +569,12 @@ public class ResultTryTests {
 
         // Act
         var result = Kurrent.Result.Try(
-            operation: () => Kurrent.Result.Try(
-                operation: () => value * 2,
-                exceptionFactory: ex => new SimpleError($"Inner: {ex.Message}")),
-            exceptionFactory: ex => new SimpleError($"Outer: {ex.Message}"));
+            () => Kurrent.Result.Try(
+                () => value * 2,
+                ex => new SimpleError($"Inner: {ex.Message}")
+            ),
+            ex => new SimpleError($"Outer: {ex.Message}")
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -591,8 +590,10 @@ public class ResultTryTests {
         // Act
         var results = values
             .Select(val => Kurrent.Result.Try(
-                operation: () => val * 2,
-                exceptionFactory: ex => new SimpleError(ex.Message)))
+                        () => val * 2,
+                        ex => new SimpleError(ex.Message)
+                    )
+            )
             .ToList();
 
         // Assert
@@ -606,18 +607,14 @@ public class ResultTryTests {
     public void try_with_specific_exception_type_handling() {
         // Arrange & Act
         var argumentResult = Kurrent.Result.Try(
-            operation: () => {
-                throw new ArgumentException("Bad argument");
-                return 1;
-            },
-            exceptionFactory: ex => new SimpleError($"Arg: {ex.Message}"));
+            () => throw new ArgumentException("Bad argument"),
+            ex => new SimpleError($"Arg: {ex.Message}")
+        );
 
         var invalidOpResult = Kurrent.Result.Try(
-            operation: () => {
-                throw new InvalidOperationException("Bad operation");
-                return 1;
-            },
-            exceptionFactory: ex => new SimpleError($"Op: {ex.Message}"));
+            () => throw new InvalidOperationException("Bad operation"),
+            ex => new SimpleError($"Op: {ex.Message}")
+        );
 
         // Assert
         argumentResult.Error.Message.ShouldStartWith("Arg:");
@@ -634,11 +631,12 @@ public class ResultTryTests {
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async () => {
+            async () => {
                 await Task.WhenAll(tasks);
                 return 42;
             },
-            exceptionFactory: ex => new SimpleError($"Aggregate: {ex.GetType().Name}"));
+            ex => new SimpleError($"Aggregate: {ex.GetType().Name}")
+        );
 
         // Assert
         result.IsFailure.ShouldBeTrue();
@@ -652,20 +650,23 @@ public class ResultTryTests {
 
         // Act
         var pipeline = Kurrent.Result.Try(
-                operation: () => input,
-                exceptionFactory: ex => new SimpleError(ex.Message))
+                () => input,
+                ex => new SimpleError(ex.Message)
+            )
             .Bind(val => val != 0
-                ? Kurrent.Result.Success<int, SimpleError>(10 / val)
-                : Kurrent.Result.Failure<int, SimpleError>(new SimpleError("Cannot divide by zero")))
+                      ? Kurrent.Result.Success<int, SimpleError>(10 / val)
+                      : Kurrent.Result.Failure<int, SimpleError>(new SimpleError("Cannot divide by zero"))
+            )
             .Map(val => val * 2);
 
         // Assert
         if (input == 0) {
             pipeline.IsFailure.ShouldBeTrue();
             pipeline.Error.Message.ShouldContain("divide by zero");
-        } else {
+        }
+        else {
             pipeline.IsSuccess.ShouldBeTrue();
-            pipeline.Value.ShouldBe((10 / input) * 2);
+            pipeline.Value.ShouldBe(10 / input * 2);
         }
     }
 
@@ -682,37 +683,42 @@ public class ResultTryTests {
         var result = operations.Aggregate(
             Kurrent.Result.Success<int, SimpleError>(5),
             (acc, operation) => acc.Bind(val => Kurrent.Result.Try(
-                operation: () => operation(val),
-                exceptionFactory: ex => new SimpleError(ex.Message))));
+                                             () => operation(val),
+                                             ex => new SimpleError(ex.Message)
+                                         )
+            )
+        );
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(((5 + 1) * 2) - 3); // 9
+        result.Value.ShouldBe((5 + 1) * 2 - 3); // 9
     }
 
     [Test]
     public async ValueTask try_async_preserves_context_across_await_boundaries() {
         // Arrange
-        var gameId = Faker.Random.Guid();
+        var gameId       = Faker.Random.Guid();
         var contextValue = Faker.Random.Int(1, 100);
 
         // Act
         var result = await Kurrent.Result.TryAsync(
-            operation: async state => {
+            async state => {
                 await Task.Delay(1);
                 if (state < 50)
                     throw new InvalidOperationException($"Value too low: {state}");
+
                 return new GameId(gameId);
             },
-            exceptionFactory: (state, ex) => new InvalidMoveError(gameId, $"State {state}: {ex.Message}"),
-            state: contextValue);
+            (state, ex) => new InvalidMoveError(gameId, $"State {state}: {ex.Message}"),
+            contextValue
+        );
 
         // Assert
-        if (contextValue < 50) {
+        if (contextValue >= 50)
+            result.IsSuccess.ShouldBeTrue();
+        else {
             result.IsFailure.ShouldBeTrue();
             result.Error.Reason.ShouldContain($"State {contextValue}");
-        } else {
-            result.IsSuccess.ShouldBeTrue();
         }
     }
 }

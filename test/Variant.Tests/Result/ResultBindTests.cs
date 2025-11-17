@@ -1,7 +1,10 @@
+// ReSharper disable UnusedParameter.Local
+
 using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
 
+[UsedImplicitly]
 public class ResultBindTests {
     Faker Faker { get; } = new();
 

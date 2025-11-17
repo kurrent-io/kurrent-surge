@@ -1,3 +1,5 @@
+// ReSharper disable UnusedMember.Global
+
 namespace Kurrent.Client;
 
 /// <summary>

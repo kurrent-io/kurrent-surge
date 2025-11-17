@@ -4,7 +4,6 @@
 using System.Diagnostics;
 using Grpc.Core;
 using Kurrent.Client.Legacy;
-using KurrentDB.Client;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Client.Exceptions;
 using static Kurrent.Client.Streams.StreamsClientV1Mapper;
@@ -30,7 +29,7 @@ public partial class StreamsClient {
         var metadataRecord = Record.None;
 
         try {
-            var metaStream = SystemStreams.MetastreamOf(stream);
+            var metaStream = stream.Metastream;
             var request    = Requests.CreateReadStreamEdgeRequest(metaStream, ReadDirection.Forwards);
 
             var response = await LegacyServiceClient
@@ -163,10 +162,8 @@ public partial class StreamsClient {
     }
 
     public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetStreamMetadata(StreamName stream, StreamMetadata metadata, StreamRevision expectedRevision, CancellationToken cancellationToken = default) {
-        var metaStream = SystemStreams.MetastreamOf(stream);
-
         var req = AppendStreamRequest.New()
-            .ForStream(metaStream)
+            .ForStream(stream.Metastream)
             .ExpectingRevision(expectedRevision)
             .WithRecord(metadata)
             .Build();

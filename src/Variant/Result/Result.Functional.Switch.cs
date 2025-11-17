@@ -61,7 +61,7 @@ public static partial class FunctionalResult {
         where TError : IResultError =>
         await (await result.ConfigureAwait(false)).SwitchAsync(onSuccessAsync, onFailure).ConfigureAwait(false);
 
-    public static async ValueTask SwitchAsync<TValue, TError, TResult>(
+    public static async ValueTask SwitchAsync<TValue, TError>(
         this ValueTask<Result<TValue, TError>> result,
         Action<TValue> onSuccess,
         Func<TError, ValueTask> onFailureAsync)

@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Kurrent.Testing.Shouldly;
 
+[PublicAPI]
 public static class ShouldlyResultExtensions {
     #region . should not throw .
 

@@ -28,6 +28,7 @@ public abstract record TestkitLoggerProvider<T>(T GlobalProvider)
 
 	public void Dispose() {
 		// No-op; the TestExecutor is responsible for disposing of any logger providers
+        GC.SuppressFinalize(this);
 	}
 }
 

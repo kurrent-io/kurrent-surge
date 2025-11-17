@@ -1,4 +1,5 @@
 // ReSharper disable CheckNamespace
+// ReSharper disable UnusedTypeParameter
 
 namespace Kurrent.Variant {
     /// <summary>

@@ -1,3 +1,7 @@
+// ReSharper disable NotAccessedPositionalProperty.Global
+// ReSharper disable ClassNeverInstantiated.Global
+// ReSharper disable UnusedType.Global
+
 namespace Kurrent.Variant.Tests;
 
 // Define a test type that implements IVariant directly
@@ -16,6 +20,7 @@ public record MySuccess(Guid Id);
 
 public record MyWarning(string Text);
 
+[UsedImplicitly]
 public class VariantGenerationTests {
     [Test]
     public void is_string_should_be_true_when_value_is_string() {
@@ -135,7 +140,6 @@ public class VariantGenerationTests {
         (result1A != result2).ShouldBeTrue();
         (result1A != nullResult).ShouldBeTrue();
         (nullResult != result1A).ShouldBeTrue();
-        (nullResult != nullResult).ShouldBeFalse();
     }
 
     [Test]
@@ -308,8 +312,8 @@ public class VariantGenerationTests {
         var intActionCalled = false;
 
         await result.SwitchAsync(
-            async s => { stringActionCalled = true; await ValueTask.CompletedTask; },
-            async i => { intActionCalled = true; await ValueTask.CompletedTask; }
+            async _ => { stringActionCalled = true; await ValueTask.CompletedTask; },
+            async _ => { intActionCalled = true; await ValueTask.CompletedTask; }
         );
 
         stringActionCalled.ShouldBeTrue();
@@ -335,9 +339,9 @@ public class VariantGenerationTests {
         var capturedState = "";
         var state = "test_state";
 
-        result.Switch<string>(
-            (s, st) => capturedState = st,
-            (i, st) => capturedState = "wrong",
+        result.Switch(
+            (_, st) => capturedState = st,
+            (_, _) => capturedState = "wrong",
             state
         );
 

@@ -1,3 +1,5 @@
+// ReSharper disable UnusedParameter.Local
+
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;

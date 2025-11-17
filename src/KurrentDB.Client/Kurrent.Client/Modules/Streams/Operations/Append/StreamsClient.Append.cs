@@ -1,4 +1,3 @@
-using Kurrent.Client.Exceptions;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Client.Streams;
