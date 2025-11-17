@@ -9,7 +9,7 @@ public record DeviceInfo {
     public required Guid       RoomId           { get; init; }
     public required DeviceType DeviceType       { get; init; }
     public required bool       IsBatteryPowered { get; init; }
-    public required int?       BatteryLevel     { get; init; }
+    public          int?       BatteryLevel     { get; init; }
 }
 
 public record TemperatureReading {

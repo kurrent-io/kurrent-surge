@@ -137,10 +137,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\global,json">
-      <Link>global,json</Link>
+    <Content Include="..\..\global.json">
+      <Link>global.json</Link>
     </Content>
-    <Content Include="Kurrent.Client\Modules\Registry\.DS_Store" />
   </ItemGroup>
 
   <ItemGroup>

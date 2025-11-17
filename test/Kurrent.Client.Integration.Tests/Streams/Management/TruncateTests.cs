@@ -24,7 +24,7 @@ public class TruncateTests {
             .ShouldNotThrowOrFailAsync();
 
         var count = await messages.CountAsync(ct);
-        count.ShouldBe(1, "Stream should be empty after truncation");
+        count.ShouldBe(1, "Stream should contain only the truncation marker message");
     }
 
     [Test]
