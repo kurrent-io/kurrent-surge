@@ -53,4 +53,8 @@
     </None>
     <None Remove="KurrentDB.Testing.csproj.DotSettings" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+  </ItemGroup>
 </Project>

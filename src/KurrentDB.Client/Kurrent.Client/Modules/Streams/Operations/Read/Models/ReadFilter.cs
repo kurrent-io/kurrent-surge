@@ -147,8 +147,6 @@ public record ReadFilter : IReadFilter {
     }
 }
 
-
-
 public enum ReadFilterScope {
 	Unspecified = 0,
 

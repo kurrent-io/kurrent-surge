@@ -66,7 +66,7 @@ public record KurrentClientOptions : OptionsBase<KurrentClientOptions, KurrentCl
     /// The URI scheme used for the connection, based on the connection scheme.
     /// It can be either "kurrentdb" or "kurrentdb+discover".
     /// </summary>
-    public string ConnectionUriScheme => ConnectionScheme.Description();
+    public string ConnectionUriScheme => ConnectionScheme.Description;
 
     /// <summary>
     /// Scheme used by the resolver for establishing connections to the cluster.
@@ -87,7 +87,7 @@ public record KurrentClientOptions : OptionsBase<KurrentClientOptions, KurrentCl
 
             // If we're using discovery, we don't have a direct address
             // we already validated that we must have endpoints
-            return new Uri($"{KurrentConnectionScheme.Discover.Description()}://{Guids.CreateVersion7()}");
+            return new Uri($"{KurrentConnectionScheme.Discover.Description}://{Guids.CreateVersion7()}");
         }
     }
 

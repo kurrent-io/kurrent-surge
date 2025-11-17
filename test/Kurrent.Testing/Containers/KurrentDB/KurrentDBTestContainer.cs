@@ -52,6 +52,7 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
         }
 
         return builder
+            //.UseNetwork(Network)
             .WithPublicEndpointResolver()
             .WithEnvironment(ActiveConfiguration)
             .ExposePort(DefaultPort, DefaultPort)

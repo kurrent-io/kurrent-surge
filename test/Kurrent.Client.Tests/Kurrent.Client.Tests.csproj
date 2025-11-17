@@ -37,10 +37,12 @@
   <ItemGroup>
     <None Remove="Experimental\**" />
     <None Remove="Infra\**" />
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Integration\" />
     <Folder Include="Modules\" />
   </ItemGroup>
 </Project>

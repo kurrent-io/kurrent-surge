@@ -8,8 +8,6 @@ using Kurrent.Rpc;
 using Kurrent.Variant;
 using Status = Google.Rpc.Status;
 
-namespace Kurrent.Client { }
-
 namespace Kurrent.Client.Exceptions {
     [KurrentOperationError(ServerError.LeaderForwardingTimeout)]
     public partial class LeaderForwardingTimeoutException;
@@ -67,9 +65,6 @@ namespace Kurrent.Client.Exceptions {
             /// Dangerously converts an Exception into a variant error result by trying to parse it using the provided parsers,
             /// followed by the built-in server and standard google parsers.
             /// </summary>
-            /// <param name="parsers"></param>
-            /// <typeparam name="TError"></typeparam>
-            /// <returns></returns>
             public TError ToExceptionalErrorResult<TError>(params OperationExceptionParser[] parsers) where TError : class, IVariantException {
                 // pass through KurrentException as is (just in case)
                 if (ex is KurrentException kex)

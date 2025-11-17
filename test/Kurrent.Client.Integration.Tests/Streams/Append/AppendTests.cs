@@ -1,6 +1,7 @@
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
+using Kurrent.Testing.Shouldly;
 using Kurrent.Testing.TUnit;
 
 namespace Kurrent.Client.Tests.Streams;

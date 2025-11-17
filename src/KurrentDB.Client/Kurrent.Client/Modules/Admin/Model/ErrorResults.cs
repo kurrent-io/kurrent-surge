@@ -3,12 +3,10 @@ using Kurrent.Variant;
 namespace Kurrent.Client.Admin;
 
 [PublicAPI]
-public readonly partial record struct ShutdownServerError : IVariantResultError<
-    ErrorDetails.AccessDenied>;
+public readonly partial record struct ShutdownServerError : IVariantResultError<Exception>;
 
 [PublicAPI]
-public readonly partial record struct MergeIndexesError : IVariantResultError<
-    ErrorDetails.AccessDenied>;
+public readonly partial record struct MergeIndexesError : IVariantResultError<Exception>;
 
 [PublicAPI]
 public readonly partial record struct ResignNodeError : IVariantResultError<

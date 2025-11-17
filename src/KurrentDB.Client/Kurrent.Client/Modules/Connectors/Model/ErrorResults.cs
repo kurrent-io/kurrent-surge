@@ -5,7 +5,8 @@ namespace Kurrent.Client.Connectors;
 [PublicAPI]
 public readonly partial record struct CreateConnectorError : IVariantResultError<
     ErrorDetails.AccessDenied,
-    ErrorDetails.AlreadyExists>;
+    ErrorDetails.AlreadyExists,
+    Exception>;
 
 [PublicAPI]
 public readonly partial record struct ReconfigureConnectorError : IVariantResultError<

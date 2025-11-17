@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Grpc.Core;
+using Kurrent.Testing.OpenTelemetry;
 using Kurrent.Testing.TUnit;
 using TUnit.Core.Interfaces;
 
@@ -7,6 +8,12 @@ namespace Kurrent.Testing;
 
 public class TestkitTestExecutor : ITestExecutor {
     public async ValueTask ExecuteTest(TestContext context, Func<ValueTask> action) {
+        context.ConfigureOtel(new OtelServiceMetadata(context.Metadata.TestDetails.ClassType.Name) {
+            ServiceInstanceId = context.Id.ToString("N"),
+            ServiceNamespace  = context.Metadata.TestDetails.ClassType.Namespace
+        });
+
+
         var logger = context.AddLogging(
             TestkitExecutionContext.GetTestLogger(context.Id));
 

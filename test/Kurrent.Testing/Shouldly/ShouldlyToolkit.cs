@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Kurrent.Client.Tests.Tools;
+namespace Kurrent.Testing.Shouldly;
 
 public static class ShouldlyResultExtensions {
-    #region . should-not-throw .
+    #region . should not throw .
 
     public static TValue ShouldNotThrow<TValue>(this Func<TValue> operation, string? customMessage = null) =>
         Should.NotThrow(operation, customMessage);

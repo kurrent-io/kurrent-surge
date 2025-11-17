@@ -33,7 +33,6 @@ public static class TestkitExecutionContext {
     static TestkitExecutionContext() {
         if (Interlocked.CompareExchange(ref _initialized, 1, 0) != 0) {
             Log.Debug("Testkit context already initialized! Check your test setup.");
-
             throw new InvalidOperationException("Testkit context already initialized! Check your test setup.");
         }
 
@@ -80,40 +79,6 @@ public static class TestkitExecutionContext {
     /// The application's configuration settings, built from various sources such as JSON files and environment variables.
     /// </summary>
     public static IConfiguration Configuration { get; }
-
-    /// <summary>
-    /// Captures logs for a specific test identified by <paramref name="testUid"/>.
-    /// </summary>
-    public static (ILogger Logger, IAsyncDisposable Release) CaptureTestLogs(Guid testUid) {
-        var logger = DefaultLoggerConfig
-            .ReadFrom.Configuration(Configuration)
-            .Enrich.WithProperty("TestUid", testUid)
-            .WriteTo.OpenTelemetry()
-            .WriteTo.Console(
-                theme: AnsiConsoleTheme.Code,
-                outputTemplate: ConsoleOutputTemplate,
-                applyThemeToRedirectedOutput: true
-            )
-            .CreateLogger();
-
-        var prop = new LogEventProperty("TestUid", new ScalarValue(testUid));
-
-        var sub = LogEvents
-            .Where(_ => TestContext.Current?.Id == testUid)
-            .Subscribe(logEvent => logEvent.AddOrUpdateProperty(prop));
-
-        var disposable = new Disposable(async () => {
-            logger.Information(
-                "Testkit{AppDomainId:000} context now disposing of logger for test {TestUid} ...",
-                AppDomain.CurrentDomain.Id, testUid);
-
-            await logger.DisposeAsync();
-
-            sub.Dispose();
-        });
-
-        return (logger, disposable);
-    }
 
     /// <summary>
     /// Creates a scoped logger for the specified test identified by <paramref name="testUid"/>.
