@@ -111,6 +111,16 @@ public partial class StreamsClient {
     public ValueTask<Result<Messages, ReadError>> ReadStream(ReadStreamOptions options) =>
         ReadCore(Requests.CreateReadRequest(options), options.BufferSize, options.Timeout, options.SkipDecoding, options.CancellationToken);
 
+    public ValueTask<Result<Messages, ReadError>> ReadRecords(ReadOptions options) {
+
+        var request = Requests.CreateReadRequest(options);
+
+        return ReadCore(
+            request, options.BufferSize, options.Timeout,
+            options.SkipDecoding, options.CancellationToken
+        );
+    }
+
     async ValueTask<Result<Messages, ReadError>> ReadCore(ReadReq request, int bufferSize, TimeSpan timeout, bool skipDecoding, CancellationToken cancellationToken) {
         var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var stoppingToken = cancellator.Token;

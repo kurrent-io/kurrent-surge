@@ -38,6 +38,34 @@ static class StreamsClientV1Mapper {
         //     }};
         // }
 
+
+        public static Contracts.ReadReq CreateReadRequest(ReadOptions options) {
+
+            // determine if we are reading from a stream or from all by asking the filter.
+
+            return new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    ReadDirection = options.Direction switch {
+                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    },
+                    // either the full log
+                    All = new() { Position = new() {
+                        CommitPosition  = (ulong)options.Start.LogPosition.Value,
+                        PreparePosition = (ulong)options.Start.LogPosition.Value
+                    } },
+                    // or a specific stream
+                    Stream = ConvertToStreamOptions(options.Stream, options.Start.StreamRevision),
+
+                    // THE FILTER
+                    Filter = ConvertToFilterOptions(options.Filter, options.Heartbeat),
+                    Count  = (ulong)options.Limit,
+                }
+            };
+        }
+
         public static Contracts.ReadReq CreateReadRequest(ReadAllOptions options) {
             return new Contracts.ReadReq {
                 Options = new() {

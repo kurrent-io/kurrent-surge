@@ -121,8 +121,6 @@ public interface IRecordDecoder {
 	ValueTask<bool> Decode(Record record, CancellationToken ct);
 }
 
-
-
 sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy? registryPolicy = null) : IRecordDecoder {
 	static readonly SchemaName LinkSchemaName = "$>";
 

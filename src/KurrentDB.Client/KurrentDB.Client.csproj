@@ -143,7 +143,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Kurrent.Client\Modules\Streams\Operations\Append\" />
     <Folder Include="Kurrent.Client\Modules\Streams\Operations\Inbound\" />
+    <Folder Include="Kurrent.Client\Modules\Streams\Operations\Manage\" />
     <Folder Include="Kurrent.Client\Modules\Streams\Operations\Outbound\" />
   </ItemGroup>
 

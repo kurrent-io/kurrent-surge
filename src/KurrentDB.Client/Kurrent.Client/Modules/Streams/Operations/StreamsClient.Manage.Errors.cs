@@ -88,11 +88,3 @@ public partial class GetStreamMetadataError : IVariantException<
             static (s, e) => StreamTombstonedException.From(s, e)
         );
 }
-
-[PublicAPI]
-public record StreamDataRetentionOptions {
-    public static readonly StreamDataRetentionOptions NoRetention = new();
-
-    public int?      MaxCount { get; init; }
-    public TimeSpan? MaxAge   { get; init; }
-}

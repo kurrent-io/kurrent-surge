@@ -8,26 +8,6 @@ public interface IReadFilter {
     bool IsMatch(ReadOnlySpan<char> input);
 }
 
-// create table if not exists idx_all (
-//     log_position bigint not null,
-//     commit_position bigint null,
-//     event_number bigint not null,
-//     created bigint not null,
-//     expires bigint null,
-//     stream varchar not null,
-//     name_hash ubigint not null,
-//     event_type varchar not null,
-//     schema_name varchar not null,
-//     schema_version int not null,
-//     schema_hash ubigint not null,
-//     schema_revision int not null,
-//     category varchar not null,
-//     is_deleted boolean not null
-// );
-
-
-
-
 /// <summary>
 /// Represents a filter used to match or restrict data in a reading operation.
 /// The filter can be applied to streams or records and supports literal matching
@@ -186,28 +166,4 @@ public enum ReadFilterType {
 	Regex       = 2,
     Sql         = 3,
     JsonPath    = 4,
-}
-
-public record IdxAll(
-    long LogPosition,
-    long? CommitPosition,
-    long EventNumber,
-    long Created,
-    long? Expires,
-    string Stream,
-    ulong NameHash,
-    string EventType,
-    string Category,
-    bool IsDeleted
-);
-
-public record IndexEntry {
-    public LogPosition      Position       { get; init; }
-    public StreamName       Stream         { get; init; }
-    public StreamRevision   StreamRevision { get; init; }
-    public SchemaName       SchemaName     { get; init; }
-    public SchemaDataFormat SchemaFormat   { get; init; }
-    public string           Category       { get; init; }
-    public DateTime         Created        { get; init; }
-    public DateTime?        Expires        { get; init; }
 }

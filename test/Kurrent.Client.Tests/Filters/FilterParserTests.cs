@@ -1,144 +1,528 @@
-// using Kurrent.Client.Streams;
-//
-// namespace Kurrent.Client.Tests.Filters;
-//
-// [Category("Filters"), Skip("Filter tests are currently disabled pending implementation of the full filter evaluation engine.")]
-// public class FilterParserTests {
-//
-//     [Test]
-//     public void parses_simple_equality_expression_correctly() {
-//         var result = FilterExpression.Create("stream = 'orders'");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//         result.Value.IsStreamSpecific.ShouldBeTrue();
-//         result.Value.TargetStream.ShouldBe("orders");
-//     }
-//
-//     [Test]
-//     public void parses_not_equals_expression_with_exclamation_mark() {
-//         var result = FilterExpression.Create("stream != 'test'");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//         result.Value.IsStreamSpecific.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_not_equals_expression_with_angle_brackets() {
-//         var result = FilterExpression.Create("stream <> 'test'");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//         result.Value.IsStreamSpecific.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_comparison_operators_correctly() {
-//         var expressions = new[] {
-//             "metadata.count > 100",
-//             "metadata.count < 50",
-//             "metadata.count >= 100",
-//             "metadata.count <= 50"
-//         };
-//
-//         foreach (var expression in expressions) {
-//             var result = FilterExpression.Create(expression);
-//             result.IsSuccess.ShouldBeTrue($"Failed to parse: {expression}");
-//         }
-//     }
-//
-//     [Test]
-//     public void parses_postgresql_regex_operators() {
-//         var expressions = new[] {
-//             "stream ~ 'order.*'",
-//             "stream ~* 'Order.*'",
-//             "stream !~ 'test.*'",
-//             "stream !~* 'Test.*'"
-//         };
-//
-//         foreach (var expression in expressions) {
-//             var result = FilterExpression.Create(expression);
-//             result.IsSuccess.ShouldBeTrue($"Failed to parse: {expression}");
-//         }
-//     }
-//
-//     [Test]
-//     public void parses_is_null_expressions() {
-//         var result = FilterExpression.Create("metadata.userId IS NULL");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_is_not_null_expressions() {
-//         var result = FilterExpression.Create("metadata.userId IS NOT NULL");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_in_expressions() {
-//         var result = FilterExpression.Create("stream IN ('orders', 'payments')");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_not_in_expressions() {
-//         var result = FilterExpression.Create("schema.name NOT IN ('SystemEvent', 'TestEvent')");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_logical_and_expressions() {
-//         var result = FilterExpression.Create("stream = 'orders' AND schema.name = 'OrderCreated'");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//         result.Value.IsStreamSpecific.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void parses_logical_or_expressions() {
-//         var result = FilterExpression.Create("stream = 'orders' OR stream = 'payments'");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//         result.Value.IsStreamSpecific.ShouldBeFalse(); // Multiple streams, not optimizable
-//     }
-//
-//     [Test]
-//     public void parses_complex_expressions_with_parentheses() {
-//         var result = FilterExpression.Create("(stream = 'orders' AND schema.name = 'OrderCreated') OR metadata.userId = 'user-123'");
-//
-//         result.IsSuccess.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void returns_error_for_empty_expression() {
-//         var result = FilterExpression.Create("");
-//
-//         result.IsEmpty.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void returns_error_for_null_expression() {
-//         var result = FilterExpression.Create(null!);
-//
-//         result.IsEmpty.ShouldBeTrue();
-//     }
-//
-//     [Test]
-//     public void returns_error_for_invalid_syntax() {
-//         var result = FilterExpression.Create("stream = ");
-//
-//         result.IsSuccess.ShouldBeFalse();
-//         result.Error.ShouldNotBeNullOrWhiteSpace();
-//     }
-//
-//     [Test]
-//     public void handles_span_input_correctly() {
-//         var input = "stream = 'orders'".AsSpan();
-//         var result = FilterExpression.Create(input);
-//
-//         result.IsSuccess.ShouldBeTrue();
-//         result.Value.TargetStream.ShouldBe("orders");
-//     }
-// }
+using Kurrent.Client.Streams;
+
+namespace Kurrent.Client.Tests.Filters;
+
+[Category("Filters")]
+public class FilterParserTests {
+    readonly IFilterExpressionParser _parser = new FilterExpressionParser();
+
+    #region Comparison Operators
+
+    [Test]
+    public void parses_equality_expression() {
+        var result = _parser.Parse("stream = 'orders'");
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldNotBeNull();
+    }
+
+    [Test]
+    public void parses_not_equals_with_exclamation() {
+        var result = _parser.Parse("stream != 'test'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_not_equals_with_angle_brackets() {
+        var result = _parser.Parse("stream <> 'test'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_greater_than() {
+        var result = _parser.Parse("position > 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_less_than() {
+        var result = _parser.Parse("position < 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_greater_than_or_equal() {
+        var result = _parser.Parse("position >= 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_less_than_or_equal() {
+        var result = _parser.Parse("position <= 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Logical Operators
+
+    [Test]
+    public void parses_and_expression() {
+        var result = _parser.Parse("stream = 'orders' AND schema_name = 'OrderCreated'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_or_expression() {
+        var result = _parser.Parse("stream = 'orders' OR stream = 'payments'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_not_expression() {
+        var result = _parser.Parse("NOT (stream = 'test')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_complex_logical_expression_with_parentheses() {
+        var result = _parser.Parse("(stream = 'orders' OR stream = 'payments') AND properties.amount > 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_nested_logical_expressions() {
+        var result = _parser.Parse("(stream = 'a' AND schema_name = 'b') OR (stream = 'c' AND schema_name = 'd')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Pattern Matching
+
+    [Test]
+    public void parses_like_expression() {
+        var result = _parser.Parse("stream LIKE 'order%'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_not_like_expression() {
+        var result = _parser.Parse("stream NOT LIKE '%test%'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_ilike_expression() {
+        var result = _parser.Parse("schema_name ILIKE '%event%'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_not_ilike_expression() {
+        var result = _parser.Parse("stream NOT ILIKE '%TEST%'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_like_with_underscore_wildcard() {
+        var result = _parser.Parse("stream LIKE 'order_'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Null Checking
+
+    [Test]
+    public void parses_is_null() {
+        var result = _parser.Parse("properties.correlationId IS NULL");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_is_not_null() {
+        var result = _parser.Parse("properties.userId IS NOT NULL");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Set Membership
+
+    [Test]
+    public void parses_in_expression_with_strings() {
+        var result = _parser.Parse("stream IN ('orders', 'payments', 'refunds')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_in_expression_with_numbers() {
+        var result = _parser.Parse("position IN (100, 200, 300)");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_not_in_expression() {
+        var result = _parser.Parse("schema_name NOT IN ('SystemEvent', 'HeartbeatEvent')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_in_with_single_value() {
+        var result = _parser.Parse("stream IN ('orders')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Range Operators
+
+    [Test]
+    public void parses_between_with_numbers() {
+        var result = _parser.Parse("position BETWEEN 100 AND 200");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_between_with_dates() {
+        var result = _parser.Parse("timestamp BETWEEN '2024-01-01' AND '2024-12-31'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_not_between() {
+        var result = _parser.Parse("position NOT BETWEEN 100 AND 200");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Property Access
+
+    [Test]
+    public void parses_properties_bracket_notation() {
+        var result = _parser.Parse("properties['userId'] = 'user-123'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_properties_dot_notation() {
+        var result = _parser.Parse("properties.userId = 'user-123'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_props_alias_bracket_notation() {
+        var result = _parser.Parse("props['correlationId'] IS NOT NULL");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_props_alias_dot_notation() {
+        var result = _parser.Parse("props.amount > 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_properties_with_special_characters_in_key() {
+        var result = _parser.Parse("properties['order.total'] > 50");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Data Types
+
+    [Test]
+    public void parses_string_literals() {
+        var result = _parser.Parse("stream = 'orders'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_string_with_escaped_quote() {
+        var result = _parser.Parse("properties.name = 'O\\'Reilly'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_integer_literals() {
+        var result = _parser.Parse("position = 42");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_negative_integer_literals() {
+        var result = _parser.Parse("properties.offset = -10");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_decimal_literals() {
+        var result = _parser.Parse("properties.rate = 99.99");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_datetime_iso8601() {
+        var result = _parser.Parse("timestamp = '2024-01-15T10:30:00Z'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_datetime_with_timezone() {
+        var result = _parser.Parse("timestamp >= '2024-01-01T00:00:00+02:00'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_boolean_true() {
+        var result = _parser.Parse("properties.active = true");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_boolean_false() {
+        var result = _parser.Parse("properties.deleted = false");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Case Insensitivity
+
+    [Test]
+    public void parses_lowercase_and_keyword() {
+        var result = _parser.Parse("stream = 'orders' and schema_name = 'OrderCreated'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_lowercase_or_keyword() {
+        var result = _parser.Parse("stream = 'orders' or stream = 'payments'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_lowercase_not_keyword() {
+        var result = _parser.Parse("not (stream = 'test')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_lowercase_is_null() {
+        var result = _parser.Parse("properties.key is null");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_lowercase_in() {
+        var result = _parser.Parse("stream in ('orders', 'payments')");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_lowercase_between() {
+        var result = _parser.Parse("position between 100 and 200");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_mixed_case_keywords() {
+        var result = _parser.Parse("stream = 'orders' And schema_name Like '%Event'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Operator Precedence
+
+    [Test]
+    public void respects_and_over_or_precedence() {
+        var result = _parser.Parse("stream = 'a' OR stream = 'b' AND schema_name = 'c'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void respects_parentheses_over_precedence() {
+        var result = _parser.Parse("(stream = 'a' OR stream = 'b') AND schema_name = 'c'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Complex Expressions
+
+    [Test]
+    public void parses_complex_business_logic_expression() {
+        var expression = @"
+            stream = 'orders' AND
+            properties.amount > 100 AND
+            properties.region IN ('us-east', 'us-west') AND
+            properties.customerType != 'internal' AND
+            timestamp >= '2024-01-01'
+        ";
+
+        var result = _parser.Parse(expression);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_multiple_or_conditions() {
+        var result = _parser.Parse("schema_name = 'A' OR schema_name = 'B' OR schema_name = 'C'");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Test]
+    public void parses_deeply_nested_expression() {
+        var result = _parser.Parse("((stream = 'a' AND schema_name = 'b') OR (stream = 'c' AND schema_name = 'd')) AND position > 100");
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+
+    #region Error Cases
+
+    [Test]
+    public void returns_error_for_empty_input() {
+        var result = _parser.Parse("");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_whitespace_only_input() {
+        var result = _parser.Parse("   ");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_missing_value() {
+        var result = _parser.Parse("stream =");
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ErrorMessage.ShouldContain("syntax error");
+    }
+
+    [Test]
+    public void returns_error_for_missing_property() {
+        var result = _parser.Parse("= 'orders'");
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ErrorMessage.ShouldContain("syntax error");
+    }
+
+    [Test]
+    public void returns_error_for_unclosed_string() {
+        var result = _parser.Parse("stream = 'orders");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_unclosed_parenthesis() {
+        var result = _parser.Parse("(stream = 'orders'");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_missing_and_operand() {
+        var result = _parser.Parse("stream = 'orders' AND");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_missing_or_operand() {
+        var result = _parser.Parse("stream = 'orders' OR");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_invalid_operator() {
+        var result = _parser.Parse("stream === 'orders'");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_empty_in_list() {
+        var result = _parser.Parse("stream IN ()");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_for_missing_between_and() {
+        var result = _parser.Parse("position BETWEEN 100 200");
+
+        result.IsFailure.ShouldBeTrue();
+    }
+
+    [Test]
+    public void returns_error_with_near_token_information() {
+        var result = _parser.Parse("stream = 'orders' TOTALLY 'invalid'");
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ErrorMessage.ShouldContain("TOTALLY");
+    }
+
+    #endregion
+
+    #region Span Input
+
+    [Test]
+    public void accepts_readonly_span_input() {
+        ReadOnlySpan<char> input = "stream = 'orders'";
+        var result = _parser.Parse(input);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    #endregion
+}

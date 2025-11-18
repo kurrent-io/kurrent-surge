@@ -23,6 +23,9 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     public PartitionId PartitionId { get; init; } = PartitionId.Any;
     public LogPosition LogPosition { get; init; } = LogPosition.Unset;
 
+    public StreamRevision StreamRevision { get; init; } = StreamRevision.Min;
+
+
     public StreamName StreamPartition => PartitionId > PartitionId.Any ? $"{Stream}-{PartitionId.Value:0000}" : StreamName.None;
 
     public override string ToString() {
