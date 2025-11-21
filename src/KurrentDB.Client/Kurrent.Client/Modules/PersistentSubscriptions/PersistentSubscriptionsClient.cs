@@ -18,7 +18,7 @@ public sealed partial class PersistentSubscriptionsClient : ClientModuleBase {
     PersistentSubscriptionsServiceClient ServiceClient { get; }
 
     public async ValueTask<Result<Success, CreateSubscriptionError>> CreateSubscription(
-        SubscriptionGroupName group, StreamName stream, ReadFilter filter, PersistentSubscriptionSettings settings, CancellationToken cancellationToken = default
+        SubscriptionGroupName group, StreamName stream, IRecordFilter filter, PersistentSubscriptionSettings settings, CancellationToken cancellationToken = default
     ) {
         group.ThrowIfInvalid();
         stream.ThrowIfInvalid();
@@ -26,7 +26,7 @@ public sealed partial class PersistentSubscriptionsClient : ClientModuleBase {
         if (stream.IsAllStream && !ServerCapabilities.SupportsPersistentSubscriptionsToAll)
             throw new NotSupportedException("The server does not support persistent subscriptions to $all.");
 
-        if (!stream.IsAllStream && filter != ReadFilter.None)
+        if (!stream.IsAllStream && filter is not EmptyFilter)
             throw new NotSupportedException("Filtering is only supported for persistent subscriptions to $all.");
 
         try {

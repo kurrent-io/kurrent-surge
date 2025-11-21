@@ -5,16 +5,25 @@ public static partial class StreamsClientExtensions {
         public ValueTask<Result<Record, InspectRecordError>> InspectRecord(LogPosition position, CancellationToken cancellationToken = default) =>
             client.InspectRecord(position, true, cancellationToken);
 
-        public ValueTask<Result<Messages, ReadError>> ReadAll(Func<ReadAllOptions, ReadAllOptions>? configure = null) {
-            var options = new ReadAllOptions();
+        #region . Read Log .
+
+        public ValueTask<Result<Messages, ReadError>> Read(Func<ReadOptions, ReadOptions>? configure = null) {
+            var options = new ReadOptions();
             options = configure?.Invoke(options) ?? options;
-            return client.ReadAll(options);
+            return client.Read(options);
         }
+
+        public ValueTask<Result<Messages, ReadError>> Read(LogPosition start, CancellationToken cancellationToken) =>
+            client.Read(options => options with { Start = start, CancellationToken = cancellationToken });
+
+        #endregion
+
+        #region . Read Streams .
 
         public ValueTask<Result<Messages, ReadError>> ReadStream(Func<ReadStreamOptions, ReadStreamOptions>? configure = null) {
             var options = new ReadStreamOptions();
             options = configure?.Invoke(options) ?? options;
-            return client.ReadStream(options);
+            return client.Read(options);
         }
 
         public ValueTask<Result<Messages, ReadError>> ReadStream(StreamName stream, StreamRevision start, CancellationToken cancellationToken) =>
@@ -34,5 +43,7 @@ public static partial class StreamsClientExtensions {
 
         public ValueTask<Result<Record, ReadError>> ReadLastStreamRecord(StreamName stream, CancellationToken cancellationToken = default) =>
             ReadLastStreamRecord(client, stream, true, cancellationToken);
+
+        #endregion
     }
 }

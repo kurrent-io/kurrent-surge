@@ -42,7 +42,6 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
     /// Creates a LogPosition instance from a provided position value.
     /// </summary>
     /// <param name="position">The position value from which to create the LogPosition. Must be Unset, greater than or equal to 0, or an exception will be thrown.</param>
-    /// <returns>A new instance of LogPosition corresponding to the provided position value.</returns>
     public static LogPosition From(long position) =>
         position switch {
             -1000 => Unset,
@@ -71,11 +70,10 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
         return new LogPosition((long)commitPosition);
     }
 
-    public static implicit operator long(LogPosition _)  => _.Value;
-    public static implicit operator ulong(LogPosition _) => (ulong)_.Value;
-
+    public static implicit operator long(LogPosition _) => _.Value;
     public static implicit operator LogPosition(long _) => From(_);
-    // public static implicit operator LogPosition(ulong? _) => From(_);
+
+    public static implicit operator ulong(LogPosition _) => (ulong)_.Value;
 
     public override string ToString() => Value.ToString();
 

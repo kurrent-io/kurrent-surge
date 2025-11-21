@@ -2,6 +2,7 @@
 
 // ReSharper disable InconsistentNaming
 
+using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Tools;
 using Kurrent.Testing.Sample.HomeAutomation;
@@ -40,10 +41,10 @@ public partial class KurrentClientTestFixture {
 }
 
 public record SeededSmartHomeActivity(SmartHomeActivity Activity, StreamRevision StreamRevision, LogPosition Position) {
-    public SmartHome                 Home          => Activity.Home;
-    public string                    Stream        => Activity.Stream;
-    public IEnumerable<AppendRecord> Records       => Activity.Messages;
-    public long                      LastTimestamp => Activity.LastTimestamp;
+    public SmartHome                   Home          => Activity.Home;
+    public StreamName                  Stream        => Activity.Stream;
+    public ImmutableList<AppendRecord> Records       => Activity.Messages;
+    public long                        LastTimestamp => Activity.LastTimestamp;
 
     public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
         Activity.SimulateMoreEvents(numberOfEvents);

@@ -6,6 +6,7 @@ using Grpc.Core;
 using Kurrent.Client.Legacy;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Client.Exceptions;
+using Kurrent.Client.Schema;
 using static Kurrent.Client.Streams.StreamsClientV1Mapper;
 
 namespace Kurrent.Client.Streams;
@@ -39,7 +40,7 @@ public partial class StreamsClient {
             // if the meta-stream is not found, then the stream itself does not exist either
             if (response?.ContentCase is ReadResp.ContentOneofCase.Event)
                 metadataRecord = await response.Event
-                    .MapToRecordAsync(SerializerProvider, MetadataDecoder, skipDecoding: false, cancellationToken)
+                    .MapToRecordAsync(SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: false, cancellationToken)
                     .ConfigureAwait(false);
         }
         catch (RpcException rex) when (rex.StatusCode is StatusCode.FailedPrecondition && rex.Status.Detail.Contains("is deleted")) {
@@ -87,7 +88,7 @@ public partial class StreamsClient {
                 );
 
             var record = await response.Event
-                .MapToRecordAsync(SerializerProvider, MetadataDecoder, skipDecoding: true, cancellationToken)
+                .MapToRecordAsync(SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: true, cancellationToken)
                 .ConfigureAwait(false);
 
             return details with {

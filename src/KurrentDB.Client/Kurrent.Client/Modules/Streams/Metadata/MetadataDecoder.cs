@@ -28,7 +28,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
 
             return DecodeCore(bytes, context)
                 .AddSchemaNameIfMissing(context.SchemaName)
-                .AddSchemaDataFormatIfMissing(context.SchemaDataFormat);
+                .AddSchemaFormatIfMissing(context.SchemaDataFormat);
         }
         catch (Exception ex) when (ex is not MetadataDecodingException) {
             throw new MetadataDecodingException(GetType(), context, ex);

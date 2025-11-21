@@ -91,7 +91,7 @@ public class AppendRecordBuilder {
 	}
 
 	public AppendRecordBuilder WithMetadata(Metadata metadata) {
-		var dataFormat = metadata.GetSchemaDataFormat();
+		var dataFormat = metadata.GetSchemaFormat();
 		if (dataFormat == SchemaDataFormat.Unspecified)
 			dataFormat = _appendRecord.DataFormat;
 

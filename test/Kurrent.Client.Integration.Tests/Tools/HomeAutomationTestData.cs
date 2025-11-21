@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Sample.HomeAutomation;
 
@@ -63,8 +64,8 @@ public static class HomeAutomationTestData {
 }
 
 public record SmartHomeActivity(SmartHome Home, AppendStreamRequest AppendRequest, long LastTimestamp) : IEnumerable<AppendRecord> {
-    public string                    Stream   => AppendRequest.Stream;
-    public IEnumerable<AppendRecord> Messages => AppendRequest.Messages;
+    public StreamName                  Stream   { get; } = AppendRequest.Stream;
+    public ImmutableList<AppendRecord> Messages { get; } = AppendRequest.Messages.ToImmutableList();
 
     public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
         this with { AppendRequest = HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp) };
@@ -74,7 +75,7 @@ public record SmartHomeActivity(SmartHome Home, AppendStreamRequest AppendReques
 
     public static implicit operator AppendStreamRequest(SmartHomeActivity _) => _.AppendRequest;
 
-    public IEnumerator<AppendRecord> GetEnumerator() => AppendRequest.Messages.GetEnumerator();
+    public IEnumerator<AppendRecord> GetEnumerator() => Messages.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

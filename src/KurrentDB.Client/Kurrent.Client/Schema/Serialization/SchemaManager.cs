@@ -82,15 +82,15 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 		if (!policy.ValidateSchemas)
 			return (messageType, SchemaVersionId.None);
 
-		if (schemaInfo.HasSchemaVersionId) {
-			await EnsureSchemaCompatibility(schemaInfo.SchemaVersionId, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
+		if (schemaInfo.HasSchemaId) {
+			await EnsureSchemaCompatibility(schemaInfo.SchemaVersionId, messageType, schemaInfo.SchemaFormat, ct).ConfigureAwait(false);
 
 			// it was already set so we don't need to do anything and dont return the version id
 			return (messageType, SchemaVersionId.None);
 		}
 
 		// fallback behaviour for backwards compatibility
-		var lastSchemaVersionId = await EnsureSchemaCompatibility(schemaInfo.SchemaName, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
+		var lastSchemaVersionId = await EnsureSchemaCompatibility(schemaInfo.SchemaName, messageType, schemaInfo.SchemaFormat, ct).ConfigureAwait(false);
 
 		return (messageType, lastSchemaVersionId);
 	}

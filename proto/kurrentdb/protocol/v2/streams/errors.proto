@@ -143,6 +143,18 @@ enum StreamsError {
   STREAMS_ERROR_APPEND_SESSION_NO_REQUESTS = 9 [(kurrent.rpc.error) = {
     status_code: FAILED_PRECONDITION
   }];
+
+  STREAMS_ERROR_RECORD_NOT_FOUND = 10 [(kurrent.rpc.error) = {
+    status_code: NOT_FOUND
+  }];
+
+  STREAMS_ERROR_LOG_POSITION_NOT_FOUND = 11 [(kurrent.rpc.error) = {
+    status_code: NOT_FOUND
+  }];
+
+  STREAMS_ERROR_STREAM_REVISION_NOT_FOUND = 12 [(kurrent.rpc.error) = {
+    status_code: NOT_FOUND
+  }];
 }
 
 // Details for STREAM_REVISION_CONFLICT errors.

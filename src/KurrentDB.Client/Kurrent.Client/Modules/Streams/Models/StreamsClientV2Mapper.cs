@@ -40,20 +40,20 @@ static partial class StreamsClientV2Mapper {
 			_                       => throw new UnreachableException($"Unexpected read direction: {source}")
 		};
 
-	public static Contracts.ReadFilter Map(this ReadFilter source) =>
-		new() {
-			Scope      = source.Scope.Map(),
-			Expression = source.Expression
-		};
-
-	public static Contracts.ReadFilterScope Map(this ReadFilterScope source) =>
+	public static Contracts.ReadFilter Map(this IRecordFilter source) =>
 		source switch {
-			ReadFilterScope.Unspecified => Contracts.ReadFilterScope.Unspecified,
-			ReadFilterScope.Stream      => Contracts.ReadFilterScope.Stream,
-			ReadFilterScope.Schema      => Contracts.ReadFilterScope.Schema,
-			ReadFilterScope.Properties  => Contracts.ReadFilterScope.Properties,
-			ReadFilterScope.Record      => Contracts.ReadFilterScope.Record,
-			_                           => throw new UnreachableException($"Unexpected read filter scope: {source}")
+			StreamFilter f when f.TargetStream == StreamName.None =>
+				new() { Scope = Contracts.ReadFilterScope.Stream, Expression = f.Expression },
+
+			SchemaFilter f =>
+				new() { Scope = Contracts.ReadFilterScope.Schema, Expression = f.Expression },
+
+			ExpressionFilter { ServerRegex: not null } f =>
+				f.IsStreamScope
+					? new() { Scope = Contracts.ReadFilterScope.Stream, Expression = f.ServerRegex }
+					: new() { Scope = Contracts.ReadFilterScope.Schema, Expression = f.ServerRegex },
+
+			_ => new() { Scope = Contracts.ReadFilterScope.Unspecified, Expression = source.Expression }
 		};
 
 	public static Heartbeat Map(this Contracts.Heartbeat source) {

@@ -1,3 +1,5 @@
+using Kurrent.Client.Streams;
+
 namespace Kurrent.Client.Schema.Serialization;
 
 /// <summary>
@@ -7,4 +9,10 @@ namespace Kurrent.Client.Schema.Serialization;
 /// <param name="Metadata">Additional metadata associated with the operation.</param>
 /// <param name="SchemaRegistryPolicy">Policy settings for schema registry interactions.</param>
 /// <param name="CancellationToken">Token for cancellation support during async operations.</param>
-public record struct SchemaSerializationContext(string Stream, Metadata Metadata, SchemaRegistryPolicy SchemaRegistryPolicy, CancellationToken CancellationToken);
+/// <param name="RecordSchema">Information about the record's schema.</param>s
+public record struct SchemaSerializationContext(
+    string Stream,
+    Metadata Metadata,
+    SchemaRegistryPolicy SchemaRegistryPolicy,
+    CancellationToken CancellationToken,
+    RecordSchemaInfo RecordSchema);

@@ -30,6 +30,7 @@
     <PackageReference Include="System.Linq.Async" Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'" />
     <PackageReference Include="OpenTelemetry.Api"  />
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
+    <PackageReference Include="Vogen" />
   </ItemGroup>
 
   <ItemGroup>
@@ -140,13 +141,6 @@
     <Content Include="..\..\global.json">
       <Link>global.json</Link>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Kurrent.Client\Modules\Streams\Operations\Append\" />
-    <Folder Include="Kurrent.Client\Modules\Streams\Operations\Inbound\" />
-    <Folder Include="Kurrent.Client\Modules\Streams\Operations\Manage\" />
-    <Folder Include="Kurrent.Client\Modules\Streams\Operations\Outbound\" />
   </ItemGroup>
 
   <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">

@@ -29,7 +29,6 @@
     <None Remove="Admin\**" />
     <None Remove="Subscriptions\**" />
     <None Remove="Streams\CatchUpSubscriptions\**" />
-    <None Remove="Streams\Read\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,7 +45,6 @@
     <Compile Remove="Admin\**" />
     <Compile Remove="Subscriptions\**" />
     <Compile Remove="Streams\CatchUpSubscriptions\**" />
-    <Compile Remove="Streams\Read\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -56,6 +54,5 @@
     <EmbeddedResource Remove="Admin\**" />
     <EmbeddedResource Remove="Subscriptions\**" />
     <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
-    <EmbeddedResource Remove="Streams\Read\**" />
   </ItemGroup>
 </Project>

@@ -78,3 +78,15 @@ public partial class StreamAlreadyInAppendSessionException;
 
 [KurrentOperationError(StreamsError.AppendSessionNoRequests)]
 public partial class AppendSessionNoRequestsException;
+
+[KurrentOperationError(StreamsError.LogPositionNotFound)]
+public partial class LogPositionNotFoundException {
+    public LogPositionNotFoundException(ulong position)
+        : this($"The provided log position does not exist: {position}.") { }
+}
+
+// [KurrentOperationError(StreamsError.StreamRevisionNotFound)]
+// public partial class StreamRevisionNotFoundxception;
+//
+// [KurrentOperationError(StreamsError.RecordNotFound)]
+// public partial class RecordNotFoundException;

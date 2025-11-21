@@ -1,60 +1,13 @@
 namespace Kurrent.Client.Streams;
 
-// /// <summary>
-// /// Represents the record position either in a specific stream or in the global transaction log.
-// /// </summary>
-// /// <remarks>
-// /// <para>
-// /// This discriminated union allows specifying a position as either a LogPosition (global transaction log)
-// /// or a StreamRevision (stream-specific position). The type ensures type-safe handling of different
-// /// position contexts without runtime type checking.
-// /// </para>
-// /// <para>
-// /// <b>Usage:</b> Use LogPosition for reading from the global event log across all streams,
-// /// or StreamRevision for reading from a specific stream starting at a particular revision.
-// /// </para>
-// /// </remarks>
-// public readonly partial record struct RecordPosition : IVariant<LogPosition, StreamRevision>;
-
-/// <summary>
-/// Configuration options for reading events from KurrentDB streams or the global event log.
-/// </summary>
-/// <remarks>
-/// <para>
-/// Provides comprehensive configuration for event stream reading operations, supporting both
-/// stream-specific reads and global log reads with flexible positioning, filtering, and
-/// performance tuning options.
-/// </para>
-/// <para>
-/// <b>Usage:</b> Create instances using object initialization syntax to specify only the
-/// options that differ from defaults. All properties use sensible defaults for common scenarios.
-/// </para>
-/// </remarks>
-[PublicAPI]
-public record ReadOptions {
-    /// <summary>Target stream name for stream-specific read operations.</summary>
+public abstract record ReadOptionsBase {
+    /// <summary>Record filtering criteria to apply during read operations.</summary>
     /// <remarks>
-    /// <para><b>Default:</b> StreamName.None (no specific stream)</para>
-    /// <para><b>Importance:</b> High</para>
-    /// <para>When set to StreamName.None, the read operation targets the global event log across all streams.</para>
-    /// </remarks>
-    public StreamName Stream { get; init; } = StreamName.AllStream;
-
-    /// <summary>Event filtering criteria to apply during read operations.</summary>
-    /// <remarks>
-    /// <para><b>Default:</b> ReadFilter.None (no filtering)</para>
+    /// <para><b>Default:</b> RecordFilter.None (no filtering)</para>
     /// <para><b>Importance:</b> Medium</para>
-    /// <para>Filters can target specific event types, metadata properties, or custom predicates to reduce data transfer and processing overhead.</para>
+    /// <para>Filters can target specific schemas, metadata properties, or custom predicates to reduce data transfer and processing overhead.</para>
     /// </remarks>
-    public ReadFilter Filter { get; init; } = ReadFilter.None;
-
-    /// <summary>Starting position for the read operation in either stream or global log context.</summary>
-    /// <remarks>
-    /// <para><b>Default:</b> LogPosition.Latest</para>
-    /// <para><b>Importance:</b> High</para>
-    /// <para>Can be either a LogPosition for global log reads or a StreamRevision for stream-specific reads. The type ensures position context matches the operation.</para>
-    /// </remarks>
-    public RecordPosition Start { get; init; } = LogPosition.Latest;
+    public IRecordFilter Filter { get; init; } = RecordFilter.None;
 
     /// <summary>Heartbeat configuration for long-running read operations.</summary>
     /// <remarks>
@@ -114,74 +67,10 @@ public record ReadOptions {
     /// <para>Enables graceful shutdown and timeout handling in distributed systems and user-interactive scenarios.</para>
     /// </remarks>
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
-}
 
-[PublicAPI]
-public record ReadAllOptions : ReadOptionsBase {
-    public LogPosition Start { get; init; } = LogPosition.Latest;
-
-    public override void EnsureValid() {
-        base.EnsureValid();
-        ArgumentOutOfRangeException.ThrowIfLessThan(Start, LogPosition.Earliest, nameof(Start));
-    }
-
-    internal static ReadAllOptions FirstRecord(CancellationToken ct = default) =>
-        new() {
-            Start             = LogPosition.Earliest,
-            Direction         = ReadDirection.Forwards,
-            Limit             = 1,
-            Heartbeat         = HeartbeatOptions.Disabled,
-            CancellationToken = ct
-        };
-
-    internal static ReadAllOptions LastRecord(CancellationToken ct = default) =>
-        new() {
-            Start             = LogPosition.Latest,
-            Direction         = ReadDirection.Backwards,
-            Limit             = 1,
-            Heartbeat         = HeartbeatOptions.Disabled,
-            CancellationToken = ct
-        };
-}
-
-[PublicAPI]
-public record ReadStreamOptions : ReadOptionsBase {
-    public StreamName Stream { get; init; } = StreamName.None;
-
-    public StreamRevision Start { get; init; } = StreamRevision.Min;
-
-    public override void EnsureValid() {
-        base.EnsureValid();
-
-        ArgumentException.ThrowIfNullOrEmpty(Stream, nameof(Stream));
-        ArgumentOutOfRangeException.ThrowIfLessThan(Start, StreamRevision.Min, nameof(Start));
-
-        if (Direction == ReadDirection.Forwards && Start == StreamRevision.Max)
-            throw new ArgumentException(
-                "Start revision cannot be Max when reading forwards. Use ReadDirection.Backwards or specify a valid revision.",
-                nameof(Start)
-            );
-    }
-}
-
-[PublicAPI]
-public abstract record ReadOptionsBase {
-    public bool SkipDecoding { get; init; }
-
-    public ReadFilter Filter { get; init; } = ReadFilter.None;
-
-    public HeartbeatOptions Heartbeat { get; init; } = HeartbeatOptions.Default;
-
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
-
-    public int BufferSize { get; init; } = 1000;
-
-    public ReadDirection Direction { get; init; } = ReadDirection.Forwards;
-
-    public long Limit { get; init; } = long.MaxValue;
-
-    public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
-
+    /// <summary>
+    /// Validates the current options and throws exceptions for any invalid configurations.
+    /// </summary>
     public virtual void EnsureValid() {
         if (Heartbeat.Enable) {
             ArgumentOutOfRangeException.ThrowIfLessThan(Heartbeat.RecordsThreshold, 1);
@@ -194,5 +83,55 @@ public abstract record ReadOptionsBase {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(BufferSize, 10000);
 
         ArgumentOutOfRangeException.ThrowIfLessThan(Limit, 1);
+    }
+}
+
+[PublicAPI]
+public record ReadOptions : ReadOptionsBase {
+    /// <summary>
+    /// Starting position for the read operation in either stream or global log context.
+    /// </summary>
+    public LogPosition Start { get; init; } = LogPosition.Latest;
+
+    public override void EnsureValid() {
+        base.EnsureValid();
+
+        if (Start < LogPosition.Earliest)
+            throw new ArgumentOutOfRangeException(nameof(Start), "Start position cannot be less than Earliest.");
+    }
+}
+
+[PublicAPI]
+public record ReadStreamOptions : ReadOptionsBase {
+    /// <summary>
+    /// Name of the stream to read from.
+    /// </summary>
+    public StreamName Stream { get; init; } = StreamName.None;
+
+    /// <summary>
+    /// Starting revision within the specified stream to begin reading from.
+    /// </summary>
+    public StreamRevision Start { get; init; } = StreamRevision.Min;
+
+    public override void EnsureValid() {
+        base.EnsureValid();
+
+        if (Stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all' when reading from a specific stream. Use ReadOptions for reading from the global log.", nameof(Stream));
+
+        if ( Stream == StreamName.None)
+            throw new ArgumentException("Stream name must be specified when reading from a specific stream.", nameof(Stream));
+
+        if (Start == StreamRevision.Unset)
+            throw new ArgumentException("Start revision cannot be Unset when reading from a specific stream. Specify a valid revision.", nameof(Start));
+
+        if (Start < StreamRevision.Min)
+            throw new ArgumentOutOfRangeException(nameof(Start), "Start revision cannot be less than Min.");
+
+        if (Start > StreamRevision.Max)
+            throw new ArgumentOutOfRangeException(nameof(Start), "Start revision cannot be greater than Max.");
+
+        if (Direction == ReadDirection.Forwards && Start == StreamRevision.Max)
+            throw new ArgumentException("Start revision cannot be Max when reading forwards. Use ReadDirection.Backwards or specify a valid revision.", nameof(Start));
     }
 }

@@ -6,6 +6,7 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using KurrentDB.Client;
 using KurrentDB.Protocol.V1;
+using KurrentDB.Protocol.V2.Streams;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;
@@ -17,6 +18,138 @@ static class StreamsClientV1Mapper {
     static readonly Empty                                                     DefaultEmpty               = new();
 
     public static class Requests {
+        /// <summary>
+        ///  Creates a request to read a single record from the log at the specified position, resolving links if necessary.
+        /// </summary>
+        public static Contracts.ReadReq CreateInspectRecordRequest(LogPosition position) {
+            return new Contracts.ReadReq {
+                Options = new Contracts.ReadReq.Types.Options {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = 1,
+                    ResolveLinks  = true,
+                    All           = ConvertToAllOptions(position),
+                    ReadDirection = position == LogPosition.Latest
+                        ? Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards
+                        : Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                }
+            };
+        }
+
+        public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction) {
+            return new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = 1,
+                    ReadDirection = direction switch {
+                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    },
+                    Stream = ConvertToStreamOptions(stream, direction switch {
+                        ReadDirection.Backwards => StreamRevision.Max,
+                        ReadDirection.Forwards  => StreamRevision.Min,
+                    }),
+                }
+            };
+        }
+
+        public static Contracts.ReadReq CreateReadLogRequest(ReadOptions options) {
+            var filterOptions = ConvertToFilterOptions(options.Filter, options.Heartbeat);
+            var req = new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    ReadDirection = options.Direction switch {
+                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    },
+                    All   = ConvertToAllOptions(options.Start),
+                    Count = (ulong)options.Limit
+                }
+            };
+
+            if (filterOptions is not null)
+                req.Options.Filter = filterOptions;
+            else
+                req.Options.NoFilter = DefaultEmpty;
+
+            return req;
+        }
+
+        public static Contracts.ReadReq CreateReadStreamRequest(ReadStreamOptions options) {
+            var filterOptions = ConvertToFilterOptions(options.Filter, options.Heartbeat);
+            var req = new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    ReadDirection = options.Direction switch {
+                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    },
+                    Stream = ConvertToStreamOptions(options.Stream, options.Start),
+                    Count  = (ulong)options.Limit
+                }
+            };
+
+            if (filterOptions is not null)
+                req.Options.Filter = filterOptions;
+            else
+                req.Options.NoFilter = DefaultEmpty;
+
+            return req;
+        }
+
+        static Contracts.ReadReq.Types.Options.Types.AllOptions ConvertToAllOptions(LogPosition start) =>
+            start switch {
+                _ when start == LogPosition.Latest   => new() { End      = DefaultEmpty },
+                _ when start == LogPosition.Earliest => new() { Start    = DefaultEmpty },
+                _                                    => new() { Position = new() { CommitPosition = start, PreparePosition = start } }
+            };
+
+        static Contracts.ReadReq.Types.Options.Types.StreamOptions ConvertToStreamOptions(string stream, StreamRevision start) =>
+            start switch {
+                _ when start == StreamRevision.Max => new() { StreamIdentifier = stream, End      = DefaultEmpty },
+                _ when start == StreamRevision.Min => new() { StreamIdentifier = stream, Start    = DefaultEmpty },
+                _                                  => new() { StreamIdentifier = stream, Revision = (ulong)start.Value }
+            };
+
+        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter, HeartbeatOptions heartbeat) {
+            var options = filter switch {
+                StreamFilter f => new Contracts.ReadReq.Types.Options.Types.FilterOptions {
+                    StreamIdentifier = new() { Regex = f.Expression }
+                },
+
+                SchemaFilter f => new Contracts.ReadReq.Types.Options.Types.FilterOptions {
+                    EventType = new() { Regex = f.Expression }
+                },
+
+                ExpressionFilter { ServerRegex: not null, IsStreamScope: true } f => new Contracts.ReadReq.Types.Options.Types.FilterOptions {
+                    StreamIdentifier = new() { Regex = f.ServerRegex }
+                },
+
+                ExpressionFilter { ServerRegex: not null, IsStreamScope: false } f => new Contracts.ReadReq.Types.Options.Types.FilterOptions {
+                    EventType = new() { Regex = f.ServerRegex }
+                },
+
+                // ExpressionFilter { ServerRegex: not null } f => f.IsStreamScope
+                //     ? new Contracts.ReadReq.Types.Options.Types.FilterOptions { StreamIdentifier = new() { Regex = f.ServerRegex } }
+                //     : new Contracts.ReadReq.Types.Options.Types.FilterOptions { EventType        = new() { Regex = f.ServerRegex } },
+
+                _ => null
+            };
+
+            if (options is null)
+                return null;
+
+            options.Max                          = (uint)heartbeat.RecordsThreshold;
+            options.CheckpointIntervalMultiplier = 1;
+
+            return options;
+        }
+
         // public static Contracts.ReadReq CreateSubscriptionRequest(AllSubscriptionOptions options) {
         //     return new() { Options = new Contracts.ReadReq.Types.Options {
         //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
@@ -38,111 +171,6 @@ static class StreamsClientV1Mapper {
         //     }};
         // }
 
-
-        public static Contracts.ReadReq CreateReadRequest(ReadOptions options) {
-
-            // determine if we are reading from a stream or from all by asking the filter.
-
-            return new Contracts.ReadReq {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    ReadDirection = options.Direction switch {
-                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    },
-                    // either the full log
-                    All = new() { Position = new() {
-                        CommitPosition  = (ulong)options.Start.LogPosition.Value,
-                        PreparePosition = (ulong)options.Start.LogPosition.Value
-                    } },
-                    // or a specific stream
-                    Stream = ConvertToStreamOptions(options.Stream, options.Start.StreamRevision),
-
-                    // THE FILTER
-                    Filter = ConvertToFilterOptions(options.Filter, options.Heartbeat),
-                    Count  = (ulong)options.Limit,
-                }
-            };
-        }
-
-        public static Contracts.ReadReq CreateReadRequest(ReadAllOptions options) {
-            return new Contracts.ReadReq {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    ReadDirection = options.Direction switch {
-                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    },
-                    All = new() { Position = new() {
-                        CommitPosition  = options.Start,
-                        PreparePosition = options.Start
-                    } },
-                    Count  = (ulong)options.Limit,
-                    Filter = ConvertToFilterOptions(options.Filter, options.Heartbeat)
-                }
-            };
-        }
-
-        /// <summary>
-        ///  Creates a request to read a single record from the log at the specified position, resolving links if necessary.
-        /// </summary>
-        public static Contracts.ReadReq CreateInspectRecordRequest(LogPosition position) {
-            return new Contracts.ReadReq {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    Count         = 1,
-                    ResolveLinks  = true,
-                    ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    All = new() { Position = new() {
-                        CommitPosition  = position,
-                        PreparePosition = position
-                    } }
-                }
-            };
-        }
-
-        public static Contracts.ReadReq CreateReadRequest(ReadStreamOptions options) {
-            return new Contracts.ReadReq {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    NoFilter      = DefaultEmpty,
-                    ReadDirection = options.Direction switch {
-                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    },
-                    Stream = ConvertToStreamOptions(options.Stream, options.Start),
-                    Count  = (ulong)options.Limit,
-                }
-            };
-        }
-
-        public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction) {
-            return new Contracts.ReadReq {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    NoFilter      = DefaultEmpty,
-                    ReadDirection = direction switch {
-                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    },
-                    Stream = ConvertToStreamOptions(stream, direction switch {
-                        ReadDirection.Backwards => StreamRevision.Max,
-                        ReadDirection.Forwards  => StreamRevision.Min,
-                    }),
-                    Count  = 1,
-                }
-            };
-        }
-
-        // NoStream     = -1
-        // Any          = -2
-        // StreamExists = -4
-
         public static Contracts.DeleteReq CreateDeleteRequest(StreamName stream, StreamRevision revision) {
             var req = new Contracts.DeleteReq { Options = new() { StreamIdentifier = stream.Value } };
             return revision == StreamRevision.Unset
@@ -156,66 +184,6 @@ static class StreamsClientV1Mapper {
                 ? req.With(x => x.Options.StreamExists = DefaultEmpty)
                 : req.With(x => x.Options.Revision = (ulong)revision.Value);
         }
-
-        // public static Contracts.DeleteReq CreateDeleteRequest(StreamName stream, ExpectedStreamState expectedState) {
-        //     var req = new Contracts.DeleteReq { Options = new() { StreamIdentifier = stream.Value } };
-        //     return expectedState switch {
-        //         _ when expectedState == ExpectedStreamState.Any          => req.With(x => x.Options.Any = DefaultEmpty),
-        //         _ when expectedState == ExpectedStreamState.NoStream     => req.With(x => x.Options.NoStream = DefaultEmpty),
-        //         _ when expectedState == ExpectedStreamState.StreamExists => req.With(x => x.Options.StreamExists = DefaultEmpty),
-        //         _                                                        => req.With(x => x.Options.Revision = expectedState)
-        //     };
-        // }
-
-        // public static Contracts.TombstoneReq CreateTombstoneRequest(StreamName stream, ExpectedStreamState expectedState) {
-        //     var req = new Contracts.TombstoneReq { Options = new() { StreamIdentifier = stream.Value } };
-        //     return expectedState switch {
-        //         _ when expectedState == ExpectedStreamState.Any          => req.With(x => x.Options.Any = DefaultEmpty),
-        //         _ when expectedState == ExpectedStreamState.NoStream     => req.With(x => x.Options.NoStream = DefaultEmpty),
-        //         _ when expectedState == ExpectedStreamState.StreamExists => req.With(x => x.Options.StreamExists = DefaultEmpty),
-        //         _                                                        => req.With(x => x.Options.Revision = expectedState)
-        //     };
-        // }
-
-        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(ReadFilter filter, HeartbeatOptions heartbeat) {
-            if (filter == ReadFilter.None)
-                return null;
-
-            var options = filter.Scope switch {
-                ReadFilterScope.Stream => new Contracts.ReadReq.Types.Options.Types.FilterOptions {
-                    StreamIdentifier = new() { Regex = filter.Expression }
-                },
-                ReadFilterScope.Record => new Contracts.ReadReq.Types.Options.Types.FilterOptions {
-                    EventType = new() { Regex = filter.Expression } // #$idx-asdasd|~.gjh,'lgh,j'lhg,
-                },
-            };
-
-            // what is this?!
-            //options.Count = DefaultEmpty;
-            // if (filter.MaxSearchWindow.HasValue)
-            //     options.Max = (uint)heartbeatRecordsThreshold;
-            // else
-            //     options.Count = DefaultEmpty;
-
-            options.Max                          = (uint)heartbeat.RecordsThreshold;
-            options.CheckpointIntervalMultiplier = 1;
-
-            return options;
-        }
-
-        static Contracts.ReadReq.Types.Options.Types.AllOptions ConvertToAllOptions(LogPosition start) =>
-            start switch {
-                _ when start == LogPosition.Latest   => new() { End      = DefaultEmpty },
-                _ when start == LogPosition.Earliest => new() { Start    = DefaultEmpty },
-                _                                    => new() { Position = new() { CommitPosition = start, PreparePosition = start } }
-            };
-
-        static Contracts.ReadReq.Types.Options.Types.StreamOptions ConvertToStreamOptions(string stream, StreamRevision start) =>
-            start switch {
-                _ when start == StreamRevision.Max => new() { StreamIdentifier = stream, End      = DefaultEmpty },
-                _ when start == StreamRevision.Min => new() { StreamIdentifier = stream, Start    = DefaultEmpty },
-                _                                  => new() { StreamIdentifier = stream, Revision = (ulong)start.Value }
-            };
     }
 
     public static Heartbeat MapToHeartbeat(this Contracts.ReadResp.Types.Checkpoint checkpoint) {
@@ -310,17 +278,20 @@ static class StreamsClientV1Mapper {
         var recordedEvent = readEvent.Event;
 
         // first parse all info
-        var stream           = StreamName.From(recordedEvent.StreamIdentifier!);
-        var recordId         = Uuid.FromDto(recordedEvent.Id).ToGuid();
-        var revision         = StreamRevision.From((long)recordedEvent.StreamRevision);
-        var position         = LogPosition.From((long)recordedEvent.CommitPosition);
-        var schemaName       = SchemaName.From(recordedEvent.Metadata[Constants.Metadata.Type]);
-        var schemaDataFormat = recordedEvent.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat(); // it will always be json or octet-stream
-        var data             = recordedEvent.Data.Memory;
-        var rawMetadata      = recordedEvent.CustomMetadata.Memory;
-        var timestamp        = Convert.ToInt64(recordedEvent.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
+        var stream    = StreamName.From(recordedEvent.StreamIdentifier!);
+        var recordId  = Uuid.FromDto(recordedEvent.Id).ToGuid();
+        var revision  = StreamRevision.From((long)recordedEvent.StreamRevision);
+        var position  = LogPosition.From((long)recordedEvent.CommitPosition);
+        var data      = recordedEvent.Data.Memory;
+        var timestamp = Convert.ToInt64(recordedEvent.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
 
-        var metadata = metadataDecoder.Decode(rawMetadata, new(stream, schemaName, schemaDataFormat));
+        // not needed anymore specially in v2 where we have schema as a first class concept
+        var schemaFormat = recordedEvent.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat(); // it will always be json or octet-stream
+        var schemaName = SchemaName.From(recordedEvent.Metadata[Constants.Metadata.Type]);
+
+        var metadata = metadataDecoder.Decode(recordedEvent.CustomMetadata.Memory, new MetadataDecoderContext(stream, schemaName, schemaFormat));
+
+        var schema = metadata.ExtractSchemaInfo();
 
         var link = readEvent.Link is { } linkEvent
             ? new Link {
@@ -345,8 +316,9 @@ static class StreamsClientV1Mapper {
             StreamRevision = revision,
             Position       = position,
             Timestamp      = timestamp,
-            Metadata       = metadata,
             Data           = data,
+            Metadata       = metadata,
+            Schema         = schema,
             Link           = link,
             IndexRevision  = indexRevision
         };
@@ -357,12 +329,4 @@ static class StreamsClientV1Mapper {
 
         return record;
     }
-
-    public static ValueTask<Record> MapToRecordAsync(
-        this Contracts.ReadResp.Types.ReadEvent readEvent,
-        ISchemaSerializerProvider serializerProvider,
-        IMetadataDecoder metadataDecoder,
-        bool skipDecoding = false,
-        CancellationToken ct = default
-    ) => MapToRecordAsync(readEvent, serializerProvider, metadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding, ct);
 }

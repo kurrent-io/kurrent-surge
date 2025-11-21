@@ -9,8 +9,8 @@ namespace Kurrent.Client.Streams;
 
 [PublicAPI]
 [method: SetsRequiredMembers]
-public record AppendStreamRequest(string Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {
-    public required string                    Stream        { get; init; } = Stream;
+public record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {
+    public required StreamName                Stream        { get; init; } = Stream;
     public required IEnumerable<AppendRecord> Messages      { get; init; } = Messages;
     public required ExpectedStreamState       ExpectedState { get; init; } = ExpectedState;
 
@@ -19,8 +19,8 @@ public record AppendStreamRequest(string Stream, ExpectedStreamState ExpectedSta
 
 [PublicAPI]
 [method: SetsRequiredMembers]
-public record AppendStreamSuccess(string Stream, LogPosition Position, StreamRevision StreamRevision) {
-    public required string         Stream         { get; init; } = Stream;
+public record AppendStreamSuccess(StreamName Stream, LogPosition Position, StreamRevision StreamRevision) {
+    public required StreamName     Stream         { get; init; } = Stream;
     public required LogPosition    Position       { get; init; } = Position;
     public required StreamRevision StreamRevision { get; init; } = StreamRevision;
 }

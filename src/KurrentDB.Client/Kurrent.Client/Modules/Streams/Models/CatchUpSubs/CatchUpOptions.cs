@@ -87,7 +87,7 @@ public record CatchUpOptions {
     /// <para><b>Importance:</b> High</para>
     /// <para>Filters can target specific schema types, metadata properties, or custom predicates to reduce data transfer and processing overhead.</para>
     /// </remarks>
-    public RecordFilter Filter { get; init; } = RecordFilter.None;
+    public IRecordFilter Filter { get; init; } = RecordFilter.None;
 
     /// <summary>Starting position for the read operation in either stream or global log context.</summary>
     /// <remarks>

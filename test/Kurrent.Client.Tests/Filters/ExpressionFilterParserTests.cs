@@ -3,8 +3,8 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Client.Tests.Filters;
 
 [Category("Filters")]
-public class FilterParserTests {
-    readonly IFilterExpressionParser _parser = new FilterExpressionParser();
+public class ExpressionFilterParserTests {
+    readonly ExpressionFilterParser _parser = new();
 
     #region Comparison Operators
 
@@ -518,8 +518,8 @@ public class FilterParserTests {
 
     [Test]
     public void accepts_readonly_span_input() {
-        ReadOnlySpan<char> input = "stream = 'orders'";
-        var result = _parser.Parse(input);
+        ReadOnlySpan<char> input  = "stream = 'orders'";
+        var                result = _parser.Parse(input);
 
         result.IsSuccess.ShouldBeTrue();
     }

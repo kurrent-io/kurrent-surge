@@ -7,7 +7,7 @@ public class SchemaNameStrategiesTests {
 	# region . happy path .
 
 	[Test]
-	[Arguments(None, "Company.Logistics.Events.OrderShipped")]
+	[Arguments(SchemaNameOutputFormat.None, "Company.Logistics.Events.OrderShipped")]
 	[Arguments(KebabCase, "company.logistics.events.order-shipped")]
 	[Arguments(SnakeCase, "company.logistics.events.order_shipped")]
 	[Arguments(Urn, "urn:schemas-kurrent:company.logistics.events:order-shipped")]
@@ -19,8 +19,8 @@ public class SchemaNameStrategiesTests {
 	}
 
 	[Test]
-	[Arguments(None, "Logistics-101", "Logistics.OrderShipped")]
-	[Arguments(None, "Logistics", "Logistics.OrderShipped")]
+	[Arguments(SchemaNameOutputFormat.None, "Logistics-101", "Logistics.OrderShipped")]
+	[Arguments(SchemaNameOutputFormat.None, "Logistics", "Logistics.OrderShipped")]
 	[Arguments(KebabCase, "Logistics-101", "logistics.order-shipped")]
 	[Arguments(SnakeCase, "Logistics-101", "logistics.order_shipped")]
 	[Arguments(Urn, "Logistics-101", "urn:schemas-kurrent:logistics:order-shipped")]
@@ -32,7 +32,7 @@ public class SchemaNameStrategiesTests {
 	}
 
 	[Test]
-	[Arguments(None, "com.company.logistics.OrderShipped")]
+	[Arguments(SchemaNameOutputFormat.None, "com.company.logistics.OrderShipped")]
 	[Arguments(KebabCase, "com.company.logistics.order-shipped")]
 	[Arguments(SnakeCase, "com.company.logistics.order_shipped")]
 	[Arguments(Urn, "urn:schemas-kurrent:com.company.logistics:order-shipped")]
@@ -44,8 +44,8 @@ public class SchemaNameStrategiesTests {
 	}
 
 	[Test]
-	[Arguments(None, "Logistics-101", "com.company.Logistics.OrderShipped")]
-	[Arguments(None, "Logistics", "com.company.Logistics.OrderShipped")]
+	[Arguments(SchemaNameOutputFormat.None, "Logistics-101", "com.company.Logistics.OrderShipped")]
+	[Arguments(SchemaNameOutputFormat.None, "Logistics", "com.company.Logistics.OrderShipped")]
 	[Arguments(KebabCase, "Logistics-101", "com.company.logistics.order-shipped")]
 	[Arguments(SnakeCase, "Logistics-101", "com.company.logistics.order_shipped")]
 	[Arguments(Urn, "Logistics-101", "urn:schemas-kurrent:com.company.logistics:order-shipped")]

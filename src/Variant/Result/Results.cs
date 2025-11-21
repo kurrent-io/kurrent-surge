@@ -7,6 +7,7 @@ public static class Results {
     public static Created Created => default;
     public static Deleted Deleted => default;
     public static Updated Updated => default;
+    // public static None    None    => default;
 }
 
 [StructLayout(LayoutKind.Sequential, Size = 1)]
@@ -20,3 +21,6 @@ public readonly struct Deleted;
 
 [StructLayout(LayoutKind.Sequential, Size = 1)]
 public readonly struct Updated;
+
+// [StructLayout(LayoutKind.Sequential, Size = 1)]
+// public readonly struct None;

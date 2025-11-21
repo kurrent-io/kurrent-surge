@@ -75,7 +75,9 @@ public record Record(IRecordDecoder? Decoder  = null) {
 	/// <summary>
 	/// The schema information associated with the record.
 	/// </summary>
-	public RecordSchemaInfo Schema => Metadata.GetSchemaInfo();
+	// public RecordSchemaInfo Schema => Metadata.GetSchemaInfo();
+
+    public RecordSchemaInfo Schema { get; init; } = RecordSchemaInfo.None;
 
 	/// <summary>
 	/// Indicates whether the current <see cref="Record"/> instance has been successfully decoded.
@@ -87,7 +89,6 @@ public record Record(IRecordDecoder? Decoder  = null) {
 	                       && ValueType != typeof(Memory<byte>);
 
     public SequenceId SequenceId { get; init; } = SequenceId.None;
-
 
 	/// <summary>
 	/// Attempts to decode the record's data asynchronously.
@@ -137,13 +138,14 @@ sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaR
 
 		var context = new SchemaSerializationContext {
 			Stream               = record.Stream,
+            RecordSchema         = record.Schema,
 			Metadata             = record.Metadata,
 			SchemaRegistryPolicy = RegistryPolicy,
 			CancellationToken    = ct
 		};
 
 		record.Value = await serializerProvider
-			.GetSerializer(record.Schema.DataFormat)
+			.GetSerializer(record.Schema.SchemaFormat)
 			.Deserialize(record.Data, context)
 			.ConfigureAwait(false)!;
 

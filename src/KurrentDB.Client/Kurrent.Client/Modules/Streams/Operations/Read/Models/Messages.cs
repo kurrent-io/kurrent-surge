@@ -5,7 +5,7 @@ using static System.Threading.Interlocked;
 namespace Kurrent.Client.Streams;
 
 public readonly partial record struct ReadMessage : IVariant<Record, Heartbeat> {
-    public static readonly ReadMessage None;
+    internal static readonly ReadMessage Irrelevant = new();
 }
 
 [PublicAPI]
@@ -58,7 +58,7 @@ public sealed record Messages : IAsyncEnumerable<ReadMessage>, IAsyncDisposable 
                 yield break;
             }
 
-            if (message == ReadMessage.None)
+            if (message == ReadMessage.Irrelevant)
                 break;
 
             yield return message;

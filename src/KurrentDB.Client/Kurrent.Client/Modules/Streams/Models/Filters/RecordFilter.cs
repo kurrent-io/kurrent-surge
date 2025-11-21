@@ -1,65 +1,65 @@
-using System.Diagnostics.CodeAnalysis;
-using Kurrent.Validation;
-
 namespace Kurrent.Client.Streams;
 
 /// <summary>
-/// Represents a filter that can be applied to records.
+/// Factory methods for creating record filters.
 /// </summary>
 [PublicAPI]
-public readonly struct RecordFilter(IFilterExpression expression) {
+public static class RecordFilter {
     /// <summary>
-    /// A filter that matches no records (empty filter).
+    /// A filter that matches all records.
     /// </summary>
-    public static readonly RecordFilter None = default;
+    public static readonly IRecordFilter None = new EmptyFilter();
 
     /// <summary>
-    /// Gets the underlying filter expression.
+    /// Creates a filter that matches a specific stream exactly.
     /// </summary>
-    public IFilterExpression? Expression { get; init; } = expression;
+    /// <param name="stream">The stream name to match.</param>
+    public static IRecordFilter ByStream(StreamName stream) => new StreamFilter(stream);
 
     /// <summary>
-    /// Gets a value indicating whether this filter is empty (matches all records).
+    /// Creates a filter that matches streams by prefix patterns.
     /// </summary>
-    [MemberNotNullWhen(false, nameof(Expression))]
-    public bool IsEmpty => Expression is null;
+    /// <param name="prefixes">The stream name prefixes to match.</param>
+    public static IRecordFilter ByStreamPrefix(params string[] prefixes) => new StreamFilter(prefixes);
 
+    /// <summary>
+    /// Creates a filter that matches a specific schema (event type) exactly.
+    /// </summary>
+    /// <param name="schema">The schema name to match.</param>
+    public static IRecordFilter BySchema(string schema) => new SchemaFilter(schema);
+
+    /// <summary>
+    /// Creates a filter that matches schemas by prefix patterns.
+    /// </summary>
+    /// <param name="prefixes">The schema name prefixes to match.</param>
+    public static IRecordFilter BySchemaPrefix(params string[] prefixes) => new SchemaFilter(prefixes);
+
+    /// <summary>
+    /// Creates a filter from a DuckDB-compatible expression.
+    /// </summary>
+    /// <param name="expression">A filter expression (e.g., "stream = 'orders' AND props.ammount > 100").</param>
+    public static IRecordFilter ByExpression(string expression) => new ExpressionFilter(expression);
+}
+
+/// <summary>
+/// Defines a filter for matching records during read operations.
+/// </summary>
+[PublicAPI]
+public interface IRecordFilter {
     /// <summary>
     /// Evaluates whether the specified record matches this filter.
     /// </summary>
     /// <param name="record">The record to evaluate.</param>
-    /// <returns><c>true</c> if the record matches or filter is empty; otherwise, <c>false</c>.</returns>
-    public bool Matches(Record record) => IsEmpty || Expression.IsMatch(record);
-
-    /// <inheritdoc />
-    public override string ToString() => IsEmpty ? "None" : Expression?.ToString() ?? "Invalid";
+    /// <returns>True if the record matches the filter criteria; otherwise, false.</returns>
+    bool IsMatch(Record record);
 
     /// <summary>
-    /// Creates a new <see cref="RecordFilter"/> from the specified expression.
+    /// The target stream for stream-specific read operations.
     /// </summary>
-    /// <param name="expression">The filter expression.</param>
-    /// <returns>A new <see cref="RecordFilter"/> instance.</returns>
-    public static RecordFilter Create(IFilterExpression expression) => new(expression);
+    StreamName TargetStream { get; }
 
     /// <summary>
-    /// Parses a filter expression string into a <see cref="RecordFilter"/>.
+    /// The original filter expression.
     /// </summary>
-    /// <param name="input">The filter expression string to parse.</param>
-    /// <returns>
-    /// A result containing either the parsed <see cref="RecordFilter"/> on success,
-    /// or a <see cref="ValidationError"/> on failure.
-    /// </returns>
-    public static Result<RecordFilter, ValidationError> Parse(string input) {
-        if (string.IsNullOrWhiteSpace(input))
-            return None;
-
-        var parseResult = Parser.Parse(input);
-
-        if (parseResult.IsFailure)
-            return ValidationError.FromProblem("FILTER_PARSE_ERROR", parseResult.Error.ErrorMessage);
-
-        return Create(parseResult.Value);
-    }
-
-    static readonly FilterExpressionParser Parser = new();
+    string Expression { get; }
 }

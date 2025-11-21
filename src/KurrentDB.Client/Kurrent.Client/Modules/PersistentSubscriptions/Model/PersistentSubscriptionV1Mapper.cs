@@ -33,7 +33,7 @@ static class PersistentSubscriptionV1Mapper {
 
 	public static class Requests {
 		public static Contracts.CreateReq CreateSubscriptionRequest(
-			StreamName streamName, string groupName, PersistentSubscriptionSettings settings, HeartbeatOptions heartbeat, ReadFilter filter
+			StreamName streamName, string groupName, PersistentSubscriptionSettings settings, HeartbeatOptions heartbeat, IRecordFilter filter
 		) {
 			var options = new Contracts.CreateReq.Types.Options {
 				GroupName = groupName,
@@ -98,7 +98,7 @@ static class PersistentSubscriptionV1Mapper {
 			Contracts.CreateReq.Types.Options options,
 			StreamName streamName,
 			LogPosition startFrom,
-			ReadFilter filter,
+			IRecordFilter filter,
 			HeartbeatOptions heartbeat
 		) {
 			if (streamName.IsAllStream)
@@ -114,7 +114,7 @@ static class PersistentSubscriptionV1Mapper {
 				options.Stream = UpdateStreamOptions(streamName, startFrom);
 		}
 
-		static Contracts.CreateReq.Types.AllOptions CreateAllOptions(LogPosition start, ReadFilter filter, HeartbeatOptions heartbeat) {
+		static Contracts.CreateReq.Types.AllOptions CreateAllOptions(LogPosition start, IRecordFilter filter, HeartbeatOptions heartbeat) {
 			var allFilter = FilterOptionsConverter.ToCreateFilterOptions(filter, heartbeat);
 
 			return start switch {
@@ -153,14 +153,24 @@ static class PersistentSubscriptionV1Mapper {
 	}
 
 	static class FilterOptionsConverter {
-		internal static Contracts.CreateReq.Types.AllOptions.Types.FilterOptions? ToCreateFilterOptions(ReadFilter filter, HeartbeatOptions heartbeat) {
-			if (filter == ReadFilter.None)
-				return null;
+		internal static Contracts.CreateReq.Types.AllOptions.Types.FilterOptions? ToCreateFilterOptions(IRecordFilter filter, HeartbeatOptions heartbeat) {
+			var options = filter switch {
+				StreamFilter { Regex: not null } f when f.TargetStream == StreamName.None =>
+					new Contracts.CreateReq.Types.AllOptions.Types.FilterOptions { StreamIdentifier = new() { Regex = f.Regex } },
 
-			var options = filter.Scope switch {
-				ReadFilterScope.Stream => new Contracts.CreateReq.Types.AllOptions.Types.FilterOptions { StreamIdentifier = new() { Regex = filter.Expression } },
-				ReadFilterScope.Record => new Contracts.CreateReq.Types.AllOptions.Types.FilterOptions { EventType                                         = new() { Regex = filter.Expression } }
+				SchemaFilter f =>
+					new Contracts.CreateReq.Types.AllOptions.Types.FilterOptions { EventType = new() { Regex = f.Regex } },
+
+				ExpressionFilter { ServerRegex: not null } f =>
+					f.IsStreamScope
+						? new Contracts.CreateReq.Types.AllOptions.Types.FilterOptions { StreamIdentifier = new() { Regex = f.ServerRegex } }
+						: new Contracts.CreateReq.Types.AllOptions.Types.FilterOptions { EventType = new() { Regex = f.ServerRegex } },
+
+				_ => null
 			};
+
+			if (options is null)
+				return null;
 
 			options.Max = (uint)heartbeat.RecordsThreshold;
 			options.CheckpointIntervalMultiplier = 1;

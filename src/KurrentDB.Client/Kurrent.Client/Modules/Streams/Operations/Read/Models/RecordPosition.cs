@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -14,19 +16,19 @@ namespace Kurrent.Client.Streams;
 /// </remarks>
 [PublicAPI]
 public readonly record struct RecordPosition() : IComparable<RecordPosition>, IComparable {
-    public static readonly RecordPosition Unset = new();
-
+    public static readonly RecordPosition Unset    = new();
     public static readonly RecordPosition Earliest = new() { LogPosition = LogPosition.Earliest };
     public static readonly RecordPosition Latest   = new() { LogPosition = LogPosition.Latest };
 
-    public StreamName  Stream      { get; init; } = StreamName.None; // category? topic?
-    public PartitionId PartitionId { get; init; } = PartitionId.Any;
-    public LogPosition LogPosition { get; init; } = LogPosition.Unset;
+    public StreamName     Stream         { get; init; } = StreamName.None;
+    public StreamRevision StreamRevision { get; init; } = StreamRevision.Unset;
+    public PartitionId    PartitionId    { get; init; } = PartitionId.Any;
+    public LogPosition    LogPosition    { get; init; } = LogPosition.Unset;
 
-    public StreamRevision StreamRevision { get; init; } = StreamRevision.Min;
-
-
-    public StreamName StreamPartition => PartitionId > PartitionId.Any ? $"{Stream}-{PartitionId.Value:0000}" : StreamName.None;
+    [Experimental("KNET0001")]
+    internal StreamName StreamPartition =>
+        PartitionId > PartitionId.Any
+            ? $"{Stream}-{PartitionId.Value:0000}" : Stream;
 
     public override string ToString() {
         return Stream == StreamName.None
@@ -36,12 +38,32 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
                 : $"{Stream} [{PartitionId}] @{LogPosition}";
     }
 
-    public static RecordPosition From(StreamName stream, PartitionId partition, LogPosition logPosition) {
+    /// <summary>
+    /// Creates a RecordPosition for a specific log position.
+    /// </summary>
+    public static RecordPosition FromLogPosition(LogPosition logPosition) =>
+        new RecordPosition { LogPosition = logPosition };
+
+    /// <summary>
+    /// Creates a RecordPosition for a specific stream.
+    /// </summary>
+    public static RecordPosition FromStream(StreamName stream, StreamRevision revision, LogPosition? logPosition = null) {
+        if (revision != StreamRevision.Unset && stream == StreamName.None)
+            throw new ArgumentException("Stream cannot be None when specifying a StreamRevision.", nameof(stream));
+
+        return new RecordPosition { Stream = stream, StreamRevision = revision, LogPosition = logPosition ?? LogPosition.Unset };
+    }
+
+    /// <summary>
+    /// Creates a RecordPosition for a specific partitioned stream.
+    /// </summary>
+    [Experimental("KNET0001")]
+    internal static RecordPosition FromPartitionedStream(StreamName stream, PartitionId partition, LogPosition logPosition) {
         if (stream == StreamName.None)
             throw new ArgumentException("Stream cannot be None.", nameof(stream));
 
         if (partition == PartitionId.Any)
-            throw new ArgumentException("PartitionID cannot be Any.", nameof(partition));
+            throw new ArgumentException("PartitionID cannot be Any(-1).", nameof(partition));
 
         if (logPosition == LogPosition.Unset || logPosition == LogPosition.Earliest || logPosition == LogPosition.Latest)
             throw new ArgumentException("LogPosition cannot be Unset, Earliest or Latest.", nameof(logPosition));
@@ -52,8 +74,6 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
             LogPosition = logPosition,
         };
     }
-
-    public static RecordPosition From(LogPosition logPosition) => new RecordPosition { LogPosition = logPosition };
 
     #region . relational members .
 
@@ -73,7 +93,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
 
     #endregion
 
-    public static implicit operator RecordPosition(LogPosition _) => From(_);
-    public static implicit operator RecordPosition(long _)        => From(_);
+    public static implicit operator RecordPosition(LogPosition _) => FromLogPosition(_);
+    public static implicit operator RecordPosition(long _)        => FromLogPosition(_);
     public static implicit operator long(RecordPosition _)        => _.LogPosition;
 }

@@ -13,6 +13,11 @@ public readonly record struct StreamName {
     public static readonly StreamName None = new("");
 
     /// <summary>
+    /// A stream containing all events in the KurrentDB transaction file.
+    /// </summary>
+    public static readonly StreamName All = new(AllStream);
+
+    /// <summary>
     /// The underlying string value of the stream name.
     /// </summary>
     public string Value { get; }
@@ -46,7 +51,7 @@ public readonly record struct StreamName {
     /// <summary>
     /// Whether the specified stream is a system stream.
     /// </summary>
-    public bool IsSystemStream => Value.StartsWith("$$");
+    public bool IsSystemStream => Value.StartsWith('$');
 
     /// <summary>
     /// A stream containing all events in the KurrentDB transaction file.
