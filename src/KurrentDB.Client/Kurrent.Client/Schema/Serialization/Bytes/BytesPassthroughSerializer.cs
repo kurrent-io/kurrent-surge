@@ -22,8 +22,9 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
             "value must be byte[] or ReadOnlyMemory<byte> or Memory<byte> or ReadOnlySequence<byte>");
 
 		// enforce the schema data format
-		context.Metadata
-			.With(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Bytes);
+        context.RecordSchema = context.RecordSchema with {
+            SchemaFormat = SchemaDataFormat.Bytes
+        };
 
 		var result = value switch {
 			null                       => ReadOnlyMemory<byte>.Empty,

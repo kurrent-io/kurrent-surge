@@ -5,6 +5,7 @@ using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
 using Kurrent.Testing.Shouldly;
 using Kurrent.Testing.TUnit;
+using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -17,27 +18,50 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_log(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        // var home = HomeAutomationDataSet.Default.Home();
+        // var stream = StreamName.From($"{nameof(SmartHomeActivity)}-{home.Id}");
+
+        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        var stoppingToken = cancellator.Token;
+
+        var simulation = await Fixture.SeedSmartHomeActivity(10, stoppingToken);
 
         var options = new ReadOptions {
-            Start  = simulation.Position,
-            Filter = RecordFilter.ByExpression($"stream = '{simulation.Stream}'"),
-            CancellationToken = ct
+            Start             = LogPosition.Earliest,
+            Filter            = RecordFilter.ByExpression($"stream = '{simulation.Stream}'"),
+            // Filter            = RecordFilter.ByStream(simulation.Stream),
+            SkipDecoding      = true,
+            Heartbeat         = HeartbeatOptions.Threshold(100),
+            CancellationToken = stoppingToken
         };
 
         await using var messages = await Fixture.Client.Streams
-            .Read(options)
+            .ReadRecords(options)
             .ShouldNotThrowOrFailAsync();
 
-        var records = await messages
-            .Where(msg => msg.IsRecord)
-            .Select(msg => msg.AsRecord)
-            .TakeWhile(rec => rec.Position <= simulation.Position)
-            .ToListAsync(ct);
+        var records = new List<Record>();
+
+        await foreach (var msg in messages.WithCancellation(stoppingToken)) {
+            msg.Switch(
+                record => {
+                    records.Add(record);
+
+                    Log.Information(
+                        "Record {RecordId} {SchemaName} @ {Position}",
+                        record.Id, record.Schema.SchemaName, record.Position
+                    );
+
+                    if (record.Position >= simulation.Position)
+                        // ReSharper disable once AccessToDisposedClosure
+                        cancellator.Cancel();
+                },
+                heartbeat => Log.Information("Heartbeat {HeartbeatType} @ {Position}", heartbeat.Type, heartbeat.Position)
+            );
+        }
 
         records.Count.ShouldBe(simulation.Records.Count);
     }
-
 
     [Test]
     public async ValueTask reads_stream(CancellationToken ct) {
@@ -46,7 +70,7 @@ public class ReadTests {
         var now = Fixture.Time.GetUtcNow();
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStream(simulation.Stream, ct)
+            .ReadStreamRecords(simulation.Stream, ct)
             .ShouldNotThrowOrFailAsync();
 
         var records = await messages
@@ -78,17 +102,25 @@ public class ReadTests {
     }
 
     [Test]
-    [Skip("Needs investigation")]
-    public async ValueTask gracefully_stops_reading_and_flushes_queue_when_read_token_is_cancelled(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(3)]
+    [Arguments(5)]
+    [Arguments(6)]
+    [Arguments(7)]
+    [Arguments(9)]
+    [Arguments(10)]
+    [Arguments(100)]
+    public async ValueTask gracefully_stops_reading_and_flushes_queue_when_read_token_is_cancelled(int records, CancellationToken ct) {
+        var simulation = await Fixture.SeedSmartHomeActivity(records, ct);
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStream(simulation.Stream, cancellator.Token)
+            .ReadStreamRecords(simulation.Stream, cancellator.Token)
             .ShouldNotThrowOrFailAsync();
 
-        var cancelOn = simulation.Records.Count / 2;
+        var cancelOn = simulation.Records.Count / 2 + simulation.Records.Count % 2;
 
         await foreach (var _ in messages)
             if (--cancelOn == 0 && !cancellator.IsCancellationRequested)
@@ -99,26 +131,38 @@ public class ReadTests {
     }
 
     [Test]
-    [Skip("Needs investigation")]
-    public async ValueTask gracefully_stops_reading_without_flushing_queue_when_enumerable_token_is_cancelled(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(3)]
+    [Arguments(5)]
+    [Arguments(6)]
+    [Arguments(7)]
+    [Arguments(9)]
+    [Arguments(10)]
+    [Arguments(100)]
+    public async ValueTask gracefully_stops_reading_without_flushing_queue_when_enumerable_token_is_cancelled(int records, CancellationToken ct) {
+        var simulation = await Fixture.SeedSmartHomeActivity(records, ct);
 
-        await using var messages = await Fixture.Client.Streams
-            .ReadStream(simulation.Stream, ct)
+        await using RecordStream messages = await Fixture.Client.Streams
+            .ReadStreamRecords(simulation.Stream, ct)
             .ShouldNotThrowOrFailAsync();
 
-        var cancelOn = simulation.Records.Count / 2;
+        var cancelOn = simulation.Records.Count / 2 + simulation.Records.Count % 2;
 
-        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var cancellator = new CancellationTokenSource();
 
-        await foreach (var _ in messages.WithCancellation(cancellator.Token))
+        await foreach (var _ in messages.WithCancellation(cancellator.Token)) {
             if (--cancelOn == 0)
-                await cancellator.CancelAsync();
+                cancellator.Cancel();
+            else
+                await Task.Delay(25); // simulate some processing time
+        }
 
         messages.QueuedMessages.ShouldBeGreaterThanOrEqualTo(
-            simulation.Records.Count / 2, "Should not queue more than one message before cancellation"
+            cancelOn, "Should not queue more than one message before cancellation"
         );
 
+        cancellator.Token.IsCancellationRequested.ShouldBeTrue();
         cancellator.IsCancellationRequested.ShouldBeTrue();
     }
 
@@ -126,28 +170,81 @@ public class ReadTests {
     public async ValueTask reads_first_stream_record(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
-        var firstMessage = simulation.Records.First();
+        var expectedRecord = simulation.Records.First();
 
         await Fixture.Client.Streams
             .ReadFirstStreamRecord(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(record =>
-                record.Value.ShouldBeEquivalentTo(firstMessage.Value));
+            .ShouldNotThrowOrFailAsync(record => {
+                record.Value.ShouldBeEquivalentTo(expectedRecord.Value);
+                record.Id.ShouldBe(expectedRecord.RecordId);
+            });
     }
 
     [Test]
     public async ValueTask reads_last_stream_record(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
-        var lastMessage = simulation.Records.Last();
+        var expectedRecord = simulation.Records.Last();
 
         await Fixture.Client.Streams
             .ReadLastStreamRecord(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(record =>
-                record.Value.ShouldBeEquivalentTo(lastMessage.Value));
+            .ShouldNotThrowOrFailAsync(record => {
+                record.Value.ShouldBeEquivalentTo(expectedRecord.Value);
+                record.Id.ShouldBe(expectedRecord.RecordId);
+            });
+    }
+
+    public class NonExistingPositions : TestCaseGenerator<LogPosition> {
+        protected override IEnumerable<LogPosition> Data() => [
+            LogPosition.Latest, // edge case as it represents the end of the log
+            LogPosition.Latest - 1,
+            LogPosition.Latest - 2
+        ];
+    }
+    //
+    // [Test, NonExistingPositions]
+    // public async ValueTask fails_with_log_position_not_found_when_log_position_does_not_exist(LogPosition position, CancellationToken ct) {
+    //     await Fixture.Client.Streams
+    //         .Read(position, ct)
+    //         .ShouldFailAsync(err => err
+    //             .Value.ShouldBeOfType<LogPositionNotFoundException>()
+    //             .Message.ShouldContain($"{position}"));
+    // }
+
+    [Test]
+    public async ValueTask fails_with_log_position_not_found_when_log_position_is_broken(CancellationToken ct) {
+        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+
+        RecordStream messages = await Fixture.Client.Streams
+            .ReadStreamRecords(simulation.Stream, ct)
+            .UnwrapAsync();
+
+        var records = await messages
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        Log.Information("Stream Position After Append: {StreamPosition}", simulation.Position);
+
+        for (var i = 0; i < records.Count; i++) {
+            var record = records[i];
+            Log.Information(
+                "{Sequence:00} Record {RecordId} Position: {Position}", i + 1, record.Id,
+                record.Position);
+        }
+
+        // does not exist between records
+        var brokenPosition = LogPosition.From(simulation.Position - 1);
+
+        await Fixture.Client.Streams
+            .ReadRecords(brokenPosition, ct)
+            .ShouldFailAsync(err => err
+                .Value.ShouldBeOfType<LogPositionNotFoundException>()
+                .Message.ShouldContain($"{brokenPosition}"));
     }
 
     [Test]
-    public async ValueTask fails_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
+    public async ValueTask fails_with_stream_deleted_error_when_stream_is_deleted(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
@@ -155,13 +252,12 @@ public class ReadTests {
             .ShouldNotThrowOrFailAsync();
 
         await Fixture.Client.Streams
-            .ReadStream(simulation.Stream, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(ReadError.ReadErrorCase.StreamDeletedException));
+            .ReadStreamRecords(simulation.Stream, ct)
+            .ShouldFailAsync(err => err.Value.ShouldBeOfType<StreamDeletedException>());
     }
 
     [Test]
-    public async ValueTask fails_with_stream_tombstoned_when_stream_was_tombstoned(CancellationToken ct) {
+    public async ValueTask fails_with_stream_tombstoned_error_when_stream_is_tombstoned(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
@@ -169,9 +265,8 @@ public class ReadTests {
             .ShouldNotThrowOrFailAsync();
 
         await Fixture.Client.Streams
-            .ReadStream(simulation.Stream, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(ReadError.ReadErrorCase.StreamTombstonedException));
+            .ReadStreamRecords(simulation.Stream, ct)
+            .ShouldFailAsync(err => err.Value.ShouldBeOfType<StreamTombstonedException>());
     }
 
     [Test]
@@ -179,25 +274,7 @@ public class ReadTests {
         var activity = HomeAutomationTestData.SimulateHomeActivity();
 
         await Fixture.Client.Streams
-            .ReadStream(activity.Stream, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(ReadError.ReadErrorCase.StreamNotFoundException));
-    }
-
-    public class NonExistingPositions : TestCaseGenerator<LogPosition> {
-        protected override IEnumerable<LogPosition> Data() => [
-            LogPosition.Latest, // edge case as it represents the end of the log
-            LogPosition.Latest - 1
-        ];
-    }
-
-    [Test, NonExistingPositions]
-    public async ValueTask fails_with_log_position_not_found_when_log_position_does_not_exist(LogPosition position, CancellationToken ct) {
-        await Fixture.Client.Streams
-            .Read(position, ct)
-            .ShouldFailAsync(error => {
-                error.Value.ShouldBeOfType<LogPositionNotFoundException>()
-                    .Message.ShouldContain($"{position}");
-            });
+            .ReadStreamRecords(activity.Stream, ct)
+            .ShouldFailAsync(err => err.Value.ShouldBeOfType<StreamNotFoundException>());
     }
 }

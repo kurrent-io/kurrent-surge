@@ -4,6 +4,7 @@ using Grpc.Core.Interceptors;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using KurrentDB.Client;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using static System.StringComparer;
@@ -194,6 +195,36 @@ public record KurrentClientOptions : OptionsBase<KurrentClientOptions, KurrentCl
     public ILoggerFactory LoggerFactory { get; init; } = NullLoggerFactory.Instance;
 
     public override string ToString() => this.GenerateConnectionString();
+
+    /// <summary>
+    /// Creates a new <see cref="KurrentClientOptions"/> instance from configuration.
+    /// <remarks>
+    /// The configuration is built automatically from standard sources including
+    /// appsettings.json files and environment variables.
+    /// </remarks>
+    /// </summary>
+    public static KurrentClientOptions FromConfiguration(string prefix = "kurrent:client") {
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", true)
+            .AddJsonFile($"appsettings.{environment}.json", true)                    // Accept default naming convention
+            .AddJsonFile($"appsettings.{environment.ToLowerInvariant()}.json", true) // Linux is case-sensitive
+            .AddEnvironmentVariables()
+            .Build();
+
+        // given the complexity of mapping configuration to options,
+        // we might not be able to bind directly in all cases. So we try to bind first,
+        // and if that fails, we fall back to default options.
+
+        // this is because our Options are in fact settings that can be provided partially.
+        // by this I mean that certain properties are complex types and implementations
+        // that need to be constructed properly
+
+        var options = configuration.Get<KurrentClientOptions>() ?? new KurrentClientOptions();
+
+        return options;
+    }
 }
 
 static class KurrentDBConnectionStringExtensions {

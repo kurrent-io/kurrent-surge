@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Channels;
 
 namespace Kurrent.Client;
@@ -25,7 +26,7 @@ static class ChannelExtensions {
 
                 while (buffer.Count < batchSize) {
                     var readSignal    = reader.WaitToReadAsync(cancellationToken).AsTask();
-                    var completedTask = await Task.WhenAny(readSignal, timerTask);
+                    var completedTask = await Task.WhenAny(readSignal, timerTask).ConfigureAwait(false);
 
                     if (completedTask == readSignal && !readSignal.IsCanceled && await readSignal) {
                         while (buffer.Count < batchSize && reader.TryRead(out var item))
@@ -81,6 +82,4 @@ static class ChannelExtensions {
             }
         }
     }
-
-    // just having fun
 }

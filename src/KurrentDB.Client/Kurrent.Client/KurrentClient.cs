@@ -10,8 +10,8 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Client;
 
 [PublicAPI]
-public sealed class KurrentClient : IAsyncDisposable {
-	public static KurrentClientOptionsBuilder New => new KurrentClientOptionsBuilder();
+public class KurrentClient : IAsyncDisposable {
+    public static KurrentClientOptionsBuilder New => new KurrentClientOptionsBuilder();
 
     public KurrentClient(KurrentClientOptions options) {
 	    options.EnsureOptionsAreValid();
@@ -41,6 +41,8 @@ public sealed class KurrentClient : IAsyncDisposable {
         // Connectors              = new ConnectorsClient(this);
     }
 
+    internal bool Shared { get; init; }
+
     internal KurrentClientOptions         Options               { get; }
     internal KurrentDBLegacyCallInvoker   LegacyCallInvoker     { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
@@ -62,9 +64,14 @@ public sealed class KurrentClient : IAsyncDisposable {
 	// 	};
 	// }
 
-	public async ValueTask DisposeAsync() {
+	public virtual async ValueTask DisposeAsync() {
+        if (Shared) return;
+
         BackdoorClientFactory.Dispose();
-        await LegacyCallInvoker.DisposeAsync();
+
+        await LegacyCallInvoker
+            .DisposeAsync()
+            .ConfigureAwait(false);
     }
 
     public static KurrentClient Create(KurrentClientOptions? options = null) =>

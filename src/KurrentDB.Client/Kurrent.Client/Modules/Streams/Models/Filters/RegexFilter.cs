@@ -11,19 +11,36 @@ public abstract record RegexFilter : IRecordFilter {
     /// Creates a regex filter for exact match.
     /// </summary>
     protected RegexFilter(string value) {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
+
         var escaped = Regex.Escape(value);
         Regex = new Regex($"^{escaped}$", RegexOptions.Compiled);
     }
 
     /// <summary>
-    /// Creates a regex filter for prefix match.
+    /// Creates a regex filter for exact multi-value match.
     /// </summary>
-    protected RegexFilter(string[] prefixes) {
-        if (prefixes.Length == 0)
-            throw new ArgumentException("At least one prefix is required.", nameof(prefixes));
+    protected RegexFilter(string[] values, bool exactMatch) {
+        if (values.Length == 0)
+            throw new ArgumentException("At least one value is required.", nameof(values));
 
-        var escaped = prefixes.Select(p => Regex.Escape(p.Trim()));
-        Regex = new Regex($"^({string.Join("|", escaped)})", RegexOptions.Compiled);
+        var escaped = values.Select(v => Regex.Escape(v.Trim()));
+        var pattern = exactMatch
+            ? $"^({string.Join("|", escaped)})$"
+            : $"^({string.Join("|", escaped)})";
+
+        Regex = new Regex(pattern, RegexOptions.Compiled);
+    }
+
+    /// <summary>
+    /// Creates a regex filter from a compiled regex pattern.
+    /// </summary>
+    /// <param name="pattern">The compiled regex pattern.</param>
+    /// <param name="targetStream">Optional target stream for the filter.</param>
+    protected RegexFilter(Regex pattern, StreamName targetStream = default) {
+        Regex        = pattern;
+        TargetStream = targetStream == default ? StreamName.All : targetStream;
     }
 
     Regex Regex { get; }

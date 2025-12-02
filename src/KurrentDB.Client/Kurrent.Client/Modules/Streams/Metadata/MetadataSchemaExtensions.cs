@@ -5,17 +5,22 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public static class MetadataSchemaExtensions {
 	extension(Metadata metadata) {
-        public RecordSchemaInfo GetSchemaInfo() =>
-            new(GetSchemaName(metadata), GetSchemaFormat(metadata), GetSchemaId(metadata));
+        // public RecordSchemaInfo GetSchemaInfo() =>
+        //     new RecordSchemaInfo {
+        //         SchemaName      = metadata.GetSchemaName(),
+        //         SchemaFormat    = metadata.GetSchemaFormat(),
+        //         SchemaVersionId = metadata.GetSchemaId()
+        //     };
 
         /// <summary>
         /// Extracts schema information from the metadata and removes the related entries.
         /// </summary>
         public RecordSchemaInfo ExtractSchemaInfo() {
-            var info = new RecordSchemaInfo(
-                GetSchemaName(metadata),
-                GetSchemaFormat(metadata),
-                GetSchemaId(metadata));
+            var info = new RecordSchemaInfo {
+                SchemaName      = metadata.GetSchemaName(),
+                SchemaFormat    = metadata.GetSchemaFormat(),
+                SchemaVersionId = metadata.GetSchemaId()
+            };
 
             metadata.Remove(SystemMetadataKeys.SchemaName);
             metadata.Remove(SystemMetadataKeys.SchemaFormat);

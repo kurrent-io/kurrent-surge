@@ -15,7 +15,7 @@ namespace Kurrent.Testing.Sample.HomeAutomation;
 /// </summary>
 public static class FakerExtensions {
     public static HomeAutomationDataSet HomeAutomation(this Faker faker, string locale = "en") {
-        ArgumentException.ThrowIfNullOrWhiteSpace(locale, nameof(locale));
+        ArgumentException.ThrowIfNullOrWhiteSpace(locale);
         return faker.Locale != locale ? new HomeAutomationDataSet(locale) : new HomeAutomationDataSet(faker);
     }
 }

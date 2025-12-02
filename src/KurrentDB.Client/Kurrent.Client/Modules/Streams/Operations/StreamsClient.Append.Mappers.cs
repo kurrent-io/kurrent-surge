@@ -28,7 +28,7 @@ static partial class StreamsClientV2Mapper {
         try {
             var context = new SchemaSerializationContext {
                 Stream               = stream,
-                Metadata             = source.Metadata,
+                RecordSchema         = new RecordSchemaInfo { SchemaFormat = source.DataFormat },
                 SchemaRegistryPolicy = SchemaRegistryPolicy.NoRequirements,
                 CancellationToken    = ct
             };
@@ -39,13 +39,9 @@ static partial class StreamsClientV2Mapper {
                 .ConfigureAwait(false);
 
             var schemaInfo = new Contracts.SchemaInfo {
-                Name   = context.Metadata.GetSchemaName(),
+                Name   = context.RecordSchema.SchemaName,
                 Format = (Contracts.SchemaFormat)source.DataFormat
             };
-
-            // TODO SS: rethink/consider how to return schema info from serializer base without mutating metadata
-            context.Metadata.Remove(SystemMetadataKeys.SchemaName);
-            context.Metadata.Remove(SystemMetadataKeys.SchemaFormat);
 
             // UnsafeWrap constructs a new ByteString from the given bytes.
             // The bytes are not copied, and must not be modified while the

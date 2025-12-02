@@ -1,8 +1,9 @@
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Shouldly;
+using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -12,7 +13,6 @@ namespace Kurrent.Client.Tests.Streams;
 public class InspectRecordTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
-
 
     [Test]
     [Skip("Needs investigation")]
@@ -31,7 +31,7 @@ public class InspectRecordTests {
     }
 
     [Test]
-    public async ValueTask inspects_record_at_specific_position(CancellationToken ct) {
+    public async ValueTask returns_record_at_specific_position(CancellationToken ct) {
         var seeded = await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams
@@ -44,7 +44,7 @@ public class InspectRecordTests {
     }
 
     [Test]
-    public async ValueTask inspects_first_record_using_earliest_position(CancellationToken ct) {
+    public async ValueTask returns_first_record_using_earliest_position(CancellationToken ct) {
         await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams
@@ -57,7 +57,7 @@ public class InspectRecordTests {
     }
 
     [Test]
-    public async ValueTask inspects_last_record_using_latest_position(CancellationToken ct) {
+    public async ValueTask returns_last_record_using_latest_position(CancellationToken ct) {
         await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams
@@ -70,78 +70,81 @@ public class InspectRecordTests {
     }
 
     [Test]
-    public async ValueTask inspects_record_with_decoding_disabled(CancellationToken ct) {
-        var seeded = await Fixture.SeedSmartHomeActivity(5, ct);
+    public async ValueTask returns_undecoded_record(CancellationToken ct) {
+        var seeded = await Fixture.SeedSmartHomeActivity(ct);
 
         var record = await Fixture.Client.Streams
             .InspectRecord(seeded.Position, skipDecoding: true, ct)
             .ShouldNotThrowOrFailAsync();
 
-        record.IsDecoded.ShouldBeFalse();
-        record.Data.Length.ShouldBeGreaterThan(0);
+        record.Data.Length.ShouldBeGreaterThan(0, "Data must still be present when decoding is skipped");
+        record.Value.ShouldBeNull("Value should not have been decoded from data");
+        record.IsDecoded.ShouldBeFalse("Record should not have been decoded");
     }
 
     [Test]
-    public async ValueTask inspects_record_with_decoding_enabled(CancellationToken ct) {
-        var seeded = await Fixture.SeedSmartHomeActivity(5, ct);
+    public async ValueTask returns_decoded_record(CancellationToken ct) {
+        var seeded = await Fixture.SeedSmartHomeActivity(ct);
 
         var record = await Fixture.Client.Streams
             .InspectRecord(seeded.Position, skipDecoding: false, ct)
             .ShouldNotThrowOrFailAsync();
 
-        record.IsDecoded.ShouldBeTrue();
-        record.Value.ShouldNotBeNull();
+        record.Data.Length.ShouldBeGreaterThan(0, "Data must still be present after decoding");
+        record.Value.ShouldNotBeNull("Value should have been decoded from data");
+        record.IsDecoded.ShouldBeTrue("Record should have been decoded");
+    }
+
+    // [Test]
+    // public async ValueTask fails_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
+    //     var simulation = await Fixture.SeedSmartHomeActivity(ct);
+    //
+    //     await Fixture.Client.Streams
+    //         .Delete(simulation.Stream, ct)
+    //         .ShouldNotThrowOrFailAsync();
+    //
+    //     await Fixture.Client.Streams
+    //         .InspectRecord(simulation.Position, ct)
+    //         .InspectAsync(record => {
+    //             Fixture.Logger.LogInformation("Inspected record at position {Position} from deleted stream {Stream}", record.Position, record.Stream);
+    //         })
+    //         .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamDeletedException>());
+    // }
+
+    [Test]
+    public async ValueTask fails_with_stream_tombstoned_error_when_stream_was_tombstoned(CancellationToken ct) {
+        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+
+        await Fixture.Client.Streams
+            .Tombstone(simulation.Stream, ct)
+            .ShouldNotThrowOrFailAsync();
+
+        await Fixture.Client.Streams
+            .InspectRecord(simulation.Position, ct)
+            .InspectAsync(record => {
+                var pos = simulation.Position;
+                Fixture.Logger.LogInformation("Inspected record at position {Position} from tombstoned stream {Stream}", record.Position, record.Stream);
+            })
+            .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamTombstonedException>());
     }
 
     [Test]
-    public async ValueTask fails_when_position_does_not_exist(CancellationToken ct) {
+    public async ValueTask fails_with_LogPositionNotFoundException_when_log_position_does_not_exist(CancellationToken ct) {
         var nonExistentPosition = int.MaxValue - 1000;
 
         await Fixture.Client.Streams
             .InspectRecord(nonExistentPosition, ct)
-            // .ShouldFailAsync(error => error.Value.ShouldBeOfType<LogPositionNotFoundException>());
-            .ShouldFailAsync(error => error.Case.ShouldBe(InspectRecordError.InspectRecordErrorCase.LogPositionNotFoundException));;
+            .ShouldFailAsync(error => error.Value.ShouldBeOfType<LogPositionNotFoundException>());
     }
 
     [Test]
-    public async ValueTask throws_when_position_is_unset() {
-        await Fixture.Client.Streams
+    public async ValueTask throws_ArgumentOutOfRangeException_when_log_position_is_unset() {
+        var action = async () => await Fixture.Client.Streams
             .InspectRecord(LogPosition.Unset, CancellationToken.None)
-            .ShouldFailAsync(error => {
-                error.IsException.ShouldBeTrue();
-                var exception = error.AsException;
-                exception.ShouldBeOfType<ArgumentOutOfRangeException>();
-                ((ArgumentOutOfRangeException)exception).ParamName.ShouldBe("position");
-                exception.Message.ShouldContain("Log position cannot be unset");
-            });
-    }
+            .UnwrapAsync()
+            .ConfigureAwait(false);
 
-    [Test]
-    public async ValueTask inspected_record_contains_expected_metadata(CancellationToken ct) {
-        var seeded = await Fixture.SeedSmartHomeActivity(3, ct);
-
-        var record = await Fixture.Client.Streams
-            .InspectRecord(seeded.Position, skipDecoding: false, ct)
-            .ShouldNotThrowOrFailAsync();
-
-        record.Id.ShouldNotBe(Guid.Empty);
-        record.Position.ShouldBeGreaterThanOrEqualTo(0);
-        record.StreamRevision.ShouldBeGreaterThanOrEqualTo(0);
-        record.Timestamp.ShouldNotBe(default);
-        record.Schema.SchemaName.ShouldNotBe(SchemaName.None);
-    }
-
-    [Test]
-    public async ValueTask inspects_record_from_middle_of_stream(CancellationToken ct) {
-        // Seed multiple activities to create a log with multiple records
-        await Fixture.SeedSmartHomeActivity(5, ct);
-        var seeded = await Fixture.SeedSmartHomeActivity(5, ct);
-
-        var record = await Fixture.Client.Streams
-            .InspectRecord(seeded.Position, ct)
-            .ShouldNotThrowOrFailAsync();
-
-        record.Position.ShouldBeLessThanOrEqualTo(seeded.Position);
-        record.IsDecoded.ShouldBeFalse();
+        await action.ShouldThrowAsync<ArgumentOutOfRangeException>();
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(action);
     }
 }

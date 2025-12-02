@@ -186,11 +186,13 @@ public class ExpressionFilterTests {
     public void evaluates_like_with_percent_wildcard() {
         var filter      = Parse("stream LIKE 'order%'");
         var matching1   = _faker.With("orders");
-        var matching2   = _faker.With("order-123");
+        var matching2   = _faker.With("order");
+        var matching3   = _faker.With("orders-123");
         var nonMatching = _faker.With("payments");
 
         filter.IsMatch(matching1).ShouldBeTrue();
         filter.IsMatch(matching2).ShouldBeTrue();
+        filter.IsMatch(matching3).ShouldBeTrue();
         filter.IsMatch(nonMatching).ShouldBeFalse();
     }
 
@@ -200,6 +202,18 @@ public class ExpressionFilterTests {
         var matching     = _faker.With("orders");
         var nonMatching1 = _faker.With("order");
         var nonMatching2 = _faker.With("order-123");
+
+        filter.IsMatch(matching).ShouldBeTrue();
+        filter.IsMatch(nonMatching1).ShouldBeFalse();
+        filter.IsMatch(nonMatching2).ShouldBeFalse();
+    }
+
+    [Test]
+    public void evaluates_like_with_exact_match() {
+        var filter       = Parse("stream LIKE 'orders-99'");
+        var matching     = _faker.With("orders-99");
+        var nonMatching1 = _faker.With("orders-");
+        var nonMatching2 = _faker.With("orders-123");
 
         filter.IsMatch(matching).ShouldBeTrue();
         filter.IsMatch(nonMatching1).ShouldBeFalse();
@@ -219,9 +233,9 @@ public class ExpressionFilterTests {
     [Test]
     public void evaluates_ilike_case_insensitive() {
         var filter    = Parse("stream ILIKE 'order%'");
-        var matching1 = _faker.With("ORDERS");
-        var matching2 = _faker.With("Orders");
-        var matching3 = _faker.With("orders");
+        var matching1 = _faker.With("ORDERS-123");
+        var matching2 = _faker.With("Orders-456");
+        var matching3 = _faker.With("orders-789");
 
         filter.IsMatch(matching1).ShouldBeTrue();
         filter.IsMatch(matching2).ShouldBeTrue();

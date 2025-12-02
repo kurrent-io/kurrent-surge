@@ -50,7 +50,8 @@ public class AppendRecordBuilder {
 		RecordId   = Guid.NewGuid(),
 		Value      = null!,
 		DataFormat = SchemaDataFormat.Json,
-		Metadata   = new Metadata().With(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Json)
+        Metadata   = new Metadata()
+        // Metadata   = new Metadata().With(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Json)
 	};
 
     public AppendRecordBuilder FromRecord(AppendRecord record) {
@@ -83,26 +84,33 @@ public class AppendRecordBuilder {
 			throw new ArgumentException($"Data format must be {SchemaDataFormat.Bytes} because the value is a byte array");
 
 		_appendRecord = _appendRecord with {
-			DataFormat = dataFormat,
-			Metadata   = _appendRecord.Metadata.With(SystemMetadataKeys.SchemaFormat, dataFormat)
+			DataFormat = dataFormat
 		};
 
 		return this;
 	}
 
-	public AppendRecordBuilder WithMetadata(Metadata metadata) {
-		var dataFormat = metadata.GetSchemaFormat();
-		if (dataFormat == SchemaDataFormat.Unspecified)
-			dataFormat = _appendRecord.DataFormat;
+	// public AppendRecordBuilder WithMetadata(Metadata metadata) {
+	// 	var dataFormat = metadata.GetSchemaFormat();
+	// 	if (dataFormat == SchemaDataFormat.Unspecified)
+	// 		dataFormat = _appendRecord.DataFormat;
+	//
+	// 	_appendRecord = _appendRecord with {
+	// 		DataFormat = dataFormat,
+	// 		Metadata   = metadata.CreateUnlockedCopy()
+	// 			.With(SystemMetadataKeys.SchemaFormat, dataFormat)
+	// 	};
+	//
+	// 	return this;
+	// }
 
-		_appendRecord = _appendRecord with {
-			DataFormat = dataFormat,
-			Metadata   = metadata.CreateUnlockedCopy()
-				.With(SystemMetadataKeys.SchemaFormat, dataFormat)
-		};
+    public AppendRecordBuilder WithMetadata(Metadata metadata) {
+        _appendRecord = _appendRecord with {
+            Metadata   = metadata
+        };
 
-		return this;
-	}
+        return this;
+    }
 
 	public AppendRecordBuilder WithMetadata<T>(string key, T value) =>
 		WithMetadata(_appendRecord.Metadata.With(key, value));
@@ -114,10 +122,12 @@ public class AppendRecordBuilder {
 		if (_appendRecord.Value is null)
 			throw new InvalidOperationException("Message value cannot be null");
 
-		// Create a copy of metadata to avoid modifying the original
-		var metadata = _appendRecord.Metadata.CreateUnlockedCopy()
-			.With(SystemMetadataKeys.SchemaFormat, _appendRecord.DataFormat);
+		// // Create a copy of metadata to avoid modifying the original
+		// var metadata = _appendRecord.Metadata.CreateUnlockedCopy()
+		// 	.With(SystemMetadataKeys.SchemaFormat, _appendRecord.DataFormat);
+		//
+		// return _appendRecord with { Metadata = metadata };
 
-		return _appendRecord with { Metadata = metadata };
-	}
+        return _appendRecord;
+    }
 }

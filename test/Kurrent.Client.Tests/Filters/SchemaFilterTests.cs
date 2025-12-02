@@ -13,9 +13,9 @@ public class SchemaFilterTests {
         var matchingPayment = _faker.With(schemaName: "PaymentReceived");
         var nonMatching     = _faker.With(schemaName: "UserRegistered");
 
-        filter.IsMatch(matchingOrder).ShouldBeTrue();
-        filter.IsMatch(matchingPayment).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        filter.IsMatch(matchingOrder).ShouldBeTrue("Order schema should match");
+        filter.IsMatch(matchingPayment).ShouldBeTrue("Payment schema should match");
+        filter.IsMatch(nonMatching).ShouldBeFalse("Non-matching schema should not match");
     }
 
     [Test]
@@ -26,9 +26,9 @@ public class SchemaFilterTests {
         var matchingRefund  = _faker.With(schemaName: "RefundIssued");
         var nonMatching     = _faker.With(schemaName: "UserEvent");
 
-        filter.IsMatch(matchingOrder).ShouldBeTrue();
-        filter.IsMatch(matchingPayment).ShouldBeTrue();
-        filter.IsMatch(matchingRefund).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        filter.IsMatch(matchingOrder).ShouldBeTrue("Order schema should match");
+        filter.IsMatch(matchingPayment).ShouldBeTrue("Payment schema should match");
+        filter.IsMatch(matchingRefund).ShouldBeTrue("Refund schema should match");
+        filter.IsMatch(nonMatching).ShouldBeFalse("Non-matching schema should not match");
     }
 }

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using static System.String;
 
 namespace Kurrent.Client.Streams;
@@ -8,16 +7,19 @@ namespace Kurrent.Client.Streams;
 /// </summary>
 [PublicAPI]
 public record ExpressionFilter : IRecordFilter {
-    readonly Regex? _serverRegex;
-    readonly IFilterExpression? _clientExpression;
+    readonly IFilterExpression _parsedExpression;
 
+    /// <inheritdoc/>
     public StreamName TargetStream { get; }
 
+    /// <inheritdoc/>
     public string Expression { get; }
 
-    internal string? ServerRegex { get; }
-
-    internal bool IsStreamScope { get; }
+    /// <summary>
+    /// The server-side filter extracted from the expression for optimization.
+    /// This is used by the V1 mapper to send filtering to the server.
+    /// </summary>
+    internal IRecordFilter ServerFilter { get; }
 
     /// <summary>
     /// Creates a filter from a SQL-like expression.
@@ -30,54 +32,21 @@ public record ExpressionFilter : IRecordFilter {
 
         Expression = expression;
 
-        var parser = new ExpressionFilterParser();
+        var parser      = new ExpressionFilterParser();
         var parseResult = parser.Parse(expression);
 
         if (!parseResult.IsSuccess)
             throw new ArgumentException($"Invalid SQL filter expression: {parseResult.Error}", nameof(expression));
 
-        var analysis = ExpressionFilterParser.Analyze(parseResult.Value);
+        _parsedExpression = parseResult.Value;
 
-        _clientExpression = analysis.HasClientFilter ? analysis.ClientExpression : null;
-
-        var hasTargetStream = analysis.TargetStream.HasValue;
-        TargetStream = analysis.TargetStream ?? StreamName.None;
-
-        if (hasTargetStream) {
-            ServerRegex   = null;
-            IsStreamScope = false;
-            _serverRegex  = null;
-        } else {
-            ServerRegex   = analysis.ServerRegex;
-            IsStreamScope = analysis.ServerScope == FilterScope.StreamName;
-            _serverRegex  = IsNullOrEmpty(ServerRegex) ? null : new Regex(ServerRegex, RegexOptions.Compiled);
-        }
+        ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
+        TargetStream = ServerFilter.TargetStream != StreamName.None
+            ? ServerFilter.TargetStream
+            : StreamName.All;
     }
 
-    public bool IsMatch(Record record) {
-        if (TargetStream != StreamName.None && record.Stream != TargetStream)
-            return false;
-
-        if (_serverRegex is not null) {
-            var value = IsStreamScope
-                ? record.Stream.Value
-                : record.Schema.SchemaName.Value;
-
-            if (!_serverRegex.IsMatch(value))
-                return false;
-        }
-
-        return _clientExpression?.IsMatch(record) ?? true;
-    }
-}
-
-public sealed record LogExpressionFilter : ExpressionFilter {
-    public LogExpressionFilter(string expression) : base(expression) { }
-}
-
-public sealed record StreamExpressionFilter : ExpressionFilter {
-    public StreamExpressionFilter(string expression) : base(expression) {
-        // ensure that the filter does not target any specific stream
-
-    }
+    /// <inheritdoc/>
+    public bool IsMatch(Record record) =>
+        _parsedExpression.IsMatch(record);
 }

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "style": "xml",
+    "filePath": "security-audit.xml",
+    "compress": false,
+    "removeComments": false
+  },
+  "include": [
+    "**/*.{js,ts,py,go,java,cs,rb,php,cpp,c}"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/test/**",
+      "**/tests/**",
+      "**/*.test.*",
+      "**/*.min.js",
+      "**/vendor/**",
+      "**/node_modules/**"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

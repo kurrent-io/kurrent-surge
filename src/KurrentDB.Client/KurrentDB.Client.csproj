@@ -5,7 +5,7 @@
     <PackageId>KurrentDB.Client</PackageId>
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+<!--    <EnablePreviewFeatures>true</EnablePreviewFeatures>-->
     <RootNamespace />
 
     <!-- Enable AOT compilation -->
@@ -23,6 +23,8 @@
     <PackageReference Include="Humanizer.Core"  />
     <PackageReference Include="Jint"  />
     <PackageReference Include="Microsoft.Extensions.Configuration"  />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization"  />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience"  />
     <PackageReference Include="Microsoft.Extensions.Logging"  />
@@ -109,7 +111,6 @@
     <Compile Remove="Kurrent.Client\Modules\Connectors\**" />
     <Compile Include="Kurrent.Client\Modules\PersistentSubscriptions\ErrorDetails.cs" />
     <Compile Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <Compile Remove="Kurrent.Client\Modules\Streams\Operations\Subscribe\**" />
     <Compile Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
@@ -121,7 +122,6 @@
     <EmbeddedResource Remove="Kurrent.Client\Modules\Admin\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\Connectors\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Streams\Operations\Subscribe\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
@@ -133,7 +133,6 @@
     <None Remove="Kurrent.Client\Modules\Admin\**" />
     <None Remove="Kurrent.Client\Modules\Connectors\**" />
     <None Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <None Remove="Kurrent.Client\Modules\Streams\Operations\Subscribe\**" />
     <None Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 

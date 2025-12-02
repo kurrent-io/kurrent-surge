@@ -1,0 +1,20 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "style": "json",
+    "filePath": "repomix-compressed.json",
+    "compress": true,
+    "removeComments": false,
+    "topFilesLength": 15
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/*.test.*",
+      "**/*.spec.*",
+      "**/test/**",
+      "**/tests/**"
+    ]
+  }
+}

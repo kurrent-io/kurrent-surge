@@ -1,0 +1,51 @@
+{
+  "includeCoAuthoredBy": false,
+  "enableAllProjectMcpServers": false,
+
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "Glob",
+      "Grep",
+      "LS",
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "Task",
+
+      "mcp__context7",
+      "mcp__microsoft-docs",
+
+      "Skill(csharp-craftsman)",
+      "Skill(git-conventional-commits-expert)",
+      "Skill(microsoft-docs-expert)",
+      "Skill(repomix-expert)",
+      "Skill(resx-expert)",
+      "Skill(tunit-master)"
+    ],
+
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./appsettings.Development.json)",
+      "Read(./appsettings.*.Local.json)",
+      "Read(./secrets.json)",
+      "Read(./**/secrets.json)",
+      "Read(./**/launchSettings.json)",
+      "Read(./**/secrets/**)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.p12)",
+      "Read(./**/*secret*)",
+      "Read(./**/*password*)",
+      "Read(./**/*credential*)",
+      "Read(./**/*token*.json)"
+    ]
+  }
+}

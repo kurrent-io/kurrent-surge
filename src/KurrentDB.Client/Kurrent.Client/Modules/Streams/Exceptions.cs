@@ -83,10 +83,7 @@ public partial class AppendSessionNoRequestsException;
 public partial class LogPositionNotFoundException {
     public LogPositionNotFoundException(ulong position)
         : this($"The provided log position does not exist: {position}.") { }
-}
 
-// [KurrentOperationError(StreamsError.StreamRevisionNotFound)]
-// public partial class StreamRevisionNotFoundxception;
-//
-// [KurrentOperationError(StreamsError.RecordNotFound)]
-// public partial class RecordNotFoundException;
+    public LogPositionNotFoundException(ulong position, string details)
+        : this($"The provided log position does not exist: {position}. Details: {details}") { }
+}

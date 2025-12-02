@@ -158,4 +158,40 @@
     <value>Failed to create client certificate.</value>
     <comment>The exception message for when certificate creation fails.</comment>
   </data>
+
+  <!-- Processor Callback Exceptions -->
+  <data name="InitializeException" xml:space="preserve">
+    <value>Processor initialization failed.</value>
+    <comment>The exception message for when IRecordProcessor.Initialize callback throws an exception.</comment>
+  </data>
+  <data name="ProcessRecordsException" xml:space="preserve">
+    <value>Record processing failed.</value>
+    <comment>The exception message for when IRecordProcessor.ProcessRecords callback throws an exception.</comment>
+  </data>
+  <data name="HeartbeatException" xml:space="preserve">
+    <value>Heartbeat processing failed.</value>
+    <comment>The exception message for when IRecordProcessor.OnHeartbeat callback throws an exception.</comment>
+  </data>
+
+  <data name="ShutdownException" xml:space="preserve">
+    <value>Processor shutdown failed.</value>
+    <comment>The exception message for when IRecordProcessor.OnShutdown callback throws an exception.</comment>
+  </data>
+
+  <!-- <data name="ProcessorInitializationFailed" xml:space="preserve"> -->
+  <!--   <value>Processor initialization failed.</value> -->
+  <!--   <comment>The exception message for when IRecordProcessor.Initialize throws an exception.</comment> -->
+  <!-- </data> -->
+  <!-- <data name="RecordProcessingFailed" xml:space="preserve"> -->
+  <!--   <value>Record processing failed.</value> -->
+  <!--   <comment>The exception message for when IRecordProcessor.ProcessRecords throws an exception.</comment> -->
+  <!-- </data> -->
+  <!-- <data name="HeartbeatProcessingFailed" xml:space="preserve"> -->
+  <!--   <value>Heartbeat processing failed.</value> -->
+  <!--   <comment>The exception message for when IRecordProcessor.OnHeartbeat throws an exception.</comment> -->
+  <!-- </data> -->
+  <!-- <data name="ProcessorShutdownFailed" xml:space="preserve"> -->
+  <!--   <value>Processor shutdown failed.</value> -->
+  <!--   <comment>The exception message for when IRecordProcessor.OnShutdown throws an exception.</comment> -->
+  <!-- </data> -->
 </root>

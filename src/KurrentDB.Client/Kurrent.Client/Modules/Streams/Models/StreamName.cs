@@ -39,7 +39,7 @@ public readonly record struct StreamName {
     /// <param name="value">The string value to create the stream name from. Cannot be null, empty, or whitespace.</param>
     /// <returns>A new <see cref="StreamName"/> instance.</returns>
     /// <exception cref="ArgumentException">Thrown if <paramref name="value"/> is null, empty, or consists only of white-space characters.</exception>
-    public static StreamName From(string value) {
+    public static StreamName From(string? value) {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return new(value);
     }

@@ -96,5 +96,36 @@ static class ExceptionExtensions {
                 .Select(ex => (TError)ex!)
                 .First();
         }
+
+        public Exception ToException(params OperationExceptionParser[] parsers) {
+            // pass through KurrentException as is (just in case)
+            if (ex is KurrentException kex)
+                return kex;
+
+            // fast fail for non-RpcException
+            if (ex is not RpcException rex)
+                return ex;
+
+            // extract status and error info
+            var status    = rex.GetRpcStatus();
+            var errorInfo = status?.GetDetail<ErrorInfo>();
+
+            // create status fallback
+            status ??= new Status {
+                Code    = (int)rex.StatusCode,
+                Message = rex.Message
+            };
+
+            // try to parse using the provided parsers, then server parsers, then google parsers
+            // and finally fallback to the original exception
+            return parsers
+                .Concat(ServerParsers)
+                .Concat(GoogleParsers)
+                .Select(parse => parse(status, errorInfo))
+                .SkipWhile(result => result is null)
+                .DefaultIfEmpty(ex)
+                .Select(ex => (Exception)ex!)
+                .First();
+        }
     }
 }

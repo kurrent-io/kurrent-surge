@@ -2,6 +2,7 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 // ReSharper disable UnusedParameter.Local
+// ReSharper disable ClassNeverInstantiated.Global
 
 namespace Kurrent.Testing.Sample.HomeAutomation;
 
@@ -14,7 +15,13 @@ public record DeviceInfo {
     public          int?       BatteryLevel     { get; init; }
 }
 
-public record TemperatureReading {
+public interface IHomeAutomationEvent {
+    Guid       EventId   { get; init; }
+    DeviceInfo Device    { get; init; }
+    long       Timestamp { get; init; }
+}
+
+public record TemperatureReading : IHomeAutomationEvent {
     public          Guid            EventId     { get; init; }
     public required DeviceInfo      Device      { get; init; }
     public required double          Temperature { get; init; }
@@ -22,7 +29,7 @@ public record TemperatureReading {
     public required long            Timestamp   { get; init; }
 }
 
-public record MotionDetected {
+public record MotionDetected : IHomeAutomationEvent {
     public required Guid       EventId    { get; init; }
     public required DeviceInfo Device     { get; init; }
     public required double     Confidence { get; init; }
@@ -30,7 +37,7 @@ public record MotionDetected {
     public required long       Timestamp  { get; init; }
 }
 
-public record DoorStateChanged {
+public record DoorStateChanged : IHomeAutomationEvent {
     public required Guid       EventId    { get; init; }
     public required DeviceInfo Device     { get; init; }
     public required bool       IsOpen     { get; init; }
@@ -39,7 +46,7 @@ public record DoorStateChanged {
     public required long       Timestamp  { get; init; }
 }
 
-public record WindowStateChanged {
+public record WindowStateChanged : IHomeAutomationEvent {
     public required Guid             EventId          { get; init; }
     public required DeviceInfo       Device           { get; init; }
     public required bool             IsOpen           { get; init; }
@@ -48,7 +55,7 @@ public record WindowStateChanged {
     public required long             Timestamp        { get; init; }
 }
 
-public record SmokeDetected {
+public record SmokeDetected : IHomeAutomationEvent {
     public required Guid        EventId     { get; init; }
     public required DeviceInfo  Device      { get; init; }
     public required bool        HasSmoke    { get; init; }
@@ -57,7 +64,7 @@ public record SmokeDetected {
     public required long        Timestamp   { get; init; }
 }
 
-public record WaterLeakDetected {
+public record WaterLeakDetected : IHomeAutomationEvent {
     public required Guid       EventId       { get; init; }
     public required DeviceInfo Device        { get; init; }
     public required bool       HasWater      { get; init; }
@@ -66,7 +73,7 @@ public record WaterLeakDetected {
     public required long       Timestamp     { get; init; }
 }
 
-public record LightStateChanged {
+public record LightStateChanged : IHomeAutomationEvent {
     public required Guid       EventId          { get; init; }
     public required DeviceInfo Device           { get; init; }
     public required bool       IsOn             { get; init; }
@@ -76,7 +83,7 @@ public record LightStateChanged {
     public required long       Timestamp        { get; init; }
 }
 
-public record HumidityReading {
+public record HumidityReading : IHomeAutomationEvent {
     public required Guid         EventId      { get; init; }
     public required DeviceInfo   Device       { get; init; }
     public required double       Humidity     { get; init; }

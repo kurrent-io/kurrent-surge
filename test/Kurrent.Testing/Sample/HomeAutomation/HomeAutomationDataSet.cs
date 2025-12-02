@@ -92,20 +92,20 @@ public class HomeAutomationDataSet : DataSet {
     /// <summary>
     /// Generate events for specific devices
     /// </summary>
-    public List<object> Events(List<Device> devices, int count, long? startTime = null, int maxIntervalMinutes = 30) {
+    public List<IHomeAutomationEvent> Events(List<Device> devices, int count, long? startTime = null, int maxIntervalMinutes = 30) {
         if (devices.Count == 0) return [];
 
-        var events = new List<object>();
+        var events    = new List<IHomeAutomationEvent>();
         var timestamp = startTime ?? DateTimeOffset.UtcNow.AddDays(-1).ToUnixTimeMilliseconds();
 
         for (var i = 0; i < count; i++) {
             timestamp += Faker.Random.Number(1, maxIntervalMinutes) * 60000L;
 
             var device   = Faker.PickRandom(devices);
-            var eventObj = GenerateEventForDevice(device, timestamp);
+            var evt = GenerateEventForDevice(device, timestamp);
 
-            if (eventObj != null) {
-                events.Add(eventObj);
+            if (evt is not null) {
+                events.Add(evt);
 
                 // Generate correlated events
                 var correlatedEvents = GenerateCorrelatedEvents(device, timestamp, devices, Faker);
@@ -115,7 +115,7 @@ public class HomeAutomationDataSet : DataSet {
 
         return events;
 
-        static object? GenerateEventForDevice(Device device, long timestamp) {
+        static IHomeAutomationEvent? GenerateEventForDevice(Device device, long timestamp) {
             return device switch {
                 Thermostat thermostat         => new TemperatureReadingFaker(thermostat, timestamp).Generate(),
                 MotionSensor motionSensor     => new MotionDetectedFaker(motionSensor, timestamp).Generate(),
@@ -129,7 +129,7 @@ public class HomeAutomationDataSet : DataSet {
             };
         }
 
-        static IEnumerable<object> GenerateCorrelatedEvents(Device device, long timestamp, List<Device> availableDevices, Faker faker) {
+        static IEnumerable<IHomeAutomationEvent> GenerateCorrelatedEvents(Device device, long timestamp, List<Device> availableDevices, Faker faker) {
             // Motion sensor correlation: trigger lights in the same room
             if (device is MotionSensor motionSensor && faker.Random.Bool(0.3f)) {
                 var lightsInSameRoom = availableDevices
@@ -148,7 +148,7 @@ public class HomeAutomationDataSet : DataSet {
     /// <summary>
     /// Generate events for specific devices forever
     /// </summary>
-    public IEnumerable<object> Events() {
+    public IEnumerable<IHomeAutomationEvent> Events() {
         var devices = Devices(Faker.Random.Number(2, 4));
 
         var timestamp = DateTimeOffset.UtcNow.AddDays(-1).ToUnixTimeMilliseconds();
@@ -162,7 +162,7 @@ public class HomeAutomationDataSet : DataSet {
             yield return evt;
         }
 
-        static object? GenerateEventForDevice(Device device, long timestamp) {
+        static IHomeAutomationEvent? GenerateEventForDevice(Device device, long timestamp) {
             return device switch {
                 Thermostat thermostat         => new TemperatureReadingFaker(thermostat, timestamp).Generate(),
                 MotionSensor motionSensor     => new MotionDetectedFaker(motionSensor, timestamp).Generate(),
@@ -181,16 +181,14 @@ public class HomeAutomationDataSet : DataSet {
     /// <summary>
     /// Generate events for a home's devices
     /// </summary>
-    public List<object> Events(SmartHome home, int count, long? startTime = null, int maxIntervalMinutes = 30) =>
+    public List<IHomeAutomationEvent> Events(SmartHome home, int count, long? startTime = null, int maxIntervalMinutes = 30) =>
         Events(home.Devices, count, startTime, maxIntervalMinutes);
 
     /// <summary>
-    /// Generate random events (creates random devices first)
+    /// Generate random events for a new home
     /// </summary>
-    public List<object> Events(int count, long? startTime = null, int maxIntervalMinutes = 30) {
-        var randomDevices = Devices(Faker.Random.Number(3, 8));
-        return Events(randomDevices, count, startTime, maxIntervalMinutes);
-    }
+    public List<IHomeAutomationEvent> Events(int count, long? startTime = null, int maxIntervalMinutes = 30) =>
+        Events(Home(), count, startTime, maxIntervalMinutes);
 
     SmartHome GenerateCustomHome(int? rooms, int? devicesPerRoom, params DeviceType[] deviceTypes) {
         var roomCount          = rooms ?? Faker.Random.Number(3, 8);
@@ -224,8 +222,6 @@ public class HomeAutomationDataSet : DataSet {
             CreatedAt = Faker.Date.Between(DateTime.UtcNow.AddYears(-2), DateTime.UtcNow.AddMonths(-1))
         };
     }
-
-
 
     List<Device> GenerateTypedDevices(List<Room> rooms, int totalDevices, DeviceType[] allowedTypes) {
         var devices = new List<Device>();

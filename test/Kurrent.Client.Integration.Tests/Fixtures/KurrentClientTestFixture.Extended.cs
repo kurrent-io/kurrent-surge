@@ -6,7 +6,7 @@ using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Tools;
 using Kurrent.Testing.Sample.HomeAutomation;
-
+using Serilog;
 using AppendRecord = Kurrent.Client.Streams.AppendRecord;
 
 namespace Kurrent.Client.Tests.Fixtures;
@@ -15,11 +15,16 @@ public partial class KurrentClientTestFixture {
     public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(int numberOfEvents, CancellationToken cancellationToken) {
         var request  = HomeAutomationTestData.SimulateHomeActivity(numberOfEvents);
         var response = await Client.Streams.AppendStreamAsync(request, cancellationToken: cancellationToken);
+
+        Log.Debug(
+            "Seeded SmartHomeActivity to stream {Stream} with {Count} events with revision {Revision} at position {Position}",
+            request.Stream, request.Messages.Count, response.StreamRevision, response.Position);
+
         return new SeededSmartHomeActivity(request, response.StreamRevision, response.Position);
     }
 
     public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(CancellationToken cancellationToken) =>
-        await SeedSmartHomeActivity(Random.Shared.Next(5, 15), cancellationToken);
+        await SeedSmartHomeActivity(Random.Shared.Next(3, 13), cancellationToken);
 
     // /// <summary>
     // /// Creates a unique stream name for KurrentDB operations, combining the given category with a short unique identifier.

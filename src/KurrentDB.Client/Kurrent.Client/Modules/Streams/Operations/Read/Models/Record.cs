@@ -139,7 +139,7 @@ sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaR
 		var context = new SchemaSerializationContext {
 			Stream               = record.Stream,
             RecordSchema         = record.Schema,
-			Metadata             = record.Metadata,
+			// Metadata             = record.Metadata,
 			SchemaRegistryPolicy = RegistryPolicy,
 			CancellationToken    = ct
 		};

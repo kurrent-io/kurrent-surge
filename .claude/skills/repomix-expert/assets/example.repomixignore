@@ -1,0 +1,66 @@
+# Repomix Ignore File
+# Syntax identical to .gitignore
+# Patterns specified here will be ignored by Repomix
+
+# Dependencies
+node_modules/
+vendor/
+packages/
+
+# Build outputs
+dist/
+build/
+out/
+target/
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (should already be in .gitignore)
+.env
+.env.local
+.env.*.local
+
+# Large media files
+*.mp4
+*.avi
+*.mov
+*.zip
+*.tar.gz
+*.rar
+
+# Minified files
+*.min.js
+*.min.css
+
+# Generated files
+**/*.generated.*
+**/*.g.cs
+**/*.Designer.cs
+
+# Test files (if you don't want them in analysis)
+# **/*.test.ts
+# **/*.spec.ts
+# **/test/**
+# **/tests/**
+
+# Documentation builds
+docs/_build/
+site/

@@ -1,0 +1,417 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Localization;
+using System.Globalization;
+using System.Security.Claims;
+using System.Threading.Tasks;
+
+namespace LocalizationExample.CultureProviders
+{
+    // ===================================
+    // Example 1: User Profile Culture Provider
+    // ===================================
+
+    /// <summary>
+    /// Reads culture from authenticated user's profile stored in database.
+    /// </summary>
+    public class UserProfileCultureProvider : RequestCultureProvider
+    {
+        private readonly IUserService _userService;
+
+        public UserProfileCultureProvider(IUserService userService)
+        {
+            _userService = userService;
+        }
+
+        public override async Task<ProviderCultureResult> DetermineProviderCultureResult(HttpContext httpContext)
+        {
+            if (httpContext == null)
+                throw new ArgumentNullException(nameof(httpContext));
+
+            // Only for authenticated users
+            if (!httpContext.User.Identity?.IsAuthenticated ?? true)
+                return await NullProviderCultureResult;
+
+            // Get user ID from claims
+            var userId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return await NullProviderCultureResult;
+
+            // Retrieve user's preferred culture from database
+            var userCulture = await _userService.GetUserCultureAsync(userId);
+
+            if (string.IsNullOrEmpty(userCulture))
+                return await NullProviderCultureResult;
+
+            // Validate culture
+            try
+            {
+                var culture = new CultureInfo(userCulture);
+                return new ProviderCultureResult(culture.Name);
+            }
+            catch (CultureNotFoundException)
+            {
+                // Invalid culture in database
+                return await NullProviderCultureResult;
+            }
+        }
+    }
+
+    // ===================================
+    // Example 2: Subdomain Culture Provider
+    // ===================================
+
+    /// <summary>
+    /// Determines culture based on subdomain (e.g., es.example.com, fr.example.com).
+    /// </summary>
+    public class SubdomainCultureProvider : RequestCultureProvider
+    {
+        private readonly Dictionary<string, string> _subdomainCultureMap = new()
+        {
+            { "es", "es-MX" },
+            { "fr", "fr-CA" },
+            { "de", "de-DE" },
+            { "ja", "ja-JP" }
+        };
+
+        public override Task<ProviderCultureResult> DetermineProviderCultureResult(HttpContext httpContext)
+        {
+            if (httpContext == null)
+                throw new ArgumentNullException(nameof(httpContext));
+
+            var host = httpContext.Request.Host.Host;
+
+            // Extract subdomain (assumes format: subdomain.domain.com)
+            var parts = host.Split('.');
+            if (parts.Length >= 3)
+            {
+                var subdomain = parts[0];
+
+                if (_subdomainCultureMap.TryGetValue(subdomain, out string culture))
+                {
+                    return Task.FromResult(new ProviderCultureResult(culture));
+                }
+            }
+
+            // No subdomain or unmapped subdomain
+            return NullProviderCultureResult;
+        }
+    }
+
+    // ===================================
+    // Example 3: Custom Header Culture Provider
+    // ===================================
+
+    /// <summary>
+    /// Reads culture from custom HTTP header (X-Culture or X-Preferred-Language).
+    /// </summary>
+    public class CustomHeaderCultureProvider : RequestCultureProvider
+    {
+        public string HeaderName { get; set; } = "X-Culture";
+
+        public override Task<ProviderCultureResult> DetermineProviderCultureResult(HttpContext httpContext)
+        {
+            if (httpContext == null)
+                throw new ArgumentNullException(nameof(httpContext));
+
+            if (!httpContext.Request.Headers.TryGetValue(HeaderName, out var headerValue))
+                return NullProviderCultureResult;
+
+            var cultureName = headerValue.ToString();
+
+            if (string.IsNullOrWhiteSpace(cultureName))
+                return NullProviderCultureResult;
+
+            // Validate culture
+            try
+            {
+                var culture = new CultureInfo(cultureName);
+                return Task.FromResult(new ProviderCultureResult(culture.Name));
+            }
+            catch (CultureNotFoundException)
+            {
+                return NullProviderCultureResult;
+            }
+        }
+    }
+
+    // ===================================
+    // Example 4: IP Geolocation Culture Provider
+    // ===================================
+
+    /// <summary>
+    /// Determines culture based on client's IP address geolocation.
+    /// </summary>
+    public class IpGeolocationCultureProvider : RequestCultureProvider
+    {
+        private readonly IGeolocationService _geolocationService;
+
+        public IpGeolocationCultureProvider(IGeolocationService geolocationService)
+        {
+            _geolocationService = geolocationService;
+        }
+
+        public override async Task<ProviderCultureResult> DetermineProviderCultureResult(HttpContext httpContext)
+        {
+            if (httpContext == null)
+                throw new ArgumentNullException(nameof(httpContext));
+
+            // Get client IP address
+            var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString();
+            if (string.IsNullOrEmpty(ipAddress))
+                return await NullProviderCultureResult;
+
+            // Look up country from IP
+            var country = await _geolocationService.GetCountryFromIpAsync(ipAddress);
+            if (country == null)
+                return await NullProviderCultureResult;
+
+            // Map country to culture
+            var culture = MapCountryToCulture(country);
+            if (culture == null)
+                return await NullProviderCultureResult;
+
+            return new ProviderCultureResult(culture);
+        }
+
+        private string MapCountryToCulture(string countryCode)
+        {
+            return countryCode switch
+            {
+                "US" => "en-US",
+                "MX" => "es-MX",
+                "ES" => "es-ES",
+                "FR" => "fr-FR",
+                "CA" => "en-CA",  // Could be fr-CA, needs more logic
+                "DE" => "de-DE",
+                "JP" => "ja-JP",
+                "CN" => "zh-CN",
+                _ => null
+            };
+        }
+    }
+
+    // ===================================
+    // Example 5: Session Storage Culture Provider
+    // ===================================
+
+    /// <summary>
+    /// Reads culture from session storage.
+    /// </summary>
+    public class SessionCultureProvider : RequestCultureProvider
+    {
+        public string SessionKey { get; set; } = "Culture";
+
+        public override Task<ProviderCultureResult> DetermineProviderCultureResult(HttpContext httpContext)
+        {
+            if (httpContext == null)
+                throw new ArgumentNullException(nameof(httpContext));
+
+            // Ensure session is available
+            if (!httpContext.Session.IsAvailable)
+                return NullProviderCultureResult;
+
+            var cultureName = httpContext.Session.GetString(SessionKey);
+
+            if (string.IsNullOrWhiteSpace(cultureName))
+                return NullProviderCultureResult;
+
+            try
+            {
+                var culture = new CultureInfo(cultureName);
+                return Task.FromResult(new ProviderCultureResult(culture.Name));
+            }
+            catch (CultureNotFoundException)
+            {
+                return NullProviderCultureResult;
+            }
+        }
+    }
+
+    // ===================================
+    // Example 6: Composite Culture Provider (Priority Chain)
+    // ===================================
+
+    /// <summary>
+    /// Tries multiple strategies in order until one succeeds.
+    /// </summary>
+    public class CompositeCultureProvider : RequestCultureProvider
+    {
+        private readonly List<IRequestCultureProvider> _providers;
+
+        public CompositeCultureProvider(params IRequestCultureProvider[] providers)
+        {
+            _providers = new List<IRequestCultureProvider>(providers);
+        }
+
+        public override async Task<ProviderCultureResult> DetermineProviderCultureResult(HttpContext httpContext)
+        {
+            foreach (var provider in _providers)
+            {
+                var result = await provider.DetermineProviderCultureResult(httpContext);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            return await NullProviderCultureResult;
+        }
+    }
+
+    // ===================================
+    // Registration Example (Program.cs)
+    // ===================================
+
+    /*
+    // Register services
+    builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddScoped<IGeolocationService, GeolocationService>();
+
+    // Configure request localization with custom providers
+    builder.Services.Configure<RequestLocalizationOptions>(options =>
+    {
+        var supportedCultures = new[]
+        {
+            new CultureInfo("en-US"),
+            new CultureInfo("es-MX"),
+            new CultureInfo("fr-CA"),
+            new CultureInfo("de-DE")
+        };
+
+        options.DefaultRequestCulture = new RequestCulture("en-US");
+        options.SupportedCultures = supportedCultures;
+        options.SupportedUICultures = supportedCultures;
+
+        // Configure culture providers (order matters - first match wins!)
+        options.RequestCultureProviders = new List<IRequestCultureProvider>
+        {
+            // 1. Query string (highest priority - for testing)
+            new QueryStringRequestCultureProvider(),
+
+            // 2. User profile (authenticated user preference)
+            new UserProfileCultureProvider(
+                builder.Services.BuildServiceProvider().GetRequiredService<IUserService>()),
+
+            // 3. Cookie (user session preference)
+            new CookieRequestCultureProvider(),
+
+            // 4. Custom header (API clients)
+            new CustomHeaderCultureProvider { HeaderName = "X-Preferred-Language" },
+
+            // 5. Subdomain (multi-region deployment)
+            new SubdomainCultureProvider(),
+
+            // 6. Session storage
+            new SessionCultureProvider(),
+
+            // 7. IP geolocation (best guess)
+            new IpGeolocationCultureProvider(
+                builder.Services.BuildServiceProvider().GetRequiredService<IGeolocationService>()),
+
+            // 8. Accept-Language header (browser default - fallback)
+            new AcceptLanguageHeaderRequestCultureProvider()
+        };
+    });
+    */
+
+    // ===================================
+    // Supporting Interfaces
+    // ===================================
+
+    public interface IUserService
+    {
+        Task<string> GetUserCultureAsync(string userId);
+        Task SetUserCultureAsync(string userId, string culture);
+    }
+
+    public interface IGeolocationService
+    {
+        Task<string> GetCountryFromIpAsync(string ipAddress);
+    }
+
+    // ===================================
+    // Example Implementations (Stub)
+    // ===================================
+
+    public class UserService : IUserService
+    {
+        private readonly ApplicationDbContext _dbContext;
+
+        public UserService(ApplicationDbContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
+
+        public async Task<string> GetUserCultureAsync(string userId)
+        {
+            var user = await _dbContext.Users.FindAsync(userId);
+            return user?.PreferredCulture;
+        }
+
+        public async Task SetUserCultureAsync(string userId, string culture)
+        {
+            var user = await _dbContext.Users.FindAsync(userId);
+            if (user != null)
+            {
+                user.PreferredCulture = culture;
+                await _dbContext.SaveChangesAsync();
+            }
+        }
+    }
+
+    public class GeolocationService : IGeolocationService
+    {
+        private readonly HttpClient _httpClient;
+
+        public GeolocationService(HttpClient httpClient)
+        {
+            _httpClient = httpClient;
+        }
+
+        public async Task<string> GetCountryFromIpAsync(string ipAddress)
+        {
+            // Example using a geolocation API
+            try
+            {
+                var response = await _httpClient.GetAsync($"https://api.ipgeolocation.io/ipgeo?apiKey=YOUR_API_KEY&ip={ipAddress}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var data = await response.Content.ReadFromJsonAsync<GeolocationResponse>();
+                    return data?.CountryCode2;
+                }
+            }
+            catch
+            {
+                // Handle errors
+            }
+
+            return null;
+        }
+    }
+
+    public class GeolocationResponse
+    {
+        public string CountryCode2 { get; set; }
+        public string CountryName { get; set; }
+    }
+
+    // Placeholder DbContext
+    public class ApplicationDbContext
+    {
+        public DbSet<User> Users { get; set; }
+
+        public Task<User> FindAsync(string userId) => Task.FromResult<User>(null);
+        public Task<int> SaveChangesAsync() => Task.FromResult(0);
+    }
+
+    public class User
+    {
+        public string Id { get; set; }
+        public string PreferredCulture { get; set; }
+    }
+
+    public class DbSet<T>
+    {
+        public Task<T> FindAsync(params object[] keyValues) => Task.FromResult(default(T));
+    }
+}

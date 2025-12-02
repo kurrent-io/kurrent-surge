@@ -12,6 +12,6 @@ public partial class StreamsClient : ClientModuleBase {
         LegacyServiceClient = new LegacyStreamsServiceClient(client.LegacyCallInvoker);
     }
 
-    StreamsServiceClient       ServiceClient       { get; }
-    LegacyStreamsServiceClient LegacyServiceClient { get; }
+    internal StreamsServiceClient       ServiceClient       { get; }
+    internal LegacyStreamsServiceClient LegacyServiceClient { get; }
 }

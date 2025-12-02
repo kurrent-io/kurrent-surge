@@ -8,7 +8,7 @@ inclusion: always
 1. MUST READ and APPLY all context from `.project/project.md` before any code, documentation, or architectural work. Required for: development, configuration, refactoring, integrations, releases, CI/CD.
 2. MAINTAIN high-quality, comprehensive output, optimized for large codebases and without abbreviation, unless specified otherwise.
 3. PROACTIVELY use the `repomix-explorer` subagent for all codebase analysis tasks via Task tool, when available; provide analysis mission; utilize agent results; use `repomix-output.xml` packed output, unless regeneration is explicitly requested by the user.
-4. ENFORCE code style and conventions by using the `csharp-expert` subagent for all C# code related tasks.
+4. ENFORCE code style and conventions by using the `csharp-craftsman` skill for all C# code related tasks.
 5. IDENTIFY technical skill gaps, communicate limitations, recommend skill-creator tool, and await authorization for out-of-scope requests.
 6. FOCUS on project-specific code changes only, avoiding unrelated tooling or broad architectural refactors. Changes must be incremental and focused.
 7. USE standardized emoji taxonomy when applicable. 
@@ -22,7 +22,7 @@ inclusion: always
 
 **COMPLIANCE EXPECTATION:**
 - These directives represent project standards.
-- Agents MUST adhere to applicable directives yet within their platform/tooling capabilities.
+- You MUST adhere to applicable directives yet within their platform/tooling capabilities.
 - Partial compliance acceptable when full adherence is impossible.
 - Human oversight required for verification.
 
@@ -32,6 +32,12 @@ Agents should:
 2. Apply universal principles when specific tools unavailable
 3. Request clarification for unsupported operations
 4. Prioritize project standards over platform limitations
+
+## SESSION INITIALIZATION (MANDATORY)
+On EVERY session start — including continuations — you MUST:
+1. Ensure CORE DIRECTIVES are loaded and applied
+2. Do NOT assume previous sessions have established context
+3. Continuation summaries capture task state, not project rules
 
 ---
 

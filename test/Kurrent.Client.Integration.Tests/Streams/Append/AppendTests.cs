@@ -74,8 +74,6 @@ public class AppendTests {
     public async Task appends_to_stream_in_any_state(ExpectedStreamState expectedStreamState, CancellationToken ct) {
         var smartHomeActivity = await Fixture.SeedSmartHomeActivity(ct);
 
-        // var simulatedGame = Fixture.TrySimulateGame(GamesAvailable.TicTacToe);
-
         if (ExpectedStreamState.NoStream == expectedStreamState) {
             var expectedRevision = StreamRevision.From(smartHomeActivity.Records.Count() - 1);
 
@@ -124,7 +122,7 @@ public class AppendTests {
             //     Should.NotThrow(() => failures..FirstOrDefault().Error.Throw());
             // })
             .InspectAsync(success => {
-                success.Count().ShouldBe(requests.Count);
+                success.Count.ShouldBe(requests.Count);
 
                 for (var i = 0; i < requests.Count; i++) {
                     var request = requests[i];

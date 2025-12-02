@@ -33,11 +33,6 @@ public sealed class ExpressionFilterParser {
         }
     }
 
-    /// <summary>
-    /// Analyzes a filter expression to extract server-side and client-side components.
-    /// </summary>
-    internal static FilterAnalysisResult Analyze(IFilterExpression expression) =>
-        ExpressionFilterAnalyzer.Analyze(expression);
 }
 
 /// <summary>
@@ -135,228 +130,6 @@ public interface IFilterExpression {
     /// <returns><c>true</c> if the record matches; otherwise, <c>false</c>.</returns>
     bool IsMatch(Record record);
 }
-
-#region . Analyzer .
-
-/// <summary>
-/// Result of analyzing a filter expression for server/client splitting.
-/// </summary>
-sealed record FilterAnalysisResult {
-    /// <summary>
-    /// The scope of the server-side filter (StreamName or SchemaName).
-    /// Null if no server-side filtering is possible.
-    /// </summary>
-    public FilterScope? ServerScope { get; init; }
-
-    /// <summary>
-    /// The regex pattern to send to the server.
-    /// Null if no server-side filtering is possible.
-    /// </summary>
-    public string? ServerRegex { get; init; }
-
-    /// <summary>
-    /// The target stream if a single stream was detected (e.g., stream = 'orders').
-    /// </summary>
-    public StreamName? TargetStream { get; init; }
-
-    /// <summary>
-    /// The remaining expression to evaluate client-side.
-    /// Null if everything was lifted to server.
-    /// </summary>
-    public IFilterExpression? ClientExpression { get; init; }
-
-    /// <summary>
-    /// Whether a server-side filter was extracted.
-    /// </summary>
-    public bool HasServerFilter => ServerRegex is not null;
-
-    /// <summary>
-    /// Whether client-side filtering is needed.
-    /// </summary>
-    public bool HasClientFilter => ClientExpression is not null;
-}
-
-file static class ExpressionFilterAnalyzer {
-    public static FilterAnalysisResult Analyze(IFilterExpression expression) {
-        var          serverPredicates = new List<IFilterExpression>();
-        var          clientPredicates = new List<IFilterExpression>();
-
-        FilterScope? serverScope      = null;
-        StreamName?  targetStream     = null;
-
-        // Flatten AND expressions into a list of conjuncts
-        var conjuncts = FlattenAnd(expression);
-
-        foreach (var conjunct in conjuncts) {
-            var extraction = TryExtractServerPredicate(conjunct);
-
-            if (extraction.HasValue) {
-                var (scope, regex, stream) = extraction.Value;
-
-                // Can only have one server filter scope
-                if (serverScope is null || serverScope == scope) {
-                    serverScope = scope;
-                    serverPredicates.Add(conjunct);
-
-                    if (stream is not null)
-                        targetStream = stream;
-                }
-                else
-                    // Different scope, must be client-side
-                    clientPredicates.Add(conjunct);
-            }
-            else
-                clientPredicates.Add(conjunct);
-        }
-
-        // Build server regex from all server predicates
-        string? serverRegex = null;
-        if (serverPredicates.Count > 0) {
-            var patterns = serverPredicates
-                .Select(ExtractRegexPattern)
-                .Where(p => p is not null)
-                .ToList();
-
-            serverRegex = patterns.Count switch {
-                1   => patterns[0],
-                > 1 => $"({string.Join("|", patterns)})", // Multiple patterns for same scope - combine with |
-                _   => serverRegex
-            };
-        }
-
-        // Build client expression from remaining predicates
-        IFilterExpression? clientExpr = null;
-        if (clientPredicates.Count == 1)
-            clientExpr = clientPredicates[0];
-        else if (clientPredicates.Count > 1)
-            clientExpr = clientPredicates.Aggregate((a, b) => new AndExpression(a, b));
-
-        return new FilterAnalysisResult {
-            ServerScope      = serverScope,
-            ServerRegex      = serverRegex,
-            TargetStream     = targetStream,
-            ClientExpression = clientExpr
-        };
-    }
-
-    static List<IFilterExpression> FlattenAnd(IFilterExpression expr) {
-        var result = new List<IFilterExpression>();
-        FlattenAndRecursive(expr, result);
-        return result;
-    }
-
-    static void FlattenAndRecursive(IFilterExpression expr, List<IFilterExpression> result) {
-        if (expr is AndExpression and) {
-            FlattenAndRecursive(and.Left, result);
-            FlattenAndRecursive(and.Right, result);
-        }
-        else
-            result.Add(expr);
-    }
-
-    static (FilterScope scope, string regex, StreamName? stream)? TryExtractServerPredicate(IFilterExpression expr) {
-        return expr switch {
-            ComparisonExpression comp => TryExtractComparison(comp),
-            LikeExpression like       => TryExtractLike(like),
-            InExpression inExpr       => TryExtractIn(inExpr),
-            _                         => null
-        };
-    }
-
-    static (FilterScope, string, StreamName?)? TryExtractComparison(ComparisonExpression comp) {
-        var propName = comp.Property.PropertyName.ToLowerInvariant();
-        if (comp.Op != ComparisonOperator.Equal) return null;
-        if (comp.Value is not StringValue sv) return null;
-
-        return propName switch {
-            "stream"                  => (FilterScope.StreamName, $"^{Regex.Escape(sv.Value)}$", StreamName.From(sv.Value)),
-            "schema_name" or "schema" => (FilterScope.SchemaName, $"^{Regex.Escape(sv.Value)}$", null),
-            _                         => null
-        };
-    }
-
-    static (FilterScope, string, StreamName?)? TryExtractLike(LikeExpression like) {
-        if (like.Negated) return null;
-
-        var propName = like.Property.PropertyName.ToLowerInvariant();
-        var scope = propName switch {
-            "stream"                  => FilterScope.StreamName,
-            "schema_name" or "schema" => FilterScope.SchemaName,
-            _                         => (FilterScope?)null
-        };
-
-        if (scope is null) return null;
-
-        // Convert LIKE pattern to regex
-        var regex = ConvertLikePatternToRegex(like.Pattern);
-        return (scope.Value, regex, null);
-    }
-
-    static (FilterScope, string, StreamName?)? TryExtractIn(InExpression inExpr) {
-        if (inExpr.Negated) return null;
-
-        var propName = inExpr.Property.PropertyName.ToLowerInvariant();
-        var scope = propName switch {
-            "stream"                  => FilterScope.StreamName,
-            "schema_name" or "schema" => FilterScope.SchemaName,
-            _                         => (FilterScope?)null
-        };
-
-        if (scope is null) return null;
-
-        // All values must be strings
-        var strings = new List<string>();
-        foreach (var v in inExpr.Values) {
-            if (v is not StringValue sv) return null;
-
-            strings.Add(sv.Value);
-        }
-
-        // Create alternation regex
-        var escaped = strings.Select(Regex.Escape);
-        var regex   = $"^({string.Join("|", escaped)})$";
-        return (scope.Value, regex, null);
-    }
-
-    static string? ExtractRegexPattern(IFilterExpression expr) {
-        return expr switch {
-            ComparisonExpression comp when comp.Op == ComparisonOperator.Equal && comp.Value is StringValue sv =>
-                $"^{Regex.Escape(sv.Value)}$",
-            LikeExpression like when !like.Negated =>
-                ConvertLikePatternToRegex(like.Pattern),
-            InExpression inExpr when !inExpr.Negated =>
-                $"^({string.Join("|", inExpr.Values.OfType<StringValue>().Select(v => Regex.Escape(v.Value)))})$",
-            _ => null
-        };
-    }
-
-    static string ConvertLikePatternToRegex(string pattern) {
-        var result = new System.Text.StringBuilder();
-
-        for (var i = 0; i < pattern.Length; i++) {
-            var ch = pattern[i];
-            if (ch == '%')
-                result.Append(".*");
-            else if (ch == '_')
-                result.Append('.');
-            else
-                result.Append(Regex.Escape(ch.ToString()));
-        }
-
-        return $"^{result}$";
-    }
-}
-
-/// <summary>
-/// Specifies what the filter targets for analysis purposes.
-/// </summary>
-enum FilterScope {
-    Unspecified = 0,
-    StreamName  = 1,
-    SchemaName  = 2
-}
-
-#endregion
 
 #region . Tokenizer .
 
@@ -817,23 +590,23 @@ file sealed class PrattParser(List<Token> tokens) {
         switch (token.Type) {
             case TokenType.String:
                 Advance();
-                return new StringValue(token.Value);
+                return new StringFilterValue(token.Value);
 
             case TokenType.Number:
                 Advance();
-                return new NumberValue(decimal.Parse(token.Value, System.Globalization.CultureInfo.InvariantCulture));
+                return new NumberFilterValue(decimal.Parse(token.Value, System.Globalization.CultureInfo.InvariantCulture));
 
             case TokenType.True:
                 Advance();
-                return new BooleanValue(true);
+                return new BooleanFilterValue(true);
 
             case TokenType.False:
                 Advance();
-                return new BooleanValue(false);
+                return new BooleanFilterValue(false);
 
             case TokenType.Null:
                 Advance();
-                return NullValue.Instance;
+                return NullFilterValue.Instance;
 
             default:
                 throw new ParseException(token.Value.Length > 0 ? token.Value : "end of input", token.Position);
@@ -863,28 +636,29 @@ file sealed class PrattParser(List<Token> tokens) {
 
 #region . AST Nodes .
 
-file abstract record FilterValue {
+public abstract record FilterValue {
     public abstract object? GetValue();
 }
 
-file sealed record StringValue(string Value) : FilterValue {
+public sealed record StringFilterValue(string Value) : FilterValue {
     public override object GetValue() => Value;
 }
 
-file sealed record NumberValue(decimal Value) : FilterValue {
+sealed record NumberFilterValue(decimal Value) : FilterValue {
     public override object GetValue() => Value;
 }
 
-file sealed record BooleanValue(bool Value) : FilterValue {
+sealed record BooleanFilterValue(bool Value) : FilterValue {
     public override object GetValue() => Value;
 }
 
-file sealed record NullValue : FilterValue {
-    public static readonly NullValue Instance = new();
-    public override        object?   GetValue() => null;
+sealed record NullFilterValue : FilterValue {
+    public static readonly NullFilterValue Instance = new();
+
+    public override object? GetValue() => null;
 }
 
-file sealed record PropertyAccess(string PropertyName, string? Key = null) {
+public sealed record PropertyAccess(string PropertyName, string? Key = null) {
     public object? Resolve(Record record) =>
         PropertyName.ToLowerInvariant() switch {
             "stream"                        => record.Stream.Value,
@@ -902,7 +676,7 @@ file sealed record PropertyAccess(string PropertyName, string? Key = null) {
         };
 }
 
-file enum ComparisonOperator {
+public enum ComparisonOperator {
     Equal,
     NotEqual,
     GreaterThan,
@@ -911,7 +685,7 @@ file enum ComparisonOperator {
     LessThanOrEqual
 }
 
-file sealed class ComparisonExpression(PropertyAccess property, ComparisonOperator op, FilterValue value) : IFilterExpression {
+public sealed class ComparisonExpression(PropertyAccess property, ComparisonOperator op, FilterValue value) : IFilterExpression {
     public PropertyAccess     Property => property;
     public ComparisonOperator Op       => op;
     public FilterValue        Value    => value;
@@ -934,7 +708,7 @@ file sealed class ComparisonExpression(PropertyAccess property, ComparisonOperat
     }
 }
 
-file sealed class AndExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
+public sealed class AndExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
     public IFilterExpression Left  => left;
     public IFilterExpression Right => right;
 
@@ -949,11 +723,13 @@ file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
     public bool IsMatch(Record record) => !inner.IsMatch(record);
 }
 
-file sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated) : IFilterExpression {
+public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated) : IFilterExpression {
     readonly Regex          _regex = PatternMatcher.ConvertLikeToRegex(pattern, caseInsensitive);
-    public   PropertyAccess Property => property;
-    public   string         Pattern  => pattern;
-    public   bool           Negated  => negated;
+
+    public PropertyAccess Property        => property;
+    public string         Pattern         => pattern;
+    public bool           CaseInsensitive => caseInsensitive;
+    public bool           Negated         => negated;
 
     public bool IsMatch(Record record) {
         var value = property.Resolve(record);
@@ -971,7 +747,7 @@ file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFil
     }
 }
 
-file sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterValue> values, bool negated) : IFilterExpression {
+public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterValue> values, bool negated) : IFilterExpression {
     public PropertyAccess             Property => property;
     public IReadOnlyList<FilterValue> Values   => values;
     public bool                       Negated  => negated;
@@ -1085,8 +861,9 @@ file static class PatternMatcher {
             else
                 result.Append(Regex.Escape(ch.ToString()));
 
-        var options                  = RegexOptions.Compiled | RegexOptions.Singleline;
-        if (caseInsensitive) options |= RegexOptions.IgnoreCase;
+        var options = RegexOptions.Compiled | RegexOptions.Singleline;
+        if (caseInsensitive)
+            options |= RegexOptions.IgnoreCase;
 
         return new Regex($"^{result}$", options);
     }

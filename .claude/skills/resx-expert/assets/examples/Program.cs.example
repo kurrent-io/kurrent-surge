@@ -1,0 +1,300 @@
+using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.Localization;
+using System.Globalization;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ===================================
+// Configure Localization Services
+// ===================================
+
+// Add localization with resource path
+builder.Services.AddLocalization(options =>
+{
+    options.ResourcesPath = "Resources";
+});
+
+// Configure supported cultures
+var supportedCultures = new[]
+{
+    new CultureInfo("en-US"),
+    new CultureInfo("es-MX"),
+    new CultureInfo("fr-CA"),
+    new CultureInfo("de-DE"),
+    new CultureInfo("ja-JP")
+};
+
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("en-US");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+
+    // Enable parent culture fallback
+    options.FallBackToParentUICultures = true;
+    options.FallBackToParentCultures = true;
+
+    // Configure culture providers (order matters!)
+    options.RequestCultureProviders = new List<IRequestCultureProvider>
+    {
+        new QueryStringRequestCultureProvider(),           // ?culture=es-MX
+        new CookieRequestCultureProvider(),                // Cookie
+        new AcceptLanguageHeaderRequestCultureProvider()   // HTTP Accept-Language header
+    };
+});
+
+// Add MVC with localization support
+builder.Services.AddControllersWithViews()
+    .AddViewLocalization(LanguageViewLocationExpanderFormat.Suffix)
+    .AddDataAnnotationsLocalization(options =>
+    {
+        // Use shared resources for DataAnnotations
+        options.DataAnnotationLocalizerProvider = (type, factory) =>
+            factory.Create(typeof(SharedResources));
+    });
+
+// Add Razor Pages with localization
+builder.Services.AddRazorPages()
+    .AddViewLocalization();
+
+var app = builder.Build();
+
+// ===================================
+// Configure Middleware Pipeline
+// ===================================
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+// Apply request localization middleware (IMPORTANT: Must be before routing!)
+app.UseRequestLocalization();
+
+app.UseRouting();
+app.UseAuthorization();
+
+// Map controllers and Razor pages
+app.MapControllers();
+app.MapRazorPages();
+
+// Default route
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Run();
+
+// ===================================
+// Example Controllers
+// ===================================
+
+namespace LocalizationExample.Controllers
+{
+    public class HomeController : Controller
+    {
+        private readonly IStringLocalizer<HomeController> _localizer;
+        private readonly IStringLocalizer<SharedResources> _sharedLocalizer;
+        private readonly ILogger<HomeController> _logger;
+
+        public HomeController(
+            IStringLocalizer<HomeController> localizer,
+            IStringLocalizer<SharedResources> sharedLocalizer,
+            ILogger<HomeController> logger)
+        {
+            _localizer = localizer;
+            _sharedLocalizer = sharedLocalizer;
+            _logger = logger;
+        }
+
+        public IActionResult Index()
+        {
+            // Simple resource access
+            ViewData["Title"] = _localizer["PageTitle"];
+            ViewData["Welcome"] = _localizer["WelcomeMessage"];
+
+            // Parameterized resource
+            var userName = User.Identity?.Name ?? "Guest";
+            ViewData["Greeting"] = _localizer["UserGreeting", userName];
+
+            // Shared resource
+            ViewData["AppName"] = _sharedLocalizer["ApplicationName"];
+
+            // Check if resource exists
+            LocalizedString optional = _localizer["OptionalMessage"];
+            if (!optional.ResourceNotFound)
+            {
+                ViewData["Optional"] = optional.Value;
+            }
+
+            // Log current culture
+            _logger.LogInformation(
+                "Home page accessed. Culture: {Culture}, UI Culture: {UICulture}",
+                CultureInfo.CurrentCulture.Name,
+                CultureInfo.CurrentUICulture.Name);
+
+            return View();
+        }
+
+        public IActionResult About()
+        {
+            ViewData["Title"] = _localizer["AboutPageTitle"];
+            return View();
+        }
+    }
+
+    public class CultureController : Controller
+    {
+        [HttpPost]
+        public IActionResult SetCulture(string culture, string returnUrl)
+        {
+            // Validate culture
+            if (!CultureInfo.GetCultures(CultureTypes.AllCultures)
+                .Any(c => c.Name == culture))
+            {
+                return BadRequest("Invalid culture");
+            }
+
+            // Set culture cookie
+            Response.Cookies.Append(
+                CookieRequestCultureProvider.DefaultCookieName,
+                CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+                new CookieOptions
+                {
+                    Expires = DateTimeOffset.UtcNow.AddYears(1),
+                    IsEssential = true,
+                    SameSite = SameSiteMode.Lax,
+                    Secure = true
+                }
+            );
+
+            return LocalRedirect(returnUrl);
+        }
+
+        [HttpGet]
+        public IActionResult GetCurrentCulture()
+        {
+            return Json(new
+            {
+                Culture = CultureInfo.CurrentCulture.Name,
+                UICulture = CultureInfo.CurrentUICulture.Name,
+                DisplayName = CultureInfo.CurrentUICulture.DisplayName,
+                NativeName = CultureInfo.CurrentUICulture.NativeName
+            });
+        }
+    }
+
+    public class ApiController : ControllerBase
+    {
+        private readonly IStringLocalizer<ApiController> _localizer;
+
+        public ApiController(IStringLocalizer<ApiController> localizer)
+        {
+            _localizer = localizer;
+        }
+
+        [HttpGet("api/products/{id}")]
+        public IActionResult GetProduct(int id)
+        {
+            // Localized API response
+            var product = GetProductFromDatabase(id);
+
+            if (product == null)
+            {
+                return NotFound(new
+                {
+                    error = _localizer["ProductNotFound"].Value,
+                    code = "PRODUCT_NOT_FOUND"
+                });
+            }
+
+            return Ok(new
+            {
+                id = product.Id,
+                name = product.Name,
+                description = _localizer[$"Product_{id}_Description"].Value,
+                price = product.Price,
+                currency = CultureInfo.CurrentCulture.NumberFormat.CurrencySymbol
+            });
+        }
+
+        private Product GetProductFromDatabase(int id)
+        {
+            // Placeholder
+            return id == 1
+                ? new Product { Id = 1, Name = "Widget", Price = 99.99m }
+                : null;
+        }
+    }
+
+    // Shared resources marker class
+    public class SharedResources { }
+
+    // Example model
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public decimal Price { get; set; }
+    }
+}
+
+// ===================================
+// Example View (_CultureSelector.cshtml partial view)
+// ===================================
+/*
+@using Microsoft.AspNetCore.Localization
+@using Microsoft.Extensions.Options
+@inject IOptions<RequestLocalizationOptions> LocOptions
+
+@{
+    var requestCultureFeature = Context.Features.Get<IRequestCultureFeature>();
+    var currentCulture = requestCultureFeature?.RequestCulture.Culture ?? CultureInfo.CurrentCulture;
+    var supportedCultures = LocOptions.Value.SupportedUICultures;
+}
+
+<div class="culture-selector">
+    <form asp-controller="Culture" asp-action="SetCulture" method="post">
+        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+        <select name="culture" onchange="this.form.submit()" class="form-select">
+            @foreach (var culture in supportedCultures)
+            {
+                <option value="@culture.Name"
+                        selected="@(culture.Name == currentCulture.Name)">
+                    @culture.NativeName (@culture.Name)
+                </option>
+            }
+        </select>
+    </form>
+</div>
+*/
+
+// ===================================
+// Resource File Structure
+// ===================================
+/*
+YourApp/
+├── Resources/
+│   ├── SharedResources.resx                # Shared across app
+│   ├── SharedResources.es-MX.resx
+│   ├── SharedResources.fr-CA.resx
+│   ├── Controllers/
+│   │   ├── HomeController.resx             # Controller-specific
+│   │   ├── HomeController.es-MX.resx
+│   │   ├── ApiController.resx
+│   │   └── ApiController.es-MX.resx
+│   └── Views/
+│       ├── Home/
+│       │   ├── Index.resx                  # View-specific
+│       │   ├── Index.es-MX.resx
+│       │   ├── About.resx
+│       │   └── About.es-MX.resx
+│       └── Shared/
+│           ├── _Layout.resx
+│           └── _Layout.es-MX.resx
+└── Program.cs
+*/

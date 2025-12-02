@@ -8,6 +8,8 @@ using Kurrent.Client.Registry;
 
 namespace Kurrent.Client.Streams;
 
+// TODO SS: I don't think that we need to handle anything related with adding schema name/format to metadata anymore.
+
 /// <summary>
 /// Provides a base implementation for decoding metadata from serialized byte representations.
 /// Serves as an abstraction for specific metadata decoding implementations.
@@ -36,6 +38,11 @@ public abstract class MetadataDecoder : IMetadataDecoder {
     }
 
     static Metadata DeserializeLinkMetadata(ReadOnlyMemory<byte> bytes) {
+        // [0] = {DebugViewDictionaryItem<string, JsonValue>} [$v]=1:-1:1:4
+        // [1] = {DebugViewDictionaryItem<string, JsonValue>} [$c]=10868
+        // [2] = {DebugViewDictionaryItem<string, JsonValue>} [$p]=10868
+        // [3] = {DebugViewDictionaryItem<string, JsonValue>} [$causedBy]=373c6630-d8fe-ff2c-16af-e286265e7e98
+
         var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(bytes.Span)!;
         return new Metadata()
             .With(SystemMetadataKeys.SchemaName, LinkSchemaName)
@@ -43,7 +50,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
             .With("$v", deserialized["$v"].ToString())
             .With("$c", deserialized["$c"].GetValue<long>())
             .With("$p", deserialized["$p"].GetValue<long>())
-            .With("$o", StreamName.From(deserialized["$o"].ToString()))
+            .WithIf(_ => deserialized.ContainsKey("$o"), "$o", () => StreamName.From(deserialized["$o"].ToString()))
             .With("$causedBy", deserialized["$causedBy"].GetValue<Guid>());
     }
 
@@ -69,8 +76,6 @@ public interface IMetadataDecoder {
 
 /// <summary>
 /// Encapsulates metadata decoding context, providing necessary information to decode metadata.
-/// It includes the originating stream's name, the schema associated with the data,
-/// and the format of the schema content.
 /// </summary>
 [PublicAPI]
 public readonly record struct MetadataDecoderContext(
@@ -81,16 +86,7 @@ public readonly record struct MetadataDecoderContext(
 
 [PublicAPI]
 public class MetadataDecodingException(Type decoderType, MetadataDecoderContext decoderContext, Exception innerException)
-    : KurrentException(
-        ErrorCode.FromType<MetadataDecodingException>(),
-        ErrorMessage(decoderType, decoderContext, innerException),
-        // new Metadata()
-        //     .With(nameof(DecoderType), decoderType)
-        //     .With(nameof(Stream), decoderContext.Stream)
-        //     .With(nameof(SchemaName), decoderContext.SchemaName)
-        //     .With(nameof(SchemaDataFormat), decoderContext.SchemaDataFormat),
-        innerException
-    ) {
+    : KurrentException(ErrorCode.FromType<MetadataDecodingException>(), ErrorMessage(decoderType, decoderContext, innerException), innerException) {
 
     public Type                   DecoderType    { get; } = decoderType;
     public MetadataDecoderContext DecoderContext { get; } = decoderContext;

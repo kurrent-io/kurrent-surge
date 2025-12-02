@@ -30,8 +30,8 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 		// -------------------------------------------------------------------------------------------------
 		// these debug asserts ensure the required info is set during the development process
 		// -------------------------------------------------------------------------------------------------
-		Debug.Assert(!string.IsNullOrWhiteSpace(context.Stream) || context.Metadata.GetOrDefault<string>(SystemMetadataKeys.Stream) is not null, "Stream name is missing in the metadata");
-		Debug.Assert(context.Metadata.GetOrDefault(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Unspecified) == DataFormat, "Schema format does not match the serializer data format");
+		Debug.Assert(!string.IsNullOrWhiteSpace(context.Stream) || context.RecordSchema.HasSchemaName, "Stream name is missing in the context");
+		Debug.Assert(context.RecordSchema.SchemaFormat == DataFormat, "Schema format does not match the serializer data format");
 		// -------------------------------------------------------------------------------------------------
 
 		if (value is null)
@@ -48,14 +48,18 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 				.RegisterOrValidateSchema(messageType, policy, context.CancellationToken)
 				.ConfigureAwait(false);
 
-			context.Metadata
-				.With(SystemMetadataKeys.SchemaName, result.SchemaName)
-				.With(SystemMetadataKeys.SchemaFormat, DataFormat);
+            context.RecordSchema = result.SchemaVersionId == SchemaVersionId.None
+                ? context.RecordSchema with {
+                    SchemaName   = result.SchemaName,
+                    SchemaFormat = DataFormat
+                }
+                : context.RecordSchema with {
+                    SchemaName      = result.SchemaName,
+                    SchemaFormat    = DataFormat,
+                    SchemaVersionId = result.SchemaVersionId
+                };
 
-			if (result.SchemaVersionId != SchemaVersionId.None)
-				context.Metadata.With(SystemMetadataKeys.SchemaId, result.SchemaVersionId);
-
-			return Serialize(value);
+            return Serialize(value);
 		}
 		catch (Exception ex) when (ex is not SchemaSerializationException) {
 			throw new SchemaSerializationFailedException(DataFormat, messageType,  ex);
@@ -63,13 +67,13 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 	}
 
 	async ValueTask<object?> ISchemaSerializer.Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
-		var schemaInfo = context.Metadata.GetSchemaInfo();
+        var schemaInfo = context.RecordSchema;
 
 		// -------------------------------------------------------------------------------------------------
 		// these debug asserts ensure the required info is set during the development process
 		// -------------------------------------------------------------------------------------------------
-		Debug.Assert(schemaInfo.HasSchemaName, "Schema name is missing in the metadata");
-		Debug.Assert(schemaInfo.HasSchemaFormat, "Schema format is missing in the metadata");
+		Debug.Assert(schemaInfo.HasSchemaName, "Schema name is missing in the context");
+		Debug.Assert(schemaInfo.HasSchemaFormat, "Schema format is missing in the context");
 		Debug.Assert(schemaInfo.SchemaFormat == DataFormat, "Schema format does not match the serializer data format");
 		// -------------------------------------------------------------------------------------------------
 
@@ -85,9 +89,11 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 				.ValidateAndEnsureSchemaCompatibility(schemaInfo, policy, context.CancellationToken)
 				.ConfigureAwait(false);
 
-			// set the schema version id in the metadata
-			if(result.SchemaVersionId != SchemaVersionId.None)
-				context.Metadata.With(SystemMetadataKeys.SchemaId, result.SchemaVersionId);
+            // set the schema version id if missing
+            if(result.SchemaVersionId != SchemaVersionId.None)
+                context.RecordSchema = context.RecordSchema with {
+                    SchemaVersionId = result.SchemaVersionId
+                };
 
 			return Deserialize(data, result.MessageType);
 		}

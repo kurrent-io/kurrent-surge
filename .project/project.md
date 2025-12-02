@@ -1,7 +1,7 @@
 # KurrentDB .NET Client - AI Agent Development Instructions
 
-**Version:** v1.0.1
-**Last Updated:** 2025-10-29T21:45:00Z (UPDATE)
+**Version:** v1.0.2
+**Last Updated:** November 27, 2025
 **Personnel:** SILVEIRA
 
 ---
@@ -68,7 +68,7 @@ Utility Layer
 ### Source Code Organization
 
 **Main Projects:**
-- `src/KurrentDB.Client/Kurrent.Client/` - Main client library (796 C# files)
+- `src/KurrentDB.Client/Kurrent.Client/` - Main client library
 - `src/Kurrent.Client.SourceGenerators/` - Custom source generators
 - `src/Variant/` - Result types and discriminated unions library
 - `src/Variant.SourceGenerators/` - Variant code generation
@@ -83,10 +83,10 @@ src/KurrentDB.Client/Kurrent.Client/
 ├── Modules/                   # 7 feature modules
 │   ├── Streams/
 │   │   ├── Operations/        # Operation-based organization
-│   │   │   ├── Append/
-│   │   │   ├── Read/
-│   │   │   ├── Manage/
-│   │   │   └── Subscribe/ [PENDING]
+│   │   │   ├── StreamsClient.Append*.cs  # Append partials at root
+│   │   │   ├── Read/                      # Read operation subdirectory
+│   │   │   ├── Manage/                    # Manage operation subdirectory
+│   │   │   └── Subscribe/                 # Subscribe operation subdirectory
 │   │   ├── Models/           # Shared models
 │   │   ├── Checkpoints/      # Position tracking
 │   │   └── StreamsClient.cs
@@ -122,12 +122,13 @@ namespace Kurrent.Client.Registry;  // NOT Kurrent.Client.Modules.Registry
 **Partial Class Organization:**
 ```csharp
 // Operations split into focused partials
-StreamsClient.cs                           # Base definition
-StreamsClient.Append.cs                    # Append operation
-StreamsClient.Append.Models.cs             # Append DTOs
-StreamsClient.Append.Mappers.cs            # Protocol mapping
-StreamsClient.Append.Extensions.cs         # Extension methods
-StreamsClient.Append.Models.Builders.cs    # Builder patterns
+StreamsClient.cs                              # Base definition
+StreamsClient.Append.cs                       # Append operation
+StreamsClient.Append.Models.cs                # Append DTOs
+StreamsClient.Append.Mappers.cs               # Protocol mapping
+StreamsClient.Append.Extensions.cs            # Extension methods
+StreamsClient.Append.IdiomaticExtensions.cs   # Idiomatic API extensions
+StreamsClient.Append.Models.Builders.cs       # Builder patterns
 ```
 
 **Models Co-location:**
@@ -284,12 +285,12 @@ var request = AppendStreamRequest.New()
 # CORRECT - TUnit execution
 dotnet run \
   --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0
+  --framework net10.0
 
 # Run specific category
 dotnet run \
   --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0 \
+  --framework net10.0 \
   --treenode-filter "/*/*/*/*[Category=Streams]"
 
 # WRONG - This will fail
@@ -309,8 +310,8 @@ dotnet test  # TUnit doesn't support dotnet test
 ```csharp
 // Base test fixture with DI
 public class TestFixture : ITestStartEventReceiver, ITestEndEventReceiver {
-    protected ILogger Logger { get; private set; }
-    protected FakeTimeProvider TimeProvider { get; private set; }
+    protected ILogger          Logger          { get; private set; }
+    protected FakeTimeProvider TimeProvider    { get; private set; }
     protected IServiceProvider ServiceProvider { get; private set; }
 
     // Override to configure DI
@@ -330,7 +331,7 @@ public class KurrentClientTestFixture : TestFixture {
 
 // Test class usage
 public class CreateSchemaTests : KurrentClientTestFixture {
-    [Test, Timeout(TestTimeoutMs)]
+    [Test, Timeout(10_000)]
     public async Task registers_initial_version_of_new_schema(CancellationToken ct) {
         // AutomaticClient available from fixture
         var result = await AutomaticClient.Registry.CreateSchema(...);
@@ -400,7 +401,7 @@ await operation
 dotnet build
 
 # Build specific framework
-dotnet build --framework net9.0
+dotnet build --framework net10.0
 
 # Build main client
 dotnet build src/KurrentDB.Client/KurrentDB.Client.csproj
@@ -428,22 +429,8 @@ sudo ./gencert.sh
 cd test/Kurrent.Client.Testing
 docker compose up -d  # Starts Seq + Aspire Dashboard
 
-# 3. Run tests (TUnit - use dotnet run!)
-dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0
-
-# Run specific category
-dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0 \
-  --treenode-filter "/*/*/*/*[Category=Streams]"
-
-# Run multiple categories
-dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0 \
-  --treenode-filter "/*/*/*/*[Category=Streams]|/*/*/*/*[Category=Registry]"
+# 3. Run tests (see TUnit Framework section above for full syntax)
+dotnet run --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj --framework net10.0
 
 # 4. View logs
 # Seq: http://localhost:5341
@@ -514,36 +501,7 @@ dotnet pack --configuration Release
 
 ### Protocol Buffers Integration
 
-**Automatic compilation during build** - No manual protoc needed!
-
-Configuration in `.csproj`:
-```xml
-<!-- v1 Protocol (EventStoreDB compatible) -->
-<Protobuf
-    ProtoRoot="../../proto/kurrentdb/protocol/v1"
-    Include="../../proto/kurrentdb/protocol/v1/**/*.proto"
-    GrpcServices="Client"
-    Access="Internal"
-    AdditionalImportDirs="../../proto"
-/>
-
-<!-- v2 Protocol (KurrentDB native) -->
-<Protobuf
-    ProtoRoot="../../proto/kurrentdb/protocol/v2"
-    Include="../../proto/kurrentdb/protocol/v2/**/*.proto"
-    GrpcServices="Client"
-    Access="Internal"
-    AdditionalImportDirs="../../proto"
-/>
-
-<!-- Public RPC API -->
-<Protobuf
-    ProtoRoot="../../proto/kurrent"
-    Include="../../proto/kurrent/**/*.proto"
-    Access="Public"
-    AdditionalImportDirs="../../proto"
-/>
-```
+**Automatic compilation during build** - No manual protoc needed. Configuration is in `KurrentDB.Client.csproj`.
 
 **Protocol files:** `proto/kurrentdb/protocol/v1/`, `proto/kurrentdb/protocol/v2/`, `proto/kurrent/rpc/`
 
@@ -572,17 +530,6 @@ Configuration in `.csproj`:
 ```
 
 ### gRPC Communication Pattern
-
-**Connection Management:**
-```
-KurrentClient
-    └─ KurrentDBLegacyCallInvoker (CallInvoker wrapper)
-        └─ LegacyClusterClient
-            ├─ ChannelCache (connection pooling)
-            └─ IChannelSelector
-                ├─ SingleNodeChannelSelector (direct)
-                └─ GossipChannelSelector (cluster discovery)
-```
 
 **Connection string formats:**
 ```bash
@@ -750,6 +697,19 @@ SerializerProvider = new SchemaSerializerProvider([
 - All type mapping must be registration-based, not reflection-based
 - Source generators handle boilerplate at compile-time
 
+### Common Mistakes (DON'T)
+
+1. **DON'T use `dotnet test`** - TUnit requires `dotnet run`
+2. **DON'T use Allman brace style** - K&R is mandatory
+3. **DON'T use PascalCase for test methods** - Use snake_case
+4. **DON'T throw exceptions for expected failures** - Return Result types
+5. **DON'T forget `ConfigureAwait(false)`** - Required in all library async code
+6. **DON'T use reflection for type mapping** - Use MessageTypeMapper registration
+7. **DON'T create folder-based namespaces** - Use feature-based (e.g., `Kurrent.Client.Streams`, not `Kurrent.Client.Modules.Streams`)
+8. **DON'T mix operations in one file** - Use partial classes per operation
+9. **DON'T use TestContainers** - Use FluentDocker
+10. **DON'T use xUnit/NUnit attributes** - Use TUnit attributes (`[Test]`, `[Arguments]`, `[Category]`)
+
 ---
 
 ## Important Files Reference
@@ -768,43 +728,16 @@ SerializerProvider = new SchemaSerializerProvider([
 - `Directory.Packages.props` - Package versions
 
 **Test Infrastructure:**
-- `test/Kurrent.Client.Testing/Fixtures/TestFixture.cs` - Base fixture
-- `test/Kurrent.Client.Testing/Containers/KurrentDB/KurrentDBTestContainer.cs` - Docker management
-- `test/Kurrent.Client.Testing/appsettings.json` - Test configuration
-- `test/Kurrent.Client.Testing/docker-compose.yml` - Observability services
+- `test/Kurrent.Client.Integration.Tests/Fixtures/KurrentClientTestFixture.cs` - Integration test fixture
+- `test/Kurrent.Testing/Containers/KurrentDB/KurrentDBTestContainer.cs` - Docker management
+- `test/Kurrent.Testing/appsettings.json` - Test configuration
+- `test/Kurrent.Testing/docker-compose.yml` - Observability services
 
 **CI/CD:**
-- `.github/workflows/test-new.yml` - Active test pipeline
-- `.github/workflows/load-configuration.yml` - Runtime configuration
-- `/tools/gencert.sh` - Certificate generation for tests
+- `.github/workflows/build.yml` - Build and test pipeline
+- `.github/workflows/create-release.yml` - Release automation
+- `.github/git-commit-instructions.md` - Commit message guidelines
+- `/scripts/gencert.sh` - Certificate generation for tests
 
 **Example Operations:**
 - `src/KurrentDB.Client/Kurrent.Client/Modules/Streams/Operations/Append/StreamsClient.Append.cs`
-- `src/KurrentDB.Client/Kurrent.Client/Modules/Registry/RegistryClient.cs`
-
----
-
-## Project Status
-
-**Active Branch:** schema-registry-reloaded
-
-**Completed Refactoring:**
-- ✅ Streams module (operation-based organization)
-- ✅ Registry module (v2 protocol)
-- ✅ Error handling modernization
-- ✅ Checkpoint management system
-
-**Pending Refactoring:**
-- ⏳ PersistentSubscriptions module
-- ⏳ Projections module
-- ⏳ Users module
-- ⏳ Admin module
-- ⏳ Connectors module
-
-**Recent Changes:**
-- Major restructuring: 145 files modified
-- New checkpoint controller for position tracking
-- Filter expression redesign
-- Module base class renamed (ModuleClientBase → ClientModuleBase)
-
----

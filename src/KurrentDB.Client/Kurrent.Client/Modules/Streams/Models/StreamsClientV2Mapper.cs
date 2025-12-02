@@ -48,10 +48,11 @@ static partial class StreamsClientV2Mapper {
 			SchemaFilter f =>
 				new() { Scope = Contracts.ReadFilterScope.Schema, Expression = f.Expression },
 
-			ExpressionFilter { ServerRegex: not null } f =>
-				f.IsStreamScope
-					? new() { Scope = Contracts.ReadFilterScope.Stream, Expression = f.ServerRegex }
-					: new() { Scope = Contracts.ReadFilterScope.Schema, Expression = f.ServerRegex },
+			ExpressionFilter { ServerFilter: StreamFilter sf } =>
+				new() { Scope = Contracts.ReadFilterScope.Stream, Expression = sf.Expression },
+
+			ExpressionFilter { ServerFilter: SchemaFilter sf } =>
+				new() { Scope = Contracts.ReadFilterScope.Schema, Expression = sf.Expression },
 
 			_ => new() { Scope = Contracts.ReadFilterScope.Unspecified, Expression = source.Expression }
 		};

@@ -11,7 +11,7 @@
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
     </Project>
-    <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" Type="C#" />
+    <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
   </Folder>
   <Folder Name="/Variant/">
     <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj">
@@ -35,4 +35,5 @@
     <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
     <Configuration Solution="Release|x64" Project="Release|Any CPU" />
   </Project>
+  <Project Path="test/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
 </Solution>
