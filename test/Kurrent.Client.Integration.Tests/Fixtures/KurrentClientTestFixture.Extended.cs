@@ -14,7 +14,7 @@ namespace Kurrent.Client.Tests.Fixtures;
 public partial class KurrentClientTestFixture {
     public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(int numberOfEvents, CancellationToken cancellationToken) {
         var request  = HomeAutomationTestData.SimulateHomeActivity(numberOfEvents);
-        var response = await Client.Streams.AppendStreamAsync(request, cancellationToken: cancellationToken);
+        var response = await Client.Streams.AppendAsync(request, cancellationToken: cancellationToken);
 
         Log.Debug(
             "Seeded SmartHomeActivity to stream {Stream} with {Count} events with revision {Revision} at position {Position}",

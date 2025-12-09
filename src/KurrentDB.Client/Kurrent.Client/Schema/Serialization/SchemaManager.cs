@@ -8,9 +8,9 @@ namespace Kurrent.Client.Schema.Serialization;
 
 [PublicAPI]
 public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter schemaExporter, MessageTypeMapper typeMapper) {
-	RegistryClient SchemaRegistryClient { get; } = schemaRegistryClient;
-	ISchemaExporter       SchemaExporter       { get; } = schemaExporter;
-	MessageTypeMapper     TypeMapper           { get; } = typeMapper;
+    RegistryClient    SchemaRegistryClient { get; } = schemaRegistryClient;
+    ISchemaExporter   SchemaExporter       { get; } = schemaExporter;
+    MessageTypeMapper TypeMapper           { get; } = typeMapper;
 
 	ConcurrentDictionary<Type, List<SchemaVersionDescriptor>> CompatibleVersions { get; } = new();
 

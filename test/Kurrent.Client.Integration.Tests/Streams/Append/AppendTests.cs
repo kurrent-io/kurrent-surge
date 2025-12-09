@@ -36,7 +36,7 @@ public class AppendTests {
         var simulation = HomeAutomationTestData.SimulateHomeActivity();
 
         await Fixture.Client.Streams
-            .AppendStream(simulation, ct)
+            .Append(simulation, ct)
             .ShouldNotThrowOrFailAsync(success => {
                 success.Stream.ShouldBe(simulation.Stream);
                 success.StreamRevision.ShouldBe(simulation.Messages.Count() - 1);
@@ -50,12 +50,12 @@ public class AppendTests {
 
         // create stream
         var result = await Fixture.Client.Streams
-            .AppendStream(smartHomeActivity.Stream, ExpectedStreamState.NoStream, smartHomeActivity.Records.Take(3), ct)
+            .Append(smartHomeActivity.Stream, ExpectedStreamState.NoStream, smartHomeActivity.Records.Take(3), ct)
             .ShouldNotThrowOrFailAsync();
 
         // append to existing stream
         await Fixture.Client.Streams
-            .AppendStream(smartHomeActivity.Stream, result.StreamRevision, smartHomeActivity.Records.Skip(3), ct)
+            .Append(smartHomeActivity.Stream, result.StreamRevision, smartHomeActivity.Records.Skip(3), ct)
             .ShouldNotThrowOrFailAsync(success => {
                 success.Stream.ShouldBe(smartHomeActivity.Stream);
                 success.StreamRevision.ShouldBe(smartHomeActivity.Records.Count() - 1);
@@ -79,7 +79,7 @@ public class AppendTests {
 
             // should create the stream
             await Fixture.Client.Streams
-                .AppendStream(smartHomeActivity.Stream, ExpectedStreamState.Any, smartHomeActivity.Records, ct)
+                .Append(smartHomeActivity.Stream, ExpectedStreamState.Any, smartHomeActivity.Records, ct)
                 .ShouldNotThrowOrFailAsync(success => {
                     success.Stream.ShouldBe(smartHomeActivity.Stream);
                     success.StreamRevision.ShouldBe(expectedRevision);
@@ -89,12 +89,12 @@ public class AppendTests {
         else if(ExpectedStreamState.StreamExists == expectedStreamState) {
             // create stream
             await Fixture.Client.Streams
-                .AppendStream(smartHomeActivity.Stream, ExpectedStreamState.NoStream, smartHomeActivity.Records.Take(3), ct)
+                .Append(smartHomeActivity.Stream, ExpectedStreamState.NoStream, smartHomeActivity.Records.Take(3), ct)
                 .ShouldNotThrowOrFailAsync();
 
             // append to existing stream
             await Fixture.Client.Streams
-                .AppendStream(smartHomeActivity.Stream, ExpectedStreamState.StreamExists, smartHomeActivity.Records.Skip(3), ct)
+                .Append(smartHomeActivity.Stream, ExpectedStreamState.StreamExists, smartHomeActivity.Records.Skip(3), ct)
                 .ShouldNotThrowOrFailAsync();
         }
     }

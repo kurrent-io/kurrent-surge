@@ -147,7 +147,7 @@ public record KurrentClientOptions : OptionsBase<KurrentClientOptions, KurrentCl
     /// Controls how the client handles event schemas and versioning.
     /// </para>
     /// </remarks>
-    internal KurrentClientSchemaOptions Schema { get; init; } = KurrentClientSchemaOptions.FullValidation;
+    public KurrentClientSchemaOptions Schema { get; init; } = KurrentClientSchemaOptions.FullValidation;
 
     /// <summary>
     /// Provides a mechanism for mapping message types to their corresponding schemas.

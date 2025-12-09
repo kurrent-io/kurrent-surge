@@ -106,3 +106,74 @@ public enum ShutdownReason {
     /// </summary>
     Error
 }
+
+
+/// <summary>
+/// Defines the interface for processing records of a specific type from a stream read operation.
+/// Extends <see cref="IRecordProcessor"/> with type-safe record processing.
+/// </summary>
+/// <typeparam name="T">The CLR type of the record value to process.</typeparam>
+/// <remarks>
+/// <para>
+/// Only <see cref="ProcessRecord"/> must be implemented. Lifecycle methods are inherited
+/// from <see cref="IRecordProcessor"/> with default no-op implementations.
+/// </para>
+/// <para>
+/// The default <see cref="IRecordProcessor.ProcessRecords"/> implementation filters records
+/// by type and calls <see cref="ProcessRecord"/> for each matching record.
+/// </para>
+/// <para>
+/// Use <see cref="DispatchingRecordProcessor"/> to register multiple typed processors
+/// and route records automatically based on <see cref="Record.ValueType"/>.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// // Minimal implementation - only ProcessRecord is required
+/// public class OrderPlacedProcessor : IRecordProcessor&lt;OrderPlaced&gt; {
+///     public ValueTask ProcessRecord(OrderPlaced value, ProcessRecordsContext ctx) {
+///         Console.WriteLine($"Order {value.OrderId} placed");
+///         return ValueTask.CompletedTask;
+///     }
+/// }
+///
+/// // Full implementation with lifecycle handling
+/// public class OrderProcessor : IRecordProcessor&lt;OrderPlaced&gt; {
+///     public ValueTask Initialize(InitializationContext ctx) {
+///         Console.WriteLine($"Starting: {ctx.ProcessId}");
+///         return ValueTask.CompletedTask;
+///     }
+///
+///     public ValueTask ProcessRecord(OrderPlaced value, ProcessRecordsContext ctx) {
+///         Console.WriteLine($"Order {value.OrderId}");
+///         return ValueTask.CompletedTask;
+///     }
+///
+///     public ValueTask OnShutdown(ShutdownContext ctx) {
+///         Console.WriteLine($"Processed {ctx.TotalRecords} records");
+///         return ValueTask.CompletedTask;
+///     }
+/// }
+/// </code>
+/// </example>
+[PublicAPI]
+public interface IRecordProcessor<in T> : IRecordProcessor where T : class {
+    /// <summary>
+    /// Processes a single record of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <param name="value">The strongly-typed deserialized record value.</param>
+    /// <param name="context">Context containing records batch, lag information, and cancellation token.</param>
+    /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
+    ValueTask ProcessRecord(T value, ProcessRecordsContext context);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Default implementation filters records by type and calls <see cref="ProcessRecord"/>
+    /// for each record where <see cref="Record.Value"/> is of type <typeparamref name="T"/>.
+    /// </remarks>
+    async ValueTask IRecordProcessor.ProcessRecords(ProcessRecordsContext context) {
+        foreach (var record in context.Records)
+            if (record.Value is T typedValue)
+                await ProcessRecord(typedValue, context).ConfigureAwait(false);
+    }
+}

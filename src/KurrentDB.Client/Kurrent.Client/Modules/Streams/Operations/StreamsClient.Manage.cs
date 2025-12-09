@@ -169,7 +169,7 @@ public partial class StreamsClient {
             .WithRecord(metadata)
             .Build();
 
-        return this.AppendStream(req, cancellationToken)
+        return this.Append(req, cancellationToken)
             .MapErrorAsync(ko => ko.ForwardError<SetStreamMetadataError>())
             .MapAsync(ok => ok.StreamRevision);
     }

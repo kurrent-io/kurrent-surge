@@ -5,18 +5,21 @@
     <PackageId>KurrentDB.Client</PackageId>
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-<!--    <EnablePreviewFeatures>true</EnablePreviewFeatures>-->
     <RootNamespace />
 
     <!-- Enable AOT compilation -->
     <PublishAot>false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <RuntimeIdentifiers>linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+
+    <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
+
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="DotNext.Reflection"  />
     <PackageReference Include="FluentValidation"  />
+    <PackageReference Include="Google.Api.CommonProtos" />
     <PackageReference Include="Google.Protobuf"  />
     <PackageReference Include="Grpc.StatusProto"  />
     <PackageReference Include="Grpc.Net.ClientFactory"  />
@@ -111,7 +114,6 @@
     <Compile Remove="Kurrent.Client\Modules\Connectors\**" />
     <Compile Include="Kurrent.Client\Modules\PersistentSubscriptions\ErrorDetails.cs" />
     <Compile Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <Compile Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -122,7 +124,6 @@
     <EmbeddedResource Remove="Kurrent.Client\Modules\Admin\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\Connectors\**" />
     <EmbeddedResource Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -133,7 +134,6 @@
     <None Remove="Kurrent.Client\Modules\Admin\**" />
     <None Remove="Kurrent.Client\Modules\Connectors\**" />
     <None Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <None Remove="Kurrent.Client\Modules\Streams\Checkpoints\**" />
   </ItemGroup>
 
   <ItemGroup>

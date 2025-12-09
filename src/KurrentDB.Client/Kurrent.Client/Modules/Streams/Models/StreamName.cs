@@ -54,6 +54,11 @@ public readonly record struct StreamName {
     public bool IsSystemStream => Value.StartsWith('$');
 
     /// <summary>
+    /// Whether the specified stream represents a custom index.
+    /// </summary>
+    public bool IsIndex => Value.StartsWith(IndexStreamsPrefix);
+
+    /// <summary>
     /// A stream containing all events in the KurrentDB transaction file.
     /// </summary>
     public const string AllStream = "$all";
@@ -72,6 +77,11 @@ public readonly record struct StreamName {
     /// A stream containing statistics.
     /// </summary>
     public const string StatsStreamPrefix = "$stats";
+
+    /// <summary>
+    /// Prefix for custom index streams.
+    /// </summary>
+    public const string IndexStreamsPrefix = "$idx";
 
     /// <summary>
     ///

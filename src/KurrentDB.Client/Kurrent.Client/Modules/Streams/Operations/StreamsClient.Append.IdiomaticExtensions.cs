@@ -11,14 +11,19 @@ public static partial class StreamsClientExtensions {
             CancellationToken cancellationToken = default
         ) => await AppendSession(client, requests, cancellationToken).UnwrapAsync().ConfigureAwait(false);
 
-        public async ValueTask<AppendStreamSuccess> AppendStreamAsync(
+        public async ValueTask<AppendStreamSuccess> AppendAsync(
             AppendStreamRequest request,
             CancellationToken cancellationToken = default
-        ) => await AppendStream(client, request, cancellationToken).UnwrapAsync().ConfigureAwait(false);
+        ) => await Append(client, request, cancellationToken).UnwrapAsync().ConfigureAwait(false);
 
-        public async ValueTask<AppendStreamSuccess> AppendStreamAsync(
+        public async ValueTask<AppendStreamSuccess> AppendAsync(
             StreamName stream, ExpectedStreamState expectedState, IEnumerable<AppendRecord> records,
             CancellationToken cancellationToken = default
-        ) => await client.AppendStreamAsync(new AppendStreamRequest(stream, expectedState, records), cancellationToken).ConfigureAwait(false);
+        ) => await client.AppendAsync(new AppendStreamRequest(stream, expectedState, records), cancellationToken).ConfigureAwait(false);
+
+        public async ValueTask<AppendStreamSuccess> AppendAsync(
+            StreamName stream, AppendRecord record,
+            CancellationToken cancellationToken = default
+        ) => await client.AppendAsync(new AppendStreamRequest(stream, ExpectedStreamState.Any ,[record]), cancellationToken).ConfigureAwait(false);
     }
 }

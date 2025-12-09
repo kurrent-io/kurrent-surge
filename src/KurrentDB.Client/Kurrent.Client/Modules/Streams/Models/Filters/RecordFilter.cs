@@ -2,6 +2,8 @@ using System.Text.RegularExpressions;
 
 namespace Kurrent.Client.Streams;
 
+//TODO SS: remove duplication with ByStream/ByStreams and BySchema/BySchemas methods in StreamFilter/SchemaFilter. ByStream should receive multiple streams and BySchema multiple schemas.
+
 /// <summary>
 /// Factory methods for creating record filters.
 /// </summary>
@@ -23,6 +25,12 @@ public static class RecordFilter {
     /// </summary>
     /// <param name="prefixes">The stream name prefixes to match.</param>
     public static IRecordFilter ByStreamPrefix(params string[] prefixes) => new StreamFilter(prefixes, exactMatch: false);
+
+    /// <summary>
+    /// Creates a filter that matches stream categories.
+    /// </summary>
+    /// <param name="categories">The stream category names to match.</param>
+    public static IRecordFilter ByCategory(params string[] categories) => new StreamFilter(categories, exactMatch: false);
 
     /// <summary>
     /// Creates a filter that matches any of the specified stream names exactly.
