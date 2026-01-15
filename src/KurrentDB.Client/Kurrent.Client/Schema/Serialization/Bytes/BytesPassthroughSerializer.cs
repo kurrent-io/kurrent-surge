@@ -32,6 +32,7 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
 			ReadOnlyMemory<byte> bytes => bytes,
 			Memory<byte> bytes         => bytes,
             ReadOnlySequence<byte> seq => seq.ToArray(),
+            ArraySegment<byte> seg     => seg.AsMemory()
 		};
 
 		return new(result);

@@ -4,6 +4,37 @@ using System.Runtime.InteropServices;
 
 namespace Kurrent.Client;
 
+/// <summary>
+/// Classification result for batching: either add to batch or flush and yield.
+/// </summary>
+/// <typeparam name="TBatch">Type of items that can be batched.</typeparam>
+/// <typeparam name="TPassThrough">Type of items that pass through (flush triggers).</typeparam>
+readonly struct BatchAction<TBatch, TPassThrough> {
+    readonly TBatch?       _batchItem;
+    readonly TPassThrough? _passThrough;
+
+    BatchAction(bool isBatchable, TBatch? batchItem, TPassThrough? passThrough) {
+        IsBatchable  = isBatchable;
+        _batchItem   = batchItem;
+        _passThrough = passThrough;
+    }
+
+    /// <summary>True if this item should be added to the current batch.</summary>
+    public bool IsBatchable { get; }
+
+    /// <summary>The item to add to the batch. Only valid when <see cref="IsBatchable"/> is true.</summary>
+    public TBatch BatchItem => _batchItem!;
+
+    /// <summary>The item to yield after flushing. Only valid when <see cref="IsBatchable"/> is false.</summary>
+    public TPassThrough PassThrough => _passThrough!;
+
+    /// <summary>Add this item to the current batch.</summary>
+    public static BatchAction<TBatch, TPassThrough> Batch(TBatch item) => new(true, item, default);
+
+    /// <summary>Flush the current batch, then yield this item.</summary>
+    public static BatchAction<TBatch, TPassThrough> FlushThenYield(TPassThrough item) => new(false, default, item);
+}
+
 static class AsyncEnumerableExtensions {
     /// <param name="source">The async enumerable to read data from.</param>
     /// <typeparam name="T">The type of data in the enumerable.</typeparam>
@@ -82,6 +113,109 @@ static class AsyncEnumerableExtensions {
                 CollectionsMarshal.SetCount(list, count);
                 buffer.AsSpan(0, count).CopyTo(CollectionsMarshal.AsSpan(list));
                 return list;
+            }
+        }
+
+        /// <summary>
+        /// Batches items from the source, yielding flush-trigger items immediately after flushing the pending batch.
+        /// </summary>
+        /// <typeparam name="TBatch">Type of items that can be batched.</typeparam>
+        /// <typeparam name="TOutput">Output type (batch or pass-through).</typeparam>
+        /// <param name="batchSize">Maximum items per batch.</param>
+        /// <param name="timeout">Maximum time to collect a batch.</param>
+        /// <param name="classify">Classifies each item as batchable or flush-trigger.</param>
+        /// <param name="batchToOutput">Converts batch array to output.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>An async enumerable of batched outputs and pass-through items.</returns>
+        /// <remarks>
+        /// <para>
+        /// Batches are yielded when: batch size is reached, timeout expires, source exhausted, or a flush-trigger arrives.
+        /// </para>
+        /// <para>
+        /// Flush-trigger items cause pending batched items to be yielded first, then the trigger item itself.
+        /// </para>
+        /// </remarks>
+        public async IAsyncEnumerable<TOutput> ReadBatched<TBatch, TOutput>(
+            int batchSize,
+            TimeSpan timeout,
+            Func<T, BatchAction<TBatch, TOutput>> classify,
+            Func<TBatch[], TOutput> batchToOutput,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        ) {
+            var pool   = ArrayPool<TBatch>.Shared;
+            var buffer = pool.Rent(batchSize);
+
+            try {
+                await using var enumerator = source.GetAsyncEnumerator(cancellationToken);
+
+                while (!cancellationToken.IsCancellationRequested) {
+                    var count = 0;
+                    var start = TimeProvider.System.GetTimestamp();
+
+                    while (count < batchSize) {
+                        bool hasNext;
+
+                        try {
+                            var moveNext = enumerator.MoveNextAsync();
+
+                            // Fast path: synchronous completion avoids task allocation
+                            if (moveNext.IsCompletedSuccessfully)
+                                hasNext = moveNext.Result;
+                            else {
+                                // Slow path: async with remaining timeout
+                                var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
+                                if (remaining <= TimeSpan.Zero)
+                                    break; // timeout expired
+
+                                hasNext = await moveNext.AsTask()
+                                    .WaitAsync(remaining, cancellationToken)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        catch (TimeoutException) {
+                            break; // batch timeout, yield what we have
+                        }
+
+                        if (!hasNext) {
+                            // Source exhausted - yield remaining batch
+                            if (count > 0)
+                                yield return batchToOutput(ToArray(buffer, count));
+
+                            yield break;
+                        }
+
+                        // Classify the item
+                        var action = classify(enumerator.Current);
+
+                        if (action.IsBatchable) {
+                            buffer[count++] = action.BatchItem;
+                            continue;
+                        }
+
+                        // Flush trigger: yield pending batch first, then the trigger
+                        if (count > 0) {
+                            yield return batchToOutput(ToArray(buffer, count));
+                            count = 0;
+                        }
+
+                        yield return action.PassThrough;
+                    }
+
+                    // Yield batch on size/timeout
+                    if (count > 0)
+                        yield return batchToOutput(ToArray(buffer, count));
+                }
+            }
+            finally {
+                pool.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TBatch>());
+            }
+
+            yield break;
+
+            static TBatch[] ToArray(TBatch[] buffer, int count) {
+                var result = new TBatch[count];
+                buffer.AsSpan(0, count).CopyTo(result);
+                return result;
             }
         }
     }

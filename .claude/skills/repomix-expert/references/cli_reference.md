@@ -67,6 +67,29 @@ repomix --include-full-directory-structure
 repomix --include-empty-directories
 ```
 
+### Split Output
+
+Split large packed outputs into multiple numbered files. Useful when AI tools have file size limits (e.g., Google AI Studio's 1MB cap).
+
+```bash
+# Split output into ~1MB files
+repomix --split-output 1mb
+
+# Split into 500KB files
+repomix --split-output 500kb
+
+# Split into 2MB files (decimal values supported)
+repomix --split-output 2mb
+repomix --split-output 1.5mb
+```
+
+**Output files:** `repomix-output.1.xml`, `repomix-output.2.xml`, etc.
+
+**Behavior:**
+- Files are grouped by top-level directory to maintain context
+- A single file or directory is never split across multiple output files
+- Configuration option: `output.splitOutput` (e.g., `1000000` for ~1MB per file)
+
 ## Code Processing
 
 ### Compression
@@ -141,6 +164,9 @@ repomix --sort-by-changes
 
 # Control number of commits analyzed
 repomix --sort-by-changes-max-commits 50
+
+# Disable automatic git-based file ordering
+repomix --no-git-sort-by-changes
 ```
 
 ### Git Information Inclusion
@@ -202,11 +228,19 @@ Default behavior: Enabled. Uses Secretlint to detect:
 # Display token count tree
 repomix --token-count-tree
 
-# Show only files/directories with 1000+ tokens
+# Show only files/directories with 1000+ tokens (threshold)
 repomix --token-count-tree 1000
+
+# Higher threshold for large codebases
+repomix --token-count-tree 5000
 ```
 
 Token encoding: Uses `o200k_base` encoding (configurable in config file)
+
+**Use Cases:**
+- Identify largest files consuming context window
+- Plan filtering strategy before packing
+- Optimize compression targets
 
 ## Configuration
 
@@ -273,6 +307,49 @@ repomix --mcp
 ```
 
 Used for MCP server integration with Claude Code and other MCP clients.
+
+## Claude Agent Skills Generation
+
+Generate structured, reusable codebase references in Claude Agent Skills format. Creates AI-ready reference materials for any codebase.
+
+```bash
+# Generate with auto-naming
+repomix --skill-generate
+
+# Generate with custom name
+repomix --skill-generate my-project-reference
+
+# Generate from specific directory
+repomix src/ --skill-generate
+
+# Generate from remote repository
+repomix --remote user/repo --skill-generate
+
+# Combine with other options
+repomix --skill-generate --compress --include "src/**/*.ts"
+```
+
+**Generated Structure:**
+
+```
+.claude/skills/<skill-name>/
+├── SKILL.md                    # Metadata and statistics
+└── references/
+    ├── summary.md              # Purpose, format, statistics
+    ├── project-structure.md    # Directory tree with line counts
+    ├── files.md                # All file contents (grep-friendly)
+    └── tech-stack.md           # Auto-detected languages and frameworks
+```
+
+**Auto-naming Examples:**
+- `repomix src/ --skill-generate` → `repomix-reference-src`
+- `repomix --remote user/repo --skill-generate` → `repomix-reference-repo`
+
+**Use Cases:**
+- Create reusable codebase references for AI assistants
+- Share standardized project knowledge across teams
+- Generate documentation snapshots for specific versions
+- Build AI-ready reference packages from any repository
 
 ## Docker Usage
 

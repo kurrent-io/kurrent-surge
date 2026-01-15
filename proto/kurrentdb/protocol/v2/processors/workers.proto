@@ -1,0 +1,25 @@
+// ******************************************************************************************
+// This protocol is UNSTABLE in the sense of being subject to change.
+// ******************************************************************************************
+
+edition = "2023";
+
+package kurrentdb.protocol.v2.processors;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "KurrentDB.Protocol.V2.Processors";
+
+// CheckpointTrigger is defined in shared.proto
+
+//message WorkerCheckpoint {
+//  // Checkpoint identifier (barrier log position).
+//  int64 checkpoint_id = 1;
+//
+//  // Position per partition at checkpoint time.
+//  // Key: partition number, Value: log position.
+//  map<int32, int64> positions = 2;
+//
+//  // When the checkpoint was created.
+//  google.protobuf.Timestamp create_time = 3;
+//}

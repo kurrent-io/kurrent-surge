@@ -4,10 +4,8 @@ package event_store.client.projections;
 
 option csharp_namespace = "KurrentDB.Protocol.V1.Projections";
 
-option java_package = "io.kurrent.client.projections";
-
 import "google/protobuf/struct.proto";
-import "shared.proto";
+import "kurrentdb/protocol/v1/shared.proto";
 
 service Projections {
 	rpc Create (CreateReq) returns (CreateResp);

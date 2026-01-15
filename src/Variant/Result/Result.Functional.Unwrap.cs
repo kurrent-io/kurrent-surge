@@ -40,4 +40,43 @@ public static partial class FunctionalResult {
     public static ValueTask<TValue> ThrowOnFailureAsync<TValue, TError>(this ValueTask<Result<TValue, TError>> result)
         where TError : IResultError =>
         result.UnwrapAsync();
+
+
+    /// <summary>
+    /// Completes the given TaskCompletionSource based on the Result.
+    /// </summary>
+    /// <param name="result"></param>
+    /// <param name="tcs"></param>
+    /// <typeparam name="TValue"></typeparam>
+    /// <typeparam name="TError"></typeparam>
+    public static void CompleteTask<TValue, TError>(
+        this Result<TValue, TError> result, TaskCompletionSource<TValue> tcs)
+        where TError : IResultError {
+        if (result.IsSuccess)
+            tcs.SetResult(result.Value);
+        else {
+            var exception = result.Error.GetOrCreateException();
+
+            if (exception is CapturedException { SourceException: var source })
+                exception = source;
+
+            if (exception is OperationCanceledException canceled)
+                tcs.SetCanceled(canceled.CancellationToken);
+            else
+                tcs.SetException(exception);
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously completes the given TaskCompletionSource based on the Result.
+    /// </summary>
+    /// <param name="result"></param>
+    /// <param name="tcs"></param>
+    /// <typeparam name="TValue"></typeparam>
+    /// <typeparam name="TError"></typeparam>
+    public static async ValueTask CompleteTask<TValue, TError>(
+        this ValueTask<Result<TValue, TError>> result, TaskCompletionSource<TValue> tcs)
+        where TError : IResultError {
+        (await result.ConfigureAwait(false)).CompleteTask(tcs);
+    }
 }

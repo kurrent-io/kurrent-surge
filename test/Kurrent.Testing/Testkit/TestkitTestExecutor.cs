@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Grpc.Core;
 using Kurrent.Testing.OpenTelemetry;
 using Kurrent.Testing.TUnit;
+using Serilog;
 using TUnit.Core.Interfaces;
 
 namespace Kurrent.Testing;
@@ -12,7 +13,6 @@ public class TestkitTestExecutor : ITestExecutor {
             ServiceInstanceId = context.Id.ToString("N"),
             ServiceNamespace  = context.Metadata.TestDetails.ClassType.Namespace
         });
-
 
         var logger = context.AddLogging(
             TestkitExecutionContext.GetTestLogger(context.Id));

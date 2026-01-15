@@ -56,9 +56,8 @@ public static class TestkitExecutionContext {
             .WriteTo.OpenTelemetry()
             .WriteTo.Observers(o => o.Subscribe(LogEvents.OnNext))
             .WriteTo.Console(
-                theme: AnsiConsoleTheme.Code,
-                outputTemplate: ConsoleOutputTemplate,
-                applyThemeToRedirectedOutput: true)
+                theme: Console.IsOutputRedirected ? ConsoleTheme.None : AnsiConsoleTheme.Code,
+                outputTemplate: ConsoleOutputTemplate)
             .CreateLogger();
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) => {
@@ -90,9 +89,8 @@ public static class TestkitExecutionContext {
             .Enrich.WithProperty("AppDomainId", AppDomain.CurrentDomain.Id)
             .WriteTo.OpenTelemetry()
             .WriteTo.Console(
-                theme: AnsiConsoleTheme.Code,
-                outputTemplate: ConsoleOutputTemplate,
-                applyThemeToRedirectedOutput: true);
+                theme: Console.IsOutputRedirected ? ConsoleTheme.None : AnsiConsoleTheme.Code,
+                outputTemplate: ConsoleOutputTemplate);
 
         return new TestLogger(testUid, configuration, LogEvents);
     }

@@ -25,6 +25,8 @@ public record StreamRevision : IComparable<StreamRevision>, IComparable {
 
     public long Value { get; private init; }
 
+    public bool IsUnset => this == Unset;
+
     public static StreamRevision From(long value) =>
         value switch {
             -1000 => Unset,

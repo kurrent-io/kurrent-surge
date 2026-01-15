@@ -95,21 +95,21 @@ public class InspectRecordTests {
         record.IsDecoded.ShouldBeTrue("Record should have been decoded");
     }
 
-    // [Test]
-    // public async ValueTask fails_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
-    //     var simulation = await Fixture.SeedSmartHomeActivity(ct);
-    //
-    //     await Fixture.Client.Streams
-    //         .Delete(simulation.Stream, ct)
-    //         .ShouldNotThrowOrFailAsync();
-    //
-    //     await Fixture.Client.Streams
-    //         .InspectRecord(simulation.Position, ct)
-    //         .InspectAsync(record => {
-    //             Fixture.Logger.LogInformation("Inspected record at position {Position} from deleted stream {Stream}", record.Position, record.Stream);
-    //         })
-    //         .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamDeletedException>());
-    // }
+    [Test]
+    public async ValueTask fails_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
+        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+
+        await Fixture.Client.Streams
+            .Delete(simulation.Stream, ct)
+            .ShouldNotThrowOrFailAsync();
+
+        await Fixture.Client.Streams
+            .InspectRecord(simulation.Position, ct)
+            .InspectAsync(record => {
+                Fixture.Logger.LogInformation("Inspected record at position {Position} from deleted stream {Stream}", record.Position, record.Stream);
+            })
+            .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamDeletedException>());
+    }
 
     [Test]
     public async ValueTask fails_with_stream_tombstoned_error_when_stream_was_tombstoned(CancellationToken ct) {

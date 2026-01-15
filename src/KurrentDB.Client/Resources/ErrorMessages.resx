@@ -168,9 +168,13 @@
     <value>Record processing failed.</value>
     <comment>The exception message for when IRecordProcessor.ProcessRecords callback throws an exception.</comment>
   </data>
-  <data name="HeartbeatException" xml:space="preserve">
-    <value>Heartbeat processing failed.</value>
-    <comment>The exception message for when IRecordProcessor.OnHeartbeat callback throws an exception.</comment>
+  <data name="CheckpointException" xml:space="preserve">
+    <value>Checkpoint processing failed.</value>
+    <comment>The exception message for when IRecordProcessor.OnCheckpoint callback throws an exception.</comment>
+  </data>
+  <data name="AssignmentChangeException" xml:space="preserve">
+    <value>Assignment change processing failed.</value>
+    <comment>The exception message for when IRecordProcessor.OnAssignmentChange callback throws an exception.</comment>
   </data>
 
   <data name="ShutdownException" xml:space="preserve">

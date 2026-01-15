@@ -1,11 +1,8 @@
 {
-  "includeCoAuthoredBy": false,
-  "enableAllProjectMcpServers": false,
-
   "env": {
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
-
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Read",
@@ -19,18 +16,16 @@
       "WebFetch",
       "WebSearch",
       "Task",
-
-      "mcp__context7",
-      "mcp__microsoft-docs",
-
+      "mcp__ide__getDiagnostics",
       "Skill(csharp-craftsman)",
       "Skill(git-conventional-commits-expert)",
       "Skill(microsoft-docs-expert)",
       "Skill(repomix-expert)",
       "Skill(resx-expert)",
-      "Skill(tunit-master)"
+      "Skill(tunit-master)",
+      "Skill(dotnet-logging-expert)",
+      "Skill(tldr-expert)"
     ],
-
     "deny": [
       "Read(./.env)",
       "Read(./.env.*)",
@@ -47,5 +42,25 @@
       "Read(./**/*credential*)",
       "Read(./**/*token*.json)"
     ]
+  },
+  "enableAllProjectMcpServers": false,
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-compact-reload.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": false,
+    "microsoft-docs@microsoft-docs-marketplace": true,
+    "omnisharp@claude-code-lsps": true
   }
 }

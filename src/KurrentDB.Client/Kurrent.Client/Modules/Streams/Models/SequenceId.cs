@@ -5,10 +5,6 @@ namespace Kurrent.Client.Streams.Checkpoints;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The <see cref="SequenceId"/> is implemented as a readonly record struct backed by an unsigned long value.
-/// It is intended to provide type safety and to ensure that valid sequencing is maintained within streams.
-/// </para>
-/// <para>
 /// SequenceId has a static value <see cref="None"/> which represents a default sequence identifier with a value of 0.
 /// Using this as a default ensures that invalid identifiers can be distinguished from valid values.
 /// </para>
@@ -50,7 +46,7 @@ public readonly record struct SequenceId : IComparable<SequenceId>, IComparable 
 	#endregion
 }
 
-public sealed class SequenceIdGenerator(ulong initialValue = 1) {
+public sealed class SequenceGenerator(ulong initialValue = 1) {
 	// Subtracting one because Interlocked.Increment will return the post-incremented value
 	// which is expected to be the initialSequenceId for the first call
 	long _actual = unchecked((long)initialValue - 1);
@@ -58,9 +54,59 @@ public sealed class SequenceIdGenerator(ulong initialValue = 1) {
 	public SequenceId FetchNext() => unchecked((ulong)Interlocked.Increment(ref _actual));
 }
 
-public interface ISequentialIdGenerator {
-	ValueTask       EnsureSequenceExists();
-	ValueTask<long> Next(CancellationToken ct = default);
-	ValueTask<long> Current(CancellationToken ct = default);
-	ValueTask       Reset();
-}
+//
+// /// <summary>
+// /// Represents a unique identifier used for sequencing items.
+// /// </summary>
+// /// <remarks>
+// /// <para>
+// /// SequenceId has a static value <see cref="None"/> which represents a default sequence identifier with a value of 0.
+// /// Using this as a default ensures that invalid identifiers can be distinguished from valid values.
+// /// </para>
+// /// </remarks>
+// [PublicAPI]
+// public readonly record struct Sequence : IComparable<Sequence>, IComparable {
+// 	public static readonly Sequence None = new(0);
+//
+//     public static SequenceGenerator Generator(ulong initialValue = 1) => new(initialValue);
+//
+//     Sequence(ulong value) => Value = value;
+//
+// 	public ulong Value { get; }
+//
+// 	public static Sequence From(ulong value) =>
+//         value == 0
+//             ? throw new ArgumentException("Sequence cannot be zero.", nameof(value))
+//             : new Sequence(value);
+//
+//     public static implicit operator ulong(Sequence _) => _.Value;
+// 	public static implicit operator Sequence(ulong _) => From(_);
+//
+// 	public override string ToString() => Value.ToString();
+//
+// 	#region . relational members .
+//
+// 	public int CompareTo(Sequence other) => Value.CompareTo(other.Value);
+//
+// 	public int CompareTo(object? obj) {
+// 		if (ReferenceEquals(null, obj))
+// 			return 1;
+//
+// 		return obj is Sequence other ? CompareTo(other) : throw new ArgumentException($"Object must be of type {nameof(Sequence)}");
+// 	}
+//
+// 	public static bool operator <(Sequence left, Sequence right)  => left.CompareTo(right) < 0;
+// 	public static bool operator >(Sequence left, Sequence right)  => left.CompareTo(right) > 0;
+// 	public static bool operator <=(Sequence left, Sequence right) => left.CompareTo(right) <= 0;
+// 	public static bool operator >=(Sequence left, Sequence right) => left.CompareTo(right) >= 0;
+//
+// 	#endregion
+//
+//     class SequenceGenerator(ulong initialValue = 1) {
+//         // Subtracting one because Interlocked.Increment will return the post-incremented value
+//         // which is expected to be the initialSequenceId for the first call
+//         long _actual = unchecked((long)initialValue - 1);
+//
+//         public SequenceId FetchNext() => unchecked((ulong)Interlocked.Increment(ref _actual));
+//     }
+// }

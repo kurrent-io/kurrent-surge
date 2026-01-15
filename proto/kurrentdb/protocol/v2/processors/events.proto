@@ -1,0 +1,283 @@
+// ******************************************************************************************
+// This protocol is UNSTABLE in the sense of being subject to change.
+// ******************************************************************************************
+
+edition = "2023";
+
+package kurrentdb.protocol.v2.processors;
+
+import "google/protobuf/timestamp.proto";
+import "kurrentdb/protocol/v2/processors/shared.proto";
+
+option csharp_namespace = "KurrentDB.Protocol.V2.Processors.Events";
+
+//// =============================================================================
+//// PROCESSOR LIFECYCLE
+//// =============================================================================
+//
+//// Emitted when a processor is created (first worker connects with settings).
+//message ProcessorCreated {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The settings used to create the processor.
+//  ProcessorSettings settings = 2;
+//
+//  // The worker that created the processor.
+//  string worker_id = 3;
+//
+//  // When the processor was created.
+//  google.protobuf.Timestamp create_time = 4;
+//}
+//
+//// Emitted when a processor is deleted.
+//message ProcessorDeleted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // When the processor was deleted.
+//  google.protobuf.Timestamp delete_time = 2;
+//}
+//
+//// =============================================================================
+//// WORKER LIFECYCLE
+//// =============================================================================
+//
+//// Emitted when a worker connects to the processor.
+//message WorkerConnected {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The worker identifier.
+//  string worker_id = 2;
+//
+//  // Unique session identifier for this connection.
+//  string session_id = 3;
+//
+//  // Partitions assigned to this worker.
+//  repeated int32 partitions = 4;
+//
+//  // Checkpoint to restore from (if any).
+//  int64 checkpoint_id = 5;
+//
+//  // When the worker connected.
+//  google.protobuf.Timestamp connect_time = 6;
+//}
+//
+//// Emitted when a worker accepts its work assignment.
+//message WorkerWorkAccepted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The worker identifier.
+//  string worker_id = 2;
+//
+//  // The session identifier.
+//  string session_id = 3;
+//
+//  // When the worker accepted the assignment.
+//  google.protobuf.Timestamp accept_time = 4;
+//}
+//
+//// Emitted when a worker disconnects from the processor.
+//message WorkerDisconnected {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The worker identifier.
+//  string worker_id = 2;
+//
+//  // The session identifier.
+//  string session_id = 3;
+//
+//  // Why the worker disconnected.
+//  WorkerDisconnectReason reason = 4;
+//
+//  // Partitions that were assigned to this worker.
+//  repeated int32 partitions = 5;
+//
+//  // When the worker disconnected.
+//  google.protobuf.Timestamp disconnect_time = 6;
+//}
+//
+//// Reason for worker disconnection.
+//enum WorkerDisconnectReason {
+//  WORKER_DISCONNECT_REASON_UNSPECIFIED = 0;
+//
+//  // Worker requested disconnection (graceful shutdown).
+//  WORKER_DISCONNECT_REASON_REQUESTED = 1;
+//
+//  // Worker reported an error.
+//  WORKER_DISCONNECT_REASON_ERROR = 2;
+//
+//  // Worker failed to acknowledge checkpoint in time.
+//  WORKER_DISCONNECT_REASON_CHECKPOINT_TIMEOUT = 3;
+//
+//  // gRPC stream error.
+//  WORKER_DISCONNECT_REASON_STREAM_ERROR = 4;
+//
+//  // Server is shutting down.
+//  WORKER_DISCONNECT_REASON_SERVER_SHUTDOWN = 5;
+//}
+//
+//// =============================================================================
+//// REBALANCING LIFECYCLE
+//// =============================================================================
+//
+//// Emitted when partition rebalancing starts.
+//message RebalanceStarted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // What triggered the rebalance.
+//  RebalanceTrigger trigger = 2;
+//
+//  // New partition assignments. Key: worker_id, Value: assigned partitions.
+//  map<string, PartitionList> assignments = 3;
+//
+//  // Workers that need to acknowledge the new assignment.
+//  repeated string pending_worker_ids = 4;
+//
+//  // When the rebalance started.
+//  google.protobuf.Timestamp start_time = 5;
+//}
+//
+//// What triggered a rebalance operation.
+//enum RebalanceTrigger {
+//  REBALANCE_TRIGGER_UNSPECIFIED = 0;
+//
+//  // A new worker connected.
+//  REBALANCE_TRIGGER_WORKER_CONNECTED = 1;
+//
+//  // A worker disconnected.
+//  REBALANCE_TRIGGER_WORKER_DISCONNECTED = 2;
+//
+//  // Manual rebalance requested.
+//  REBALANCE_TRIGGER_MANUAL = 3;
+//}
+//
+//// List of partitions (used in map values).
+//message PartitionList {
+//  // The partition numbers.
+//  repeated int32 partitions = 1;
+//}
+//
+//// Emitted when partition rebalancing completes successfully.
+//message RebalanceCompleted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // How long the rebalance took (milliseconds).
+//  int64 duration_ms = 2;
+//
+//  // When the rebalance completed.
+//  google.protobuf.Timestamp complete_time = 3;
+//}
+//
+//// Emitted when partition rebalancing fails.
+//message RebalanceFailed {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // Workers that failed to acknowledge the rebalance.
+//  repeated string failed_worker_ids = 2;
+//
+//  // Workers that successfully acknowledged the rebalance.
+//  repeated string successful_worker_ids = 3;
+//
+//  // When the rebalance failed.
+//  google.protobuf.Timestamp fail_time = 4;
+//
+//  // Human-readable failure reason.
+//  string reason = 5;
+//}
+//
+//// =============================================================================
+//// CHECKPOINT LIFECYCLE
+//// =============================================================================
+//
+//// Emitted when a checkpoint is initiated.
+//message CheckpointStarted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The checkpoint identifier.
+//  int64 checkpoint_id = 2;
+//
+//  // What triggered the checkpoint.
+//  CheckpointTrigger trigger = 3;
+//
+//  // Workers that need to complete the checkpoint.
+//  repeated string worker_ids = 4;
+//
+//  // When the checkpoint started.
+//  google.protobuf.Timestamp start_time = 5;
+//}
+//
+//// Emitted when a single worker completes its part of a checkpoint.
+//message WorkerCheckpointCompleted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The worker identifier.
+//  string worker_id = 2;
+//
+//  // The session identifier.
+//  string session_id = 3;
+//
+//  // The checkpoint identifier.
+//  int64 checkpoint_id = 4;
+//
+//  // Last processed position per partition.
+//  // Key: partition number, Value: log position.
+//  map<int32, int64> positions = 5;
+//
+//  // When this worker completed its checkpoint.
+//  google.protobuf.Timestamp complete_time = 6;
+//}
+//
+//// Emitted when all workers complete a checkpoint.
+//message CheckpointCompleted {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The checkpoint identifier.
+//  int64 checkpoint_id = 2;
+//
+//  // Consolidated positions from all workers.
+//  // Key: partition number, Value: log position.
+//  map<int32, int64> positions = 3;
+//
+//  // How long the checkpoint took (milliseconds).
+//  int64 duration_ms = 4;
+//
+//  // When the checkpoint completed.
+//  google.protobuf.Timestamp complete_time = 5;
+//
+//  // Whether this is a savepoint (never auto-deleted).
+//  bool is_savepoint = 6;
+//
+//  // Total state size across all workers (bytes).
+//  int64 state_size = 7;
+//}
+//
+//// Emitted when a checkpoint fails.
+//message CheckpointFailed {
+//  // The processor identifier.
+//  string processor_id = 1;
+//
+//  // The checkpoint identifier.
+//  int64 checkpoint_id = 2;
+//
+//  // Workers that failed to complete the checkpoint.
+//  repeated string failed_worker_ids = 3;
+//
+//  // Workers that successfully completed the checkpoint.
+//  repeated string successful_worker_ids = 4;
+//
+//  // When the checkpoint failed.
+//  google.protobuf.Timestamp fail_time = 5;
+//
+//  // Human-readable failure reason.
+//  string reason = 6;
+//}

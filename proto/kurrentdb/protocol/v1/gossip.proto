@@ -1,8 +1,10 @@
 syntax = "proto3";
-package event_store.client.gossip;
-option  java_package = "io.kurrent.client.gossip";
 
-import "shared.proto";
+package event_store.client.gossip;
+
+//option csharp_namespace = "KurrentDB.Protocol.V1.Gossip";
+
+import "kurrentdb/protocol/v1/shared.proto";
 
 service Gossip {
   rpc Read(event_store.client.Empty) returns (ClusterInfo);

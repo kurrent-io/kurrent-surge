@@ -4,8 +4,6 @@ package event_store.client.users;
 
 option csharp_namespace = "KurrentDB.Protocol.V1.Users";
 
-option java_package = "io.kurrent.client.users";
-
 service Users {
   rpc Create(CreateReq) returns (CreateResp);
   rpc Update(UpdateReq) returns (UpdateResp);

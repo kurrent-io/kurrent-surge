@@ -18,11 +18,15 @@
 
   <ItemGroup>
     <PackageReference Include="DotNext.Reflection"  />
+    <PackageReference Include="DotNext.Threading" />
+    <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FluentValidation"  />
     <PackageReference Include="Google.Api.CommonProtos" />
     <PackageReference Include="Google.Protobuf"  />
+    <PackageReference Include="Google.Protobuf.Tools" />
     <PackageReference Include="Grpc.StatusProto"  />
     <PackageReference Include="Grpc.Net.ClientFactory"  />
+    <PackageReference Include="HashDepot" />
     <PackageReference Include="Humanizer.Core"  />
     <PackageReference Include="Jint"  />
     <PackageReference Include="Microsoft.Extensions.Configuration"  />
@@ -31,33 +35,44 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization"  />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience"  />
     <PackageReference Include="Microsoft.Extensions.Logging"  />
+    <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
     <PackageReference Include="NJsonSchema"  />
     <PackageReference Include="System.Linq.Async" Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'" />
     <PackageReference Include="OpenTelemetry.Api"  />
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
-    <PackageReference Include="Vogen" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- v1 -->
-    <Protobuf
-        ProtoRoot="../../proto/kurrentdb/protocol/v1"
-        Include="../../proto/kurrentdb/protocol/v1/**/*.proto"
-        Link="proto\kurrentdb\protocol\v1\%(RecursiveDir)/%(FileName)%(Extension)"
-        GrpcServices="Client"
-        Access="Internal"
-        AdditionalImportDirs="../../proto"
-        Exclude="../../proto/kurrentdb/protocol/v1/code.proto;../../proto/kurrentdb/protocol/v1/status.proto"
-    />
+<!--    &lt;!&ndash; v1 &ndash;&gt;-->
+<!--    <Protobuf-->
+<!--        ProtoRoot="../../proto/kurrentdb/protocol/v1"-->
+<!--        Include="../../proto/kurrentdb/protocol/v1/**/*.proto"-->
+<!--        Link="proto\kurrentdb\protocol\v1\%(RecursiveDir)/%(FileName)%(Extension)"-->
+<!--        GrpcServices="Client"-->
+<!--        Access="Internal"-->
+<!--        AdditionalImportDirs="../../proto/"-->
+<!--        Exclude="../../proto/kurrentdb/protocol/v1/code.proto;../../proto/kurrentdb/protocol/v1/status.proto;"-->
+<!--    />-->
 
-    <!-- v2 -->
+<!--    &lt;!&ndash; v2 &ndash;&gt;-->
+<!--    <Protobuf-->
+<!--        ProtoRoot="../../proto/kurrentdb/protocol/v2"-->
+<!--        Include="../../proto/kurrentdb/protocol/v2/**/*.proto"-->
+<!--        Link="proto\kurrentdb\protocol\v2\%(RecursiveDir)/%(FileName)%(Extension)"-->
+<!--        GrpcServices="Client"-->
+<!--        Access="Internal"-->
+<!--        AdditionalImportDirs="../../proto"-->
+<!--    />-->
+
+    <!-- protocol -->
     <Protobuf
-        ProtoRoot="../../proto/kurrentdb/protocol/v2"
-        Include="../../proto/kurrentdb/protocol/v2/**/*.proto"
-        Link="proto\kurrentdb\protocol\v2\%(RecursiveDir)/%(FileName)%(Extension)"
+        ProtoRoot="../../proto/kurrentdb/protocol"
+        Include="../../proto/kurrentdb/protocol/**/*.proto"
+        Link="proto\kurrentdb\protocol\%(RecursiveDir)/%(FileName)%(Extension)"
         GrpcServices="Client"
         Access="Internal"
         AdditionalImportDirs="../../proto"
+        Exclude="../../proto/kurrentdb/protocol/v1/code.proto;../../proto/kurrentdb/protocol/v1/status.proto;../../proto/kurrentdb/protocol/v0/**/*.proto"
     />
 
     <!-- kurrent -->
@@ -77,7 +92,6 @@
         Access="Internal"
         ProtoCompile="false"
     />
-
   </ItemGroup>
 
   <ItemGroup>
@@ -140,6 +154,13 @@
     <Content Include="..\..\global.json">
       <Link>global.json</Link>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
+      <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
+    </Folder>
+    <Folder Include="Kurrent\Grpc\LoadBalancing\" />
   </ItemGroup>
 
   <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">

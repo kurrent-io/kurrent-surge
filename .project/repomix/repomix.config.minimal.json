@@ -1,0 +1,36 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+
+  "output": {
+    "filePath": ".project/repomix/output/repomix-output.minimal.xml",
+    "style": "xml",
+    "compress": true,
+    "removeComments": true,
+    "removeEmptyLines": true,
+    "includeFullDirectoryStructure": false,
+    "includeEmptyDirectories": false,
+    "git": {
+      "sortByChanges": true
+    },
+    "instructionFilePath": ".project/project.md"
+  },
+
+  "include": [
+    "src/KurrentDB.Client/**/*.cs",
+    "src/KurrentDB.Client/*.csproj"
+  ],
+
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": []
+  },
+
+  "security": {
+    "enableSecurityCheck": true
+  },
+
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

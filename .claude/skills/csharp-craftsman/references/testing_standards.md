@@ -4,6 +4,19 @@ Last updated: 2025-06-09
 
 > **Usage**: Reference this guide when setting up testing frameworks, writing test cases, or establishing testing patterns for new projects.
 
+## Table of Contents
+
+- [Testing Framework and Tools](#testing-framework-and-tools)
+- [Testing Coverage Requirements](#testing-coverage-requirements)
+- [Test Structure and Organization](#test-structure-and-organization)
+- [Test Naming Convention](#test-naming-convention)
+- [Testing Best Practices](#testing-best-practices)
+- [Advanced Testing Patterns](#advanced-testing-patterns)
+- [Testing Anti-Patterns to Avoid](#testing-anti-patterns-to-avoid)
+- [Test Reporting and Metrics](#test-reporting-and-metrics)
+
+---
+
 ## Testing Framework and Tools
 
 ### Primary Testing Stack

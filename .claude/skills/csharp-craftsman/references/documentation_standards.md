@@ -4,6 +4,15 @@ Last updated: 2025-07-01
 
 > **Usage**: Reference this guide when writing XML documentation, creating API references, or establishing documentation patterns for public APIs.
 
+## Table of Contents
+
+- [General Documentation Principles](#-general-documentation-principles)
+- [When to Apply Different Documentation Levels](#-when-to-apply-different-documentation-levels)
+- [XML Documentation Requirements](#xml-documentation-requirements)
+- [Best Practices Summary](#best-practices-summary)
+
+---
+
 ## 🎯 General Documentation Principles
 
 ### Quality Standards

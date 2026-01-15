@@ -261,9 +261,15 @@ namespace Resources {
             }
         }
 
-        internal static string HeartbeatException {
+        internal static string CheckpointException {
             get {
-                return ResourceManager.GetString("HeartbeatException", resourceCulture);
+                return ResourceManager.GetString("CheckpointException", resourceCulture);
+            }
+        }
+
+        internal static string AssignmentChangeException {
+            get {
+                return ResourceManager.GetString("AssignmentChangeException", resourceCulture);
             }
         }
 

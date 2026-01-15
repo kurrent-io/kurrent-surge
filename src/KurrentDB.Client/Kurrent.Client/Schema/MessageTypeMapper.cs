@@ -15,7 +15,7 @@ public partial class MapMessageTypeError : IVariantException<
 /// mappings between schema names and message types.
 /// </summary>
 public class MessageTypeMapper {
-	public static readonly Type Missing = Type.Missing.GetType();
+	static readonly Type Missing = Type.Missing.GetType();
 
 	ConcurrentBidirectionalDictionary<string, Type> TypeMap { get; } = new();
 

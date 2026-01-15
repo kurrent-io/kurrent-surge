@@ -1,16 +1,17 @@
 ---
 name: repomix-expert
-description: Comprehensive Repomix mastery for packing and analyzing codebases. Use when working with Repomix slash commands (/repomix-explorer, /repomix-commands), MCP tools, or CLI. Provides optimization hierarchy, decision tree, complete reference for all options, workflows, and best practices.
+description: Pack and analyze entire codebases when holistic understanding is needed that individual file reads cannot provide. Activates for architecture exploration, cross-file pattern analysis, unfamiliar codebase navigation, efficient context consolidation, remote repository investigation, code review preparation, or when fragmented searches aren't yielding results. Also generates reusable Claude Agent Skills from any codebase for permanent, zero-cost reference. Covers /repomix-explorer, /repomix-commands slash commands, MCP tools, CLI, and --skill-generate. Triggers on "repomix", "pack repository", "analyze whole codebase", "understand this project", "explore architecture", "generate skill", "create codebase reference", "skill-generate".
 ---
 
 # Repomix Expert Skill
 
-Comprehensive expertise in Repomix, a tool that packs entire repositories into single, AI-friendly files optimized for analysis by Large Language Models.
+Comprehensive expertise in Repomix, a tool that packs entire repositories into single, AI-friendly files optimized for analysis by Large Language Models. Also generates reusable Claude Agent Skills for permanent codebase references.
 
 ## Purpose
 
 Provide complete mastery of Repomix for:
 - Packing local and remote repositories
+- **Generating Claude Agent Skills** for permanent, zero-cost codebase references
 - Analyzing codebases efficiently
 - Optimizing token usage with compression
 - Security scanning and sensitive data protection
@@ -25,6 +26,7 @@ Repomix provides three interaction levels. **Always start with the highest level
 ┌─────────────────────────────────────────────────────────────┐
 │ LEVEL 1: Claude Code Slash Commands (RECOMMENDED - 90%)     │
 │ ├─ /repomix-explorer:explore-local - AI-driven analysis     │
+│ ├─ /repomix-explorer:explore-remote - Remote GitHub repos   │
 │ ├─ /repomix-commands:pack-local - Natural language packing  │
 │ └─ Use for: Interactive exploration and quick packing       │
 ├─────────────────────────────────────────────────────────────┤
@@ -41,24 +43,72 @@ Repomix provides three interaction levels. **Always start with the highest level
 
 **Complete optimization guide in `references/claude_code_plugins.md`**
 
-## When to Use This Skill
+## Agent Skills Generation (Primary Use Case)
 
-Activate this skill when:
-- User mentions "repomix" or "pack repository"
-- User asks about `/repomix-explorer:explore-local` or `/repomix-commands:pack-local` slash commands
-- User wants to optimize Repomix workflow efficiency
-- User needs guidance on which Repomix approach to use (slash commands vs MCP tools vs CLI)
-- User wants to analyze entire codebase
-- User needs to prepare code for AI analysis
-- User requests code review preparation
-- User wants to generate documentation from code
-- User needs security audit of codebase
-- User mentions "pack remote repository" or GitHub analysis
-- User wants to optimize codebase for LLM context
-- User asks about token usage or compression
-- User needs to search across entire codebase
+**Generate permanent, reusable codebase references instead of runtime packing.**
 
-## Core Capabilities
+Complete guide in `references/agent_skills_generation.md`.
+
+```bash
+# Generate skill from current directory
+repomix --skill-generate
+
+# Generate with custom name
+repomix --skill-generate my-project-reference
+
+# Generate from specific directory
+repomix src/ --skill-generate
+
+# Generate from remote repository
+repomix --remote user/repo --skill-generate
+
+# Generate with compression (recommended for large codebases)
+repomix --skill-generate --compress
+```
+
+**Why use Agent Skills Generation?**
+
+| Approach | Token Cost | Speed | Persistence |
+|----------|------------|-------|-------------|
+| Runtime packing | High (every use) | 2-5 seconds | None |
+| Generated Skill | Zero (pre-loaded) | Instant | Permanent |
+
+**Generated Structure:**
+
+```
+.claude/skills/<skill-name>/
+├── SKILL.md                    # Metadata & statistics
+└── references/
+    ├── summary.md              # Purpose, format, statistics
+    ├── project-structure.md    # Directory tree with line counts
+    ├── files.md                # All file contents (grep-friendly)
+    └── tech-stack.md           # Auto-detected languages & frameworks
+```
+
+**Storage Locations:**
+- `~/.claude/skills/` - Personal (available across all projects)
+- `.claude/skills/` - Project (shared via git with team)
+
+**Primary Use Cases:**
+1. **Personal reference library** - Generate skills from frameworks/libraries you use
+2. **Team documentation** - Commit project skills to git for team access
+3. **Learning resources** - Generate skills from well-structured open source projects
+4. **Dependency investigation** - Understand how libraries work internally
+
+**Recommendation:** For stable codebases and external references, **always generate a Skill** instead of runtime packing. This is the most efficient way to give Claude persistent codebase knowledge.
+
+## Key Capabilities
+
+This skill enables:
+- **Agent Skills Generation** - Create permanent, zero-cost codebase references for Claude
+- **Holistic codebase analysis** - Understand architecture when file-by-file reads are insufficient
+- **Cross-file pattern detection** - Find how patterns propagate across the entire codebase
+- **Efficient context consolidation** - Pack large codebases into optimized, searchable outputs
+- **Remote repository investigation** - Analyze GitHub repos without cloning
+- **Token optimization** - ~70% reduction via Tree-sitter compression
+- **Workflow automation** - Code review, security audit, documentation generation
+
+## Tools Reference
 
 ### 1. CLI Usage
 
@@ -81,6 +131,12 @@ repomix --include "src/**/*.ts" --ignore "**/*.test.ts"
 
 # Pack for code review
 repomix --include-diffs --include-logs --style markdown
+
+# Split large outputs (for AI tools with size limits)
+repomix --split-output 1mb
+
+# Generate Claude Agent Skills package
+repomix --skill-generate my-project-reference
 ```
 
 **Search Pattern:**
@@ -248,6 +304,23 @@ AI-driven codebase exploration with natural language queries:
 - Finding specific patterns or logic
 - Understanding architecture
 - Learning how systems work
+
+#### /repomix-explorer:explore-remote
+
+Explore remote GitHub repositories without cloning:
+
+```bash
+# Analyze a popular library
+/repomix-explorer:explore-remote facebook/react How do hooks work internally?
+
+# Understand a framework's patterns
+/repomix-explorer:explore-remote vercel/next.js What routing patterns are used?
+```
+
+**Use When:**
+- Learning from open source projects
+- Investigating external library internals
+- Due diligence on dependencies
 
 #### /repomix-commands:pack-local
 
@@ -554,13 +627,14 @@ const hooks = await mcp__repomix__grep_repomix_output({
 
 All comprehensive references available in `references/` directory:
 
-1. **claude_code_plugins.md** - Slash commands, optimization hierarchy, decision tree (START HERE)
-2. **cli_reference.md** - Complete CLI options (40+ flags)
-3. **configuration_guide.md** - Configuration file reference
-4. **mcp_tools.md** - MCP tool documentation
-5. **workflows.md** - Common use case workflows
-6. **compression_guide.md** - Tree-sitter compression details
-7. **output_formats.md** - Format comparison and selection
+1. **agent_skills_generation.md** - Generate permanent Claude Skills from codebases (RECOMMENDED)
+2. **claude_code_plugins.md** - Slash commands, optimization hierarchy, decision tree
+3. **cli_reference.md** - Complete CLI options (40+ flags)
+4. **configuration_guide.md** - Configuration file reference
+5. **mcp_tools.md** - MCP tool documentation
+6. **workflows.md** - Common use case workflows
+7. **compression_guide.md** - Tree-sitter compression details
+8. **output_formats.md** - Format comparison and selection
 
 **Large files note:** Reference files are comprehensive. Use grep/search to find specific topics rather than reading entire files.
 
@@ -637,6 +711,7 @@ And permissions in `.claude/settings.json`:
 
 To become Repomix expert, understand:
 
+- [x] **Agent Skills Generation** - Create permanent codebase references
 - [x] CLI options and flags
 - [x] Configuration file structure
 - [x] MCP tool capabilities
@@ -651,6 +726,7 @@ To become Repomix expert, understand:
 ## Summary
 
 Repomix Expert skill provides complete mastery of:
+- **Agent Skills Generation** - Create permanent, zero-cost Claude references from any codebase
 - Packing repositories (local and remote)
 - Token optimization with compression
 - Security scanning and data protection
@@ -659,4 +735,4 @@ Repomix Expert skill provides complete mastery of:
 - MCP tool integration with Claude Code
 - Utility scripts for validation and analysis
 
-Use reference files for comprehensive details. Use utility scripts for automation. Use MCP tools for interactive analysis.
+**Key recommendation:** For stable codebases and external references, **generate a Skill** (`--skill-generate`) instead of runtime packing. This is the most token-efficient way to give Claude persistent codebase knowledge.

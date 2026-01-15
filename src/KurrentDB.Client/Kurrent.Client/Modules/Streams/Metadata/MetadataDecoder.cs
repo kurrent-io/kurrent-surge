@@ -1,6 +1,8 @@
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Client.Exceptions;
@@ -18,19 +20,21 @@ public abstract class MetadataDecoder : IMetadataDecoder {
     static readonly SchemaName LinkSchemaName = "$>";
 
     /// <inheritdoc />
-    public Metadata Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
+    public ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
         if (bytes.IsEmpty)
             return new Metadata()
-                .With(SystemMetadataKeys.SchemaName, context.SchemaName)
-                .With(SystemMetadataKeys.SchemaFormat, context.SchemaDataFormat);
+                .AddSchemaNameIfMissing(context.SchemaName)
+                .AddSchemaFormatIfMissing(context.SchemaFormat)
+                .AsValueTask();
 
         try {
             if (context.SchemaName == LinkSchemaName)
-                return DeserializeLinkMetadata(bytes);
+                return DeserializeLinkMetadata(bytes).AsValueTask();
 
             return DecodeCore(bytes, context)
                 .AddSchemaNameIfMissing(context.SchemaName)
-                .AddSchemaFormatIfMissing(context.SchemaDataFormat);
+                .AddSchemaFormatIfMissing(context.SchemaFormat)
+                .AsValueTask();
         }
         catch (Exception ex) when (ex is not MetadataDecodingException) {
             throw new MetadataDecodingException(GetType(), context, ex);
@@ -44,6 +48,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
         // [3] = {DebugViewDictionaryItem<string, JsonValue>} [$causedBy]=373c6630-d8fe-ff2c-16af-e286265e7e98
 
         var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(bytes.Span)!;
+
         return new Metadata()
             .With(SystemMetadataKeys.SchemaName, LinkSchemaName)
             .With(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Json)
@@ -71,7 +76,7 @@ public interface IMetadataDecoder {
     /// The context for decoding metadata, providing additional information such as the originating stream's name,
     /// </param>
     /// <returns>The decoded <see cref="Metadata"/> object.</returns>
-    Metadata Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context);
+    ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context);
 }
 
 /// <summary>
@@ -81,7 +86,7 @@ public interface IMetadataDecoder {
 public readonly record struct MetadataDecoderContext(
     StreamName Stream,
     SchemaName SchemaName,
-    SchemaDataFormat SchemaDataFormat
+    SchemaDataFormat SchemaFormat
 );
 
 [PublicAPI]
@@ -92,6 +97,10 @@ public class MetadataDecodingException(Type decoderType, MetadataDecoderContext 
     public MetadataDecoderContext DecoderContext { get; } = decoderContext;
 
     static string ErrorMessage(Type type, MetadataDecoderContext ctx, Exception ex) =>
-        $"Failed to decode '{ctx.SchemaName}' record metadata "
-      + $"from '{ctx.Stream}' using instance of '{type.Name}': {ex.Message}";
+        $"Failed to decode '{ctx.SchemaName}' record metadata " +
+        $"from '{ctx.Stream}' using instance of '{type.Name}': {ex.Message}";
+
+    [DoesNotReturn, StackTraceHidden]
+    public static void Throw(Type decoderType, MetadataDecoderContext decoderContext, Exception innerException) =>
+        throw new MetadataDecodingException(decoderType, decoderContext, innerException);
 }

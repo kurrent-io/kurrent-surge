@@ -4,18 +4,16 @@ package event_store.client.operations;
 
 option csharp_namespace = "KurrentDB.Protocol.V1.Operations";
 
-option java_package = "io.kurrent.client.operations";
-
-import "shared.proto";
+import "kurrentdb/protocol/v1/shared.proto";
 
 service Operations {
   rpc StartScavenge(StartScavengeReq) returns (ScavengeResp);
   rpc StopScavenge(StopScavengeReq) returns (ScavengeResp);
-  rpc Shutdown(Empty) returns (Empty);
-  rpc MergeIndexes(Empty) returns (Empty);
-  rpc ResignNode(Empty) returns (Empty);
-  rpc SetNodePriority(SetNodePriorityReq) returns (Empty);
-  rpc RestartPersistentSubscriptions(Empty) returns (Empty);
+  rpc Shutdown(event_store.client.Empty) returns (event_store.client.Empty);
+  rpc MergeIndexes(event_store.client.Empty) returns (event_store.client.Empty);
+  rpc ResignNode(event_store.client.Empty) returns (event_store.client.Empty);
+  rpc SetNodePriority(SetNodePriorityReq) returns (event_store.client.Empty);
+  rpc RestartPersistentSubscriptions(event_store.client.Empty) returns (event_store.client.Empty);
 }
 
 message StartScavengeReq {

@@ -1,6 +1,6 @@
 ---
 name: git-conventional-commits-expert
-description: Expert guidance for creating, analyzing, and validating Conventional Commits v1.0.0 specification commit messages. Use this skill when users need help with commit messages, want to understand commit conventions, need to analyze existing commits, or want to establish commit message standards for their projects.
+description: Use when creating git commits, writing commit messages, or reviewing commit history. Ensures commits follow Conventional Commits v1.0.0 spec for automated changelogs and semantic versioning. Triggers on "commit this", "write commit message", "git commit", "commit changes", "review commits", "fix commit message".
 license: CC0-1.0 (Public Domain)
 ---
 

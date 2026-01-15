@@ -480,3 +480,4 @@ certs-*/
 # Local AI settings
 .dev-marketplace
 settings.local.json
+.project/repomix/output/

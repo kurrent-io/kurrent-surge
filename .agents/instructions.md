@@ -1,49 +1,44 @@
----
-description: Core project context, instructions, protocols and guidelines for the designated codebase. MUST APPLY this knowledge and rules when working on any code, documentation, or configuration files within the designated project.
-alwaysApply: true
-inclusion: always
----
-
 # CORE DIRECTIVES
 1. MUST READ and APPLY all context from `.project/project.md` before any code, documentation, or architectural work. Required for: development, configuration, refactoring, integrations, releases, CI/CD.
-2. MAINTAIN high-quality, comprehensive output, optimized for large codebases and without abbreviation, unless specified otherwise.
-3. PROACTIVELY use the `repomix-explorer` subagent for all codebase analysis tasks via Task tool, when available; provide analysis mission; utilize agent results; use `repomix-output.xml` packed output, unless regeneration is explicitly requested by the user.
-4. ENFORCE code style and conventions by using the `csharp-craftsman` skill for all C# code related tasks.
-5. IDENTIFY technical skill gaps, communicate limitations, recommend skill-creator tool, and await authorization for out-of-scope requests.
-6. FOCUS on project-specific code changes only, avoiding unrelated tooling or broad architectural refactors. Changes must be incremental and focused.
-7. USE standardized emoji taxonomy when applicable. 
-   - Core patterns: 🟢 success, 🟡 warning, 🔴 error, 🔄 in-progress, ✅ complete
-   - Do not read the standards in advance. 
-   - When relevant, see `.agents/emoji.instructions.md` for full taxonomy.
-8. RESEARCH unfamiliar patterns before implementing:
-   - Search codebase for examples
-   - Verify architectural layer per `.project/project.md`
-   - Request clarification when uncertain
+2. PREFER `jetbrains-rider-mcp-expert` skill for C# code intelligence: compiler diagnostics, symbol renaming, code search, running tests, and understanding symbols. Provides real compiler integration over text matching. Fallback to native tools only when Rider MCP doesn't deliver.
+3. SKILL BOUNDARIES AND GROWTH
+   You ARE empowered to:
+   - State uncertainty directly when codebase search yields nothing
+   - Ask for examples or references when needed
+   - Propose skill creation for recurring patterns (3+ similar tasks)
 
-**COMPLIANCE EXPECTATION:**
-- These directives represent project standards.
-- You MUST adhere to applicable directives yet within their platform/tooling capabilities.
-- Partial compliance acceptable when full adherence is impossible.
-- Human oversight required for verification.
+   Process: search codebase first → verify architectural layer per `.project/project.md` → if nothing, say so → for recurring needs, offer to draft a skill.
 
-## PLATFORM ADAPTATION
-Agents should:
-1. Operate within available tooling capabilities
-2. Apply universal principles when specific tools unavailable
-3. Request clarification for unsupported operations
-4. Prioritize project standards over platform limitations
+   Gaps are opportunities for skill creation, not failures.
+4. FOCUS on project-specific code changes only, avoiding unrelated tooling or broad architectural refactors. Changes must be incremental and focused.
 
-## SESSION INITIALIZATION (MANDATORY)
-On EVERY session start — including continuations — you MUST:
+## SESSION INITIALIZATION
+On session start:
 1. Ensure CORE DIRECTIVES are loaded and applied
-2. Do NOT assume previous sessions have established context
-3. Continuation summaries capture task state, not project rules
+
+When user requests historical context:
+- Check `.project/` for plans, specs, and architecture docs
+- Check `_bmad-output/` for workflow artifacts and summaries
+- Ask user to clarify which context if multiple sources exist
 
 ---
 
-## CODE STYLE ENFORCEMENT
-Mandatory standards (non-negotiable):
-- K&R brace style, 4-space C# indentation, 2-space markup for everything else
-- Test methods: snake_case naming
+## CODE STYLE
+
+### Defaults (all languages)
+- K&R braces
+- 2-space indentation
+
+### C# / .NET
+- 4-space indentation (overrides default)
+- Test methods: `snake_case`
+
+## .NET CONVENTIONS
+
+### Nullability
+Assumes `<Nullable>enable</Nullable>` (modern .NET standard):
+- Non-nullable `T` = compiler-guaranteed → no runtime null checks
+- Use `T?` only for: valid domain state OR perf optimization (TryGet, lazy init)
+- If nullable disabled → null checks acceptable
 
 ---

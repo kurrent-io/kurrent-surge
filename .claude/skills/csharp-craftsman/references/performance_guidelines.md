@@ -4,6 +4,20 @@ Last updated: 2025-06-09
 
 > **Usage**: Reference this guide when working on performance-critical code, optimizing hot paths, or designing high-throughput systems.
 
+## Table of Contents
+
+- [Performance Optimization Principles](#-performance-optimization-principles)
+- [Memory Management](#-memory-management)
+- [Closures and Lambda Expressions](#-closures-and-lambda-expressions)
+- [Collection Operations](#-collection-operations)
+- [Optimization Techniques](#-optimization-techniques)
+- [Parallel and Asynchronous Processing](#-parallel-and-asynchronous-processing)
+- [Trimming and Deployment](#-trimming-and-deployment)
+- [Profiling and Measurement](#-profiling-and-measurement)
+- [Domain-Specific Patterns](#-domain-specific-patterns)
+
+---
+
 ## ? Performance Optimization Principles
 
 High-performance applications often process large volumes of data, making performance optimization critical. These guidelines ensure efficient code that minimizes resource usage and maximizes throughput.

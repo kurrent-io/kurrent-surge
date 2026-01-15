@@ -55,4 +55,8 @@
     <EmbeddedResource Remove="Subscriptions\**" />
     <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Processors\" />
+  </ItemGroup>
 </Project>

@@ -9,8 +9,9 @@ Repomix provides three interaction levels for different use cases:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ LEVEL 1: Claude Code Slash Commands (RECOMMENDED)           │
-│ ├─ /repomix-explorer:explore-local                          │
-│ ├─ /repomix-commands:pack-local                             │
+│ ├─ /repomix-explorer:explore-local - Local codebase         │
+│ ├─ /repomix-explorer:explore-remote - GitHub repos          │
+│ ├─ /repomix-commands:pack-local - Natural language packing  │
 │ └─ Use for: 90% of interactive analysis tasks               │
 ├─────────────────────────────────────────────────────────────┤
 │ LEVEL 2: MCP Tools (Programmatic Control)                   │
@@ -100,6 +101,68 @@ Leverages `.repomixrc.json` if present for:
 - First run: Packs codebase (~2-5 seconds for small-medium projects)
 - Subsequent searches: Uses cached packed output (instant)
 - Token usage: Minimal (agent retrieves only relevant sections)
+
+---
+
+### /repomix-explorer:explore-remote
+
+**Purpose:** Natural language exploration of remote GitHub repositories without cloning.
+
+**How It Works:**
+
+1. Accepts remote repository identifier (GitHub shorthand or full URL)
+2. Automatically clones and packs the remote repository
+3. Uses Grep and Read tools to search packed output efficiently
+4. Provides comprehensive analysis with context management
+5. Returns focused answer without overwhelming context
+
+**Syntax:**
+
+```
+/repomix-explorer:explore-remote <user/repo> [natural language query]
+```
+
+**Examples:**
+
+```bash
+# Analyze a popular library's architecture
+/repomix-explorer:explore-remote facebook/react How do hooks work internally?
+
+# Understand a framework's patterns
+/repomix-explorer:explore-remote vercel/next.js What routing patterns are used?
+
+# Explore authentication in an open source project
+/repomix-explorer:explore-remote supabase/supabase Find all authentication implementations
+
+# Learn from well-structured projects
+/repomix-explorer:explore-remote microsoft/TypeScript How does the type checker work?
+```
+
+**Advantages:**
+
+- **No cloning required:** Directly analyzes remote repositories
+- **Same AI-powered exploration:** All benefits of explore-local
+- **Learn from any codebase:** Study patterns in popular open source projects
+- **Quick investigation:** Analyze external dependencies or libraries
+
+**When to Use:**
+
+- ✅ Learning from open source projects
+- ✅ Investigating external library internals
+- ✅ Comparing patterns across repositories
+- ✅ Due diligence on dependencies
+- ✅ Understanding upstream changes
+
+**When NOT to Use:**
+
+- ❌ Local codebase (use explore-local)
+- ❌ Private repositories without access
+- ❌ Need to modify the codebase
+
+**Performance:**
+
+- First run: Clones + packs (~5-15 seconds depending on repo size)
+- Analysis: Same efficient grep/read pattern as local
 
 ---
 

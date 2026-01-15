@@ -1,34 +1,74 @@
 ---
 name: tunit-master
-description: Complete mastery of TUnit testing framework for .NET, covering unit tests, integration tests against web servers and Docker containers, database testing, message queues, cloud services, and advanced orchestration. Use this skill when writing or running any TUnit tests, especially complex integration scenarios with infrastructure dependencies.
+description: Write, run, and debug tests using TUnit framework for this .NET project. Activates for test creation, test infrastructure setup, fixing failing tests, or when test coverage is needed. Covers fluent async assertions, test variants, extension points, Docker container testing (Testcontainers), database testing (EF Core, Respawn), and message queue testing. Triggers on "write tests", "add tests", "test this", "run tests", "fix test", "integration test", "TUnit", "property-based testing". Note - This project uses TUnit (not xUnit/NUnit).
 ---
 
 # TUnit Master - Complete Testing Framework Mastery
 
+> **Official Documentation**: https://tunit.dev
+
 ## Overview
 
-**TUnit Master** provides comprehensive expertise in the TUnit testing framework for .NET, enabling creation and execution of tests ranging from simple unit tests to complex integration scenarios involving web servers, Docker containers, databases, message queues, and cloud services. This skill covers all TUnit attributes, lifecycle management, data-driven testing, parallel execution orchestration, and infrastructure automation patterns.
+**TUnit Master** provides comprehensive expertise in the TUnit testing framework for .NET (v1.9.x), enabling creation and execution of tests ranging from simple unit tests to complex integration scenarios involving web servers, Docker containers, databases, message queues, and cloud services. This skill covers all TUnit attributes, lifecycle management, data-driven testing, parallel execution orchestration, and infrastructure automation patterns.
 
 **Nothing is beyond the grasp of this skill** - from basic assertions to multi-container integration tests with complex dependencies and teardown automation.
 
-## When to Use This Skill
+## Quick Start
 
-**Automatic Triggers** (use without being asked):
-- Writing any test files using TUnit framework (`*.Tests.cs` files)
-- User mentions "test", "TUnit", "integration test", "unit test" in their request
-- Working with test projects containing TUnit package references
-- Setting up test infrastructure (Docker, databases, web servers)
-- Debugging or fixing failing TUnit tests
+### Installation
 
-**Explicit Requests**:
-- "Write tests for..."
-- "Set up integration tests against..."
-- "Create test fixtures for..."
-- "Run tests with Docker containers"
-- "Test against a database/message queue/web server"
-- "Set up complex test scenarios with dependencies"
+**Using Templates (Recommended):**
 
-## Core Capabilities
+```bash
+dotnet new install TUnit.Templates
+dotnet new TUnit -n "YourProjectName"
+```
+
+**Manual Setup:**
+
+```bash
+dotnet new console --name YourTestProject
+cd YourTestProject
+dotnet add package TUnit --prerelease
+```
+
+Remove any auto-generated `Program.cs` - TUnit handles this automatically.
+
+### Automatic Global Usings
+
+TUnit automatically enables global usings for three key namespaces:
+
+- `TUnit.Core` - provides `[Test]` attribute and lifecycle hooks
+- `TUnit.Assertions` - provides `Assert.That()`
+- `TUnit.Assertions.Extensions` - provides assertion methods
+
+You can write tests without explicit using statements. Explicit imports shown in examples are for clarity.
+
+### ⚠️ Important: Incompatible Packages
+
+**Do NOT install these packages** - they conflict with TUnit's Microsoft.Testing.Platform foundation:
+
+- ❌ `coverlet.collector`
+- ❌ `coverlet.msbuild`
+- ❌ `Microsoft.NET.Test.Sdk`
+
+TUnit includes `Microsoft.Testing.Extensions.CodeCoverage` automatically for coverage support.
+
+## Key Capabilities
+
+This skill enables:
+- **Unit testing** - TUnit fundamentals, fluent async assertions, data-driven tests, lifecycle hooks
+- **Integration testing** - WebApplicationFactory, real database testing, API endpoint testing
+- **Container testing** - Testcontainers for PostgreSQL, Redis, RabbitMQ, Azurite, and custom images
+- **Database testing** - EF Core in-memory, real databases with Respawn cleanup, SQL Server/PostgreSQL
+- **Message queue testing** - RabbitMQ integration, event publishing verification
+- **Test orchestration** - Parallel execution control, test dependencies, retry/timeout handling
+- **Test variants** - Runtime-generated tests for property-based testing, chaos engineering, mutation testing
+- **Extension points** - ITestExecutor, IHookExecutor, event receivers for custom behavior
+- **CLI optimization** - Efficient test execution with filtering, TDD workflow support
+- **AOT compilation** - Native AOT support for faster test discovery and execution
+
+## Detailed Reference
 
 ### 0. Test Execution and CLI Optimization
 
@@ -252,7 +292,9 @@ public class OrderServiceTests {
 
 ### 2. TUnit Assertion Patterns
 
-**TUnit uses `Assert.That()` fluent syntax:**
+**TUnit uses `Assert.That()` fluent async syntax:**
+
+The `await` keyword is responsible for performing the assertion - before you call `await`, you're building a chain of assertion rules. This design prevents silent test failures through analyzer warnings.
 
 ```csharp
 // Value assertions
@@ -271,6 +313,20 @@ await Assert.That(orders).HasCount(5);
 await Assert.That(items).Contains(expectedItem);
 await Assert.That(tags).IsEmpty();
 await Assert.That(results).All(r => r.IsValid);
+await Assert.That(list).IsInOrder();
+await Assert.That(items).HasDistinctItems();
+
+// Set/Dictionary assertions (v1.9+)
+await Assert.That(hashSet).Contains(item);
+await Assert.That(dictionary).ContainsKey("key");
+await Assert.That(dictionary).ContainsValue(expectedValue);
+
+// Memory/Span assertions (v1.9+)
+await Assert.That(memory).IsNotEmpty();
+await Assert.That(span.ToArray()).Contains(expectedByte);
+
+// AsyncEnumerable assertions (v1.9+)
+await Assert.That(asyncStream).Contains(expectedItem);
 
 // Null assertions
 await Assert.That(customer).IsNotNull();
@@ -281,16 +337,133 @@ await Assert.That(() => service.ProcessOrder(null))
     .ThrowsExactly<ArgumentNullException>()
     .WithMessage("Value cannot be null. (Parameter 'order')");
 
-// Async assertions
+// Async delegate assertions
 await Assert.That(async () => await service.GetOrderAsync(orderId))
-    .CompletesWith(() => Task.CompletedTask);
+    .ThrowsNothing();
 
 // Complex object assertions
 await Assert.That(order).IsEquivalentTo(expectedOrder, options =>
     options.Excluding(o => o.CreatedAt));
 ```
 
-### 3. Data-Driven Testing
+**Assertion Chaining with `.And`:**
+
+Chain multiple assertions on the same value for readable multi-step validations:
+
+```csharp
+await Assert.That(result)
+    .IsNotNull()
+    .And.IsPositive()
+    .And.IsEqualTo(3);
+
+await Assert.That(name)
+    .StartsWith("Order-")
+    .And.HasLength(12)
+    .And.Matches(@"^Order-\d{6}$");
+```
+
+**Capturing Assertion Results:**
+
+Awaited assertions return the subject, enabling type-safe value capture:
+
+```csharp
+// Capture typed result for subsequent operations
+var circle = await Assert.That(shape).IsTypeOf<Circle>();
+var area = Math.PI * circle.Radius * circle.Radius;
+
+var validOrder = await Assert.That(order).IsNotNull();
+await Assert.That(validOrder.Items).HasCount(3);
+```
+
+**Multiple Assertions (Assert.Multiple):**
+
+Run multiple independent assertions without early termination - all assertions execute before reporting failures:
+
+```csharp
+await using (Assert.Multiple())
+{
+    await Assert.That(user.Name).IsNotEmpty();
+    await Assert.That(user.Email).Contains("@");
+    await Assert.That(user.Age).IsGreaterThan(0);
+    await Assert.That(user.CreatedAt).IsLessThan(DateTime.UtcNow);
+}
+// All failures reported together, not just the first one
+```
+
+**AssertionGroup for Complex Boolean Logic:**
+
+When mixing `And`/`Or` operators, use `AssertionGroup` to clarify evaluation order:
+
+```csharp
+// Complex conditions: (A AND B) OR (C AND D)
+var condition1 = AssertionGroup.For(value)
+    .WithAssertion(assert => assert.Contains('A'))
+    .And(assert => assert.Contains('B'));
+
+var condition2 = AssertionGroup.For(value)
+    .WithAssertion(assert => assert.Contains('C'))
+    .And(assert => assert.Contains('D'));
+
+await AssertionGroup.Assert(condition1).Or(condition2);
+```
+
+### 3. TestContext (v1.9+ Interface)
+
+**Accessing Test Information:**
+
+```csharp
+[Test]
+public async Task test_with_context_access() {
+    var context = TestContext.Current;
+
+    // Access test metadata
+    var testName = context?.TestDetails.TestName;
+    var className = context?.TestDetails.TestClass.Name;
+
+    // Check custom properties
+    if (context?.TestDetails.CustomProperties.ContainsKey("Environment") == true) {
+        var env = context.TestDetails.CustomProperties["Environment"];
+    }
+
+    // Write output for debugging
+    context?.OutputWriter.WriteLine($"Running test: {testName}");
+
+    await Assert.That(true).IsTrue();
+}
+```
+
+**Test Results Access (AfterEachTest only):**
+
+```csharp
+[After(Test)]
+public async Task cleanup_with_results(TestContext context) {
+    // Results property only available in After hooks
+    var result = context.Result;
+
+    if (result?.Status == Status.Failed) {
+        // Log failure details, capture screenshots, etc.
+        await CaptureDebugInfoAsync(context);
+    }
+}
+```
+
+**TestBuilderContext for Discovery Phase:**
+
+During test discovery, use `TestBuilderContext.Current` instead:
+
+```csharp
+public static IEnumerable<TestCase> GetTestData() {
+    // Access discovery-phase context
+    var builderContext = TestBuilderContext.Current;
+
+    // StateBag carries data to execution-time TestContext
+    builderContext?.StateBag["DiscoveryTime"] = DateTime.UtcNow;
+
+    yield return new TestCase { /* ... */ };
+}
+```
+
+### 4. Data-Driven Testing
 
 **Simple Arguments:**
 
@@ -307,6 +480,8 @@ public async Task login_succeeds_with_valid_credentials(string email, string pas
 
 **Method Data Source:**
 
+> **AOT Requirement:** Method data sources **must be static** for AOT compatibility.
+
 ```csharp
 [Test]
 [MethodDataSource(nameof(GetTestOrders))]
@@ -315,6 +490,7 @@ public async Task process_order_calculates_correct_total(Order order, decimal ex
     await Assert.That(result.Total).IsEqualTo(expectedTotal);
 }
 
+// Must be static for AOT compatibility
 static IEnumerable<(Order, decimal)> GetTestOrders() {
     yield return (
         new Order { Items = [new(Price: 10.00m, Quantity: 2)] },
@@ -331,6 +507,43 @@ static IEnumerable<(Order, decimal)> GetTestOrders() {
         },
         90.00m
     );
+}
+```
+
+**Reference Types - Use Func<T> for Isolation:**
+
+Wrap reference types in `Func<>` delegates to prevent test interference through shared object mutations:
+
+```csharp
+[Test]
+[MethodDataSource(nameof(GetCustomerTestCases))]
+public async Task validate_customer_checks_all_rules(Func<Customer> customerFactory, bool expectedValid) {
+    var customer = customerFactory(); // Fresh instance per test
+    var result = await _validator.ValidateAsync(customer);
+    await Assert.That(result.IsValid).IsEqualTo(expectedValid);
+}
+
+static IEnumerable<(Func<Customer>, bool)> GetCustomerTestCases() {
+    yield return (() => new Customer { Name = "John", Email = "john@test.com" }, true);
+    yield return (() => new Customer { Name = "", Email = "john@test.com" }, false);
+    yield return (() => new Customer { Name = "John", Email = "" }, false);
+}
+```
+
+**Async Data Sources:**
+
+```csharp
+[Test]
+[MethodDataSource(nameof(GetAsyncTestData))]
+public async Task process_handles_async_loaded_data(TestCase testCase) {
+    var result = await _service.ProcessAsync(testCase.Input);
+    await Assert.That(result).IsEqualTo(testCase.Expected);
+}
+
+static async IAsyncEnumerable<TestCase> GetAsyncTestData([EnumeratorCancellation] CancellationToken ct = default) {
+    await foreach (var item in LoadTestDataAsync().WithCancellation(ct)) {
+        yield return item;
+    }
 }
 ```
 
@@ -464,7 +677,193 @@ public async Task integration_test_against_production() {
 }
 ```
 
-### 5. Web Server Integration Testing
+### 5. Test Variants (Runtime-Generated Tests)
+
+Test variants are dynamically generated tests created during parent test execution. They inherit the parent's method template and appear as distinct tests in test explorers.
+
+**TestRelationship Enum:**
+- `None` - Independent test (no parent relationship)
+- `Retry` - Identical re-run after failure
+- `Generated` - Pre-execution exploration
+- `Derived` - Post-execution analysis (shrinking, mutation, chaos)
+
+**Creating Test Variants:**
+
+```csharp
+[Test]
+public async Task property_based_test_with_shrinking() {
+    var context = TestContext.Current;
+    var input = GenerateRandomInput();
+
+    try {
+        var result = await _service.ProcessAsync(input);
+        await Assert.That(result.IsValid).IsTrue();
+    }
+    catch (AssertionException) {
+        // On failure, create shrunk variants to find minimal failing case
+        var shrunkInputs = Shrink(input);
+        foreach (var (shrunk, index) in shrunkInputs.Select((s, i) => (s, i))) {
+            await context.CreateTestVariant(
+                arguments: [shrunk],
+                properties: new Dictionary<string, object?> {
+                    ["ShrinkAttempt"] = index,
+                    ["OriginalInput"] = input
+                },
+                relationship: TestRelationship.Derived,
+                displayName: $"Shrink #{index}: {shrunk}"
+            );
+        }
+        throw;
+    }
+}
+```
+
+**Use Cases for Test Variants:**
+
+| Pattern                | Description                                                      |
+|------------------------|------------------------------------------------------------------|
+| Property-based shrinking | On failure, create variants with simpler inputs                |
+| Mutation testing       | Generate mutant variants with controlled bugs to verify quality  |
+| Adaptive stress testing | Increase load progressively based on performance                |
+| Chaos engineering      | Inject faults and verify resilience                              |
+| Smart retries          | Retry with adjusted parameters to differentiate transient/permanent failures |
+| Exploratory fuzzing    | Generate variants on edge case detection                         |
+
+**Event Receiver for Automatic Shrinking:**
+
+```csharp
+public class ShrinkOnFailureAttribute : Attribute, ITestEndEventReceiver
+{
+    public async ValueTask OnTestEnd(TestContext context)
+    {
+        if (context.Execution.Result?.Status == Status.Failed) {
+            var originalArgs = context.Metadata.TestInformation.TestMethodArguments;
+            var shrunkCases = GenerateShrunkCases(originalArgs);
+
+            foreach (var shrunk in shrunkCases) {
+                await context.CreateTestVariant(
+                    arguments: shrunk,
+                    relationship: TestRelationship.Derived,
+                    displayName: "Shrunk case"
+                );
+            }
+        }
+    }
+}
+```
+
+> **Note:** Test variants require reflection and are **not AOT-compatible**.
+
+### 6. Extension Points
+
+TUnit provides powerful extension interfaces for customizing test execution:
+
+**ITestExecutor - Custom Test Execution:**
+
+Wrap test body execution with custom logic (logging, telemetry, retry, timeout):
+
+```csharp
+public class LoggingTestExecutor : ITestExecutor
+{
+    public async ValueTask ExecuteTest(TestContext context, Func<ValueTask> action)
+    {
+        var testName = context.Metadata.TestInformation.TestName;
+        Console.WriteLine($"Starting: {testName}");
+        var sw = Stopwatch.StartNew();
+
+        try {
+            await action();
+            Console.WriteLine($"Passed: {testName} ({sw.ElapsedMilliseconds}ms)");
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Failed: {testName} - {ex.Message}");
+            throw;
+        }
+    }
+}
+
+// Register at assembly, class, or method level
+[assembly: TestExecutor<LoggingTestExecutor>]
+```
+
+**IHookExecutor - Custom Hook Execution:**
+
+Customize setup/cleanup hooks with specialized methods for each hook type:
+
+```csharp
+public class ResourceTrackingHookExecutor : IHookExecutor
+{
+    public async ValueTask ExecuteBeforeTestHook(
+        MethodMetadata hookMethodInfo,
+        TestContext context,
+        Func<ValueTask> action)
+    {
+        Console.WriteLine($"Before test hook: {hookMethodInfo.Name}");
+        await action();
+    }
+
+    public async ValueTask ExecuteAfterTestHook(
+        MethodMetadata hookMethodInfo,
+        TestContext context,
+        Func<ValueTask> action)
+    {
+        await action();
+        Console.WriteLine($"After test hook: {hookMethodInfo.Name}");
+    }
+
+    // Similar methods for Class, Assembly, TestSession, TestDiscovery hooks...
+}
+```
+
+**Event Receivers:**
+
+Subscribe to test lifecycle events by implementing receiver interfaces:
+
+```csharp
+public class TelemetryAttribute : Attribute, ITestStartEventReceiver, ITestEndEventReceiver
+{
+    public ValueTask OnTestStart(TestContext context)
+    {
+        Telemetry.TrackEvent("TestStarted", context.Metadata.TestInformation.TestName);
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnTestEnd(TestContext context)
+    {
+        var duration = context.Execution.Result?.Duration ?? TimeSpan.Zero;
+        var status = context.Execution.Result?.Status.ToString() ?? "Unknown";
+        Telemetry.TrackMetric("TestDuration", duration.TotalMilliseconds, status);
+        return ValueTask.CompletedTask;
+    }
+}
+
+// Apply to tests
+[Test]
+[Telemetry]
+public async Task tracked_test() { }
+```
+
+**Available Event Receivers:**
+- `ITestDiscoveryEventReceiver` - Test discovered
+- `ITestRegisteredEventReceiver` - Test registered
+- `ITestStartEventReceiver` - Test starts execution
+- `ITestEndEventReceiver` - Test completes
+- `ITestRetryEventReceiver` - Test is retried
+
+**IParallelLimit - Custom Parallel Constraints:**
+
+```csharp
+public class DatabaseConnectionLimit : IParallelLimit
+{
+    public int Limit => 5; // Max 5 concurrent database tests
+}
+
+[Test]
+[ParallelLimiter<DatabaseConnectionLimit>]
+public async Task database_test() { }
+```
+
+### 7. Web Server Integration Testing
 
 **WebApplicationFactory Integration:**
 
@@ -1096,35 +1495,114 @@ public class CompleteOrderProcessingFlowTests {
 }
 ```
 
+## Migration from Other Frameworks
+
+TUnit provides automated migration tooling for xUnit, NUnit, and MSTest.
+
+### Automated Migration
+
+Run the code fixer to automatically migrate most test patterns:
+
+```bash
+dotnet format analyzers --severity info --diagnostics TUXU0001
+```
+
+This handles approximately **80-90% of typical test suites** automatically.
+
+### xUnit to TUnit
+
+| xUnit | TUnit |
+|-------|-------|
+| `[Fact]` | `[Test]` |
+| `[Theory]` | `[Test]` |
+| `[InlineData(...)]` | `[Arguments(...)]` |
+| `[MemberData(nameof(...))]` | `[MethodDataSource(nameof(...))]` |
+| `[Trait("key", "value")]` | `[Property("key", "value")]` |
+| `IClassFixture<T>` | `[ClassDataSource<T>(Shared = SharedType.PerClass)]` |
+| `[Collection("name")]` | `[ClassDataSource<T>(Shared = SharedType.Keyed, Key = "name")]` |
+| `Assert.Equal(expected, actual)` | `await Assert.That(actual).IsEqualTo(expected)` |
+
+**Note:** All test methods convert to `async Task` with awaited assertions.
+
+### NUnit to TUnit
+
+| NUnit | TUnit |
+|-------|-------|
+| `[Test]` | `[Test]` |
+| `[TestCase(...)]` | `[Arguments(...)]` |
+| `[TestCaseSource(nameof(...))]` | `[MethodDataSource(nameof(...))]` |
+| `[SetUp]` | `[Before(Test)]` |
+| `[TearDown]` | `[After(Test)]` |
+| `[OneTimeSetUp]` | `[Before(Class)]` |
+| `[OneTimeTearDown]` | `[After(Class)]` |
+| `Assert.That(x, Is.EqualTo(y))` | `await Assert.That(x).IsEqualTo(y)` |
+
+### MSTest to TUnit
+
+| MSTest | TUnit |
+|--------|-------|
+| `[TestMethod]` | `[Test]` |
+| `[DataRow(...)]` | `[Arguments(...)]` |
+| `[DynamicData(nameof(...))]` | `[MethodDataSource(nameof(...))]` |
+| `[TestInitialize]` | `[Before(Test)]` |
+| `[TestCleanup]` | `[After(Test)]` |
+| `[ClassInitialize]` | `[Before(Class)]` |
+| `[ClassCleanup]` | `[After(Class)]` |
+| `Assert.AreEqual(expected, actual)` | `await Assert.That(actual).IsEqualTo(expected)` |
+
+### Post-Migration Checklist
+
+1. ✅ Remove `Microsoft.NET.Test.Sdk` package reference
+2. ✅ Remove `coverlet.collector` / `coverlet.msbuild`
+3. ✅ Update all test methods to `async Task`
+4. ✅ Add `await` to all assertions
+5. ✅ Verify lifecycle hooks are correctly scoped
+6. ✅ Run tests to verify migration success
+
+## AOT Compilation Support
+
+TUnit supports Native AOT compilation for significantly faster test discovery and execution:
+
+```xml
+<PropertyGroup>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+</PropertyGroup>
+```
+
+**AOT Benefits:**
+- Faster test discovery (significant speedup)
+- Reduced startup time
+- Smaller memory footprint
+
+**AOT Limitations:**
+- Test variants (`CreateTestVariant`) require reflection and are **not AOT-compatible**
+- Dynamic data sources using reflection may not work
+- `[DynamicDataSource]` limited in AOT mode
+
+**Best Practices for AOT:**
+- Keep data sources lightweight and static
+- Use `[Arguments]` and `[MethodDataSource]` over dynamic sources
+- Avoid runtime reflection in test setup
+
 ## Resources
 
-This skill includes comprehensive reference material and infrastructure templates for advanced testing scenarios.
+### Official Documentation
 
-### references/
+- **TUnit Docs:** https://tunit.dev
+- **GitHub:** https://github.com/thomhurst/TUnit
+- **LLM Reference:** https://tunit.dev/llms.txt
 
-**Documentation for complex testing patterns:**
+### Skill References
+
+This skill includes comprehensive reference material for advanced testing scenarios:
+
+**references/**
 
 - `integration_testing_patterns.md` - Detailed patterns for integration testing scenarios
 - `docker_testing_guide.md` - Complete guide to Docker container testing with Testcontainers
 - `database_testing_strategies.md` - Database testing approaches (in-memory, real databases, cleanup strategies)
-- `tunit_api_reference.md` - Complete TUnit attribute and API reference
-- `infrastructure_automation.md` - Infrastructure as code patterns for test environments
-
-### scripts/
-
-**Infrastructure automation scripts:**
-
-- `docker-compose.test.yml` - Multi-container test infrastructure template
-- `init-test-db.sql` - Database initialization scripts
-- `setup-test-environment.sh` - Automated test environment setup
-
-### assets/
-
-**Test fixtures and templates:**
-
-- `test-data/` - Sample test data files (JSON, CSV, XML)
-- `mock-responses/` - HTTP mock response templates
-- `certificates/` - Test SSL certificates for HTTPS testing
+- `tunit_api_reference.md` - Complete TUnit attribute and API reference (v1.9.x)
 
 ---
 

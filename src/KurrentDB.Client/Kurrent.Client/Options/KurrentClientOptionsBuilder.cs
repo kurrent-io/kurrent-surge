@@ -199,6 +199,30 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
         With(options => options with { Mapper = new MessageMappingBuilder().With(configure).Build() });
 
     /// <summary>
+    /// Sets a pre-configured message type mapper for schema resolution.
+    /// </summary>
+    /// <param name="mapper">The message type mapper instance to use.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method performs <b>complete replacement</b> of the Mapper property.
+    /// Use this when you have a pre-configured <see cref="MessageTypeMapper"/> instance.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Use a pre-configured mapper
+    /// var mapper = new MessageTypeMapper();
+    /// mapper.Map&lt;UserCreated&gt;("user-created");
+    /// mapper.Map&lt;UserUpdated&gt;("user-updated");
+    ///
+    /// var options = builder.WithMessages(mapper);
+    /// </code>
+    /// </example>
+    public KurrentClientOptionsBuilder WithMessages(MessageTypeMapper mapper) =>
+        With(options => options with { Mapper = mapper ?? throw new ArgumentNullException(nameof(mapper)) });
+
+    /// <summary>
     /// Sets the interceptors.
     /// </summary>
     /// <param name="interceptors">The gRPC interceptors to use.</param>

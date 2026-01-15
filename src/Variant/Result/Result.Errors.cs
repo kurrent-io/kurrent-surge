@@ -220,6 +220,8 @@ public sealed class CapturedException(ExceptionDispatchInfo dispatchInfo) : Exce
     /// </summary>
     public void Throw() => dispatchInfo.Throw();
 
+    public Exception SourceException => dispatchInfo.SourceException;
+
     #region . overrides that delegate to captured ex .
 
     public override string      Message    => dispatchInfo.SourceException.Message;

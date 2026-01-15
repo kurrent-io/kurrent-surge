@@ -4,9 +4,7 @@ package event_store.client.persistent_subscriptions;
 
 option csharp_namespace = "KurrentDB.Protocol.V1.PersistentSubscriptions";
 
-option java_package = "io.kurrent.client.persistentsubscriptions";
-
-import "shared.proto";
+import "kurrentdb/protocol/v1/shared.proto";
 
 service PersistentSubscriptions {
   rpc Create(CreateReq) returns (CreateResp);

@@ -14,12 +14,17 @@ namespace Kurrent.Client;
 public abstract class ClientModuleBase {
     protected ClientModuleBase(KurrentClient client, string? moduleName = null) {
         KurrentClient = client;
+        Time          = TimeProvider.System;
+        LoggerFactory = client.Options.LoggerFactory;
         Logger        = client.Options.LoggerFactory.CreateLogger(moduleName ?? GetType().Name);
+
     }
 
     KurrentClient KurrentClient { get; }
 
-    protected ILogger Logger { get; }
+    protected internal TimeProvider   Time          { get; }
+    protected internal ILoggerFactory LoggerFactory { get; }
+    protected internal ILogger        Logger        { get; }
 
     protected ISchemaSerializerProvider SerializerProvider => KurrentClient.SerializerProvider;
     protected ServerCapabilities        ServerCapabilities => KurrentClient.LegacyCallInvoker.ServerCapabilities;

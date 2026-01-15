@@ -9,6 +9,7 @@ using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
+using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Variant;
 using KurrentDB.Protocol.V1.Streams;
 using static System.StringComparison;
@@ -43,7 +44,9 @@ public partial class StreamsClient {
             var message = await messages.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
             if (message == ReadRecordsResult.Irrelevant)
-                throw new LogPositionNotFoundException(request.Options.All.Position?.CommitPosition ?? LogPosition.Latest);
+                return Result<Record, InspectRecordError>.Failure(
+                    new LogPositionNotFoundException(request.Options.All.Position?.CommitPosition ?? LogPosition.Latest));
+                // throw new LogPositionNotFoundException(request.Options.All.Position?.CommitPosition ?? LogPosition.Latest);
 
             if (message.IsRecord)
                 return message.AsRecord;
@@ -288,28 +291,29 @@ public partial class StreamsClient {
 
         [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
         async ValueTask PumpMessages() {
+            SequenceGenerator sequencer = new();
+
             try {
                 // must continue from the cursor because we had to try to read
                 // the first entry to check if the stream existed or if access was granted
                 do {
-                    ReadResp? resp = session.ResponseStream.Current;
+                    var resp = session.ResponseStream.Current;
 
                     ReadRecordsResult result;
 
-                    // Fast path: synchronous message types
                     switch (resp?.ContentCase) {
                         case Checkpoint:
-                            result = resp.Checkpoint.MapToHeartbeat();
+                            result = resp.Checkpoint.MapToHeartbeat(sequencer.FetchNext());
                             break;
                         case CaughtUp:
-                            result = resp.CaughtUp.MapToHeartbeat();
+                            result = resp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
                             break;
                         case FellBehind:
-                            result = resp.FellBehind.MapToHeartbeat();
+                            result = resp.FellBehind.MapToHeartbeat(sequencer.FetchNext());
                             break;
                         case Event:
-                            // Slow path: requires async
                             result = await resp.Event.MapToRecordAsync(
+                                sequencer.FetchNext(),
                                 SerializerProvider, MetadataDecoder,
                                 SchemaRegistryPolicy.NoRequirements,
                                 skipDecoding, stoppingToken

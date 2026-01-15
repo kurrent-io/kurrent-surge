@@ -7,14 +7,14 @@ namespace Kurrent.Client;
 static class EnumExtensions {
     static readonly ConcurrentDictionary<Type, ConcurrentDictionary<Enum, string>> Cache = new();
 
-    extension<T>(T value) where T : Enum {
+    extension<T>(T source) where T : Enum {
         public string Description {
             get {
                 // Get or create the value dictionary for this enum type
                 var valueCache = Cache.GetOrAdd(typeof(T), _ => new ConcurrentDictionary<Enum, string>());
 
                 // Cast once to avoid multiple boxing operations
-                Enum enumValue = value;
+                Enum enumValue = source;
 
                 return valueCache.GetOrAdd(enumValue, key => {
                     var fieldInfo = typeof(T).GetField(key.ToString());

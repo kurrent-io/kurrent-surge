@@ -2,7 +2,7 @@
   "$schema": "https://repomix.com/schemas/latest/schema.json",
 
   "output": {
-    "filePath": ".project/repomix/output/repomix-output.full.xml",
+    "filePath": ".project/repomix/output/repomix-output.xml",
     "style": "xml",
     "compress": false,
     "removeComments": false,
@@ -15,28 +15,21 @@
     "instructionFilePath": ".project/project.md"
   },
 
+  "include": [
+    "src/**/*.cs",
+    "src/**/*.csproj",
+    "test/**/*.cs",
+    "test/**/*.csproj",
+    "proto/**/*.proto",
+    "*.slnx",
+    "Directory.Build.props",
+    "Directory.Packages.props"
+  ],
+
   "ignore": {
     "useGitignore": true,
     "useDefaultPatterns": true,
-    "customPatterns": [
-      ".agents/**",
-      ".claude/**",
-      ".github/ISSUE_TEMPLATE/**",
-      ".github/prompts/**",
-      ".github/instructions/**",
-      ".github/**/*.instruction.md",
-      ".project/**",
-      "certs/**",
-      "**/*.DotSettings",
-      "**/*.md",
-      "**/*.svg",
-      "**/*.png",
-      "**/*.jpg",
-      "**/*.jpeg",
-      "**/*.gif",
-      "**/*.ico",
-      "**/*.bak.*"
-    ]
+    "customPatterns": []
   },
 
   "security": {

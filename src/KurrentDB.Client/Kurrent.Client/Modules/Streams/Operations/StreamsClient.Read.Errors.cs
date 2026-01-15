@@ -59,7 +59,9 @@ public partial class ProcessError : IVariantException<
     LogPositionNotFoundException,
     InitializeException,
     ProcessRecordsException,
-    HeartbeatException,
+    CheckpointException,
+    PartitionsAssignedException,
+    ShutdownException,
     Exception> {
     public static ProcessError FromEx(Exception ex) {
         return ex.ToExceptionalErrorResult<ProcessError>(
@@ -69,7 +71,9 @@ public partial class ProcessError : IVariantException<
             LogPositionNotFoundException.From,
             InitializeException.From,
             ProcessRecordsException.From,
-            HeartbeatException.From
+            CheckpointException.From,
+            PartitionsAssignedException.From,
+            ShutdownException.From
         );
     }
 }

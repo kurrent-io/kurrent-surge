@@ -4,7 +4,7 @@ namespace Kurrent.Client.Streams;
 
 [PublicAPI]
 public static class MetadataSchemaExtensions {
-	extension(Metadata metadata) {
+	extension(Metadata source) {
         // public RecordSchemaInfo GetSchemaInfo() =>
         //     new RecordSchemaInfo {
         //         SchemaName      = metadata.GetSchemaName(),
@@ -17,33 +17,33 @@ public static class MetadataSchemaExtensions {
         /// </summary>
         public RecordSchemaInfo ExtractSchemaInfo() {
             var info = new RecordSchemaInfo {
-                SchemaName      = metadata.GetSchemaName(),
-                SchemaFormat    = metadata.GetSchemaFormat(),
-                SchemaVersionId = metadata.GetSchemaId()
+                SchemaName      = source.GetSchemaName(),
+                SchemaFormat    = source.GetSchemaFormat(),
+                SchemaVersionId = source.GetSchemaId()
             };
 
-            metadata.Remove(SystemMetadataKeys.SchemaName);
-            metadata.Remove(SystemMetadataKeys.SchemaFormat);
-            metadata.Remove(SystemMetadataKeys.SchemaId);
+            source.Remove(SystemMetadataKeys.SchemaName);
+            source.Remove(SystemMetadataKeys.SchemaFormat);
+            source.Remove(SystemMetadataKeys.SchemaId);
 
             return info;
         }
 
         public SchemaName GetSchemaName() =>
-            metadata.GetOrDefault(SystemMetadataKeys.SchemaName, SchemaName.None);
+            source.GetOrDefault(SystemMetadataKeys.SchemaName, SchemaName.None);
 
         public SchemaDataFormat GetSchemaFormat() =>
-            metadata.GetOrDefault(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Unspecified);
+            source.GetOrDefault(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Unspecified);
 
         public SchemaVersionId GetSchemaId() =>
-            metadata.GetOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.None);
+            source.GetOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.None);
 
         public Metadata AddSchemaNameIfMissing(SchemaName schemaName) =>
-            metadata.WithIf(x => x.GetSchemaName() == SchemaName.None, SystemMetadataKeys.SchemaName, schemaName);
+            source.WithIf(x => x.GetSchemaName() == SchemaName.None, SystemMetadataKeys.SchemaName, schemaName);
 
         public Metadata AddSchemaFormatIfMissing(SchemaDataFormat dataFormat) {
             return dataFormat != SchemaDataFormat.Unspecified
-                ? metadata.WithIf(x => x.GetSchemaFormat() == SchemaDataFormat.Unspecified, SystemMetadataKeys.SchemaFormat, dataFormat)
+                ? source.WithIf(x => x.GetSchemaFormat() == SchemaDataFormat.Unspecified, SystemMetadataKeys.SchemaFormat, dataFormat)
                 : throw new ArgumentOutOfRangeException(nameof(dataFormat), "SchemaFormat cannot be Unspecified when adding to metadata.");
         }
     }

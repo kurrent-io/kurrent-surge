@@ -3,9 +3,23 @@
 namespace Kurrent.Client;
 
 static class EnumerableTaskExtensions {
-	[DebuggerStepThrough]
-	public static Task WhenAll(this IEnumerable<Task> source) => Task.WhenAll(source);
+	extension(IEnumerable<Task> source) {
+        [DebuggerStepThrough]
+        public Task WhenAll() => Task.WhenAll(source);
+    }
 
-	[DebuggerStepThrough]
-	public static Task<T[]> WhenAll<T>(this IEnumerable<Task<T>> source) => Task.WhenAll(source);
+	extension<T>(IEnumerable<Task<T>> source) {
+        [DebuggerStepThrough]
+        public Task<T[]> WhenAll() => Task.WhenAll(source);
+    }
+
+    extension(IEnumerable<ValueTask> source) {
+        [DebuggerStepThrough]
+        public Task WhenAll() => Task.WhenAll(source.Select(vt => vt.AsTask()));
+    }
+
+    extension<T>(IEnumerable<ValueTask<T>> source) {
+        [DebuggerStepThrough]
+        public Task<T[]> WhenAll() => Task.WhenAll(source.Select(vt => vt.AsTask()));
+    }
 }

@@ -1,6 +1,6 @@
 ---
 name: resx-expert
-description: Master of .NET resource file (.resx) localization providing comprehensive expertise in creating, managing, and deploying localized resources for .NET applications. Covers ResourceManager, IStringLocalizer, satellite assemblies, composite formatting, culture fallback, ASP.NET Core integration, and best practices for multi-language applications.
+description: Use when localizing, internationalizing, or translating .NET applications. Covers .resx resource files, ResourceManager, IStringLocalizer, satellite assemblies, and culture fallback. Triggers on "localize", "internationalize", "translate", "multi-language", "i18n", "l10n", "add language support", "resource strings", "localized messages".
 ---
 
 # RESX Expert

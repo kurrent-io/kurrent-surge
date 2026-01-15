@@ -39,6 +39,11 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
     public long Value { get; init; }
 
     /// <summary>
+    /// Indicates whether this position is <see cref="Unset"/>.
+    /// </summary>
+    public bool IsUnset => this == Unset;
+
+    /// <summary>
     /// Creates a LogPosition instance from a provided position value.
     /// </summary>
     /// <param name="position">The position value from which to create the LogPosition. Must be Unset, greater than or equal to 0, or an exception will be thrown.</param>

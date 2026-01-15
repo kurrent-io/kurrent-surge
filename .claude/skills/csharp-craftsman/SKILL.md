@@ -1,6 +1,6 @@
 ---
 name: csharp-craftsman
-description: Master of modern C# 14 and .NET 10 development. Writes production-ready C# code with aggressive C# 14 feature adoption, performance best practices, comprehensive XML documentation, and TUnit tests. Follows precise formatting standards including vertical alignment and class organization. Domain-agnostic, style-focused approach.
+description: Generate production-ready C# code with modern C# 14 features (extension members, field keyword, spans), .NET 10 performance patterns, precise vertical alignment, and comprehensive XML documentation. Covers class organization, TUnit/Shouldly/FakeItEasy testing, hot path optimization, and migration to modern patterns. Use for "write C# class", "add tests", "C# 14 features", "optimize performance", "XML documentation", "coding standards", or any .NET 10 development task.
 ---
 
 # C# Craftsman Skill
@@ -157,172 +157,20 @@ public async Task returns_valid_result_when_processing_succeeds() {
 }
 ```
 
-## C# 14 Feature Guide
+## C# 14 Feature Quick Reference
 
-### 1. Extension Members
+Use C# 14 features by default. See `references/csharp14_features.md` for comprehensive examples.
 
-Define extension properties and static extension members:
-
-```csharp
-public static class CollectionExtensions {
-    // Extension block for instance members
-    extension<T>(IEnumerable<T> source) {
-        // Extension property
-        public bool IsEmpty => !source.Any();
-
-        // Extension method
-        public IEnumerable<T> WhereNotNull() => source.Where(item => item is not null);
-    }
-
-    // Extension block for static members
-    extension<T>(IEnumerable<T>) {
-        // Static extension property
-        public static IEnumerable<T> Empty => Enumerable.Empty<T>();
-
-        // Static user-defined operator
-        public static IEnumerable<T> operator + (IEnumerable<T> left, IEnumerable<T> right) =>
-          left.Concat(right);
-    }
-}
-
-// Usage:
-var list = GetItems();
-if (list.IsEmpty) { ... }
-
-var combined = IEnumerable<int>.Empty + list;
-```
-
-**When to use:** Replace static utility classes with extension members for cleaner, more discoverable APIs.
-
-### 2. Field Keyword
-
-Access compiler-generated backing field without explicit declaration:
-
-```csharp
-public string Name {
-    get;
-    set => field = value?.Trim() ?? throw new ArgumentNullException(nameof(value));
-}
-
-public int Count {
-    get => field;
-    private set {
-        if (value < 0) throw new ArgumentOutOfRangeException(nameof(value));
-        field = value;
-    }
-}
-```
-
-**When to use:** Properties with validation, transformation, or custom logic in accessors.
-
-### 3. First-Class Span Support
-
-Implicit conversions between `Span<T>`, `ReadOnlySpan<T>`, and `T[]`:
-
-```csharp
-public void ProcessData(ReadOnlySpan<byte> data) {
-    // Implementation
-}
-
-// All these calls work with implicit conversions:
-byte[] array = GetArray();
-ProcessData(array);                    // T[] → ReadOnlySpan<T>
-
-Span<byte> span = GetSpan();
-ProcessData(span);                     // Span<T> → ReadOnlySpan<T>
-
-Memory<byte> memory = GetMemory();
-ProcessData(memory.Span);              // Memory<T>.Span → ReadOnlySpan<T>
-```
-
-**When to use:** Design APIs that accept `ReadOnlySpan<T>` or `Span<T>` for flexibility and performance.
-
-### 4. Lambda Parameter Modifiers
-
-Use `ref`, `out`, `in`, `scoped` without explicit types:
-
-```csharp
-delegate bool TryParse<T>(string text, out T result);
-
-// C# 14: Modifiers without types
-TryParse<int> parser = (text, out result) => int.TryParse(text, out result);
-
-// Scoped without type
-Action<Span<byte>> process = (scoped buffer) => ProcessBuffer(buffer);
-```
-
-**When to use:** Lambda expressions with delegates that use parameter modifiers.
-
-### 5. Nameof with Unbound Generics
-
-```csharp
-// C# 14: Unbound generic
-string name     = nameof(List<>);         // "List"
-string dictName = nameof(Dictionary<,>);  // "Dictionary"
-
-// Use in generic constraints documentation:
-/// <typeparam name="T">
-/// Collection type. Must implement <see cref="nameof(IEnumerable<>)"/>.
-/// </typeparam>
-```
-
-**When to use:** Generic type references in documentation, logging, reflection scenarios.
-
-### 6. Null-Conditional Assignment
-
-Use `?.` and `?[]` on left side of assignment:
-
-```csharp
-// C# 14: Null-conditional assignment
-customer?.Order = GetCurrentOrder();           // Only assigns if customer not null
-
-users?[index].Status = UserStatus.Active;      // Only assigns if users not null
-
-// Compound assignment also works
-config?.Timeout += TimeSpan.FromSeconds(10);
-```
-
-**When to use:** Conditional property updates, avoiding explicit null checks.
-
-### 7. Partial Constructors and Events
-
-```csharp
-// File 1: Definition
-public partial class Service {
-    partial Service(ILogger logger);              // Defining declaration
-    partial event EventHandler StatusChanged;      // Defining declaration
-}
-
-// File 2: Implementation
-public partial class Service {
-    partial Service(ILogger logger) {              // Implementing declaration
-        Logger = logger;
-    }
-
-    partial event EventHandler StatusChanged {     // Implementing declaration
-        add    => _statusChanged += value;
-        remove => _statusChanged -= value;
-    }
-}
-```
-
-**When to use:** Source generators, splitting concerns across files.
-
-### 8. User-Defined Compound Assignment
-
-```csharp
-public static class Vector {
-    public static Vector operator + (Vector left, Vector right) =>
-        new Vector(left.X + right.X, left.Y + right.Y);
-
-    // C# 14: Compound assignment (+=, -=, etc.)
-}
-
-// Usage:
-vector += otherVector;  // Uses operator + and assigns
-```
-
-**When to use:** Custom types with arithmetic operations.
+| Feature                     | Use Case                           | Example                                                                         |
+|-----------------------------|------------------------------------|---------------------------------------------------------------------------------|
+| Extension members           | Replace static utility classes     | `extension<T>(IEnumerable<T> source) { public bool IsEmpty => !source.Any(); }` |
+| `field` keyword             | Property validation/transformation | `set => field = value?.Trim() ?? throw ...;`                                    |
+| First-class Span            | High-performance APIs              | Design APIs accepting `ReadOnlySpan<T>`                                         |
+| Lambda param modifiers      | Delegates with `ref`/`out`/`in`    | `(text, out result) => int.TryParse(...)`                                       |
+| `nameof` unbound generics   | Type refs in docs/logging          | `nameof(List<>)` → `"List"`                                                     |
+| Null-conditional assignment | Conditional property updates       | `customer?.Order = GetCurrentOrder();`                                          |
+| Partial constructors/events | Source generators                  | `partial Service(ILogger logger);`                                              |
+| Compound assignment         | Custom arithmetic types            | `vector += otherVector;`                                                        |
 
 ## .NET 10 Performance Patterns
 
@@ -551,12 +399,10 @@ var item = new ItemBuilder()
 Comprehensive references in `references/` directory:
 
 1. **csharp14_features.md** - Complete C# 14 feature guide with examples
-2. **dotnet10_performance.md** - .NET 10 JIT and runtime optimizations
-3. **coding_standards.md** - Class organization, vertical alignment, patterns
-4. **documentation_standards.md** - XML documentation rules and examples
-5. **testing_standards.md** - TUnit, Shouldly, FakeItEasy patterns
-6. **performance_guidelines.md** - Memory management, SIMD, optimization strategies
-7. **examples.md** - Complete code examples showing all patterns
+2. **coding_standards.md** - Class organization, vertical alignment, patterns
+3. **documentation_standards.md** - XML documentation rules and examples
+4. **testing_standards.md** - TUnit, Shouldly, FakeItEasy patterns
+5. **performance_guidelines.md** - .NET 10 JIT, memory management, SIMD, optimization strategies
 
 ## User Preference System
 

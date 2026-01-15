@@ -1,0 +1,132 @@
+// ******************************************************************************************
+// This protocol is UNSTABLE in the sense of being subject to change.
+// ******************************************************************************************
+
+edition = "2023";
+
+package kurrentdb.protocol.v2.streams;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "KurrentDB.Protocol.V2.Streams";
+
+// Record retrieved from the database.
+message Record {
+  // The unique identifier of the record in the database.
+  string record_id = 1;
+
+  // The position of the record in the database.
+  RecordPosition position = 2;
+
+  // Schema information for interpreting the record data.
+  SchemaInfo schema = 3;
+
+  // The actual data payload of the record, stored as bytes.
+  bytes data = 4;
+
+  // Additional information about the record.
+  map<string, google.protobuf.Value> properties = 5;
+
+  // When the record was created.
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+// Batch of records.
+message Records {
+  repeated Record records = 1;
+}
+
+// A position in the log, optionally enriched with stream context.
+//
+// The position is the primary identifier - it uniquely identifies a record
+// in the log. All other fields are contextual information that can be derived
+// from the record itself, but are included for convenience.
+//
+// Used for:
+// - Checkpoints: Represents processing progress (all records up to and
+//   including this position have been successfully processed)
+// - Head positions: Represents the latest/newest position in a stream
+//   or the log, used for lag calculation
+// - Start positions: Specifies where to begin processing
+//
+// Stream ID structure:
+// KurrentDB stream IDs can contain multiple parts:
+// - Category: optional prefix before `-` (e.g., "orders" in "orders-123")
+// - Entity ID: the unique identifier (e.g., "123" in "orders-123")
+// - Partition: optional suffix after `!` (e.g., "games!1" for partition 1)
+//
+// Examples:
+//
+//   1. Log position only (minimal, sufficient for unique identification)
+//      { position: 4815162342 }
+//
+//   2. Log position with stream context
+//      { position: 4815162342, stream: "orders-123", stream_revision: 99 }
+//
+//   3. Stream head position (for lag calculation)
+//      { stream: "orders-123", stream_revision: 150 }
+//
+//   4. $all head position
+//      { stream: "$all", position: 5000000000 }
+//
+//   5. Partitioned stream
+//      { position: 4815162342, stream: "games!1", stream_revision: 100 }
+//
+// Note on scavenged/archived positions:
+// If a checkpointed position no longer exists (was scavenged or archived),
+// the server automatically finds the next available position. The worker
+// does not need to handle this case.
+message RecordPosition {
+  // Global log position.
+  //
+  // The position in the $all stream. This is the primary identifier
+  // that uniquely identifies a record in the log.
+  int64 position = 1;
+
+  // The stream name (optional context).
+  //
+  // Provides stream context for the position. Can be derived from the
+  // record at position, but included for convenience.
+  //
+  // For partitioned streams, includes the partition suffix (e.g., "games!1").
+  string stream = 2;
+
+  // Position within the stream (optional context).
+  //
+  // The zero-based index of the record within the stream.
+  // Can be derived from the record at position, but included
+  // for stream-specific progress tracking and lag calculation.
+  int64 stream_revision = 3;
+}
+
+// Represents the data format of the schema.
+enum SchemaFormat {
+  SCHEMA_FORMAT_UNSPECIFIED = 0;
+  SCHEMA_FORMAT_JSON        = 1;
+  SCHEMA_FORMAT_PROTOBUF    = 2;
+  SCHEMA_FORMAT_AVRO        = 3;
+  SCHEMA_FORMAT_BYTES       = 4;
+}
+
+// Schema information for record validation and interpretation.
+message SchemaInfo {
+  // The format of the data payload.
+  // Determines how the bytes in Record.data should be interpreted.
+  SchemaFormat format = 1 [default = SCHEMA_FORMAT_UNSPECIFIED];
+
+  // The schema name (replaces the legacy "event type" concept).
+  // Identifies what kind of data this record contains.
+  //
+  // Common naming formats:
+  //   - Kebab-case: "order-placed", "customer-registered"
+  //   - URN format: "urn:kurrentdb:events:order-placed:v1"
+  //   - Dotted namespace: "Teams.Player.V1", "Orders.OrderPlaced.V2"
+  //   - Reverse domain: "com.acme.orders.placed"
+  string name = 2;
+
+  // The identifier of the specific version of the schema that the record payload
+  // conforms to. This should match a registered schema version in the system.
+  // Not necessary when not enforcing schema validation.
+  string id = 3;
+}

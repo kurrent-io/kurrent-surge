@@ -9,9 +9,9 @@ namespace Kurrent.Client.Schema {
         ISchemaNameStrategy NameStrategy { get; set; } = new MessageSchemaNameStrategy();
 
         /// <summary>
-        /// Sets the schema name strategy to use for automatic mapping.
+        /// Sets the naming strategy to use for automatic schema name generation.
         /// </summary>
-        public MessageMappingBuilder WithNameStrategy(ISchemaNameStrategy strategy) {
+        public MessageMappingBuilder WithStrategy(ISchemaNameStrategy strategy) {
             NameStrategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
             return this;
         }

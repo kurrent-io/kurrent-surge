@@ -26,8 +26,7 @@ public readonly record struct ExpectedStreamState {
         Value = value switch {
             -1 or -2 or -4 or >= 0 => value,
             -1000                  => -2, // Special case for unset revision to Any
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(value), value, "ExpectedStreamState must be NoStream(-1), Any(-2), StreamExists(-4), or a StreamRevision(0+)")
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "ExpectedStreamState must be NoStream(-1), Any(-2), StreamExists(-4), or a StreamRevision(0+)")
         };
     }
 

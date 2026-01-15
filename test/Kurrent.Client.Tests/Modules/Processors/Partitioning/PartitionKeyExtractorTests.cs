@@ -1,0 +1,428 @@
+using Kurrent.Client.Processors.Partitioning;
+using Kurrent.Client.Streams;
+using Kurrent.Client.Tests.Filters;
+
+namespace Kurrent.Client.Tests.Modules.Processors.Partitioning;
+
+[Category("Processors")]
+public class PartitionKeyExtractorTests {
+    readonly RecordFaker _faker = new();
+
+    #region . Factory Methods .
+
+    [Test]
+    public async Task create_returns_none_for_empty_expression() {
+        var extractor = PartitionKeyExtractor.Create("");
+
+        await Assert.That(extractor).IsEqualTo(PartitionKeyExtractor.None);
+    }
+
+    [Test]
+    public async Task create_returns_none_for_whitespace_expression() {
+        var extractor = PartitionKeyExtractor.Create("   ");
+
+        await Assert.That(extractor).IsEqualTo(PartitionKeyExtractor.None);
+    }
+
+    [Test]
+    public async Task create_throws_for_invalid_expression() {
+        await Assert.That(() => PartitionKeyExtractor.Create("!!!invalid")).Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task try_create_returns_success_for_valid_expression() {
+        var result = PartitionKeyExtractor.TryCreate("stream");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsNotNull();
+    }
+
+    [Test]
+    public async Task try_create_returns_failure_for_invalid_expression() {
+        var result = PartitionKeyExtractor.TryCreate("!!!invalid");
+
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error).IsNotNull();
+        await Assert.That(result.Error!.ErrorMessage).Contains("parse error");
+        await Assert.That(result.Error!.Position).IsEqualTo(0);
+        await Assert.That(result.Error!.NearToken).IsNotNull();
+    }
+
+    #endregion
+
+    #region . Built-in Property Extraction .
+
+    [Test]
+    public async Task extracts_stream_value() {
+        var extractor = PartitionKeyExtractor.Create("stream");
+        var record    = _faker.With(stream: "orders-123");
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("orders-123");
+    }
+
+    [Test]
+    public async Task extracts_schema_name_value() {
+        var extractor = PartitionKeyExtractor.Create("schema_name");
+        var record    = _faker.With(schemaName: "OrderCreated");
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("OrderCreated");
+    }
+
+    [Test]
+    public async Task extracts_schema_alias_value() {
+        var extractor = PartitionKeyExtractor.Create("schema");
+        var record    = _faker.With(schemaName: "OrderCreated");
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("OrderCreated");
+    }
+
+    [Test]
+    public async Task extracts_position_value() {
+        var extractor = PartitionKeyExtractor.Create("position");
+        var record    = _faker.With(position: 12345);
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("12345");
+    }
+
+    [Test]
+    public async Task extracts_pos_alias_value() {
+        var extractor = PartitionKeyExtractor.Create("pos");
+        var record    = _faker.With(position: 12345);
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("12345");
+    }
+
+    [Test]
+    public async Task extracts_timestamp_value() {
+        var extractor = PartitionKeyExtractor.Create("timestamp");
+        var timestamp = new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc);
+        var record    = _faker.With(timestamp: timestamp);
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsNotNull();
+        await Assert.That(key!).Contains("2024-06-15");
+    }
+
+    [Test]
+    public async Task extracts_ts_alias_value() {
+        var extractor = PartitionKeyExtractor.Create("ts");
+        var timestamp = new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc);
+        var record    = _faker.With(timestamp: timestamp);
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsNotNull();
+        await Assert.That(key!).Contains("2024-06-15");
+    }
+
+    [Test]
+    public async Task extracts_stream_revision_value() {
+        var extractor = PartitionKeyExtractor.Create("stream_revision");
+        var record    = _faker.With(streamRevision: 42);
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("42");
+    }
+
+    [Test]
+    public async Task extracts_revision_alias_value() {
+        var extractor = PartitionKeyExtractor.Create("revision");
+        var record    = _faker.With(streamRevision: 42);
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("42");
+    }
+
+    [Test]
+    public async Task extracts_record_id_value() {
+        var extractor = PartitionKeyExtractor.Create("record_id");
+        var record    = _faker.With();
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsNotNull();
+        // Guid without dashes (for consistent hashing)
+        await Assert.That(key!).DoesNotContain("-");
+        await Assert.That(key.Length).IsEqualTo(32);
+    }
+
+    [Test]
+    public async Task extracts_id_alias_value() {
+        var extractor = PartitionKeyExtractor.Create("id");
+        var record    = _faker.With();
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsNotNull();
+        await Assert.That(key!.Length).IsEqualTo(32);
+    }
+
+    #endregion
+
+    #region . Metadata Property Extraction .
+
+    [Test]
+    public async Task extracts_properties_bracket_notation() {
+        var extractor = PartitionKeyExtractor.Create("properties['tenantId']");
+        var record    = _faker.With(metadata: new Metadata().With("tenantId", "tenant-abc"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("tenant-abc");
+    }
+
+    [Test]
+    public async Task extracts_properties_dot_notation() {
+        var extractor = PartitionKeyExtractor.Create("properties.customerId");
+        var record    = _faker.With(metadata: new Metadata().With("customerId", "cust-123"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("cust-123");
+    }
+
+    [Test]
+    public async Task extracts_props_alias_bracket_notation() {
+        var extractor = PartitionKeyExtractor.Create("props['region']");
+        var record    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("us-east");
+    }
+
+    [Test]
+    public async Task extracts_props_alias_dot_notation() {
+        var extractor = PartitionKeyExtractor.Create("props.region");
+        var record    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("us-east");
+    }
+
+    [Test]
+    public async Task returns_null_for_missing_property() {
+        var extractor = PartitionKeyExtractor.Create("properties['missing']");
+        var record    = _faker.With();
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsNull();
+    }
+
+    [Test]
+    public async Task extracts_numeric_property_as_string() {
+        var extractor = PartitionKeyExtractor.Create("properties.amount");
+        var record    = _faker.With(metadata: new Metadata().With("amount", 12345));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("12345");
+    }
+
+    [Test]
+    public async Task extracts_guid_property_without_dashes() {
+        var extractor = PartitionKeyExtractor.Create("properties.correlationId");
+        var guid      = Guid.NewGuid();
+        var record    = _faker.With(metadata: new Metadata().With("correlationId", guid));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsNotNull();
+        await Assert.That(key!).IsEqualTo(guid.ToString("N"));
+        await Assert.That(key).DoesNotContain("-");
+    }
+
+    #endregion
+
+    #region . Expression Property .
+
+    [Test]
+    public async Task preserves_original_expression() {
+        var extractor = PartitionKeyExtractor.Create("properties['userId']");
+
+        await Assert.That(extractor.Expression).IsEqualTo("properties['userId']");
+    }
+
+    [Test]
+    public async Task none_extractor_has_empty_expression() {
+        await Assert.That(PartitionKeyExtractor.None.Expression).IsEqualTo(string.Empty);
+    }
+
+    #endregion
+
+    #region . Parser Edge Cases .
+
+    [Test]
+    public async Task handles_whitespace_around_expression() {
+        var extractor = PartitionKeyExtractor.Create("  stream  ");
+        var record    = _faker.With(stream: "orders");
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("orders");
+    }
+
+    [Test]
+    public async Task handles_bracket_key_with_special_characters() {
+        var extractor = PartitionKeyExtractor.Create("properties['user.id']");
+        var record    = _faker.With(metadata: new Metadata().With("user.id", "u123"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("u123");
+    }
+
+    [Test]
+    public async Task handles_bracket_key_with_spaces() {
+        var extractor = PartitionKeyExtractor.Create("properties['my key']");
+        var record    = _faker.With(metadata: new Metadata().With("my key", "value"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("value");
+    }
+
+    [Test]
+    public async Task handles_escaped_quote_in_bracket_key() {
+        var extractor = PartitionKeyExtractor.Create("properties['it\\'s']");
+        var record    = _faker.With(metadata: new Metadata().With("it's", "value"));
+
+        var key = extractor.Extract(record);
+
+        await Assert.That(key).IsEqualTo("value");
+    }
+
+    [Test]
+    public async Task rejects_trailing_content() {
+        var result = PartitionKeyExtractor.TryCreate("stream extra");
+
+        await Assert.That(result.IsFailure).IsTrue();
+    }
+
+    [Test]
+    public async Task rejects_comparison_operators() {
+        var result = PartitionKeyExtractor.TryCreate("stream = 'orders'");
+
+        await Assert.That(result.IsFailure).IsTrue();
+    }
+
+    [Test]
+    public async Task rejects_logical_operators() {
+        var result = PartitionKeyExtractor.TryCreate("stream AND schema");
+
+        await Assert.That(result.IsFailure).IsTrue();
+    }
+
+    #endregion
+
+    #region . Case Insensitivity .
+
+    [Test]
+    public async Task property_names_are_case_insensitive() {
+        var extractors = new[] {
+            PartitionKeyExtractor.Create("STREAM"),
+            PartitionKeyExtractor.Create("Stream"),
+            PartitionKeyExtractor.Create("stream")
+        };
+
+        var record = _faker.With(stream: "test-stream");
+
+        foreach (var extractor in extractors)
+            await Assert.That(extractor.Extract(record)).IsEqualTo("test-stream");
+    }
+
+    [Test]
+    public async Task property_aliases_are_case_insensitive() {
+        var extractors = new[] {
+            PartitionKeyExtractor.Create("PROPS.key"),
+            PartitionKeyExtractor.Create("Props.key"),
+            PartitionKeyExtractor.Create("props.key")
+        };
+
+        var record = _faker.With(metadata: new Metadata().With("key", "value"));
+
+        foreach (var extractor in extractors)
+            await Assert.That(extractor.Extract(record)).IsEqualTo("value");
+    }
+
+    #endregion
+
+    #region . Determinism .
+
+    [Test]
+    public async Task extraction_is_deterministic() {
+        var extractor = PartitionKeyExtractor.Create("properties.key");
+        var record    = _faker.With(metadata: new Metadata().With("key", "consistent-value"));
+
+        var key1 = extractor.Extract(record);
+        var key2 = extractor.Extract(record);
+        var key3 = extractor.Extract(record);
+
+        await Assert.That(key1).IsEqualTo(key2);
+        await Assert.That(key2).IsEqualTo(key3);
+    }
+
+    [Test]
+    public async Task same_expression_produces_same_results() {
+        var extractor1 = PartitionKeyExtractor.Create("stream");
+        var extractor2 = PartitionKeyExtractor.Create("stream");
+        var record     = _faker.With(stream: "test");
+
+        await Assert.That(extractor1.Extract(record)).IsEqualTo(extractor2.Extract(record));
+    }
+
+    #endregion
+
+    #region . Integration with PartitionCalculator .
+
+    [Test]
+    public async Task extracted_key_works_with_partition_calculator() {
+        var extractor  = PartitionKeyExtractor.Create("properties['tenantId']");
+        var calculator = PartitionCalculator.Default;
+        var record     = _faker.With(metadata: new Metadata().With("tenantId", "tenant-123"));
+
+        var key = extractor.Extract(record);
+        await Assert.That(key).IsNotNull();
+
+        var partition = calculator.For(key!, maxParallelism: 128);
+
+        await Assert.That(partition).IsGreaterThanOrEqualTo(0);
+        await Assert.That(partition).IsLessThan(128);
+    }
+
+    [Test]
+    public async Task same_key_always_maps_to_same_partition() {
+        var extractor  = PartitionKeyExtractor.Create("properties.customerId");
+        var calculator = PartitionCalculator.Default;
+
+        var record1 = _faker.With(metadata: new Metadata().With("customerId", "cust-abc"));
+        var record2 = _faker.With(metadata: new Metadata().With("customerId", "cust-abc"));
+
+        var key1 = extractor.Extract(record1);
+        var key2 = extractor.Extract(record2);
+
+        await Assert.That(key1).IsEqualTo(key2);
+
+        var partition1 = calculator.For(key1!, 128);
+        var partition2 = calculator.For(key2!, 128);
+
+        await Assert.That(partition1).IsEqualTo(partition2);
+    }
+
+    #endregion
+}

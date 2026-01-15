@@ -1,0 +1,40 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+
+  "output": {
+    "filePath": ".project/repomix/output/repomix-output.balanced.xml",
+    "style": "xml",
+    "compress": false,
+    "removeComments": true,
+    "removeEmptyLines": true,
+    "includeFullDirectoryStructure": true,
+    "includeEmptyDirectories": false,
+    "git": {
+      "sortByChanges": true
+    },
+    "instructionFilePath": ".project/project.md"
+  },
+
+  "include": [
+    "src/**/*.cs",
+    "src/**/*.csproj",
+    "proto/**/*.proto",
+    "*.slnx",
+    "Directory.Build.props",
+    "Directory.Packages.props"
+  ],
+
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": []
+  },
+
+  "security": {
+    "enableSecurityCheck": true
+  },
+
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

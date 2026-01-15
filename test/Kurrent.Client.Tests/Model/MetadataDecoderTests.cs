@@ -7,7 +7,7 @@ namespace Kurrent.Client.Tests.Model;
 
 public class MetadataDecoderTests {
     [Test]
-    public void metadata_can_be_locked() {
+    public async ValueTask metadata_can_be_locked() {
         var originalMetadata = new Metadata()
             .With(SystemMetadataKeys.SchemaName, "test-schema")
             .With(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Protobuf)
@@ -46,7 +46,7 @@ public class MetadataDecoderTests {
 
         var sut1 = new DefaultMetadataDecoder();
 
-        var metadata1 = sut1.Decode(bytes, new MetadataDecoderContext(StreamName.None, SchemaName.None, SchemaDataFormat.Json));
+        var metadata1 = await sut1.Decode(bytes, new MetadataDecoderContext(StreamName.None, SchemaName.None, SchemaDataFormat.Json));
 
         var myInt2  = metadata1.GetOrDefault<string>("int-value");
         var myDate1 = metadata1.GetOrDefault<DateTime>("datetime-value");

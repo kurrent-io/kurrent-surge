@@ -1,5 +1,7 @@
 # TUnit API Reference
 
+> **Version:** TUnit 1.9.x | **Official Docs:** https://tunit.dev
+
 Complete reference for all TUnit attributes, assertions, and lifecycle management features.
 
 ## Lifecycle Attributes
@@ -617,15 +619,90 @@ await Assert.That(str).IsNullOrWhiteSpace();
 ### Collection Assertions
 
 ```csharp
+// Basic collection operations
 await Assert.That(collection).HasCount(5);
 await Assert.That(collection).IsEmpty();
 await Assert.That(collection).IsNotEmpty();
+await Assert.That(collection).HasSingleItem();
 await Assert.That(collection).Contains(expectedItem);
+await Assert.That(collection).Contains(x => x.Id == "123"); // Predicate
 await Assert.That(collection).DoesNotContain(unexpectedItem);
-await Assert.That(collection).ContainsOnly(item1, item2);
-await Assert.That(collection).All(predicate);
-await Assert.That(collection).Any(predicate);
-await Assert.That(collection).None(predicate);
+await Assert.That(collection).DoesNotContain(x => x.IsDeleted);
+
+// Predicate-based assertions
+await Assert.That(collection).All(x => x.IsValid);
+await Assert.That(collection).Any(x => x.Status == Status.Active);
+
+// Ordering
+await Assert.That(collection).IsInOrder(); // Ascending
+await Assert.That(collection).IsInDescendingOrder();
+await Assert.That(collection).IsOrderedBy(x => x.Name);
+await Assert.That(collection).IsOrderedByDescending(x => x.CreatedAt);
+
+// Equivalency (order-independent)
+await Assert.That(collection).IsEquivalentTo(expectedItems);
+await Assert.That(collection).IsNotEquivalentTo(otherItems);
+
+// Structural comparison (deep equality)
+await Assert.That(collection).IsStructurallyEqualTo(expected);
+
+// Uniqueness
+await Assert.That(collection).HasDistinctItems();
+```
+
+### Dictionary Assertions (v1.9+)
+
+```csharp
+await Assert.That(dictionary).ContainsKey("key");
+await Assert.That(dictionary).DoesNotContainKey("missing");
+await Assert.That(dictionary).ContainsValue(expectedValue);
+await Assert.That(dictionary).HasCount(3);
+await Assert.That(dictionary).IsEmpty();
+await Assert.That(dictionary).IsNotEmpty();
+```
+
+### Set Assertions (v1.9+)
+
+```csharp
+await Assert.That(hashSet).Contains(item);
+await Assert.That(hashSet).DoesNotContain(item);
+await Assert.That(hashSet).HasCount(5);
+await Assert.That(hashSet).IsEmpty();
+await Assert.That(hashSet).IsNotEmpty();
+await Assert.That(hashSet).IsSubsetOf(superSet);
+await Assert.That(hashSet).IsSupersetOf(subSet);
+```
+
+### Memory/Span Assertions (v1.9+)
+
+```csharp
+await Assert.That(memory).IsNotEmpty();
+await Assert.That(memory).HasLength(10);
+await Assert.That(memory.ToArray()).Contains(expectedByte);
+await Assert.That(readOnlyMemory).IsEquivalentTo(expectedMemory);
+```
+
+### AsyncEnumerable Assertions (v1.9+)
+
+```csharp
+await Assert.That(asyncStream).Contains(expectedItem);
+await Assert.That(asyncStream).HasCount(5);
+await Assert.That(asyncStream).IsEmpty();
+await Assert.That(asyncStream).IsNotEmpty();
+await Assert.That(asyncStream).All(x => x.IsValid);
+```
+
+### List Assertions (v1.9+)
+
+```csharp
+await Assert.That(list).HasCount(5);
+await Assert.That(list).Contains(item);
+await Assert.That(list).IsInOrder();
+await Assert.That(list).HasDistinctItems();
+
+// ReadOnlyList
+await Assert.That(readOnlyList).Contains(item);
+await Assert.That(readOnlyList).HasCount(3);
 ```
 
 ### Null Assertions
@@ -638,23 +715,52 @@ await Assert.That(value).IsNotNull();
 ### Exception Assertions
 
 ```csharp
-// Assert exception is thrown
+// Assert exception is thrown (or subclass)
 await Assert.That(() => ThrowingMethod())
     .Throws<InvalidOperationException>();
 
-// Assert specific exception type
+// Assert exact exception type (no subclasses)
 await Assert.That(() => ThrowingMethod())
     .ThrowsExactly<ArgumentNullException>();
 
-// Assert exception message
-await Assert.That(() => ThrowingMethod())
-    .Throws<ArgumentException>()
-    .WithMessage("Expected message");
+// Assert no exception thrown
+await Assert.That(() => SafeMethod())
+    .ThrowsNothing();
 
-// Assert exception with predicate
+// Assert exception type at runtime
+await Assert.That(() => ThrowingMethod())
+    .Throws(typeof(InvalidOperationException));
+
+// Message validation
 await Assert.That(() => ThrowingMethod())
     .Throws<ArgumentException>()
-    .Where(ex => ex.ParamName == "paramName");
+    .WithMessage("Expected message"); // Exact match
+
+await Assert.That(() => ThrowingMethod())
+    .Throws<ArgumentException>()
+    .WithMessageContaining("partial"); // Substring (case-insensitive supported)
+
+await Assert.That(() => ThrowingMethod())
+    .Throws<ArgumentException>()
+    .WithMessageNotContaining("unexpected");
+
+await Assert.That(() => ThrowingMethod())
+    .Throws<ArgumentException>()
+    .WithMessageMatching(@"Error code: \d+"); // Regex pattern
+
+// ArgumentException-specific: Parameter name validation
+await Assert.That(() => ThrowingMethod())
+    .Throws<ArgumentNullException>()
+    .WithParameterName("paramName");
+
+// Inner exception tracking
+await Assert.That(() => ThrowingMethod())
+    .Throws<AggregateException>()
+    .WithInnerException<InvalidOperationException>();
+
+// Async delegate assertions
+await Assert.That(async () => await ThrowingAsyncMethod())
+    .Throws<InvalidOperationException>();
 ```
 
 ### Async Assertions

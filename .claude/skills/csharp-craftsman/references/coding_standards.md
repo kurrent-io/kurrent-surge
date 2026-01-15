@@ -4,6 +4,16 @@ Last updated: 2025-06-09
 
 > **Usage**: Reference this guide for detailed C# formatting, organization, and advanced language patterns.
 
+## Table of Contents
+
+- [Class Organization - Complete Reference](#class-organization---complete-reference)
+- [Advanced Vertical Alignment Patterns](#advanced-vertical-alignment-patterns)
+- [Advanced Language Patterns](#advanced-language-patterns)
+- [Performance-Oriented Patterns](#performance-oriented-patterns)
+- [Error Handling Patterns](#error-handling-patterns)
+
+---
+
 ## Class Organization - Complete Reference
 
 ### Complete Member Ordering Rules
