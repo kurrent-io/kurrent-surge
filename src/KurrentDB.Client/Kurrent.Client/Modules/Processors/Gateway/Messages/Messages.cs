@@ -93,7 +93,6 @@ public readonly record struct CheckpointBarrier(
 
 /// <summary>
 /// Messages sent from the Processor Controller (server) to the worker.
-/// (Equivalent to the Checkpoint Coordinator from the Job Manager in Apache Flink).
 /// </summary>
 [PublicAPI]
 public readonly partial record struct ProcessorControlMessage : IVariant<

@@ -2,6 +2,14 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
+  <Folder Name="/Examples/">
+    <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
+    <Project Path="examples/processors/Processor.Minimal/Processor.Minimal.csproj" />
+    <Project Path="examples/processors/Processor.AspNetMinimal/Processor.AspNetMinimal.csproj" />
+    <Project Path="examples/processors/Processor.WithPostgres/Processor.WithPostgres.csproj" />
+    <Project Path="examples/processors/Processor.WithRedisCache/Processor.WithRedisCache.csproj" />
+    <Project Path="examples/processors/Processor.FullExample/Processor.FullExample.csproj" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />

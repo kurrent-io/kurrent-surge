@@ -5,7 +5,7 @@ namespace Kurrent.Client.Streams.Processing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Provides access to three types of state inspired by Apache Flink's state model:
+/// Provides access to three types of state:
 /// <list type="bullet">
 /// <item><see cref="Value{T}"/> - Single value per key (most common)</item>
 /// <item><see cref="Map{TKey,TValue}"/> - Key-value dictionary per state key</item>

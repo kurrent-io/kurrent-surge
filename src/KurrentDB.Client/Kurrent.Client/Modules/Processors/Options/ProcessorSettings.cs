@@ -6,7 +6,7 @@ namespace Kurrent.Client.Streams;
 /// Configuration settings for a processor.
 /// </summary>
 [PublicAPI]
-public record ProcessorSettings {
+public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettingsValidator> {
     /// <summary>
     /// Unique identifier for the processor group.
     /// </summary>
@@ -41,7 +41,6 @@ public record ProcessorSettings {
     /// <para><b>Importance:</b> High</para>
     /// <para>
     /// Determines the upper bound for parallel processing.
-    /// Similar to Flink's <c>setMaxParallelism()</c>.
     /// </para>
     /// </remarks>
     public int MaxParallelism { get; init; } = 128;
@@ -189,23 +188,26 @@ public record BatchingSettings {
     /// Maximum number of records per batch.
     /// </summary>
     /// <remarks>
-    /// <para><b>Default:</b> 100 records</para>
+    /// <para><b>Default:</b> 200 records</para>
     /// <para><b>Importance:</b> Medium</para>
+    /// <para>
+    /// Middle ground between low-latency (100) and high-throughput (500).
+    /// </para>
     /// </remarks>
-    public int MaxSize { get; init; } = 100;
+    public int MaxSize { get; init; } = 200;
 
     /// <summary>
     /// Maximum time to wait for a full batch (milliseconds).
     /// </summary>
     /// <remarks>
-    /// <para><b>Default:</b> 100 milliseconds</para>
+    /// <para><b>Default:</b> 250 milliseconds</para>
     /// <para><b>Importance:</b> Medium</para>
     /// <para>
     /// Shorter timeouts reduce latency but may result in smaller batches.
     /// Longer timeouts allow larger batches but increase delivery delay.
     /// </para>
     /// </remarks>
-    public long Timeout { get; init; } = 100;
+    public long Timeout { get; init; } = 250;
 }
 
 /// <summary>
@@ -214,8 +216,9 @@ public record BatchingSettings {
 [PublicAPI]
 public record CheckpointSettings {
     public static readonly CheckpointSettings Default = new() {
-        Threshold = 10000,
-        Interval  = 30000
+        Threshold = 5000,
+        Interval  = 30000,
+        Timeout   = 30000
     };
 
     /// <summary>
@@ -224,6 +227,9 @@ public record CheckpointSettings {
     /// <remarks>
     /// <para><b>Default:</b> 30000 milliseconds (30 seconds)</para>
     /// <para><b>Importance:</b> High</para>
+    /// <para>
+    /// Balances fault tolerance with I/O overhead.
+    /// </para>
     /// </remarks>
     public long Interval { get; init; } = 30000;
 
@@ -231,51 +237,27 @@ public record CheckpointSettings {
     /// Record count threshold for checkpoint trigger.
     /// </summary>
     /// <remarks>
-    /// <para />
-    /// [ <b>Default:</b> 10.000 | <b>Importance:</b> High ]
-    /// <para />
+    /// <para><b>Default:</b> 5000 records</para>
+    /// <para><b>Importance:</b> High</para>
+    /// <para>
     /// When this many records have been processed since the last checkpoint, a new checkpoint is triggered.
-    /// <para />
-    /// The number of records that can be tracked before attempting to commit a checkpoint.
-    /// If the consumer is set to checkpoint every 2,000 records, but it only reads from the `foo` stream,
-    /// the consumer only checkpoints every 2,000 `foo` records.
-    /// <para />
-    /// A record is also considered handled (skipped actually) if it passed through the processor's filter.
-    /// <para />
+    /// Lower threshold means more frequent checkpoints and better fault tolerance at the cost of more I/O.
+    /// </para>
     /// </remarks>
-    public int Threshold { get; init; } = 10000;
-
-    /// <summary>
-    /// The number of records that can be tracked before attempting to commit a checkpoint.
-    /// If the consumer is set to checkpoint every 2,000 records, but it only reads from the `foo` stream,
-    /// the consumer only checkpoints every 2,000 `foo` records.
-    /// A record is also considered handled (skipped actually) if it actually passed through the processor's filter.
-    /// <para />
-    /// [ Default: 2000 | Importance: high ]
-    /// </summary>
+    public int Threshold { get; init; } = 5000;
 
     /// <summary>
     /// Maximum time to wait for workers to acknowledge checkpoint (milliseconds).
     /// </summary>
     /// <remarks>
-    /// <para><b>Default:</b> 60000 milliseconds (60 seconds)</para>
+    /// <para><b>Default:</b> 30000 milliseconds (30 seconds)</para>
     /// <para><b>Importance:</b> Medium</para>
-    /// </remarks>
-    public long Timeout { get; init; } = 60000;
-
-    /// <summary>
-    /// Duration after which a checkpoint barrier is triggered when server-side filter
-    /// matches no records (milliseconds). Set to 0 to disable.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Default:</b> 300000 milliseconds (5 minutes)</para>
-    /// <para><b>Importance:</b> Low</para>
     /// <para>
-    /// Ensures checkpoints occur even when filtered streams have sparse matching records.
-    /// Only relevant when using server-side filtering.
+    /// Faster detection of stuck workers. If a worker doesn't acknowledge within this time,
+    /// it's considered failed and partitions can be reassigned.
     /// </para>
     /// </remarks>
-    public long FilterTimeout { get; init; } = 300000;
+    public long Timeout { get; init; } = 30000;
 
     /// <summary>
     /// Number of completed checkpoints to retain.

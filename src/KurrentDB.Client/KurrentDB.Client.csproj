@@ -160,6 +160,7 @@
     <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
       <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
     </Folder>
+    <Folder Include="Kurrent.Client\Modules\Processors\Options\" />
     <Folder Include="Kurrent\Grpc\LoadBalancing\" />
   </ItemGroup>
 

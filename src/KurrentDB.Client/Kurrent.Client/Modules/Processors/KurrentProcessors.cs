@@ -51,7 +51,8 @@ public static class KurrentProcessors {
     ///     .RunAsync(stoppingToken);
     /// </code>
     /// </example>
-    public static KurrentProcessorBuilder Create(IRecordProcessorFactory processorFactory) => new(processorFactory);
+    public static KurrentProcessorBuilder Create(IRecordProcessorFactory processorFactory) =>
+        new(processorFactory, processorTypeName: null);
 
     /// <summary>
     /// Creates a builder for the specified processor instance.
@@ -66,5 +67,8 @@ public static class KurrentProcessors {
     ///     .RunAsync(stoppingToken);
     /// </code>
     /// </example>
-    public static KurrentProcessorBuilder Create(IRecordProcessor processor) => Create(new PassthroughRecordProcessorFactory(processor));
+    public static KurrentProcessorBuilder Create(IRecordProcessor processor) {
+        var typeName = processor.GetType().Name;
+        return new KurrentProcessorBuilder(new PassthroughRecordProcessorFactory(processor), typeName);
+    }
 }

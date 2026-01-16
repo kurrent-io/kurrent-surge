@@ -44,8 +44,9 @@ sealed partial class ProcessorWorkerV2 : IProcessorWorker {
         _progress = new ProcessorProgressTracker(TimeProvider.System);
     }
 
-    public string ProcessorId => _settings.ProcessorId;
-    public string WorkerId    => _settings.WorkerId;
+    public string ProcessorId           => _settings.ProcessorId;
+    public string WorkerId              => _settings.WorkerId;
+    public ProcessorSettings Settings   => _settings;
 
     SessionId _sessionId = SessionId.None;
 

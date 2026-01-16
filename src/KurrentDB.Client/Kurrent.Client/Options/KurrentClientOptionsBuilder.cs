@@ -3,6 +3,7 @@
 using Grpc.Core.Interceptors;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client;
@@ -106,6 +107,83 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     public static KurrentClientOptionsBuilder FromConnectionString(string connectionString) {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         return new KurrentClientOptionsBuilder(KurrentClientOptions.Parse(connectionString));
+    }
+
+    /// <summary>
+    /// Loads client options from an <see cref="IConfiguration"/> section.
+    /// </summary>
+    /// <param name="configuration">The configuration root.</param>
+    /// <param name="sectionName">The section name under <c>Kurrent</c>. Defaults to "Client".</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Configuration is applied in layers:
+    /// </para>
+    /// <list type="number">
+    /// <item><c>ConnectionString</c> is parsed first to establish base settings (endpoints, auth, TLS)</item>
+    /// <item><c>Resilience</c>, <c>Gossip</c>, and <c>Schema</c> sections override the parsed values</item>
+    /// <item>Fluent builder methods can further override any setting</item>
+    /// </list>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // appsettings.json
+    /// // {
+    /// //   "Kurrent": {
+    /// //     "Client": {
+    /// //       "ConnectionString": "kurrentdb://localhost:2113",
+    /// //       "Resilience": { "Deadline": "00:00:30" }
+    /// //     }
+    /// //   }
+    /// // }
+    /// var client = KurrentClientOptionsBuilder.Create()
+    ///     .FromConfiguration(configuration)
+    ///     .CreateClient();
+    /// </code>
+    /// </example>
+    public KurrentClientOptionsBuilder FromConfiguration(
+        IConfiguration configuration,
+        string sectionName = "Client") {
+        var sectionPath = $"Kurrent:{sectionName}";
+        var section     = configuration.GetSection(sectionPath);
+
+        if (!section.Exists()) return this;
+
+        // 1. Parse ConnectionString first (if present) as base
+        var connectionString = section["ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(connectionString)) {
+            var baseOptions = KurrentClientOptions.Parse(connectionString);
+            With(_ => baseOptions);
+        }
+
+        // 2. Bind individual nested sections as overrides
+        var resilienceSection = section.GetSection("Resilience");
+        if (resilienceSection.Exists()) {
+            var resilience = resilienceSection.Get<KurrentClientResilienceOptions>();
+            if (resilience is not null)
+                ConfigureResilience(_ => resilience);
+        }
+
+        var gossipSection = section.GetSection("Gossip");
+        if (gossipSection.Exists()) {
+            var gossip = gossipSection.Get<KurrentClientGossipOptions>();
+            if (gossip is not null)
+                With(opts => opts with { Gossip = gossip });
+        }
+
+        var schemaSection = section.GetSection("Schema");
+        if (schemaSection.Exists()) {
+            var schema = schemaSection.Get<KurrentClientSchemaOptions>();
+            if (schema is not null)
+                With(opts => opts with { Schema = schema });
+        }
+
+        // 3. Bind ConnectionName if present (overrides connection string value)
+        var connectionName = section["ConnectionName"];
+        if (!string.IsNullOrWhiteSpace(connectionName))
+            ConfigureConnection(conn => conn.WithConnectionName(connectionName));
+
+        return this;
     }
 
     public KurrentClientOptionsBuilder ConfigureConnection(Action<ConnectionOptionsBuilder> configure) =>

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Processors.Gateway;
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams.Processing;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client.Streams;
@@ -79,6 +80,11 @@ public interface IProcessorWorker : IAsyncDisposable {
     ProcessorWorkerStatus Status { get; }
 
     /// <summary>
+    /// The configuration settings used by this processor worker.
+    /// </summary>
+    ProcessorSettings Settings { get; }
+
+    /// <summary>
     /// Runs the processor worker asynchronously until cancellation is requested.
     /// </summary>
     /// <param name="stoppingToken">Token to request cancellation of processing.</param>
@@ -97,7 +103,11 @@ sealed partial class ProcessorWorker : IProcessorWorker {
     readonly bool             _ownsClient;
     readonly ProgressTracker  _progress;
 
+    readonly IStateStore _state;
+
     IWorkerSession? _session;
+
+
 
     public ProcessorWorker(KurrentClient client, IRecordProcessor processor, ProcessorSettings settings, ILoggerFactory loggerFactory, bool ownsClient = true) {
         _client     = client;
@@ -119,10 +129,13 @@ sealed partial class ProcessorWorker : IProcessorWorker {
 
         _progress = new ProgressTracker(TimeProvider.System);
         _tracker  = new PartitionedPositionTracker(ImmutableDictionary<Partition, LogPosition>.Empty, LogPosition.Unset);
+
+        // _state = _client.Processors.CreateStateStore(_settings.ProcessorId, _settings.WorkerId);
     }
 
-    public string ProcessorId => _settings.ProcessorId;
-    public string WorkerId    => _settings.WorkerId;
+    public string ProcessorId           => _settings.ProcessorId;
+    public string WorkerId              => _settings.WorkerId;
+    public ProcessorSettings Settings   => _settings;
 
     SessionId _sessionId = SessionId.None;
 

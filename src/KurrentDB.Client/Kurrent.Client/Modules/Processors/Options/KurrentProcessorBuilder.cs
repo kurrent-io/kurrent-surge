@@ -1,3 +1,6 @@
+using Kurrent.Client.Schema.NameStrategies;
+using Microsoft.Extensions.Configuration;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -45,7 +48,8 @@ namespace Kurrent.Client.Streams;
 /// </example>
 [PublicAPI]
 public sealed class KurrentProcessorBuilder {
-    internal KurrentProcessorBuilder(IRecordProcessorFactory processorFactory) {
+    internal KurrentProcessorBuilder(IRecordProcessorFactory processorFactory, string? processorTypeName) {
+        _processorTypeName = processorTypeName;
         GetProcessor = () => {
             try {
                 return processorFactory.CreateProcessor();
@@ -55,14 +59,15 @@ public sealed class KurrentProcessorBuilder {
             }
         };
 
-        ProcessorSettings  = new ProcessorSettings();
-        GetClientOptions   = () => new KurrentClientOptions();
+        _settingsBuilder = new ProcessorSettingsBuilder();
+        GetClientOptions = () => new KurrentClientOptions();
     }
 
-    Func<IRecordProcessor>     GetProcessor       { get; set; }
-    ProcessorSettings          ProcessorSettings  { get; set; }
-    KurrentClient?             ProvidedClient     { get; set; }
-    Func<KurrentClientOptions> GetClientOptions   { get; set; }
+    string?                     _processorTypeName;
+    Func<IRecordProcessor>      GetProcessor     { get; set; }
+    ProcessorSettingsBuilder    _settingsBuilder;
+    KurrentClient?              ProvidedClient   { get; set; }
+    Func<KurrentClientOptions>  GetClientOptions { get; set; }
 
     /// <summary>
     /// Sets the connection string and configures client options in a single call.
@@ -147,6 +152,51 @@ public sealed class KurrentProcessorBuilder {
     public KurrentProcessorBuilder ConnectTo(string connectionString) => WithClient(connectionString, options => options);
 
     /// <summary>
+    /// Loads settings from an <see cref="IConfiguration"/> section based on the processor type name.
+    /// </summary>
+    /// <param name="configuration">The configuration root.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// The configuration section is determined by the processor type name.
+    /// For example, if the processor type is <c>TransferProcessor</c>, it will load from
+    /// <c>Kurrent:Processors:TransferProcessor</c>.
+    /// </para>
+    /// <para>
+    /// If <c>ProcessorId</c> is not set in config, it will be auto-generated from the processor type name
+    /// (e.g., <c>TransferProcessor</c> becomes <c>transfer_processor</c>).
+    /// </para>
+    /// <para>
+    /// Settings loaded from configuration can be overridden by subsequent fluent method calls.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when using <see cref="KurrentProcessors.Create(IRecordProcessorFactory)"/> since the
+    /// processor type is not known at builder creation time.
+    /// </exception>
+    /// <example>
+    /// <code>
+    /// var configuration = new ConfigurationBuilder()
+    ///     .AddJsonFile("appsettings.json")
+    ///     .Build();
+    ///
+    /// await KurrentProcessors.Create(new TransferProcessor())
+    ///     .ConnectTo("kurrentdb://localhost:2113")
+    ///     .FromConfiguration(configuration)
+    ///     .RunAsync(stoppingToken);
+    /// </code>
+    /// </example>
+    public KurrentProcessorBuilder FromConfiguration(IConfiguration configuration) {
+        if (_processorTypeName is null)
+            throw new InvalidOperationException(
+                "FromConfiguration is not supported when using IRecordProcessorFactory. " +
+                "Use KurrentProcessors.Create(processor) instead of Create(factory).");
+
+        _settingsBuilder.FromConfiguration(configuration, _processorTypeName);
+        return this;
+    }
+
+    /// <summary>
     /// Enables checkpointing for resumable processing with the specified processor ID.
     /// </summary>
     /// <param name="processorId">The processor group name for checkpoint storage.</param>
@@ -171,7 +221,7 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public KurrentProcessorBuilder WithProcessorId(string processorId) {
-        ProcessorSettings = ProcessorSettings with { ProcessorId = processorId };
+        _settingsBuilder.WithProcessorId(processorId);
         return this;
     }
 
@@ -199,7 +249,7 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public KurrentProcessorBuilder WithWorkerId(string workerId) {
-        ProcessorSettings = ProcessorSettings with { WorkerId = workerId };
+        _settingsBuilder.WithWorkerId(workerId);
         return this;
     }
 
@@ -211,11 +261,10 @@ public sealed class KurrentProcessorBuilder {
     /// <remarks>
     /// <para>
     /// Determines the upper bound for parallel processing.
-    /// Similar to Flink's <c>setMaxParallelism()</c>.
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithMaxParallelism(int maxParallelism) {
-        ProcessorSettings = ProcessorSettings with { MaxParallelism = maxParallelism };
+        _settingsBuilder.WithMaxParallelism(maxParallelism);
         return this;
     }
 
@@ -238,9 +287,7 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public KurrentProcessorBuilder WithFilter(IRecordFilter filter) {
-        ProcessorSettings = ProcessorSettings with {
-            Subscription = ProcessorSettings.Subscription with { Filter = filter }
-        };
+        _settingsBuilder.WithFilter(filter);
         return this;
     }
 
@@ -262,14 +309,7 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public KurrentProcessorBuilder WithFilterExpression(string filterExpression) {
-        // Create an ExpressionFilter from the expression string to enable server-side filtering
-        var filter = new ExpressionFilter(filterExpression);
-        ProcessorSettings = ProcessorSettings with {
-            Subscription = ProcessorSettings.Subscription with {
-                FilterExpression = filterExpression,
-                Filter = filter
-            }
-        };
+        _settingsBuilder.WithFilterExpression(filterExpression);
         return this;
     }
 
@@ -284,9 +324,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithPartitionKeySelector(string selector) {
-        ProcessorSettings = ProcessorSettings with {
-            Subscription = ProcessorSettings.Subscription with { PartitionKeySelector = selector }
-        };
+        _settingsBuilder.WithPartitionKeySelector(selector);
         return this;
     }
 
@@ -302,9 +340,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithInitialPosition(SubscriptionInitialPosition position) {
-        ProcessorSettings = ProcessorSettings with {
-            Subscription = ProcessorSettings.Subscription with { InitialPosition = position }
-        };
+        _settingsBuilder.WithInitialPosition(position);
         return this;
     }
 
@@ -320,9 +356,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithStartPosition(long position) {
-        ProcessorSettings = ProcessorSettings with {
-            Subscription = ProcessorSettings.Subscription with { StartPosition = position }
-        };
+        _settingsBuilder.WithStartPosition(position);
         return this;
     }
 
@@ -343,7 +377,7 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public KurrentProcessorBuilder WithBatching(BatchingSettings settings) {
-        ProcessorSettings = ProcessorSettings with { Batching = settings };
+        _settingsBuilder.WithBatching(settings);
         return this;
     }
 
@@ -363,7 +397,7 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public KurrentProcessorBuilder WithCheckpoint(CheckpointSettings settings) {
-        ProcessorSettings = ProcessorSettings with { Checkpoint = settings };
+        _settingsBuilder.WithCheckpoint(settings);
         return this;
     }
 
@@ -379,7 +413,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithBufferCapacity(int capacity) {
-        ProcessorSettings = ProcessorSettings with { BufferCapacity = capacity };
+        _settingsBuilder.WithBufferCapacity(capacity);
         return this;
     }
 
@@ -395,7 +429,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithSkipDecoding(bool skip = true) {
-        ProcessorSettings = ProcessorSettings with { SkipDecoding = skip };
+        _settingsBuilder.WithSkipDecoding(skip);
         return this;
     }
 
@@ -411,7 +445,46 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder ConfigureProcessing(Func<ProcessorSettings, ProcessorSettings> configure) {
-        ProcessorSettings = configure(ProcessorSettings);
+        _settingsBuilder.Configure(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures checkpoint settings using a transformation function.
+    /// </summary>
+    /// <param name="configure">
+    /// Function to transform checkpoint settings.
+    /// Use <c>with</c> expression for immutable updates.
+    /// </param>
+    /// <returns>The runner instance for method chaining.</returns>
+    public KurrentProcessorBuilder ConfigureCheckpointing(Func<CheckpointSettings, CheckpointSettings> configure) {
+        _settingsBuilder.ConfigureCheckpointing(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures batching settings using a transformation function.
+    /// </summary>
+    /// <param name="configure">
+    /// Function to transform batching settings.
+    /// Use <c>with</c> expression for immutable updates.
+    /// </param>
+    /// <returns>The runner instance for method chaining.</returns>
+    public KurrentProcessorBuilder ConfigureBatching(Func<BatchingSettings, BatchingSettings> configure) {
+        _settingsBuilder.ConfigureBatching(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures subscription settings using a transformation function.
+    /// </summary>
+    /// <param name="configure">
+    /// Function to transform subscription settings.
+    /// Use <c>with</c> expression for immutable updates.
+    /// </param>
+    /// <returns>The runner instance for method chaining.</returns>
+    public KurrentProcessorBuilder ConfigureSubscription(Func<SubscriptionSettings, SubscriptionSettings> configure) {
+        _settingsBuilder.ConfigureSubscription(configure);
         return this;
     }
 
@@ -437,10 +510,38 @@ public sealed class KurrentProcessorBuilder {
     /// </code>
     /// </example>
     public IProcessorWorker Build() {
+        var settings = _settingsBuilder.Settings;
+
+        // Auto-generate ProcessorId from processor type name if not explicitly set.
+        // We check if WorkerId is still the default (valid GUID) to detect if user set a custom value.
+        if (string.IsNullOrWhiteSpace(settings.ProcessorId)) {
+            if (Guid.TryParse(settings.WorkerId, out _)) {
+                // WorkerId is still the default GUID - generate ProcessorId from processor type name
+                var processor         = GetProcessor();
+                var processorTypeName = processor.GetType().Name;
+                var processorId       = processorTypeName.ToSnakeCase();
+
+                _settingsBuilder.WithProcessorId(processorId);
+            } else {
+                // WorkerId was explicitly set to a non-GUID value - use it as ProcessorId too
+                _settingsBuilder.WithProcessorId(settings.WorkerId);
+            }
+            settings = _settingsBuilder.Settings;
+        }
+
+        // Validate processor settings
+        settings.EnsureOptionsAreValid();
+
         var options    = GetClientOptions();
         var ownsClient = ProvidedClient is null;
         var client     = ProvidedClient ?? new KurrentClient(options);
-        return new ProcessorWorker(client, GetProcessor(), ProcessorSettings, options.LoggerFactory, ownsClient);
+
+        return new ProcessorWorker(
+            client, GetProcessor(),
+            settings,
+            options.LoggerFactory,
+            ownsClient
+        );
     }
 
     /// <summary>
@@ -457,5 +558,72 @@ public sealed class KurrentProcessorBuilder {
     public async ValueTask RunAsync(CancellationToken stoppingToken = default) {
         await using var worker = Build();
         await worker.RunAsync(stoppingToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs the processor with automatic graceful shutdown on SIGINT/SIGTERM.
+    /// </summary>
+    /// <param name="shutdownTimeout">
+    /// Maximum time to wait for graceful shutdown after receiving a termination signal.
+    /// Defaults to 30 seconds if not specified.
+    /// </param>
+    /// <returns>A task that completes when the processor has stopped.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method automatically handles process termination signals (Ctrl+C, SIGTERM)
+    /// and initiates graceful shutdown. Use this for console applications that don't
+    /// have their own host lifecycle management.
+    /// </para>
+    /// <para>
+    /// For ASP.NET Core applications, use <see cref="RunAsync"/> with the host's
+    /// <see cref="CancellationToken"/> instead.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Minimal console application with graceful shutdown
+    /// await KurrentProcessors.Create(new MyProcessor())
+    ///     .ConnectTo("kurrentdb://localhost:2113")
+    ///     .RunWithGracefulShutdownAsync();
+    /// </code>
+    /// </example>
+    public async ValueTask RunWithGracefulShutdownAsync(TimeSpan? shutdownTimeout = null) {
+        var timeout         = shutdownTimeout ?? TimeSpan.FromSeconds(30);
+        var cts             = new CancellationTokenSource();
+        var shutdownComplete = new ManualResetEventSlim(false);
+
+        // Handle Ctrl+C (SIGINT)
+        Console.CancelKeyPress += OnCancelKeyPress;
+
+        // Handle SIGTERM (process termination)
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+
+        try {
+            await RunAsync(cts.Token).ConfigureAwait(false);
+        }
+        finally {
+            Console.CancelKeyPress -= OnCancelKeyPress;
+            AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
+
+            // Signal that shutdown is complete before disposing
+            shutdownComplete.Set();
+            cts.Dispose();
+            shutdownComplete.Dispose();
+        }
+
+        return;
+
+        void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e) {
+            e.Cancel = true; // Prevent immediate termination
+            try { cts.Cancel(); } catch (ObjectDisposedException) { }
+        }
+
+        void OnProcessExit(object? sender, EventArgs e) {
+            try { cts.Cancel(); } catch (ObjectDisposedException) { }
+
+            // Block ProcessExit until shutdown completes or times out
+            // This gives the processor time to complete gracefully
+            try { shutdownComplete.Wait(timeout); } catch (ObjectDisposedException) { }
+        }
     }
 }
