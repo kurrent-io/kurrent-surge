@@ -81,13 +81,18 @@ When user requests historical context:
 
 ## CODE STYLE
 
-### Defaults (all languages)
-- K&R braces
-- 2-space indentation
+### All Languages
+- K&R braces (same line)
+- 2-space indentation (except C#)
 
 ### C# / .NET
-- 4-space indentation (overrides default)
+- 4-space indentation
+- Private fields: `_camelCase` (underscore prefix)
+- `var` everywhere (including built-in types)
+- Expression bodies preferred (`=>`)
+- Implicit modifiers (omit `private`, `internal`)
 - Test methods: `snake_case`
+- `ConfigureAwait(false)` on all awaits in library code
 
 ## .NET CONVENTIONS
 
