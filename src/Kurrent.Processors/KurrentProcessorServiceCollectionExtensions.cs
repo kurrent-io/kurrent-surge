@@ -275,7 +275,7 @@ public static class KurrentProcessorServiceCollectionExtensions {
         var processor = sp.GetRequiredService<TProcessor>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
         var client = BuildClient(registration, sp);
-        var worker = new ProcessorWorker(client, processor, registration.Settings, loggerFactory, registration.UseOwnClient);
+        var worker = new ProcessorWorker(client, processor, null, registration.Settings, loggerFactory, registration.UseOwnClient);
         var logger = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
         return new KurrentProcessorHostedService<TProcessor>(worker, logger);
     }

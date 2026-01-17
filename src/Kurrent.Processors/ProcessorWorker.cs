@@ -92,12 +92,13 @@ public interface IProcessorWorker : IAsyncDisposable {
 }
 
 sealed partial class ProcessorWorker : IProcessorWorker {
-    readonly KurrentClient                 _client;
-    readonly ProcessorSettings             _settings;
-    readonly IProcessorGateway             _gateway;
-    readonly ILogger<ProcessorWorker>      _logger;
-    readonly BoundProcessorCheckpointStore _checkpointStore;
-    readonly PartitionedPositionTracker    _tracker;
+    readonly KurrentClient     _client;
+    readonly ProcessorSettings _settings;
+    readonly IProcessorGateway _gateway;
+    readonly ILogger           _logger;
+    readonly CheckpointStore   _checkpointStore;
+
+    readonly PartitionedPositionTracker _tracker;
 
     readonly IRecordProcessor _processor;
     readonly bool             _ownsClient;
@@ -107,12 +108,11 @@ sealed partial class ProcessorWorker : IProcessorWorker {
 
     IWorkerSession? _session;
 
-
-
-    public ProcessorWorker(KurrentClient client, IRecordProcessor processor, ProcessorSettings settings, ILoggerFactory loggerFactory, bool ownsClient = true) {
+    public ProcessorWorker(KurrentClient client, IRecordProcessor processor, IStateStore state, ProcessorSettings settings, ILoggerFactory loggerFactory, bool ownsClient = true) {
         _client     = client;
         _processor  = processor;
-        _logger     = loggerFactory.CreateLogger<ProcessorWorker>();
+        _state      = state;
+        _logger     = loggerFactory.CreateLogger(processor.GetType().Name);
         _ownsClient = ownsClient && !client.Shared;
 
         _settings = settings;
@@ -120,12 +120,12 @@ sealed partial class ProcessorWorker : IProcessorWorker {
 
         _gateway = new LegacyGateway(_client);
 
-        _checkpointStore = new BoundProcessorCheckpointStore(
+        _checkpointStore = new CheckpointStore(
             _settings.ProcessorId,
             _settings.MaxParallelism,
             _client.Streams,
             TimeProvider.System,
-            loggerFactory.CreateLogger<BoundProcessorCheckpointStore>());
+            loggerFactory.CreateLogger<CheckpointStore>());
 
         _progress = new ProgressTracker(TimeProvider.System);
         _tracker  = new PartitionedPositionTracker(ImmutableDictionary<Partition, LogPosition>.Empty, LogPosition.Unset);
@@ -149,7 +149,7 @@ sealed partial class ProcessorWorker : IProcessorWorker {
     public async Task RunAsync(CancellationToken stoppingToken) {
         LogInitializing(ProcessorId, WorkerId);
 
-        var ctx = new InitializationContext(_settings, stoppingToken);
+        var ctx = new InitializationContext(_settings, _logger, stoppingToken);
         await _processor.OnInitialize(ctx).ConfigureAwait(false);
 
         try {
@@ -221,7 +221,7 @@ sealed partial class ProcessorWorker : IProcessorWorker {
 
     async ValueTask HandleRecordBatch(RecordBatch batch, CancellationToken ct) {
         await _processor
-            .ProcessRecords(new ProcessRecordsContext(ProcessorId, WorkerId, _sessionId, batch, Progress, ct))
+            .ProcessRecords(new ProcessRecordsContext(ProcessorId, WorkerId, _sessionId, batch, Progress, _state, _logger, ct))
             .ConfigureAwait(false);
 
         _tracker.Track(batch);
@@ -265,7 +265,7 @@ sealed partial class ProcessorWorker : IProcessorWorker {
             LogShutdownFailed(ex, ProcessorId, WorkerId);
 
         await _processor
-            .OnShutdown(ShutdownContext.From(ProcessorId, WorkerId, _sessionId, progress, ex))
+            .OnShutdown(ShutdownContext.From(ProcessorId, WorkerId, _sessionId, _logger, progress, ex))
             .ConfigureAwait(false);
     }
 

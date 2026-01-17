@@ -3,6 +3,7 @@ using Kurrent.Client.Streams;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;
+using Transfermarkt.Domain;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -19,13 +20,10 @@ try {
 
     builder.Services.AddNpgsqlDataSource(connectionString);
 
-    // Register shared Kurrent client
-    builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-
     // Register processor as hosted service
     builder.Services.AddKurrentProcessor<ClubSpendingProcessor>(config => config
-        .WithFilter("schema_name = 'PlayerTransferred'")
-        .ConfigureCheckpointing(c => c with { Interval = 10_000, Threshold = 100 })
+        .UseClient("kurrentdb://localhost:2113")
+        .WithFilter($"schema = {nameof(PlayerTransferred)}")
     );
 
     var app = builder.Build();

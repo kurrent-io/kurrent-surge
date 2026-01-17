@@ -20,7 +20,7 @@ namespace Kurrent.Client.Processors.Checkpointing;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed partial class ProcessorCheckpointStore : IProcessorCheckpointStore {
+public sealed partial class CheckpointStore : ICheckpointStore {
     readonly string        _processorId;
     readonly StreamsClient _client;
     readonly ILogger       _logger;
@@ -31,25 +31,25 @@ public sealed partial class ProcessorCheckpointStore : IProcessorCheckpointStore
     volatile bool _isReady;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ProcessorCheckpointStore"/> class.
+    /// Initializes a new instance of the <see cref="CheckpointStore"/> class.
     /// </summary>
     /// <param name="processorId">The processor group identifier this store is bound to.</param>
     /// <param name="maxCount">Maximum number of checkpoint records to retain in the stream.</param>
     /// <param name="client">The streams client for KurrentDB operations.</param>
     /// <param name="time">Optional time provider for timestamps.</param>
     /// <param name="logger">Optional logger instance.</param>
-    public ProcessorCheckpointStore(
+    public CheckpointStore(
         string processorId,
         int maxCount,
         StreamsClient client,
         TimeProvider? time = null,
-        ILogger<ProcessorCheckpointStore>? logger = null
+        ILogger<CheckpointStore>? logger = null
     ) {
         _processorId = processorId;
         _maxCount    = maxCount;
         _client      = client;
         _time        = time ?? TimeProvider.System;
-        _logger      = logger ?? NullLogger<ProcessorCheckpointStore>.Instance;
+        _logger      = logger ?? NullLogger<CheckpointStore>.Instance;
         _stream      = $"$processors/{processorId}/checkpoints";
     }
 

@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+<!--  <PropertyGroup>-->
+<!--    <TargetFramework>net10.0</TargetFramework>-->
+<!--    <LangVersion>experimental</LangVersion>-->
+<!--    <ImplicitUsings>enable</ImplicitUsings>-->
+<!--    <Nullable>enable</Nullable>-->
+<!--  </PropertyGroup>-->
+
+  <ItemGroup>
+    <ProjectReference Include="..\KurrentDB.Client\KurrentDB.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Source Generators: Embed as analyzer, don't propagate as dependency -->
+    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+
+    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+
+    <!-- Runtime Library: Include assembly but don't propagate as dependency -->
+    <ProjectReference Include="..\Variant\Variant.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Client.Integration.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="State\Implementations\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="NodaTime.Serialization.Protobuf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.Extensions.Logging.Abstractions" />
+    <Using Include="NodaTime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Pipeline\.stash\Contexts.cs" />
+    <Compile Include="Pipeline\.stash\IRecordProcessor.cs" />
+    <Compile Include="Pipeline\.stash\ProcessorWorker.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,6 @@
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 #pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
@@ -125,46 +124,46 @@ static class StreamsClientV1Mapper {
             return req;
         }
 
-        /// <summary>
-        /// Creates a request to subscribe to records based on the provided processing options.
-        /// </summary>
-        public static Contracts.ReadReq CreateSubscriptionRequest(ProcessorSettings options) {
-            var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
-                Subscription  = DefaultSubscriptionOptions,
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
-            }};
-
-            var subscription = options.Subscription;
-            var heartbeat    = new HeartbeatOptions(true, options.Checkpoint.Threshold);
-
-            // Convert StartPosition (long) to the appropriate position type
-            var logPosition = subscription.StartPosition switch {
-                0 when subscription.InitialPosition == SubscriptionInitialPosition.Earliest => LogPosition.Earliest,
-                0 when subscription.InitialPosition == SubscriptionInitialPosition.Latest   => LogPosition.Latest,
-                0                                                                           => LogPosition.Earliest,
-                _                                                                           => LogPosition.From(subscription.StartPosition)
-            };
-
-            var streamRevision = subscription.StartPosition switch {
-                0 => StreamRevision.Min,
-                _ => StreamRevision.From(subscription.StartPosition)
-            };
-
-            if (subscription.Filter == RecordFilter.None)
-                req.Options.NoFilter = DefaultEmpty;
-            else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
-                req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
-                req.Options.NoFilter = DefaultEmpty;
-            }
-            else {
-                req.Options.All    = ConvertToAllOptions(logPosition);
-                req.Options.Filter = ConvertToFilterOptions(subscription.Filter, heartbeat);
-            }
-
-            return req;
-        }
+        // /// <summary>
+        // /// Creates a request to subscribe to records based on the provided processing options.
+        // /// </summary>
+        // public static Contracts.ReadReq CreateSubscriptionRequest(ProcessorSettings options) {
+        //     var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
+        //         Subscription  = DefaultSubscriptionOptions,
+        //         UuidOption    = DefaultUuidOptions,
+        //         ControlOption = DefaultControlOption,
+        //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
+        //     }};
+        //
+        //     var subscription = options.Subscription;
+        //     var heartbeat    = new HeartbeatOptions(true, options.Checkpoint.Threshold);
+        //
+        //     // Convert StartPosition (long) to the appropriate position type
+        //     var logPosition = subscription.StartPosition switch {
+        //         0 when subscription.InitialPosition == SubscriptionInitialPosition.Earliest => LogPosition.Earliest,
+        //         0 when subscription.InitialPosition == SubscriptionInitialPosition.Latest   => LogPosition.Latest,
+        //         0                                                                           => LogPosition.Earliest,
+        //         _                                                                           => LogPosition.From(subscription.StartPosition)
+        //     };
+        //
+        //     var streamRevision = subscription.StartPosition switch {
+        //         0 => StreamRevision.Min,
+        //         _ => StreamRevision.From(subscription.StartPosition)
+        //     };
+        //
+        //     if (subscription.Filter == RecordFilter.None)
+        //         req.Options.NoFilter = DefaultEmpty;
+        //     else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
+        //         req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
+        //         req.Options.NoFilter = DefaultEmpty;
+        //     }
+        //     else {
+        //         req.Options.All    = ConvertToAllOptions(logPosition);
+        //         req.Options.Filter = ConvertToFilterOptions(subscription.Filter, heartbeat);
+        //     }
+        //
+        //     return req;
+        // }
 
         static Contracts.ReadReq.Types.Options.Types.AllOptions ConvertToAllOptions(LogPosition start) =>
             start switch {
@@ -221,22 +220,22 @@ static class StreamsClientV1Mapper {
         return Heartbeat.CreateFellBehind(position, revision, timestamp);
     }
 
-    public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
-        var position  = LogPosition.From((long)checkpoint.CommitPosition);
-        var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(position, CheckpointBarrierTrigger.Interval, timestamp);
-    }
-
-    public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
-        var position  = caughtUp.Position is not null ? LogPosition.From((long)caughtUp.Position.CommitPosition) : LogPosition.Unset;
-        var revision  = caughtUp.HasStreamRevision ? StreamRevision.From(caughtUp.StreamRevision) : StreamRevision.Unset;
-        var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
-
-       if (position == StreamRevision.Unset)
-           throw new InvalidOperationException("Remember, without a position, we cannot create a checkpoint barrier!!! Revision: " + revision);
-
-        return new CheckpointBarrier(position, CheckpointBarrierTrigger.CaughtUp, timestamp);
-    }
+    // public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
+    //     var position  = LogPosition.From((long)checkpoint.CommitPosition);
+    //     var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
+    //     return new CheckpointBarrier(position, CheckpointBarrierTrigger.Interval, timestamp);
+    // }
+    //
+    // public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
+    //     var position  = caughtUp.Position is not null ? LogPosition.From((long)caughtUp.Position.CommitPosition) : LogPosition.Unset;
+    //     var revision  = caughtUp.HasStreamRevision ? StreamRevision.From(caughtUp.StreamRevision) : StreamRevision.Unset;
+    //     var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
+    //
+    //    if (position == StreamRevision.Unset)
+    //        throw new InvalidOperationException("Remember, without a position, we cannot create a checkpoint barrier!!! Revision: " + revision);
+    //
+    //     return new CheckpointBarrier(position, CheckpointBarrierTrigger.CaughtUp, timestamp);
+    // }
 
     public static LogPosition MapToLogPosition(this Contracts.DeleteResp.Types.Position? position) =>
         position switch {

@@ -1,5 +1,6 @@
-using Kurrent.Surge.Producers;
-using Kurrent.Surge.Readers;
+using Kurrent.Client;
+using Kurrent.Client.Processors;
+using Kurrent.Client.Streams;
 using static System.Threading.CancellationTokenSource;
 
 namespace Kurrent.Surge.Leases;
@@ -10,7 +11,7 @@ public class LeaseManager : ILeaseManager  {
         Producer       = producer;
         StreamTemplate = streamTemplate ?? "$leases/{0}";
         Clock          = clock  ?? SystemClock.Instance;
-        Logger         = logger ?? NullLoggerFactory.Instance.CreateLogger<LeaseManager>();
+        Logger         = logger ?? NullLogger<LeaseManager>.Instance;
     }
 
     IReader        Reader         { get; }

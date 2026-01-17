@@ -15,7 +15,7 @@ sealed partial class ProcessorWorkerV2 : IProcessorWorker {
     readonly ProcessorSettings             _settings;
     readonly IProcessorGateway             _gateway;
     readonly ILogger<ProcessorWorkerV2>    _logger;
-    readonly BoundProcessorCheckpointStore _checkpointStore;
+    readonly CheckpointStore _checkpointStore;
     readonly ProcessorProgressTracker      _progress;  // unified tracker
 
     readonly IRecordProcessor _processor;
@@ -34,12 +34,12 @@ sealed partial class ProcessorWorkerV2 : IProcessorWorker {
 
         _gateway = new LegacyGateway(_client);
 
-        _checkpointStore = new BoundProcessorCheckpointStore(
+        _checkpointStore = new CheckpointStore(
             _settings.ProcessorId,
             _settings.MaxParallelism,
             _client.Streams,
             TimeProvider.System,
-            loggerFactory.CreateLogger<BoundProcessorCheckpointStore>());
+            loggerFactory.CreateLogger<CheckpointStore>());
 
         _progress = new ProcessorProgressTracker(TimeProvider.System);
     }

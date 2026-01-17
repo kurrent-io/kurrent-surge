@@ -116,6 +116,7 @@
     <InternalsVisibleTo Include="KurrentDB.Client.Streams.Tests" />
     <InternalsVisibleTo Include="KurrentDB.Client.UserManagement.Tests" />
     <InternalsVisibleTo Include="KurrentDB.Client.Extensions.OpenTelemetry" />
+    <InternalsVisibleTo Include="Kurrent.Processors" />
   </ItemGroup>
 
   <ItemGroup>
@@ -160,7 +161,7 @@
     <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
       <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
     </Folder>
-    <Folder Include="Kurrent.Client\Modules\Processors\Options\" />
+    <Folder Include="Kurrent.Client\Modules\Processors\" />
     <Folder Include="Kurrent\Grpc\LoadBalancing\" />
   </ItemGroup>
 

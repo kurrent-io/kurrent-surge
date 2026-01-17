@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Threading.Channels;
-using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;

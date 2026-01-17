@@ -28,6 +28,8 @@
     <PackageVersion Include="Microsoft.Extensions.Telemetry.Abstractions" Version="9.10.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.1.0" />
     <PackageVersion Include="NJsonSchema" Version="11.5.1" />
+    <PackageVersion Include="NodaTime" Version="3.3.0" />
+    <PackageVersion Include="NodaTime.Serialization.Protobuf" Version="2.0.2" />
     <PackageVersion Include="OpenTelemetry.Api" Version="1.13.1" />
     <PackageVersion Include="Serilog.Enrichers.Demystifier" Version="1.0.3" />
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />

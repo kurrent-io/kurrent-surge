@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams.Processing;
+using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client.Streams;
 
@@ -126,6 +128,7 @@ public interface IRecordProcessor {
 [PublicAPI]
 public record InitializationContext(
     ProcessorSettings Settings,
+    ILogger Logger,
     CancellationToken CancellationToken
 );
 
@@ -145,6 +148,8 @@ public record ProcessRecordsContext(
     SessionId SessionId,
     RecordBatch Records,
     ProcessorProgress Progress,
+    IStateStore State,
+    ILogger Logger,
     CancellationToken CancellationToken
 ) {
     /// <summary>
@@ -185,6 +190,7 @@ public record ShutdownContext(
     WorkerId WorkerId,
     SessionId SessionId,
     ProcessorProgress Progress,
+    ILogger Logger,
     ShutdownReason Reason,
     ProcessError? Error
 ) {
@@ -192,13 +198,14 @@ public record ShutdownContext(
         ProcessorId processorId,
         WorkerId workerId,
         SessionId sessionId,
+        ILogger logger,
         ProcessorProgress progress,
         Exception? exception = null
     ) {
         return exception switch {
-            null                       => new(processorId, workerId, sessionId, progress, ShutdownReason.Completed, null),
-            OperationCanceledException => new(processorId, workerId, sessionId, progress, ShutdownReason.Cancelled, null),
-            _                          => new(processorId, workerId, sessionId, progress, ShutdownReason.Error, exception)
+            null                       => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Completed, null),
+            OperationCanceledException => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Cancelled, null),
+            _                          => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Error, exception)
         };
     }
 }

@@ -30,7 +30,7 @@ namespace Kurrent.Client.Streams.Processing;
 /// </code>
 /// </example>
 [PublicAPI]
-public interface IMapEntryBuilder<TKey, TValue>
+public interface IMapEntryBuilder<out TKey, TValue>
     where TKey : notnull
     where TValue : class {
 

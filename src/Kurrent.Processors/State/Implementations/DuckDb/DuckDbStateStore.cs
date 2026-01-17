@@ -35,14 +35,10 @@ namespace Kurrent.Client.Streams.Processing;
 /// </example>
 [PublicAPI]
 public sealed class DuckDbStateStore : IStateStore {
-    const string ValueStateType = "value";
-    const string MapStateType   = "map";
-    const string TableStateType = "table";
-
-    readonly DuckDBConnection     _connection;
+    readonly DuckDBConnection      _connection;
     readonly JsonSerializerOptions _jsonOptions;
-    readonly bool                 _ownsConnection;
-    readonly SemaphoreSlim        _lock = new(1, 1);
+    readonly bool                  _ownsConnection;
+    readonly SemaphoreSlim         _lock = new(1, 1);
 
     bool _disposed;
     bool _initialized;
@@ -84,20 +80,50 @@ public sealed class DuckDbStateStore : IStateStore {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
+    // Internal - Primitives for builders
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    internal DuckDBConnection Connection => _connection;
+
+    internal JsonSerializerOptions JsonOptions => _jsonOptions;
+
+    internal SemaphoreSlim Lock => _lock;
+
+    /// <summary>
+    /// Ensures the store is initialized before use.
+    /// </summary>
+    internal async ValueTask EnsureInitializedAsync(CancellationToken ct) {
+        if (_initialized)
+            return;
+
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+
+        try {
+            if (_initialized)
+                return;
+
+            if (_connection.State != System.Data.ConnectionState.Open)
+                await _connection.OpenAsync(ct).ConfigureAwait(false);
+
+            await CreateSchemaAsync(ct).ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally {
+            _lock.Release();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
     // IStateStore - Direct Access Shortcuts
     // ═══════════════════════════════════════════════════════════════════════════════
 
     /// <inheritdoc />
-    public async ValueTask<T?> GetValueAsync<T>(StateKey key, CancellationToken ct = default) where T : class {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        return await LoadValueAsync<T>(key, ct).ConfigureAwait(false);
-    }
+    public async ValueTask<T?> GetValueAsync<T>(StateKey key, CancellationToken ct = default) where T : class =>
+        await Value<T>(key).GetAsync(ct).ConfigureAwait(false);
 
     /// <inheritdoc />
-    public async ValueTask<T> GetValueAsync<T>(StateKey key, T defaultValue, CancellationToken ct = default) where T : class {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        return await LoadValueAsync<T>(key, ct).ConfigureAwait(false) ?? defaultValue;
-    }
+    public async ValueTask<T> GetValueAsync<T>(StateKey key, T defaultValue, CancellationToken ct = default) where T : class =>
+        await Value<T>(key).GetAsync(defaultValue, ct).ConfigureAwait(false);
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // IStateStore - Fluent Builders
@@ -151,140 +177,9 @@ public sealed class DuckDbStateStore : IStateStore {
             await _connection.DisposeAsync().ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Loads a value from the store.
-    /// </summary>
-    internal async ValueTask<T?> LoadValueAsync<T>(StateKey key, CancellationToken ct) where T : class {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            await using var cmd = _connection.CreateCommand();
-            cmd.CommandText     = """
-                SELECT data FROM state_store
-                WHERE partition = $partition AND state_type = $type AND state_key = $key AND entry_key = ''
-                """;
-
-            cmd.Parameters.Add(new DuckDBParameter("$partition", key.Partition));
-            cmd.Parameters.Add(new DuckDBParameter("$type", ValueStateType));
-            cmd.Parameters.Add(new DuckDBParameter("$key", key.Key));
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-
-            if (!await reader.ReadAsync(ct).ConfigureAwait(false))
-                return null;
-
-            var json = reader.GetString(0);
-            return JsonSerializer.Deserialize<T>(json, _jsonOptions);
-        }
-        finally {
-            _lock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Saves a value to the store.
-    /// </summary>
-    internal async ValueTask SaveValueAsync<T>(StateKey key, T value, CancellationToken ct) where T : class {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            var json     = JsonSerializer.Serialize(value, _jsonOptions);
-            var typeName = typeof(T).FullName ?? typeof(T).Name;
-
-            await using var cmd = _connection.CreateCommand();
-            cmd.CommandText     = """
-                INSERT INTO state_store (partition, state_type, state_key, entry_key, data, type_name, updated_at)
-                VALUES ($partition, $type, $key, '', $data, $typeName, current_timestamp)
-                ON CONFLICT (partition, state_type, state_key, entry_key)
-                DO UPDATE SET data = $data, type_name = $typeName, updated_at = current_timestamp
-                """;
-
-            cmd.Parameters.Add(new DuckDBParameter("$partition", key.Partition));
-            cmd.Parameters.Add(new DuckDBParameter("$type", ValueStateType));
-            cmd.Parameters.Add(new DuckDBParameter("$key", key.Key));
-            cmd.Parameters.Add(new DuckDBParameter("$data", json));
-            cmd.Parameters.Add(new DuckDBParameter("$typeName", typeName));
-
-            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        finally {
-            _lock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Deletes a value from the store.
-    /// </summary>
-    internal async ValueTask DeleteValueAsync(StateKey key, CancellationToken ct) {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            await using var cmd = _connection.CreateCommand();
-            cmd.CommandText     = """
-                DELETE FROM state_store
-                WHERE partition = $partition AND state_type = $type AND state_key = $key AND entry_key = ''
-                """;
-
-            cmd.Parameters.Add(new DuckDBParameter("$partition", key.Partition));
-            cmd.Parameters.Add(new DuckDBParameter("$type", ValueStateType));
-            cmd.Parameters.Add(new DuckDBParameter("$key", key.Key));
-
-            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        finally {
-            _lock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Checks if a value exists in the store.
-    /// </summary>
-    internal async ValueTask<bool> ValueExistsAsync(StateKey key, CancellationToken ct) {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            await using var cmd = _connection.CreateCommand();
-            cmd.CommandText     = """
-                SELECT 1 FROM state_store
-                WHERE partition = $partition AND state_type = $type AND state_key = $key AND entry_key = ''
-                LIMIT 1
-                """;
-
-            cmd.Parameters.Add(new DuckDBParameter("$partition", key.Partition));
-            cmd.Parameters.Add(new DuckDBParameter("$type", ValueStateType));
-            cmd.Parameters.Add(new DuckDBParameter("$key", key.Key));
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-            return await reader.ReadAsync(ct).ConfigureAwait(false);
-        }
-        finally {
-            _lock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Ensures the store is initialized before use.
-    /// </summary>
-    internal async ValueTask EnsureInitializedAsync(CancellationToken ct) {
-        if (_initialized)
-            return;
-
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            if (_initialized)
-                return;
-
-            if (_connection.State != System.Data.ConnectionState.Open)
-                await _connection.OpenAsync(ct).ConfigureAwait(false);
-
-            await CreateSchemaAsync(ct).ConfigureAwait(false);
-            _initialized = true;
-        }
-        finally {
-            _lock.Release();
-        }
-    }
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Private
+    // ═══════════════════════════════════════════════════════════════════════════════
 
     async ValueTask CreateSchemaAsync(CancellationToken ct) {
         await using var cmd = _connection.CreateCommand();
@@ -404,15 +299,15 @@ public sealed class DuckDbStateStore : IStateStore {
 //         }
 //     }
 
-    static string BuildPartitionWhereClause(PartitionRange[] ranges) {
-        var conditions = ranges.Select(r =>
-            r.Start == r.End
-                ? $"partition = {r.Start}"
-                : $"partition BETWEEN {r.Start} AND {r.End}"
-        );
-
-        return string.Join(" OR ", conditions);
-    }
+    // static string BuildPartitionWhereClause(PartitionRange[] ranges) {
+    //     var conditions = ranges.Select(r =>
+    //         r.Start == r.End
+    //             ? $"partition = {r.Start}"
+    //             : $"partition BETWEEN {r.Start} AND {r.End}"
+    //     );
+    //
+    //     return string.Join(" OR ", conditions);
+    // }
 
     static JsonSerializerOptions CreateDefaultJsonOptions() => new() {
         PropertyNameCaseInsensitive = true,

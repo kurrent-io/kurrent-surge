@@ -537,7 +537,9 @@ public sealed class KurrentProcessorBuilder {
         var client     = ProvidedClient ?? new KurrentClient(options);
 
         return new ProcessorWorker(
-            client, GetProcessor(),
+            client,
+            GetProcessor(),
+            null,
             settings,
             options.LoggerFactory,
             ownsClient

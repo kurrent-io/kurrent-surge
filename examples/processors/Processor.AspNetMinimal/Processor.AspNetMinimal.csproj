@@ -1,16 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-    <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Serilog.AspNetCore" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
-        <ProjectReference Include="..\..\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
+    <ProjectReference Include="..\..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\..\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
+  </ItemGroup>
 </Project>

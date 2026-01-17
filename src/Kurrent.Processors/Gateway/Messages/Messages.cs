@@ -13,7 +13,7 @@ namespace Kurrent.Client.Processors.Gateway.Messages;
 /// </summary>
 [PublicAPI]
 public readonly record struct WorkOrder(
-    SessionId SessionId,
+    // SessionId SessionId,
     ImmutableArray<Partition> Partitions
 );
 

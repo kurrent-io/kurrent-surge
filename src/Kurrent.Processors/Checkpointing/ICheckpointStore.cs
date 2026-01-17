@@ -3,7 +3,7 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Processors.Checkpointing;
 
-public interface IProcessorCheckpointStore {
+public interface ICheckpointStore {
     /// <summary>
     /// Gets the processor ID this store is bound to.
     /// </summary>
