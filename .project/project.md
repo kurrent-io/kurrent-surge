@@ -1,7 +1,7 @@
 # KurrentDB .NET Client - AI Agent Development Instructions
 
-**Version:** v1.0.2
-**Last Updated:** November 27, 2025
+**Version:** v1.1.0
+**Last Updated:** January 17, 2026
 **Personnel:** SILVEIRA
 
 ---
@@ -69,6 +69,7 @@ Utility Layer
 
 **Main Projects:**
 - `src/KurrentDB.Client/Kurrent.Client/` - Main client library
+- `src/Kurrent.Processors/` - Record processor framework
 - `src/Kurrent.Client.SourceGenerators/` - Custom source generators
 - `src/Variant/` - Result types and discriminated unions library
 - `src/Variant.SourceGenerators/` - Variant code generation
@@ -78,29 +79,16 @@ Utility Layer
 src/KurrentDB.Client/Kurrent.Client/
 ├── ConnectionString/          # Connection string parsing
 ├── Errors/                    # Structured error handling
-├── Internal/                  # Internal utilities
-├── Legacy/RipAndTear/         # EventStoreDB compatibility layer
-├── Modules/                   # 7 feature modules
-│   ├── Streams/
-│   │   ├── Operations/        # Operation-based organization
-│   │   │   ├── StreamsClient.Append*.cs  # Append partials at root
-│   │   │   ├── Read/                      # Read operation subdirectory
-│   │   │   ├── Manage/                    # Manage operation subdirectory
-│   │   │   └── Subscribe/                 # Subscribe operation subdirectory
-│   │   ├── Models/           # Shared models
-│   │   ├── Checkpoints/      # Position tracking
-│   │   └── StreamsClient.cs
-│   ├── Registry/
-│   │   ├── Model/
-│   │   └── RegistryClient.cs
-│   └── [Other modules pending refactor]
-├── Options/                   # Configuration
-└── Schema/                    # Schema management
-    ├── Serialization/
-    │   ├── Json/
-    │   ├── Protobuf/
-    │   └── Bytes/
-    └── MessageTypeMapper.cs
+├── Modules/                   # Feature modules (Streams, Registry, etc.)
+├── Options/                   # Configuration and builders
+└── Schema/                    # Schema management and serialization
+
+src/Kurrent.Processors/
+├── Checkpointing/             # Position tracking and checkpoints
+├── Gateway/                   # Server communication
+├── Options/                   # Processor configuration
+├── Partitioning/              # Partition assignment strategies
+└── State/                     # State store abstractions
 ```
 
 ---
@@ -159,8 +147,8 @@ StreamsClient.Append.Models.Builders.cs       # Builder patterns
     ```
 
 2. **Indentation**
-   - C#: 4 spaces (use tabs rendered as 4 spaces)
-   - Markup (XML, JSON): 2 spaces
+   - C#: 4 spaces
+   - Markup (XML, JSON, YAML): 2 spaces
 
 3. **ConfigureAwait(false) EVERYWHERE in library code**
     ```csharp
@@ -362,7 +350,7 @@ public class KurrentDBTestContainer : TestContainer {
 ```
 
 **Container Configuration:**
-From test/Kurrent.Client.Testing/appsettings.json
+From test/Kurrent.Testing/appsettings.json
 
 ```json
 {
@@ -426,7 +414,7 @@ dotnet clean && dotnet build
 sudo ./gencert.sh
 
 # 2. Start observability infrastructure
-cd test/Kurrent.Client.Testing
+cd test/Kurrent.Testing
 docker compose up -d  # Starts Seq + Aspire Dashboard
 
 # 3. Run tests (see TUnit Framework section above for full syntax)
@@ -446,7 +434,7 @@ dotnet run --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integr
    - Aspire Dashboard (telemetry): http://localhost:18888
    - OTLP endpoint: port 4317
    ```bash
-   cd test/Kurrent.Client.Testing
+   cd test/Kurrent.Testing
    docker compose up -d
    ```
 
@@ -740,4 +728,40 @@ SerializerProvider = new SchemaSerializerProvider([
 - `/scripts/gencert.sh` - Certificate generation for tests
 
 **Example Operations:**
-- `src/KurrentDB.Client/Kurrent.Client/Modules/Streams/Operations/Append/StreamsClient.Append.cs`
+- `src/KurrentDB.Client/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Append.cs`
+
+---
+
+## Quick Reference
+
+```bash
+# Build
+dotnet build
+dotnet build --framework net10.0
+
+# Test (TUnit - use dotnet run, NOT dotnet test!)
+dotnet run --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj --framework net10.0
+
+# Test specific category
+dotnet run --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj --framework net10.0 --treenode-filter "/*/*/*/*[Category=Streams]"
+
+# ONE-TIME: Generate test certificates
+sudo ./gencert.sh
+
+# Start observability (Seq + Aspire Dashboard)
+cd test/Kurrent.Testing && docker compose up -d
+
+# Stop observability
+cd test/Kurrent.Testing && docker compose down
+
+# Clean build
+dotnet clean && dotnet build
+
+# Package
+dotnet pack --configuration Release
+```
+
+**Observability URLs:**
+- Seq (logs): http://localhost:5341
+- Aspire Dashboard (telemetry): http://localhost:18888
+- OTLP endpoint: port 4317
