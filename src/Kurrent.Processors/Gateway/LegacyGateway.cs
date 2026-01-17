@@ -13,11 +13,11 @@ using Kurrent.Client.Schema;
 using KurrentDB.Protocol.V1.Streams;
 
 using static System.StringComparison;
-using static Kurrent.Client.Streams.StreamsClientV1Mapper;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Processors.Models;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;
@@ -32,7 +32,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
         var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var stoppingToken = cancellator.Token;
 
-        var request = Requests.CreateSubscriptionRequest(settings);
+        var request = ProtocolMapping.Requests.CreateSubscriptionRequest(settings);
         var session = StreamsClient.LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
 
         Guid subscriptionId;

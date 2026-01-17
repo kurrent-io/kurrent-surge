@@ -3,6 +3,48 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Processors.Checkpointing;
 
+public interface IProcessorCheckpointStore {
+    /// <summary>
+    /// Gets the processor ID this store is bound to.
+    /// </summary>
+    string ProcessorId { get; }
+
+    /// <summary>
+    /// Loads the checkpoint for this processor.
+    /// </summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// The checkpoint containing all partition checkpoints, barrier ID, and resolution logic.
+    /// Returns <see cref="ProcessorCheckpoint.Empty"/> if no checkpoint exists.
+    /// </returns>
+    ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Stores checkpoint positions for the specified partitions, merging with existing positions.
+    /// </summary>
+    /// <param name="workerId">The worker storing the checkpoint (for attribution).</param>
+    /// <param name="barrierId">The barrier that triggered this checkpoint.</param>
+    /// <param name="positions">Partition positions to checkpoint.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="InvalidOperationException">Thrown when positions dictionary is empty.</exception>
+    /// <remarks>
+    /// <para>
+    /// Internally loads the current checkpoint state and merges the provided positions
+    /// with existing ones. Uses optimistic concurrency with automatic retry on conflicts.
+    /// </para>
+    /// <para>
+    /// Only the specified partitions are updated; other partitions retain their positions.
+    /// </para>
+    /// </remarks>
+    ValueTask StoreAsync(
+        string workerId,
+        LogPosition barrierId,
+        ImmutableDictionary<Partition, LogPosition> positions,
+        CancellationToken ct = default
+    );
+}
+
+
 /// <summary>
 /// Checkpoint data for a single partition.
 /// </summary>

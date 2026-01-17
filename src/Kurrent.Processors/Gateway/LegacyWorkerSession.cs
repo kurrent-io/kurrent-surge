@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway;
 using Kurrent.Client.Processors.Gateway.Messages;
@@ -79,7 +78,7 @@ sealed class LegacyWorkerSession : IWorkerSession {
                 _settings.MaxParallelism
             );
 
-            return new WorkOrder(SessionId, [..manifest[_settings.WorkerId].All]);
+            return new WorkOrder([..manifest[_settings.WorkerId].All]);
         }
     }
 

@@ -1,0 +1,25 @@
+{
+    "name": "Kurrent.Client",
+    "image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0",
+    "features": {
+        "ghcr.io/devcontainers/features/dotnet:2": {
+            "additionalVersions": "8.0,10.0"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-dotnettools.csharp",
+                "ms-dotnettools.csdevkit",
+                "EditorConfig.EditorConfig",
+                "GitHub.copilot"
+            ],
+            "settings": {
+                "dotnet.defaultSolution": "Kurrent.Client.slnx"
+            }
+        }
+    },
+    "postCreateCommand": "dotnet restore",
+    "forwardPorts": [],
+    "remoteUser": "vscode"
+}

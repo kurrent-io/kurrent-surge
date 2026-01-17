@@ -11,10 +11,6 @@ namespace Kurrent.Client.Processors.Checkpointing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unlike <see cref="ProcessorCheckpointStore"/> which is stateless and accepts processor ID per call,
-/// this store is bound to a single processor at construction time.
-/// </para>
-/// <para>
 /// Uses a single checkpoint stream per processor where all workers merge their
 /// partition checkpoints. Handles concurrent updates with optimistic concurrency
 /// and automatic retry.
@@ -24,7 +20,7 @@ namespace Kurrent.Client.Processors.Checkpointing;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed partial class BoundProcessorCheckpointStore {
+public sealed partial class ProcessorCheckpointStore : IProcessorCheckpointStore {
     readonly string        _processorId;
     readonly StreamsClient _client;
     readonly ILogger       _logger;
@@ -35,25 +31,25 @@ public sealed partial class BoundProcessorCheckpointStore {
     volatile bool _isReady;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BoundProcessorCheckpointStore"/> class.
+    /// Initializes a new instance of the <see cref="ProcessorCheckpointStore"/> class.
     /// </summary>
     /// <param name="processorId">The processor group identifier this store is bound to.</param>
     /// <param name="maxCount">Maximum number of checkpoint records to retain in the stream.</param>
     /// <param name="client">The streams client for KurrentDB operations.</param>
     /// <param name="time">Optional time provider for timestamps.</param>
     /// <param name="logger">Optional logger instance.</param>
-    public BoundProcessorCheckpointStore(
+    public ProcessorCheckpointStore(
         string processorId,
         int maxCount,
         StreamsClient client,
         TimeProvider? time = null,
-        ILogger<BoundProcessorCheckpointStore>? logger = null
+        ILogger<ProcessorCheckpointStore>? logger = null
     ) {
         _processorId = processorId;
         _maxCount    = maxCount;
         _client      = client;
         _time        = time ?? TimeProvider.System;
-        _logger      = logger ?? NullLogger<BoundProcessorCheckpointStore>.Instance;
+        _logger      = logger ?? NullLogger<ProcessorCheckpointStore>.Instance;
         _stream      = $"$processors/{processorId}/checkpoints";
     }
 

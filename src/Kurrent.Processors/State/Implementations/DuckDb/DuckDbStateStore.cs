@@ -34,7 +34,7 @@ namespace Kurrent.Client.Streams.Processing;
 /// </code>
 /// </example>
 [PublicAPI]
-public sealed class DuckDbStateStore : ICheckpointStateStore {
+public sealed class DuckDbStateStore : IStateStore {
     const string ValueStateType = "value";
     const string MapStateType   = "map";
     const string TableStateType = "table";
@@ -137,76 +137,9 @@ public sealed class DuckDbStateStore : ICheckpointStateStore {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
-    // ICheckpointStateStore - Snapshot Operations
-    // ═══════════════════════════════════════════════════════════════════════════════
-
-    /// <inheritdoc />
-    public async ValueTask<ReadOnlyMemory<byte>> SnapshotAsync(CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        return await ExportToParquetAsync(null, ct).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask<ReadOnlyMemory<byte>> SnapshotAsync(int[] partitions, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-
-        var ranges = partitions.Select(PartitionRange.Single).ToArray();
-        return await ExportToParquetAsync(ranges, ct).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask<ReadOnlyMemory<byte>> SnapshotAsync(PartitionRange[] ranges, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        return await ExportToParquetAsync(ranges, ct).ConfigureAwait(false);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // ICheckpointStateStore - Restore Operations
-    // ═══════════════════════════════════════════════════════════════════════════════
-
-    /// <inheritdoc />
-    public async ValueTask RestoreAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        await ImportFromParquetAsync(data, null, ct).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask RestoreAsync(ReadOnlyMemory<byte> data, int[] partitions, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-
-        var ranges = partitions.Select(PartitionRange.Single).ToArray();
-        await ImportFromParquetAsync(data, ranges, ct).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask RestoreAsync(ReadOnlyMemory<byte> data, PartitionRange[] ranges, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        await ImportFromParquetAsync(data, ranges, ct).ConfigureAwait(false);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // ICheckpointStateStore - Partition Management
-    // ═══════════════════════════════════════════════════════════════════════════════
-
-    /// <inheritdoc />
-    public async ValueTask ClearPartitionsAsync(int[] partitions, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-
-        var ranges = partitions.Select(PartitionRange.Single).ToArray();
-        await ClearPartitionRangesAsync(ranges, ct).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask ClearPartitionsAsync(PartitionRange[] ranges, CancellationToken ct = default) {
-        await EnsureInitializedAsync(ct).ConfigureAwait(false);
-        await ClearPartitionRangesAsync(ranges, ct).ConfigureAwait(false);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════════
     // IAsyncDisposable
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /// <inheritdoc />
     public async ValueTask DisposeAsync() {
         if (_disposed)
             return;
@@ -217,10 +150,6 @@ public sealed class DuckDbStateStore : ICheckpointStateStore {
         if (_ownsConnection)
             await _connection.DisposeAsync().ConfigureAwait(false);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // Internal Operations (used by builders)
-    // ═══════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Loads a value from the store.
@@ -357,10 +286,6 @@ public sealed class DuckDbStateStore : ICheckpointStateStore {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // Private Helpers
-    // ═══════════════════════════════════════════════════════════════════════════════
-
     async ValueTask CreateSchemaAsync(CancellationToken ct) {
         await using var cmd = _connection.CreateCommand();
         cmd.CommandText     = """
@@ -379,105 +304,105 @@ public sealed class DuckDbStateStore : ICheckpointStateStore {
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
-    async ValueTask<ReadOnlyMemory<byte>> ExportToParquetAsync(PartitionRange[]? ranges, CancellationToken ct) {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            var tempFile = Path.Combine(Path.GetTempPath(), $"state_snapshot_{Guid.NewGuid():N}.parquet");
-
-            try {
-                await using var cmd = _connection.CreateCommand();
-
-                if (ranges is null || ranges.Length == 0) {
-                    cmd.CommandText = $"""
-                        COPY state_store
-                        TO '{tempFile}' (FORMAT PARQUET, COMPRESSION GZIP)
-                        """;
-                }
-                else {
-                    var whereClause = BuildPartitionWhereClause(ranges);
-                    cmd.CommandText = $"""
-                        COPY (SELECT * FROM state_store WHERE {whereClause})
-                        TO '{tempFile}' (FORMAT PARQUET, COMPRESSION GZIP)
-                        """;
-                }
-
-                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-
-                if (!File.Exists(tempFile))
-                    return ReadOnlyMemory<byte>.Empty;
-
-                return await File.ReadAllBytesAsync(tempFile, ct).ConfigureAwait(false);
-            }
-            finally {
-                if (File.Exists(tempFile))
-                    File.Delete(tempFile);
-            }
-        }
-        finally {
-            _lock.Release();
-        }
-    }
-
-    async ValueTask ImportFromParquetAsync(ReadOnlyMemory<byte> data, PartitionRange[]? ranges, CancellationToken ct) {
-        if (data.IsEmpty)
-            return;
-
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            var tempFile = Path.Combine(Path.GetTempPath(), $"state_restore_{Guid.NewGuid():N}.parquet");
-
-            try {
-                await File.WriteAllBytesAsync(tempFile, data.ToArray(), ct).ConfigureAwait(false);
-
-                await using var cmd = _connection.CreateCommand();
-
-                if (ranges is null || ranges.Length == 0) {
-                    cmd.CommandText = $"""
-                        INSERT OR REPLACE INTO state_store
-                        SELECT * FROM read_parquet('{tempFile}')
-                        """;
-                }
-                else {
-                    var whereClause = BuildPartitionWhereClause(ranges);
-                    cmd.CommandText = $"""
-                        INSERT OR REPLACE INTO state_store
-                        SELECT * FROM read_parquet('{tempFile}')
-                        WHERE {whereClause}
-                        """;
-                }
-
-                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-            }
-            finally {
-                if (File.Exists(tempFile))
-                    File.Delete(tempFile);
-            }
-        }
-        finally {
-            _lock.Release();
-        }
-    }
-
-    async ValueTask ClearPartitionRangesAsync(PartitionRange[] ranges, CancellationToken ct) {
-        if (ranges.Length == 0)
-            return;
-
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-
-        try {
-            var whereClause = BuildPartitionWhereClause(ranges);
-
-            await using var cmd = _connection.CreateCommand();
-            cmd.CommandText     = $"DELETE FROM state_store WHERE {whereClause}";
-
-            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        finally {
-            _lock.Release();
-        }
-    }
+//     async ValueTask<ReadOnlyMemory<byte>> ExportToParquetAsync(PartitionRange[]? ranges, CancellationToken ct) {
+//         await _lock.WaitAsync(ct).ConfigureAwait(false);
+//
+//         try {
+//             var tempFile = Path.Combine(Path.GetTempPath(), $"state_snapshot_{Guid.NewGuid():N}.parquet");
+//
+//             try {
+//                 await using var cmd = _connection.CreateCommand();
+//
+//                 if (ranges is null || ranges.Length == 0) {
+//                     cmd.CommandText = $"""
+//                         COPY state_store
+//                         TO '{tempFile}' (FORMAT PARQUET, COMPRESSION GZIP)
+//                         """;
+//                 }
+//                 else {
+//                     var whereClause = BuildPartitionWhereClause(ranges);
+//                     cmd.CommandText = $"""
+//                         COPY (SELECT * FROM state_store WHERE {whereClause})
+//                         TO '{tempFile}' (FORMAT PARQUET, COMPRESSION GZIP)
+//                         """;
+//                 }
+//
+//                 await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+//
+//                 if (!File.Exists(tempFile))
+//                     return ReadOnlyMemory<byte>.Empty;
+//
+//                 return await File.ReadAllBytesAsync(tempFile, ct).ConfigureAwait(false);
+//             }
+//             finally {
+//                 if (File.Exists(tempFile))
+//                     File.Delete(tempFile);
+//             }
+//         }
+//         finally {
+//             _lock.Release();
+//         }
+//     }
+//
+//     async ValueTask ImportFromParquetAsync(ReadOnlyMemory<byte> data, PartitionRange[]? ranges, CancellationToken ct) {
+//         if (data.IsEmpty)
+//             return;
+//
+//         await _lock.WaitAsync(ct).ConfigureAwait(false);
+//
+//         try {
+//             var tempFile = Path.Combine(Path.GetTempPath(), $"state_restore_{Guid.NewGuid():N}.parquet");
+//
+//             try {
+//                 await File.WriteAllBytesAsync(tempFile, data.ToArray(), ct).ConfigureAwait(false);
+//
+//                 await using var cmd = _connection.CreateCommand();
+//
+//                 if (ranges is null || ranges.Length == 0) {
+//                     cmd.CommandText = $"""
+//                         INSERT OR REPLACE INTO state_store
+//                         SELECT * FROM read_parquet('{tempFile}')
+//                         """;
+//                 }
+//                 else {
+//                     var whereClause = BuildPartitionWhereClause(ranges);
+//                     cmd.CommandText = $"""
+//                         INSERT OR REPLACE INTO state_store
+//                         SELECT * FROM read_parquet('{tempFile}')
+//                         WHERE {whereClause}
+//                         """;
+//                 }
+//
+//                 await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+//             }
+//             finally {
+//                 if (File.Exists(tempFile))
+//                     File.Delete(tempFile);
+//             }
+//         }
+//         finally {
+//             _lock.Release();
+//         }
+//     }
+//
+//     async ValueTask ClearPartitionRangesAsync(PartitionRange[] ranges, CancellationToken ct) {
+//         if (ranges.Length == 0)
+//             return;
+//
+//         await _lock.WaitAsync(ct).ConfigureAwait(false);
+//
+//         try {
+//             var whereClause = BuildPartitionWhereClause(ranges);
+//
+//             await using var cmd = _connection.CreateCommand();
+//             cmd.CommandText     = $"DELETE FROM state_store WHERE {whereClause}";
+//
+//             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+//         }
+//         finally {
+//             _lock.Release();
+//         }
+//     }
 
     static string BuildPartitionWhereClause(PartitionRange[] ranges) {
         var conditions = ranges.Select(r =>
