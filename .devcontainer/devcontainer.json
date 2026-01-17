@@ -1,25 +1,69 @@
 {
     "name": "Kurrent.Client",
     "image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0",
+
     "features": {
+        // Additional .NET SDKs (8.0, 10.0) alongside the base 9.0
         "ghcr.io/devcontainers/features/dotnet:2": {
             "additionalVersions": "8.0,10.0"
+        },
+        // Docker-in-Docker for running integration tests with FluentDocker
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "dockerDashComposeVersion": "v2"
+        },
+        // GitHub CLI for PR workflows, issue management
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        // Common utilities (zsh, oh-my-zsh, etc.)
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "configureZshAsDefaultShell": true
         }
     },
+
     "customizations": {
         "vscode": {
             "extensions": [
+                // C# Development
                 "ms-dotnettools.csharp",
                 "ms-dotnettools.csdevkit",
+                "ms-dotnettools.vscode-dotnet-runtime",
+
+                // Code Quality
                 "EditorConfig.EditorConfig",
-                "GitHub.copilot"
+                "streetsidesoftware.code-spell-checker",
+
+                // Git & GitHub
+                "GitHub.vscode-pull-request-github",
+
+                // Productivity
+                "GitHub.copilot",
+                "GitHub.copilot-chat",
+
+                // Docker (for viewing containers during integration tests)
+                "ms-azuretools.vscode-docker"
             ],
             "settings": {
-                "dotnet.defaultSolution": "Kurrent.Client.slnx"
+                "dotnet.defaultSolution": "Kurrent.Client.slnx",
+                "editor.bracketPairColorization.enabled": true,
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+                "omnisharp.enableRoslynAnalyzers": true,
+                "omnisharp.enableEditorConfigSupport": true,
+                "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
+                "terminal.integrated.defaultProfile.linux": "zsh"
             }
         }
     },
-    "postCreateCommand": "dotnet restore",
-    "forwardPorts": [],
+
+    // Environment variables for .NET
+    "containerEnv": {
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_GENERATE_ASPNET_CERTIFICATE": "false"
+    },
+
+    // Lifecycle commands
+    "postCreateCommand": "dotnet restore && dotnet build --no-restore",
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+
     "remoteUser": "vscode"
 }
