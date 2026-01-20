@@ -5,6 +5,30 @@ using Kurrent.Variant;
 
 namespace Kurrent.Client.Processors.Gateway.Messages;
 
+/// <summary>
+/// Unique identifier for checkpoint barriers, used to coordinate distributed checkpoints.
+/// </summary>
+/// <remarks>
+/// Barrier IDs are coordination tokens, not positions. Each checkpoint barrier gets a unique GUID
+/// to enable distributed checkpoint coordination across multiple workers (similar to Apache Flink).
+/// Workers use these IDs to identify which checkpoint they're responding to.
+/// </remarks>
+[PublicAPI]
+public readonly record struct BarrierId(string Value) {
+	/// <summary>Empty barrier ID (zero-value).</summary>
+	public static readonly BarrierId Empty = new(string.Empty);
+
+	/// <summary>Creates a new unique barrier ID using a GUID.</summary>
+	public static BarrierId New() => new(Guid.NewGuid().ToString());
+
+	/// <summary>True if this barrier ID is empty or unset.</summary>
+	public bool IsEmpty => string.IsNullOrEmpty(Value);
+
+	public override string ToString() => Value;
+
+	public static implicit operator string(BarrierId id) => id.Value;
+}
+
 #region Inbound - Processor Control Messages
 
 /// <summary>
@@ -46,39 +70,39 @@ public readonly record struct RecordBatch : IReadOnlyList<Record> {
 }
 
 /// <summary>
-/// Maps partitions to their log positions, representing checkpoint state.
+/// Maps partitions to their record positions, representing checkpoint state.
 /// </summary>
 [PublicAPI]
-public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition, LogPosition> {
-    public static readonly PartitionPositions Empty = new(ImmutableDictionary<Partition, LogPosition>.Empty);
+public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition, RecordPosition> {
+    public static readonly PartitionPositions Empty = new(ImmutableDictionary<Partition, RecordPosition>.Empty);
 
-    readonly ImmutableDictionary<Partition, LogPosition> _values;
+    readonly ImmutableDictionary<Partition, RecordPosition> _values;
 
-    PartitionPositions(ImmutableDictionary<Partition, LogPosition> values) => _values = values;
+    PartitionPositions(ImmutableDictionary<Partition, RecordPosition> values) => _values = values;
 
-    public static PartitionPositions From(ImmutableDictionary<Partition, LogPosition> values) => new(values);
+    public static PartitionPositions From(ImmutableDictionary<Partition, RecordPosition> values) => new(values);
 
-    public LogPosition MaxPosition => _values.IsEmpty ? LogPosition.Unset : _values.Values.Max();
+    public RecordPosition MaxPosition => _values.IsEmpty ? RecordPosition.Unset : _values.Values.Max();
 
     public int Count => _values.Count;
 
-    public LogPosition this[Partition key] => _values[key];
+    public RecordPosition this[Partition key] => _values[key];
 
     public IEnumerable<Partition> Keys => _values.Keys;
 
-    IEnumerable<LogPosition> IReadOnlyDictionary<Partition, LogPosition>.Values => _values.Values;
+    IEnumerable<RecordPosition> IReadOnlyDictionary<Partition, RecordPosition>.Values => _values.Values;
 
     public bool ContainsKey(Partition key) => _values.ContainsKey(key);
 
-    public bool TryGetValue(Partition key, out LogPosition value) => _values.TryGetValue(key, out value);
+    public bool TryGetValue(Partition key, out RecordPosition value) => _values.TryGetValue(key, out value);
 
-    public IEnumerator<KeyValuePair<Partition, LogPosition>> GetEnumerator() => _values.GetEnumerator();
+    public IEnumerator<KeyValuePair<Partition, RecordPosition>> GetEnumerator() => _values.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)_values).GetEnumerator();
 
-    public static implicit operator PartitionPositions(Dictionary<Partition, LogPosition> values) => new(values.ToImmutableDictionary());
+    public static implicit operator PartitionPositions(Dictionary<Partition, RecordPosition> values) => new(values.ToImmutableDictionary());
 
-    public static implicit operator PartitionPositions(ImmutableDictionary<Partition, LogPosition> values) => new(values);
+    public static implicit operator PartitionPositions(ImmutableDictionary<Partition, RecordPosition> values) => new(values);
 }
 
 /// <summary>
@@ -86,7 +110,7 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 /// </summary>
 [PublicAPI]
 public readonly record struct CheckpointBarrier(
-    LogPosition BarrierId,
+    BarrierId BarrierId,
     CheckpointBarrierTrigger Trigger,
     DateTimeOffset Timestamp
 );
@@ -113,11 +137,11 @@ public readonly record struct Connect(ProcessorSettings Settings);
 /// Sent in response to <see cref="WorkOrder"/>.
 /// A <see cref="RecordBatch"/> will not be sent until this message is received.
 /// </summary>
-/// <param name="BarrierId">The barrier ID representing the recovered checkpoint position.</param>
-/// <param name="Positions">Partition to log position mapping after recovery.</param>
+/// <param name="BarrierId">The barrier ID representing the recovered checkpoint.</param>
+/// <param name="Positions">Partition to record position mapping after recovery.</param>
 [PublicAPI]
 public readonly record struct WorkerReady(
-    LogPosition BarrierId,
+    BarrierId BarrierId,
     PartitionPositions Positions
 );
 
@@ -125,10 +149,10 @@ public readonly record struct WorkerReady(
 /// Worker has completed checkpoint - positions are ready for persistence.
 /// </summary>
 /// <param name="BarrierId">The barrier ID this checkpoint responds to.</param>
-/// <param name="Positions">Partition to log position mapping.</param>
+/// <param name="Positions">Partition to record position mapping.</param>
 [PublicAPI]
 public readonly record struct CheckpointComplete(
-    LogPosition BarrierId,
+    BarrierId BarrierId,
     PartitionPositions Positions
 );
 
@@ -142,9 +166,7 @@ public readonly record struct CheckpointComplete(
 public readonly record struct Disconnect(
     DisconnectReason Reason,
     PartitionPositions Positions
-) {
-    public LogPosition BarrierId => Positions.MaxPosition;
-}
+);
 
 /// <summary>
 /// The messages a worker can send to the server. Outbound from worker to relay.
@@ -191,20 +213,6 @@ public enum CheckpointBarrierTrigger {
     /// <para>Auto-deleted: Yes (subject to retention count).</para>
     /// </remarks>
     Interval = 2,
-
-    /// <summary>
-    /// Record count threshold reached.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Triggered when <see cref="CheckpointSettings.Threshold"/> records have been processed
-    /// since the last checkpoint. Useful for high-throughput scenarios where
-    /// time-based intervals alone might result in too much data between checkpoints.
-    /// </para>
-    /// <para>Frequency: Periodic (every N records).</para>
-    /// <para>Auto-deleted: Yes (subject to retention count).</para>
-    /// </remarks>
-    Threshold = 3,
 
     /// <summary>
     /// Subscription caught up to end of log, transitioning to live mode.

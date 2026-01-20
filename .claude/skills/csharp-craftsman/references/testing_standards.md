@@ -73,25 +73,25 @@ public class EventStreamTests {
 ```csharp
 // Public API methods
 [Test]
-public async Task append_event_returns_success_when_valid_event_provided() {
+public async ValueTask append_event_returns_success_when_valid_event_provided() {
     // Test implementation
 }
 
 // Edge cases
 [Test]
-public async Task throws_argument_exception_when_event_data_is_null() {
+public async ValueTask throws_argument_exception_when_event_data_is_null() {
     // Test implementation
 }
 
 // Error conditions
 [Test]
-public async Task returns_failure_when_repository_throws_exception() {
+public async ValueTask returns_failure_when_repository_throws_exception() {
     // Test implementation
 }
 
 // State changes
 [Test]
-public async Task updates_stream_position_after_successful_append() {
+public async ValueTask updates_stream_position_after_successful_append() {
     // Test implementation
 }
 ```
@@ -129,7 +129,7 @@ test/
 #### Arrange-Act-Assert Pattern
 ```csharp
 [Test]
-public async Task append_event_updates_stream_position_when_event_is_valid() {
+public async ValueTask append_event_updates_stream_position_when_event_is_valid() {
     // Arrange
     var streamId         = "test-stream";
     var eventData        = new EventData("test-event", "payload");
@@ -161,12 +161,12 @@ Always use **snake_case** with pattern: `[what_happens]_[when_condition]`
 #### Exception Testing
 ```csharp
 [Test]
-public async Task throws_argument_exception_when_stream_id_is_empty() {
+public async ValueTask throws_argument_exception_when_stream_id_is_empty() {
     // Test for ArgumentException when streamId is null or empty
 }
 
 [Test]
-public async Task throws_invalid_operation_exception_when_stream_is_readonly() {
+public async ValueTask throws_invalid_operation_exception_when_stream_is_readonly() {
     // Test for InvalidOperationException in specific state
 }
 ```
@@ -174,12 +174,12 @@ public async Task throws_invalid_operation_exception_when_stream_is_readonly() {
 #### Return Value Testing
 ```csharp
 [Test]
-public async Task returns_true_when_all_validations_pass() {
+public async ValueTask returns_true_when_all_validations_pass() {
     // Test successful validation scenario
 }
 
 [Test]
-public async Task returns_empty_list_when_no_events_found() {
+public async ValueTask returns_empty_list_when_no_events_found() {
     // Test empty result scenario
 }
 ```
@@ -187,12 +187,12 @@ public async Task returns_empty_list_when_no_events_found() {
 #### State Change Testing
 ```csharp
 [Test]
-public async Task updates_connection_state_to_connected_when_handshake_completes() {
+public async ValueTask updates_connection_state_to_connected_when_handshake_completes() {
     // Test state transition
 }
 
 [Test]
-public async Task sets_last_accessed_timestamp_when_event_is_read() {
+public async ValueTask sets_last_accessed_timestamp_when_event_is_read() {
     // Test property update
 }
 ```
@@ -200,12 +200,12 @@ public async Task sets_last_accessed_timestamp_when_event_is_read() {
 #### Collection Testing
 ```csharp
 [Test]
-public async Task adds_event_to_stream_when_append_succeeds() {
+public async ValueTask adds_event_to_stream_when_append_succeeds() {
     // Specific about collection operation
 }
 
 [Test]
-public async Task removes_expired_events_from_cache_when_cleanup_runs() {
+public async ValueTask removes_expired_events_from_cache_when_cleanup_runs() {
     // Clear about what's removed and why
 }
 ```
@@ -216,7 +216,7 @@ public async Task removes_expired_events_from_cache_when_cleanup_runs() {
 [Arguments("", "empty string")]
 [Arguments(null, "null value")]
 [Arguments("  ", "whitespace only")]
-public async Task throws_argument_exception_when_stream_id_is_invalid(string streamId, string scenario) {
+public async ValueTask throws_argument_exception_when_stream_id_is_invalid(string streamId, string scenario) {
     // Include parameter variation in test name through Arguments description
 }
 ```
@@ -228,7 +228,7 @@ public async Task throws_argument_exception_when_stream_id_is_invalid(string str
 #### Isolation and Independence
 ```csharp
 [Test]
-public async Task processes_events_independently_of_external_dependencies() {
+public async ValueTask processes_events_independently_of_external_dependencies() {
     // Arrange - Mock all external dependencies
     var mockRepository = A.Fake<IEventRepository>();
     var mockLogger     = A.Fake<ILogger<EventProcessor>>();
@@ -243,7 +243,7 @@ public async Task processes_events_independently_of_external_dependencies() {
 #### Deterministic Tests
 ```csharp
 [Test]
-public async Task generates_consistent_event_id_for_same_input() {
+public async ValueTask generates_consistent_event_id_for_same_input() {
     // Use fixed inputs, avoid DateTime.Now, Random, etc.
     var fixedTimestamp = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
     var eventData      = new EventData("test", fixedTimestamp);
@@ -264,19 +264,19 @@ public class EventRepositoryIntegrationTests {
     EventRepository _repository;
 
     [Before(Test)]
-    public async Task Setup() {
+    public async ValueTask Setup() {
         _database   = await TestDatabase.CreateAsync();
         _repository = new EventRepository(_database.ConnectionString);
     }
 
     [After(Test)]
-    public async Task Cleanup() {
+    public async ValueTask Cleanup() {
         await _database.CleanupAsync();
         await _database.DisposeAsync();
     }
 
     [Test]
-    public async Task stores_and_retrieves_event_with_all_metadata() {
+    public async ValueTask stores_and_retrieves_event_with_all_metadata() {
         // Test actual database interaction
         var originalEvent = CreateTestEvent();
         
@@ -297,7 +297,7 @@ public class EventApiIntegrationTests {
     HttpClient _client;
 
     [Before(Test)]
-    public async Task Setup() {
+    public async ValueTask Setup() {
         _server = new TestServerBuilder()
             .WithInMemoryDatabase()
             .WithTestAuthentication()
@@ -306,7 +306,7 @@ public class EventApiIntegrationTests {
     }
 
     [Test]
-    public async Task post_event_returns_created_with_location_header() {
+    public async ValueTask post_event_returns_created_with_location_header() {
         // Test full HTTP pipeline
         var eventPayload = new { Type = "test", Data = "payload" };
         
@@ -333,14 +333,14 @@ public class EventProcessingBenchmarks {
     }
 
     [Benchmark]
-    public async Task ProcessEventsSequentially() {
+    public async ValueTask ProcessEventsSequentially() {
         foreach (var @event in _events) {
             await ProcessEventAsync(@event);
         }
     }
 
     [Benchmark]
-    public async Task ProcessEventsInParallel() {
+    public async ValueTask ProcessEventsInParallel() {
         await Task.WhenAll(_events.Select(ProcessEventAsync));
     }
 }
@@ -349,7 +349,7 @@ public class EventProcessingBenchmarks {
 #### Load Testing Patterns
 ```csharp
 [Test]
-public async Task handles_concurrent_event_appends_without_data_corruption() {
+public async ValueTask handles_concurrent_event_appends_without_data_corruption() {
     const int concurrentOperations = 100;
     var tasks = new List<Task<AppendResult>>();
 
@@ -448,7 +448,7 @@ public class EventStreamTestFixture {
 // Inherit from fixture:
 public class EventStreamAppendTests : EventStreamTestFixture {
     [Test]
-    public async Task append_event_succeeds_with_valid_data() {
+    public async ValueTask append_event_succeeds_with_valid_data() {
         SetupSuccessfulAppend("test-stream", 1);
         // Test implementation
     }
@@ -461,21 +461,21 @@ public class EventStreamAppendTests : EventStreamTestFixture {
 ```csharp
 // ? DON'T: Test implementation details
 [Test]
-public async Task calls_repository_save_method() {
+public async ValueTask calls_repository_save_method() {
     await _service.ProcessAsync(data);
     A.CallTo(() => _repository.Save(A<object>._)).MustHaveHappened();
 }
 
 // ? DO: Test behavior and outcomes
 [Test]
-public async Task saves_processed_data_when_processing_succeeds() {
+public async ValueTask saves_processed_data_when_processing_succeeds() {
     var result = await _service.ProcessAsync(data);
     result.ShouldBe(ProcessingResult.Success);
 }
 
 // ? DON'T: Multiple assertions testing different behaviors
 [Test]
-public async Task process_data_works_correctly() {
+public async ValueTask process_data_works_correctly() {
     var result = await _service.ProcessAsync(data);
     result.ShouldNotBeNull(); // Testing return value
     result.IsValid.ShouldBeTrue(); // Testing validation
@@ -484,20 +484,20 @@ public async Task process_data_works_correctly() {
 
 // ? DO: One behavior per test
 [Test]
-public async Task returns_valid_result_when_processing_succeeds() {
+public async ValueTask returns_valid_result_when_processing_succeeds() {
     var result = await _service.ProcessAsync(data);
     result.IsValid.ShouldBeTrue();
 }
 
 // ? DON'T: Brittle tests that depend on specific order
 [Test]
-public async Task processes_events_in_specific_order() {
+public async ValueTask processes_events_in_specific_order() {
     // This assumes implementation details about ordering
 }
 
 // ? DO: Test the contract, not the implementation
 [Test]
-public async Task processes_all_provided_events() {
+public async ValueTask processes_all_provided_events() {
     var events = CreateTestEvents(3);
     await _processor.ProcessAsync(events);
     // Verify all events were processed, not the order
@@ -521,14 +521,14 @@ public async Task processes_all_provided_events() {
 [Test]
 [Category("Integration")]
 [Property("Database", "Required")]
-public async Task integration_test_with_database() {
+public async ValueTask integration_test_with_database() {
     // Integration test implementation
 }
 
 [Test]
 [Category("Performance")]
 [Property("Timeout", "5000")]
-public async Task performance_test_completes_within_threshold() {
+public async ValueTask performance_test_completes_within_threshold() {
     // Performance test implementation
 }
 ```

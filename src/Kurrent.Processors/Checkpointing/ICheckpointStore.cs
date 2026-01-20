@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Processors.Checkpointing;
@@ -38,8 +39,8 @@ public interface ICheckpointStore {
     /// </remarks>
     ValueTask StoreAsync(
         string workerId,
-        LogPosition barrierId,
-        ImmutableDictionary<Partition, LogPosition> positions,
+        BarrierId barrierId,
+        ImmutableDictionary<Partition, RecordPosition> positions,
         CancellationToken ct = default
     );
 }
@@ -48,26 +49,26 @@ public interface ICheckpointStore {
 /// <summary>
 /// Checkpoint data for a single partition.
 /// </summary>
-/// <param name="Position">The log position of the last processed record.</param>
+/// <param name="Position">The record position of the last processed record.</param>
 /// <param name="WorkerId">The worker that last checkpointed this partition.</param>
 [PublicAPI]
-public sealed record PartitionCheckpoint(LogPosition Position, string WorkerId);
+public sealed record PartitionCheckpoint(RecordPosition Position, string WorkerId);
 
 /// <summary>
 /// Resolved start positions for creating a subscription.
 /// </summary>
 /// <param name="StartFrom">
-/// The position to start the subscription from.
+/// The log position to start the subscription from.
 /// This is the checkpoint barrier if one exists, otherwise resolved from initial position setting.
 /// </param>
 /// <param name="Partitions">
-/// Per-partition positions for internal tracking/filtering.
+/// Per-partition record positions for internal tracking/filtering.
 /// Merged from checkpoints and overrides.
 /// </param>
 [PublicAPI]
 public sealed record SubscriptionStartPosition(
     LogPosition StartFrom,
-    ImmutableDictionary<Partition, LogPosition> Partitions
+    ImmutableDictionary<Partition, RecordPosition> Partitions
 );
 
 /// <summary>
@@ -89,7 +90,7 @@ public sealed record ProcessorCheckpoint {
     /// <summary>
     /// The barrier ID that triggered the last checkpoint.
     /// </summary>
-    public LogPosition BarrierId { get; init; } = LogPosition.Unset;
+    public BarrierId BarrierId { get; init; } = BarrierId.Empty;
 
     /// <summary>
     /// UTC timestamp when the checkpoint was created.
@@ -118,21 +119,23 @@ public sealed record ProcessorCheckpoint {
         ImmutableDictionary<int, long> positionOverrides
     ) {
         // Start with checkpoint positions
-        var builder = ImmutableDictionary.CreateBuilder<Partition, LogPosition>();
+        var builder = ImmutableDictionary.CreateBuilder<Partition, RecordPosition>();
 
         foreach (var (partition, checkpoint) in Partitions)
             builder.Add(partition, checkpoint.Position);
 
-        // Apply overrides
+        // Apply overrides (convert long to RecordPosition)
         foreach (var (partitionValue, position) in positionOverrides)
-            builder[Partition.From(partitionValue)] = position;
+            builder[Partition.From(partitionValue)] = RecordPosition.FromLogPosition(position);
 
-        // Resolve the start position
-        var startFrom = BarrierId == LogPosition.Unset
+        // Resolve the start position for subscription
+        // If we have checkpoint data, use the minimum log position from checkpoints
+        // Otherwise use the initial position setting
+        var startFrom = !HasCheckpoint
             ? initialPosition == SubscriptionInitialPosition.Earliest
                 ? LogPosition.Earliest
                 : LogPosition.Latest
-            : BarrierId;
+            : Partitions.Values.Min(cp => cp.Position.LogPosition);
 
         return new(startFrom, builder.ToImmutable());
     }

@@ -128,7 +128,7 @@ sealed partial class ProcessorWorker : IProcessorWorker {
             loggerFactory.CreateLogger<CheckpointStore>());
 
         _progress = new ProgressTracker(TimeProvider.System);
-        _tracker  = new PartitionedPositionTracker(ImmutableDictionary<Partition, LogPosition>.Empty, LogPosition.Unset);
+        _tracker  = new PartitionedPositionTracker(ImmutableDictionary<Partition, RecordPosition>.Empty);
 
         // _state = _client.Processors.CreateStateStore(_settings.ProcessorId, _settings.WorkerId);
     }
@@ -205,13 +205,16 @@ sealed partial class ProcessorWorker : IProcessorWorker {
             _settings.Subscription.StartPositions
         );
 
-        _tracker.Reset(positions, startFrom);
+        _tracker.Reset(positions);
         _progress.SetPartitionTracker(_tracker);
+
+        // Generate or use barrier ID from checkpoint
+        var barrierId = checkpoint.BarrierId.IsEmpty ? BarrierId.New() : checkpoint.BarrierId;
 
         LogStateRestored(ProcessorId, WorkerId, startFrom, positions.Count);
 
         await _session!
-            .SendAsync(new WorkerReady(startFrom, positions))
+            .SendAsync(new WorkerReady(barrierId, PartitionPositions.From(positions)))
             .ConfigureAwait(false);
 
         Status = ProcessorWorkerStatus.Processing;
@@ -233,14 +236,14 @@ sealed partial class ProcessorWorker : IProcessorWorker {
     async ValueTask HandleCheckpointBarrier(CheckpointBarrier barrier, CancellationToken ct) {
         LogCheckpointBarrierReceived(ProcessorId, WorkerId, barrier.Trigger, barrier.BarrierId);
 
-        var pendingFlush = _tracker.PrepareFlush(barrier.BarrierId);
+        var pendingFlush = _tracker.PrepareFlush();
 
         await _checkpointStore
             .StoreAsync(WorkerId, barrier.BarrierId, pendingFlush.Positions, ct)
             .ConfigureAwait(false);
 
         await _session!
-            .SendAsync(new CheckpointComplete(barrier.BarrierId, pendingFlush.Positions))
+            .SendAsync(new CheckpointComplete(barrier.BarrierId, PartitionPositions.From(pendingFlush.Positions)))
             .ConfigureAwait(false);
 
         pendingFlush.Execute();
@@ -293,10 +296,10 @@ sealed partial class ProcessorWorker : IProcessorWorker {
     partial void LogBatchProcessed(string processorId, string workerId, int recordCount, long totalRecords);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} checkpoint barrier (trigger: {Trigger}, barrierId: {BarrierId})")]
-    partial void LogCheckpointBarrierReceived(string processorId, string workerId, CheckpointBarrierTrigger trigger, LogPosition barrierId);
+    partial void LogCheckpointBarrierReceived(string processorId, string workerId, CheckpointBarrierTrigger trigger, string barrierId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} checkpoint completed (barrierId: {BarrierId}, partitions: {PartitionCount})")]
-    partial void LogCheckpointCompleted(string processorId, string workerId, LogPosition barrierId, int partitionCount);
+    partial void LogCheckpointCompleted(string processorId, string workerId, string barrierId, int partitionCount);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} shutdown completed ({TotalRecords} records in {Duration})")]
     partial void LogShutdownCompleted(string processorId, string workerId, long totalRecords, TimeSpan duration);

@@ -59,14 +59,16 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     /// </summary>
     public bool IsUnset => this == Unset;
 
-    [Experimental("KNET0001")]
-    internal StreamName StreamPartition =>
-        Partition > Partition.Any
-            ? $"{Stream}-{Partition.Value:0000}" : Stream;
+    // [Experimental("KNET0001")]
+    // internal StreamName StreamPartition =>
+    //     Partition > Partition.Any
+    //         ? $"{Stream}-{Partition.Value:0000}" : Stream;
 
     public override string ToString() {
         return Stream == StreamName.None
-            ? $"@{LogPosition}"
+            ? Partition == Partition.Any
+                ? $"{LogPosition}"
+                : $"[{Partition}] @{LogPosition}"
             : Partition == Partition.Any
                 ? $"{Stream} @{LogPosition}"
                 : $"{Stream} [{Partition}] @{LogPosition}";
@@ -82,7 +84,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
 
         return new RecordPosition {
             LogPosition = logPosition,
-            Partition = partition ?? Partition.Any
+            Partition   = partition ?? Partition.Any
         };
     }
 
@@ -119,18 +121,18 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
         };
     }
 
-    public static RecordPosition FromStream(StreamName stream, LogPosition logPosition) {
-        if (stream == StreamName.None)
-            throw new ArgumentException("Stream cannot be None.", nameof(stream));
-
-        if (logPosition == LogPosition.Unset)
-            throw new ArgumentException("LogPosition cannot be Unset.", nameof(logPosition));
-
-        return new RecordPosition {
-            Stream         = stream,
-            LogPosition    = logPosition
-        };
-    }
+    // public static RecordPosition FromStream(StreamName stream, LogPosition logPosition) {
+    //     if (stream == StreamName.None)
+    //         throw new ArgumentException("Stream cannot be None.", nameof(stream));
+    //
+    //     if (logPosition == LogPosition.Unset)
+    //         throw new ArgumentException("LogPosition cannot be Unset.", nameof(logPosition));
+    //
+    //     return new RecordPosition {
+    //         Stream         = stream,
+    //         LogPosition    = logPosition
+    //     };
+    // }
 
     #region . relational members .
 
@@ -150,7 +152,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
 
     #endregion
 
-    public static implicit operator RecordPosition(LogPosition position) => FromLogPosition(position);
-    public static implicit operator RecordPosition(long position)        => FromLogPosition(position);
-    public static implicit operator long(RecordPosition position)        => position.LogPosition;
+    //public static implicit operator RecordPosition(LogPosition position) => FromLogPosition(position);
+    //public static implicit operator RecordPosition(long position)        => FromLogPosition(position);
+    //public static implicit operator long(RecordPosition position)        => position.LogPosition;
 }

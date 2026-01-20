@@ -15,14 +15,13 @@ public class InspectRecordTests {
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    [Skip("Needs investigation")]
     public async Task inspects_log_record(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         var firstMessage = simulation.Records.First();
 
         var linkedRecord = await Fixture.Client.Streams
-            .ReadFirstStreamRecord("$ce-TicTacToe", ct)
+            .ReadFirstStreamRecord("$ce-SmartHomeActivity", ct)
             .ShouldNotThrowOrFailAsync(record => { record.IndexRevision.ShouldBeGreaterThan(0); });
 
         await Fixture.Client.Streams
@@ -38,7 +37,7 @@ public class InspectRecordTests {
             .InspectRecord(seeded.Position, ct)
             .ShouldNotThrowOrFailAsync();
 
-        record.Position.ShouldBeLessThanOrEqualTo(seeded.Position);
+        record.Position.LogPosition.ShouldBeLessThanOrEqualTo(seeded.Position);
         record.Stream.ShouldNotBe(StreamName.None);
         record.IsDecoded.ShouldBeFalse();
     }
@@ -51,7 +50,7 @@ public class InspectRecordTests {
             .InspectRecord(LogPosition.Earliest, ct)
             .ShouldNotThrowOrFailAsync();
 
-        record.Position.ShouldBeGreaterThanOrEqualTo(0);
+        record.Position.LogPosition.ShouldBeGreaterThanOrEqualTo(0);
         record.Stream.ShouldNotBe(StreamName.None);
         record.IsDecoded.ShouldBeFalse();
     }
@@ -64,7 +63,7 @@ public class InspectRecordTests {
             .InspectRecord(LogPosition.Latest, ct)
             .ShouldNotThrowOrFailAsync();
 
-        record.Position.ShouldBeGreaterThan(0);
+        record.Position.LogPosition.ShouldBeGreaterThan(0);
         record.Stream.ShouldNotBe(StreamName.None);
         record.IsDecoded.ShouldBeFalse();
     }

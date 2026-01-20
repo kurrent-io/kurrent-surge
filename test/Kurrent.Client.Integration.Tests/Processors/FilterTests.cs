@@ -25,7 +25,7 @@ public class FilterTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation1.Position)
+            if (record.Position.LogPosition >= simulation1.Position)
                 cts.Cancel();
         };
 
@@ -60,7 +60,7 @@ public class FilterTests {
         var streamPrefix = simulation1.Stream.Value[..Math.Min(10, simulation1.Stream.Value.Length)];
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation1.Position)
+            if (record.Position.LogPosition >= simulation1.Position)
                 cts.Cancel();
         };
 
@@ -96,7 +96,7 @@ public class FilterTests {
 
         processor.OnRecordProcessed = record => {
             filteredCount++;
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -124,7 +124,7 @@ public class FilterTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -154,7 +154,7 @@ public class FilterTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 

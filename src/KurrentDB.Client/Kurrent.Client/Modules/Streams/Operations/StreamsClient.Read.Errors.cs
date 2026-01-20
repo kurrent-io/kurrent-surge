@@ -6,11 +6,13 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public partial class InspectRecordError : IVariantException<
     StreamTombstonedException,
+    StreamDeletedException,
     LogPositionNotFoundException,
     Exception> {
     public static InspectRecordError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<InspectRecordError>(
             StreamTombstonedException.From,
+            StreamDeletedException.From,
             LogPositionNotFoundException.From
         );
 }

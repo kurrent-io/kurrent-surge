@@ -17,6 +17,11 @@ public class AppendStreamRequestBuilder {
         return this;
     }
 
+    public AppendStreamRequestBuilder ExpectingRevision(ExpectedStreamState expectedState) {
+        _expectedState = expectedState;
+        return this;
+    }
+
     public AppendStreamRequestBuilder WithRecord(AppendRecord record) =>
         WithRecord(builder => builder.FromRecord(record));
 

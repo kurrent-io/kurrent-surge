@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Leases;
+namespace Kurrent.Processors.Leases;
 
 [PublicAPI]
 public record ReleaseLease {

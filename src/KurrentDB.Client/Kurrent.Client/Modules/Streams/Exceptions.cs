@@ -42,8 +42,18 @@ public partial class StreamRevisionConflictException {
 
     public void AfterParseRpcStatus(Status status, StreamRevisionConflictException self) {
         var details = status.GetDetail<StreamRevisionConflictErrorDetails>()!;
-        self.ExpectedRevision = details.ExpectedRevision;
-        self.ActualRevision   = details.ActualRevision;
+
+        // ExpectedRevision can be -1 (NoStream), -2 (Any), -4 (StreamExists), or >= 0 (specific revision)
+        // StreamRevision only accepts -1000 (Unset) or >= 0
+        // Map -1, -2, -4 to Unset since they represent expected states, not actual revisions
+        self.ExpectedRevision = details.ExpectedRevision >= 0
+            ? StreamRevision.From(details.ExpectedRevision)
+            : StreamRevision.Unset;
+
+        // ActualRevision should always be >= 0 (actual stream revision) or -1 if stream doesn't exist
+        self.ActualRevision = details.ActualRevision >= 0
+            ? StreamRevision.From(details.ActualRevision)
+            : StreamRevision.Unset;
     }
 }
 

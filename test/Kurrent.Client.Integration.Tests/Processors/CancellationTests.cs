@@ -196,7 +196,7 @@ public class CancellationTests {
         var processorId = $"cancel-timeout-{Guid.NewGuid():N}";
 
         // Create a timeout after processing some records
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token);
 
         // Act

@@ -37,6 +37,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging"  />
     <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
     <PackageReference Include="NJsonSchema"  />
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="NodaTime.Serialization.Protobuf" />
+    <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="System.Linq.Async" Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'" />
     <PackageReference Include="OpenTelemetry.Api"  />
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />

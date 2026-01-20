@@ -17,8 +17,8 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    LogPosition              _lastCheckpointPosition = LogPosition.Unset;
-    CheckpointBarrierTrigger _lastCheckpointTrigger  = CheckpointBarrierTrigger.Unspecified;
+    BarrierId                _lastCheckpointBarrierId = BarrierId.Empty;
+    CheckpointBarrierTrigger _lastCheckpointTrigger   = CheckpointBarrierTrigger.Unspecified;
     DateTimeOffset?          _lastCheckpointAt;
 
     PartitionedPositionTracker? _partitionTracker;
@@ -51,10 +51,10 @@ sealed class ProgressTracker {
     /// <param name="barrier">The checkpoint barrier that completed.</param>
     public void TrackCheckpoint(CheckpointBarrier barrier) {
         _totalCheckpoints++;
-        _recordsAtLastCheckpoint = _totalRecords;
-        _lastCheckpointPosition  = barrier.BarrierId;
-        _lastCheckpointTrigger   = barrier.Trigger;
-        _lastCheckpointAt        = barrier.Timestamp;
+        _recordsAtLastCheckpoint  = _totalRecords;
+        _lastCheckpointBarrierId  = barrier.BarrierId;
+        _lastCheckpointTrigger    = barrier.Trigger;
+        _lastCheckpointAt         = barrier.Timestamp;
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ sealed class ProgressTracker {
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
                 RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
-                LastPosition:               _lastCheckpointPosition,
+                LastBarrierId:              _lastCheckpointBarrierId,
                 LastTrigger:                _lastCheckpointTrigger,
                 LastCompletedAt:            _lastCheckpointAt
             );

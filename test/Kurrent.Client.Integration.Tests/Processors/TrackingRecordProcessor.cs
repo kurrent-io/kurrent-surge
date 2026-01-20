@@ -71,9 +71,9 @@ sealed class TrackingRecordProcessor : IRecordProcessor {
         _callOrder.Add(("CheckpointComplete", DateTime.UtcNow));
 
         Log.Debug(
-            "Checkpoint complete: TotalCheckpoints={TotalCheckpoints}, Position={Position}",
+            "Checkpoint complete: TotalCheckpoints={TotalCheckpoints}, BarrierId={BarrierId}",
             context.Progress.Checkpoint.TotalCheckpoints,
-            context.Progress.Checkpoint.LastPosition);
+            context.Progress.Checkpoint.LastBarrierId);
 
         if (OnCheckpointCompleteCallback is not null)
             await OnCheckpointCompleteCallback(context);

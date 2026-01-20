@@ -125,16 +125,16 @@ dotnet run --project test/MyApp.Tests/MyApp.Tests.csproj \
 
 ```bash
 # Single specific test
---treenode-filter "/*/*/*/create_order_persists_to_database"
+--treenode-filter "/*/*/*/the_test_name"
 
 # All tests in a specific class
---treenode-filter "/*/*/OrderServiceTests/*"
+--treenode-filter "/*/*/the_test_class_name/*"
 
 # All tests in a namespace pattern
---treenode-filter "/*/*IntegrationTests*/*"
+--treenode-filter "/*/*part_of_the_test_namespace*/*"
 
 # Wildcard matching for test name patterns
---treenode-filter "/*/*/*order*"
+--treenode-filter "/*/*/*part_of_the_test_name*"
 
 # Multiple levels of wildcards
 --treenode-filter "/*/*Order*/*create*"

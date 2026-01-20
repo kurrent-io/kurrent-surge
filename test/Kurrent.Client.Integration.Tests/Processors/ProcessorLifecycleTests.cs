@@ -45,7 +45,7 @@ public class ProcessorLifecycleTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -98,7 +98,7 @@ public class ProcessorLifecycleTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -142,7 +142,7 @@ public class ProcessorLifecycleTests {
         processor.OnRecordProcessed = record => {
             if (!observedStatuses.Contains(worker.Status))
                 observedStatuses.Add(worker.Status);
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -222,7 +222,7 @@ public class ProcessorLifecycleTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -248,7 +248,7 @@ public class ProcessorLifecycleTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 

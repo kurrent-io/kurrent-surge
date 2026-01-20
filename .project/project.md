@@ -269,29 +269,34 @@ var request = AppendStreamRequest.New()
 
 **Critical: Use `dotnet run`, NOT `dotnet test`**
 
+### Run Tests
+
+- always run for dotnet 8.0 until the tests pass.
+- once tests pass for dotnet 8.0, run for dotnet 9.0 and 10.0 as well.
+
 ```bash
 # CORRECT - TUnit execution
 dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net10.0
+--project test/Kurrent.Client.Integration.Tests/ \
+--disable-logo --no-ansi --no-progress --fail-fast --adaptive-metrics \
+--output Detailed --log-level Trace \
+--framework net8.0
 
 # Run specific category
 dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net10.0 \
-  --treenode-filter "/*/*/*/*[Category=Streams]"
+--project test/Kurrent.Client.Integration.Tests/ \
+--disable-logo --no-ansi --no-progress --fail-fast --adaptive-metrics \
+--output Detailed --log-level Trace \
+--framework net8.0 \
+--treenode-filter "/*/*/*/*[Category=Streams]"
 
-# WRONG - This will fail
-dotnet test  # TUnit doesn't support dotnet test
+# Run specific test class
+dotnet run --project test/Kurrent.Client.Integration.Tests/ \
+--disable-logo --no-ansi --no-progress --fail-fast --adaptive-metrics \
+--output Detailed --log-level Trace \
+--framework net8.0 \
+--treenode-filter "/*/*/ReadTests/*"
 ```
-
-**Available Test Categories:**
-- `Streams` - Stream operations
-- `PersistentSubscriptions` - Consumer groups
-- `ProjectionManagement` - Projections
-- `UserManagement` - Security
-- `Registry` - Schema registry
-- `Admin` - Server operations
 
 ### Test Fixtures Pattern
 

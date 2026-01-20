@@ -298,9 +298,9 @@ static class StreamsClientV1Mapper {
         // and we are done
         var record = new Record(decoder) {
             Id             = recordId,
-            Stream         = stream,
-            StreamRevision = revision,
-            Position       = position,
+            // Stream         = stream,
+            // StreamRevision = revision,
+            Position       = RecordPosition.FromStream(stream, revision, position),
             Sequence       = sequenceId,
             Timestamp      = timestamp,
             Data           = data,

@@ -94,7 +94,7 @@ public partial class StreamsClient {
 
             return details with {
                 State                = StreamState.Active,
-                LastStreamPosition   = record.Position,
+                LastStreamPosition   = record.Position.LogPosition,
                 LastStreamRevision   = record.StreamRevision,
                 LastStreamAppendTime = record.Timestamp
             };

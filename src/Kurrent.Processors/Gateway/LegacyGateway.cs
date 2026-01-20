@@ -123,7 +123,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
             );
 
             // Shared state for timer to read last position
-            var lastPosition = LogPosition.Unset;
+            var lastPosition = RecordPosition.Unset;
 
             // start pumping messages
             _ = Task.Run(PumpPump, stoppingToken);
@@ -138,7 +138,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
             [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
             async ValueTask PumpPump() {
                 SequenceGenerator sequencer = new();
-                var recordsSinceBarrier = 0;
+                //var recordsSinceBarrier = 0;
 
                 try {
                     // must continue from the freaking cursor because we had to try to read
@@ -153,12 +153,12 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                         switch (resp?.ContentCase) {
                             case Checkpoint:
                                 message = resp.Checkpoint.MapToBarrier(sequencer.FetchNext());
-                                recordsSinceBarrier = 0; // Reset counter on server barrier
+                               // recordsSinceBarrier = 0; // Reset counter on server barrier
                                 break;
 
                             case CaughtUp:
                                 message = resp.CaughtUp.MapToBarrier(sequencer.FetchNext());
-                                recordsSinceBarrier = 0; // Reset counter on server barrier
+                               // recordsSinceBarrier = 0; // Reset counter on server barrier
                                 break;
 
                             case Event:
@@ -177,7 +177,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
 
                                 // Set partition on the record's FullPosition using `with` expression
                                 message = record with {
-                                    FullPosition = record.FullPosition with {
+                                    Position = record.Position with {
                                         Partition = Partition.From(partition)
                                     }
                                 };
@@ -204,22 +204,22 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
 
                         // Update shared position for timer and check threshold
                         if (message.IsRecord) {
-                            var recordPosition = message.AsRecord.FullPosition.LogPosition;
+                            var recordPosition = message.AsRecord.Position;
                             lastPosition = recordPosition;
-                            recordsSinceBarrier++;
+                           // recordsSinceBarrier++;
 
-                            // Threshold barrier check
-                            if (options.Checkpoint.Threshold > 0 &&
-                                recordsSinceBarrier >= options.Checkpoint.Threshold) {
-
-                                var barrier = new CheckpointBarrier(
-                                    recordPosition,
-                                    CheckpointBarrierTrigger.Threshold,
-                                    Time.GetUtcNow()
-                                );
-                                await channel.Writer.WriteAsync(barrier, stoppingToken).ConfigureAwait(false);
-                                recordsSinceBarrier = 0;
-                            }
+                            // // Threshold barrier check
+                            // if (options.Checkpoint.Threshold > 0 &&
+                            //     recordsSinceBarrier >= options.Checkpoint.Threshold) {
+                            //
+                            //     var barrier = new CheckpointBarrier(
+                            //         recordPosition,
+                            //         CheckpointBarrierTrigger.Threshold,
+                            //         Time.GetUtcNow()
+                            //     );
+                            //     await channel.Writer.WriteAsync(barrier, stoppingToken).ConfigureAwait(false);
+                            //     recordsSinceBarrier = 0;
+                            // }
                         }
 
                     } while (await grpcSession.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false));
@@ -248,12 +248,13 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
 
                 try {
                     while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false)) {
-                        var position = lastPosition;
-                        if (position.IsUnset)
-                            continue; // Skip if no records yet
+                        // Skip barrier if no records have been processed yet
+                        // This prevents empty checkpoints during startup
+                        if (lastPosition.IsUnset)
+                            continue;
 
                         var barrier = new CheckpointBarrier(
-                            position,
+                            BarrierId.New(),
                             CheckpointBarrierTrigger.Interval,
                             Time.GetUtcNow()
                         );

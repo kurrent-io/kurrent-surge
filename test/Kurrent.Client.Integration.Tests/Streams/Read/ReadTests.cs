@@ -52,7 +52,7 @@ public class ReadTests {
                         record.Id, record.Schema.SchemaName, record.Position
                     );
 
-                    if (record.Position >= simulation.Position)
+                    if (record.Position.LogPosition >= simulation.Position)
                         // ReSharper disable once AccessToDisposedClosure
                         cancellator.Cancel();
                 },
@@ -86,7 +86,7 @@ public class ReadTests {
 
             record.Stream.ShouldBe(simulation.Stream);
             record.StreamRevision.ShouldBeEquivalentTo(StreamRevision.From(i));
-            record.Position.ShouldBeLessThanOrEqualTo(simulation.Position);
+            record.Position.LogPosition.ShouldBeLessThanOrEqualTo(simulation.Position);
 
             record.Schema.SchemaName.Value.ShouldNotBeEmpty();
             record.Schema.SchemaFormat.ShouldBe(iotEvent.DataFormat);

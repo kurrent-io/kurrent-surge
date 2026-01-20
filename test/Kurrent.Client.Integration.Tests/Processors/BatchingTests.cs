@@ -58,7 +58,7 @@ public class BatchingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -86,7 +86,7 @@ public class BatchingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -150,7 +150,7 @@ public class BatchingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 

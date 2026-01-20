@@ -11,13 +11,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
     <Using Include="Shouldly" />
     <Using Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FakeItEasy" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="NodaTime.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,9 +58,5 @@
     <EmbeddedResource Remove="Admin\**" />
     <EmbeddedResource Remove="Subscriptions\**" />
     <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Processors\" />
   </ItemGroup>
 </Project>

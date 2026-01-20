@@ -468,7 +468,7 @@ Applies:
 
 [ClassName]Tests.cs
 - TUnit test class
-- Shouldly assertions
+- TUnit assertions
 - FakeItEasy mocks
 - Core coverage (or as requested)
 - Test data builders if needed

@@ -41,17 +41,27 @@ public partial class StreamsClient {
             await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
                 .UnwrapAsync().ConfigureAwait(false);
 
-            var message = await messages.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+            var message = await messages
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-            if (message == ReadRecordsResult.Irrelevant)
+            if (message.Value is not Record record)
                 return Result<Record, InspectRecordError>.Failure(
-                    new LogPositionNotFoundException(request.Options.All.Position?.CommitPosition ?? LogPosition.Latest));
-                // throw new LogPositionNotFoundException(request.Options.All.Position?.CommitPosition ?? LogPosition.Latest);
+                    new LogPositionNotFoundException(position));
 
-            if (message.IsRecord)
-                return message.AsRecord;
+            // Check if the source stream has been deleted or tombstoned
+            if (record.Position.Stream != StreamName.None) {
+                var streamInfo = await GetStreamInfo(record.Position.Stream, cancellationToken)
+                    .UnwrapAsync().ConfigureAwait(false);
 
-            return Result<Record, InspectRecordError>.Failure(new LogPositionNotFoundException(position));
+                return streamInfo.State switch {
+                    StreamState.Deleted    => Result<Record, InspectRecordError>.Failure(new StreamDeletedException(record.Position.Stream)),
+                    StreamState.Tombstoned => Result<Record, InspectRecordError>.Failure(new StreamTombstonedException(record.Position.Stream)),
+                    _                      => record
+                };
+            }
+
+            return record;
         }
         catch (Exception ex) {
             return InspectRecordError.FromEx(ex);

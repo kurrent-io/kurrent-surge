@@ -24,8 +24,8 @@ public class PositionTrackingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            lastObservedPosition = record.Position;
-            if (record.Position >= simulation.Position)
+            lastObservedPosition = record.Position.LogPosition;
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -116,8 +116,8 @@ public class PositionTrackingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            positions.Add(record.Position);
-            if (record.Position >= simulation.Position)
+            positions.Add(record.Position.LogPosition);
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -150,7 +150,7 @@ public class PositionTrackingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -179,7 +179,7 @@ public class PositionTrackingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -211,7 +211,7 @@ public class PositionTrackingTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 

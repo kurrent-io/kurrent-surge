@@ -85,7 +85,7 @@ sealed class LegacyWorkerSession : IWorkerSession {
     public ValueTask DisposeAsync() => StopSessionAsync();
 
     async ValueTask StopSessionAsync() {
-        if (!_cancellator.IsCancellationRequested) return;
+        if (_cancellator.IsCancellationRequested) return;  // Already cancelled, skip
         await _cancellator.CancelAsync().ConfigureAwait(false);
         _cancellator.Dispose();
     }

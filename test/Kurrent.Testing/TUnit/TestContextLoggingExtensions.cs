@@ -9,6 +9,12 @@ public static class TestContextLoggingExtensions {
 
     extension(TestContext? ctx) {
         public Serilog.ILogger AddLogging(TestLogger testLogger) {
+            // Check if logger already exists (idempotent operation)
+            if (ctx.TryExtractItem<ILoggerFactory>(LoggerFactoryKey, out _)) {
+                return testLogger;
+            }
+
+            // Create and inject new logger factory
             ILoggerFactory factory = new SerilogLoggerFactory(testLogger, dispose: true);
             ctx.InjectItem(factory, LoggerFactoryKey);
             ctx.InjectItem(factory.CreateLogger(null!), LoggerKey);

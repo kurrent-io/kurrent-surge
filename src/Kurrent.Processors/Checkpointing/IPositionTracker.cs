@@ -17,22 +17,12 @@ public interface IPositionTracker : IDisposable {
     RecordPosition LastFlushedPosition { get; }
 
     /// <summary>
-    /// Last barrier position passed to <see cref="FlushUpTo"/>, or <see cref="RecordPosition.Unset"/> if none.
-    /// </summary>
-    RecordPosition LastBarrierPosition { get; }
-
-    /// <summary>
     /// Tracks a position for later flushing.
     /// </summary>
     int Track(RecordPosition position);
 
     /// <summary>
-    /// Flushes tracked positions up to and including the specified barrier position.
+    /// Flushes tracked positions up to and including the specified position.
     /// </summary>
-    RecordPosition[] FlushUpTo(RecordPosition barrierPosition);
-
-    /// <summary>
-    /// Gets all tracked positions up to and including the specified position.
-    /// </summary>
-    RecordPosition[] PositionsUpTo(RecordPosition position);
+    RecordPosition[] FlushUpTo(RecordPosition position);
 }

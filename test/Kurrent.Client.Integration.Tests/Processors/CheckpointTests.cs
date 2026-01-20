@@ -23,7 +23,7 @@ public class CheckpointTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -81,7 +81,7 @@ public class CheckpointTests {
         using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor2.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts2.Cancel();
         };
 
@@ -122,7 +122,7 @@ public class CheckpointTests {
         };
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -159,7 +159,7 @@ public class CheckpointTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 
@@ -197,7 +197,7 @@ public class CheckpointTests {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         processor.OnRecordProcessed = record => {
-            if (record.Position >= simulation.Position)
+            if (record.Position.LogPosition >= simulation.Position)
                 cts.Cancel();
         };
 

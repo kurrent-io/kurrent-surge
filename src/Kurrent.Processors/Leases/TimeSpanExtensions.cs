@@ -1,4 +1,4 @@
-namespace Kurrent.Surge;
+namespace Kurrent.Processors.Leases;
 
 static class TimeSpanExtensions {
     static readonly Random Random = new();

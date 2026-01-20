@@ -17,9 +17,11 @@ class RecordFaker : Faker<Record> {
 
                 return new Record {
                     Id             = f.Random.Guid(),
-                    Stream         = f.Lorem.Slug(),
-                    Position       = f.IndexGlobal + 1, //.IndexGlobal.Random.Long(0, 10000),
-                    StreamRevision = f.Random.Long(1, 20),
+                    Position       = new RecordPosition {
+                        LogPosition    = LogPosition.From(f.IndexGlobal + 1),
+                        Stream         = StreamName.From(f.Lorem.Slug()),
+                        StreamRevision = StreamRevision.From(f.Random.Long(1, 20))
+                    },
                     Timestamp      = TimeProvider.System.GetLocalNow().LocalDateTime,
                     Schema         = new RecordSchemaInfo {
                         SchemaName   = urn.ToString(),
@@ -83,11 +85,14 @@ class RecordFaker : Faker<Record> {
         var record = Generate();
 
         return record with {
-            Stream         = stream ?? record.Stream.Value,
-            Position       = position ?? record.Position.Value,
-            StreamRevision = streamRevision ?? (long)record.StreamRevision,
-            Timestamp      = timestamp ?? record.Timestamp,
-            Metadata       = metadata ?? record.Metadata,
+            Position = new RecordPosition {
+                LogPosition    = position.HasValue ? LogPosition.From(position.Value) : record.Position.LogPosition,
+                Stream         = stream is not null ? StreamName.From(stream) : record.Position.Stream,
+                StreamRevision = streamRevision.HasValue ? StreamRevision.From(streamRevision.Value) : record.Position.StreamRevision,
+                Partition      = record.Position.Partition
+            },
+            Timestamp = timestamp ?? record.Timestamp,
+            Metadata  = metadata ?? record.Metadata,
             Schema = record.Schema with {
                 SchemaName = schemaName is not null ? SchemaName.From(schemaName) : record.Schema.SchemaName
             }

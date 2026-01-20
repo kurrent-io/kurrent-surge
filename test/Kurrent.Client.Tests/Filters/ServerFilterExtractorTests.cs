@@ -391,10 +391,12 @@ public class ServerFilterExtractorTests {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND timestamp >= '2024-01-01'");
 
         var matching = new Record {
-            Id             = Guid.NewGuid(),
-            Stream         = "Orders-ABC123",
-            Position       = 0,
-            StreamRevision = 0,
+            Id       = Guid.NewGuid(),
+            Position = new RecordPosition {
+                LogPosition    = LogPosition.From(0),
+                Stream         = StreamName.From("Orders-ABC123"),
+                StreamRevision = StreamRevision.From(0)
+            },
             Timestamp = new DateTime(
                 2024, 6, 15,
                 0, 0, 0,
@@ -406,10 +408,12 @@ public class ServerFilterExtractorTests {
         };
 
         var nonMatching = new Record {
-            Id             = Guid.NewGuid(),
-            Stream         = "Orders-ABC123",
-            Position       = 0,
-            StreamRevision = 0,
+            Id       = Guid.NewGuid(),
+            Position = new RecordPosition {
+                LogPosition    = LogPosition.From(0),
+                Stream         = StreamName.From("Orders-ABC123"),
+                StreamRevision = StreamRevision.From(0)
+            },
             Timestamp = new DateTime(
                 2023, 6, 15,
                 0, 0, 0,
@@ -429,22 +433,26 @@ public class ServerFilterExtractorTests {
         var filter = RecordFilter.ByStreamPrefix("Orders-");
 
         var matching = new Record {
-            Id             = Guid.NewGuid(),
-            Stream         = "Orders-D0332EB7480643E4",
-            Position       = 0,
-            StreamRevision = 0,
-            Timestamp      = DateTime.UtcNow,
+            Id       = Guid.NewGuid(),
+            Position = new RecordPosition {
+                LogPosition    = LogPosition.From(0),
+                Stream         = StreamName.From("Orders-D0332EB7480643E4"),
+                StreamRevision = StreamRevision.From(0)
+            },
+            Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
                 .With(SystemMetadataKeys.SchemaName, "TestEvent")
                 .With(SystemMetadataKeys.SchemaFormat, "json")
         };
 
         var nonMatching = new Record {
-            Id             = Guid.NewGuid(),
-            Stream         = "Payments-F9E8D7C6B5A43210",
-            Position       = 0,
-            StreamRevision = 0,
-            Timestamp      = DateTime.UtcNow,
+            Id       = Guid.NewGuid(),
+            Position = new RecordPosition {
+                LogPosition    = LogPosition.From(0),
+                Stream         = StreamName.From("Payments-F9E8D7C6B5A43210"),
+                StreamRevision = StreamRevision.From(0)
+            },
+            Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
                 .With(SystemMetadataKeys.SchemaName, "TestEvent")
                 .With(SystemMetadataKeys.SchemaFormat, "json")
@@ -459,11 +467,13 @@ public class ServerFilterExtractorTests {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
 
         var matching = new Record {
-            Id             = Guid.NewGuid(),
-            Stream         = "Orders-ABC123",
-            Position       = 0,
-            StreamRevision = 0,
-            Timestamp      = DateTime.UtcNow,
+            Id       = Guid.NewGuid(),
+            Position = new RecordPosition {
+                LogPosition    = LogPosition.From(0),
+                Stream         = StreamName.From("Orders-ABC123"),
+                StreamRevision = StreamRevision.From(0)
+            },
+            Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
                 .With(SystemMetadataKeys.SchemaName, "TestEvent")
                 .With(SystemMetadataKeys.SchemaFormat, "json")
@@ -471,11 +481,13 @@ public class ServerFilterExtractorTests {
         };
 
         var nonMatching = new Record {
-            Id             = Guid.NewGuid(),
-            Stream         = "Orders-ABC123",
-            Position       = 0,
-            StreamRevision = 0,
-            Timestamp      = DateTime.UtcNow,
+            Id       = Guid.NewGuid(),
+            Position = new RecordPosition {
+                LogPosition    = LogPosition.From(0),
+                Stream         = StreamName.From("Orders-ABC123"),
+                StreamRevision = StreamRevision.From(0)
+            },
+            Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
                 .With(SystemMetadataKeys.SchemaName, "TestEvent")
                 .With(SystemMetadataKeys.SchemaFormat, "json")

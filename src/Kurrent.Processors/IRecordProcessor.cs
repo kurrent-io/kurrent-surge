@@ -320,21 +320,21 @@ public readonly record struct ThroughputMetrics(
 /// </summary>
 /// <param name="TotalCheckpoints">Total number of checkpoints completed.</param>
 /// <param name="RecordsSinceLastCheckpoint">Records processed since the last checkpoint.</param>
-/// <param name="LastPosition">Log position of the last completed checkpoint.</param>
+/// <param name="LastBarrierId">Barrier ID of the last completed checkpoint.</param>
 /// <param name="LastTrigger">What triggered the last checkpoint.</param>
 /// <param name="LastCompletedAt">When the last checkpoint completed, or null if none.</param>
 [PublicAPI]
 public readonly record struct CheckpointProgress(
     long TotalCheckpoints,
     long RecordsSinceLastCheckpoint,
-    LogPosition LastPosition,
+    BarrierId LastBarrierId,
     CheckpointBarrierTrigger LastTrigger,
     DateTimeOffset? LastCompletedAt
 ) {
     /// <summary>
     /// Empty checkpoint progress with no checkpoints completed.
     /// </summary>
-    public static readonly CheckpointProgress Empty = new(0, 0, LogPosition.Unset, CheckpointBarrierTrigger.Unspecified, null);
+    public static readonly CheckpointProgress Empty = new(0, 0, BarrierId.Empty, CheckpointBarrierTrigger.Unspecified, null);
 }
 
 /// <summary>

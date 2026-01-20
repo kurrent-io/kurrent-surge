@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Leases;
+namespace Kurrent.Processors.Leases;
 
 /// <summary>
 /// The ILeaseManager interface defines the contract for managing leases in a distributed system.

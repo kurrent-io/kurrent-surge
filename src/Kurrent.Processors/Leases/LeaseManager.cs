@@ -1,21 +1,20 @@
 using Kurrent.Client;
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Processors;
 using Kurrent.Client.Streams;
 using static System.Threading.CancellationTokenSource;
 
-namespace Kurrent.Surge.Leases;
+namespace Kurrent.Processors.Leases;
 
 public class LeaseManager : ILeaseManager  {
-    public LeaseManager(IReader reader, IProducer producer, IClock? clock = null, StreamTemplate? streamTemplate = null, ILogger<LeaseManager>? logger = null) {
-        Reader         = reader;
-        Producer       = producer;
+    public LeaseManager(StreamsClient streamsClient, IClock? clock = null, StreamTemplate? streamTemplate = null, ILogger<LeaseManager>? logger = null) {
+        StreamsClient  = streamsClient;
         StreamTemplate = streamTemplate ?? "$leases/{0}";
         Clock          = clock  ?? SystemClock.Instance;
         Logger         = logger ?? NullLogger<LeaseManager>.Instance;
     }
 
-    IReader        Reader         { get; }
-    IProducer      Producer       { get; }
+    StreamsClient  StreamsClient  { get; }
     StreamTemplate StreamTemplate { get; }
     IClock         Clock          { get; }
     ILogger        Logger         { get; }
@@ -34,15 +33,14 @@ public class LeaseManager : ILeaseManager  {
         // try to quickly acquire the lease by assuming the stream
         // does not exist when the version is not provided
         if (request.Version.IsUnset) {
-            var acquireResult = await StoreLease(streamId, newLease, token).ConfigureAwait(false);
-
-            if (acquireResult.Success) {
-                Logger.LogLeaseAcquired(newLease.ResourceId, acquireResult.Position.StreamRevision, request.OwnerId, newLease.ExpiresAt);
-                return AcquireOrRenewLeaseResult.Acquired(newLease with { Version = LeaseVersion.From(acquireResult.Position.StreamRevision) });
+            try {
+                var acquireResult = await StoreLease(streamId, newLease, token).ConfigureAwait(false);
+                Logger.LogLeaseAcquired(newLease.ResourceId, acquireResult.StreamRevision, request.OwnerId, newLease.ExpiresAt);
+                return AcquireOrRenewLeaseResult.Acquired(newLease with { Version = LeaseVersion.From(acquireResult.StreamRevision) });
             }
-
-            if (acquireResult.Error is not ExpectedStreamRevisionError)
-                throw new InvalidOperationException("Unexpected error while acquiring lease", acquireResult.Error);
+            catch (StreamRevisionConflictException) {
+                // Stream exists, fall through to load and evaluate
+            }
         }
 
         // at this point we know the stream exists, so we load the lease and evaluate it
@@ -74,26 +72,24 @@ public class LeaseManager : ILeaseManager  {
         }
 
         // the lease can now be acquired or renewed
-        var result = await StoreLease(streamId, newLease with { Version = existingLease.Version }, token).ConfigureAwait(false);
+        try {
+            var result = await StoreLease(streamId, newLease with { Version = existingLease.Version }, token).ConfigureAwait(false);
 
-        if (result.Success) {
             if (existingLease.IsOwnedBy(request.OwnerId)) {
-                Logger.LogLeaseRenewed(existingLease.ResourceId, result.Position.StreamRevision, request.OwnerId, newLease.ExpiresAt);
-                return AcquireOrRenewLeaseResult.Renewed(newLease with { Version = LeaseVersion.From(result.Position.StreamRevision) });
+                Logger.LogLeaseRenewed(existingLease.ResourceId, result.StreamRevision, request.OwnerId, newLease.ExpiresAt);
+                return AcquireOrRenewLeaseResult.Renewed(newLease with { Version = LeaseVersion.From(result.StreamRevision) });
             }
             else {
-                Logger.LogLeaseAcquired(newLease.ResourceId, result.Position.StreamRevision, request.OwnerId, newLease.ExpiresAt);
-                return AcquireOrRenewLeaseResult.Acquired(newLease with { Version = LeaseVersion.From(result.Position.StreamRevision) });
+                Logger.LogLeaseAcquired(newLease.ResourceId, result.StreamRevision, request.OwnerId, newLease.ExpiresAt);
+                return AcquireOrRenewLeaseResult.Acquired(newLease with { Version = LeaseVersion.From(result.StreamRevision) });
             }
         }
-
-        // !!! edge case alert !!!
-        // meanwhile the lease could have been updated.
-        // retrying the operation automatically will let the algorithm decide what to do next.
-        if (result.Error is ExpectedStreamRevisionError)
+        catch (StreamRevisionConflictException) {
+            // !!! edge case alert !!!
+            // meanwhile the lease could have been updated.
+            // retrying the operation automatically will let the algorithm decide what to do next.
             return await AcquireOrRenew(request, token).ConfigureAwait(false);
-
-        throw new InvalidOperationException("Unexpected error while acquiring or renewing lease", result.Error);
+        }
     }
 
     public async ValueTask<AcquireOrRenewLeaseResult> AcquireOrRenew(AcquireOrRenewLease request, AcquireOrRenewLeaseRetryOptions retryOptions, CancellationToken token = default) {
@@ -173,74 +169,66 @@ public class LeaseManager : ILeaseManager  {
         }
 
         // expire lease
-        var expireResult = await StoreLease(streamId, loadedLease with { Duration = Duration.Zero }, token).ConfigureAwait(false);
-
-        if (expireResult.Success) {
+        try {
+            await StoreLease(streamId, loadedLease with { Duration = Duration.Zero }, token).ConfigureAwait(false);
             Logger.LogLeaseReleased(loadedLease.ResourceId, loadedLease.Version, request.OwnerId);
             return ReleaseLeaseResult.Released();
         }
-
-        // edge case: meanwhile the lease could have been updated.
-        // retrying the operation automatically will let the algorithm decide what to do next.
-        if (expireResult.Error is ExpectedStreamRevisionError expectedStreamRevisionError)
+        catch (StreamRevisionConflictException conflict) {
+            // edge case: meanwhile the lease could have been updated.
+            // retrying the operation automatically will let the algorithm decide what to do next.
             return await Release(request with {
-                Version = LeaseVersion.From(expectedStreamRevisionError.ActualStreamRevision)
+                Version = LeaseVersion.From(conflict.ActualRevision)
             }, token).ConfigureAwait(false);
-
-        throw new InvalidOperationException("Unexpected error while releasing lease", expireResult.Error);
+        }
     }
 
     async Task<VersionedLease> LoadLease(string leaseStreamId, CancellationToken token) {
-        var leaseRecord = await Reader.ReadLastStreamRecord(leaseStreamId, token).ConfigureAwait(false);
+        try {
+            var leaseRecord = await StreamsClient
+                .ReadLastStreamRecord(leaseStreamId, skipDecoding: false, token)
+                .UnwrapAsync()
+                .ConfigureAwait(false);
 
-        return leaseRecord.Value is Lease lease
-            ? new VersionedLease {
-                ResourceId = lease.ResourceId,
-                AcquiredBy = lease.AcquiredBy,
-                AcquiredAt = lease.AcquiredAt,
-                Duration   = lease.Duration,
-                Version    = LeaseVersion.From(leaseRecord.Position.StreamRevision)
-            }
-            : VersionedLease.None;
+            return leaseRecord.Value is Lease lease
+                ? new VersionedLease {
+                    ResourceId = lease.ResourceId,
+                    AcquiredBy = lease.AcquiredBy,
+                    AcquiredAt = lease.AcquiredAt,
+                    Duration   = lease.Duration,
+                    Version    = LeaseVersion.From(leaseRecord.StreamRevision)
+                }
+                : VersionedLease.None;
+        }
+        catch (StreamNotFoundException) {
+            return VersionedLease.None;
+        }
+        catch (StreamDeletedException) {
+            return VersionedLease.None;
+        }
+        catch (StreamTombstonedException) {
+            return VersionedLease.None;
+        }
     }
 
-    async Task<ProduceResult> StoreLease(string leaseStreamId, VersionedLease newLease, CancellationToken token) {
-        var requestBuilder = ProduceRequest.Builder
-            .Stream(leaseStreamId)
-            .Message(new Lease {
-                ResourceId = newLease.ResourceId,
-                AcquiredBy = newLease.AcquiredBy,
-                AcquiredAt = newLease.AcquiredAt,
-                Duration   = newLease.Duration
-            });
+    async Task<AppendStreamSuccess> StoreLease(string leaseStreamId, VersionedLease newLease, CancellationToken token) {
+        var lease = new Lease {
+            ResourceId = newLease.ResourceId,
+            AcquiredBy = newLease.AcquiredBy,
+            AcquiredAt = newLease.AcquiredAt,
+            Duration   = newLease.Duration
+        };
 
-        requestBuilder = newLease.Version.IsUnset
-            ? requestBuilder.ExpectedStreamState(StreamState.Missing)
-            : requestBuilder.ExpectedStreamRevision(StreamRevision.From(newLease.Version));
+        var expectedState = newLease.Version.IsUnset
+            ? ExpectedStreamState.NoStream
+            : new ExpectedStreamState(newLease.Version.Value);
 
-        return await Producer.Produce(requestBuilder.Create(), throwOnError: false).ConfigureAwait(false);
+        var record = AppendRecord.Create(lease);
 
-        // var result = await Producer.Produce(requestBuilder.Create(), throwOnError: false);
-        //
-        // if (result.Error is not ExpectedStreamRevisionError revisionError)
-        //     return result;
-        //
-        // // if it is the wrong version but the stream is empty,
-        // // it means the stream was deleted or truncated,
-        // // and therefore we can retry immediately
-        // var isEmpty = await Reader
-        //     .ReadLastStreamRecord(leaseStreamId, token)
-        //     .Then(x => x == SurgeRecord.None);
-        //
-        // if (!isEmpty)
-        //     return result;
-        //
-        // return await Producer.Produce(
-        //     requestBuilder
-        //         .ExpectedStreamRevision(revisionError.ActualStreamRevision)
-        //         .Create(),
-        //     throwOnError: false
-        // );
+        return await StreamsClient
+            .Append(leaseStreamId, expectedState, [record], token)
+            .UnwrapAsync()
+            .ConfigureAwait(false);
     }
 }
 

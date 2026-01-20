@@ -97,20 +97,13 @@ static class ProtocolMapping {
     }
 
     public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
-        var position  = LogPosition.From((long)checkpoint.CommitPosition);
         var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(position, CheckpointBarrierTrigger.Interval, timestamp);
+        return new CheckpointBarrier(BarrierId.New(), CheckpointBarrierTrigger.Interval, timestamp);
     }
 
     public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
-        var position  = caughtUp.Position is not null ? LogPosition.From((long)caughtUp.Position.CommitPosition) : LogPosition.Unset;
-        var revision  = caughtUp.HasStreamRevision ? StreamRevision.From(caughtUp.StreamRevision) : StreamRevision.Unset;
         var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
-
-       if (position == StreamRevision.Unset)
-           throw new InvalidOperationException("Remember, without a position, we cannot create a checkpoint barrier!!! Revision: " + revision);
-
-        return new CheckpointBarrier(position, CheckpointBarrierTrigger.CaughtUp, timestamp);
+        return new CheckpointBarrier(BarrierId.New(), CheckpointBarrierTrigger.CaughtUp, timestamp);
     }
 
     public static async ValueTask<Record> MapToRecordAsync(
@@ -143,6 +136,8 @@ static class ProtocolMapping {
 
         var schema = metadata.ExtractSchemaInfo();
 
+        var recordPosition = RecordPosition.FromStream(stream, revision, position);
+
         var link = readEvent.Link is { } linkEvent
             ? new Link {
                 Name     = linkEvent.Metadata[Constants.Metadata.Type],
@@ -162,9 +157,7 @@ static class ProtocolMapping {
         // and we are done
         var record = new Record(decoder) {
             Id             = recordId,
-            Stream         = stream,
-            StreamRevision = revision,
-            Position       = position,
+            Position       = recordPosition,
             Sequence       = sequenceId,
             Timestamp      = timestamp,
             Data           = data,
