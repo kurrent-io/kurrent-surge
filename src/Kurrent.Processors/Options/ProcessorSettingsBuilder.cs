@@ -115,13 +115,6 @@ internal sealed class ProcessorSettingsBuilder {
         return this;
     }
 
-    internal ProcessorSettingsBuilder WithStartPosition(long position) {
-        _settings = _settings with {
-            Subscription = _settings.Subscription with { StartPosition = position }
-        };
-        return this;
-    }
-
     internal ProcessorSettingsBuilder ConfigureSubscription(Func<SubscriptionSettings, SubscriptionSettings> configure) {
         _settings = _settings with { Subscription = configure(_settings.Subscription) };
         return this;

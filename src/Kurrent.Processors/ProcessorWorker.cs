@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
+using Kurrent.Client;
 using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Processors.Gateway;
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Processing;
-using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors;
 
 /// <summary>
 /// Defines the lifecycle status of a distributed processor worker.
@@ -133,9 +134,9 @@ sealed partial class ProcessorWorker : IProcessorWorker {
         // _state = _client.Processors.CreateStateStore(_settings.ProcessorId, _settings.WorkerId);
     }
 
-    public string ProcessorId           => _settings.ProcessorId;
-    public string WorkerId              => _settings.WorkerId;
-    public ProcessorSettings Settings   => _settings;
+    public string            ProcessorId => _settings.ProcessorId;
+    public string            WorkerId    => _settings.WorkerId;
+    public ProcessorSettings Settings    => _settings;
 
     SessionId _sessionId = SessionId.None;
 
@@ -150,13 +151,17 @@ sealed partial class ProcessorWorker : IProcessorWorker {
         LogInitializing(ProcessorId, WorkerId);
 
         var ctx = new InitializationContext(_settings, _logger, stoppingToken);
-        await _processor.OnInitialize(ctx).ConfigureAwait(false);
+        await _processor
+            .OnInitialize(ctx)
+            .ConfigureAwait(false);
 
         try {
             Status = ProcessorWorkerStatus.Connecting;
             LogConnecting(ProcessorId, WorkerId);
 
-            _session = await _gateway.ConnectAsync(_settings, stoppingToken).ConfigureAwait(false);
+            _session = await _gateway
+                .ConnectAsync(_settings, stoppingToken)
+                .ConfigureAwait(false);
 
             _sessionId = _session.SessionId;
             LogConnected(ProcessorId, WorkerId, _session.SessionId.Value);
@@ -196,25 +201,25 @@ sealed partial class ProcessorWorker : IProcessorWorker {
         Status = ProcessorWorkerStatus.Restoring;
         LogWorkOrderReceived(ProcessorId, WorkerId, workOrder.Partitions.Length);
 
+        // Load checkpoint with resolved positions for all assigned partitions
         var checkpoint = await _checkpointStore
-            .LoadLatestAsync(ct)
+            .LoadLatestAsync(
+                workOrder.Partitions.ToArray(),
+                _settings.Subscription.InitialPosition,
+                ct)
             .ConfigureAwait(false);
 
-        var (startFrom, positions) = checkpoint.ResolveStartPosition(
-            _settings.Subscription.InitialPosition,
-            _settings.Subscription.StartPositions
-        );
+        // Extract positions for tracker and WorkerReady
+        var positions = checkpoint.Partitions
+            .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value.Position);
 
         _tracker.Reset(positions);
         _progress.SetPartitionTracker(_tracker);
 
-        // Generate or use barrier ID from checkpoint
-        var barrierId = checkpoint.BarrierId.IsEmpty ? BarrierId.New() : checkpoint.BarrierId;
-
-        LogStateRestored(ProcessorId, WorkerId, startFrom, positions.Count);
+        LogStateRestored(ProcessorId, WorkerId, checkpoint.LowWatermark.LogPosition, positions.Count);
 
         await _session!
-            .SendAsync(new WorkerReady(barrierId, PartitionPositions.From(positions)))
+            .SendAsync(new WorkerReady(checkpoint.BarrierId, PartitionPositions.From(positions)))
             .ConfigureAwait(false);
 
         Status = ProcessorWorkerStatus.Processing;

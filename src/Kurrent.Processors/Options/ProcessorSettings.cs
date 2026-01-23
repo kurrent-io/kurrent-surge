@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -154,21 +152,6 @@ public record SubscriptionSettings {
     /// <para><b>Importance:</b> High</para>
     /// </remarks>
     public SubscriptionInitialPosition InitialPosition { get; init; } = SubscriptionInitialPosition.Latest;
-
-    /// <summary>
-    /// The barrier position to start from. Overrides all start positions (ignores checkpoint) by loading the checkpoint at this barrier position.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Default:</b> -1000 (not set)</para>
-    /// <para><b>Importance:</b> Medium</para>
-    /// <para>When set to a non-zero value, processing will start from this position, ignoring any existing checkpoint.</para>
-    /// </remarks>
-    public long StartPosition { get; init; } = -1000;
-
-    /// <summary>
-    /// Overrides all start positions for the provided partitions (ignoring only these partitions' checkpoints).
-    /// </summary>
-    public ImmutableDictionary<int, long> StartPositions { get; init; } = ImmutableDictionary<int, long>.Empty;
 }
 
 
@@ -216,9 +199,8 @@ public record BatchingSettings {
 [PublicAPI]
 public record CheckpointSettings {
     public static readonly CheckpointSettings Default = new() {
-        Threshold = 5000,
-        Interval  = 30000,
-        Timeout   = 30000
+        Interval = 30000,
+        Timeout  = 30000
     };
 
     /// <summary>
@@ -232,19 +214,6 @@ public record CheckpointSettings {
     /// </para>
     /// </remarks>
     public long Interval { get; init; } = 30000;
-
-    /// <summary>
-    /// Record count threshold for checkpoint trigger.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Default:</b> 5000 records</para>
-    /// <para><b>Importance:</b> High</para>
-    /// <para>
-    /// When this many records have been processed since the last checkpoint, a new checkpoint is triggered.
-    /// Lower threshold means more frequent checkpoints and better fault tolerance at the cost of more I/O.
-    /// </para>
-    /// </remarks>
-    public int Threshold { get; init; } = 5000;
 
     /// <summary>
     /// Maximum time to wait for workers to acknowledge checkpoint (milliseconds).

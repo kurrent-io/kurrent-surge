@@ -1,4 +1,5 @@
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Processors;
 using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Streams;
@@ -336,27 +337,10 @@ public sealed class KurrentProcessorBuilder {
     /// <remarks>
     /// <para>
     /// This setting only applies when there is no stored checkpoint.
-    /// Use <see cref="WithStartPosition"/> to override any existing checkpoint.
     /// </para>
     /// </remarks>
     public KurrentProcessorBuilder WithInitialPosition(SubscriptionInitialPosition position) {
         _settingsBuilder.WithInitialPosition(position);
-        return this;
-    }
-
-    /// <summary>
-    /// Forces processing to start from a specific position, ignoring any checkpoint.
-    /// </summary>
-    /// <param name="position">The log position to start from.</param>
-    /// <returns>The runner instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// When set, any existing checkpoint will be ignored and processing will begin from
-    /// the specified position.
-    /// </para>
-    /// </remarks>
-    public KurrentProcessorBuilder WithStartPosition(long position) {
-        _settingsBuilder.WithStartPosition(position);
         return this;
     }
 
@@ -536,7 +520,7 @@ public sealed class KurrentProcessorBuilder {
         var ownsClient = ProvidedClient is null;
         var client     = ProvidedClient ?? new KurrentClient(options);
 
-        return new ProcessorWorker(
+        return new Kurrent.Processors.ProcessorWorker(
             client,
             GetProcessor(),
             null,

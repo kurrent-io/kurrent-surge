@@ -58,41 +58,6 @@ namespace Kurrent.Client.Streams.Processing;
 [PublicAPI]
 public interface IStateStore  {
     // ═══════════════════════════════════════════════════════════════════════════════
-    // Direct access shortcuts
-    // ═══════════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Directly retrieves a value from state.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Shortcut for <c>Value&lt;T&gt;(key).GetAsync()</c>.
-    /// Use for simple read operations where fluent API is not needed.
-    /// </para>
-    /// </remarks>
-    /// <typeparam name="T">The type of value to retrieve.</typeparam>
-    /// <param name="key">The state key. Supports implicit conversion from string.</param>
-    /// <param name="ct">Cancellation token for the operation.</param>
-    /// <returns>The value if it exists; otherwise, <c>null</c>.</returns>
-    ValueTask<T?> GetValueAsync<T>(StateKey key, CancellationToken ct = default) where T : class;
-
-    /// <summary>
-    /// Directly retrieves a value from state, returning a default if not found.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Shortcut for <c>Value&lt;T&gt;(key).GetAsync(defaultValue)</c>.
-    /// Use for simple read operations where fluent API is not needed.
-    /// </para>
-    /// </remarks>
-    /// <typeparam name="T">The type of value to retrieve.</typeparam>
-    /// <param name="key">The state key. Supports implicit conversion from string.</param>
-    /// <param name="defaultValue">The value to return if not found.</param>
-    /// <param name="ct">Cancellation token for the operation.</param>
-    /// <returns>The value if it exists; otherwise, <paramref name="defaultValue"/>.</returns>
-    ValueTask<T> GetValueAsync<T>(StateKey key, T defaultValue, CancellationToken ct = default) where T : class;
-
-    // ═══════════════════════════════════════════════════════════════════════════════
     // Fluent builders
     // ═══════════════════════════════════════════════════════════════════════════════
 

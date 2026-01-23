@@ -36,7 +36,7 @@ try {
     // Register processor as hosted service
     builder.Services.AddKurrentProcessor<TransferAnalyticsProcessor>(config => config
         .WithFilter("schema_name IN ('PlayerRegistered', 'PlayerTransferred')")
-        .ConfigureCheckpointing(c => c with { Interval = 10_000, Threshold = 100 })
+        .ConfigureCheckpointing(c => c with { Interval = 10_000 })
         .ConfigureBatching(b => b with { MaxSize = 50, Timeout = 1000 })
     );
 

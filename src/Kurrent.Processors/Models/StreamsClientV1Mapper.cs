@@ -16,7 +16,7 @@ namespace Kurrent.Processors.Models;
 static class ProtocolMapping {
     static readonly Contracts.ReadReq.Types.Options.Types.ControlOption       DefaultControlOption       = new() { Compatibility = 1 };
     static readonly Contracts.ReadReq.Types.Options.Types.SubscriptionOptions DefaultSubscriptionOptions = new();
-    static readonly Contracts.ReadReq.Types.Options.Types.UUIDOption          DefaultUuidOptions         = new();
+    static readonly Contracts.ReadReq.Types.Options.Types.UUIDOption          DefaultUuidOptions         = new(); // old was { Structured = new() }
     static readonly Empty                                                     DefaultEmpty               = new();
 
     internal static class Requests {
@@ -27,55 +27,153 @@ static class ProtocolMapping {
             var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
                 Subscription  = DefaultSubscriptionOptions,
                 UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
+                // ControlOption = DefaultControlOption,
                 ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
             }};
 
-            var subscription = options.Subscription;
-            var heartbeat    = new HeartbeatOptions(true, options.Checkpoint.Threshold);
-
-            // Convert StartPosition (long) to the appropriate position type
-            var logPosition = subscription.StartPosition switch {
-                0 when subscription.InitialPosition == SubscriptionInitialPosition.Earliest => LogPosition.Earliest,
-                0 when subscription.InitialPosition == SubscriptionInitialPosition.Latest   => LogPosition.Latest,
-                0                                                                           => LogPosition.Earliest,
-                _                                                                           => LogPosition.From(subscription.StartPosition)
-            };
-
-            var streamRevision = subscription.StartPosition switch {
-                0 => StreamRevision.Min,
-                _ => StreamRevision.From(subscription.StartPosition)
-            };
-
-            if (subscription.Filter == RecordFilter.None)
+            if (options.Subscription.Filter == RecordFilter.None)
                 req.Options.NoFilter = DefaultEmpty;
-            else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
-                req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
-                req.Options.NoFilter = DefaultEmpty;
+            else if (options.Subscription.Filter.TargetStream == StreamName.All) {
+                req.Options.All    = ConvertToAllOptions(options.Subscription);
+                req.Options.Filter = ConvertToFilterOptions(options.Subscription.Filter);
             }
-            else {
-                req.Options.All    = ConvertToAllOptions(logPosition);
-                req.Options.Filter = ConvertToFilterOptions(subscription.Filter, heartbeat);
+            else if (options.Subscription.Filter.TargetStream != StreamName.None) {
+                req.Options.Stream   = ConvertToStreamOptions(options.Subscription);
+                req.Options.NoFilter = DefaultEmpty;
             }
 
             return req;
         }
 
-        static Contracts.ReadReq.Types.Options.Types.AllOptions ConvertToAllOptions(LogPosition start) =>
-            start switch {
-                _ when start == LogPosition.Latest   => new() { End      = DefaultEmpty },
-                _ when start == LogPosition.Earliest => new() { Start    = DefaultEmpty },
-                _                                    => new() { Position = new() { CommitPosition = start, PreparePosition = start } }
-            };
+        // /// <summary>
+        // /// Creates a request to subscribe to records based on the provided processing options.
+        // /// </summary>
+        // public static Contracts.ReadReq CreateSubscriptionRequestj(ProcessorSettings options) { //old
+        //     var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
+        //         Subscription  = DefaultSubscriptionOptions,
+        //         UuidOption    = DefaultUuidOptions,
+        //         // ControlOption = DefaultControlOption,
+        //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
+        //     }};
+        //
+        //     var subscription = options.Subscription;
+        //
+        //     // Convert StartPosition (long) to the appropriate position type
+        //     var logPosition = subscription.StartPosition switch {
+        //         0 when subscription.InitialPosition == SubscriptionInitialPosition.Earliest => LogPosition.Earliest,
+        //         0 when subscription.InitialPosition == SubscriptionInitialPosition.Latest   => LogPosition.Latest,
+        //         0                                                                           => LogPosition.Earliest,
+        //         _                                                                           => LogPosition.From(subscription.StartPosition)
+        //     };
+        //
+        //     var streamRevision = subscription.StartPosition switch {
+        //         0 => StreamRevision.Min,
+        //         _ => StreamRevision.From(subscription.StartPosition)
+        //     };
+        //
+        //     if (subscription.Filter == RecordFilter.None)
+        //         req.Options.NoFilter = DefaultEmpty;
+        //     else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
+        //         req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
+        //         req.Options.NoFilter = DefaultEmpty;
+        //     }
+        //     else {
+        //         req.Options.All    = ConvertToAllOptions(logPosition);
+        //         req.Options.Filter = ConvertToFilterOptions(subscription.Filter);
+        //     }
+        //
+        //     return req;
+        // }
+        //
+        // public static Contracts.ReadReq CreateSubscriptionRequest2(ProcessorSettings options) {
+        //     var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
+        //         Subscription  = DefaultSubscriptionOptions,
+        //         UuidOption    = DefaultUuidOptions,
+        //         ControlOption = DefaultControlOption,
+        //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
+        //     }};
+        //
+        //      var subOptions = options.Subscription;
+        //
+        //     if (subOptions.Filter == RecordFilter.None)
+        //         req.Options.NoFilter = DefaultEmpty;
+        //     else if (subOptions.Filter.TargetStream != StreamName.None && subOptions.Filter.TargetStream != StreamName.All)
+        //         req.Options.Stream = ConvertToStreamOptions(subOptions.Filter.TargetStream, subOptions.StartPosition);
+        //     else {
+        //         req.Options.All    = ConvertToAllOptions(subOptions.StartPosition);
+        //         req.Options.Filter = ConvertToFilterOptions(subOptions.Filter);
+        //     }
+        //
+        //     return req;
+        // }
 
-        static Contracts.ReadReq.Types.Options.Types.StreamOptions ConvertToStreamOptions(StreamName stream, StreamRevision start) =>
-            start switch {
-                _ when start == StreamRevision.Max => new() { StreamIdentifier = stream.Value, End      = DefaultEmpty },
-                _ when start == StreamRevision.Min => new() { StreamIdentifier = stream.Value, Start    = DefaultEmpty },
-                _                                  => new() { StreamIdentifier = stream.Value, Revision = (ulong)start.Value }
-            };
+        // /// <summary>
+        // /// Creates a request to subscribe to records based on the provided processing options.
+        // /// </summary>
+        // public static Contracts.ReadReq CreateSubscriptionRequest9(ProcessorSettings options) {
+        //     var subscriptionOptions = options.Subscription;
+        //
+        //
+        //
+        //     // Determine if reading from a specific stream or $all
+        //     var isSpecificStream = subscriptionOptions.Filter.TargetStream != StreamName.None
+        //                         && subscriptionOptions.Filter.TargetStream != StreamName.All;
+        //
+        //     var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
+        //         //Subscription  = DefaultSubscriptionOptions,
+        //         UuidOption    = DefaultUuidOptions,
+        //         ControlOption = DefaultControlOption,
+        //         ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
+        //     }};
+        //
+        //     // Only set Subscription when reading from $all, not when reading from a specific stream
+        //     if (!isSpecificStream)
+        //         req.Options.Subscription = DefaultSubscriptionOptions;
+        //
+        //     if (subscriptionOptions.Filter == RecordFilter.None)
+        //         req.Options.NoFilter = DefaultEmpty;
+        //     else if (isSpecificStream) {
+        //         var streamRevision = subscriptionOptions.StartPosition switch {
+        //             0 => StreamRevision.Min,
+        //             _ => StreamRevision.From(subscriptionOptions.StartPosition)
+        //         };
+        //
+        //         req.Options.Stream   = ConvertToStreamOptions(subscriptionOptions.Filter.TargetStream, streamRevision);
+        //         req.Options.NoFilter = DefaultEmpty; // When reading from a specific stream, no additional filtering is needed
+        //     }
+        //     else {
+        //         // Convert StartPosition (long) to the appropriate position type
+        //         var logPosition = subscriptionOptions.StartPosition switch {
+        //             0 when subscriptionOptions.InitialPosition == SubscriptionInitialPosition.Earliest => LogPosition.Earliest,
+        //             0 when subscriptionOptions.InitialPosition == SubscriptionInitialPosition.Latest   => LogPosition.Latest,
+        //             0                                                                                  => LogPosition.Earliest,
+        //             _                                                                                  => LogPosition.From(subscriptionOptions.StartPosition)
+        //         };
+        //
+        //         req.Options.All    = ConvertToAllOptions(logPosition);
+        //         req.Options.Filter = ConvertToFilterOptions(subscriptionOptions.Filter);
+        //     }
+        //
+        //     return req;
+        // }
 
-        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter, HeartbeatOptions heartbeat) {
+        static Contracts.ReadReq.Types.Options.Types.AllOptions ConvertToAllOptions(SubscriptionSettings options) {
+            return options.InitialPosition switch {
+                SubscriptionInitialPosition.Earliest => new() { Start = DefaultEmpty },
+                SubscriptionInitialPosition.Latest   => new() { End   = DefaultEmpty },
+                _                                    => new() { Start = DefaultEmpty }
+            };
+        }
+
+        static Contracts.ReadReq.Types.Options.Types.StreamOptions ConvertToStreamOptions(SubscriptionSettings options) {
+            return options.InitialPosition switch {
+                SubscriptionInitialPosition.Earliest => new() { StreamIdentifier = options.Filter.TargetStream.Value, Start = DefaultEmpty },
+                SubscriptionInitialPosition.Latest   => new() { StreamIdentifier = options.Filter.TargetStream.Value, End   = DefaultEmpty },
+                _                                    => new() { StreamIdentifier = options.Filter.TargetStream.Value, Start = DefaultEmpty }
+            };
+        }
+
+        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter) {
             Contracts.ReadReq.Types.Options.Types.FilterOptions? options = filter switch {
                 StreamFilter f => new() { StreamIdentifier = new() { Regex = f.Expression } },
                 SchemaFilter f => new() { EventType        = new() { Regex = f.Expression } },
@@ -89,7 +187,7 @@ static class ProtocolMapping {
             if (options is null)
                 return null;
 
-            options.Max = (uint)heartbeat.RecordsThreshold;
+            //options.Max = ;
             options.CheckpointIntervalMultiplier = 1;
 
             return options;

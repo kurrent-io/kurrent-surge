@@ -272,11 +272,11 @@ public static class KurrentProcessorServiceCollectionExtensions {
         KurrentProcessorRegistration<TProcessor> registration,
         IServiceProvider sp)
         where TProcessor : class, IRecordProcessor {
-        var processor = sp.GetRequiredService<TProcessor>();
+        var processor     = sp.GetRequiredService<TProcessor>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-        var client = BuildClient(registration, sp);
-        var worker = new ProcessorWorker(client, processor, null, registration.Settings, loggerFactory, registration.UseOwnClient);
-        var logger = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
+        var client        = BuildClient(registration, sp);
+        var worker        = new Kurrent.Processors.ProcessorWorker(client, processor, null, registration.Settings, loggerFactory, registration.UseOwnClient);
+        var logger        = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
         return new KurrentProcessorHostedService<TProcessor>(worker, logger);
     }
 

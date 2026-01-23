@@ -126,7 +126,6 @@ In the future `GrpcGateway`, the server will return pre-batched records directly
 
 **Decision:** LegacyGateway implements:
 - **Interval** - Time-based (e.g., every 30 seconds)
-- **Threshold** - Record count (e.g., every 10,000 records)
 - **CaughtUp** - Stream reached live edge (once per lifecycle)
 - **Rebalance** - Currently no-op (single worker, no rebalancing)
 
@@ -226,11 +225,11 @@ The `IAsyncEnumerable` simply ends - no `Disconnected` message sent back.
 
 ```
 ┌──────────────────┐                      ┌──────────────────┐                      ┌──────────────────┐
-│     WORKER       │                      │ LegacyWorkerSession │                   │  LegacyGateway   │
+│     WORKER       │                      │     Session      │                      │      Gateway     │
 │                  │                      │                  │                      │                  │
 │                  │    (enumerate)       │                  │    (enumerate)       │                  │
-│                  │ ◄──────────────────  │ IAsyncEnumerable │ ◄──────────────────  │ Channel<LegacyGW │
-│                  │ ProcessorControlMsg  │ (batches records)│ LegacyGatewayMessage │ Message>         │
+│                  │ ◄──────────────────  │ IAsyncEnumerable │ ◄──────────────────  │ Channel<Message> │
+│                  │ ProcessorControlMsg  │ (batches records)│ LegacyGatewayMessage │                  │
 │                  │ (WorkOrder,          │                  │ (Record,             │                  │
 │                  │  RecordBatch,        │                  │  CheckpointBarrier)  │                  │
 │                  │  CheckpointBarrier)  │                  │                      │                  │
@@ -341,8 +340,7 @@ Exposed to the worker through `IWorkerSession.GetAsyncEnumerator()`.
 /// </summary>
 public readonly record struct WorkOrder(
     SessionId SessionId,
-    ImmutableArray<Partition> Partitions
-);
+    ImmutableArray<Partition> Partitions );
 
 /// <summary>
 /// A batch of records to process.
@@ -355,10 +353,10 @@ public readonly record struct RecordBatch : IReadOnlyList<Record>;
 /// Signals the worker to snapshot state and respond with <see cref="CheckpointComplete"/>.
 /// </summary>
 public readonly record struct CheckpointBarrier(
-    LogPosition BarrierId,           // Usually the max log position at barrier time
+    BarrierId BarrierId,              // Unique coordination token for this checkpoint round
     CheckpointBarrierTrigger Trigger, // What caused this barrier
-    DateTimeOffset Timestamp          // When the barrier was generated
-);
+    DateTimeOffset Timestamp);        // When the barrier was generated
+
 
 /// <summary>
 /// Messages sent from the Processor Controller to the worker.
@@ -383,37 +381,31 @@ public readonly record struct Connect(ProcessorSettings Settings);
 /// Worker signals it has recovered to a consistent state and is ready to receive records.
 /// Sent in response to <see cref="WorkOrder"/>.
 /// </summary>
-/// <param name="BarrierId">The barrier ID representing the recovered checkpoint position.</param>
+/// <param name="BarrierId">The barrier ID from the recovered checkpoint (coordination token).</param>
 /// <param name="Positions">Partition to log position mapping after recovery.</param>
 public readonly record struct WorkerReady(
-    LogPosition BarrierId,
-    PartitionPositions Positions
-);
+    BarrierId BarrierId,
+    PartitionPositions Positions);
 
 /// <summary>
 /// Worker has completed checkpoint - positions are ready for persistence.
 /// </summary>
-/// <param name="BarrierId">The barrier ID this checkpoint responds to.</param>
+/// <param name="BarrierId">The barrier ID this checkpoint responds to (echoes the coordination token).</param>
 /// <param name="Positions">Partition to log position mapping.</param>
 public readonly record struct CheckpointComplete(
-    LogPosition BarrierId,
-    PartitionPositions Positions
-);
+    BarrierId BarrierId,
+    PartitionPositions Positions);
 
 /// <summary>
 /// Worker requests disconnect. For graceful shutdown, includes final positions.
 /// </summary>
+/// <param name="BarrierId">The last barrier ID this worker processed (coordination token for sanity checking).</param>
 /// <param name="Reason">Why the worker is disconnecting.</param>
 /// <param name="Positions">Final checkpoint positions for graceful shutdown.</param>
 public readonly record struct Disconnect(
+    BarrierId BarrierId,
     DisconnectReason Reason,
-    PartitionPositions Positions
-) {
-    /// <summary>
-    /// Barrier ID is the max of all partition positions (the watermark).
-    /// </summary>
-    public LogPosition BarrierId => Positions.MaxPosition;
-}
+    PartitionPositions Positions);
 
 /// <summary>
 /// The messages a worker can send to the gateway.
@@ -429,6 +421,16 @@ public readonly partial record struct WorkerMessage : IVariant<
 
 ```csharp
 /// <summary>
+/// Unique coordination token for checkpoint rounds.
+/// Used to correlate checkpoint barriers with worker responses.
+/// </summary>
+public readonly record struct BarrierId(string Value) {
+    public static readonly BarrierId Empty = new(string.Empty);
+    public static BarrierId New() => new(Guid.NewGuid().ToString());
+    public bool IsEmpty => string.IsNullOrEmpty(Value);
+}
+
+/// <summary>
 /// Maps partitions to their log positions, representing checkpoint state.
 /// </summary>
 public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition, LogPosition> {
@@ -436,24 +438,24 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 
     /// <summary>
     /// The maximum position across all partitions (the watermark).
-    /// Used as the BarrierId when checkpointing or disconnecting.
+    /// Used for determining resume position on recovery.
     /// </summary>
     public LogPosition MaxPosition { get; }
 }
 
 public enum CheckpointBarrierTrigger {
     Unspecified = 0,
-    Rebalance = 1,      // Worker join/leave triggered rebalance
-    Interval = 2,       // Time-based checkpoint
-    Threshold = 3,      // Record count threshold reached
-    CaughtUp = 4,       // Reached end of log, going live
-    Savepoint = 5       // Manual checkpoint (requires server RPC)
+    Rebalance   = 1, // Worker join/leave triggered rebalance
+    Interval    = 2, // Time-based checkpoint
+    Threshold   = 3, // Record count threshold reached
+    CaughtUp    = 4, // Reached end of log, going live
+    Savepoint   = 5  // Manual checkpoint (requires server RPC)
 }
 
 public enum DisconnectReason {
     Unspecified = 0,
-    Shutdown = 1,       // Graceful shutdown (SIGTERM)
-    Error = 2           // Worker error (will restart in consistent state)
+    Shutdown    = 1, // Graceful shutdown (SIGTERM)
+    Error       = 2  // Worker error (will restart in consistent state)
 }
 ```
 
@@ -684,7 +686,7 @@ sequenceDiagram
     Note over S: Flush pending records first
 
     S-->>W: RecordBatch([...]) (if any)
-    S-->>W: CheckpointBarrier(id=1000, INTERVAL)
+    S-->>W: CheckpointBarrier("ckpt-001", INTERVAL)
 
     Note over W: processor.OnCheckpointAsync()
     Note over W: Snapshot state (if any)
@@ -692,7 +694,7 @@ sequenceDiagram
     Note over W: Flush PositionTracker
 
     W->>S: SendAsync(CheckpointComplete)
-    S->>G: CheckpointComplete(barrierId=1000, positions)
+    S->>G: CheckpointComplete("ckpt-001", positions)
 
     Note over G: Receive positions for tracking/UI
 
@@ -717,12 +719,12 @@ sequenceDiagram
     G->>S: CheckpointBarrier(Threshold)
 
     S-->>W: RecordBatch([...]) (flushed)
-    S-->>W: CheckpointBarrier(id=2030, THRESHOLD)
+    S-->>W: CheckpointBarrier("ckpt-002", THRESHOLD)
 
     Note over W: Same checkpoint flow:<br/>snapshot, store, flush tracker
 
     W->>S: SendAsync(CheckpointComplete)
-    S->>G: CheckpointComplete(positions)
+    S->>G: CheckpointComplete("ckpt-002", positions)
 ```
 
 ### 8.5 Graceful Disconnect Flow
@@ -762,14 +764,14 @@ sequenceDiagram
 
 These errors occur during `ConnectAsync()` before the session is returned:
 
-| Error | Cause | Exception Thrown | Recovery |
-|-------|-------|------------------|----------|
-| **Stream Not Found** | Target stream doesn't exist | `StreamNotFoundException` | Create stream or use different filter |
-| **Stream Tombstoned** | Stream was hard-deleted | `StreamTombstonedException` | Cannot recover - stream is permanently gone |
-| **Invalid Position** | Start position doesn't exist | `LogPositionNotFoundException` | Use valid position or `Earliest`/`Latest` |
-| **Cancelled** | User cancelled the operation | `OperationCanceledException` | Retry if appropriate |
-| **Access Denied** | Insufficient permissions | `AccessDeniedException` | Check credentials |
-| **Generic RPC Error** | Network/server error | Translated via `.ToException()` | Retry with backoff |
+| Error                 | Cause                        | Exception Thrown                | Recovery                                    |
+|-----------------------|------------------------------|---------------------------------|---------------------------------------------|
+| **Stream Not Found**  | Target stream doesn't exist  | `StreamNotFoundException`       | Create stream or use different filter       |
+| **Stream Tombstoned** | Stream was hard-deleted      | `StreamTombstonedException`     | Cannot recover - stream is permanently gone |
+| **Invalid Position**  | Start position doesn't exist | `LogPositionNotFoundException`  | Use valid position or `Earliest`/`Latest`   |
+| **Cancelled**         | User cancelled the operation | `OperationCanceledException`    | Retry if appropriate                        |
+| **Access Denied**     | Insufficient permissions     | `AccessDeniedException`         | Check credentials                           |
+| **Generic RPC Error** | Network/server error         | Translated via `.ToException()` | Retry with backoff                          |
 
 ### 9.2 Connection Error Handling in LegacyGateway
 
@@ -821,11 +823,11 @@ catch (RpcException rex) {
 
 These errors occur after the session is established, during the pump loop:
 
-| Error | Cause | Behavior | Worker Impact |
-|-------|-------|----------|---------------|
-| **gRPC Cancelled** | Server disconnected / cancellation | Channel completes normally | Enumeration ends |
-| **OperationCancelled** | CancellationToken triggered | Channel completes normally | Enumeration ends |
-| **Generic Exception** | Unexpected error in pump | Channel completes with error | Enumeration throws |
+| Error                  | Cause                              | Behavior                     | Worker Impact      |
+|------------------------|------------------------------------|------------------------------|--------------------|
+| **gRPC Cancelled**     | Server disconnected / cancellation | Channel completes normally   | Enumeration ends   |
+| **OperationCancelled** | CancellationToken triggered        | Channel completes normally   | Enumeration ends   |
+| **Generic Exception**  | Unexpected error in pump           | Channel completes with error | Enumeration throws |
 
 ### 9.4 Pump Error Handling
 
@@ -911,8 +913,8 @@ Checkpoint triggers!
 Step 1: FLUSH - Send buffered records
         Channel: [batch: r1, r2, r3] →
 
-Step 2: BARRIER - Send checkpoint barrier
-        Channel: [Barrier(2030)] →
+Step 2: BARRIER - Send checkpoint barrier with GUID coordination token
+        Channel: [Barrier("ckpt-xyz")] →
 
 Step 3: RESUME - Continue batching new records
         Buffer: [r4, r5, ...]
@@ -934,11 +936,11 @@ Resume:          Start fresh batch with [r4, r5, ...]
 
 **Why this matters:** Without flush-on-both-sides, batching would break the FIFO guarantee that Chandy-Lamport requires. The barrier must be a true "consistent cut" - everything before it is processed, nothing after.
 
-### 10.3 Barrier Position vs. Per-Partition Positions
+### 10.3 Barrier ID vs. Per-Partition Positions
 
 This is a critical concept that often causes confusion.
 
-**The barrier position** is a **global stopping point** in the $all log - where the checkpoint occurs.
+**The barrier ID** is a **unique coordination token** (GUID) that identifies a checkpoint round. Like Apache Flink's barrier markers, it's a signal saying "checkpoint now" - not a position in the log.
 
 **Per-partition positions** are **what each partition actually processed** - the last record that matched each partition's filter/key.
 
@@ -958,16 +960,16 @@ Barrier at position 10.
 
 **Checkpoint result:**
 
-| Worker | Partitions | Last Position | Explanation |
-|--------|------------|---------------|-------------|
-| 1 | [0] | 7 | Last P0 record was at position 7 |
-| 2 | [1] | 9 | Last P1 record was at position 9 |
+| Worker | Partitions | Last Position | Explanation                      |
+|--------|------------|---------------|----------------------------------|
+| 1      | [0]        | 7             | Last P0 record was at position 7 |
+| 2      | [1]        | 9             | Last P1 record was at position 9 |
 
-**Key insight:** Neither worker reports position 10 because position 10 was a SYS record (filtered out). The barrier position (10) is where we stopped scanning, but per-partition positions reflect actual processing.
+**Key insight:** Neither worker reports position 10 because position 10 was a SYS record (filtered out). The barrier ID (e.g., `"a1b2c3d4-..."`) is just a correlation token - per-partition positions reflect actual processing progress.
 
-### 10.4 Multi-Partition Disconnect: Barrier ID = max(positions)
+### 10.4 Per-Partition Positions and the Watermark
 
-When a worker disconnects with multiple partitions, the **barrier ID is the maximum of all partition positions** - this is the **watermark**.
+When a worker disconnects with multiple partitions, the **maximum of all partition positions** (the watermark) determines where to resume on recovery.
 
 **Example: Worker with 3 partitions disconnecting**
 
@@ -1001,19 +1003,20 @@ That's why their "last position" is earlier.
 
 ```csharp
 Disconnect(
+    BarrierId: "a1b2c3d4-...",                 // Last checkpoint's coordination token
     Reason: Shutdown,
-    Positions: {0: 1050, 1: 2030, 2: 850}   // Per-partition progress
+    Positions: {0: 1050, 1: 2030, 2: 850}      // Per-partition progress
 )
-// BarrierId property returns max(1050, 2030, 850) = 2030 (THE WATERMARK)
+// Watermark = max(1050, 2030, 850) = 2030 (resume position)
 ```
 
 **Why max(positions)?**
 
-The barrier ID represents "how far we scanned in the global log." The worker has seen ALL records up to position 2030. The fact that partitions 0 and 2 have earlier positions just means no matching records appeared for them after those positions.
+The watermark (max position) represents "how far we scanned in the global log." The worker has seen ALL records up to position 2030. The fact that partitions 0 and 2 have earlier positions just means no matching records appeared for them after those positions. The barrier ID is separate - it's the coordination token from the last checkpoint round, used for sanity checking.
 
 ### 10.5 Server Broadcasts Barrier on Disconnect (GrpcGateway - Future)
 
-When GrpcGateway receives a disconnect with positions, it broadcasts the barrier to other workers:
+When GrpcGateway receives a disconnect, it generates a **new barrier ID** (GUID) and broadcasts the checkpoint barrier to remaining workers:
 
 ```
 Worker A (leaving)                       Server                          Workers B, C
@@ -1021,35 +1024,44 @@ Worker A (leaving)                       Server                          Workers
    │  [Processed up to position 2030]       │                                 │
    │                                        │                                 │
    │─── Disconnect(                         │                                 │
+   │      barrierId="prev-id",              │                                 │
    │      positions={0:1050,1:2030,2:850})─►│                                 │
    │                                        │                                 │
    │  [Worker A done - fire & forget]       │                                 │
-   │                                        │─── CheckpointBarrier(2030) ────►│
-   │                                        │         Rebalance trigger       │
    │                                        │                                 │
-   │                                        │    [Workers catch up to 2030]   │
-   │                                        │    [Workers checkpoint]         │
+   │                                        │  [Server generates new barrierId]
+   │                                        │─── CheckpointBarrier(           │
+   │                                        │     "rebalance-xyz-123",        │
+   │                                        │     Rebalance) ────────────────►│
    │                                        │                                 │
-   │                                        │◄── CheckpointComplete(pos) ─────│
+   │                                        │    [Workers checkpoint at       │
+   │                                        │     their current positions]    │
    │                                        │                                 │
-   │                                        │  [All workers aligned at 2030]  │
+   │                                        │◄── CheckpointComplete(          │
+   │                                        │     "rebalance-xyz-123", pos) ──│
+   │                                        │                                 │
+   │                                        │  [All workers responded to same │
+   │                                        │   barrier ID - coordination OK] │
    │                                        │  [Reassign A's partitions]      │
 ```
 
-### 10.6 Recovery: Resume from Barrier Position
+**Key point:** The barrier ID is for coordination - "everyone responded to barrier X" - not for position alignment. Workers checkpoint at their current positions, and the server knows they're aligned because they all echoed the same barrier ID.
 
-On recovery, **ALL partitions resume from the barrier position**, not from their individual positions.
+### 10.6 Recovery: Resume from Watermark Position
+
+On recovery, workers resume from the **watermark** (max of all partition positions), not from individual partition positions.
 
 **Why?**
 
-The per-partition positions (850, 1050, 2030) are just metadata. They tell us "last record processed for this partition." But there are no unprocessed records between those positions and the barrier - that's WHY the positions differ!
+The per-partition positions (850, 1050, 2030) are just metadata. They tell us "last record processed for this partition." But there are no unprocessed records between those positions and the watermark - that's WHY the positions differ!
 
 **Example: Recovery after checkpoint**
 
 ```
 Checkpoint saved:
-    Barrier ID: 2030
-    Positions: {0: 1050, 1: 2030, 2: 850}
+    Barrier ID: "a1b2c3d4-..."              // Coordination token
+    Positions: {0: 1050, 1: 2030, 2: 850}   // Per-partition progress
+    Watermark: max(positions) = 2030        // Resume position
 
 On recovery, we resume reading $all from position 2030 (or 2031).
 
@@ -1068,25 +1080,41 @@ Worker resumes from 2030:
 - P2: Next record at 2100 ✓ (positions 851-2099 had no P2 records - that's normal!)
 ```
 
+**WorkerReady on recovery:**
+
+```csharp
+// Worker loads checkpoint (barrierId + positions)
+// Sends WorkerReady with stored barrier ID or Empty if first start
+await session.SendAsync(new WorkerReady(
+    BarrierId: checkpoint?.BarrierId ?? BarrierId.Empty,
+    Positions: checkpoint?.Positions ?? PartitionPositions.Empty
+));
+```
+
 **Key insight:** We don't "lose" positions 851-2029 for partition 2. Those positions simply had no records matching partition 2. The checkpoint correctly captured that partition 2's progress was at position 850.
 
 ### 10.7 Single-Partition Shortcut (LegacyGateway)
 
-For LegacyGateway with single partition [0], the math simplifies:
+For LegacyGateway with single partition [0], the flow is straightforward:
 
-```
+```csharp
+// Gateway sends barrier with GUID coordination token
+CheckpointBarrier barrier = new(
+    BarrierId: BarrierId.New(),  // e.g., "a1b2c3d4-..."
+    Trigger: Interval,
+    Timestamp: now
+);
+
+// Worker receives barrier, stores checkpoint
 Positions = {0: 1050}
-Barrier ID = max(positions) = 1050
-
-// Worker stores checkpoint:
 var maxPosition = positions.MaxPosition;  // 1050
-await checkpointStore.StoreAsync(maxPosition, ct);
+await checkpointStore.StoreAsync(barrier.BarrierId, maxPosition, ct);
 
-// Then sends positions to gateway for tracking:
-await session.SendAsync(new CheckpointComplete(barrierId, positions));
+// Worker echoes the barrier ID back in CheckpointComplete
+await session.SendAsync(new CheckpointComplete(barrier.BarrierId, positions));
 ```
 
-This is the same formula as multi-partition - it just happens that `max` of one value is that value.
+The barrier ID is echoed back to correlate the response with the request - it's a round-trip token, not a position.
 
 ### 10.8 Complete Example: Checkpoint Lifecycle
 
@@ -1111,7 +1139,7 @@ $all:    [101:P0] [102:P1] [103:SYS] [104:P0] [105:P1] [106:P0] [107:P1] [108:P0
 Server buffer: [106:P0, 107:P1, 108:P0, 109:P1]  ← Partial batch
 
 FLUSH: Send batch to Worker A
-BARRIER: Send CheckpointBarrier(110) to Worker A
+BARRIER: Send CheckpointBarrier("ckpt-001", Interval, timestamp) to Worker A
 ```
 
 **Step 3: Worker receives, cuts batch short, processes**
@@ -1119,7 +1147,7 @@ BARRIER: Send CheckpointBarrier(110) to Worker A
 ```
 Worker A receives:
   1. Batch [106:P0, 107:P1, 108:P0, 109:P1]
-  2. Barrier(110)
+  2. CheckpointBarrier("ckpt-001", Interval, ...)
 
 Worker A:
   - Was accumulating batch, waiting for batch_size
@@ -1130,30 +1158,28 @@ Worker A:
       P1: 102 → 105 → 107 → 109  (last P1 record)
 ```
 
-**Step 4: Worker responds with CheckpointComplete**
-
-```csharp
-CheckpointComplete(
-    BarrierId: 110,
-    Positions: {0: 108, 1: 109}  // Per-partition last processed
-)
-```
-
-**Step 5: Worker stores checkpoint, sends positions to gateway**
+**Step 4: Worker stores checkpoint and responds**
 
 ```csharp
 // Worker stores checkpoint locally:
 var maxPosition = positions.MaxPosition;  // max(108, 109) = 109
-await checkpointStore.StoreAsync(maxPosition, ct);
+await checkpointStore.StoreAsync(barrier.BarrierId, maxPosition, ct);
 
-// Worker sends positions to gateway for tracking/UI:
-await session.SendAsync(new CheckpointComplete(barrierId: 110, positions));
-// Gateway receives this for monitoring purposes, not for persistence
+// Worker echoes barrier ID back to gateway:
+await session.SendAsync(new CheckpointComplete(
+    BarrierId: "ckpt-001",                // Echo the coordination token
+    Positions: {0: 108, 1: 109}           // Per-partition last processed
+));
+// Gateway receives this for monitoring purposes
 ```
 
-**Step 6: On recovery**
+**Step 5: On recovery**
 
 ```
+Checkpoint loaded:
+    Barrier ID: "ckpt-001"                  // Coordination token
+    Watermark: 109                          // Resume position
+
 Resume from position 109 (or 110)
 - Records 101-109 already processed
 - Position 110 was SYS (filtered) - skipped anyway
@@ -1162,7 +1188,7 @@ Resume from position 109 (or 110)
 
 ### 10.9 Disconnect Scenarios: Ahead vs Behind Workers
 
-When a worker disconnects and triggers a rebalance barrier, remaining workers may be ahead or behind the barrier position. Both scenarios work correctly.
+When a worker disconnects and triggers a rebalance barrier, remaining workers may be at different positions. The barrier ID (GUID) coordinates them - everyone checkpoints and responds with the same barrier ID, regardless of their actual positions.
 
 **Scenario A: Advanced worker disconnects (common case)**
 
@@ -1170,16 +1196,16 @@ When a worker disconnects and triggers a rebalance barrier, remaining workers ma
 Worker A: position 2030 (disconnecting, AHEAD)
 Worker B: position 1500 (remaining, BEHIND)
 
-1. Worker A sends: Disconnect(positions={...})  // BarrierId=2030
-2. Server broadcasts: CheckpointBarrier(2030, Rebalance)
+1. Worker A sends: Disconnect("prev-barrier", positions={...})
+2. Server generates new barrier ID and broadcasts:
+   CheckpointBarrier("rebalance-001", Rebalance)
 
-Worker B receives barrier 2030:
-├── Worker B is at 1500 (behind barrier)
-├── Worker B catches up: processes records 1501-2030
-├── Worker B checkpoints at barrier 2030
-└── Worker B sends CheckpointComplete(positions at 2030)
+Worker B receives barrier "rebalance-001":
+├── Worker B is at 1500
+├── Worker B checkpoints at current position 1500
+└── Worker B sends CheckpointComplete("rebalance-001", positions at 1500)
 
-Result: Worker B catches up to the barrier, then checkpoints.
+Result: Worker B checkpoints and echoes the barrier ID.
 ```
 
 **Scenario B: Behind worker disconnects**
@@ -1188,26 +1214,26 @@ Result: Worker B catches up to the barrier, then checkpoints.
 Worker A: position 1500 (disconnecting, BEHIND)
 Worker B: position 2030 (remaining, AHEAD)
 
-1. Worker A sends: Disconnect(positions={...})  // BarrierId=1500
-2. Server broadcasts: CheckpointBarrier(1500, Rebalance)
+1. Worker A sends: Disconnect("prev-barrier", positions={...})
+2. Server generates new barrier ID and broadcasts:
+   CheckpointBarrier("rebalance-002", Rebalance)
 
-Worker B receives barrier 1500:
-├── Worker B is at 2030 (PAST the barrier!)
-├── Barrier 1500 is in the past for Worker B
-├── Worker B immediately checkpoints with current positions
-└── Worker B sends CheckpointComplete(positions={...: 2030})
+Worker B receives barrier "rebalance-002":
+├── Worker B is at 2030
+├── Worker B checkpoints at current position 2030
+└── Worker B sends CheckpointComplete("rebalance-002", positions at 2030)
 
-Result: Worker B checkpoints immediately - no catch-up needed.
+Result: Worker B checkpoints and echoes the barrier ID.
 ```
 
 **Why both scenarios work:**
 
-The barrier is a **"stop and checkpoint" signal**, not a **"rewind to position X"** signal.
+The barrier is a **"checkpoint now" signal**, not a **"reach position X"** signal.
 
-| Worker State | Action on Barrier |
-|--------------|-------------------|
-| **Behind barrier** | Catch up to barrier position, then checkpoint |
-| **Ahead of barrier** | Immediately checkpoint with current positions |
+| Worker State              | Action on Barrier                                   |
+|---------------------------|-----------------------------------------------------|
+| **Any position**          | Checkpoint immediately with current positions       |
+| **Response**              | Echo the barrier ID + report per-partition progress |
 
 **The consistent cut is valid because:**
 1. Each worker processes **different records** (partitioned by key group)
@@ -1215,7 +1241,7 @@ The barrier is a **"stop and checkpoint" signal**, not a **"rewind to position X
 3. Worker B's position = last record for B's partitions
 4. No overlap - they're processing different data streams
 
-The barrier position represents the **minimum guarantee** - everyone has processed at least up to that point. Workers ahead of the barrier have simply processed more records for their assigned partitions.
+**Key insight:** The barrier ID coordinates timing ("everyone checkpoint now and confirm with this token"), while positions represent actual progress. Workers can be at different positions - that's expected and correct because they process different partitions.
 
 ---
 
@@ -1247,13 +1273,14 @@ The barrier position represents the **minimum guarantee** - everyone has process
 
 ## Version History
 
-| Version | Date             | Author          | Changes                                                                 |
-|---------|------------------|-----------------|-------------------------------------------------------------------------|
-| 1.0     | January 7, 2026  | Sergio Silveira | Initial version from party mode discussion                              |
-| 1.1     | January 7, 2026  | Sergio Silveira | Added Implementation Gap Analysis (since removed)                       |
-| 1.2     | January 7, 2026  | Sergio Silveira | Protocol alignment: WorkAccepted, Disconnect with positions, FilterTimeout |
-| 2.0     | January 8, 2026  | Sergio Silveira | Major revision: Renamed Relay→Gateway, removed Disconnected message, added Message Flows section, removed Gap Analysis section, documented supported triggers (4 of 6) |
-| 2.1     | January 8, 2026  | Sergio Silveira | Final naming: LocalGateway→LegacyGateway, GrpcGateway→ProcessorGateway; Updated all message types to use IVariant discriminated unions; Documented two-level batching |
-| 2.2     | January 8, 2026  | Sergio Silveira | Added Section 8: Checkpoint & Barrier Semantics Deep Dive               |
-| 2.3     | January 8, 2026  | Sergio Silveira | Added Section 8.9: Disconnect scenarios (ahead vs behind workers)       |
-| 3.0     | January 14, 2026 | Sergio Silveira | **Major revision:** Consolidated spec with actual implementation. Key changes: (1) Message types updated (WorkAssigned→WorkOrder, WorkAccepted→WorkerReady with positions, Record[]→RecordBatch); (2) IProcessorGateway simplified to pure factory; (3) Design Decisions moved to Section 2 and rewritten for clarity; (4) Added Section 9: Error Handling & Connection Failures; (5) Section 6 rewritten as verbose prose; (6) ProcessorGateway renamed to GrpcGateway throughout |
+| Version | Date             | Author          | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+|---------|------------------|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1.0     | January 7, 2026  | Sergio Silveira | Initial version from party mode discussion                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 1.1     | January 7, 2026  | Sergio Silveira | Added Implementation Gap Analysis (since removed)                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 1.2     | January 7, 2026  | Sergio Silveira | Protocol alignment: WorkAccepted, Disconnect with positions, FilterTimeout                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2.0     | January 8, 2026  | Sergio Silveira | Major revision: Renamed Relay→Gateway, removed Disconnected message, added Message Flows section, removed Gap Analysis section, documented supported triggers (4 of 6)                                                                                                                                                                                                                                                                                                                 |
+| 2.1     | January 8, 2026  | Sergio Silveira | Final naming: LocalGateway→LegacyGateway, GrpcGateway→ProcessorGateway; Updated all message types to use IVariant discriminated unions; Documented two-level batching                                                                                                                                                                                                                                                                                                                  |
+| 2.2     | January 8, 2026  | Sergio Silveira | Added Section 8: Checkpoint & Barrier Semantics Deep Dive                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2.3     | January 8, 2026  | Sergio Silveira | Added Section 8.9: Disconnect scenarios (ahead vs behind workers)                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 3.0     | January 14, 2026 | Sergio Silveira | **Major revision:** Consolidated spec with actual implementation. Key changes: (1) Message types updated (WorkAssigned→WorkOrder, WorkAccepted→WorkerReady with positions, Record[]→RecordBatch); (2) IProcessorGateway simplified to pure factory; (3) Design Decisions moved to Section 2 and rewritten for clarity; (4) Added Section 9: Error Handling & Connection Failures; (5) Section 6 rewritten as verbose prose; (6) ProcessorGateway renamed to GrpcGateway throughout     |
+| 3.1     | January 21, 2026 | Sergio Silveira | **BarrierId as GUID coordination token:** Changed BarrierId from LogPosition to a GUID-based coordination token (matching implementation). Key changes: (1) Added BarrierId type definition to Section 5.4; (2) Updated CheckpointBarrier, WorkerReady, CheckpointComplete, Disconnect to use BarrierId type; (3) Disconnect now takes BarrierId as parameter instead of deriving from positions; (4) Reframed Section 10 around "coordination token" model vs position-based barriers |

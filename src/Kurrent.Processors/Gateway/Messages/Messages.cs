@@ -21,12 +21,22 @@ public readonly record struct BarrierId(string Value) {
 	/// <summary>Creates a new unique barrier ID using a GUID.</summary>
 	public static BarrierId New() => new(Guid.NewGuid().ToString());
 
-	/// <summary>True if this barrier ID is empty or unset.</summary>
+    public static BarrierId From(string value) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        return new BarrierId(value);
+    }
+
+    public static BarrierId From(ulong value) =>
+        new(value.ToString());
+
+    /// <summary>True if this barrier ID is empty or unset.</summary>
 	public bool IsEmpty => string.IsNullOrEmpty(Value);
 
 	public override string ToString() => Value;
 
 	public static implicit operator string(BarrierId id) => id.Value;
+
+    public static implicit operator ulong(BarrierId id) => ulong.Parse(id.Value);
 }
 
 #region Inbound - Processor Control Messages

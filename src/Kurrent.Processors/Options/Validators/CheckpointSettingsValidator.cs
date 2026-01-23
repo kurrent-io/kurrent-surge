@@ -12,12 +12,6 @@ public class CheckpointSettingsValidator : AbstractValidator<CheckpointSettings>
             .WithMessage("Checkpoint Interval must be between 1 and 3600000 milliseconds.")
             .WithSeverity(Severity.Error);
 
-        // Threshold validation (1-1000000 records)
-        RuleFor(settings => settings.Threshold)
-            .InclusiveBetween(1, 1000000)
-            .WithMessage("Checkpoint Threshold must be between 1 and 1000000.")
-            .WithSeverity(Severity.Error);
-
         // Timeout validation (1-300000ms, up to 5 minutes)
         RuleFor(settings => settings.Timeout)
             .InclusiveBetween(1, 300000)

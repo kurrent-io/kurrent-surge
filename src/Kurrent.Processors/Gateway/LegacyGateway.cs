@@ -129,9 +129,8 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
             _ = Task.Run(PumpPump, stoppingToken);
 
             // Start interval barrier timer
-            if (options.Checkpoint.Interval > 0) {
+            if (options.Checkpoint.Interval > 0)
                 _ = Task.Run(BarrierTimerAsync, stoppingToken);
-            }
 
             return channel;
 

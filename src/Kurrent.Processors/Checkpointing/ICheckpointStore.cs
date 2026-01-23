@@ -13,12 +13,33 @@ public interface ICheckpointStore {
     /// <summary>
     /// Loads the checkpoint for this processor.
     /// </summary>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>
-    /// The checkpoint containing all partition checkpoints, barrier ID, and resolution logic.
-    /// Returns <see cref="ProcessorCheckpoint.Empty"/> if no checkpoint exists.
-    /// </returns>
     ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Loads the checkpoint for this processor at the specified barrier.
+    /// </summary>
+    ValueTask<ProcessorCheckpoint> LoadAsync(BarrierId barrierId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Loads the checkpoint for this processor at the specified barrier,
+    /// resolving positions for the given partitions.
+    /// </summary>
+    ValueTask<ProcessorCheckpoint> LoadAsync(
+        BarrierId barrierId,
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Loads the latest checkpoint for this processor,
+    /// resolving positions for the given partitions.
+    /// </summary>
+    ValueTask<ProcessorCheckpoint> LoadLatestAsync(
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     /// Stores checkpoint positions for the specified partitions, merging with existing positions.
@@ -68,11 +89,11 @@ public sealed record PartitionCheckpoint(RecordPosition Position, string WorkerI
 [PublicAPI]
 public sealed record SubscriptionStartPosition(
     LogPosition StartFrom,
-    ImmutableDictionary<Partition, RecordPosition> Partitions
+    Dictionary<Partition, LogPosition>[] Partitions
 );
 
 /// <summary>
-/// Loaded checkpoint for a processor, with position resolution logic.
+/// Loaded checkpoint for a processor, with resolved positions for all assigned partitions.
 /// </summary>
 [PublicAPI]
 public sealed record ProcessorCheckpoint {
@@ -103,40 +124,12 @@ public sealed record ProcessorCheckpoint {
     public bool HasCheckpoint => !Partitions.IsEmpty;
 
     /// <summary>
-    /// Gets start positions for creating a subscription, merging overrides with checkpoints.
+    /// The minimum position across all partitions (subscription start position).
     /// </summary>
-    /// <param name="initialPosition">
-    /// The initial position setting to use when no checkpoint exists.
-    /// Determines the barrier position for fresh subscriptions.
-    /// </param>
-    /// <param name="positionOverrides">
-    /// Dictionary of partition-specific start positions that override checkpoints.
-    /// Key: Partition value (int), Value: Position (long).
-    /// When a partition has an override, the checkpoint for that partition is ignored.
-    /// </param>
-    public SubscriptionStartPosition ResolveStartPosition(
-        SubscriptionInitialPosition initialPosition,
-        ImmutableDictionary<int, long> positionOverrides
-    ) {
-        // Start with checkpoint positions
-        var builder = ImmutableDictionary.CreateBuilder<Partition, RecordPosition>();
+    public RecordPosition LowWatermark { get; init; } = RecordPosition.Earliest;
 
-        foreach (var (partition, checkpoint) in Partitions)
-            builder.Add(partition, checkpoint.Position);
-
-        // Apply overrides (convert long to RecordPosition)
-        foreach (var (partitionValue, position) in positionOverrides)
-            builder[Partition.From(partitionValue)] = RecordPosition.FromLogPosition(position);
-
-        // Resolve the start position for subscription
-        // If we have checkpoint data, use the minimum log position from checkpoints
-        // Otherwise use the initial position setting
-        var startFrom = !HasCheckpoint
-            ? initialPosition == SubscriptionInitialPosition.Earliest
-                ? LogPosition.Earliest
-                : LogPosition.Latest
-            : Partitions.Values.Min(cp => cp.Position.LogPosition);
-
-        return new(startFrom, builder.ToImmutable());
-    }
+    /// <summary>
+    /// The maximum position across all partitions.
+    /// </summary>
+    public RecordPosition HighWatermark { get; init; } = RecordPosition.Earliest;
 }

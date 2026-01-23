@@ -1,5 +1,6 @@
 using System.Text;
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Kurrent.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,12 +57,6 @@ public class ConfigurationTests {
     public void default_checkpoint_interval_is_30000() {
         var settings = new ProcessorSettings();
         settings.Checkpoint.Interval.ShouldBe(30000);
-    }
-
-    [Test]
-    public void default_checkpoint_threshold_is_5000() {
-        var settings = new ProcessorSettings();
-        settings.Checkpoint.Threshold.ShouldBe(5000);
     }
 
     [Test]
@@ -169,7 +164,6 @@ public class ConfigurationTests {
     public void with_checkpoint_sets_settings() {
         var checkpointSettings = new CheckpointSettings {
             Interval       = 60000,
-            Threshold      = 5000,
             Timeout        = 30000,
             RetentionCount = 5
         };
@@ -182,7 +176,6 @@ public class ConfigurationTests {
             .Build();
 
         worker.Settings.Checkpoint.Interval.ShouldBe(60000);
-        worker.Settings.Checkpoint.Threshold.ShouldBe(5000);
         worker.Settings.Checkpoint.Timeout.ShouldBe(30000);
         worker.Settings.Checkpoint.RetentionCount.ShouldBe(5);
     }
@@ -197,18 +190,6 @@ public class ConfigurationTests {
             .Build();
 
         worker.Settings.Subscription.InitialPosition.ShouldBe(SubscriptionInitialPosition.Earliest);
-    }
-
-    [Test]
-    public void with_start_position_sets_settings() {
-        var worker = KurrentProcessors.Create(new NoOpProcessor())
-            .ConnectTo("kurrentdb://localhost:2113")
-            .WithProcessorId("test-processor")
-            .WithMaxParallelism(1)
-            .WithStartPosition(12345)
-            .Build();
-
-        worker.Settings.Subscription.StartPosition.ShouldBe(12345);
     }
 
     [Test]
@@ -446,19 +427,6 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public void invalid_checkpoint_threshold_fails_validation() {
-        var settings = new ProcessorSettings {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Checkpoint     = new CheckpointSettings { Threshold = 0 }
-        };
-
-        var result = settings.ValidateOptions();
-
-        result.IsSuccess.ShouldBeFalse();
-    }
-
-    [Test]
     public void max_parallelism_without_partition_key_passes_with_warning() {
         // PartitionKeySelector is a warning, not an error, for backward compatibility
         var settings = new ProcessorSettings {
@@ -580,7 +548,7 @@ public class ConfigurationTests {
         var provider = services.BuildServiceProvider();
 
         // Get the hosted service to trigger factory
-        var hostedServices = provider.GetServices<IHostedService>().ToList();
+        _ = provider.GetServices<IHostedService>().ToList();
 
         // The processor ID should have been captured from TestSettings
         capturedId.ShouldBe("configured-processor-id");
@@ -596,7 +564,7 @@ public class ConfigurationTests {
 
     [Test]
     public void settings_loaded_from_json_configuration_by_processor_type_name() {
-        var json = """
+        const string json = """
             {
               "Kurrent": {
                 "Processors": {
@@ -609,8 +577,7 @@ public class ConfigurationTests {
                       "Timeout": 500
                     },
                     "Checkpoint": {
-                      "Interval": 15000,
-                      "Threshold": 1000
+                      "Interval": 15000
                     }
                   }
                 }
@@ -627,12 +594,11 @@ public class ConfigurationTests {
         settings.Batching.MaxSize.ShouldBe(100);
         settings.Batching.Timeout.ShouldBe(500);
         settings.Checkpoint.Interval.ShouldBe(15000);
-        settings.Checkpoint.Threshold.ShouldBe(1000);
     }
 
     [Test]
     public void json_configuration_supports_camel_case_properties() {
-        var json = """
+        const string json = """
             {
               "Kurrent": {
                 "Processors": {
@@ -645,8 +611,7 @@ public class ConfigurationTests {
                       "timeout": 300
                     },
                     "checkpoint": {
-                      "interval": 20000,
-                      "threshold": 500
+                      "interval": 20000
                     },
                     "subscription": {
                       "filterExpression": "stream_id LIKE 'test-%'",
@@ -668,7 +633,6 @@ public class ConfigurationTests {
         settings.Batching.MaxSize.ShouldBe(75);
         settings.Batching.Timeout.ShouldBe(300);
         settings.Checkpoint.Interval.ShouldBe(20000);
-        settings.Checkpoint.Threshold.ShouldBe(500);
         settings.Subscription.FilterExpression.ShouldBe("stream_id LIKE 'test-%'");
         settings.Subscription.InitialPosition.ShouldBe(SubscriptionInitialPosition.Earliest);
         settings.Subscription.PartitionKeySelector.ShouldBe("data.id");

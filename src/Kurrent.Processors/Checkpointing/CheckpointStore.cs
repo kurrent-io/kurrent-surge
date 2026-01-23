@@ -22,7 +22,6 @@ namespace Kurrent.Client.Processors.Checkpointing;
 /// </remarks>
 [PublicAPI]
 public sealed partial class CheckpointStore : ICheckpointStore {
-    readonly string        _processorId;
     readonly StreamsClient _client;
     readonly ILogger       _logger;
     readonly int           _maxCount;
@@ -46,7 +45,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         TimeProvider? time = null,
         ILogger<CheckpointStore>? logger = null
     ) {
-        _processorId = processorId;
+        ProcessorId = processorId;
         _maxCount    = maxCount;
         _client      = client;
         _time        = time ?? TimeProvider.System;
@@ -57,7 +56,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// <summary>
     /// Gets the processor ID this store is bound to.
     /// </summary>
-    public string ProcessorId => _processorId;
+    public string ProcessorId { get; }
 
     /// <summary>
     /// Loads the checkpoint for this processor.
@@ -77,29 +76,190 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 .ConfigureAwait(false);
 
             if (record.Value is not ProcessorCheckpointState state || state.Partitions.IsEmpty) {
-                LogNoCheckpointFound(_processorId);
+                LogNoCheckpointFound(ProcessorId);
                 return ProcessorCheckpoint.Empty;
             }
 
-            var partitions = state.Partitions
-                .ToImmutableDictionary(
-                    kvp => Partition.From(kvp.Key),
-                    kvp => new PartitionCheckpoint(
-                        RecordPosition.FromLogPosition(new LogPosition(kvp.Value.Position)),
-                        kvp.Value.WorkerId));
-
-            LogLoaded(_processorId, partitions.Count, state.BarrierId);
-
-            return new ProcessorCheckpoint {
-                Partitions = partitions,
-                BarrierId  = new BarrierId(state.BarrierId),
-                Timestamp  = state.Timestamp
-            };
+            var checkpoint = MapToCheckpoint(state);
+            LogLoaded(ProcessorId, checkpoint.Partitions.Count, state.BarrierId);
+            return checkpoint;
         }
         catch (StreamNotFoundException) {
-            LogNoCheckpointFound(_processorId);
+            LogNoCheckpointFound(ProcessorId);
             return ProcessorCheckpoint.Empty;
         }
+    }
+
+    ProcessorCheckpoint MapToCheckpoint(ProcessorCheckpointState state) {
+        if (state.Partitions.IsEmpty)
+            return ProcessorCheckpoint.Empty;
+
+        RecordPosition? low = null;
+        RecordPosition? high = null;
+
+        var partitions = state.Partitions
+            .ToImmutableDictionary(
+                kvp => Partition.From(kvp.Key),
+                kvp => {
+                    var position = RecordPosition.FromLogPosition(new LogPosition(kvp.Value.Position));
+
+                    if (low is null || position < low)
+                        low = position;
+
+                    if (high is null || position > high)
+                        high = position;
+
+                    return new PartitionCheckpoint(position, kvp.Value.WorkerId);
+                });
+
+        return new ProcessorCheckpoint {
+            Partitions    = partitions,
+            BarrierId     = new BarrierId(state.BarrierId),
+            Timestamp     = state.Timestamp,
+            LowWatermark  = low ?? RecordPosition.Earliest,
+            HighWatermark = high ?? RecordPosition.Earliest
+        };
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition,
+        CancellationToken ct = default
+    ) {
+        if (partitions.Length == 0)
+            return ProcessorCheckpoint.Empty;
+
+        var checkpoint = await LoadLatestAsync(ct).ConfigureAwait(false);
+
+        var defaultPos = initialPosition == SubscriptionInitialPosition.Earliest
+            ? RecordPosition.Earliest
+            : RecordPosition.Latest;
+
+        // Build resolved positions for all requested partitions
+        var builder = ImmutableDictionary.CreateBuilder<Partition, PartitionCheckpoint>();
+        RecordPosition? low = null;
+        RecordPosition? high = null;
+
+        foreach (var partition in partitions) {
+            RecordPosition position;
+
+            if (checkpoint.Partitions.TryGetValue(partition, out var existing)) {
+                position = existing.Position;
+                builder.Add(partition, existing);
+            }
+            else {
+                position = defaultPos with { Partition = partition };
+                builder.Add(partition, new PartitionCheckpoint(position, string.Empty));
+            }
+
+            // Track watermarks
+            if (low is null || position < low)
+                low = position;
+
+            if (high is null || position > high)
+                high = position;
+        }
+
+        return new ProcessorCheckpoint {
+            Partitions    = builder.ToImmutable(),
+            BarrierId     = checkpoint.BarrierId,
+            Timestamp     = checkpoint.Timestamp,
+            LowWatermark  = low ?? defaultPos,
+            HighWatermark = high ?? defaultPos
+        };
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<ProcessorCheckpoint> LoadAsync(BarrierId barrierId, CancellationToken ct = default) {
+        await EnsureReadyAsync(ct).ConfigureAwait(false);
+
+        if (barrierId.IsEmpty)
+            return ProcessorCheckpoint.Empty;
+
+        try {
+            var scanLimit = _maxCount > 0 ? _maxCount : 1000;
+
+            await using var recordStream = await _client
+                .ReadStreamRecords(options => options with {
+                    Stream            = _stream,
+                    Direction         = ReadDirection.Backwards,
+                    Start             = StreamRevision.Max,
+                    MaxRecords        = scanLimit,
+                    CancellationToken = ct
+                })
+                .UnwrapAsync()
+                .ConfigureAwait(false);
+
+            await foreach (var message in recordStream.WithCancellation(ct).ConfigureAwait(false)) {
+                if (!message.IsRecord)
+                    continue;
+
+                if (message.AsRecord.Value is ProcessorCheckpointState state && state.BarrierId == barrierId.Value) {
+                    var checkpoint = MapToCheckpoint(state);
+                    LogLoaded(ProcessorId, checkpoint.Partitions.Count, state.BarrierId);
+                    return checkpoint;
+                }
+            }
+
+            LogBarrierNotFound(ProcessorId, barrierId.Value);
+            return ProcessorCheckpoint.Empty;
+        }
+        catch (StreamNotFoundException) {
+            LogNoCheckpointFound(ProcessorId);
+            return ProcessorCheckpoint.Empty;
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<ProcessorCheckpoint> LoadAsync(
+        BarrierId barrierId,
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition,
+        CancellationToken ct = default
+    ) {
+        if (partitions.Length == 0)
+            return ProcessorCheckpoint.Empty;
+
+        var checkpoint = await LoadAsync(barrierId, ct).ConfigureAwait(false);
+
+        var defaultPos = initialPosition == SubscriptionInitialPosition.Earliest
+            ? RecordPosition.Earliest
+            : RecordPosition.Latest;
+
+        // Build resolved positions for all requested partitions
+        var builder = ImmutableDictionary.CreateBuilder<Partition, PartitionCheckpoint>();
+
+        RecordPosition? low = null;
+        RecordPosition? high = null;
+
+        foreach (var partition in partitions) {
+            RecordPosition position;
+
+            if (checkpoint.Partitions.TryGetValue(partition, out var existing)) {
+                position = existing.Position;
+                builder.Add(partition, existing);
+            }
+            else {
+                position = defaultPos with { Partition = partition };
+                builder.Add(partition, new PartitionCheckpoint(position, string.Empty));
+            }
+
+            // Track watermarks
+            if (low is null || position < low)
+                low = position;
+
+            if (high is null || position > high)
+                high = position;
+        }
+
+        return new ProcessorCheckpoint {
+            Partitions    = builder.ToImmutable(),
+            BarrierId     = checkpoint.BarrierId,
+            Timestamp     = checkpoint.Timestamp,
+            LowWatermark  = low ?? defaultPos,
+            HighWatermark = high ?? defaultPos
+        };
     }
 
     /// <summary>
@@ -146,24 +306,20 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 .ExpectingRevision(expectedRevision)
                 .WithRecord(rec => rec
                     .WithValue(merged)
-                    .WithMetadata("processor_id", _processorId)
+                    .WithMetadata("processor_id", ProcessorId)
                     .WithMetadata("worker_id", workerId))
                 .Build();
 
             var result = await _client.Append(request, ct).ConfigureAwait(false);
 
             if (result.IsSuccess) {
-                LogStored(_processorId, workerId, positions.Count, result.Value.StreamRevision);
-
-                // Configure retention after first successful append
-                await ConfigureRetentionIfNeededAsync(ct).ConfigureAwait(false);
-
+                LogStored(ProcessorId, workerId, positions.Count, result.Value.StreamRevision);
                 return;
             }
 
             // Check if it's a concurrency conflict
             if (result.Error.Value is StreamRevisionConflictException) {
-                LogConcurrencyConflict(_processorId, workerId);
+                LogConcurrencyConflict(ProcessorId, workerId);
                 continue; // Retry
             }
 
@@ -207,7 +363,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         return new ProcessorCheckpointState {
             Partitions   = partitionsBuilder.ToImmutable(),
             BarrierId    = barrierId.Value,
-            ProcessorId  = _processorId,
+            ProcessorId  = ProcessorId,
             LastWorkerId = workerId,
             Timestamp    = _time.GetUtcNow()
         };
@@ -217,30 +373,24 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         if (_isReady)
             return;
 
-        // Don't configure retention here - it will be done after first successful append
-        // This avoids issues with stream state when appending to non-existent streams
+        if (_maxCount <= 0) {
+            LogRetentionNotConfigured(ProcessorId);
+        }
+        else {
+            var info = await _client.GetStreamInfo(_stream, ct).UnwrapAsync().ConfigureAwait(false);
 
-        if (_maxCount <= 0)
-            LogRetentionNotConfigured(_processorId);
+            if (!info.Metadata.HasMaxCount) {
+                await _client
+                    .ConfigureStreamDataRetention(_stream, new() { MaxCount = _maxCount }, ct)
+                    .UnwrapAsync()
+                    .ConfigureAwait(false);
+
+                LogRetentionConfigured(ProcessorId, _maxCount);
+            }
+        }
 
         _isReady = true;
-        LogReady(_processorId, _stream);
-    }
-
-    async ValueTask ConfigureRetentionIfNeededAsync(CancellationToken ct) {
-        if (_maxCount <= 0)
-            return;
-
-        var info = await _client.GetStreamInfo(_stream, ct).UnwrapAsync().ConfigureAwait(false);
-
-        if (info != StreamInfo.None && !info.Metadata.HasMaxCount) {
-            await _client
-                .ConfigureStreamDataRetention(_stream, new() { MaxCount = _maxCount }, ct)
-                .UnwrapAsync()
-                .ConfigureAwait(false);
-
-            LogRetentionConfigured(_processorId, _maxCount);
-        }
+        LogReady(ProcessorId, _stream);
     }
 
     #region Logging
@@ -280,6 +430,12 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         Message = "[{ProcessorId}] No checkpoint found"
     )]
     partial void LogNoCheckpointFound(string processorId);
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "[{ProcessorId}] Barrier not found: {BarrierId}"
+    )]
+    partial void LogBarrierNotFound(string processorId, string barrierId);
 
     [LoggerMessage(
         Level = LogLevel.Debug,

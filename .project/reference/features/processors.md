@@ -2,16 +2,19 @@
 
 ## Feature Design Document
 
-**Version:** 2.5  
-**Status:** Draft  
-**Date:** December 16, 2025  
+**Version:** 2.6
+**Status:** Draft
+**Date:** January 21, 2026
 **Authors:** Sérgio Silveira
 
 ---
 
 ## Executive Summary
 
-KurrentDB Processors enable distributed, fault-tolerant stream processing over the KurrentDB log. Multiple workers can connect to process records in parallel while maintaining exactly-once state semantics through coordinated checkpointing.
+KurrentDB Processors enable distributed, fault-tolerant stream processing over the KurrentDB log. 
+Multiple workers can connect to process records in parallel while maintaining exactly-once state semantics through coordinated checkpointing. 
+The system provides **at-least-once delivery** (records may be redelivered after recovery) combined with **exactly-once state** (internal state reflects each record exactly once). 
+Handlers that are idempotent or have no external side effects achieve effectively exactly-once end-to-end behavior.
 
 **Key capabilities:**
 - **Elastic scaling**: Add or remove workers without stopping processing
@@ -39,10 +42,11 @@ KurrentDB Processors enable distributed, fault-tolerant stream processing over t
 12. [Client-Side Component Design](#12-client-side-component-design)
 13. [Protocol Overview](#13-protocol-overview)
 14. [Observability](#14-observability)
-15. [Alternatives Considered](#15-alternatives-considered)
-16. [Implementation Roadmap](#16-implementation-roadmap)
-17. [Glossary](#17-glossary)
-18. [References](#18-references)
+15. [Delivery Guarantees and Side Effects](#15-delivery-guarantees-and-side-effects)
+16. [Alternatives Considered](#16-alternatives-considered)
+17. [Implementation Roadmap](#17-implementation-roadmap)
+18. [Glossary](#18-glossary)
+19. [References](#19-references)
 
 ---
 
@@ -58,6 +62,8 @@ KurrentDB Processors enable distributed, fault-tolerant stream processing over t
 | **Simple API**             | Single gRPC stream; minimal worker implementation complexity              | P1       |
 | **Observable**             | Lag metrics, throughput, checkpoint statistics                            | P1       |
 | **Pluggable Storage**      | Checkpoint storage is an abstraction (DuckDB, S3, KurrentDB streams)      | P2       |
+
+> **Understanding Delivery Guarantees:** At-least-once delivery means every record is processed, but some may be redelivered during recovery. Exactly-once state means the coordinated checkpoint ensures internal state reflects each record exactly once—no "double counting" in aggregations or state machines. External side effects (emails, API calls, database writes) are the user's responsibility to make idempotent. See [Delivery Guarantees and Side Effects](#15-delivery-guarantees-and-side-effects) for detailed guidance.
 
 **Non-goals (current scope):**
 - Operator DAGs (chaining filter→map→aggregate)
@@ -288,6 +294,8 @@ flowchart LR
 
 **Recovery scenario**: Worker A crashes at record 1750. We restore checkpoint 1500, replay records 1500-1750. Some records processed twice, but state is consistent.
 
+> ⚠️ **Side Effects Warning:** External operations (emails, API calls, database writes) may execute multiple times during recovery replay. Design handlers to be idempotent or use deduplication strategies. See [Delivery Guarantees and Side Effects](#15-delivery-guarantees-and-side-effects).
+
 **What gets checkpointed:**
 - Position in the log (per partition)
 - Worker state (per partition)
@@ -302,11 +310,21 @@ flowchart LR
 
 ```csharp
 /// <summary>
+/// Unique coordination token for checkpoint barriers.
+/// Used to correlate checkpoint barriers with worker responses.
+/// </summary>
+public readonly record struct BarrierId(string Value) {
+    public static readonly BarrierId Empty = new(string.Empty);
+    public static BarrierId New() => new(Guid.NewGuid().ToString());
+    public bool IsEmpty => string.IsNullOrEmpty(Value);
+}
+
+/// <summary>
 /// A checkpoint represents a consistent snapshot across all partitions.
 /// </summary>
 public record Checkpoint(
     string ProcessorId,
-    long CheckpointId,         // Log position at barrier
+    BarrierId BarrierId,       // Coordination token for this checkpoint
     DateTimeOffset CreateTime,
     TimeSpan Duration,         // How long checkpoint took
     bool IsSavepoint,          // Never auto-deleted if true
@@ -362,7 +380,7 @@ public interface ICheckpointStorage {
 }
 
 public record CheckpointSummary(
-    long CheckpointId,
+    BarrierId BarrierId,
     DateTimeOffset CreateTime,
     TimeSpan Duration,
     long TotalBytes,
@@ -542,14 +560,14 @@ Our checkpoint mechanism is based on the **Chandy-Lamport distributed snapshot a
 
 **How it applies to KurrentDB Processors:**
 
-| Chandy-Lamport Concept | KurrentDB Implementation        |
-|------------------------|---------------------------------|
-| Marker message         | Barrier message                 |
-| Process state          | Worker state (per partition)    |
-| Channel state          | Not needed (single source log)  |
-| Initiator              | Server (Checkpoint Coordinator) |
+| Chandy-Lamport Concept | KurrentDB Implementation                          |
+|------------------------|---------------------------------------------------|
+| Marker message         | Barrier message                                   |
+| Process state          | Worker state (per partition)                      |
+| Channel state          | Not needed (each worker has single input channel) |
+| Initiator              | Server (Checkpoint Coordinator)                   |
 
-**Key insight**: KurrentDB has a simpler topology than general distributed systems. There's a **single source log** that feeds all workers—no complex fan-in of multiple channels. This means we don't need to capture channel state or handle "barrier alignment" (a Flink complexity). Each worker simply:
+**Key insight**: KurrentDB has a simpler topology than general distributed systems. Each worker creates its **own independent subscription** to the log—there's no fan-in of multiple input channels per worker. This means we don't need to capture channel state or handle "barrier alignment" (a Flink complexity). Each worker simply:
 1. Receives barrier
 2. Finishes current record
 3. Snapshots state
@@ -567,34 +585,34 @@ sequenceDiagram
     participant CS as Checkpoint Storage
     
     Note over S: Checkpoint triggered (interval/threshold)
-    S->>S: checkpoint_id = current_log_position
-    
+    S->>S: barrier_id = BarrierId.New()
+
     par Broadcast barrier (Chandy-Lamport marker)
-        S->>A: Barrier(checkpoint_id=1000)
-        S->>B: Barrier(checkpoint_id=1000)
+        S->>A: Barrier("ckpt-001")
+        S->>B: Barrier("ckpt-001")
     end
-    
+
     par Workers snapshot (process state)
         A->>A: Finish current record
         A->>A: Snapshot state
         A->>CS: Upload partitions [0-63]
-        A->>S: BarrierAck(checkpoint_id=1000, positions)
+        A->>S: BarrierAck("ckpt-001", positions)
     and
         B->>B: Finish current record
         B->>B: Snapshot state
         B->>CS: Upload partitions [64-127]
-        B->>S: BarrierAck(checkpoint_id=1000, positions)
+        B->>S: BarrierAck("ckpt-001", positions)
     end
-    
+
     S->>S: All acks received
-    S->>S: Checkpoint 1000 = COMPLETED
+    S->>S: Checkpoint "ckpt-001" = COMPLETED
 ```
 
-### Understanding Barrier Positions vs. Worker Positions
+### Understanding Barrier IDs vs. Worker Positions
 
-A common point of confusion: **the barrier position is NOT the position each worker reports**. The barrier tells workers *where to stop*, but each worker reports *the last record they actually processed*.
+A common point of confusion: **the barrier ID is NOT a position—it's a coordination token**. The barrier tells workers to *checkpoint now*, and each worker reports *the last record they actually processed*.
 
-**Key insight**: The barrier position is a **logical stopping point** in the log. Workers process records up to (but not beyond) this position. However, due to partitioning and filtering, each worker may have processed a different subset of records—and thus report a different "last processed position."
+**Key insight**: The barrier is a "checkpoint now" signal with a unique ID for correlation. When triggered, each worker checkpoints at whatever position they've currently processed. Due to partitioning and filtering, each worker may have processed a different subset of records—and thus report a different "last processed position."
 
 #### Example 1: Basic Case (2 Workers, Equal Distribution)
 
@@ -606,7 +624,7 @@ Worker 1 (A):     ✓    ·    ✓    ·    ✓    ·    ✓    ·    ✓    ·
 Worker 2 (B):     ·    ✓    ·    ✓    ·    ✓    ·    ✓    ·    ✓
 ```
 
-**Barrier sent at position 10.**
+**Barrier sent with ID "ckpt-001" when server reaches position 10.**
 
 - Worker 1 processes: positions 1, 3, 5, 7, 9 → reports **position 9**
 - Worker 2 processes: positions 2, 4, 6, 8, 10 → reports **position 10**
@@ -630,7 +648,7 @@ Worker 1 (A):     ✓    ✓    ✓    ·    ✓    ✓    ·    ✓    ✓    �
 Worker 2 (B):     ·    ·    ·    ✓    ·    ·    ✓    ·    ·    ✓
 ```
 
-**Barrier sent at position 10.**
+**Barrier sent with ID "ckpt-001" when server reaches position 10.**
 
 - Worker 1 processes: positions 1, 2, 3, 5, 6, 8, 9 → reports **position 9**
 - Worker 2 processes: positions 4, 7, 10 → reports **position 10**
@@ -656,7 +674,7 @@ Worker 1 (A):     ✓    ·    ·    ✓    ·    ·    ✓    ·    ·    ·
 Worker 2 (B):     ·    ·    ✓    ·    ·    ✓    ·    ·    ✓    ·
 ```
 
-**Barrier sent at position 10.**
+**Barrier sent with ID "ckpt-001" when server reaches position 10.**
 
 - Worker 1 processes: positions 1, 4, 7 → reports **position 7**
 - Worker 2 processes: positions 3, 6, 9 → reports **position 9**
@@ -682,7 +700,7 @@ Worker 2 (P1):    ·    ✓    ·    ·    ·    ·    ✓    ·    ·    ·    
 Worker 3 (P2):    ·    ·    ·    ✓    ·    ·    ·    ✓    ·    ·    ·    ·
 ```
 
-**Barrier sent at position 12.**
+**Barrier sent with ID "ckpt-001" when server reaches position 12.**
 
 - Worker 1 processes: positions 1, 5, 10 → reports **position 10**
 - Worker 2 processes: positions 2, 7, 11 → reports **position 11**
@@ -701,15 +719,15 @@ Worker 3 (P2):    ·    ·    ·    ✓    ·    ·    ·    ✓    ·    ·    
 
 Think of it this way:
 
-1. **Server says**: "Everyone stop at position 10"
+1. **Server says**: "Everyone checkpoint now" (sends barrier with unique ID "ckpt-001")
 2. **Each worker does**:
-    - Process records from my channel/buffer
-    - Stop when I see a record with position > 10
-    - Report the last position I actually processed
-3. **Result**: Each worker's position ≤ barrier position, but varies based on what records they received
+    - Finish processing the current record
+    - Snapshot my state at whatever position I've reached
+    - Report the barrier ID + the last position I actually processed
+3. **Result**: Each worker's position varies based on what records they received
 
 ```
-                    Barrier Position = 10
+                    Server at position 10 → sends Barrier("ckpt-001")
                            │
                            ▼
 Log:  ═══════════════════════════════════════▶
@@ -726,11 +744,116 @@ Log:  ════════════════════════�
 
 On recovery from checkpoint:
 
-1. **We know**: All records up to position 10 have been fully processed
-2. **We resume from**: Position 10 (the barrier position)
+1. **We know**: All records up to the server's position when it sent the barrier have been fully processed
+2. **We resume from**: That position (stored in the checkpoint metadata)
 3. **We DON'T resume from**: Each worker's individual position
 
-The barrier position is the **global consistent cut**—the point where we know exactly what state corresponds to what input. Worker positions are just metadata for debugging and validation.
+The checkpoint's position is the **global consistent cut**—the point where we know exactly what state corresponds to what input. Individual worker positions are metadata for debugging and validation.
+
+### BarrierId as a Lamport Timestamp
+
+The barrier ID could serve two roles simultaneously by representing it as a Lamport timestamp:
+
+1. **Identity**: "which checkpoint is this?" (barrier 42)
+2. **Causal ordering**: "did this happen before that?" (barrier 42 > barrier 41)
+
+This helps with causality and reasoning about what was checkpointed and when.
+
+**Why not just use GUIDs?**
+
+GUIDs provide uniqueness but no ordering. When worker C takes over partitions from worker B after a rebalance, it needs to verify that the checkpoint state it reads is consistent—specifically, that it was taken at the expected barrier, not an older one.
+
+With Lamport timestamps:
+- "Checkpoint up to barrier 6" has verifiable meaning
+- Worker C can check: `state.BarrierId >= expectedBarrier`
+- If state is from barrier 5 when expecting 6, it's stale
+
+**Why Lamport timestamps instead of vector clocks?**
+
+| Clock Type | Complexity | What It Provides |
+|------------|------------|------------------|
+| Wall clock | Trivial | Unreliable (clock skew) |
+| **Lamport** | Single counter | Causal order: `a → b ⟹ L(a) < L(b)` |
+| Vector clock | N counters | Causal order + concurrency detection |
+
+Lamport timestamps occupy the sweet spot: simple enough for high-performance systems, expressive enough for causal ordering. We don't need vector clocks because:
+- The server is the single source of barrier events
+- Workers respond to barriers, they don't initiate them independently
+- There's no "concurrent checkpoints" scenario to detect
+
+**Surviving restarts**
+
+A simple counter starting from 1 would break causality guarantees after a restart—barrier 5 after restart could be lower than barrier 1000 before restart.
+
+The solution: use `TimeProvider.GetTimestamp()` as the initial value:
+
+```csharp
+public readonly record struct BarrierId(ulong Value) {
+    public static readonly BarrierId Empty = new(0);
+
+    // Initial value from high-frequency timer ensures monotonicity across restarts
+    public static BarrierId Initial(TimeProvider timeProvider)
+        => new((ulong)timeProvider.GetTimestamp());
+
+    public bool IsEmpty => Value == 0;
+}
+```
+
+**Why this works:**
+- `GetTimestamp()` returns a high-frequency counter value designed for accurate small time intervals
+- Uses the underlying timer mechanism (typically `Stopwatch.GetTimestamp()`)
+- After restart, new timestamp > old timestamp
+- Lamport rules still apply: `max(local, received) + 1`
+- The "floor" just moves up with time
+
+**Edge case—system restart:**
+
+If a system fully restarts (not just the process), the high-frequency counter resets. However, the Lamport rule handles this: the next barrier will be `max(initial, last_seen_from_workers) + 1`, so causality is preserved as long as any worker remembers the old value.
+
+**Simple LamportClock implementation:**
+
+```csharp
+public sealed class LamportClock {
+    private ulong _value;
+
+    public LamportClock(TimeProvider timeProvider) {
+        _value = (ulong)timeProvider.GetTimestamp();
+    }
+
+    /// <summary>
+    /// Increment before sending a message.
+    /// </summary>
+    public BarrierId Tick() {
+        return new BarrierId(Interlocked.Increment(ref _value));
+    }
+
+    /// <summary>
+    /// Update on receiving a message: max(local, received) + 1
+    /// </summary>
+    public BarrierId Update(BarrierId received) {
+        ulong current, updated;
+        do {
+            current = Volatile.Read(ref _value);
+            updated = Math.Max(current, received.Value) + 1;
+        } while (Interlocked.CompareExchange(ref _value, updated, current) != current);
+
+        return new BarrierId(updated);
+    }
+
+    public BarrierId Current => new(Volatile.Read(ref _value));
+}
+```
+
+**Usage:**
+- Server calls `clock.Tick()` to generate next barrier ID
+- Worker calls `clock.Update(barrier.BarrierId)` when receiving a barrier
+
+**Protocol self-description**
+
+Even though the server enforces `barrier → acks → reassign` sequentially, embedding causality in the barrier ID means:
+- Workers can verify consistency independently
+- The protocol works correctly even if coordinators change
+- Debugging is deterministic (barrier 42 always came after barrier 41)
 
 ### Barriers and Batching
 
@@ -783,7 +906,7 @@ Read pos 7 → add to Worker A buffer: [1, 3, 5, 7]  ← batch full, send!
 
 Read pos 8 → CHECKPOINT TRIGGERS!
              1. Flush Worker B buffer → Worker B receives: Records([2, 4, 6])
-             2. Send barriers → Both workers receive: Barrier(checkpoint_id=8)
+             2. Send barriers → Both workers receive: Barrier("ckpt-002")
 
 Read pos 9  → add to Worker A buffer: [9]
 Read pos 10 → add to Worker B buffer: [10]
@@ -847,30 +970,30 @@ public interface ICheckpointCoordinator {
     /// Trigger a checkpoint across all workers.
     /// Broadcasts barrier (Chandy-Lamport marker) to all connected workers.
     /// </summary>
-    Task<long> TriggerCheckpointAsync(
+    Task<BarrierId> TriggerCheckpointAsync(
         string processorId,
         BarrierTrigger trigger,
         CancellationToken ct = default);
-    
+
     /// <summary>
     /// Handle worker acknowledgment of checkpoint.
     /// </summary>
     Task AcknowledgeAsync(
         string processorId,
-        long checkpointId,
+        BarrierId barrierId,
         string sessionId,
         IReadOnlyDictionary<int, long> positions,
         CancellationToken ct = default);
-    
+
     /// <summary>
     /// Get current checkpoint status.
     /// </summary>
-    CheckpointProgress? GetProgress(string processorId, long checkpointId);
-    
+    CheckpointProgress? GetProgress(string processorId, BarrierId barrierId);
+
     /// <summary>
     /// Get the last completed checkpoint.
     /// </summary>
-    long? GetLastCompletedCheckpoint(string processorId);
+    BarrierId? GetLastCompletedCheckpoint(string processorId);
     
     /// <summary>
     /// Raised when checkpoint completes successfully.
@@ -884,7 +1007,7 @@ public interface ICheckpointCoordinator {
 }
 
 public record CheckpointProgress(
-    long CheckpointId,
+    BarrierId BarrierId,
     BarrierTrigger Trigger,
     DateTimeOffset StartTime,
     IReadOnlySet<string> PendingWorkers,
@@ -902,14 +1025,14 @@ public enum BarrierTrigger {
 
 public record CheckpointCompletedEventArgs(
     string ProcessorId,
-    long CheckpointId,
+    BarrierId BarrierId,
     TimeSpan Duration,
     bool IsSavepoint
 );
 
 public record CheckpointFailedEventArgs(
     string ProcessorId,
-    long CheckpointId,
+    BarrierId BarrierId,
     IReadOnlyList<string> FailedWorkers,
     string Reason
 );
@@ -1472,6 +1595,10 @@ This interface matches the existing KurrentDB client patterns. Users implement t
 ///     }
 /// }
 /// </example>
+/// <remarks>
+/// Handlers with external side effects should be idempotent, as records may be
+/// redelivered during recovery. See "Delivery Guarantees and Side Effects" section.
+/// </remarks>
 [PublicAPI]
 public interface IRecordProcessor {
     /// <summary>
@@ -1562,7 +1689,7 @@ public record ProcessRecordsContext {
 /// Context provided when a checkpoint occurs (informational).
 /// </summary>
 public record CheckpointContext(
-    long CheckpointId,
+    BarrierId BarrierId,
     CheckpointReason Reason,
     CancellationToken CancellationToken
 );
@@ -1723,7 +1850,7 @@ public interface IWorkerPositionTracker {
 **Key operations:**
 
 - `Track()` - Called after successfully processing record(s)
-- `FlushUpTo(position)` - Called when barrier arrives; returns all tracked positions ≤ barrier position
+- `FlushUpTo(position)` - Called when barrier arrives; returns all tracked positions ≤ the barrier's position
 - `Flush()` - Used for periodic position commits (separate from checkpointing)
 
 #### Why Track Per-Partition?
@@ -2030,9 +2157,194 @@ Three metrics to understand "how far behind":
 
 ---
 
-## 15. Alternatives Considered
+## 15. Delivery Guarantees and Side Effects
 
-### 14.1 Server-Hosted Workers
+### 15.1 Understanding the Guarantees
+
+KurrentDB Processors provide **at-least-once delivery** with **exactly-once state semantics**. Understanding this distinction is critical for building reliable applications.
+
+**At-Least-Once Delivery**
+- Every record is delivered at least once to a handler
+- Records may be redelivered after recovery (checkpoint → crash → replay)
+- Duplicates are bounded: only records since the last checkpoint are replayed
+
+**Exactly-Once State**
+- Coordinated checkpoints ensure internal state reflects each record exactly once
+- State is restored to the checkpoint position, then replayed records update it consistently
+- No "double counting" in aggregations or state machines
+
+**The Guarantee Boundary**
+
+| Scope | Guarantee | Responsibility |
+|-------|-----------|----------------|
+| Internal state (`IStateStore`) | Exactly-once | SDK handles automatically |
+| External systems | At-least-once | User must handle idempotency |
+
+The SDK guarantees that your internal state is consistent. Any operations outside that boundary—HTTP calls, database writes, email sending—are subject to redelivery.
+
+### 15.2 When You're Safe
+
+Processors achieve **effectively exactly-once behavior** when handlers:
+
+1. **Have no side effects** — Only update internal state, produce no external output
+2. **Are naturally idempotent** — Same input always produces the same result
+3. **Produce derived outputs** — Results can be recomputed from state after recovery
+
+**Examples of safe patterns:**
+
+```csharp
+// ✅ Safe: Aggregating in state
+public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
+    foreach (var record in ctx.Records) {
+        var reading = record.Deserialize<TemperatureReading>();
+        var stats = ctx.State.Get<SensorStats>(reading.SensorId);
+        stats.Sum += reading.Value;
+        stats.Count++;
+        ctx.State.Put(reading.SensorId, stats);
+    }
+    return ValueTask.CompletedTask;
+}
+
+// ✅ Safe: Building materialized views
+public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
+    foreach (var record in ctx.Records) {
+        var evt = record.Deserialize<OrderEvent>();
+        var view = ctx.State.Get<OrderView>(evt.OrderId);
+        view.Apply(evt);
+        ctx.State.Put(evt.OrderId, view);
+    }
+    return ValueTask.CompletedTask;
+}
+
+// ✅ Safe: State machine transitions
+public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
+    foreach (var record in ctx.Records) {
+        var cmd = record.Deserialize<WorkflowCommand>();
+        var workflow = ctx.State.Get<WorkflowState>(cmd.WorkflowId);
+        workflow.Transition(cmd); // Idempotent state transitions
+        ctx.State.Put(cmd.WorkflowId, workflow);
+    }
+    return ValueTask.CompletedTask;
+}
+```
+
+### 15.3 When You Need Care
+
+Operations requiring explicit idempotency design:
+
+| Operation | Risk | Mitigation |
+|-----------|------|------------|
+| Sending emails/notifications | Duplicate messages | Idempotency keys, deduplication |
+| Calling external APIs | Duplicate requests | Idempotent endpoints, conditional calls |
+| Writing to external databases | Duplicate inserts | Upserts, version checks |
+| Publishing to message queues | Duplicate messages | Deduplication at consumer |
+| Charging payments | Double charges | Idempotency keys, payment tokens |
+
+### 15.4 Idempotency Strategies
+
+**1. Idempotency Keys**
+
+Include a unique identifier (record position, event ID) in external calls. The external system deduplicates based on this key.
+
+```csharp
+public async ValueTask ProcessRecords(ProcessRecordsContext ctx) {
+    foreach (var record in ctx.Records) {
+        var order = record.Deserialize<OrderPlaced>();
+
+        // Use record position as idempotency key
+        var idempotencyKey = $"{ctx.ProcessorId}-{record.Position}";
+
+        await _paymentService.ChargeAsync(
+            order.CustomerId,
+            order.Amount,
+            idempotencyKey: idempotencyKey
+        );
+    }
+}
+```
+
+**2. Conditional Writes**
+
+Use optimistic concurrency or version checks to prevent duplicate effects.
+
+```csharp
+public async ValueTask ProcessRecords(ProcessRecordsContext ctx) {
+    foreach (var record in ctx.Records) {
+        var evt = record.Deserialize<InventoryAdjusted>();
+
+        // Conditional update - only applies if version matches
+        await _db.ExecuteAsync(
+            "UPDATE inventory SET quantity = @qty, version = @newVer " +
+            "WHERE product_id = @id AND version = @expectedVer",
+            new { id = evt.ProductId, qty = evt.NewQuantity,
+                  newVer = evt.Version, expectedVer = evt.Version - 1 }
+        );
+    }
+}
+```
+
+**3. Transactional Outbox**
+
+Write intent to state store, then process separately with deduplication.
+
+```csharp
+public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
+    foreach (var record in ctx.Records) {
+        var order = record.Deserialize<OrderPlaced>();
+
+        // Write intent to state (survives recovery)
+        var outbox = ctx.State.Get<OutboxState>("outbox");
+        outbox.Enqueue(new EmailIntent {
+            Id = record.Position,
+            To = order.CustomerEmail,
+            Template = "OrderConfirmation",
+            Data = order
+        });
+        ctx.State.Put("outbox", outbox);
+    }
+    return ValueTask.CompletedTask;
+}
+
+// Separate process reads outbox, sends emails, marks as sent
+// Deduplicates by checking if email was already sent for this Id
+```
+
+**4. Natural Idempotency**
+
+Design operations to be inherently idempotent.
+
+```csharp
+// ❌ Not idempotent: increment
+await _db.ExecuteAsync("UPDATE counters SET value = value + 1 WHERE id = @id");
+
+// ✅ Idempotent: set to specific value
+await _db.ExecuteAsync("UPDATE counters SET value = @value WHERE id = @id");
+
+// ❌ Not idempotent: insert
+await _db.ExecuteAsync("INSERT INTO events (id, data) VALUES (@id, @data)");
+
+// ✅ Idempotent: upsert
+await _db.ExecuteAsync(
+    "INSERT INTO events (id, data) VALUES (@id, @data) " +
+    "ON CONFLICT (id) DO NOTHING"
+);
+```
+
+### 15.5 Summary
+
+| Scenario | Guarantee | Action Required |
+|----------|-----------|-----------------|
+| State-only processing | Exactly-once | None |
+| Idempotent handlers | Effectively exactly-once | None |
+| External side effects | At-least-once | Implement idempotency |
+
+**Key takeaway:** If your handler only updates internal state or is naturally idempotent, you get exactly-once behavior. If you have external side effects, design them to be idempotent using the strategies above.
+
+---
+
+## 16. Alternatives Considered
+
+### 16.1 Server-Hosted Workers
 
 **Considered:** Server deploys and manages worker processes (like Flink JobManager).
 
@@ -2044,18 +2356,18 @@ Three metrics to understand "how far behind":
 
 **Trade-off:** Users must manage their own worker deployment.
 
-### 14.2 Barrier Alignment (Flink-style)
+### 16.2 Barrier Alignment (Flink-style)
 
 **Considered:** When a worker has multiple input channels, buffer records from channels that have received the barrier until all channels have.
 
 **Rejected because:**
-- KurrentDB has single source ($all log)
-- No fan-in at worker level
+- Each worker has a single input channel (its own subscription to the log)
+- No fan-in at worker level—unlike Flink where a worker may have multiple upstream operators
 - Adds complexity for no benefit
 
 **Trade-off:** None—we don't need it.
 
-### 14.3 Incremental Checkpoints
+### 16.3 Incremental Checkpoints
 
 **Considered:** Upload only changed state since last checkpoint.
 
@@ -2066,7 +2378,7 @@ Three metrics to understand "how far behind":
 
 **Trade-off:** Full state upload on each checkpoint.
 
-### 14.4 Exactly-Once Sinks
+### 16.4 Exactly-Once Sinks
 
 **Considered:** Built-in transactional writes to external systems.
 
@@ -2079,7 +2391,7 @@ Three metrics to understand "how far behind":
 
 ---
 
-## 16. Implementation Roadmap
+## 17. Implementation Roadmap
 
 ### Phase 1: Core Protocol (MVP)
 
@@ -2118,7 +2430,7 @@ Three metrics to understand "how far behind":
 
 ---
 
-## 17. Glossary
+## 18. Glossary
 
 ### Core Concepts
 
@@ -2163,7 +2475,7 @@ Three metrics to understand "how far behind":
 |-----------------------------------------|--------------------------------------------------------------------------------------------------------|
 | **Checkpoint**                          | A consistent snapshot of all workers' state and positions. Enables recovery after failures.            |
 | **Savepoint**                           | A manually-triggered checkpoint that is never automatically deleted. Used for migrations and upgrades. |
-| **Barrier**                             | A marker message sent to workers to trigger a checkpoint. Based on Chandy-Lamport algorithm.           |
+| **Barrier**                             | A marker message sent to workers to trigger a checkpoint. The barrier ID can be implemented as a Lamport timestamp to provide both identity and causal ordering. Based on Chandy-Lamport algorithm. |
 | **Barrier Acknowledgment (BarrierAck)** | Worker's response to a barrier, confirming state has been uploaded and providing current positions.    |
 | **Checkpoint ID**                       | Identifier for a checkpoint. In our design, this is the log position when the barrier was sent.        |
 | **Retention**                           | Policy for how many old checkpoints to keep. Savepoints are exempt from retention.                     |
@@ -2234,7 +2546,7 @@ Three metrics to understand "how far behind":
 
 ---
 
-## 18. References
+## 19. References
 
 ### Academic Papers
 
