@@ -41,10 +41,4 @@
     <Using Include="NodaTime" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="Pipeline\.stash\Contexts.cs" />
-    <Compile Include="Pipeline\.stash\IRecordProcessor.cs" />
-    <Compile Include="Pipeline\.stash\ProcessorWorker.cs" />
-  </ItemGroup>
-
 </Project>

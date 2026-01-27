@@ -65,11 +65,11 @@ public sealed record RegisterPlayer {
     /// </summary>
     public static RegisterPlayer Create(
         PlayerName name,
-        DateOnly dateOfBirth,
         Country nationality,
         Position mainPosition,
-        ClubId initialClubId,
-        DateOnly effectiveDate,
+        DateOnly dateOfBirth = default,
+        ClubId initialClubId = default,
+        DateOnly effectiveDate = default,
         ImmutableArray<Position>? otherPositions = null
     ) => new(
         name,
@@ -77,7 +77,7 @@ public sealed record RegisterPlayer {
         nationality,
         mainPosition,
         otherPositions ?? [],
-        initialClubId,
+        initialClubId == default ? ClubId.Unknown : initialClubId,
         effectiveDate
     );
 }

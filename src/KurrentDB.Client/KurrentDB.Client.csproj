@@ -123,38 +123,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Kurrent.Client\Legacy\RipAndTear\PersistentSubscriptions\**" />
-    <Compile Remove="Kurrent.Client\Legacy\RipAndTear\Client\Diagnostics\**" />
-    <Compile Remove="Kurrent.Client\Modules\Users\**" />
-    <Compile Remove="Kurrent.Client\Modules\Projections\**" />
-    <Compile Remove="Kurrent.Client\Modules\Admin\**" />
-    <Compile Include="Kurrent.Client\Modules\Connectors\ErrorDetails.cs" />
-    <Compile Remove="Kurrent.Client\Modules\Connectors\**" />
-    <Compile Include="Kurrent.Client\Modules\PersistentSubscriptions\ErrorDetails.cs" />
-    <Compile Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Remove="Kurrent.Client\Legacy\RipAndTear\PersistentSubscriptions\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Legacy\RipAndTear\Client\Diagnostics\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Users\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Projections\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Admin\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Connectors\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Kurrent.Client\Legacy\RipAndTear\PersistentSubscriptions\**" />
-    <None Remove="Kurrent.Client\Legacy\RipAndTear\Client\Diagnostics\**" />
-    <None Remove="Kurrent.Client\Modules\Users\**" />
-    <None Remove="Kurrent.Client\Modules\Projections\**" />
-    <None Remove="Kurrent.Client\Modules\Admin\**" />
-    <None Remove="Kurrent.Client\Modules\Connectors\**" />
-    <None Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="..\..\global.json">
       <Link>global.json</Link>
     </Content>
@@ -164,7 +132,30 @@
     <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
       <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
     </Folder>
-    <Folder Include="Kurrent\Grpc\LoadBalancing\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Kurrent.Client\Modules\Admin\**" />
+    <Compile Remove="Kurrent.Client\Modules\Connectors\**" />
+    <Compile Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
+    <Compile Remove="Kurrent.Client\Modules\Projections\**" />
+    <Compile Remove="Kurrent.Client\Modules\Users\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="Kurrent.Client\Modules\Admin\**" />
+    <EmbeddedResource Remove="Kurrent.Client\Modules\Connectors\**" />
+    <EmbeddedResource Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
+    <EmbeddedResource Remove="Kurrent.Client\Modules\Projections\**" />
+    <EmbeddedResource Remove="Kurrent.Client\Modules\Users\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Kurrent.Client\Modules\Admin\**" />
+    <None Remove="Kurrent.Client\Modules\Connectors\**" />
+    <None Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
+    <None Remove="Kurrent.Client\Modules\Projections\**" />
+    <None Remove="Kurrent.Client\Modules\Users\**" />
   </ItemGroup>
 
   <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">

@@ -120,6 +120,5 @@ Point the PRD workflow to this index: `docs/index.md`
 
 After reviewing this documentation:
 
-1. **Create Product Brief** - Run `bmad:bmm:workflows:create-product-brief` with this context
-2. **Compare with V1** - Use Context7 to fetch EventStoreDB client documentation
-3. **Plan Features** - Use the PRD workflow for new feature planning
+1. **Compare with V1** - Use Context7 to fetch EventStoreDB client documentation
+2. **Plan Features** - Use the PRD workflow for new feature planning

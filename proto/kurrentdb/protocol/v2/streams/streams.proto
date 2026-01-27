@@ -71,6 +71,12 @@ message AppendRequest {
   //
   // If omitted, defaults to EXPECTED_REVISION_CONSTANTS_ANY (-2).
   sint64 expected_revision = 3;
+
+  // Optional conditions on other streams that must be met for this append to succeed.
+  // Each entry specifies a stream name and the expected revision for that stream.
+  // This allows for cross-stream optimistic concurrency checks.
+  // If any condition is not met, the append will fail with a STREAM_REVISION_CONFLICT error.
+  map<string, sint64> stream_conditions = 4;
 }
 
 // Represents the outcome of an append operation.

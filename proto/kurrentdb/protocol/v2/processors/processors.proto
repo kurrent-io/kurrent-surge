@@ -12,13 +12,13 @@ import "kurrentdb/protocol/v2/processors/shared.proto";
 
 option csharp_namespace = "KurrentDB.Protocol.V2.Processors";
 
-//// =============================================================================
-//// SERVICE
-//// =============================================================================
-//
+////// =============================================================================
+////// SERVICE
+////// =============================================================================
+////
 //service ProcessorService {
 //  // Main bidirectional stream for control and record flow.
-//  rpc Process(stream WorkerMessage) returns (stream ServerMessage);
+//  rpc Connect(stream WorkerMessage) returns (stream ServerMessage);
 //
 //  // Checkpoint state transfer.
 //  // Worker uploads a single blob covering all partitions it owns.

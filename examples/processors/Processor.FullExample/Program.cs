@@ -1,9 +1,11 @@
+using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
+using Transfermarkt.Domain;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -115,6 +117,66 @@ try {
 
     Log.Information("Application configured, starting web host");
     await app.RunAsync();
+
+
+
+
+
+
+
+    // var client = KurrentClient.Create("kurrentdb://localhost:2113");
+    //
+    // var requests = new List<AppendStreamRequest> {
+    //     AppendStreamRequest.New().ForStream("Players-001")
+    //         .ExpectingRevision(ExpectedStreamState.NoStream)
+    //         .WithRecord(PlayerRegistered.Create("001", "Cantona", Country.France, Position.CentreForward))
+    //         .Build(),
+    //     AppendStreamRequest.New().ForStream("Players-001")
+    //         // all would work the same on the server side for the intended purpose
+    //         // the developer needs to do nothing but if it does, they would all work
+    //         // the append session method would just pass any cause it doesnt matter.
+    //         // .ExpectingRevision(0)
+    //         // .ExpectingRevision(ExpectedStreamState.Any)
+    //         // .ExpectingRevision(ExpectedStreamState.StreamExists)
+    //         .WithRecord(PlayerRetired.Create("001"))
+    //         .Build()
+    // }; // this will be a builder in real code
+    //
+    // var result = await client.Streams.AppendSessionAsync(requests);
+    //
+    //
+    // // Any subsequent appends to the same Stream implies it exists and has a revision.
+    // // so what is there to rationalize?
+    // // I really want to understand the "edge" case I'm missing
+    // // I want to throw if there is any ambiguity in the expectations
+    // //
+    // //// all would work the same on the server side for the intended purpose
+    // // // the developer needs to do nothing but if it does, they would all work
+    // // // the append session method would just pass any cause it doesnt matter.
+    // // // .ExpectingRevision(0)
+    // // // .ExpectingRevision(ExpectedStreamState.Any)
+    // // // .ExpectingRevision(ExpectedStreamState.StreamExists)
+    //
+    // ValueTask<StreamRevision> AppendRecords(StreamName stream, IEnumerable<AppendRecord> records) =>
+    //     throw new NotImplementedException();
+    //
+    // var expectations = new Dictionary<StreamName, ExpectedStreamState>(requests.Count);
+    //
+    // foreach (var (stream, expectedState, records) in requests) {
+    //     if (expectations.TryGetValue(stream, out var tracked)) {
+    //         // We've seen this stream before - validate compatibility
+    //         var isCompatible = expectedState == tracked
+    //                         || expectedState == ExpectedStreamState.Any
+    //                         || expectedState == ExpectedStreamState.StreamExists;
+    //
+    //         if (!isCompatible)
+    //             throw new InvalidOperationException(
+    //                 $"Conflicting expectation for '{stream}': session expects {tracked}, but request specifies {expectedState}");
+    //     }
+    //
+    //     // Append and track actual revision after written to the stream.
+    //     expectations[stream] = await AppendRecords(stream, records);
+    // }
 }
 catch (Exception ex) {
     Log.Fatal(ex, "Application terminated unexpectedly");

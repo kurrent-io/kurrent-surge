@@ -85,9 +85,9 @@ public sealed record PlayerRegistered {
     public static PlayerRegistered Create(
         PlayerId playerId,
         PlayerName name,
-        DateOnly dateOfBirth,
         Country nationality,
         Position mainPosition,
+        DateOnly dateOfBirth,
         ImmutableArray<Position> otherPositions,
         ClubId initialClubId,
         TransferId triggeringTransferId,

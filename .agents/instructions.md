@@ -74,7 +74,6 @@ On session start:
 
 When user requests historical context:
 - Check `.project/` for plans, specs, and architecture docs
-- Check `_bmad-output/` for workflow artifacts and summaries
 - Ask user to clarify which context if multiple sources exist
 
 ---
