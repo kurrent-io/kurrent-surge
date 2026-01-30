@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Microsoft.Extensions.Logging;
 using Processor.WordCount.Events;
 

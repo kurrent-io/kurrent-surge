@@ -111,7 +111,7 @@ public sealed record ProcessorCheckpoint {
     /// <summary>
     /// The barrier ID that triggered the last checkpoint.
     /// </summary>
-    public BarrierId BarrierId { get; init; } = BarrierId.Empty;
+    public BarrierId BarrierId { get; init; } = BarrierId.None;
 
     /// <summary>
     /// UTC timestamp when the checkpoint was created.

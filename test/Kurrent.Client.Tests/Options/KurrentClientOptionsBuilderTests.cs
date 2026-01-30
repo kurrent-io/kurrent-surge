@@ -23,7 +23,7 @@ public class KurrentClientOptionsBuilderTests {
         var validOptions = KurrentClientOptions.Parse(connectionString);
 
         var builder = validOptions.GetBuilder()
-            .WithResilience(KurrentClientResilienceOptions.NoResilience);
+            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience);
 
         var newOptions = builder.Build();
 
@@ -44,7 +44,7 @@ public class KurrentClientOptionsBuilderTests {
         var validOptions = KurrentClientOptions.Parse(connectionString);
 
         var builder = validOptions.GetBuilder()
-            .WithMessages(options => options.Map<StreamMetadata>("$metadata"));
+            .ConfigureMessages(options => options.Map<StreamMetadata>("$metadata"));
 
         var newOptions = builder.Build();
 

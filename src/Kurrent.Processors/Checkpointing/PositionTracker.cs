@@ -171,7 +171,6 @@ public sealed class PositionTracker : IPositionTracker {
     }
 }
 
-
 /// <summary>
 /// Manages position tracking across multiple partitions. Not thread-safe.
 /// </summary>
@@ -189,6 +188,11 @@ public sealed class PartitionedPositionTracker : IDisposable {
             x => x.Key,
             x => new PositionTracker(lastFlushedPosition: x.Value));
     }
+
+    /// <summary>
+    /// Creates a tracker with no initial partitions.
+    /// </summary>
+    public PartitionedPositionTracker() : this(new Dictionary<Partition, RecordPosition>()) { }
 
     /// <summary>
     /// Gets the last flushed (checkpointed) position for each partition.

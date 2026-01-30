@@ -46,12 +46,18 @@ static class AsyncEnumerableExtensions {
         /// <param name="batchSize">The maximum number of items in a single batch.</param>
         /// <param name="timeout">The maximum duration to wait while gathering a batch.</param>
         /// <param name="cancellationToken">A token to observe for cancellation of the batch processing.</param>
+        /// <remarks>
+        /// Uses the "park and resume" pattern to safely handle timeouts without violating the async enumerable
+        /// serialization rule. When a timeout occurs while MoveNextAsync is pending, the task is "parked" and
+        /// resumed on the next batch iteration, ensuring disposal never happens mid-await.
+        /// </remarks>
         public async IAsyncEnumerable<List<T>> ReadBatches(
             int batchSize, TimeSpan timeout,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
             var pool   = ArrayPool<T>.Shared;
             var buffer = pool.Rent(batchSize);
+            ValueTask<bool>? parkedTask = null;
 
             try {
                 await using var enumerator = source.GetAsyncEnumerator(cancellationToken);
@@ -63,29 +69,43 @@ static class AsyncEnumerableExtensions {
                     while (count < batchSize) {
                         bool hasNext;
 
-                        try {
-                            var moveNext = enumerator.MoveNextAsync();
+                        // Resume parked task OR start fresh
+                        var moveNext = parkedTask ?? enumerator.MoveNextAsync();
+                        parkedTask = null;
 
-                            // fast path: synchronous completion avoids task allocation
-                            if (moveNext.IsCompletedSuccessfully)
-                                hasNext = moveNext.Result;
-                            else {
-                                // slow path: async with remaining timeout
-                                var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
-                                if (remaining <= TimeSpan.Zero)
-                                    break; // timeout expired
-
-                                hasNext = await moveNext.AsTask()
-                                    .WaitAsync(remaining, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
+                        // Fast path: synchronous completion avoids task allocation
+                        if (moveNext.IsCompletedSuccessfully) {
+                            hasNext = moveNext.Result;
                         }
-                        catch (TimeoutException) {
-                            break; // batch timeout, yield what we have
+                        else {
+                            // Slow path: async with remaining timeout
+                            var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
+
+                            if (remaining <= TimeSpan.Zero) {
+                                parkedTask = moveNext; // Park for next iteration
+                                break;
+                            }
+
+                            // Use WhenAny instead of WaitAsync to avoid abandoning pending task
+                            var moveNextTask = moveNext.AsTask();
+                            using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                            var delayTask = Task.Delay(remaining, delayCts.Token);
+
+                            var completed = await Task.WhenAny(moveNextTask, delayTask).ConfigureAwait(false);
+
+                            if (completed != moveNextTask) {
+                                parkedTask = moveNext; // Timeout - park it
+                                break;
+                            }
+
+                            // Cancel the delay task to avoid timer leak
+                            await delayCts.CancelAsync().ConfigureAwait(false);
+
+                            hasNext = await moveNextTask.ConfigureAwait(false);
                         }
 
                         if (!hasNext) {
-                            // source exhausted
+                            // Source exhausted
                             if (count > 0)
                                 yield return ToList(buffer, count);
 
@@ -100,14 +120,24 @@ static class AsyncEnumerableExtensions {
                 }
             }
             finally {
-                // only clear if T can hold references (avoids clearing value types)
+                // Safety net: await parked task before implicit DisposeAsync
+                if (parkedTask.HasValue) {
+                    try {
+                        await parkedTask.Value.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) {
+                        // Expected on cancellation
+                    }
+                }
+
+                // Only clear if T can hold references (avoids clearing value types)
                 pool.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
             }
 
             yield break;
 
-            //// Creates a List from a buffer segment using CollectionsMarshal for efficient bulk copy.
-            //// Avoids List.Add() overhead by directly setting count and copying via Span.
+            // Creates a List from a buffer segment using CollectionsMarshal for efficient bulk copy.
+            // Avoids List.Add() overhead by directly setting count and copying via Span.
             static List<T> ToList(T[] buffer, int count) {
                 var list = new List<T>(count);
                 CollectionsMarshal.SetCount(list, count);
@@ -134,6 +164,11 @@ static class AsyncEnumerableExtensions {
         /// <para>
         /// Flush-trigger items cause pending batched items to be yielded first, then the trigger item itself.
         /// </para>
+        /// <para>
+        /// Uses the "park and resume" pattern to safely handle timeouts without violating the async enumerable
+        /// serialization rule. When a timeout occurs while MoveNextAsync is pending, the task is "parked" and
+        /// resumed on the next batch iteration, ensuring disposal never happens mid-await.
+        /// </para>
         /// </remarks>
         public async IAsyncEnumerable<TOutput> ReadBatched<TBatch, TOutput>(
             int batchSize,
@@ -144,6 +179,7 @@ static class AsyncEnumerableExtensions {
         ) {
             var pool   = ArrayPool<TBatch>.Shared;
             var buffer = pool.Rent(batchSize);
+            ValueTask<bool>? parkedTask = null;
 
             try {
                 await using var enumerator = source.GetAsyncEnumerator(cancellationToken);
@@ -155,25 +191,39 @@ static class AsyncEnumerableExtensions {
                     while (count < batchSize) {
                         bool hasNext;
 
-                        try {
-                            var moveNext = enumerator.MoveNextAsync();
+                        // Resume parked task OR start fresh
+                        var moveNext = parkedTask ?? enumerator.MoveNextAsync();
+                        parkedTask = null;
 
-                            // Fast path: synchronous completion avoids task allocation
-                            if (moveNext.IsCompletedSuccessfully)
-                                hasNext = moveNext.Result;
-                            else {
-                                // Slow path: async with remaining timeout
-                                var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
-                                if (remaining <= TimeSpan.Zero)
-                                    break; // timeout expired
-
-                                hasNext = await moveNext.AsTask()
-                                    .WaitAsync(remaining, cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
+                        // Fast path: synchronous completion avoids task allocation
+                        if (moveNext.IsCompletedSuccessfully) {
+                            hasNext = moveNext.Result;
                         }
-                        catch (TimeoutException) {
-                            break; // batch timeout, yield what we have
+                        else {
+                            // Slow path: async with remaining timeout
+                            var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
+
+                            if (remaining <= TimeSpan.Zero) {
+                                parkedTask = moveNext; // Park for next iteration
+                                break;
+                            }
+
+                            // Use WhenAny instead of WaitAsync to avoid abandoning pending task
+                            var moveNextTask = moveNext.AsTask();
+                            using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                            var delayTask = Task.Delay(remaining, delayCts.Token);
+
+                            var completed = await Task.WhenAny(moveNextTask, delayTask).ConfigureAwait(false);
+
+                            if (completed != moveNextTask) {
+                                parkedTask = moveNext; // Timeout - park it
+                                break;
+                            }
+
+                            // Cancel the delay task to avoid timer leak
+                            await delayCts.CancelAsync().ConfigureAwait(false);
+
+                            hasNext = await moveNextTask.ConfigureAwait(false);
                         }
 
                         if (!hasNext) {
@@ -207,6 +257,16 @@ static class AsyncEnumerableExtensions {
                 }
             }
             finally {
+                // Safety net: await parked task before implicit DisposeAsync
+                if (parkedTask.HasValue) {
+                    try {
+                        await parkedTask.Value.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) {
+                        // Expected on cancellation
+                    }
+                }
+
                 pool.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TBatch>());
             }
 

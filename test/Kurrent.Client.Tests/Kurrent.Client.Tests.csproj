@@ -2,7 +2,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
     <ProjectReference Include="..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
-    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
@@ -23,24 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Experimental\**" />
-    <Compile Remove="Infra\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Remove="Experimental\**" />
-    <EmbeddedResource Remove="Infra\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Experimental\**" />
-    <None Remove="Infra\**" />
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Modules\Processors\" />
   </ItemGroup>
 </Project>

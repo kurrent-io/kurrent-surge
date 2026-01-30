@@ -318,9 +318,9 @@ public partial class StreamsClient {
                         case CaughtUp:
                             result = resp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
                             break;
-                        case FellBehind:
-                            result = resp.FellBehind.MapToHeartbeat(sequencer.FetchNext());
-                            break;
+                        // case FellBehind:
+                        //     result = resp.FellBehind.MapToHeartbeat(sequencer.FetchNext());
+                        //     break;
                         case Event:
                             result = await resp.Event.MapToRecordAsync(
                                 sequencer.FetchNext(),

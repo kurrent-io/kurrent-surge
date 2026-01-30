@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Processors;
 
 namespace Kurrent.Client.Tests.Processors;
 
@@ -36,10 +37,7 @@ public class ProcessorIntegrationTests {
             .WithProcessorId(processorId)
             .WithFilter(RecordFilter.ByStreamPattern($"(?=.*)^{Regex.Escape(simulation.Stream.Value)}$"))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .WithCheckpoint(new CheckpointSettings {
-                Interval = 100,
-                Timeout  = 60000
-            })
+            .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
             .RunAsync(cts1.Token);
 
         // Wait for checkpoint to be persisted
@@ -60,12 +58,7 @@ public class ProcessorIntegrationTests {
             .WithProcessorId(processorId) // Same processor ID
             .WithFilter(RecordFilter.ByStreamPattern($"(?=.*)^{Regex.Escape(simulation.Stream.Value)}$"))
             // Note: NOT setting InitialPosition - should recover from checkpoint
-            .WithCheckpoint(
-                new CheckpointSettings {
-                    Interval = 60000,
-                    Timeout  = 60000
-                }
-            )
+            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
             .RunAsync(cts2.Token);
 
         // Assert - All records processed exactly once across both runs
@@ -106,7 +99,7 @@ public class ProcessorIntegrationTests {
             .WithProcessorId(processorId)
             .WithFilter(RecordFilter.ByStreamPattern($"(?=.*)^{Regex.Escape(simulation.Stream.Value)}$"))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .WithBatching(new BatchingSettings { MaxSize = maxBatchSize, Timeout = 1000 })
+            .ConfigureBatching(b => b.MaxSize(maxBatchSize).Timeout(1000))
             .RunAsync(cts.Token);
 
         // Assert - No batch should exceed max size
@@ -175,6 +168,7 @@ public class ProcessorIntegrationTests {
             .WithProcessorId(processorId)
             .WithFilter(RecordFilter.ByStreamPattern($"(?=.*)^{Regex.Escape(simulation.Stream.Value)}$"))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
+            .ConfigureWorker(x =>x.ThrowOnFailure())
             .RunAsync(cts.Token);
 
         // Assert

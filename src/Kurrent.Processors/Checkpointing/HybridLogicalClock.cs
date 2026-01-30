@@ -158,9 +158,8 @@ public sealed class HybridLogicalClock {
                 _physicalTime = timestamp.PhysicalTime;
                 _counter      = timestamp.Counter;
             }
-            else if (timestamp.PhysicalTime == _physicalTime && timestamp.Counter > _counter) {
+            else if (timestamp.PhysicalTime == _physicalTime && timestamp.Counter > _counter)
                 _counter = timestamp.Counter;
-            }
             // else: our clock is already ahead, nothing to do
         }
     }
@@ -170,8 +169,7 @@ public sealed class HybridLogicalClock {
     void ValidateCounterOverflow(long wallClock) {
         if (_counter > ushort.MaxValue)
             throw new InvalidOperationException(
-                $"HLC counter overflow - clock drift too high. PhysicalTime: {_physicalTime}, WallClock: {wallClock}"
-            );
+                $"HLC counter overflow - clock drift too high. PhysicalTime: {_physicalTime}, WallClock: {wallClock}");
     }
 
     void ValidateClockDrift(HybridTimestamp received, long wallClock) {
@@ -179,8 +177,7 @@ public sealed class HybridLogicalClock {
 
         if (drift > _maxOffset.TotalMilliseconds)
             throw new ClockDriftException(
-                $"Received timestamp {received} is {drift}ms ahead of wall clock. Maximum allowed offset is {_maxOffset.TotalMilliseconds}ms."
-            );
+                $"Received timestamp {received} is {drift}ms ahead of wall clock. Maximum allowed offset is {_maxOffset.TotalMilliseconds}ms.");
     }
 }
 
@@ -205,6 +202,8 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
     /// </summary>
     public long Value { get; private init; }
 
+    public DateTimeOffset DateTimeOffset { get; private init; }
+
     /// <inheritdoc />
     public int CompareTo(HybridTimestamp other) => Value.CompareTo(other.Value);
 
@@ -223,9 +222,28 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
         ArgumentOutOfRangeException.ThrowIfGreaterThan(counter, ushort.MaxValue);
 
         return new HybridTimestamp {
-            PhysicalTime = physicalTime,
-            Counter      = counter,
-            Value        = (physicalTime << 16) | (uint)counter
+            PhysicalTime   = physicalTime,
+            Counter        = counter,
+            Value          = (physicalTime << 16) | (uint)counter,
+            DateTimeOffset =  DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
+        };
+    }
+
+    /// <summary>
+    /// Creates a new timestamp with the specified physical time and counter.
+    /// </summary>
+    public static HybridTimestamp Create(DateTimeOffset physicalTimeUtc, int counter) {
+        var physicalTime = physicalTimeUtc.ToUnixTimeMilliseconds();
+
+        ArgumentOutOfRangeException.ThrowIfNegative(physicalTime);
+        ArgumentOutOfRangeException.ThrowIfNegative(counter);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(counter, ushort.MaxValue);
+
+        return new HybridTimestamp {
+            PhysicalTime   = physicalTime,
+            Counter        = counter,
+            Value          = (physicalTime << 16) | (uint)counter,
+            DateTimeOffset = physicalTimeUtc
         };
     }
 
@@ -235,10 +253,12 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
     public static HybridTimestamp Parse(long value) {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
 
+        var physicalTime = value >> 16;
         return new HybridTimestamp {
-            PhysicalTime = value >> 16,
-            Counter      = (int)(value & 0xFFFF),
-            Value        = value
+            PhysicalTime   = physicalTime,
+            Counter        = (int)(value & 0xFFFF),
+            Value          = value,
+            DateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
         };
     }
 
@@ -251,10 +271,13 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
             return false;
         }
 
+        var physicalTime = value >> 16;
+
         timestamp = new HybridTimestamp {
-            PhysicalTime = value >> 16,
-            Counter      = (int)(value & 0xFFFF),
-            Value        = value
+            PhysicalTime   = physicalTime,
+            Counter        = (int)(value & 0xFFFF),
+            Value          = value,
+            DateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
         };
 
         return true;

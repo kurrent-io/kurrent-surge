@@ -1,5 +1,3 @@
-using Shouldly;
-
 namespace Kurrent.Client.Integration.Tests.Processors;
 
 /// <summary>

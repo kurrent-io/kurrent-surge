@@ -38,7 +38,7 @@ public class ConfigurationTests {
     [Test]
     public void default_buffer_capacity_is_1000() {
         var settings = new ProcessorSettings();
-        settings.BufferCapacity.ShouldBe(1000);
+        settings.Worker.BufferCapacity.ShouldBe(1000);
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class ConfigurationTests {
     [Test]
     public void default_skip_decoding_is_false() {
         var settings = new ProcessorSettings();
-        settings.SkipDecoding.ShouldBeFalse();
+        settings.Worker.SkipDecoding.ShouldBeFalse();
     }
 
     #endregion
@@ -134,26 +134,24 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public void with_buffer_capacity_sets_settings() {
+    public void configure_worker_sets_buffer_capacity() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
-            .WithBufferCapacity(5000)
+            .ConfigureWorker(w => w.BufferCapacity(5000))
             .Build();
 
-        worker.Settings.BufferCapacity.ShouldBe(5000);
+        worker.Settings.Worker.BufferCapacity.ShouldBe(5000);
     }
 
     [Test]
-    public void with_batching_sets_settings() {
-        var batchingSettings = new BatchingSettings { MaxSize = 200, Timeout = 500 };
-
+    public void configure_batching_sets_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
-            .WithBatching(batchingSettings)
+            .ConfigureBatching(b => b.MaxSize(200).Timeout(500))
             .Build();
 
         worker.Settings.Batching.MaxSize.ShouldBe(200);
@@ -161,18 +159,12 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public void with_checkpoint_sets_settings() {
-        var checkpointSettings = new CheckpointSettings {
-            Interval       = 60000,
-            Timeout        = 30000,
-            RetentionCount = 5
-        };
-
+    public void configure_checkpointing_sets_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
-            .WithCheckpoint(checkpointSettings)
+            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(30000).RetentionCount(5))
             .Build();
 
         worker.Settings.Checkpoint.Interval.ShouldBe(60000);
@@ -237,31 +229,29 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public void with_skip_decoding_sets_settings() {
+    public void configure_worker_sets_skip_decoding() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
-            .WithSkipDecoding()
+            .ConfigureWorker(w => w.SkipDecoding())
             .Build();
 
-        worker.Settings.SkipDecoding.ShouldBeTrue();
+        worker.Settings.Worker.SkipDecoding.ShouldBeTrue();
     }
 
     [Test]
-    public void configure_processing_applies_transformation() {
+    public void configure_multiple_settings_applies_all() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
-            .ConfigureProcessing(settings => settings with {
-                MaxParallelism = 1,
-                BufferCapacity = 2000,
-                Batching       = new BatchingSettings { MaxSize = 50, Timeout = 200 }
-            })
+            .WithMaxParallelism(1)
+            .ConfigureWorker(w => w.BufferCapacity(2000))
+            .ConfigureBatching(b => b.MaxSize(50).Timeout(200))
             .Build();
 
         worker.Settings.MaxParallelism.ShouldBe(1);
-        worker.Settings.BufferCapacity.ShouldBe(2000);
+        worker.Settings.Worker.BufferCapacity.ShouldBe(2000);
         worker.Settings.Batching.MaxSize.ShouldBe(50);
         worker.Settings.Batching.Timeout.ShouldBe(200);
     }
@@ -305,7 +295,7 @@ public class ConfigurationTests {
         var settings = new ProcessorSettings {
             ProcessorId    = "valid-processor",
             MaxParallelism = 1,
-            BufferCapacity = 1000
+            Worker         = new WorkerSettings { BufferCapacity = 1000 }
         };
 
         var result = settings.ValidateOptions();
@@ -366,7 +356,7 @@ public class ConfigurationTests {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            BufferCapacity = 0
+            Worker         = new WorkerSettings { BufferCapacity = 0 }
         };
 
         var result = settings.ValidateOptions();
@@ -379,7 +369,7 @@ public class ConfigurationTests {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            BufferCapacity = 10001
+            Worker         = new WorkerSettings { BufferCapacity = 10001 }
         };
 
         var result = settings.ValidateOptions();
@@ -461,7 +451,7 @@ public class ConfigurationTests {
                 .ConnectTo("kurrentdb://localhost:2113")
                 .WithProcessorId("test-processor")
                 .WithMaxParallelism(1)
-                .WithBufferCapacity(0)
+                .ConfigureWorker(w => w.BufferCapacity(0))
                 .Build()
         );
     }
@@ -571,7 +561,9 @@ public class ConfigurationTests {
                   "NoOpProcessor": {
                     "ProcessorId": "config-processor",
                     "MaxParallelism": 8,
-                    "BufferCapacity": 2000,
+                    "Worker": {
+                      "BufferCapacity": 2000
+                    },
                     "Batching": {
                       "MaxSize": 100,
                       "Timeout": 500
@@ -590,7 +582,7 @@ public class ConfigurationTests {
 
         settings.ProcessorId.ShouldBe("config-processor");
         settings.MaxParallelism.ShouldBe(8);
-        settings.BufferCapacity.ShouldBe(2000);
+        settings.Worker.BufferCapacity.ShouldBe(2000);
         settings.Batching.MaxSize.ShouldBe(100);
         settings.Batching.Timeout.ShouldBe(500);
         settings.Checkpoint.Interval.ShouldBe(15000);
@@ -605,7 +597,9 @@ public class ConfigurationTests {
                   "NoOpProcessor": {
                     "processorId": "camel-processor",
                     "maxParallelism": 4,
-                    "bufferCapacity": 1500,
+                    "worker": {
+                      "bufferCapacity": 1500
+                    },
                     "batching": {
                       "maxSize": 75,
                       "timeout": 300
@@ -629,7 +623,7 @@ public class ConfigurationTests {
 
         settings.ProcessorId.ShouldBe("camel-processor");
         settings.MaxParallelism.ShouldBe(4);
-        settings.BufferCapacity.ShouldBe(1500);
+        settings.Worker.BufferCapacity.ShouldBe(1500);
         settings.Batching.MaxSize.ShouldBe(75);
         settings.Batching.Timeout.ShouldBe(300);
         settings.Checkpoint.Interval.ShouldBe(20000);
@@ -648,7 +642,9 @@ public class ConfigurationTests {
                   "NoOpProcessor": {
                     "processor_id": "snake-processor",
                     "max_parallelism": 4,
-                    "buffer_capacity": 1500
+                    "worker": {
+                      "buffer_capacity": 1500
+                    }
                   }
                 }
               }
@@ -664,7 +660,7 @@ public class ConfigurationTests {
         // snake_case keys are ignored - defaults/fluent values used instead
         settings.ProcessorId.ShouldBe("fallback-processor");
         settings.MaxParallelism.ShouldBe(1);
-        settings.BufferCapacity.ShouldBe(1000); // default value
+        settings.Worker.BufferCapacity.ShouldBe(1000); // default value
     }
 
     [Test]
@@ -676,7 +672,9 @@ public class ConfigurationTests {
                   "NoOpProcessor": {
                     "ProcessorId": "config-processor",
                     "MaxParallelism": 8,
-                    "BufferCapacity": 2000
+                    "Worker": {
+                      "BufferCapacity": 2000
+                    }
                   }
                 }
               }
@@ -693,7 +691,7 @@ public class ConfigurationTests {
         settings.ProcessorId.ShouldBe("fluent-processor");
         settings.MaxParallelism.ShouldBe(4);
         // Config value retained when no fluent override
-        settings.BufferCapacity.ShouldBe(2000);
+        settings.Worker.BufferCapacity.ShouldBe(2000);
     }
 
     [Test]
@@ -713,7 +711,7 @@ public class ConfigurationTests {
         );
 
         // Default values should be used
-        settings.BufferCapacity.ShouldBe(1000);
+        settings.Worker.BufferCapacity.ShouldBe(1000);
         settings.Batching.MaxSize.ShouldBe(200);
         settings.Batching.Timeout.ShouldBe(250);
         settings.Checkpoint.Interval.ShouldBe(30000);
@@ -754,7 +752,9 @@ public class ConfigurationTests {
               "Kurrent": {
                 "Processors": {
                   "NoOpProcessor": {
-                    "BufferCapacity": 3000
+                    "Worker": {
+                      "BufferCapacity": 3000
+                    }
                   }
                 }
               }
@@ -785,7 +785,7 @@ public class ConfigurationTests {
         // From service provider overload
         settings.ProcessorId.ShouldBe("sp-processor");
         // From config
-        settings.BufferCapacity.ShouldBe(3000);
+        settings.Worker.BufferCapacity.ShouldBe(3000);
     }
 
     [Test]
@@ -807,7 +807,7 @@ public class ConfigurationTests {
         var settings = hostedService.Worker.Settings;
 
         // Default values should be used
-        settings.BufferCapacity.ShouldBe(1000);
+        settings.Worker.BufferCapacity.ShouldBe(1000);
         settings.Batching.MaxSize.ShouldBe(200);
     }
 
@@ -843,7 +843,9 @@ public class ConfigurationTests {
                 "Processors": {
                   "NoOpProcessor": {
                     "MaxParallelism": 4,
-                    "BufferCapacity": 2000
+                    "Worker": {
+                      "BufferCapacity": 2000
+                    }
                   }
                 }
               }
@@ -872,7 +874,7 @@ public class ConfigurationTests {
         // ProcessorId should be auto-generated from processor type name (section name)
         settings.ProcessorId.ShouldBe("no_op_processor");
         settings.MaxParallelism.ShouldBe(4);
-        settings.BufferCapacity.ShouldBe(2000);
+        settings.Worker.BufferCapacity.ShouldBe(2000);
     }
 
     [Test]
@@ -919,7 +921,9 @@ public class ConfigurationTests {
                 "Processors": {
                   "NoOpProcessor": {
                     "MaxParallelism": 2,
-                    "BufferCapacity": 3000,
+                    "Worker": {
+                      "BufferCapacity": 3000
+                    },
                     "Batching": {
                       "MaxSize": 50,
                       "Timeout": 200
@@ -942,7 +946,7 @@ public class ConfigurationTests {
         // ProcessorId auto-generated from processor type name
         settings.ProcessorId.ShouldBe("no_op_processor");
         settings.MaxParallelism.ShouldBe(2);
-        settings.BufferCapacity.ShouldBe(3000);
+        settings.Worker.BufferCapacity.ShouldBe(3000);
         settings.Batching.MaxSize.ShouldBe(50);
         settings.Batching.Timeout.ShouldBe(200);
     }
@@ -955,7 +959,9 @@ public class ConfigurationTests {
                 "Processors": {
                   "NoOpProcessor": {
                     "MaxParallelism": 8,
-                    "BufferCapacity": 5000
+                    "Worker": {
+                      "BufferCapacity": 5000
+                    }
                   }
                 }
               }
@@ -975,7 +981,7 @@ public class ConfigurationTests {
 
         settings.ProcessorId.ShouldBe("custom-id");
         settings.MaxParallelism.ShouldBe(2);
-        settings.BufferCapacity.ShouldBe(5000); // From config
+        settings.Worker.BufferCapacity.ShouldBe(5000); // From config
     }
 
     #endregion

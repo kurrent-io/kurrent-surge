@@ -1,9 +1,10 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Processing;
-using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors;
 
 /// <summary>
 /// Defines the interface for processing records from a processor.
@@ -69,6 +70,26 @@ public interface IRecordProcessor {
     ValueTask OnInitialize(InitializationContext context) => ValueTask.CompletedTask;
 
     /// <summary>
+    /// Called when partitions are assigned to this processor.
+    /// <remarks>
+    /// <para>
+    /// This method is invoked whenever the set of partitions assigned to this processor changes,
+    /// such as during initial assignment or rebalancing events.
+    /// </para>
+    /// <para>
+    /// Use this method to perform any setup or state initialization required for the newly assigned partitions.
+    /// </para>
+    /// </remarks>
+    /// </summary>
+    /// <param name="context">
+    /// Context containing processor information, assigned partitions, and cancellation token.
+    /// </param>
+    /// <returns>
+    /// A <see cref="ValueTask"/> representing the asynchronous operation.
+    /// </returns>
+    ValueTask OnPartitionsAssigned(PartitionsAssignedContext context) => ValueTask.CompletedTask;
+
+    /// <summary>
     /// Called when records are available for processing.
     /// <remarks>
     /// This is the only method that must be implemented.
@@ -78,6 +99,11 @@ public interface IRecordProcessor {
     /// Context containing the batch of records and cancellation token.
     /// </param>
     ValueTask ProcessRecords(ProcessRecordsContext context);
+
+    /// <summary>
+    /// Called when a checkpoint barrier is received.
+    /// </summary>
+    ValueTask OnCheckpointBarrier(CheckpointBarrierContext context) => ValueTask.CompletedTask;
 
     /// <summary>
     /// Called when a checkpoint completes successfully.
@@ -132,6 +158,16 @@ public record InitializationContext(
     CancellationToken CancellationToken
 );
 
+[PublicAPI]
+public record PartitionsAssignedContext(
+    ProcessorId ProcessorId,
+    WorkerId WorkerId,
+    SessionId SessionId,
+    IStateStore State,
+    ILogger Logger,
+    CancellationToken CancellationToken
+);
+
 /// <summary>
 /// Context provided when records are available for processing.
 /// </summary>
@@ -153,10 +189,26 @@ public record ProcessRecordsContext(
     CancellationToken CancellationToken
 ) {
     /// <summary>
-    /// Stops processing by throwing an OperationCanceledException.
+    /// Signals that processing should stop immediately.
     /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static")]
     public void StopProcessing() => throw new OperationCanceledException("Processing stopped by user request.");
 }
+
+/// <summary>
+/// Context provided when a checkpoint barrier is received.
+/// </summary>
+[PublicAPI]
+public record CheckpointBarrierContext(
+    ProcessorId ProcessorId,
+    WorkerId WorkerId,
+    SessionId SessionId,
+    ProcessorProgress Progress,
+    CheckpointBarrier Barrier,
+    IStateStore State,
+    ILogger Logger,
+    CancellationToken CancellationToken
+);
 
 /// <summary>
 /// Context provided when a checkpoint completes successfully.
@@ -172,6 +224,9 @@ public record CheckpointCompleteContext(
     WorkerId WorkerId,
     SessionId SessionId,
     ProcessorProgress Progress,
+    CheckpointBarrier Barrier,
+    IStateStore State,
+    ILogger Logger,
     CancellationToken CancellationToken
 );
 
@@ -182,7 +237,6 @@ public record CheckpointCompleteContext(
 /// <param name="WorkerId">The worker instance identifier.</param>
 /// <param name="SessionId">The server-assigned session identifier, or <see cref="SessionId.None"/> if never connected.</param>
 /// <param name="Progress">Final processing progress and metrics.</param>
-/// <param name="Reason">Why processing stopped (Completed, Cancelled, Error).</param>
 /// <param name="Error">The error that caused shutdown, or null if not an error.</param>
 [PublicAPI]
 public record ShutdownContext(
@@ -191,23 +245,9 @@ public record ShutdownContext(
     SessionId SessionId,
     ProcessorProgress Progress,
     ILogger Logger,
-    ShutdownReason Reason,
-    ProcessError? Error
+    Exception? Error = null
 ) {
-    public static ShutdownContext From(
-        ProcessorId processorId,
-        WorkerId workerId,
-        SessionId sessionId,
-        ILogger logger,
-        ProcessorProgress progress,
-        Exception? exception = null
-    ) {
-        return exception switch {
-            null                       => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Completed, null),
-            OperationCanceledException => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Cancelled, null),
-            _                          => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Error, exception)
-        };
-    }
+    public bool IsError => Error is not null;
 }
 
 /// <summary>
@@ -334,7 +374,7 @@ public readonly record struct CheckpointProgress(
     /// <summary>
     /// Empty checkpoint progress with no checkpoints completed.
     /// </summary>
-    public static readonly CheckpointProgress Empty = new(0, 0, BarrierId.Empty, CheckpointBarrierTrigger.Unspecified, null);
+    public static readonly CheckpointProgress Empty = new(0, 0, BarrierId.None, CheckpointBarrierTrigger.Unspecified, null);
 }
 
 /// <summary>

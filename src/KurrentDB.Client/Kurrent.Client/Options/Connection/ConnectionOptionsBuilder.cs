@@ -92,11 +92,11 @@ public class ConnectionOptionsBuilder : OptionsBuilder<ConnectionOptionsBuilder,
     }
 
     /// <summary>
-    /// Sets the gossip options.
+    /// Configures the gossip options.
     /// </summary>
     /// <param name="gossipOptions">The gossip configuration options.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public ConnectionOptionsBuilder WithGossipOptions(KurrentClientGossipOptions gossipOptions) =>
+    public ConnectionOptionsBuilder ConfigureGossip(KurrentClientGossipOptions gossipOptions) =>
         With(options => options with { Gossip = gossipOptions });
 
     /// <summary>
@@ -106,7 +106,7 @@ public class ConnectionOptionsBuilder : OptionsBuilder<ConnectionOptionsBuilder,
     /// A function to configure the existing <see cref="KurrentClientGossipOptions"/>.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
-    public ConnectionOptionsBuilder WithGossipOptions(Func<KurrentClientGossipOptions, KurrentClientGossipOptions> configure) =>
+    public ConnectionOptionsBuilder ConfigureGossip(Func<KurrentClientGossipOptions, KurrentClientGossipOptions> configure) =>
         With(options => options with { Gossip = configure(options.Gossip) });
 
     /// <summary>
@@ -116,7 +116,7 @@ public class ConnectionOptionsBuilder : OptionsBuilder<ConnectionOptionsBuilder,
     /// The client credentials to use for authentication.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
-    public ConnectionOptionsBuilder WithAuthentication(ClientCredentials credentials) =>
+    public ConnectionOptionsBuilder WithBasicAuthentication(ClientCredentials credentials) =>
         With(options => options with { Security = options.Security with { Authentication = credentials } });
 
     /// <summary>
@@ -130,7 +130,7 @@ public class ConnectionOptionsBuilder : OptionsBuilder<ConnectionOptionsBuilder,
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     public ConnectionOptionsBuilder WithBasicAuthentication(string username, string? password) =>
-        WithAuthentication(ClientCredentials.Basic(username, password));
+        WithBasicAuthentication(ClientCredentials.Basic(username, password));
 
     /// <summary>
     /// Sets the authentication credentials for the client using basic authentication.
@@ -143,7 +143,7 @@ public class ConnectionOptionsBuilder : OptionsBuilder<ConnectionOptionsBuilder,
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
     public ConnectionOptionsBuilder WithCertificateAuthentication(string username, string? password) =>
-        WithAuthentication(ClientCredentials.Basic(username, password));
+        WithBasicAuthentication(ClientCredentials.Basic(username, password));
 
     /// <summary>
     /// Sets the transport security configuration.
@@ -163,15 +163,14 @@ public class ConnectionOptionsBuilder : OptionsBuilder<ConnectionOptionsBuilder,
         With(options => options with { Security = options.Security with { Transport = TransportSecurity.Insecure } });
 
     /// <summary>
-    /// Sets the security options.
-    ///
+    /// Configures the security options.
     /// </summary>
     /// <param name="securityOptions">
     /// The security options to set. If provided, this will override the existing security options.
     /// </param>
     /// <returns>The builder instance for method chaining.</returns>
-    public ConnectionOptionsBuilder WithSecurity(KurrentClientSecurityOptions securityOptions) =>
-        With(options => options with { Security =  securityOptions });
+    public ConnectionOptionsBuilder ConfigureSecurity(KurrentClientSecurityOptions securityOptions) =>
+        With(options => options with { Security = securityOptions });
 
     /// <summary>
     /// Configures the existing security options.

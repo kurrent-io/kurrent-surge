@@ -26,8 +26,8 @@ public sealed class BenchmarkFixture : IAsyncDisposable {
         var connectionString = _container.AuthenticatedConnectionString;
 
         _client = KurrentClientOptions.Parse(connectionString).GetBuilder()
-            .WithSchema(KurrentClientSchemaOptions.NoValidation)
-            .WithResilience(KurrentClientResilienceOptions.NoResilience)
+            .ConfigureSchema(KurrentClientSchemaOptions.NoValidation)
+            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
             .CreateClient();
     }
 

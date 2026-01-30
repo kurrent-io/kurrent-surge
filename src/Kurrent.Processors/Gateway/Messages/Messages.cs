@@ -15,10 +15,9 @@ namespace Kurrent.Client.Processors.Gateway.Messages;
 /// </remarks>
 [PublicAPI]
 public readonly record struct BarrierId(string Value) {
-	/// <summary>Empty barrier ID (zero-value).</summary>
-	public static readonly BarrierId Empty = new(string.Empty);
+	public static readonly BarrierId None = new(string.Empty);
 
-	/// <summary>Creates a new unique barrier ID using a GUID.</summary>
+	/// <summary>Creates a new unique barrier ID</summary>
 	public static BarrierId New() => new(Guid.NewGuid().ToString());
 
     public static BarrierId From(string value) {
@@ -27,6 +26,9 @@ public readonly record struct BarrierId(string Value) {
     }
 
     public static BarrierId From(ulong value) =>
+        new(value.ToString());
+
+    public static BarrierId From(long value) =>
         new(value.ToString());
 
     /// <summary>True if this barrier ID is empty or unset.</summary>
@@ -47,7 +49,6 @@ public readonly record struct BarrierId(string Value) {
 /// </summary>
 [PublicAPI]
 public readonly record struct WorkOrder(
-    // SessionId SessionId,
     ImmutableArray<Partition> Partitions
 );
 
@@ -63,7 +64,7 @@ public readonly record struct RecordBatch : IReadOnlyList<Record> {
 
     RecordBatch(ImmutableArray<Record> records) => _records = records;
 
-    public static RecordBatch From(ImmutableArray<Record> records) => new(records);
+    public static RecordBatch From(Record[] records) => records.ToImmutableArray();
 
     public int Count => _records.Length;
 
@@ -258,20 +259,6 @@ public enum CheckpointBarrierTrigger {
     /// <para>Auto-deleted: No (retained until explicitly deleted).</para>
     /// </remarks>
     Savepoint = 5
-
-    // /// <summary>
-    // /// Server-side filter matched nothing for configured duration.
-    // /// </summary>
-    // /// <remarks>
-    // /// <para>
-    // /// Triggered when the server-side filter has not matched any records
-    // /// for the configured filter timeout period. This ensures checkpoints
-    // /// occur even when filtered streams have sparse matching records.
-    // /// </para>
-    // /// <para>Frequency: Periodic (after filter idle timeout).</para>
-    // /// <para>Auto-deleted: Yes (subject to retention count).</para>
-    // /// </remarks>
-    // FilterTimeout = 6 // could this be modeled as a heartbeat instead? it does not matter if a filter is active or not...
 }
 
 /// <summary>

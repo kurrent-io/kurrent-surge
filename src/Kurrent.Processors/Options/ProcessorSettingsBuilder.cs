@@ -65,16 +65,6 @@ internal sealed class ProcessorSettingsBuilder {
         return this;
     }
 
-    internal ProcessorSettingsBuilder WithBufferCapacity(int capacity) {
-        _settings = _settings with { BufferCapacity = capacity };
-        return this;
-    }
-
-    internal ProcessorSettingsBuilder WithSkipDecoding(bool skip) {
-        _settings = _settings with { SkipDecoding = skip };
-        return this;
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════════
     // Filter Configuration
     // ═══════════════════════════════════════════════════════════════════════════════
@@ -120,17 +110,26 @@ internal sealed class ProcessorSettingsBuilder {
         return this;
     }
 
+    internal ProcessorSettingsBuilder ConfigureSubscription(Action<SubscriptionSettingsBuilder> configure) {
+        var builder = new SubscriptionSettingsBuilder(_settings.Subscription);
+        configure(builder);
+        _settings = _settings with { Subscription = builder.Build() };
+        return this;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════════
     // Batching Settings
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    internal ProcessorSettingsBuilder WithBatching(BatchingSettings settings) {
-        _settings = _settings with { Batching = settings };
+    internal ProcessorSettingsBuilder ConfigureBatching(Func<BatchingSettings, BatchingSettings> configure) {
+        _settings = _settings with { Batching = configure(_settings.Batching) };
         return this;
     }
 
-    internal ProcessorSettingsBuilder ConfigureBatching(Func<BatchingSettings, BatchingSettings> configure) {
-        _settings = _settings with { Batching = configure(_settings.Batching) };
+    internal ProcessorSettingsBuilder ConfigureBatching(Action<BatchingSettingsBuilder> configure) {
+        var builder = new BatchingSettingsBuilder(_settings.Batching);
+        configure(builder);
+        _settings = _settings with { Batching = builder.Build() };
         return this;
     }
 
@@ -138,13 +137,31 @@ internal sealed class ProcessorSettingsBuilder {
     // Checkpoint Settings
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    internal ProcessorSettingsBuilder WithCheckpoint(CheckpointSettings settings) {
-        _settings = _settings with { Checkpoint = settings };
+    internal ProcessorSettingsBuilder ConfigureCheckpointing(Func<CheckpointSettings, CheckpointSettings> configure) {
+        _settings = _settings with { Checkpoint = configure(_settings.Checkpoint) };
         return this;
     }
 
-    internal ProcessorSettingsBuilder ConfigureCheckpointing(Func<CheckpointSettings, CheckpointSettings> configure) {
-        _settings = _settings with { Checkpoint = configure(_settings.Checkpoint) };
+    internal ProcessorSettingsBuilder ConfigureCheckpointing(Action<CheckpointSettingsBuilder> configure) {
+        var builder = new CheckpointSettingsBuilder(_settings.Checkpoint);
+        configure(builder);
+        _settings = _settings with { Checkpoint = builder.Build() };
+        return this;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Worker Settings
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    internal ProcessorSettingsBuilder ConfigureWorker(Func<WorkerSettings, WorkerSettings> configure) {
+        _settings = _settings with { Worker = configure(_settings.Worker) };
+        return this;
+    }
+
+    internal ProcessorSettingsBuilder ConfigureWorker(Action<WorkerSettingsBuilder> configure) {
+        var builder = new WorkerSettingsBuilder(_settings.Worker);
+        configure(builder);
+        _settings = _settings with { Worker = builder.Build() };
         return this;
     }
 

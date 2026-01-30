@@ -1,3 +1,5 @@
+using Kurrent.Processors;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>

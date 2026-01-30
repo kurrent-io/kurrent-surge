@@ -1,3 +1,4 @@
+using Kurrent.Processors;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kurrent.Client.Streams;

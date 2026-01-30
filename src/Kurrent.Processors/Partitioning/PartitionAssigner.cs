@@ -1,6 +1,7 @@
+using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors.Partitioning;
+namespace Kurrent.Processors.Partitioning;
 
 /// <summary>
 /// Assigns partitions to workers using a configurable distribution strategy.
@@ -49,10 +50,10 @@ public sealed class PartitionAssigner {
     /// Creates a partition assigner with the specified distribution strategy.
     /// </summary>
     /// <param name="strategy">The strategy to use for distributing partitions to workers.</param>
-    /// <param name="calculator">Optional partition calculator for key-to-partition mapping. Defaults to <see cref="PartitionCalculator.Default"/>.</param>
+    /// <param name="calculator">Optional partition calculator for key-to-partition mapping. Defaults to <see cref="PartitionCalculator.XXHash"/>.</param>
     public PartitionAssigner(IDistributionStrategy strategy, PartitionCalculator? calculator = null) {
         _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
-        _calculator = calculator ?? PartitionCalculator.Default;
+        _calculator = calculator ?? PartitionCalculator.XXHash;
     }
 
     /// <summary>
@@ -66,7 +67,7 @@ public sealed class PartitionAssigner {
     /// This ensures state locality: all records with the same key are processed by the same worker.
     /// </remarks>
     public Partition GetPartition(string key, int maxParallelism) =>
-        _calculator.For(key, maxParallelism);
+        _calculator.Calculate(key, maxParallelism);
 
     /// <summary>
     /// Distributes partitions across workers using the configured strategy.

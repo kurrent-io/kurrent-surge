@@ -1,12 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-<!--  <PropertyGroup>-->
-<!--    <TargetFramework>net10.0</TargetFramework>-->
-<!--    <LangVersion>experimental</LangVersion>-->
-<!--    <ImplicitUsings>enable</ImplicitUsings>-->
-<!--    <Nullable>enable</Nullable>-->
-<!--  </PropertyGroup>-->
-
+  
   <ItemGroup>
     <ProjectReference Include="..\KurrentDB.Client\KurrentDB.Client.csproj" />
   </ItemGroup>

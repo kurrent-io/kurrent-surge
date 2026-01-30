@@ -27,8 +27,8 @@ namespace Kurrent.Client;
 /// var options = KurrentClientOptionsBuilder.Create()
 ///     .ConfigureConnection(builder => builder
 ///         .WithConnectionName("my-service")
-///         .WithEndpoint("kurrentdb.example.com", 2113)
-///         .WithSecurityOptions(KurrentClientSecurityOptions.MutualTls(
+///         .WithDirectConnection("kurrentdb.example.com", 2113)
+///         .ConfigureSecurity(KurrentClientSecurityOptions.MutualTls(
 ///             clientCertPath: "/path/to/client.crt",
 ///             clientKeyPath: "/path/to/client.key")))
 ///     .Build();
@@ -36,7 +36,7 @@ namespace Kurrent.Client;
 /// // Create from connection string
 /// var options = KurrentClientOptionsBuilder
 ///     .FromConnectionString("kurrentdb://username:password@localhost:2113?tls=true")
-///     .WithResilience(KurrentClientResilienceOptions.HighAvailability)
+///     .ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
 ///     .Build();
 /// </code>
 /// </example>
@@ -94,16 +94,6 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// <see cref="KurrentClientOptions.GetBuilder()"/> for the same result.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Start from connection string, then override specific settings
-    /// var options = KurrentClientOptionsBuilder
-    ///     .FromConnectionString("kurrentdb://admin:changeit@localhost:2113?tls=false")
-    ///     .WithResilience(KurrentClientResilienceOptions.HighAvailability)
-    ///     .ConfigureConnection(conn => conn.WithConnectionName("my-service"))
-    ///     .Build();
-    /// </code>
-    /// </example>
     public static KurrentClientOptionsBuilder FromConnectionString(string connectionString) {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         return new KurrentClientOptionsBuilder(KurrentClientOptions.Parse(connectionString));
@@ -125,22 +115,6 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// <item>Fluent builder methods can further override any setting</item>
     /// </list>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // appsettings.json
-    /// // {
-    /// //   "Kurrent": {
-    /// //     "Client": {
-    /// //       "ConnectionString": "kurrentdb://localhost:2113",
-    /// //       "Resilience": { "Deadline": "00:00:30" }
-    /// //     }
-    /// //   }
-    /// // }
-    /// var client = KurrentClientOptionsBuilder.Create()
-    ///     .FromConfiguration(configuration)
-    ///     .CreateClient();
-    /// </code>
-    /// </example>
     public KurrentClientOptionsBuilder FromConfiguration(
         IConfiguration configuration,
         string sectionName = "Client") {
@@ -190,7 +164,7 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
         WithBuilder(configure);
 
     /// <summary>
-    /// Sets the resilience options.
+    /// Configures the resilience options.
     /// </summary>
     /// <param name="resilienceOptions">The resilience configuration options.</param>
     /// <returns>The builder instance for method chaining.</returns>
@@ -202,19 +176,10 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// </para>
     /// <para>
     /// To preserve existing settings while modifying specific properties, use
-    /// <see cref="ConfigureResilience"/> instead.
+    /// the <c>ConfigureResilience</c> overload that takes a Func instead.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Complete replacement - discards all previous resilience settings
-    /// var options = builder.WithResilience(KurrentClientResilienceOptions.HighAvailability);
-    ///
-    /// // Incremental modification - preserves unspecified properties
-    /// var options = builder.ConfigureResilience(res => res with { Deadline = TimeSpan.FromSeconds(60) });
-    /// </code>
-    /// </example>
-    public KurrentClientOptionsBuilder WithResilience(KurrentClientResilienceOptions resilienceOptions) =>
+    public KurrentClientOptionsBuilder ConfigureResilience(KurrentClientResilienceOptions resilienceOptions) =>
         With(options => options with { Resilience = resilienceOptions });
 
     /// <summary>
@@ -235,20 +200,6 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// without affecting the rest of the configuration.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Modify only the Deadline, preserve all other settings
-    /// var options = builder.ConfigureResilience(res => res with {
-    ///     Deadline = TimeSpan.FromMinutes(2)
-    /// });
-    ///
-    /// // Modify multiple properties while preserving others
-    /// var options = builder.ConfigureResilience(res => res with {
-    ///     Deadline = TimeSpan.FromSeconds(60),
-    ///     Retry = res.Retry with { MaxAttempts = 5 }
-    /// });
-    /// </code>
-    /// </example>
     public KurrentClientOptionsBuilder ConfigureResilience(Func<KurrentClientResilienceOptions, KurrentClientResilienceOptions> configure) =>
         With(options => options with { Resilience = configure(options.Resilience) });
 
@@ -265,15 +216,7 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// Any existing message type mappings will be replaced with the newly configured mappings.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Configure message type mappings
-    /// var options = builder.WithMessages(mapper => mapper
-    ///     .Map&lt;UserCreated&gt;("user-created")
-    ///     .Map&lt;UserUpdated&gt;("user-updated"));
-    /// </code>
-    /// </example>
-    public KurrentClientOptionsBuilder WithMessages(Action<MessageMappingBuilder> configure) =>
+    public KurrentClientOptionsBuilder ConfigureMessages(Action<MessageMappingBuilder> configure) =>
         With(options => options with { Mapper = new MessageMappingBuilder().With(configure).Build() });
 
     /// <summary>
@@ -287,17 +230,7 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// Use this when you have a pre-configured <see cref="MessageTypeMapper"/> instance.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Use a pre-configured mapper
-    /// var mapper = new MessageTypeMapper();
-    /// mapper.Map&lt;UserCreated&gt;("user-created");
-    /// mapper.Map&lt;UserUpdated&gt;("user-updated");
-    ///
-    /// var options = builder.WithMessages(mapper);
-    /// </code>
-    /// </example>
-    public KurrentClientOptionsBuilder WithMessages(MessageTypeMapper mapper) =>
+    public KurrentClientOptionsBuilder ConfigureMessages(MessageTypeMapper mapper) =>
         With(options => options with { Mapper = mapper ?? throw new ArgumentNullException(nameof(mapper)) });
 
     /// <summary>
@@ -325,10 +258,10 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
         With(options => options with { LoggerFactory = loggerFactory });
 
     /// <summary>
-    /// Sets the schema options.
+    /// Configures the schema options.
     /// </summary>
     /// <param name="schemaOptions">The schema configuration options.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public KurrentClientOptionsBuilder WithSchema(KurrentClientSchemaOptions schemaOptions) =>
+    public KurrentClientOptionsBuilder ConfigureSchema(KurrentClientSchemaOptions schemaOptions) =>
         With(options => options with { Schema = schemaOptions });
 }

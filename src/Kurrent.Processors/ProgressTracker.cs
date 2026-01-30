@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Processors;
 
 namespace Kurrent.Client.Streams;
 
@@ -17,7 +18,7 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    BarrierId                _lastCheckpointBarrierId = BarrierId.Empty;
+    BarrierId                _lastCheckpointBarrierId = BarrierId.None;
     CheckpointBarrierTrigger _lastCheckpointTrigger   = CheckpointBarrierTrigger.Unspecified;
     DateTimeOffset?          _lastCheckpointAt;
 

@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Processors;

@@ -1,3 +1,4 @@
+using Kurrent.Processors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -275,7 +276,7 @@ public static class KurrentProcessorServiceCollectionExtensions {
         var processor     = sp.GetRequiredService<TProcessor>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
         var client        = BuildClient(registration, sp);
-        var worker        = new Kurrent.Processors.ProcessorWorker(client, processor, null, registration.Settings, loggerFactory, registration.UseOwnClient);
+        var worker        = new ProcessorWorker(client, processor, null, registration.Settings, loggerFactory, TimeProvider.System, registration.UseOwnClient);
         var logger        = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
         return new KurrentProcessorHostedService<TProcessor>(worker, logger);
     }

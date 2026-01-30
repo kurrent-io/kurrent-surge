@@ -43,9 +43,9 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
        var lazyClient = new Lazy<KurrentClient>(() => {
             var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
                 .WithLoggerFactory(new TestkitLoggerFactory())
-                .WithSchema(KurrentClientSchemaOptions.NoValidation)
-                .WithResilience(KurrentClientResilienceOptions.NoResilience)
-                .WithMessages(options => options.Map<StreamMetadata>("$metadata"));
+                .ConfigureSchema(KurrentClientSchemaOptions.NoValidation)
+                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
+                .ConfigureMessages(options => options.Map<StreamMetadata>("$metadata"));
 
             return builder.CreateClient();
         });

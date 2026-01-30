@@ -27,7 +27,7 @@ static class ProtocolMapping {
             var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
                 Subscription  = DefaultSubscriptionOptions,
                 UuidOption    = DefaultUuidOptions,
-                // ControlOption = DefaultControlOption,
+                ControlOption = DefaultControlOption,
                 ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
             }};
 
@@ -187,7 +187,7 @@ static class ProtocolMapping {
             if (options is null)
                 return null;
 
-            //options.Max = ;
+            options.Max                          = uint.MaxValue; // delay as much as we can - will fix on v2
             options.CheckpointIntervalMultiplier = 1;
 
             return options;

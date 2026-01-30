@@ -1,7 +1,7 @@
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors.Gateway;
+namespace Kurrent.Processors.Gateway;
 
 /// <summary>
 /// Represents a bidirectional session between a worker and the processor gateway.

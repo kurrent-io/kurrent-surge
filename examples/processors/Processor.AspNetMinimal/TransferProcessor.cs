@@ -1,4 +1,4 @@
-using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Transfermarkt.Domain;
 
 namespace Processor.AspNetMinimal;

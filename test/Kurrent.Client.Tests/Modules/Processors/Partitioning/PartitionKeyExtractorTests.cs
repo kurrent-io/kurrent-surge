@@ -393,13 +393,13 @@ public class PartitionKeyExtractorTests {
     [Test]
     public async Task extracted_key_works_with_partition_calculator() {
         var extractor  = PartitionKeyExtractor.Create("properties['tenantId']");
-        var calculator = PartitionCalculator.Default;
+        var calculator = PartitionCalculator.XXHash;
         var record     = _faker.With(metadata: new Metadata().With("tenantId", "tenant-123"));
 
         var key = extractor.Extract(record);
         await Assert.That(key).IsNotNull();
 
-        var partition = calculator.For(key!, maxParallelism: 128);
+        var partition = calculator.Calculate(key!, maxParallelism: 128);
 
         await Assert.That(partition).IsGreaterThanOrEqualTo(0);
         await Assert.That(partition).IsLessThan(128);
@@ -408,7 +408,7 @@ public class PartitionKeyExtractorTests {
     [Test]
     public async Task same_key_always_maps_to_same_partition() {
         var extractor  = PartitionKeyExtractor.Create("properties.customerId");
-        var calculator = PartitionCalculator.Default;
+        var calculator = PartitionCalculator.XXHash;
 
         var record1 = _faker.With(metadata: new Metadata().With("customerId", "cust-abc"));
         var record2 = _faker.With(metadata: new Metadata().With("customerId", "cust-abc"));
@@ -418,8 +418,8 @@ public class PartitionKeyExtractorTests {
 
         await Assert.That(key1).IsEqualTo(key2);
 
-        var partition1 = calculator.For(key1!, 128);
-        var partition2 = calculator.For(key2!, 128);
+        var partition1 = calculator.Calculate(key1!, 128);
+        var partition2 = calculator.Calculate(key2!, 128);
 
         await Assert.That(partition1).IsEqualTo(partition2);
     }
