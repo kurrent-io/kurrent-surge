@@ -1,8 +1,9 @@
 using System.Collections.Immutable;
-using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Processors.Checkpointing;
+using CheckpointStore = Kurrent.Processors.Checkpointing.CheckpointStore;
 
 namespace Kurrent.Client.Tests.Processors;
 

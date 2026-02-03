@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
 public interface ICheckpointStore {
     /// <summary>

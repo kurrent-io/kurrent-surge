@@ -1,6 +1,6 @@
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
 /// Tracks positions. Not thread-safe.

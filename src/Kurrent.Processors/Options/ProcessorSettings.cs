@@ -29,7 +29,7 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// use a consistent identifier like <c>Environment.MachineName</c>.
     /// </para>
     /// </remarks>
-    public string WorkerId { get; init; } = Guid.NewGuid().ToString("N"); //new HybridLogicalClock().Now().ToString();
+    public string WorkerId { get; init; } = Guid.NewGuid().ToString("N");
 
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.

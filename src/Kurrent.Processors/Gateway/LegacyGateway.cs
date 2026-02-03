@@ -7,7 +7,6 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Processors.Gateway;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Schema;
 using KurrentDB.Protocol.V1.Streams;
@@ -19,7 +18,6 @@ using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
-using Kurrent.Processors.Locks;
 using Kurrent.Processors.Models;
 using Kurrent.Variant;
 
@@ -234,7 +232,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
 
                         var barrier = new CheckpointBarrier(
                             BarrierId.From(now),
-                            CheckpointBarrierTrigger.Interval,
+                            CheckpointTrigger.Interval,
                             now.DateTimeOffset // interesting right? -_-'
                         );
 

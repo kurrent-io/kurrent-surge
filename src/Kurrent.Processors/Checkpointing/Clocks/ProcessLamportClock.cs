@@ -1,5 +1,3 @@
-using JetBrains.Annotations;
-
 namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>

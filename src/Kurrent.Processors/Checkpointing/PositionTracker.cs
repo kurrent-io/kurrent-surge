@@ -3,7 +3,7 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
 /// High-performance position tracker using ArrayPool for single-threaded partition processing.

@@ -1,7 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using Kurrent.Client;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Processors.Sinks;
 

@@ -1,6 +1,5 @@
-using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Processing;
+using Kurrent.Processors.Checkpointing;
 
 namespace Kurrent.Client.Tests.Modules.Processors.Checkpoints;
 

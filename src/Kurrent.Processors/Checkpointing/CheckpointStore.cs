@@ -2,10 +2,8 @@ using System.Collections.Immutable;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Kurrent.Client.Processors.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
 /// Checkpoint store bound to a specific processor, using document-sourcing pattern.

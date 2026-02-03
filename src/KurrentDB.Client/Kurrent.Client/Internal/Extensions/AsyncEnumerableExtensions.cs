@@ -59,9 +59,9 @@ static class AsyncEnumerableExtensions {
             var buffer = pool.Rent(batchSize);
             ValueTask<bool>? parkedTask = null;
 
-            try {
-                await using var enumerator = source.GetAsyncEnumerator(cancellationToken);
+            var enumerator = source.GetAsyncEnumerator(cancellationToken);
 
+            try {
                 while (!cancellationToken.IsCancellationRequested) {
                     var count = 0;
                     var start = TimeProvider.System.GetTimestamp();
@@ -94,7 +94,7 @@ static class AsyncEnumerableExtensions {
                             var completed = await Task.WhenAny(moveNextTask, delayTask).ConfigureAwait(false);
 
                             if (completed != moveNextTask) {
-                                parkedTask = moveNext; // Timeout - park it
+                                parkedTask = new(moveNextTask); // Timeout - park the Task wrapper (ValueTask is consumed by AsTask)
                                 break;
                             }
 
@@ -132,6 +132,16 @@ static class AsyncEnumerableExtensions {
 
                 // Only clear if T can hold references (avoids clearing value types)
                 pool.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+
+                // Manual disposal: ChannelReader.ReadAllAsync enumerator throws
+                // NotSupportedException on DisposeAsync when interrupted mid-iteration.
+                // Suppressing prevents it from replacing the original exception.
+                try {
+                    await enumerator.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (NotSupportedException) {
+                    // Expected: async iterator disposal not supported in certain states
+                }
             }
 
             yield break;
@@ -181,9 +191,9 @@ static class AsyncEnumerableExtensions {
             var buffer = pool.Rent(batchSize);
             ValueTask<bool>? parkedTask = null;
 
-            try {
-                await using var enumerator = source.GetAsyncEnumerator(cancellationToken);
+            var enumerator = source.GetAsyncEnumerator(cancellationToken);
 
+            try {
                 while (!cancellationToken.IsCancellationRequested) {
                     var count = 0;
                     var start = TimeProvider.System.GetTimestamp();
@@ -216,7 +226,7 @@ static class AsyncEnumerableExtensions {
                             var completed = await Task.WhenAny(moveNextTask, delayTask).ConfigureAwait(false);
 
                             if (completed != moveNextTask) {
-                                parkedTask = moveNext; // Timeout - park it
+                                parkedTask = new(moveNextTask); // Timeout - park the Task wrapper (ValueTask is consumed by AsTask)
                                 break;
                             }
 
@@ -268,6 +278,16 @@ static class AsyncEnumerableExtensions {
                 }
 
                 pool.Return(buffer, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TBatch>());
+
+                // Manual disposal: ChannelReader.ReadAllAsync enumerator throws
+                // NotSupportedException on DisposeAsync when interrupted mid-iteration.
+                // Suppressing prevents it from replacing the original exception.
+                try {
+                    await enumerator.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (NotSupportedException) {
+                    // Expected: async iterator disposal not supported in certain states
+                }
             }
 
             yield break;

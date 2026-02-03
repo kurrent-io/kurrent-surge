@@ -10,7 +10,6 @@ using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
-using Kurrent.Variant;
 using KurrentDB.Protocol.V1.Streams;
 using static System.StringComparison;
 using static Kurrent.Client.Streams.StreamsClientV1Mapper;

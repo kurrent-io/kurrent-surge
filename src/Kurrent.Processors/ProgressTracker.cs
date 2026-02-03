@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
-using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Processors;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors;
 
 /// <summary>
-/// Tracks processing progress and computes metrics for a processor session.
+/// Tracks processing progress and computes metrics for a processing session.
 /// </summary>
 sealed class ProgressTracker {
     readonly TimeProvider   _timeProvider;
@@ -18,9 +18,9 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    BarrierId                _lastCheckpointBarrierId = BarrierId.None;
-    CheckpointBarrierTrigger _lastCheckpointTrigger   = CheckpointBarrierTrigger.Unspecified;
-    DateTimeOffset?          _lastCheckpointAt;
+    BarrierId         _lastCheckpointId      = BarrierId.None;
+    CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
+    DateTimeOffset?   _lastCheckpointAt;
 
     PartitionedPositionTracker? _partitionTracker;
 
@@ -53,7 +53,7 @@ sealed class ProgressTracker {
     public void TrackCheckpoint(CheckpointBarrier barrier) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint  = _totalRecords;
-        _lastCheckpointBarrierId  = barrier.BarrierId;
+        _lastCheckpointId  = barrier.BarrierId;
         _lastCheckpointTrigger    = barrier.Trigger;
         _lastCheckpointAt         = barrier.Timestamp;
     }
@@ -61,7 +61,7 @@ sealed class ProgressTracker {
     /// <summary>
     /// Computes current progress snapshot.
     /// </summary>
-    public ProcessorProgress Progress {
+    public WorkerProgress Progress {
         get {
             var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
 
@@ -77,14 +77,14 @@ sealed class ProgressTracker {
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
                 RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
-                LastBarrierId:              _lastCheckpointBarrierId,
+                //LastBarrierId:              _lastCheckpointId,
                 LastTrigger:                _lastCheckpointTrigger,
-                LastCompletedAt:            _lastCheckpointAt
+                LastCheckpointAt:            _lastCheckpointAt
             );
 
             var partitions = BuildPartitionProgress();
 
-            return new ProcessorProgress(throughput, checkpoint, partitions);
+            return new WorkerProgress(throughput, checkpoint, partitions);
         }
     }
 

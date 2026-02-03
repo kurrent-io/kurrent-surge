@@ -1,5 +1,4 @@
 using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Filters;
 
 namespace Kurrent.Client.Tests.Modules.Processors.Partitioning;

@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
-using EnumerableAsyncProcessor.Extensions;
 using Kurrent.Testing.Sample.HomeAutomation;
 
 namespace Kurrent.Client.Benchmarks.Benchmarks;

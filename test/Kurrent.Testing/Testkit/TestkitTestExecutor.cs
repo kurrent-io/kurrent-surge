@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Grpc.Core;
 using Kurrent.Testing.OpenTelemetry;
 using Kurrent.Testing.TUnit;
-using Serilog;
 using TUnit.Core.Interfaces;
 
 namespace Kurrent.Testing;

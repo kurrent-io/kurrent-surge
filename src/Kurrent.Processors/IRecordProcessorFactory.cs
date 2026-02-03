@@ -1,6 +1,4 @@
-using Kurrent.Processors;
-
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors;
 
 /// <summary>
 /// Factory interface for creating <see cref="IRecordProcessor"/> instances.

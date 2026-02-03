@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Processing;
 
 namespace Kurrent.Processors;
 
@@ -49,7 +48,7 @@ namespace Kurrent.Processors;
 ///     }
 ///
 ///     public ValueTask OnShutdown(ShutdownContext ctx) {
-///         if (ctx.Reason == ShutdownReason.Error)
+///         if (ctx.IsError)
 ///             Console.WriteLine($"Error: {ctx.Error}");
 ///         else
 ///             Console.WriteLine($"Done: {ctx.Progress.Throughput.TotalRecords} records in {ctx.Progress.Throughput.Elapsed}");
@@ -61,16 +60,7 @@ namespace Kurrent.Processors;
 [PublicAPI]
 public interface IRecordProcessor {
     /// <summary>
-    /// Called when the processor starts, before any records are processed.
-    /// </summary>
-    /// <param name="context">
-    /// Context containing processor information, settings, and cancellation token.
-    /// </param>
-    /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
-    ValueTask OnInitialize(InitializationContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when partitions are assigned to this processor.
+    /// Called when partitions are assigned to this processor, before any records are processed.
     /// <remarks>
     /// <para>
     /// This method is invoked whenever the set of partitions assigned to this processor changes,
@@ -87,7 +77,7 @@ public interface IRecordProcessor {
     /// <returns>
     /// A <see cref="ValueTask"/> representing the asynchronous operation.
     /// </returns>
-    ValueTask OnPartitionsAssigned(PartitionsAssignedContext context) => ValueTask.CompletedTask;
+    ValueTask OnPartitionAssignment(PartitionAssignmentContext context) => ValueTask.CompletedTask;
 
     /// <summary>
     /// Called when records are available for processing.
@@ -101,36 +91,23 @@ public interface IRecordProcessor {
     ValueTask ProcessRecords(ProcessRecordsContext context);
 
     /// <summary>
-    /// Called when a checkpoint barrier is received.
+    /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
     /// </summary>
-    ValueTask OnCheckpointBarrier(CheckpointBarrierContext context) => ValueTask.CompletedTask;
+    ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
+
+  /// <summary>
+  /// Called when a checkpoint will be committed to allow for post-checkpoint actions, like 2PC finalization.
+  /// </summary>
+    ValueTask OnCheckpointCommit(CheckpointCommitContext context) => ValueTask.CompletedTask;
 
     /// <summary>
-    /// Called when a checkpoint completes successfully.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Use this to commit side effects to external systems (databases, message queues)
-    /// that should be coordinated with checkpoint completion.
-    /// </para>
-    /// <para>
-    /// Notifications are best-effort and may be skipped during failures.
-    /// Design external commits for idempotency.
-    /// </para>
-    /// </remarks>
-    /// <param name="context">
-    /// Context containing checkpoint information, metrics, and cancellation token.
-    /// </param>
-    ValueTask OnCheckpointComplete(CheckpointCompleteContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when processing stops, regardless of reason.
+    /// Called when the worker is shutting down.
     /// <remarks>
     /// <para>
     /// This method is invoked at the end of the processing lifecycle, allowing for cleanup.
     /// </para>
     /// <para>
-    /// Check <see cref="ShutdownContext.Reason"/> to determine why processing stopped.
+    /// Check <see cref="ShutdownContext.ErrorOccurred"/> to determine why processing stopped.
     /// </para>
     /// </remarks>
     /// </summary>
@@ -141,53 +118,93 @@ public interface IRecordProcessor {
     ValueTask OnShutdown(ShutdownContext context) => ValueTask.CompletedTask;
 }
 
-/// <summary>
-/// Context provided when a record processor is initialized (before Connect).
-/// </summary>
-/// <remarks>
-/// <para>
-/// Use this for setup: logging, connections, caches, configuration validation.
-/// </para>
-/// </remarks>
-/// <param name="Settings">The processor settings used for this operation.</param>
-/// <param name="CancellationToken">Token to observe for cancellation requests.</param>
-[PublicAPI]
-public record InitializationContext(
-    ProcessorSettings Settings,
-    ILogger Logger,
-    CancellationToken CancellationToken
-);
+public record WorkerContext {
+    public static readonly WorkerContext None = new WorkerContext();
+
+    public ProcessorId       ProcessorId       { get; init; } = ProcessorId.None;
+    public WorkerId          WorkerId          { get; init; } = WorkerId.None;
+    public SessionId         SessionId         { get; init; } = SessionId.None;
+    public ILogger           Logger            { get; init; } = NullLogger.Instance;
+    public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
+
+    public PartitionAssignmentContext ForPartitionAssignment(Partition[] assigned, Partition[] revoked, Partition[] retained) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Assigned          = assigned,
+            Revoked           = revoked,
+            Retained          = retained
+        };
+
+    public ProcessRecordsContext ForProcessRecords(RecordBatch records, WorkerProgress progress) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Records           = records,
+            Progress          = progress
+        };
+
+    public CheckpointContext ForCheckpoint(WorkerProgress progress, CheckpointBarrier barrier) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Progress          = progress,
+            Barrier           = barrier
+        };
+
+    public CheckpointCommitContext ForCheckpointCommit(WorkerProgress progress, CheckpointBarrier barrier) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Progress          = progress,
+            Barrier           = barrier
+        };
+
+    public ShutdownContext ForShutdown(WorkerProgress progress, Exception? error = null) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Progress          = progress,
+            Error             = error
+        };
+}
 
 [PublicAPI]
-public record PartitionsAssignedContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    IStateStore State,
-    ILogger Logger,
-    CancellationToken CancellationToken
-);
+public record PartitionAssignmentContext : WorkerContext {
+    public required Partition[] Assigned { get; init; }
+    public required Partition[] Revoked  { get; init; }
+    public required Partition[] Retained { get; init; }
+
+    public void Deconstruct(out Partition[] assigned, out Partition[] revoked, out Partition[] retained) {
+        assigned = Assigned;
+        revoked  = Revoked;
+        retained = Retained;
+    }
+}
 
 /// <summary>
 /// Context provided when records are available for processing.
 /// </summary>
-/// <param name="ProcessorId">The processor group identifier.</param>
-/// <param name="WorkerId">The worker instance identifier.</param>
-/// <param name="SessionId">The server-assigned session identifier.</param>
-/// <param name="Records">The batch of records to process.</param>
-/// <param name="Progress">Current processing progress and metrics.</param>
-/// <param name="CancellationToken">Token to observe for cancellation requests.</param>
 [PublicAPI]
-public record ProcessRecordsContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    RecordBatch Records,
-    ProcessorProgress Progress,
-    IStateStore State,
-    ILogger Logger,
-    CancellationToken CancellationToken
-) {
+public record ProcessRecordsContext : WorkerContext {
+    public required RecordBatch    Records  { get; init; }
+    public required WorkerProgress Progress { get; init; }
+
     /// <summary>
     /// Signals that processing should stop immediately.
     /// </summary>
@@ -196,58 +213,26 @@ public record ProcessRecordsContext(
 }
 
 /// <summary>
-/// Context provided when a checkpoint barrier is received.
+/// Context provided when a checkpoint is signaled.
 /// </summary>
 [PublicAPI]
-public record CheckpointBarrierContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    ProcessorProgress Progress,
-    CheckpointBarrier Barrier,
-    IStateStore State,
-    ILogger Logger,
-    CancellationToken CancellationToken
-);
+public record CheckpointContext : WorkerContext {
+    public WorkerProgress    Progress { get; init; }
+    public CheckpointBarrier Barrier  { get; init; }
+}
 
-/// <summary>
-/// Context provided when a checkpoint completes successfully.
-/// </summary>
-/// <param name="ProcessorId">The processor group identifier.</param>
-/// <param name="WorkerId">The worker instance identifier.</param>
-/// <param name="SessionId">The server-assigned session identifier.</param>
-/// <param name="Progress">Current processing progress and metrics.</param>
-/// <param name="CancellationToken">Token to observe for cancellation requests.</param>
 [PublicAPI]
-public record CheckpointCompleteContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    ProcessorProgress Progress,
-    CheckpointBarrier Barrier,
-    IStateStore State,
-    ILogger Logger,
-    CancellationToken CancellationToken
-);
+public record CheckpointCommitContext : WorkerContext {
+    public WorkerProgress    Progress { get; init; }
+    public CheckpointBarrier Barrier  { get; init; }
+}
 
-/// <summary>
-/// Context provided when processing stops, regardless of reason.
-/// </summary>
-/// <param name="ProcessorId">The processor group identifier.</param>
-/// <param name="WorkerId">The worker instance identifier.</param>
-/// <param name="SessionId">The server-assigned session identifier, or <see cref="SessionId.None"/> if never connected.</param>
-/// <param name="Progress">Final processing progress and metrics.</param>
-/// <param name="Error">The error that caused shutdown, or null if not an error.</param>
 [PublicAPI]
-public record ShutdownContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    ProcessorProgress Progress,
-    ILogger Logger,
-    Exception? Error = null
-) {
-    public bool IsError => Error is not null;
+public record ShutdownContext : WorkerContext {
+    public WorkerProgress Progress { get; init; }
+    public Exception?     Error    { get; init; }
+
+    public bool ErrorOccurred => Error is not null;
 }
 
 /// <summary>
@@ -257,7 +242,7 @@ public record ShutdownContext(
 /// <param name="Checkpoint">Checkpoint progress information.</param>
 /// <param name="Partitions">Per-partition position progress.</param>
 [PublicAPI]
-public readonly record struct ProcessorProgress(
+public readonly record struct WorkerProgress(
     ThroughputMetrics Throughput,
     CheckpointProgress Checkpoint,
     ImmutableDictionary<Partition, PartitionProgress> Partitions
@@ -302,7 +287,7 @@ public readonly record struct ProcessorProgress(
     /// <summary>
     /// Empty progress with no records processed and no checkpoints.
     /// </summary>
-    public static readonly ProcessorProgress Empty = new(
+    public static readonly WorkerProgress Empty = new(
         ThroughputMetrics.Empty,
         CheckpointProgress.Empty,
         ImmutableDictionary<Partition, PartitionProgress>.Empty
@@ -360,45 +345,17 @@ public readonly record struct ThroughputMetrics(
 /// </summary>
 /// <param name="TotalCheckpoints">Total number of checkpoints completed.</param>
 /// <param name="RecordsSinceLastCheckpoint">Records processed since the last checkpoint.</param>
-/// <param name="LastBarrierId">Barrier ID of the last completed checkpoint.</param>
 /// <param name="LastTrigger">What triggered the last checkpoint.</param>
-/// <param name="LastCompletedAt">When the last checkpoint completed, or null if none.</param>
+/// <param name="LastCheckpointAt">When the last checkpoint completed, or null if none.</param>
 [PublicAPI]
 public readonly record struct CheckpointProgress(
     long TotalCheckpoints,
     long RecordsSinceLastCheckpoint,
-    BarrierId LastBarrierId,
-    CheckpointBarrierTrigger LastTrigger,
-    DateTimeOffset? LastCompletedAt
+    CheckpointTrigger LastTrigger,
+    DateTimeOffset? LastCheckpointAt
 ) {
     /// <summary>
     /// Empty checkpoint progress with no checkpoints completed.
     /// </summary>
-    public static readonly CheckpointProgress Empty = new(0, 0, BarrierId.None, CheckpointBarrierTrigger.Unspecified, null);
-}
-
-/// <summary>
-/// Why processing stopped.
-/// </summary>
-[PublicAPI]
-public enum ShutdownReason {
-    /// <summary>
-    /// Unspecified reason. For proto compatibility.
-    /// </summary>
-    Unspecified = 0,
-
-    /// <summary>
-    /// Processing completed successfully (reached end of stream if bounded).
-    /// </summary>
-    Completed = 1,
-
-    /// <summary>
-    /// Processing was cancelled either by user request or server-side timeout.
-    /// </summary>
-    Cancelled = 2,
-
-    /// <summary>
-    /// An error occurred during processing.
-    /// </summary>
-    Error = 3
+    public static readonly CheckpointProgress Empty = new(0, 0, CheckpointTrigger.Unspecified, null);
 }

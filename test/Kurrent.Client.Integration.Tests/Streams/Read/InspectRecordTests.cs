@@ -1,7 +1,6 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Shouldly;
 using Microsoft.Extensions.Logging;
 

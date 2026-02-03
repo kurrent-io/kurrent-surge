@@ -373,13 +373,10 @@ public sealed class KurrentProcessorBuilder {
         var client     = ProvidedClient ?? new KurrentClient(options);
 
         return new ProcessorWorker(
+            settings,
             client,
             GetProcessor(),
-            null,
-            settings,
-            options.LoggerFactory,
-            TimeProvider.System,
-            ownsClient
+            options.LoggerFactory, TimeProvider.System, ownsClient
         );
     }
 
@@ -395,7 +392,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public async ValueTask RunAsync(CancellationToken stoppingToken = default) {
-        await using var worker = Build();
+        var worker = Build();
         await worker.RunAsync(stoppingToken).ConfigureAwait(false);
     }
 

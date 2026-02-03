@@ -1,6 +1,5 @@
 using Kurrent.Processors;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client.Streams;
 
@@ -33,9 +32,6 @@ internal sealed partial class KurrentProcessorHostedService<TProcessor>(
         catch (Exception ex) {
             LogFailed(ex, worker.ProcessorId, worker.WorkerId);
             throw;
-        }
-        finally {
-            await worker.DisposeAsync().ConfigureAwait(false);
         }
     }
 

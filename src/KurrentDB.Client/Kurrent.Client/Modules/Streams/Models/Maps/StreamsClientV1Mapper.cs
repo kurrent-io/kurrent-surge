@@ -7,7 +7,6 @@ using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams.Checkpoints;
 using KurrentDB.Client;
 using KurrentDB.Protocol.V1;
-using KurrentDB.Protocol.V2.Streams;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;

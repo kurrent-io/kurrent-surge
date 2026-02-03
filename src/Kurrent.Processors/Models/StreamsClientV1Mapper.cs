@@ -196,12 +196,12 @@ static class ProtocolMapping {
 
     public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
         var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(BarrierId.New(), CheckpointBarrierTrigger.Interval, timestamp);
+        return new CheckpointBarrier(BarrierId.New(), CheckpointTrigger.Interval, timestamp);
     }
 
     public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
         var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(BarrierId.New(), CheckpointBarrierTrigger.CaughtUp, timestamp);
+        return new CheckpointBarrier(BarrierId.New(), CheckpointTrigger.CaughtUp, timestamp);
     }
 
     public static async ValueTask<Record> MapToRecordAsync(

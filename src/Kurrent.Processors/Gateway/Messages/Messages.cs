@@ -41,7 +41,7 @@ public readonly record struct BarrierId(string Value) {
     public static implicit operator ulong(BarrierId id) => ulong.Parse(id.Value);
 }
 
-#region Inbound - Processor Control Messages
+#region Inbound - Control Messages
 
 /// <summary>
 /// Sent when partitions are assigned to this worker.
@@ -122,7 +122,7 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 [PublicAPI]
 public readonly record struct CheckpointBarrier(
     BarrierId BarrierId,
-    CheckpointBarrierTrigger Trigger,
+    CheckpointTrigger Trigger,
     DateTimeOffset Timestamp
 );
 
@@ -201,7 +201,7 @@ public readonly partial record struct WorkerMessage : IVariant<
 /// </para>
 /// </remarks>
 [PublicAPI]
-public enum CheckpointBarrierTrigger {
+public enum CheckpointTrigger {
     /// <summary>
     /// Unspecified checkpoint trigger.
     /// </summary>
