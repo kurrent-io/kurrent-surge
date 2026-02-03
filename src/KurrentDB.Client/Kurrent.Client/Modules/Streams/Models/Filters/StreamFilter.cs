@@ -8,15 +8,13 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public sealed record StreamFilter : RegexFilter {
     /// <summary>
-    /// Creates a filter that matches a specific stream name.
+    /// Creates a filter that matches any of the specified stream names.
+    /// When a single stream is provided with exact match, TargetStream is set for optimized reading.
     /// </summary>
-    public StreamFilter(StreamName stream) : base(stream.Value) =>
-        TargetStream = stream;
-
-    /// <summary>
-    /// Creates a filter that matches any of the specified stream names exactly.
-    /// </summary>
-    public StreamFilter(string[] streams, bool exactMatch) : base(streams, exactMatch) { }
+    public StreamFilter(string[] streams, bool exactMatch) : base(streams, exactMatch) {
+        if (exactMatch && streams.Length == 1)
+            TargetStream = streams[0];
+    }
 
     /// <summary>
     /// Creates a filter from a raw regex pattern.

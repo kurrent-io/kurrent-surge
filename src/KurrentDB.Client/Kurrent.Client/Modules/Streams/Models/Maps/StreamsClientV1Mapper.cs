@@ -7,7 +7,6 @@ using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams.Checkpoints;
 using KurrentDB.Client;
 using KurrentDB.Protocol.V1;
-using KurrentDB.Protocol.V2.Streams;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;
@@ -91,7 +90,7 @@ static class StreamsClientV1Mapper {
                 Count = (ulong)options.MaxRecords
             }};
 
-            var filterOptions = ConvertToFilterOptions(options.Filter, options.Heartbeat);
+            var filterOptions = ConvertToFilterOptions(options.Filter);
             if (filterOptions is not null)
                 req.Options.Filter = filterOptions;
             else
@@ -115,7 +114,7 @@ static class StreamsClientV1Mapper {
                 Count  = (ulong)options.MaxRecords
             }};
 
-            var filterOptions = ConvertToFilterOptions(options.Filter, options.Heartbeat);
+            var filterOptions = ConvertToFilterOptions(options.Filter);
             if (filterOptions is not null)
                 req.Options.Filter = filterOptions;
             else
@@ -179,7 +178,7 @@ static class StreamsClientV1Mapper {
                 _                                  => new() { StreamIdentifier = stream.Value, Revision = (ulong)start.Value }
             };
 
-        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter, HeartbeatOptions heartbeat) {
+        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter) {
             Contracts.ReadReq.Types.Options.Types.FilterOptions? options = filter switch {
                 StreamFilter f => new() { StreamIdentifier = new() { Regex = f.Expression } },
                 SchemaFilter f => new() { EventType        = new() { Regex = f.Expression } },
@@ -193,8 +192,8 @@ static class StreamsClientV1Mapper {
             if (options is null)
                 return null;
 
-            options.Max = (uint)heartbeat.RecordsThreshold;
             options.CheckpointIntervalMultiplier = 1;
+            options.Count = DefaultEmpty;
 
             return options;
         }
@@ -211,13 +210,6 @@ static class StreamsClientV1Mapper {
         var revision  = caughtUp.HasStreamRevision ? StreamRevision.From(caughtUp.StreamRevision) : StreamRevision.Unset;
         var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
         return Heartbeat.CreateCaughtUp(position, revision, timestamp);
-    }
-
-    public static Heartbeat MapToHeartbeat(this Contracts.ReadResp.Types.FellBehind fellBehind, SequenceId sequenceId) {
-        var position  = fellBehind.Position is not null ? LogPosition.From((long)fellBehind.Position.CommitPosition) : LogPosition.Unset;
-        var revision  = fellBehind.HasStreamRevision ? StreamRevision.From(fellBehind.StreamRevision) : StreamRevision.Unset;
-        var timestamp = fellBehind.Timestamp.ToDateTimeOffset();
-        return Heartbeat.CreateFellBehind(position, revision, timestamp);
     }
 
     // public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {

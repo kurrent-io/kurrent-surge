@@ -47,6 +47,15 @@ public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : IS
 
 		var (ns, msg) = Generate(messageType, stream ?? string.Empty);
 
+		if (string.IsNullOrEmpty(ns)) {
+			return format switch {
+				SchemaNameOutputFormat.None      => msg,
+				SchemaNameOutputFormat.KebabCase => msg.ToKebabCase(),
+				SchemaNameOutputFormat.SnakeCase => msg.ToSnakeCase(),
+				SchemaNameOutputFormat.Urn       => SchemaUrn.Create(msg.ToKebabCase())
+			};
+		}
+
 		return format switch {
 			SchemaNameOutputFormat.None      => $"{ns}.{msg}",
 			SchemaNameOutputFormat.KebabCase => $"{ns.ToKebabCase()}.{msg.ToKebabCase()}",

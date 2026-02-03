@@ -56,12 +56,6 @@ public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position
 	/// </summary>
 	public bool IsCaughtUp => Type == HeartbeatType.CaughtUp;
 
-	/// <summary>
-	/// Indicates whether the heartbeat represents a "fell behind" event,
-	/// meaning the process is no longer caught up with the expected stream position.
-	/// </summary>
-	public bool IsFellBehind => Type == HeartbeatType.FellBehind;
-
 	public bool HasPosition => Position != LogPosition.Unset;
 
 	public bool HasStreamRevision => StreamRevision != StreamRevision.Unset;
@@ -75,17 +69,11 @@ public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position
 	public static Heartbeat CreateCaughtUp(LogPosition position, DateTimeOffset timestamp) =>
 		new(HeartbeatType.CaughtUp, position, StreamRevision.Unset,  timestamp);
 
-	public static Heartbeat CreateFellBehind(LogPosition position, DateTimeOffset timestamp) =>
-		new(HeartbeatType.FellBehind, position, StreamRevision.Unset,  timestamp);
-
 	public static Heartbeat CreateCheckpoint(LogPosition position, StreamRevision streamRevision, DateTimeOffset timestamp) =>
 		new(HeartbeatType.Checkpoint, position, streamRevision, timestamp);
 
 	public static Heartbeat CreateCaughtUp(LogPosition position, StreamRevision streamRevision, DateTimeOffset timestamp) =>
 		new(HeartbeatType.CaughtUp, position, streamRevision, timestamp);
-
-	public static Heartbeat CreateFellBehind(LogPosition position, StreamRevision streamRevision, DateTimeOffset timestamp) =>
-		new(HeartbeatType.FellBehind, position, streamRevision, timestamp);
 }
 
 /// <summary>
@@ -96,5 +84,4 @@ public enum HeartbeatType {
     Unspecified = 0,
     Checkpoint  = 1,
     CaughtUp    = 2,
-    FellBehind  = 3,
 }

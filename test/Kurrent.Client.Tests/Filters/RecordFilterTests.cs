@@ -17,10 +17,22 @@ public class RecordFilterTests {
     }
 
     [Test]
-    public void by_stream_sets_target_stream() {
+    public void by_stream_sets_target_stream_for_single_stream() {
         var filter = RecordFilter.ByStream("orders");
         var streamFilter = filter.ShouldBeOfType<StreamFilter>();
         streamFilter.TargetStream.ShouldBe((StreamName)"orders");
+    }
+
+    [Test]
+    public void by_stream_does_not_set_target_stream_for_multiple_streams() {
+        var filter = RecordFilter.ByStream("orders", "payments");
+        var streamFilter = filter.ShouldBeOfType<StreamFilter>();
+        streamFilter.TargetStream.ShouldBe(StreamName.All);
+    }
+
+    [Test]
+    public void by_stream_throws_on_empty_array() {
+        Should.Throw<ArgumentOutOfRangeException>(() => RecordFilter.ByStream());
     }
 
     [Test]
@@ -39,6 +51,17 @@ public class RecordFilterTests {
     public void by_schema_returns_schema_filter() {
         var filter = RecordFilter.BySchema("Order");
         filter.ShouldBeOfType<SchemaFilter>();
+    }
+
+    [Test]
+    public void by_schema_with_multiple_schemas_returns_schema_filter() {
+        var filter = RecordFilter.BySchema("Order", "Payment");
+        filter.ShouldBeOfType<SchemaFilter>();
+    }
+
+    [Test]
+    public void by_schema_throws_on_empty_array() {
+        Should.Throw<ArgumentOutOfRangeException>(() => RecordFilter.BySchema());
     }
 
     [Test]

@@ -2,8 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace Kurrent.Client.Streams;
 
-//TODO SS: remove duplication with ByStream/ByStreams and BySchema/BySchemas methods in StreamFilter/SchemaFilter. ByStream should receive multiple streams and BySchema multiple schemas.
-
 /// <summary>
 /// Factory methods for creating record filters.
 /// </summary>
@@ -15,10 +13,13 @@ public static class RecordFilter {
     public static readonly IRecordFilter None = new EmptyFilter();
 
     /// <summary>
-    /// Creates a filter that matches a specific stream exactly.
+    /// Creates a filter that matches one or more stream names exactly.
     /// </summary>
-    /// <param name="stream">The stream name to match.</param>
-    public static IRecordFilter ByStream(StreamName stream) => new StreamFilter(stream);
+    /// <param name="streams">The stream names to match.</param>
+    public static IRecordFilter ByStream(params string[] streams) {
+        ArgumentOutOfRangeException.ThrowIfZero(streams.Length, nameof(streams));
+        return new StreamFilter(streams, exactMatch: true);
+    }
 
     /// <summary>
     /// Creates a filter that matches streams by prefix patterns.
@@ -33,28 +34,19 @@ public static class RecordFilter {
     public static IRecordFilter ByCategory(params string[] categories) => new StreamFilter(categories, exactMatch: false);
 
     /// <summary>
-    /// Creates a filter that matches any of the specified stream names exactly.
+    /// Creates a filter that matches one or more schema names (event types) exactly.
     /// </summary>
-    /// <param name="streams">The stream names to match.</param>
-    public static IRecordFilter ByStreams(params string[] streams) => new StreamFilter(streams, exactMatch: true);
-
-    /// <summary>
-    /// Creates a filter that matches a specific schema (event type) exactly.
-    /// </summary>
-    /// <param name="schema">The schema name to match.</param>
-    public static IRecordFilter BySchema(string schema) => new SchemaFilter(schema);
+    /// <param name="schemas">The schema names to match.</param>
+    public static IRecordFilter BySchema(params string[] schemas) {
+        ArgumentOutOfRangeException.ThrowIfZero(schemas.Length, nameof(schemas));
+        return new SchemaFilter(schemas, exactMatch: true);
+    }
 
     /// <summary>
     /// Creates a filter that matches schemas by prefix patterns.
     /// </summary>
     /// <param name="prefixes">The schema name prefixes to match.</param>
     public static IRecordFilter BySchemaPrefix(params string[] prefixes) => new SchemaFilter(prefixes, exactMatch: false);
-
-    /// <summary>
-    /// Creates a filter that matches any of the specified schema names exactly.
-    /// </summary>
-    /// <param name="schemas">The schema names to match.</param>
-    public static IRecordFilter BySchemas(params string[] schemas) => new SchemaFilter(schemas, exactMatch: true);
 
     /// <summary>
     /// Creates a filter from a DuckDB-compatible expression.

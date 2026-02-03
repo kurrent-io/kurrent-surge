@@ -33,14 +33,17 @@ public class ReadLogBenchmarks {
 
     [Benchmark(Description = "Read $all forward with limit")]
     public async Task<int> read_log_forward() {
-        var options = new ReadOptions {
-            Start        = Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest,
-            Direction    = Direction,
-            BufferCapacity   = BufferCapacity,
-            SkipDecoding = SkipDecoding,
-            Heartbeat    = HeartbeatOptions.Disabled,
-            MaxRecords   = MessageCount,
-        };
+        var builder = ReadLog.From(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
+            .WithBufferCapacity(BufferCapacity)
+            .WithMaxRecords(MessageCount);
+
+        if (Direction == ReadDirection.Backwards)
+            builder.Backwards();
+
+        if (SkipDecoding)
+            builder.SkipDecoding();
+
+        var options = builder.Build();
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)

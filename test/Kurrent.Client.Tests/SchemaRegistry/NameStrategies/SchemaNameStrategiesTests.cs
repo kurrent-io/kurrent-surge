@@ -90,5 +90,17 @@ public class SchemaNameStrategiesTests {
 		Should.Throw<ArgumentException>(() => strategy.GenerateSchemaName(messageType, " "));
 	}
 
+	[Test]
+	[Arguments(SchemaNameOutputFormat.None, "GlobalItemAdded")]
+	[Arguments(KebabCase, "global-item-added")]
+	[Arguments(SnakeCase, "global_item_added")]
+	[Arguments(Urn, "urn:schemas-kurrent:global:global-item-added")]
+	public void message_schema_name_strategy_handles_types_without_namespace(SchemaNameOutputFormat format, string expectedName) {
+		var strategy    = new MessageSchemaNameStrategy(format);
+		var messageType = typeof(GlobalItemAdded);
+		var result      = strategy.GenerateSchemaName(messageType);
+		result.Value.ShouldBe(expectedName);
+	}
+
 	#endregion
 }
