@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options.Validators;
 
 public class BatchingSettingsValidator : AbstractValidator<BatchingSettings> {
     public static readonly BatchingSettingsValidator Instance = new();

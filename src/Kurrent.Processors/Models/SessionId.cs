@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Models;
 
 /// <summary>
 /// Represents a unique session identifier assigned by the server when a worker connects.

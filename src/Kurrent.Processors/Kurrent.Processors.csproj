@@ -20,18 +20,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="State\Implementations\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="NodaTime" />
     <PackageReference Include="NodaTime.Serialization.Protobuf" />
+    <PackageReference Include="OpenTelemetry.Api" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Microsoft.Extensions.Logging" />
     <Using Include="Microsoft.Extensions.Logging.Abstractions" />
     <Using Include="NodaTime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include=".scratch\ProcessorProgressTracker.cs" />
+    <Compile Include=".scratch\ProcessorWorkerV2.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Diagnostics\Metrics\" />
   </ItemGroup>
 
 </Project>

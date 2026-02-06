@@ -1,9 +1,12 @@
-using Kurrent.Processors;
+using Kurrent.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Diagnostics.Metrics;
+using Kurrent.Processors.Diagnostics;
+using Kurrent.Processors.Diagnostics.Metrics;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Extension methods for registering Kurrent processors with dependency injection.
@@ -228,6 +231,8 @@ public static class KurrentProcessorServiceCollectionExtensions {
         IServiceCollection services,
         Action<KurrentProcessorHostBuilder>? configure)
         where TProcessor : class, IRecordProcessor {
+        EnsureDiagnosticsRegistered(services);
+
         services.AddHostedService<KurrentProcessorHostedService<TProcessor>>(sp => {
             // Configuration deferred to resolution time
             var configuration = sp.GetService<IConfiguration>();
@@ -250,6 +255,8 @@ public static class KurrentProcessorServiceCollectionExtensions {
         IServiceCollection services,
         Action<KurrentProcessorHostBuilder, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor {
+        EnsureDiagnosticsRegistered(services);
+
         services.AddHostedService<KurrentProcessorHostedService<TProcessor>>(sp => {
             // Configuration deferred to resolution time with IServiceProvider access
             var configuration = sp.GetService<IConfiguration>();
@@ -273,13 +280,24 @@ public static class KurrentProcessorServiceCollectionExtensions {
         IServiceProvider sp)
         where TProcessor : class, IRecordProcessor {
         var processor     = sp.GetRequiredService<TProcessor>();
-        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
         var client        = BuildClient(registration, sp);
-        var worker        = new ProcessorWorker(registration.Settings, client, processor, loggerFactory,
-                                                TimeProvider.System, registration.UseOwnClient
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var diagnostics   = new WorkerTelemetry(
+            loggerFactory.CreateLogger(processor.GetType()),
+            registration.Settings.ProcessorId,
+            registration.Settings.WorkerId);
+        var worker             = new ProcessorWorker(registration.Settings, client, processor, diagnostics,
+                                                     loggerFactory, TimeProvider.System, registration.UseOwnClient
         );
-        var logger        = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
+        var logger             = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
         return new KurrentProcessorHostedService<TProcessor>(worker, logger);
+    }
+
+    static void EnsureDiagnosticsRegistered(IServiceCollection services) {
+        services.TryAddSingleton(sp => {
+            var meterFactory = sp.GetRequiredService<IMeterFactory>();
+            return new WorkerMetricsObserver(meterFactory).Start();
+        });
     }
 
     static KurrentClient BuildClient<TProcessor>(

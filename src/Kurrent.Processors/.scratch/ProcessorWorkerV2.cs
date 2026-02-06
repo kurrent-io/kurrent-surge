@@ -171,7 +171,7 @@
 //     }
 //
 //     async ValueTask HandleShutdown(Exception? ex = null) {
-//         Status = ex is null ? ProcessorWorkerStatus.Disconnected : ProcessorWorkerStatus.Failed;
+//         Status = ex is null ? ProcessorWorkerStatus.Disconnected : ProcessorWorkerStatus.Error;
 //
 //         // capture final snapshot
 //         var progress = Progress;

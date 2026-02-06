@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Client;
 
 [PublicAPI]
 public static class SystemMetadataKeys {

@@ -20,11 +20,6 @@ public sealed class LeaderboardProcessor(
     long _scoresProcessed;
     long _playersRegistered;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing LeaderboardProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        return ValueTask.CompletedTask;
-    }
-
     public async ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             switch (record.Value) {
@@ -113,24 +108,23 @@ public sealed class LeaderboardProcessor(
         }
     }
 
-    public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public async ValueTask OnCheckpoint(CheckpointContext context) {
         // Get stats about the main leaderboard
         var mainLeaderboard = "leaderboard:main";
         var totalPlayers = await Db.SortedSetLengthAsync(mainLeaderboard);
 
         logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Scores: {Scores} | Players: {Players} | Leaderboard size: {Size}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+            "Checkpoint {CheckpointId} | Scores: {Scores} | Players: {Players} | Leaderboard size: {Size}",
+            context.CheckpointId,
             _scoresProcessed,
             _playersRegistered,
             totalPlayers
         );
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
+    public ValueTask OnComplete(CompleteContext context) {
         logger.LogInformation(
-            "Shutting down ({Reason}) | Total scores: {Scores}, Players registered: {Players}",
-            context.Reason,
+            "Completed | Total scores: {Scores}, Players registered: {Players}",
             _scoresProcessed,
             _playersRegistered
         );

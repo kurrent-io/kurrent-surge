@@ -21,12 +21,6 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
     long _customerUpdates;
     long _productUpdates;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing OrderEnrichmentProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        logger.LogInformation("Building lookup tables from CustomerUpdated and ProductUpdated events");
-        return ValueTask.CompletedTask;
-    }
-
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             switch (record.Value) {
@@ -147,10 +141,10 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
         _          => 0m
     };
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public ValueTask OnCheckpoint(CheckpointContext context) {
         logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Orders: {Orders} ({Enriched} fully enriched) | Customers: {Customers} | Products: {Products}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+            "Checkpoint {CheckpointId} | Orders: {Orders} ({Enriched} fully enriched) | Customers: {Customers} | Products: {Products}",
+            context.CheckpointId,
             _ordersProcessed,
             _ordersFullyEnriched,
             _customers.Count,
@@ -160,10 +154,9 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
+    public ValueTask OnComplete(CompleteContext context) {
         logger.LogInformation(
-            "Shutting down ({Reason}) | Orders: {Orders}, Customer updates: {CustUpdates}, Product updates: {ProdUpdates}",
-            context.Reason,
+            "Completed | Orders: {Orders}, Customer updates: {CustUpdates}, Product updates: {ProdUpdates}",
             _ordersProcessed,
             _customerUpdates,
             _productUpdates

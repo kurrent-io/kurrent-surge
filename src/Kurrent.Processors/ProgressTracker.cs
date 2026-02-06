@@ -18,7 +18,7 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    BarrierId         _lastCheckpointId      = BarrierId.None;
+    CheckpointId         _lastCheckpointId      = CheckpointId.None;
     CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
     DateTimeOffset?   _lastCheckpointAt;
 
@@ -49,13 +49,13 @@ sealed class ProgressTracker {
     /// <summary>
     /// Tracks a checkpoint completion.
     /// </summary>
-    /// <param name="barrier">The checkpoint barrier that completed.</param>
-    public void TrackCheckpoint(CheckpointBarrier barrier) {
+    /// <param name="checkpoint">The checkpoint that completed.</param>
+    public void TrackCheckpoint(Checkpoint checkpoint) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint  = _totalRecords;
-        _lastCheckpointId  = barrier.BarrierId;
-        _lastCheckpointTrigger    = barrier.Trigger;
-        _lastCheckpointAt         = barrier.Timestamp;
+        _lastCheckpointId  = checkpoint.CheckpointId;
+        _lastCheckpointTrigger    = checkpoint.Trigger;
+        _lastCheckpointAt         = checkpoint.Timestamp;
     }
 
     /// <summary>
@@ -65,10 +65,13 @@ sealed class ProgressTracker {
         get {
             var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
 
+            var totalSeconds = elapsed.TotalSeconds;
+
             var throughput = new ThroughputMetrics(
                 TotalRecords:     _totalRecords,
                 TotalBatches:     _totalBatches,
-                RecordsPerSecond: elapsed.TotalSeconds > 0 ? _totalRecords / elapsed.TotalSeconds : 0,
+                RecordsPerSecond: totalSeconds > 0 ? _totalRecords / totalSeconds : 0,
+                BatchesPerSecond: totalSeconds > 0 ? _totalBatches / totalSeconds : 0,
                 AverageBatchSize: _totalBatches > 0 ? (double)_totalRecords / _totalBatches : 0,
                 StartedAt:        _startedAt,
                 Elapsed:          elapsed
@@ -77,7 +80,7 @@ sealed class ProgressTracker {
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
                 RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
-                //LastBarrierId:              _lastCheckpointId,
+                //LastCheckpointId:              _lastCheckpointId,
                 LastTrigger:                _lastCheckpointTrigger,
                 LastCheckpointAt:            _lastCheckpointAt
             );

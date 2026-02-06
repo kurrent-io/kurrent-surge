@@ -1,7 +1,9 @@
-using Kurrent.Processors;
+using Kurrent.Client;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Fluent builder for configuring a processor's hosting options.

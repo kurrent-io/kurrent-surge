@@ -7,6 +7,7 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Processors.Options;
 using KurrentDB.Client;
 using KurrentDB.Protocol.V1;
 using Contracts = KurrentDB.Protocol.V1.Streams;
@@ -194,14 +195,14 @@ static class ProtocolMapping {
         }
     }
 
-    public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
+    public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
         var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(BarrierId.New(), CheckpointTrigger.Interval, timestamp);
+        return new Checkpoint(CheckpointId.New(), CheckpointTrigger.Interval, timestamp);
     }
 
-    public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
+    public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
         var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(BarrierId.New(), CheckpointTrigger.CaughtUp, timestamp);
+        return new Checkpoint(CheckpointId.New(), CheckpointTrigger.CaughtUp, timestamp);
     }
 
     public static async ValueTask<Record> MapToRecordAsync(

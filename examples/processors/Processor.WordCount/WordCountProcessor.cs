@@ -17,11 +17,6 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
     long _totalTextsProcessed;
     long _totalWordsProcessed;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing WordCountProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        return ValueTask.CompletedTask;
-    }
-
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             if (record.Value is TextSubmitted text) {
@@ -50,7 +45,7 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
         logger.LogDebug("Processed text {TextId}: {WordCount} words", text.TextId, wordCount);
     }
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public ValueTask OnCheckpoint(CheckpointContext context) {
         // Log top 10 words at each checkpoint
         var topWords = _wordCounts
             .OrderByDescending(kvp => kvp.Value)
@@ -58,8 +53,8 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
             .ToList();
 
         logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Texts: {TextCount} | Words: {TotalWords} | Unique: {UniqueWords}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+            "Checkpoint {CheckpointId} | Texts: {TextCount} | Words: {TotalWords} | Unique: {UniqueWords}",
+            context.CheckpointId,
             _totalTextsProcessed,
             _totalWordsProcessed,
             _wordCounts.Count
@@ -75,10 +70,9 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
+    public ValueTask OnComplete(CompleteContext context) {
         logger.LogInformation(
-            "Shutting down ({Reason}) | Final stats: {TextCount} texts, {TotalWords} words, {UniqueWords} unique",
-            context.Reason,
+            "Completed | Final stats: {TextCount} texts, {TotalWords} words, {UniqueWords} unique",
             _totalTextsProcessed,
             _totalWordsProcessed,
             _wordCounts.Count

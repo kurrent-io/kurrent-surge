@@ -20,16 +20,6 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
     long _totalReadings;
     long _alertsRaised;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing TemperatureMonitorProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        logger.LogInformation(
-            "Thresholds: High={High}°C, Low={Low}°C, Anomaly={Sigma}σ",
-            HighTempThreshold, LowTempThreshold, AnomalyStdDevMultiplier
-        );
-
-        return ValueTask.CompletedTask;
-    }
-
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             if (record.Value is SensorReading reading) {
@@ -104,10 +94,10 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         }
     }
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public ValueTask OnCheckpoint(CheckpointContext context) {
         logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Readings: {Readings} | Sensors: {Sensors} | Alerts: {Alerts}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+            "Checkpoint {CheckpointId} | Readings: {Readings} | Sensors: {Sensors} | Alerts: {Alerts}",
+            context.CheckpointId,
             _totalReadings,
             _sensorStates.Count,
             _alertsRaised
@@ -116,10 +106,9 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
+    public ValueTask OnComplete(CompleteContext context) {
         logger.LogInformation(
-            "Shutting down ({Reason}) | Total readings: {Readings}, Alerts raised: {Alerts}",
-            context.Reason,
+            "Completed | Total readings: {Readings}, Alerts raised: {Alerts}",
             _totalReadings,
             _alertsRaised
         );

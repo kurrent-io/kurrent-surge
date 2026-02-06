@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options.Validators;
 
 public class WorkerSettingsValidator : AbstractValidator<WorkerSettings> {
     public static readonly WorkerSettingsValidator Instance = new();

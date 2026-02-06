@@ -101,15 +101,16 @@ public class HomeAutomationDataSet : DataSet {
         for (var i = 0; i < count; i++) {
             timestamp += Faker.Random.Number(1, maxIntervalMinutes) * 60000L;
 
-            var device   = Faker.PickRandom(devices);
-            var evt = GenerateEventForDevice(device, timestamp);
+            var device = Faker.PickRandom(devices);
+            var evt    = GenerateEventForDevice(device, timestamp);
 
             if (evt is not null) {
                 events.Add(evt);
 
-                // Generate correlated events
-                var correlatedEvents = GenerateCorrelatedEvents(device, timestamp, devices, Faker);
-                events.AddRange(correlatedEvents);
+                // this is not deterministics - need to figure this out.
+                // // Generate correlated events
+                // var correlatedEvents = GenerateCorrelatedEvents(device, timestamp, devices, Faker);
+                // events.AddRange(correlatedEvents);
             }
         }
 

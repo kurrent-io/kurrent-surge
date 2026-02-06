@@ -1,7 +1,9 @@
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Internal builder for processor settings manipulation.

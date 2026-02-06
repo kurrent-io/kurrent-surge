@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Models;
 
 /// <summary>
 /// Represents a unique identifier for a worker instance within a processor group.

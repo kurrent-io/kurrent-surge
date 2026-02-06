@@ -1,4 +1,4 @@
-namespace Kurrent.Processors.Locks;
+namespace Kurrent;
 
 /// <summary>
 /// Represents a specialized task completion source that facilitates token-based

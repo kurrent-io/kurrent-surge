@@ -255,15 +255,15 @@ namespace Resources {
             }
         }
 
-        internal static string ProcessRecordsException {
+        internal static string Worker_ProcessRecordsFailed {
             get {
-                return ResourceManager.GetString("ProcessRecordsException", resourceCulture);
+                return ResourceManager.GetString("Worker_ProcessRecordsFailed", resourceCulture);
             }
         }
 
-        internal static string CheckpointException {
+        internal static string Worker_OnCheckpointFailed {
             get {
-                return ResourceManager.GetString("CheckpointException", resourceCulture);
+                return ResourceManager.GetString("Worker_OnCheckpointFailed", resourceCulture);
             }
         }
 
@@ -273,9 +273,15 @@ namespace Resources {
             }
         }
 
-        internal static string ShutdownException {
+        internal static string Worker_OnErrorFailed {
             get {
-                return ResourceManager.GetString("ShutdownException", resourceCulture);
+                return ResourceManager.GetString("Worker_OnErrorFailed", resourceCulture);
+            }
+        }
+
+        internal static string Worker_OnCompleteFailed {
+            get {
+                return ResourceManager.GetString("Worker_OnCompleteFailed", resourceCulture);
             }
         }
     }

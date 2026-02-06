@@ -1,4 +1,7 @@
-namespace Kurrent.Client.Streams;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
+
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Fluent builder for <see cref="SubscriptionSettings"/>.

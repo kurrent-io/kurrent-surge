@@ -1,5 +1,6 @@
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Partitioning;
 

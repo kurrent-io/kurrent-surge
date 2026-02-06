@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options.Validators;
 
 public class ProcessorSettingsValidator : FluentOptionsValidator<ProcessorSettingsValidator, ProcessorSettings> {
     public ProcessorSettingsValidator() {

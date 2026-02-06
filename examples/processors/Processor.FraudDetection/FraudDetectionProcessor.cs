@@ -20,17 +20,6 @@ public sealed class FraudDetectionProcessor(ILogger<FraudDetectionProcessor> log
     long _totalTransactions;
     long _fraudAlertsRaised;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing FraudDetectionProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        logger.LogInformation(
-            "Pattern: Small tx (≤${Small}) → Large tx (≥${Large}) within {Window}",
-            SmallTransactionThreshold,
-            LargeTransactionThreshold,
-            PatternWindow
-        );
-        return ValueTask.CompletedTask;
-    }
-
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             if (record.Value is Transaction tx) {
@@ -112,10 +101,10 @@ public sealed class FraudDetectionProcessor(ILogger<FraudDetectionProcessor> log
         }
     }
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public ValueTask OnCheckpoint(CheckpointContext context) {
         logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Transactions: {Tx} | Accounts: {Accounts} | Fraud Alerts: {Alerts}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+            "Checkpoint {CheckpointId} | Transactions: {Tx} | Accounts: {Accounts} | Fraud Alerts: {Alerts}",
+            context.CheckpointId,
             _totalTransactions,
             _accountStates.Count,
             _fraudAlertsRaised
@@ -124,10 +113,9 @@ public sealed class FraudDetectionProcessor(ILogger<FraudDetectionProcessor> log
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
+    public ValueTask OnComplete(CompleteContext context) {
         logger.LogInformation(
-            "Shutting down ({Reason}) | Total transactions: {Tx}, Fraud alerts: {Alerts}",
-            context.Reason,
+            "Completed | Total transactions: {Tx}, Fraud alerts: {Alerts}",
             _totalTransactions,
             _fraudAlertsRaised
         );

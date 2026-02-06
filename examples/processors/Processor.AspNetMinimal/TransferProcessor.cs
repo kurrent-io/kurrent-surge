@@ -3,16 +3,12 @@ using Transfermarkt.Domain;
 
 namespace Processor.AspNetMinimal;
 
-/// <summary>
-/// Processor that logs transfers using ILogger.
-/// Demonstrates proper logging integration with Serilog.
-/// </summary>
-public sealed class TransferProcessor(ILogger<TransferProcessor> logger) : IRecordProcessor {
+public class TransferProcessor : IRecordProcessor {
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             switch (record.Value) {
                 case PlayerTransferred transfer:
-                    logger.LogInformation(
+                    context.Logger.LogInformation(
                         "Transfer: {PlayerName} from {FromClub} to {ToClub} for {Fee:C}",
                         transfer.PlayerName.ToString(),
                         transfer.FromClubId.ToString(),
@@ -22,7 +18,7 @@ public sealed class TransferProcessor(ILogger<TransferProcessor> logger) : IReco
                     break;
 
                 case PlayerRegistered registered:
-                    logger.LogInformation(
+                    context.Logger.LogInformation(
                         "Registration: {PlayerName} ({Nationality}, {Position})",
                         registered.Name.ToString(),
                         registered.Nationality.ToString(),

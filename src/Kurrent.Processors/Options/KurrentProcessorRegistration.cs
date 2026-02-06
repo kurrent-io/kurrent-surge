@@ -1,6 +1,6 @@
-using Kurrent.Processors;
+using Kurrent.Client;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Internal registration info for a processor type.

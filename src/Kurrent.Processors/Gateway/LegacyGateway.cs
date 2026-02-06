@@ -19,6 +19,7 @@ using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;
@@ -108,13 +109,13 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
         );
 
         // Starts a relay that pumps messages from the gRPC stream into a channel.
-        // Returns a channel with unbatched raw messages (single Record | CheckpointBarrier).
+        // Returns a channel with unbatched raw messages (single Record | Checkpoint).
         Channel<LegacyGatewayMessage> StartRelay(
             AsyncServerStreamingCall<ReadResp> grpcSession,
             ProcessorSettings options,
             CancellationToken stoppingToken
         ) {
-            // Channel holds unbatched raw messages (single Record | CheckpointBarrier)
+            // Channel holds unbatched raw messages (single Record | Checkpoint)
             // SingleWriter = false: pump + timer both write
             var channel = Channel.CreateBounded<LegacyGatewayMessage>(
                 new BoundedChannelOptions(options.Worker.BufferCapacity) {
@@ -127,8 +128,8 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
             // start pumping messages
             _ = Task.Run(PumpPump, stoppingToken);
 
-            // start barrier timer
-            _ = Task.Run(BarrierTimerAsync, stoppingToken);
+            // start checkpoint timer
+            _ = Task.Run(CheckpointTimerAsync, stoppingToken);
 
             return channel;
 
@@ -149,12 +150,12 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                         LegacyGatewayMessage message;
 
                         switch (resp?.ContentCase) {
-                            case Checkpoint:
-                                message = resp.Checkpoint.MapToBarrier(sequencer.FetchNext());
+                            case ReadResp.ContentOneofCase.Checkpoint:
+                                message = resp.Checkpoint.MapToCheckpoint(sequencer.FetchNext());
                                 break;
 
                             case CaughtUp:
-                                message = resp.CaughtUp.MapToBarrier(sequencer.FetchNext());
+                                message = resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
                                 break;
 
                             case Event:
@@ -220,7 +221,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                 }
             }
 
-            async ValueTask BarrierTimerAsync() {
+            async ValueTask CheckpointTimerAsync() {
                 var clock = new HybridLogicalClock(Time);
 
                 using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(options.Checkpoint.Interval));
@@ -230,14 +231,14 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
 
                         var now = clock.Now();
 
-                        var barrier = new CheckpointBarrier(
-                            BarrierId.From(now),
+                        var checkpoint = new Checkpoint(
+                            CheckpointId.From(now),
                             CheckpointTrigger.Interval,
                             now.DateTimeOffset // interesting right? -_-'
                         );
 
                         await channel.Writer
-                            .WriteAsync(barrier, stoppingToken)
+                            .WriteAsync(checkpoint, stoppingToken)
                             .ConfigureAwait(false);
                     }
                 }
@@ -263,4 +264,4 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
     }
 }
 
-readonly partial record struct LegacyGatewayMessage : IVariant<Record, CheckpointBarrier>;
+readonly partial record struct LegacyGatewayMessage : IVariant<Record, Checkpoint>;

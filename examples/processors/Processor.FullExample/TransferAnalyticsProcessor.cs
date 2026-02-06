@@ -24,27 +24,6 @@ public sealed class TransferAnalyticsProcessor(
 
     IDatabase Redis => redis.GetDatabase();
 
-    public async ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing TransferAnalyticsProcessor: {ProcessorId}", context.Settings.ProcessorId);
-
-        // Ensure Postgres table exists
-        await using var conn = await postgres.OpenConnectionAsync(context.CancellationToken);
-        await conn.ExecuteAsync("""
-            CREATE TABLE IF NOT EXISTS club_spending (
-                club_id TEXT NOT NULL,
-                season INT NOT NULL,
-                total_spent DECIMAL(18,2) NOT NULL DEFAULT 0,
-                total_received DECIMAL(18,2) NOT NULL DEFAULT 0,
-                players_in INT NOT NULL DEFAULT 0,
-                players_out INT NOT NULL DEFAULT 0,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (club_id, season)
-            )
-            """);
-
-        logger.LogInformation("Database schema initialized");
-    }
-
     public async ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             switch (record.Value) {
@@ -132,9 +111,9 @@ public sealed class TransferAnalyticsProcessor(
         }
     }
 
-    public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public async ValueTask OnCheckpoint(CheckpointContext context) {
         if (_pendingSpending.IsEmpty) {
-            logger.LogDebug("Checkpoint #{CheckpointNumber}: no pending changes", context.Progress.Checkpoint.TotalCheckpoints);
+            logger.LogDebug("Checkpoint {CheckpointId}: no pending changes", context.CheckpointId);
             return;
         }
 
@@ -162,8 +141,8 @@ public sealed class TransferAnalyticsProcessor(
             }
 
             await tx.CommitAsync(context.CancellationToken);
-            logger.LogInformation("Checkpoint #{CheckpointNumber}: flushed {RecordCount} club aggregates",
-                context.Progress.Checkpoint.TotalCheckpoints, toFlush.Length);
+            logger.LogInformation("Checkpoint {CheckpointId}: flushed {RecordCount} club aggregates",
+                context.CheckpointId, toFlush.Length);
         }
         catch {
             await tx.RollbackAsync(context.CancellationToken);
@@ -171,8 +150,8 @@ public sealed class TransferAnalyticsProcessor(
         }
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation("Shutting down ({Reason}), {PendingCount} pending", context.Reason, _pendingSpending.Count);
+    public ValueTask OnComplete(CompleteContext context) {
+        logger.LogInformation("Completed, {PendingCount} pending", _pendingSpending.Count);
         return ValueTask.CompletedTask;
     }
 

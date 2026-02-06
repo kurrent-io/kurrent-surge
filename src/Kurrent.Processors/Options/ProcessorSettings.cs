@@ -1,4 +1,8 @@
-namespace Kurrent.Client.Streams;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options.Validators;
+
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Configuration settings for a processor.

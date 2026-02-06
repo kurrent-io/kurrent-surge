@@ -371,4 +371,7 @@ public readonly struct PendingPositionsFlush {
     /// Commits the flush, removing the positions from the tracker.
     /// </summary>
     public void Execute() => _tracker.FlushUpTo(Positions);
+
+    public override string ToString() =>
+        string.Join(", ", Positions.Select(kvp => $"P{kvp.Key}={kvp.Value.LogPosition}")); // TODO SS: just use log positions if we keep partition
 }

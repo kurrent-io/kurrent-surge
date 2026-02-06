@@ -3,6 +3,8 @@ using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
 using Kurrent.Processors.Partitioning;
 
 namespace Kurrent.Processors.Gateway;
@@ -50,7 +52,7 @@ sealed class LegacyWorkerSession : IWorkerSession {
             _settings.Batching.MaxSize, _settings.Batching.TimeoutTimeSpan,
             static msg => msg.IsRecord
                 ? BatchAction<Record, ProcessorControlMessage>.Batch(msg.AsRecord)
-                : BatchAction<Record, ProcessorControlMessage>.FlushThenYield(msg.AsCheckpointBarrier),
+                : BatchAction<Record, ProcessorControlMessage>.FlushThenYield(msg.AsCheckpoint),
             static records => RecordBatch.From(records),
             ct
         );

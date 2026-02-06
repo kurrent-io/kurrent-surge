@@ -1,7 +1,10 @@
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
+using Kurrent.Processors.Diagnostics;
 using Kurrent.Processors.Gateway;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kurrent.Client.Tests.Modules.Processors;
@@ -22,10 +25,16 @@ public class ProcessorWorkerLifecycleTests {
             WorkerId    = "test-worker"
         };
 
+        var diagnostics = new WorkerTelemetry(
+            NullLoggerFactory.Instance.CreateLogger(processor.GetType().FullName ?? processor.GetType().Name),
+            settings.ProcessorId,
+            settings.WorkerId);
+
         return new ProcessorWorker(
             settings,
             client,
             processor,
+            diagnostics,
             NullLoggerFactory.Instance,
             TimeProvider.System,
             ownsClient,
@@ -105,8 +114,7 @@ public class ProcessorWorkerLifecycleTests {
         // Arrange
         var processor = A.Fake<IRecordProcessor>();
 
-        A.CallTo(() => processor.OnPartitionAssignment(A<PartitionAssignmentContext>._)).Returns(ValueTask.CompletedTask);
-        A.CallTo(() => processor.OnShutdown(A<ShutdownContext>._)).Returns(ValueTask.CompletedTask);
+        A.CallTo(() => processor.OnError(A<ErrorContext>._)).Returns(ValueTask.CompletedTask);
 
         var session = CreateFakeSession();
         var gateway = A.Fake<IProcessorGateway>();
@@ -272,9 +280,8 @@ public class ProcessorWorkerLifecycleTests {
         var callOrder = new List<string>();
 
         var processor = A.Fake<IRecordProcessor>();
-        A.CallTo(() => processor.OnPartitionAssignment(A<PartitionAssignmentContext>._)).Returns(ValueTask.CompletedTask);
-        A.CallTo(() => processor.OnShutdown(A<ShutdownContext>._))
-            .Invokes(() => callOrder.Add("OnShutdown"))
+        A.CallTo(() => processor.OnComplete(A<CompleteContext>._))
+            .Invokes(() => callOrder.Add("OnComplete"))
             .Returns(ValueTask.CompletedTask);
 
         var session = CreateFakeSession();
@@ -291,8 +298,8 @@ public class ProcessorWorkerLifecycleTests {
         // Act
         await worker.RunAsync(CancellationToken.None);
 
-        // Assert — OnShutdown called before session disposed
-        callOrder.ShouldBe(["OnShutdown", "SessionDisposed"]);
+        // Assert — OnComplete called before session disposed
+        callOrder.ShouldBe(["OnComplete", "SessionDisposed"]);
     }
 
     #endregion

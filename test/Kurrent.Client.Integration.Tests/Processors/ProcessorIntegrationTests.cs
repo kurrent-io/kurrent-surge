@@ -1,12 +1,13 @@
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Processors;
+using Kurrent.Processors.Models;
 
 namespace Kurrent.Client.Tests.Processors;
 
 [Category("Processors")]
 [Category("Integration")]
-[Timeout(30_000)]
+[Timeout(10_000)]
 public class ProcessorIntegrationTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
@@ -125,18 +126,19 @@ public class ProcessorIntegrationTests {
         var task = worker.RunAsync(cancellator.Token);
 
         await cancellator.CancelAsync();
-        await Assert.That(task).ThrowsNothing();
+
+        await Assert.That(task).IsNotCompletedSuccessfully();
     }
 
     [Test]
     public async ValueTask processor_stops_on_user_request(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedSmartHomeActivity(25, ct);
+        var simulation  = await Fixture.SeedSmartHomeActivity(ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"processor_stops_on_user_request-{TestContext.Current!.Id:N}";
 
         processor.OnProcessRecords = ctx => {
-            if (processor.Records.Length >= 10)
+            if (processor.Records.Length == simulation.Records.Count)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -151,9 +153,8 @@ public class ProcessorIntegrationTests {
             .RunAsync(ct);
 
         // Assert
-        await Assert.That(processor.Shutdown).IsNotNull();
-        await Assert.That(processor.Shutdown!.ErrorOccurred).IsFalse();
-        await Assert.That(processor.Records.Length).IsGreaterThanOrEqualTo(10);
+        await Assert.That(processor.Complete).IsNotNull();
+        await Assert.That(processor.Records.Length).IsEqualTo(simulation.Records.Count);
     }
 
     [Test]
@@ -174,7 +175,7 @@ public class ProcessorIntegrationTests {
             .Build();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<ProcessRecordsException>(() => worker.RunAsync(ct));
+        var exception = await Assert.ThrowsAsync<KurrentWorkerException>(() => worker.RunAsync(ct));
 
         await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
         await Assert.That(processor.Records.Length).IsGreaterThan(0); // Records added before callback throws
@@ -198,14 +199,13 @@ public class ProcessorIntegrationTests {
                 .WithInitialPosition(SubscriptionInitialPosition.Earliest)
                 .RunAsync(ct);
         }
-        catch (ProcessRecordsException) {
+        catch (KurrentWorkerException) {
             // Expected
         }
 
         // Assert
-        await Assert.That(processor.Shutdown).IsNotNull();
-        await Assert.That(processor.Shutdown!.ErrorOccurred).IsTrue();
-        await Assert.That(processor.Shutdown.Error).IsNotNull();
+        await Assert.That(processor.Error).IsNotNull();
+        await Assert.That(processor.Error!.Error).IsNotNull();
     }
 
     [Test]

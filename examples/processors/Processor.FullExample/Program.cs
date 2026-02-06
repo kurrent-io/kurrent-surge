@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Options;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;

@@ -18,11 +18,6 @@ public sealed class PlayerCacheProcessor(
 
     IDatabase Db => redis.GetDatabase();
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing PlayerCacheProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        return ValueTask.CompletedTask;
-    }
-
     public async ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             switch (record.Value) {
@@ -85,13 +80,13 @@ public sealed class PlayerCacheProcessor(
         logger.LogDebug("Updated player: {PlayerId} -> {Club}", transfer.PlayerId, playerData.CurrentClub ?? "retired");
     }
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
-        logger.LogInformation("Checkpoint #{CheckpointNumber}", context.Progress.Checkpoint.TotalCheckpoints);
+    public ValueTask OnCheckpoint(CheckpointContext context) {
+        logger.LogInformation("Checkpoint {CheckpointId}", context.CheckpointId);
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation("Shutting down ({Reason})", context.Reason);
+    public ValueTask OnComplete(CompleteContext context) {
+        logger.LogInformation("Completed");
         return ValueTask.CompletedTask;
     }
 

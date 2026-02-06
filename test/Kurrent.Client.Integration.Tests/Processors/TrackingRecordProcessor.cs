@@ -9,7 +9,9 @@ sealed class TestRecordProcessor : IRecordProcessor {
 
     public Func<ProcessRecordsContext, ValueTask>? OnProcessRecords { get; set; }
 
-    public ShutdownContext? Shutdown { get; private set; }
+    public ErrorContext? Error { get; private set; }
+
+    public CompleteContext? Complete { get; private set; }
 
     public Record[] Records => _records.ToArray();
 
@@ -20,8 +22,13 @@ sealed class TestRecordProcessor : IRecordProcessor {
         return OnProcessRecords?.Invoke(context) ?? ValueTask.CompletedTask;
     }
 
-    ValueTask IRecordProcessor.OnShutdown(ShutdownContext context) {
-        Shutdown = context;
+    ValueTask IRecordProcessor.OnError(ErrorContext context) {
+        Error = context;
+        return ValueTask.CompletedTask;
+    }
+
+    ValueTask IRecordProcessor.OnComplete(CompleteContext context) {
+        Complete = context;
         return ValueTask.CompletedTask;
     }
 }

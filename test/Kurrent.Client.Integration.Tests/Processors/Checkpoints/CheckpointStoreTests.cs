@@ -3,6 +3,7 @@ using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Models;
 using CheckpointStore = Kurrent.Processors.Checkpointing.CheckpointStore;
 
 namespace Kurrent.Client.Tests.Processors;
@@ -42,7 +43,7 @@ public class CheckpointStoreTests {
 		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
 		await Assert.That(checkpoint.HasCheckpoint).IsFalse();
 		await Assert.That(checkpoint.Partitions.Count).IsEqualTo(0);
-		await Assert.That(checkpoint.BarrierId).IsEqualTo(BarrierId.None);
+		await Assert.That(checkpoint.CheckpointId).IsEqualTo(CheckpointId.None);
 	}
 
 	[Test]
@@ -51,7 +52,7 @@ public class CheckpointStoreTests {
 		var processorId = CheckpointTestHelpers.ProcessorId("test-single");
 		var store = CreateStore(processorId);
 		var positions = CheckpointTestHelpers.Positions((0, 1000));
-		var barrierId = BarrierId.New();
+		var barrierId = CheckpointId.New();
 
 		// Act - Store
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
@@ -64,7 +65,7 @@ public class CheckpointStoreTests {
 		await Assert.That(checkpoint.Partitions.Count).IsEqualTo(1);
 		await Assert.That(checkpoint.Partitions[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
 		await Assert.That(checkpoint.Partitions[Partition.From(0)].WorkerId).IsEqualTo("worker-1");
-		await Assert.That(checkpoint.BarrierId).IsEqualTo(barrierId);
+		await Assert.That(checkpoint.CheckpointId).IsEqualTo(barrierId);
 		await Assert.That(checkpoint.Timestamp).IsNotEqualTo(DateTimeOffset.MinValue);
 	}
 
@@ -74,7 +75,7 @@ public class CheckpointStoreTests {
 		var processorId = CheckpointTestHelpers.ProcessorId("test-multi");
 		var store = CreateStore(processorId);
 		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
-		var barrierId = BarrierId.New();
+		var barrierId = CheckpointId.New();
 
 		// Act
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
@@ -100,8 +101,8 @@ public class CheckpointStoreTests {
 		var positions2 = CheckpointTestHelpers.Positions((1, 2500), (2, 3000)); // Update partition 1, add partition 2
 
 		// Act
-		await store.StoreAsync("worker-1", BarrierId.New(), positions1, ct);
-		await store.StoreAsync("worker-1", BarrierId.New(), positions2, ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), positions1, ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), positions2, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -125,8 +126,8 @@ public class CheckpointStoreTests {
 		var positions2 = CheckpointTestHelpers.Positions((1, 2000));
 
 		// Act - Simulate near-simultaneous stores from 2 workers
-		var task1 = store1.StoreAsync("worker-1", BarrierId.New(), positions1, ct).AsTask();
-		var task2 = store2.StoreAsync("worker-2", BarrierId.New(), positions2, ct).AsTask();
+		var task1 = store1.StoreAsync("worker-1", CheckpointId.New(), positions1, ct).AsTask();
+		var task2 = store2.StoreAsync("worker-2", CheckpointId.New(), positions2, ct).AsTask();
 		await Task.WhenAll(task1, task2);
 
 		// Load final state
@@ -152,7 +153,7 @@ public class CheckpointStoreTests {
 		// Act - All workers store to same processor simultaneously
 		var tasks = stores.Select((store, i) => {
 			var positions = CheckpointTestHelpers.Positions((i, (i + 1) * 1000));
-			return store.StoreAsync($"worker-{i}", BarrierId.New(), positions, ct).AsTask();
+			return store.StoreAsync($"worker-{i}", CheckpointId.New(), positions, ct).AsTask();
 		}).ToArray();
 
 		await Task.WhenAll(tasks);
@@ -180,7 +181,7 @@ public class CheckpointStoreTests {
 
 		// Act & Assert
 		await Assert.That(async () => {
-			await store.StoreAsync("worker-1", BarrierId.New(), emptyPositions, ct);
+			await store.StoreAsync("worker-1", CheckpointId.New(), emptyPositions, ct);
 		}).ThrowsExactly<InvalidOperationException>();
 	}
 
@@ -190,8 +191,8 @@ public class CheckpointStoreTests {
 		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier");
 		var store = CreateStore(processorId);
 		var positions = CheckpointTestHelpers.Positions((0, 1000));
-		var barrier1 = BarrierId.New();
-		var barrier2 = BarrierId.New();
+		var barrier1 = CheckpointId.New();
+		var barrier2 = CheckpointId.New();
 
 		// Act
 		await store.StoreAsync("worker-1", barrier1, positions, ct);
@@ -201,9 +202,9 @@ public class CheckpointStoreTests {
 		var checkpoint2 = await store.LoadLatestAsync(ct);
 
 		// Assert
-		await Assert.That(checkpoint1.BarrierId).IsEqualTo(barrier1);
-		await Assert.That(checkpoint2.BarrierId).IsEqualTo(barrier2);
-		await Assert.That(checkpoint2.BarrierId).IsNotEqualTo(barrier1);
+		await Assert.That(checkpoint1.CheckpointId).IsEqualTo(barrier1);
+		await Assert.That(checkpoint2.CheckpointId).IsEqualTo(barrier2);
+		await Assert.That(checkpoint2.CheckpointId).IsNotEqualTo(barrier1);
 	}
 
 	[Test]
@@ -214,12 +215,12 @@ public class CheckpointStoreTests {
 		var positions = CheckpointTestHelpers.Positions((0, 1000));
 
 		// Act
-		await store.StoreAsync("worker-1", BarrierId.New(), positions, ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
 		var checkpoint1 = await store.LoadLatestAsync(ct);
 
 		await Task.Delay(100, ct); // Ensure time passes
 
-		await store.StoreAsync("worker-1", BarrierId.New(), positions, ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
 		var checkpoint2 = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -239,7 +240,7 @@ public class CheckpointStoreTests {
 		var streamName = $"$processors/{processorId}/checkpoints";
 
 		// Act
-		await store.StoreAsync("worker-1", BarrierId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info to verify retention policy
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct).UnwrapAsync();
@@ -262,7 +263,7 @@ public class CheckpointStoreTests {
 
 		// Act - Create store with different maxCount
 		var store = CreateStore(processorId, maxCount: 100);
-		await store.StoreAsync("worker-1", BarrierId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct).UnwrapAsync();
@@ -279,7 +280,7 @@ public class CheckpointStoreTests {
 		var streamName = $"$processors/{processorId}/checkpoints";
 
 		// Act
-		await store.StoreAsync("worker-1", BarrierId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct).UnwrapAsync();
@@ -299,7 +300,7 @@ public class CheckpointStoreTests {
 		var store = CreateStore(processorId);
 		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
 
-		await store.StoreAsync("worker-1", BarrierId.New(), positions, ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
 
 		// Request partitions 0, 1 (checkpointed), and 2 (new, needs default)
 		var partitions = new[] { Partition.From(0), Partition.From(1), Partition.From(2) };
@@ -325,7 +326,7 @@ public class CheckpointStoreTests {
 		var store = CreateStore(processorId);
 		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
 
-		await store.StoreAsync("worker-1", BarrierId.New(), positions, ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
 
 		// Request only partitions 0 and 2
 		var partitions = new[] { Partition.From(0), Partition.From(2) };
@@ -374,10 +375,10 @@ public class CheckpointStoreTests {
 		var store = CreateStore(processorId);
 
 		// Store with one barrier
-		await store.StoreAsync("worker-1", BarrierId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
+		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Act - try to load with different barrier
-		var checkpoint = await store.LoadAsync(BarrierId.New(), ct);
+		var checkpoint = await store.LoadAsync(CheckpointId.New(), ct);
 
 		// Assert
 		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
@@ -388,7 +389,7 @@ public class CheckpointStoreTests {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-load");
 		var store = CreateStore(processorId);
-		var barrierId = BarrierId.New();
+		var barrierId = CheckpointId.New();
 		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 3000), (2, 2000));
 
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
@@ -399,7 +400,7 @@ public class CheckpointStoreTests {
 		// Assert - positions
 		await Assert.That(checkpoint.HasCheckpoint).IsTrue();
 		await Assert.That(checkpoint.Partitions.Count).IsEqualTo(3);
-		await Assert.That(checkpoint.BarrierId).IsEqualTo(barrierId);
+		await Assert.That(checkpoint.CheckpointId).IsEqualTo(barrierId);
 
 		// Assert - watermarks computed from stored partitions
 		await Assert.That(checkpoint.LowWatermark.LogPosition.Value).IsEqualTo(1000);
@@ -411,7 +412,7 @@ public class CheckpointStoreTests {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-partitions");
 		var store = CreateStore(processorId);
-		var barrierId = BarrierId.New();
+		var barrierId = CheckpointId.New();
 		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
 
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
@@ -438,8 +439,8 @@ public class CheckpointStoreTests {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-older");
 		var store = CreateStore(processorId);
-		var barrier1 = BarrierId.New();
-		var barrier2 = BarrierId.New();
+		var barrier1 = CheckpointId.New();
+		var barrier2 = CheckpointId.New();
 
 		// Store two checkpoints
 		await store.StoreAsync("worker-1", barrier1, CheckpointTestHelpers.Positions((0, 1000)), ct);
@@ -449,7 +450,7 @@ public class CheckpointStoreTests {
 		var checkpoint = await store.LoadAsync(barrier1, ct);
 
 		// Assert - should get the first checkpoint
-		await Assert.That(checkpoint.BarrierId).IsEqualTo(barrier1);
+		await Assert.That(checkpoint.CheckpointId).IsEqualTo(barrier1);
 		await Assert.That(checkpoint.Partitions[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
 	}
 

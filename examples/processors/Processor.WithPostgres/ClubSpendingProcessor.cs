@@ -17,25 +17,6 @@ public sealed class ClubSpendingProcessor(
 ) : IRecordProcessor {
     readonly ConcurrentDictionary<string, ClubSpending> _pending = new();
 
-    public async ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing ClubSpendingProcessor: {ProcessorId}", context.Settings.ProcessorId);
-
-        // Ensure table exists
-        await using var conn = await dataSource.OpenConnectionAsync(context.CancellationToken);
-        await conn.ExecuteAsync("""
-            CREATE TABLE IF NOT EXISTS club_spending (
-                club_id TEXT NOT NULL,
-                season INT NOT NULL,
-                total_spent DECIMAL(18,2) NOT NULL DEFAULT 0,
-                total_received DECIMAL(18,2) NOT NULL DEFAULT 0,
-                players_in INT NOT NULL DEFAULT 0,
-                players_out INT NOT NULL DEFAULT 0,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (club_id, season)
-            )
-            """);
-    }
-
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             if (record.Value is not PlayerTransferred transfer)
@@ -83,7 +64,7 @@ public sealed class ClubSpendingProcessor(
         return ValueTask.CompletedTask;
     }
 
-    public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public async ValueTask OnCheckpoint(CheckpointContext context) {
         if (_pending.IsEmpty)
             return;
 
@@ -113,8 +94,8 @@ public sealed class ClubSpendingProcessor(
 
             await tx.CommitAsync(context.CancellationToken);
             logger.LogInformation(
-                "Checkpoint #{CheckpointNumber}: flushed {RecordCount} club aggregates to Postgres",
-                context.Progress.Checkpoint.TotalCheckpoints,
+                "Checkpoint {CheckpointId}: flushed {RecordCount} club aggregates to Postgres",
+                context.CheckpointId,
                 toFlush.Length
             );
         }
@@ -124,8 +105,8 @@ public sealed class ClubSpendingProcessor(
         }
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation("Shutting down ({Reason}), {PendingCount} pending records", context.Reason, _pending.Count);
+    public ValueTask OnComplete(CompleteContext context) {
+        logger.LogInformation("Completed, {PendingCount} pending records", _pending.Count);
         return ValueTask.CompletedTask;
     }
 

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Fluent builder for <see cref="WorkerSettings"/>.

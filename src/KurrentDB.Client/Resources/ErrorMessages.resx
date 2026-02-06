@@ -164,12 +164,12 @@
     <value>Processor initialization failed.</value>
     <comment>The exception message for when IRecordProcessor.Initialize callback throws an exception.</comment>
   </data>
-  <data name="ProcessRecordsException" xml:space="preserve">
-    <value>Record processing failed.</value>
+  <data name="Worker_ProcessRecordsFailed" xml:space="preserve">
+    <value>An error occurred while processing records.</value>
     <comment>The exception message for when IRecordProcessor.ProcessRecords callback throws an exception.</comment>
   </data>
-  <data name="CheckpointException" xml:space="preserve">
-    <value>Checkpoint processing failed.</value>
+  <data name="Worker_OnCheckpointFailed" xml:space="preserve">
+    <value>An error occurred during checkpoint handling.</value>
     <comment>The exception message for when IRecordProcessor.OnCheckpoint callback throws an exception.</comment>
   </data>
   <data name="AssignmentChangeException" xml:space="preserve">
@@ -177,9 +177,13 @@
     <comment>The exception message for when IRecordProcessor.OnAssignmentChange callback throws an exception.</comment>
   </data>
 
-  <data name="ShutdownException" xml:space="preserve">
-    <value>Processor shutdown failed.</value>
-    <comment>The exception message for when IRecordProcessor.OnShutdown callback throws an exception.</comment>
+  <data name="Worker_OnErrorFailed" xml:space="preserve">
+    <value>An error occurred in the error handler.</value>
+    <comment>The exception message for when IRecordProcessor.OnError callback throws an exception.</comment>
+  </data>
+  <data name="Worker_OnCompleteFailed" xml:space="preserve">
+    <value>An error occurred in the completion handler.</value>
+    <comment>The exception message for when IRecordProcessor.OnComplete callback throws an exception.</comment>
   </data>
 
   <!-- <data name="ProcessorInitializationFailed" xml:space="preserve"> -->

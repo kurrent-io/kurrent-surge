@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options.Validators;
 
 public class SubscriptionSettingsValidator : AbstractValidator<SubscriptionSettings> {
     public static readonly SubscriptionSettingsValidator Instance = new();

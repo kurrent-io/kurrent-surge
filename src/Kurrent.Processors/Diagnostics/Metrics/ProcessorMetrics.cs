@@ -1,12 +1,10 @@
-// ReSharper disable CheckNamespace
-
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Diagnostics.Metrics;
 
-namespace Kurrent.Client.Processors.Diagnostics;
+namespace Kurrent.Processors.Diagnostics.Metrics;
 
 /// <summary>
-/// Source-generated metrics for processor workers.
+/// Source-generated metrics for workers.
 /// </summary>
 internal static partial class ProcessorMetrics {
     /// <summary>
@@ -40,8 +38,8 @@ internal static partial class ProcessorMetrics {
     public static partial WorkersConnectedCounter CreateWorkersConnected(Meter meter);
 
     /// <summary>
-    /// Creates a counter for workers disconnected.
+    /// Creates a counter for worker errors.
     /// </summary>
-    [Counter<long>("processor_id", "failed", Name = "kurrent_processor_workers_disconnected")]
-    public static partial WorkersDisconnectedCounter CreateWorkersDisconnected(Meter meter);
+    [Counter<long>("processor_id", Name = "kurrent_processor_worker_errors")]
+    public static partial WorkerErrorsCounter CreateWorkerErrors(Meter meter);
 }

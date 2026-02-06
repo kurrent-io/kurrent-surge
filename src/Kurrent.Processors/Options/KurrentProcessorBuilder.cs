@@ -1,8 +1,11 @@
+using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
-using Kurrent.Processors;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Diagnostics;
+using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Fluent builder for configuring processor execution.
@@ -56,7 +59,7 @@ public sealed class KurrentProcessorBuilder {
                 return processorFactory.CreateProcessor();
             }
             catch (Exception ex) {
-                throw new FailedToCreateWorkerException(ex);
+                throw new KurrentWorkerException("WORKER_CREATION_FAILED", "Failed to create record processor instance.", ex);
             }
         };
 
@@ -372,11 +375,17 @@ public sealed class KurrentProcessorBuilder {
         var ownsClient = ProvidedClient is null;
         var client     = ProvidedClient ?? new KurrentClient(options);
 
+        var recordProcessor = GetProcessor();
+        var diagnostics     = new WorkerTelemetry(
+            options.LoggerFactory.CreateLogger(recordProcessor.GetType()),
+            settings.ProcessorId,
+            settings.WorkerId);
+
         return new ProcessorWorker(
             settings,
             client,
-            GetProcessor(),
-            options.LoggerFactory, TimeProvider.System, ownsClient
+            recordProcessor,
+            diagnostics, options.LoggerFactory, TimeProvider.System, ownsClient
         );
     }
 

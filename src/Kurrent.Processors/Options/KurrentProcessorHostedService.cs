@@ -1,7 +1,6 @@
-using Kurrent.Processors;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Generic hosted service that runs a Kurrent processor.

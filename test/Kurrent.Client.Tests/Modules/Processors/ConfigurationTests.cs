@@ -1,6 +1,8 @@
 using System.Text;
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
 using Kurrent.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -276,14 +278,14 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public void worker_initial_status_is_initializing() {
+    public void worker_initial_status_is_starting() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
             .Build();
 
-        worker.Status.ShouldBe(ProcessorWorkerStatus.Initializing);
+        worker.Status.ShouldBe(ProcessorWorkerStatus.Starting);
     }
 
     #endregion
@@ -777,7 +779,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;
@@ -801,7 +803,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;
@@ -829,7 +831,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         return hostedService.Worker.Settings;
@@ -866,7 +868,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;
@@ -904,7 +906,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors;
 
@@ -19,66 +20,8 @@ namespace Kurrent.Processors;
 /// state management, and coordination automatically.
 /// </para>
 /// </remarks>
-/// <example>
-/// <code>
-/// // Minimal implementation - only ProcessRecords is required
-/// class MinimalProcessor : IRecordProcessor {
-///     public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
-///         foreach (var record in ctx.Records)
-///             Console.WriteLine(record.Schema.Name);
-///         return ValueTask.CompletedTask;
-///     }
-/// }
-///
-/// // Full implementation with lifecycle handling
-/// class FullProcessor : IRecordProcessor {
-///     public ValueTask OnInitialize(InitializationContext ctx) {
-///         Console.WriteLine($"Starting processor: {ctx.Settings.ProcessorName}");
-///         return ValueTask.CompletedTask;
-///     }
-///
-///     public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
-///         Console.WriteLine($"Processing {ctx.Records.Count} records, total: {ctx.Progress.Throughput.TotalRecords}");
-///         return ValueTask.CompletedTask;
-///     }
-///
-///     public ValueTask OnCheckpointComplete(CheckpointCompleteContext ctx) {
-///         Console.WriteLine($"Checkpoint #{ctx.Progress.Checkpoint.TotalCheckpoints} at {ctx.Progress.Checkpoint.LastPosition}");
-///         return ValueTask.CompletedTask;
-///     }
-///
-///     public ValueTask OnShutdown(ShutdownContext ctx) {
-///         if (ctx.IsError)
-///             Console.WriteLine($"Error: {ctx.Error}");
-///         else
-///             Console.WriteLine($"Done: {ctx.Progress.Throughput.TotalRecords} records in {ctx.Progress.Throughput.Elapsed}");
-///         return ValueTask.CompletedTask;
-///     }
-/// }
-/// </code>
-/// </example>
 [PublicAPI]
 public interface IRecordProcessor {
-    /// <summary>
-    /// Called when partitions are assigned to this processor, before any records are processed.
-    /// <remarks>
-    /// <para>
-    /// This method is invoked whenever the set of partitions assigned to this processor changes,
-    /// such as during initial assignment or rebalancing events.
-    /// </para>
-    /// <para>
-    /// Use this method to perform any setup or state initialization required for the newly assigned partitions.
-    /// </para>
-    /// </remarks>
-    /// </summary>
-    /// <param name="context">
-    /// Context containing processor information, assigned partitions, and cancellation token.
-    /// </param>
-    /// <returns>
-    /// A <see cref="ValueTask"/> representing the asynchronous operation.
-    /// </returns>
-    ValueTask OnPartitionAssignment(PartitionAssignmentContext context) => ValueTask.CompletedTask;
-
     /// <summary>
     /// Called when records are available for processing.
     /// <remarks>
@@ -95,27 +38,33 @@ public interface IRecordProcessor {
     /// </summary>
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
 
-  /// <summary>
-  /// Called when a checkpoint will be committed to allow for post-checkpoint actions, like 2PC finalization.
-  /// </summary>
-    ValueTask OnCheckpointCommit(CheckpointCommitContext context) => ValueTask.CompletedTask;
-
     /// <summary>
-    /// Called when the worker is shutting down.
+    /// Called when the worker encounters an unrecoverable error.
     /// <remarks>
     /// <para>
-    /// This method is invoked at the end of the processing lifecycle, allowing for cleanup.
-    /// </para>
-    /// <para>
-    /// Check <see cref="ShutdownContext.ErrorOccurred"/> to determine why processing stopped.
+    /// This method is invoked before the worker transitions to <see cref="ProcessorWorkerStatus.Error"/>.
+    /// Use it for error reporting, metrics, or cleanup.
     /// </para>
     /// </remarks>
     /// </summary>
     /// <param name="context">
-    /// Context containing the shutdown reason, final metrics, checkpoint state,
-    /// error (if any), and cancellation token.
+    /// Context containing the error and final progress snapshot.
     /// </param>
-    ValueTask OnShutdown(ShutdownContext context) => ValueTask.CompletedTask;
+    ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Called when the worker completes gracefully (including cancellation).
+    /// <remarks>
+    /// <para>
+    /// This method is invoked before the worker transitions to <see cref="ProcessorWorkerStatus.Stopped"/>.
+    /// Use it for final reporting or cleanup.
+    /// </para>
+    /// </remarks>
+    /// </summary>
+    /// <param name="context">
+    /// Context containing the final progress snapshot.
+    /// </param>
+    ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
 }
 
 public record WorkerContext {
@@ -126,18 +75,6 @@ public record WorkerContext {
     public SessionId         SessionId         { get; init; } = SessionId.None;
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
-
-    public PartitionAssignmentContext ForPartitionAssignment(Partition[] assigned, Partition[] revoked, Partition[] retained) =>
-        new() {
-            ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
-            SessionId         = SessionId,
-            Logger            = Logger,
-            CancellationToken = CancellationToken,
-            Assigned          = assigned,
-            Revoked           = revoked,
-            Retained          = retained
-        };
 
     public ProcessRecordsContext ForProcessRecords(RecordBatch records, WorkerProgress progress) =>
         new() {
@@ -150,29 +87,19 @@ public record WorkerContext {
             Progress          = progress
         };
 
-    public CheckpointContext ForCheckpoint(WorkerProgress progress, CheckpointBarrier barrier) =>
+    public CheckpointContext ForCheckpoint(Checkpoint checkpoint) =>
         new() {
             ProcessorId       = ProcessorId,
             WorkerId          = WorkerId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
-            Progress          = progress,
-            Barrier           = barrier
+            CheckpointId      = checkpoint.CheckpointId,
+            Trigger           = checkpoint.Trigger,
+            Timestamp         = checkpoint.Timestamp
         };
 
-    public CheckpointCommitContext ForCheckpointCommit(WorkerProgress progress, CheckpointBarrier barrier) =>
-        new() {
-            ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
-            SessionId         = SessionId,
-            Logger            = Logger,
-            CancellationToken = CancellationToken,
-            Progress          = progress,
-            Barrier           = barrier
-        };
-
-    public ShutdownContext ForShutdown(WorkerProgress progress, Exception? error = null) =>
+    public ErrorContext ForError(WorkerProgress progress, Exception error) =>
         new() {
             ProcessorId       = ProcessorId,
             WorkerId          = WorkerId,
@@ -182,19 +109,16 @@ public record WorkerContext {
             Progress          = progress,
             Error             = error
         };
-}
 
-[PublicAPI]
-public record PartitionAssignmentContext : WorkerContext {
-    public required Partition[] Assigned { get; init; }
-    public required Partition[] Revoked  { get; init; }
-    public required Partition[] Retained { get; init; }
-
-    public void Deconstruct(out Partition[] assigned, out Partition[] revoked, out Partition[] retained) {
-        assigned = Assigned;
-        revoked  = Revoked;
-        retained = Retained;
-    }
+    public CompleteContext ForComplete(WorkerProgress progress) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Progress          = progress
+        };
 }
 
 /// <summary>
@@ -217,22 +141,26 @@ public record ProcessRecordsContext : WorkerContext {
 /// </summary>
 [PublicAPI]
 public record CheckpointContext : WorkerContext {
-    public WorkerProgress    Progress { get; init; }
-    public CheckpointBarrier Barrier  { get; init; }
+    public string            CheckpointId { get; init; } = string.Empty;
+    public CheckpointTrigger Trigger      { get; init; }
+    public DateTimeOffset    Timestamp    { get; init; }
 }
 
+/// <summary>
+/// Context provided when the worker encounters an unrecoverable error.
+/// </summary>
 [PublicAPI]
-public record CheckpointCommitContext : WorkerContext {
-    public WorkerProgress    Progress { get; init; }
-    public CheckpointBarrier Barrier  { get; init; }
+public record ErrorContext : WorkerContext {
+    public required WorkerProgress Progress { get; init; }
+    public required Exception      Error    { get; init; }
 }
 
+/// <summary>
+/// Context provided when the worker completes gracefully.
+/// </summary>
 [PublicAPI]
-public record ShutdownContext : WorkerContext {
-    public WorkerProgress Progress { get; init; }
-    public Exception?     Error    { get; init; }
-
-    public bool ErrorOccurred => Error is not null;
+public record CompleteContext : WorkerContext {
+    public required WorkerProgress Progress { get; init; }
 }
 
 /// <summary>
@@ -322,6 +250,7 @@ public readonly record struct PartitionProgress(
 /// <param name="TotalRecords">Total number of records processed.</param>
 /// <param name="TotalBatches">Total number of batches processed.</param>
 /// <param name="RecordsPerSecond">Average records processed per second.</param>
+/// <param name="BatchesPerSecond">Average batches processed per second.</param>
 /// <param name="AverageBatchSize">Average number of records per batch.</param>
 /// <param name="StartedAt">When processing started.</param>
 /// <param name="Elapsed">Total time spent processing.</param>
@@ -330,6 +259,7 @@ public readonly record struct ThroughputMetrics(
     long TotalRecords,
     long TotalBatches,
     double RecordsPerSecond,
+    double BatchesPerSecond,
     double AverageBatchSize,
     DateTimeOffset StartedAt,
     TimeSpan Elapsed
@@ -337,7 +267,7 @@ public readonly record struct ThroughputMetrics(
     /// <summary>
     /// Empty metrics with no records processed.
     /// </summary>
-    public static readonly ThroughputMetrics Empty = new(0, 0, 0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
+    public static readonly ThroughputMetrics Empty = new(0, 0, 0, 0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
 }
 
 /// <summary>

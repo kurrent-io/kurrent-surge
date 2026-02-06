@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Checkpointing;
 
@@ -61,7 +62,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>
-    /// The checkpoint containing all partition checkpoints, barrier ID, and resolution logic.
+    /// The checkpoint containing all partition checkpoints, checkpoint ID, and resolution logic.
     /// Returns <see cref="ProcessorCheckpoint.Empty"/> if no checkpoint exists.
     /// </returns>
     public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default) {
@@ -79,7 +80,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             }
 
             var checkpoint = MapToCheckpoint(state);
-            LogLoaded(ProcessorId, checkpoint.Partitions.Count, state.BarrierId);
+            LogLoaded(ProcessorId, checkpoint.Partitions.Count, state.CheckpointId);
             return checkpoint;
         }
         catch (StreamNotFoundException) {
@@ -112,7 +113,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         return new ProcessorCheckpoint {
             Partitions    = partitions,
-            BarrierId     = new BarrierId(state.BarrierId),
+            CheckpointId     = new CheckpointId(state.CheckpointId),
             Timestamp     = state.Timestamp,
             LowWatermark  = low ?? RecordPosition.Earliest,
             HighWatermark = high ?? RecordPosition.Earliest
@@ -161,7 +162,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         return new ProcessorCheckpoint {
             Partitions    = builder.ToImmutable(),
-            BarrierId     = checkpoint.BarrierId,
+            CheckpointId     = checkpoint.CheckpointId,
             Timestamp     = checkpoint.Timestamp,
             LowWatermark  = low ?? defaultPos,
             HighWatermark = high ?? defaultPos
@@ -169,10 +170,10 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     }
 
     /// <inheritdoc />
-    public async ValueTask<ProcessorCheckpoint> LoadAsync(BarrierId barrierId, CancellationToken ct = default) {
+    public async ValueTask<ProcessorCheckpoint> LoadAsync(CheckpointId checkpointId, CancellationToken ct = default) {
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
-        if (barrierId.IsEmpty)
+        if (checkpointId.IsEmpty)
             return ProcessorCheckpoint.Empty;
 
         try {
@@ -193,14 +194,14 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 if (!message.IsRecord)
                     continue;
 
-                if (message.AsRecord.Value is ProcessorCheckpointState state && state.BarrierId == barrierId.Value) {
+                if (message.AsRecord.Value is ProcessorCheckpointState state && state.CheckpointId == checkpointId.Value) {
                     var checkpoint = MapToCheckpoint(state);
-                    LogLoaded(ProcessorId, checkpoint.Partitions.Count, state.BarrierId);
+                    LogLoaded(ProcessorId, checkpoint.Partitions.Count, state.CheckpointId);
                     return checkpoint;
                 }
             }
 
-            LogBarrierNotFound(ProcessorId, barrierId.Value);
+            LogCheckpointNotFound(ProcessorId, checkpointId.Value);
             return ProcessorCheckpoint.Empty;
         }
         catch (StreamNotFoundException) {
@@ -211,7 +212,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     /// <inheritdoc />
     public async ValueTask<ProcessorCheckpoint> LoadAsync(
-        BarrierId barrierId,
+        CheckpointId checkpointId,
         Partition[] partitions,
         SubscriptionInitialPosition initialPosition,
         CancellationToken ct = default
@@ -219,7 +220,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         if (partitions.Length == 0)
             return ProcessorCheckpoint.Empty;
 
-        var checkpoint = await LoadAsync(barrierId, ct).ConfigureAwait(false);
+        var checkpoint = await LoadAsync(checkpointId, ct).ConfigureAwait(false);
 
         var defaultPos = initialPosition == SubscriptionInitialPosition.Earliest
             ? RecordPosition.Earliest
@@ -253,7 +254,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         return new ProcessorCheckpoint {
             Partitions    = builder.ToImmutable(),
-            BarrierId     = checkpoint.BarrierId,
+            CheckpointId     = checkpoint.CheckpointId,
             Timestamp     = checkpoint.Timestamp,
             LowWatermark  = low ?? defaultPos,
             HighWatermark = high ?? defaultPos
@@ -264,7 +265,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// Stores checkpoint positions for the specified partitions, merging with existing positions.
     /// </summary>
     /// <param name="workerId">The worker storing the checkpoint (for attribution).</param>
-    /// <param name="barrierId">The barrier that triggered this checkpoint.</param>
+    /// <param name="checkpointId">The checkpoint that triggered this checkpoint.</param>
     /// <param name="positions">Partition positions to checkpoint.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <exception cref="InvalidOperationException">Thrown when positions dictionary is empty.</exception>
@@ -279,7 +280,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// </remarks>
     public async ValueTask StoreAsync(
         string workerId,
-        BarrierId barrierId,
+        CheckpointId checkpointId,
         ImmutableDictionary<Partition, RecordPosition> positions,
         CancellationToken ct = default
     ) {
@@ -296,7 +297,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             var (currentState, expectedRevision) = await LoadCurrentStateAsync(ct).ConfigureAwait(false);
 
             // 2. Merge new positions with existing
-            var merged = MergePositions(currentState, workerId, barrierId, positions);
+            var merged = MergePositions(currentState, workerId, checkpointId, positions);
 
             // 3. Attempt to store with expected revision
             var request = AppendStreamRequest.New()
@@ -350,7 +351,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     ProcessorCheckpointState MergePositions(
         ProcessorCheckpointState current,
         string workerId,
-        BarrierId barrierId,
+        CheckpointId checkpointId,
         ImmutableDictionary<Partition, RecordPosition> newPositions
     ) {
         var partitionsBuilder = current.Partitions.ToBuilder();
@@ -360,7 +361,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         return new ProcessorCheckpointState {
             Partitions   = partitionsBuilder.ToImmutable(),
-            BarrierId    = barrierId.Value,
+            CheckpointId    = checkpointId.Value,
             ProcessorId  = ProcessorId,
             LastWorkerId = workerId,
             Timestamp    = _time.GetUtcNow()
@@ -413,9 +414,9 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     [LoggerMessage(
         Level = LogLevel.Debug,
-        Message = "[{ProcessorId}] Loaded {PartitionCount} partitions @ barrier {BarrierId}"
+        Message = "[{ProcessorId}] Loaded {PartitionCount} partitions @ checkpoint {CheckpointId}"
     )]
-    partial void LogLoaded(string processorId, int partitionCount, string barrierId);
+    partial void LogLoaded(string processorId, int partitionCount, string checkpointId);
 
     [LoggerMessage(
         Level = LogLevel.Debug,
@@ -431,9 +432,9 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     [LoggerMessage(
         Level = LogLevel.Debug,
-        Message = "[{ProcessorId}] Barrier not found: {BarrierId}"
+        Message = "[{ProcessorId}] Checkpoint not found: {CheckpointId}"
     )]
-    partial void LogBarrierNotFound(string processorId, string barrierId);
+    partial void LogCheckpointNotFound(string processorId, string checkpointId);
 
     [LoggerMessage(
         Level = LogLevel.Debug,
@@ -462,7 +463,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.MinValue;
 
-        public string BarrierId { get; init; } = "";
+        public string CheckpointId { get; init; } = "";
 
         public string ProcessorId { get; init; } = "";
 

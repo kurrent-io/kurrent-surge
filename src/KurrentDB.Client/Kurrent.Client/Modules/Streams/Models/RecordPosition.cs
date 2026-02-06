@@ -66,10 +66,10 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
         return Stream == StreamName.None
             ? Partition == Partition.Any
                 ? $"{LogPosition}"
-                : $"[{Partition}] @{LogPosition}"
+                : $"[{Partition}] @{LogPosition}]"
             : Partition == Partition.Any
                 ? $"{Stream} @{LogPosition}"
-                : $"{Stream} [{Partition}] @{LogPosition}";
+                : $"{Stream} [{Partition}] @{LogPosition}]";
     }
 
     /// <summary>
