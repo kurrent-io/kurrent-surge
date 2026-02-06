@@ -11,10 +11,7 @@ namespace Processor.WithPostgres;
 /// Aggregates club spending and persists to Postgres on checkpoint.
 /// Demonstrates stateful processing with database persistence.
 /// </summary>
-public sealed class ClubSpendingProcessor(
-    NpgsqlDataSource dataSource,
-    ILogger<ClubSpendingProcessor> logger
-) : IRecordProcessor {
+public sealed class ClubSpendingProcessor(NpgsqlDataSource dataSource) : IRecordProcessor {
     readonly ConcurrentDictionary<string, ClubSpending> _pending = new();
 
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
@@ -93,7 +90,7 @@ public sealed class ClubSpendingProcessor(
             }
 
             await tx.CommitAsync(context.CancellationToken);
-            logger.LogInformation(
+            context.Logger.LogInformation(
                 "Checkpoint {CheckpointId}: flushed {RecordCount} club aggregates to Postgres",
                 context.CheckpointId,
                 toFlush.Length
@@ -106,7 +103,7 @@ public sealed class ClubSpendingProcessor(
     }
 
     public ValueTask OnComplete(CompleteContext context) {
-        logger.LogInformation("Completed, {PendingCount} pending records", _pending.Count);
+        context.Logger.LogInformation("Completed, {PendingCount} pending records", _pending.Count);
         return ValueTask.CompletedTask;
     }
 

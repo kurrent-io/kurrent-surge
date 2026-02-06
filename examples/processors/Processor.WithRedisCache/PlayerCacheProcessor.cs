@@ -11,8 +11,7 @@ namespace Processor.WithRedisCache;
 /// Demonstrates the cache-on-write pattern for enrichment scenarios.
 /// </summary>
 public sealed class PlayerCacheProcessor(
-    IConnectionMultiplexer redis,
-    ILogger<PlayerCacheProcessor> logger
+    IConnectionMultiplexer redis
 ) : IRecordProcessor {
     static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
@@ -22,17 +21,17 @@ public sealed class PlayerCacheProcessor(
         foreach (var record in context.Records) {
             switch (record.Value) {
                 case PlayerRegistered registered:
-                    await CachePlayerInfo(registered);
+                    await CachePlayerInfo(registered, context.Logger);
                     break;
 
                 case PlayerTransferred transfer:
-                    await UpdatePlayerClub(transfer);
+                    await UpdatePlayerClub(transfer, context.Logger);
                     break;
             }
         }
     }
 
-    async ValueTask CachePlayerInfo(PlayerRegistered registered) {
+    async ValueTask CachePlayerInfo(PlayerRegistered registered, ILogger logger) {
         var playerData = new CachedPlayer {
             PlayerId    = registered.PlayerId.ToString(),
             Name        = registered.Name.ToString(),
@@ -50,7 +49,7 @@ public sealed class PlayerCacheProcessor(
         logger.LogDebug("Cached player: {PlayerId} ({Name})", registered.PlayerId, registered.Name);
     }
 
-    async ValueTask UpdatePlayerClub(PlayerTransferred transfer) {
+    async ValueTask UpdatePlayerClub(PlayerTransferred transfer, ILogger logger) {
         var key = $"player:{transfer.PlayerId}";
 
         // Try to get existing cached data
@@ -81,12 +80,12 @@ public sealed class PlayerCacheProcessor(
     }
 
     public ValueTask OnCheckpoint(CheckpointContext context) {
-        logger.LogInformation("Checkpoint {CheckpointId}", context.CheckpointId);
+        context.Logger.LogInformation("Checkpoint {CheckpointId}", context.CheckpointId);
         return ValueTask.CompletedTask;
     }
 
     public ValueTask OnComplete(CompleteContext context) {
-        logger.LogInformation("Completed");
+        context.Logger.LogInformation("Completed");
         return ValueTask.CompletedTask;
     }
 

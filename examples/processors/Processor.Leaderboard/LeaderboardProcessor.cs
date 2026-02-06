@@ -11,10 +11,7 @@ namespace Processor.Leaderboard;
 /// Maintains per-game leaderboards with player rankings.
 /// Demonstrates external state management with Redis.
 /// </summary>
-public sealed class LeaderboardProcessor(
-    IConnectionMultiplexer redis,
-    ILogger<LeaderboardProcessor> logger
-) : IRecordProcessor {
+public sealed class LeaderboardProcessor(IConnectionMultiplexer redis) : IRecordProcessor {
     IDatabase Db => redis.GetDatabase();
 
     long _scoresProcessed;
@@ -24,17 +21,17 @@ public sealed class LeaderboardProcessor(
         foreach (var record in context.Records) {
             switch (record.Value) {
                 case PlayerJoined player:
-                    await RegisterPlayer(player);
+                    await RegisterPlayer(player, context.Logger);
                     break;
 
                 case ScoreSubmitted score:
-                    await ProcessScore(score);
+                    await ProcessScore(score, context.Logger);
                     break;
             }
         }
     }
 
-    async ValueTask RegisterPlayer(PlayerJoined player) {
+    async ValueTask RegisterPlayer(PlayerJoined player, ILogger logger) {
         _playersRegistered++;
 
         var playerData = new PlayerInfo(
@@ -56,7 +53,7 @@ public sealed class LeaderboardProcessor(
         );
     }
 
-    async ValueTask ProcessScore(ScoreSubmitted score) {
+    async ValueTask ProcessScore(ScoreSubmitted score, ILogger logger) {
         _scoresProcessed++;
 
         // Get leaderboard key for this game
@@ -113,7 +110,7 @@ public sealed class LeaderboardProcessor(
         var mainLeaderboard = "leaderboard:main";
         var totalPlayers = await Db.SortedSetLengthAsync(mainLeaderboard);
 
-        logger.LogInformation(
+        context.Logger.LogInformation(
             "Checkpoint {CheckpointId} | Scores: {Scores} | Players: {Players} | Leaderboard size: {Size}",
             context.CheckpointId,
             _scoresProcessed,
@@ -123,7 +120,7 @@ public sealed class LeaderboardProcessor(
     }
 
     public ValueTask OnComplete(CompleteContext context) {
-        logger.LogInformation(
+        context.Logger.LogInformation(
             "Completed | Total scores: {Scores}, Players registered: {Players}",
             _scoresProcessed,
             _playersRegistered

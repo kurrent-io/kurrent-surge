@@ -12,7 +12,7 @@ namespace Processor.WordCount;
 /// Maintains running word frequency counts across all processed text.
 /// Demonstrates stateful aggregation and grouping patterns.
 /// </summary>
-public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logger) : IRecordProcessor {
+public sealed partial class WordCountProcessor : IRecordProcessor {
     readonly ConcurrentDictionary<string, long> _wordCounts = new(StringComparer.OrdinalIgnoreCase);
     long _totalTextsProcessed;
     long _totalWordsProcessed;
@@ -20,14 +20,14 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
     public ValueTask ProcessRecords(ProcessRecordsContext context) {
         foreach (var record in context.Records) {
             if (record.Value is TextSubmitted text) {
-                ProcessText(text);
+                ProcessText(text, context.Logger);
             }
         }
 
         return ValueTask.CompletedTask;
     }
 
-    void ProcessText(TextSubmitted text) {
+    void ProcessText(TextSubmitted text, ILogger logger) {
         // Extract words using regex - handles punctuation and whitespace
         var words = WordPattern().Matches(text.Content)
             .Select(m => m.Value.ToLowerInvariant())
@@ -52,7 +52,7 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
             .Take(10)
             .ToList();
 
-        logger.LogInformation(
+        context.Logger.LogInformation(
             "Checkpoint {CheckpointId} | Texts: {TextCount} | Words: {TotalWords} | Unique: {UniqueWords}",
             context.CheckpointId,
             _totalTextsProcessed,
@@ -61,9 +61,9 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
         );
 
         if (topWords.Count > 0) {
-            logger.LogInformation("Top 10 words:");
+            context.Logger.LogInformation("Top 10 words:");
             foreach (var (word, count) in topWords) {
-                logger.LogInformation("  {Word}: {Count}", word, count);
+                context.Logger.LogInformation("  {Word}: {Count}", word, count);
             }
         }
 
@@ -71,7 +71,7 @@ public sealed partial class WordCountProcessor(ILogger<WordCountProcessor> logge
     }
 
     public ValueTask OnComplete(CompleteContext context) {
-        logger.LogInformation(
+        context.Logger.LogInformation(
             "Completed | Final stats: {TextCount} texts, {TotalWords} words, {UniqueWords} unique",
             _totalTextsProcessed,
             _totalWordsProcessed,

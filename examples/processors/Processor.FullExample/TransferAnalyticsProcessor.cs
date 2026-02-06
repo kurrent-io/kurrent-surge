@@ -15,8 +15,7 @@ namespace Processor.FullExample;
 /// </summary>
 public sealed class TransferAnalyticsProcessor(
     NpgsqlDataSource postgres,
-    IConnectionMultiplexer redis,
-    ILogger<TransferAnalyticsProcessor> logger
+    IConnectionMultiplexer redis
 ) : IRecordProcessor {
     static readonly TimeSpan PlayerCacheTtl = TimeSpan.FromHours(24);
 
@@ -28,7 +27,7 @@ public sealed class TransferAnalyticsProcessor(
         foreach (var record in context.Records) {
             switch (record.Value) {
                 case PlayerRegistered registered:
-                    await CachePlayer(registered);
+                    await CachePlayer(registered, context.Logger);
                     break;
 
                 case PlayerTransferred transfer:
@@ -39,7 +38,7 @@ public sealed class TransferAnalyticsProcessor(
         }
     }
 
-    async ValueTask CachePlayer(PlayerRegistered registered) {
+    async ValueTask CachePlayer(PlayerRegistered registered, ILogger logger) {
         var data = new CachedPlayer {
             PlayerId    = registered.PlayerId.ToString(),
             Name        = registered.Name.ToString(),
@@ -113,7 +112,7 @@ public sealed class TransferAnalyticsProcessor(
 
     public async ValueTask OnCheckpoint(CheckpointContext context) {
         if (_pendingSpending.IsEmpty) {
-            logger.LogDebug("Checkpoint {CheckpointId}: no pending changes", context.CheckpointId);
+            context.Logger.LogDebug("Checkpoint {CheckpointId}: no pending changes", context.CheckpointId);
             return;
         }
 
@@ -141,7 +140,7 @@ public sealed class TransferAnalyticsProcessor(
             }
 
             await tx.CommitAsync(context.CancellationToken);
-            logger.LogInformation("Checkpoint {CheckpointId}: flushed {RecordCount} club aggregates",
+            context.Logger.LogInformation("Checkpoint {CheckpointId}: flushed {RecordCount} club aggregates",
                 context.CheckpointId, toFlush.Length);
         }
         catch {
@@ -151,7 +150,7 @@ public sealed class TransferAnalyticsProcessor(
     }
 
     public ValueTask OnComplete(CompleteContext context) {
-        logger.LogInformation("Completed, {PendingCount} pending", _pendingSpending.Count);
+        context.Logger.LogInformation("Completed, {PendingCount} pending", _pendingSpending.Count);
         return ValueTask.CompletedTask;
     }
 
