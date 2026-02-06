@@ -1,3 +1,4 @@
+using Humanizer;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
@@ -27,14 +28,11 @@ public class ReadTests {
 
         var simulation = await Fixture.SeedSmartHomeActivity(10, stoppingToken);
 
-        var options = new ReadOptions {
-            Start             = LogPosition.Earliest,
-            Filter            = RecordFilter.ByExpression($"stream = '{simulation.Stream}'"),
-            // Filter            = RecordFilter.ByStream(simulation.Stream),
-            SkipDecoding      = true,
-            Heartbeat         = HeartbeatOptions.Threshold(100),
-            CancellationToken = stoppingToken
-        };
+        var options = ReadLog.FromStart()
+            .WithFilterExpression($"stream = '{simulation.Stream}'")
+            .SkipDecoding()
+            .WithCancellationToken(stoppingToken)
+            .Build();
 
         await using var messages = await Fixture.Client.Streams
             .ReadRecords(options)
@@ -241,6 +239,36 @@ public class ReadTests {
             .ShouldFailAsync(err => err
                 .Value.ShouldBeOfType<LogPositionNotFoundException>()
                 .Message.ShouldContain($"{brokenPosition}"));
+    }
+
+    [Test]
+    public async ValueTask reads_stream_from_specific_revision(CancellationToken ct) {
+        var simulation = await Fixture.SeedSmartHomeActivity(10, ct);
+
+        var startFrom = 5;
+
+        await using var messages = await Fixture.Client.Streams
+            .ReadStreamRecords(simulation.Stream, StreamRevision.From(startFrom), ct)
+            .ShouldNotThrowOrFailAsync();
+
+        var records = await messages
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        var expectedRecords = simulation.Records.Skip(startFrom).ToList();
+
+        records.Count.ShouldBe(expectedRecords.Count);
+
+        for (var i = 0; i < records.Count; i++) {
+            var record   = records[i];
+            var expected = expectedRecords[i];
+
+            record.Stream.ShouldBe(simulation.Stream);
+            record.StreamRevision.ShouldBeEquivalentTo(StreamRevision.From(startFrom + i));
+            record.Id.ShouldBe(expected.RecordId);
+            record.Value.ShouldBeEquivalentTo(expected.Value);
+        }
     }
 
     [Test]

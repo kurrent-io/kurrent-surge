@@ -183,7 +183,6 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
 
                                 break;
 
-                            case FellBehind:
                             case None:
                             case FirstStreamPosition:
                             case LastStreamPosition:

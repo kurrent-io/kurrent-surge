@@ -51,6 +51,16 @@ public partial record SchemaUrn {
 	public string Value { get; private init; } = "";
 
 	/// <summary>
+	/// Creates a new SchemaUrn using the global namespace.
+	/// </summary>
+	/// <param name="messageName">The name of the message.</param>
+	/// <param name="schemaVersionId">Optional GUID to uniquely identify this schema.</param>
+	/// <returns>A new SchemaUrn instance.</returns>
+	/// <exception cref="ArgumentException">Thrown if messageName is null, empty, or contains invalid characters.</exception>
+	public static SchemaUrn Create(string messageName, Guid? schemaVersionId = null) =>
+		Create("global", messageName, schemaVersionId);
+
+	/// <summary>
 	/// Creates a new SchemaUrn.
 	/// </summary>
 	/// <param name="ns">The namespace identifier (CLR namespace or other prefix).</param>

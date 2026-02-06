@@ -7,30 +7,31 @@ public static partial class StreamsClientExtensions {
 
         #region . Read Log .
 
-        public ValueTask<Result<RecordStream, ReadError>> ReadRecords(Func<ReadOptions, ReadOptions>? configure = null) {
-            var options = new ReadOptions();
-            options = configure?.Invoke(options) ?? options;
-            return client.ReadRecords(options);
-        }
-
-        public ValueTask<Result<RecordStream, ReadError>> ReadRecords(LogPosition start, CancellationToken cancellationToken) =>
-            client.ReadRecords(options => options with { Start = start, CancellationToken = cancellationToken });
+        public ValueTask<Result<RecordStream, ReadError>> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
+            client.ReadRecords(
+                ReadLog.From(start)
+                    .WithCancellationToken(cancellationToken)
+                    .Build()
+            );
 
         #endregion
 
         #region . Read Streams .
 
-        public ValueTask<Result<RecordStream, ReadError>> ReadStreamRecords(Func<ReadStreamOptions, ReadStreamOptions>? configure = null) {
-            var options = new ReadStreamOptions();
-            options = configure?.Invoke(options) ?? options;
-            return client.ReadRecords(options);
-        }
+        public ValueTask<Result<RecordStream, ReadError>> ReadStreamRecords(StreamName stream, StreamRevision start, CancellationToken cancellationToken = default) =>
+            client.ReadRecords(
+                ReadStream.From(stream)
+                    .FromRevision(start)
+                    .WithCancellationToken(cancellationToken)
+                    .Build()
+            );
 
-        public ValueTask<Result<RecordStream, ReadError>> ReadStreamRecords(StreamName stream, StreamRevision start, CancellationToken cancellationToken) =>
-            client.ReadStreamRecords(options => options with { Stream = stream, Start = start, CancellationToken = cancellationToken });
-
-        public ValueTask<Result<RecordStream, ReadError>> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken) =>
-            client.ReadStreamRecords(options => options with { Stream = stream, CancellationToken = cancellationToken });
+        public ValueTask<Result<RecordStream, ReadError>> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
+            client.ReadRecords(
+                ReadStream.From(stream)
+                    .WithCancellationToken(cancellationToken)
+                    .Build()
+            );
 
         public ValueTask<Result<Record, ReadError>> ReadFirstStreamRecord(StreamName stream, bool skipDecoding, CancellationToken cancellationToken = default) =>
             client.ReadStreamEdge(stream, ReadDirection.Forwards, skipDecoding, cancellationToken);
@@ -39,10 +40,39 @@ public static partial class StreamsClientExtensions {
             client.ReadStreamEdge(stream, ReadDirection.Backwards, skipDecoding, cancellationToken);
 
         public ValueTask<Result<Record, ReadError>> ReadFirstStreamRecord(StreamName stream, CancellationToken cancellationToken = default) =>
-            ReadFirstStreamRecord(client, stream, false, cancellationToken);
+            client.ReadFirstStreamRecord(stream, false, cancellationToken);
 
         public ValueTask<Result<Record, ReadError>> ReadLastStreamRecord(StreamName stream, CancellationToken cancellationToken = default) =>
-            ReadLastStreamRecord(client, stream, false, cancellationToken);
+            client.ReadLastStreamRecord(stream, false, cancellationToken);
+
+        #endregion
+
+        #region . Read Batches .
+
+        public ValueTask<Result<RecordBatchStream, ReadError>> ReadBatches(LogPosition start, int batchSize, TimeSpan batchTimeout, CancellationToken cancellationToken = default) =>
+            client.ReadBatches(
+                ReadLog.From(start)
+                    .WithCancellationToken(cancellationToken)
+                    .Build(),
+                batchSize, batchTimeout
+            );
+
+        public ValueTask<Result<RecordBatchStream, ReadError>> ReadStreamBatches(StreamName stream, int batchSize, TimeSpan batchTimeout, CancellationToken cancellationToken = default) =>
+            client.ReadBatches(
+                ReadStream.From(stream)
+                    .WithCancellationToken(cancellationToken)
+                    .Build(),
+                batchSize, batchTimeout
+            );
+
+        public ValueTask<Result<RecordBatchStream, ReadError>> ReadStreamBatches(StreamName stream, StreamRevision start, int batchSize, TimeSpan batchTimeout, CancellationToken cancellationToken = default) =>
+            client.ReadBatches(
+                ReadStream.From(stream)
+                    .FromRevision(start)
+                    .WithCancellationToken(cancellationToken)
+                    .Build(),
+                batchSize, batchTimeout
+            );
 
         #endregion
     }
