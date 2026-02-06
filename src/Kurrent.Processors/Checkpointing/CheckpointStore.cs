@@ -179,14 +179,14 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         try {
             var scanLimit = _maxCount > 0 ? _maxCount : 1000;
 
+            var readOptions = ReadStream.From(_stream)
+                .FromEnd()
+                .WithMaxRecords(scanLimit)
+                .WithCancellationToken(ct)
+                .Build();
+
             await using var recordStream = await _client
-                .ReadStreamRecords(options => options with {
-                    Stream            = _stream,
-                    Direction         = ReadDirection.Backwards,
-                    Start             = StreamRevision.Max,
-                    MaxRecords        = scanLimit,
-                    CancellationToken = ct
-                })
+                .ReadRecords(readOptions)
                 .UnwrapAsync()
                 .ConfigureAwait(false);
 

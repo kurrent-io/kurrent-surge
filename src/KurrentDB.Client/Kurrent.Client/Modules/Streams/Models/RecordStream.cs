@@ -27,7 +27,10 @@ public record RecordStream<T> : IAsyncEnumerable<T>, IAsyncDisposable {
     public int QueuedMessages => _lazyChannel.IsValueCreated ? Channel.Reader.Count : 0;
 
     public async ValueTask DisposeAsync() {
-        if (!_lazyChannel.IsValueCreated || CompareExchange(ref _disposed, 1, 0) != 0)
+        if (CompareExchange(ref _disposed, 1, 0) != 0)
+            return;
+
+        if (!_lazyChannel.IsValueCreated)
             return;
 
         Channel.Writer.TryComplete();

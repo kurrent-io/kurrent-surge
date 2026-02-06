@@ -38,7 +38,7 @@ public class ServerFilterExtractorTests {
             yield return new(
                 "Multiple streams (IN)",
                 $"stream IN ('{OrdersStream}', '{PaymentsStream}')",
-                RecordFilter.ByStreams(OrdersStream, PaymentsStream)
+                RecordFilter.ByStream(OrdersStream, PaymentsStream)
             );
 
             // Category prefix - common pattern for filtering by aggregate type

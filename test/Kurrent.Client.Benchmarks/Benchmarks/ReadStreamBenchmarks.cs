@@ -31,12 +31,13 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Baseline = true, Description = "Read stream")]
     public async Task<int> read_stream() {
-        var options = new ReadStreamOptions {
-            Stream         = _stream,
-            BufferCapacity = BufferCapacity,
-            SkipDecoding   = SkipDecoding,
-            Heartbeat      = HeartbeatOptions.Disabled
-        };
+        var builder = ReadStream.From(_stream)
+            .WithBufferCapacity(BufferCapacity);
+
+        if (SkipDecoding)
+            builder.SkipDecoding();
+
+        var options = builder.Build();
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)
@@ -58,12 +59,13 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Description = "Read stream with LINQ")]
     public async Task<int> read_stream_with_linq() {
-        var options = new ReadStreamOptions {
-            Stream       = _stream,
-            BufferCapacity   = BufferCapacity,
-            SkipDecoding = SkipDecoding,
-            Heartbeat    = HeartbeatOptions.Disabled
-        };
+        var linqBuilder = ReadStream.From(_stream)
+            .WithBufferCapacity(BufferCapacity);
+
+        if (SkipDecoding)
+            linqBuilder.SkipDecoding();
+
+        var options = linqBuilder.Build();
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)
@@ -83,13 +85,14 @@ public class ReadStreamBenchmarks {
 
     // [Benchmark(Description = "Read stream from $all")]
     public async Task<int> read_stream_from_log() {
-        var options = new ReadOptions {
-            Start        = LogPosition.Earliest,
-            Filter       = RecordFilter.ByStream(_stream),
-            BufferCapacity   = BufferCapacity,
-            SkipDecoding = SkipDecoding,
-            Heartbeat    = HeartbeatOptions.Disabled
-        };
+        var logBuilder = ReadLog.FromStart()
+            .WithFilter(RecordFilter.ByStream(_stream))
+            .WithBufferCapacity(BufferCapacity);
+
+        if (SkipDecoding)
+            logBuilder.SkipDecoding();
+
+        var options = logBuilder.Build();
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)

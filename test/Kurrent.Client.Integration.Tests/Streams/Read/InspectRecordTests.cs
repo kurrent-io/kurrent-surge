@@ -15,17 +15,19 @@ public class InspectRecordTests {
 
     [Test]
     public async Task inspects_log_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var seeded = await Fixture.SeedSmartHomeActivity(ct);
 
-        var firstMessage = simulation.Records.First();
+        var lastRecord = seeded.Records.Last();
 
-        var linkedRecord = await Fixture.Client.Streams
-            .ReadFirstStreamRecord("$ce-SmartHomeActivity", ct)
-            .ShouldNotThrowOrFailAsync(record => { record.IndexRevision.ShouldBeGreaterThan(0); });
+        var record = await Fixture.Client.Streams
+            .InspectRecord(seeded.Position, ct)
+            .ShouldNotThrowOrFailAsync();
 
-        await Fixture.Client.Streams
-            .InspectRecord(simulation.Position, ct)
-            .ShouldNotThrowOrFailAsync(record => { record.IsDecoded.ShouldBeFalse(); });
+        record.Id.ShouldBe(lastRecord.RecordId);
+        record.Stream.ShouldBe(seeded.Stream);
+        record.Position.LogPosition.ShouldBe(seeded.Position);
+        record.Data.Length.ShouldBeGreaterThan(0);
+        record.IsDecoded.ShouldBeFalse();
     }
 
     [Test]

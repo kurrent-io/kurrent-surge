@@ -116,6 +116,8 @@ public partial class StreamsClient {
     }
 
     public ValueTask<Result<RecordStream, ReadError>> ReadRecords(ReadOptions options) {
+        options.ValidateOptions().Unwrap();
+
         var request = Requests.CreateReadLogRequest(options);
 
         return ReadCore(
@@ -126,6 +128,8 @@ public partial class StreamsClient {
     }
 
     public ValueTask<Result<RecordStream, ReadError>> ReadRecords(ReadStreamOptions options) {
+        options.ValidateOptions().Unwrap();
+
         var request = Requests.CreateReadStreamRequest(options);
 
         return ReadCore(
@@ -138,12 +142,13 @@ public partial class StreamsClient {
     public ValueTask<Result<RecordBatchStream, ReadError>> ReadBatches(
         ReadOptions options, int batchSize, TimeSpan batchTimeout
     ) {
+        options.ValidateOptions().Unwrap();
+
         var request = Requests.CreateReadLogRequest(options);
 
         return ReadBatchCore(
             request, options.BufferCapacity,
-            options.SkipDecoding, options.Filter,
-            batchSize, batchTimeout,
+            options.SkipDecoding, options.Filter, batchSize, batchTimeout,
             options.CancellationToken
         );
     }
@@ -151,6 +156,8 @@ public partial class StreamsClient {
     public ValueTask<Result<RecordBatchStream, ReadError>> ReadBatches(
         ReadStreamOptions options, int batchSize, TimeSpan batchTimeout
     ) {
+        options.ValidateOptions().Unwrap();
+
         var request = Requests.CreateReadStreamRequest(options);
 
         return ReadBatchCore(
@@ -184,11 +191,12 @@ public partial class StreamsClient {
                     StreamState.Missing    => new StreamNotFoundException(stream),
                     StreamState.Deleted    => new StreamDeletedException(stream), // we cant read it yet we can subscribe to it
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    _                      => throw new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
+                    _                      => new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };
             }
         }
         catch (RpcException rex) {
+            session.Dispose();
             cancellator.Dispose();
 
             // handle cancellation gracefully
@@ -211,6 +219,7 @@ public partial class StreamsClient {
             return ReadError.FromEx(rex);
         }
         catch (Exception ex) {
+            session.Dispose();
             cancellator.Dispose();
             return ReadError.FromEx(ex);
         }
@@ -245,11 +254,12 @@ public partial class StreamsClient {
                     StreamState.Missing    => new StreamNotFoundException(stream),
                     StreamState.Deleted    => new StreamDeletedException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    _                      => throw new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
+                    _                      => new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };
             }
         }
         catch (RpcException rex) {
+            session.Dispose();
             cancellator.Dispose();
 
             if (rex.StatusCode == StatusCode.Cancelled)
@@ -269,6 +279,7 @@ public partial class StreamsClient {
             return ReadError.FromEx(rex);
         }
         catch (Exception ex) {
+            session.Dispose();
             cancellator.Dispose();
             return ReadError.FromEx(ex);
         }
@@ -311,15 +322,9 @@ public partial class StreamsClient {
                     ReadRecordsResult result;
 
                     switch (resp?.ContentCase) {
-                        case Checkpoint:
-                            result = resp.Checkpoint.MapToHeartbeat(sequencer.FetchNext());
-                            break;
                         case CaughtUp:
                             result = resp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
                             break;
-                        // case FellBehind:
-                        //     result = resp.FellBehind.MapToHeartbeat(sequencer.FetchNext());
-                        //     break;
                         case Event:
                             result = await resp.Event.MapToRecordAsync(
                                 sequencer.FetchNext(),

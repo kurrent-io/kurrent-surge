@@ -25,10 +25,14 @@ public abstract record RegexFilter : IRecordFilter {
         if (values.Length == 0)
             throw new ArgumentException("At least one value is required.", nameof(values));
 
-        var escaped = values.Select(v => Regex.Escape(v.Trim()));
-        var pattern = exactMatch
-            ? $"^({string.Join("|", escaped)})$"
+        var escaped = values.Select(v => Regex.Escape(v.Trim())).ToArray();
+
+        var pattern = escaped.Length == 1
+            ? $"^{escaped[0]}"
             : $"^({string.Join("|", escaped)})";
+
+        if (exactMatch)
+            pattern += "$";
 
         Regex = new Regex(pattern, RegexOptions.Compiled);
     }
