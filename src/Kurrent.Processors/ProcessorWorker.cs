@@ -25,7 +25,7 @@ sealed class ProcessorWorker : IProcessorWorker {
     int _disposed;
     int _started;
 
-    WorkerContext WorkerContext = WorkerContext.None;
+    WorkerContext WorkerContext;
 
     public ProcessorWorker(
         ProcessorSettings settings,
@@ -37,10 +37,10 @@ sealed class ProcessorWorker : IProcessorWorker {
         bool ownsClient = true,
         IProcessorGateway? gateway = null
     ) {
-        _client      = client;
-        _processor   = new SafeRecordProcessor(processor);
-        _telemetry = telemetry;
-        _ownsClient  = ownsClient && !client.Shared;
+        _client     = client;
+        _processor  = new SafeRecordProcessor(processor);
+        _telemetry  = telemetry;
+        _ownsClient = ownsClient && !client.Shared;
 
         _settings = settings;
 
@@ -57,6 +57,13 @@ sealed class ProcessorWorker : IProcessorWorker {
 
         _progress = new ProgressTracker(time);
         _tracker  = new PartitionedPositionTracker();
+
+        WorkerContext = new WorkerContext {
+            ProcessorId = ProcessorId,
+            WorkerId    = WorkerId,
+            SessionId   = SessionId.None,
+            Logger      = loggerFactory.CreateLogger<ProcessorWorker>()
+        };
     }
 
     public string            ProcessorId => _settings.ProcessorId;
@@ -78,20 +85,17 @@ sealed class ProcessorWorker : IProcessorWorker {
             throw new InvalidOperationException("This worker has already been started at least once. Create a new instance to run again.");
 
         Status = ProcessorWorkerStatus.Starting;
-        _telemetry.Starting();
 
-        WorkerContext = new() {
-            ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
-            SessionId         = SessionId.None,
-            Logger            = NullLogger.Instance,
-            CancellationToken = stoppingToken
-        };
+        _telemetry.Starting();
 
         IWorkerSession session = null!;
 
         // used to cancel pump/timer before shutdown logic
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+
+        WorkerContext = WorkerContext with {
+            CancellationToken = stoppingToken
+        };
 
         try {
             session = await _gateway
