@@ -2,35 +2,21 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Client;
 
 /// <summary>
 /// Extension methods for registering <see cref="KurrentClient"/> with dependency injection.
+/// All overloads use <c>TryAddSingleton</c> — if a client is already registered, the call is ignored.
 /// </summary>
 [PublicAPI]
 public static class KurrentClientServiceCollectionExtensions {
     /// <param name="services">The service collection.</param>
     extension(IServiceCollection services) {
         /// <summary>
-        /// Registers a shared <see cref="KurrentClient"/> from configuration.
+        /// Registers a <see cref="KurrentClient"/> from the <c>Kurrent:Client</c> configuration section.
+        /// Falls back to default options if no configuration is available.
         /// </summary>
         /// <returns>The service collection for method chaining.</returns>
-        /// <remarks>
-        /// <para>
-        /// Loads client options from the <c>Kurrent:Client</c> configuration section.
-        /// If no configuration is registered or section doesn't exist, uses default options.
-        /// </para>
-        /// <para>
-        /// Uses <c>TryAddSingleton</c> - if a client is already registered, this call is ignored.
-        /// </para>
-        /// </remarks>
-        /// <example>
-        /// <code>
-        /// // With appsettings.json:
-        /// // { "Kurrent": { "Client": { "ConnectionString": "kurrentdb://localhost:2113" } } }
-        /// builder.Services.AddKurrentClient();
-        /// </code>
-        /// </example>
         public IServiceCollection AddKurrentClient() {
             services.TryAddSingleton(sp => {
                 var configuration = sp.GetService<IConfiguration>();
@@ -45,82 +31,35 @@ public static class KurrentClientServiceCollectionExtensions {
         }
 
         /// <summary>
-        /// Registers a shared <see cref="KurrentClient"/> that all processors can use.
+        /// Registers a <see cref="KurrentClient"/> from a connection string.
         /// </summary>
         /// <param name="connectionString">
         /// KurrentDB connection string (e.g., "kurrentdb://localhost:2113").
         /// </param>
         /// <returns>The service collection for method chaining.</returns>
-        /// <remarks>
-        /// <para>
-        /// The registered client is shared across all processors that don't specify their own
-        /// client via <see cref="KurrentProcessorHostBuilder.UseClient(string)"/> or
-        /// <see cref="KurrentProcessorHostBuilder.ConfigureClient"/>.
-        /// </para>
-        /// <para>
-        /// Uses <c>TryAddSingleton</c> - if a client is already registered, this call is ignored.
-        /// </para>
-        /// </remarks>
-        /// <example>
-        /// <code>
-        /// builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-        ///
-        /// builder.Services.AddKurrentProcessor&lt;MyProcessor&gt;(config => config
-        ///     .WithFilter("schema_name = 'OrderPlaced'")
-        /// );
-        /// </code>
-        /// </example>
         public IServiceCollection AddKurrentClient(string connectionString) {
             services.TryAddSingleton(_ => KurrentClient.Create(connectionString));
             return services;
         }
 
         /// <summary>
-        /// Registers a shared <see cref="KurrentClient"/> with custom configuration.
+        /// Registers a <see cref="KurrentClient"/> from a <see cref="KurrentClientOptions"/> factory.
+        /// Configuration from <c>Kurrent:Client</c> is not applied — the factory has full control.
         /// </summary>
-        /// <param name="configure">
-        /// Function to configure client options starting from a parsed connection string
-        /// or default options.
-        /// </param>
+        /// <param name="configure">Factory that returns a fully constructed <see cref="KurrentClientOptions"/>.</param>
         /// <returns>The service collection for method chaining.</returns>
-        /// <remarks>
-        /// <para>
-        /// Use this overload when you need to customize client options beyond what the
-        /// connection string provides.
-        /// </para>
-        /// </remarks>
-        /// <example>
-        /// <code>
-        /// builder.Services.AddKurrentClient(opts =>
-        ///     KurrentClientOptions.Parse("kurrentdb://localhost:2113") with {
-        ///         Resilience = KurrentClientResilienceOptions.HighAvailability
-        ///     }
-        /// );
-        /// </code>
-        /// </example>
         public IServiceCollection AddKurrentClient(Func<KurrentClientOptions> configure) {
             services.TryAddSingleton(_ => new KurrentClient(configure()));
             return services;
         }
 
         /// <summary>
-        /// Registers a shared <see cref="KurrentClient"/> using the options builder.
+        /// Registers a <see cref="KurrentClient"/> using the options builder.
+        /// Settings from the <c>Kurrent:Client</c> configuration section are applied first,
+        /// then the configure action is applied as overrides.
         /// </summary>
         /// <param name="configure">Action to configure the client options builder.</param>
         /// <returns>The service collection for method chaining.</returns>
-        /// <remarks>
-        /// <para>
-        /// Configuration is applied in layers: settings from <c>Kurrent:Client</c> configuration
-        /// section are loaded first, then the configure action is applied as overrides.
-        /// </para>
-        /// </remarks>
-        /// <example>
-        /// <code>
-        /// builder.Services.AddKurrentClient(builder => builder
-        ///     .WithResilience(KurrentClientResilienceOptions.HighAvailability)
-        /// );
-        /// </code>
-        /// </example>
         public IServiceCollection AddKurrentClient(Action<KurrentClientOptionsBuilder> configure) {
             services.TryAddSingleton(sp => {
                 var configuration = sp.GetService<IConfiguration>();
@@ -139,25 +78,12 @@ public static class KurrentClientServiceCollectionExtensions {
         }
 
         /// <summary>
-        /// Registers a shared <see cref="KurrentClient"/> with service provider access.
+        /// Registers a <see cref="KurrentClient"/> using the options builder with access to the service provider.
+        /// Settings from the <c>Kurrent:Client</c> configuration section are applied first,
+        /// then the configure action is applied as overrides.
         /// </summary>
         /// <param name="configure">Action to configure the client with access to the service provider.</param>
         /// <returns>The service collection for method chaining.</returns>
-        /// <remarks>
-        /// <para>
-        /// Use this overload when you need to resolve other services during configuration.
-        /// Configuration is applied in layers: settings from <c>Kurrent:Client</c> configuration
-        /// section are loaded first, then the configure action is applied as overrides.
-        /// </para>
-        /// </remarks>
-        /// <example>
-        /// <code>
-        /// builder.Services.AddKurrentClient((builder, sp) => {
-        ///     var loggerFactory = sp.GetRequiredService&lt;ILoggerFactory&gt;();
-        ///     builder.WithLoggerFactory(loggerFactory);
-        /// });
-        /// </code>
-        /// </example>
         public IServiceCollection AddKurrentClient(Action<KurrentClientOptionsBuilder, IServiceProvider> configure) {
             services.TryAddSingleton(sp => {
                 var configuration = sp.GetService<IConfiguration>();

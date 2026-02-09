@@ -5,7 +5,7 @@ namespace Kurrent.GoogleRpc;
 /// <summary>
 /// Extension methods for converting gRPC error details back into exceptions.
 /// </summary>
-public static class DebugInfoExtensions {
+static class DebugInfoExtensions {
     /// <summary>
     /// Converts a <see cref="DebugInfo"/> error detail into an <see cref="Exception"/>.
     /// The exception message is taken from the <see cref="DebugInfo.Detail"/> property,

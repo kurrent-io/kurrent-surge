@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Dapper;
-using Kurrent.Client.Streams;
 using Kurrent.Processors;
 using Npgsql;
 using StackExchange.Redis;

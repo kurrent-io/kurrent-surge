@@ -1,6 +1,7 @@
 using FluentValidation;
+using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Client;
 
 public class KurrentClientReadOptionsValidator : FluentOptionsValidator<KurrentClientReadOptionsValidator, ReadOptions> {
     public KurrentClientReadOptionsValidator() {

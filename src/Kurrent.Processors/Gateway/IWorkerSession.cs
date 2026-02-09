@@ -1,5 +1,4 @@
 using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Gateway;

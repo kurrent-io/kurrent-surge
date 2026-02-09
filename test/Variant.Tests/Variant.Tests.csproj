@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>Kurrent.Variant.Tests</RootNamespace>
+    <AssemblyName>Kurrent.Variant.Tests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

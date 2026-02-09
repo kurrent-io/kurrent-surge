@@ -1,4 +1,3 @@
-using Kurrent.Client.Streams;
 using Kurrent.Processors.Options;
 
 namespace Kurrent.Processors.Gateway;

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using DotNext.Collections.Generic;
 using Kurrent.Processors;
 using Microsoft.Extensions.Logging;
 using Processor.ClickstreamSessions.Events;

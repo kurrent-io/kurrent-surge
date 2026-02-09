@@ -1,12 +1,10 @@
 using Kurrent.Client;
-using Kurrent.Client.Streams;
 using Kurrent.Processors.Options;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
-using Transfermarkt.Domain;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()

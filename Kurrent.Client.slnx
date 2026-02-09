@@ -43,17 +43,13 @@
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
     </Project>
   </Folder>
-  <Project Path="src/Kurrent.Client.Schema.Protobuf/Kurrent.Client.Schema.Protobuf.csproj" />
   <Project Path="src/Kurrent.Processors/Kurrent.Processors.csproj" />
+  <Project Path="src/Kurrent.SDK/Kurrent.SDK.csproj" />
   <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj">
     <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
     <Configuration Solution="Release|x64" Project="Release|Any CPU" />
   </Project>
   <Project Path="src\KurrentDB.Client\KurrentDB.Client.csproj">
-    <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-    <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-  </Project>
-  <Project Path="src\Kurrent.Grpc.LoadBalancing\Kurrent.Grpc.LoadBalancing.csproj">
     <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
     <Configuration Solution="Release|x64" Project="Release|Any CPU" />
   </Project>

@@ -1,5 +1,4 @@
 using Kurrent.Client.Streams;
-using Microsoft.Extensions.Logging;
 using Processor.ClickstreamSessions;
 using Serilog;
 

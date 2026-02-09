@@ -4,6 +4,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Kurrent</RootNamespace>
     <IsPackable>false</IsPackable>
+    <AssemblyName>Kurrent.Variant</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Humanizer.Core" />

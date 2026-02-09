@@ -13,8 +13,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Humanizer.Core"/>
-
     <!-- Roslyn API for writing C# Source Generators -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="All" />
     <!-- Analyzers package, often included with CSharp but good to be explicit -->

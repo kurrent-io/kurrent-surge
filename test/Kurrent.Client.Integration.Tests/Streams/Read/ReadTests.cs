@@ -1,4 +1,3 @@
-using Humanizer;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
