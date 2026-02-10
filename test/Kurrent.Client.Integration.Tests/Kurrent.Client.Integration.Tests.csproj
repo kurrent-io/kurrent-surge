@@ -26,7 +26,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Remove="Registry\**" />
-    <None Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,11 +37,9 @@
 
   <ItemGroup>
     <Compile Remove="Registry\**" />
-    <Compile Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Remove="Registry\**" />
-    <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 </Project>

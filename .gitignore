@@ -483,4 +483,7 @@ certs-*/
 .conductor
 .dev-marketplace
 settings.local.json
-.project/repomix/output/
+.project/docs/research
+
+
+#others
