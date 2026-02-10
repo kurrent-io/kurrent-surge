@@ -58,6 +58,8 @@ public class InspectRecordTests {
 
     [Test]
     public async ValueTask returns_last_record_using_latest_position(CancellationToken ct) {
+        //TODO SS: Investigate, sometimes throws "Object reference not set to an instance of an object."
+
         await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams

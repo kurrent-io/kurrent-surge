@@ -85,29 +85,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Kurrent.Client\Modules\Admin\**" />
-    <Compile Remove="Kurrent.Client\Modules\Connectors\**" />
-    <Compile Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <Compile Remove="Kurrent.Client\Modules\Projections\**" />
-    <Compile Remove="Kurrent.Client\Modules\Users\**" />
+    <Folder Include="Kurrent.Client\" />
+    <Folder Update="..\..\proto" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Admin\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Connectors\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Projections\**" />
-    <EmbeddedResource Remove="Kurrent.Client\Modules\Users\**" />
+    <Compile Remove="Modules\Connectors\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Kurrent.Client\Modules\Admin\**" />
-    <None Remove="Kurrent.Client\Modules\Connectors\**" />
-    <None Remove="Kurrent.Client\Modules\PersistentSubscriptions\**" />
-    <None Remove="Kurrent.Client\Modules\Projections\**" />
-    <None Remove="Kurrent.Client\Modules\Users\**" />
+    <EmbeddedResource Remove="Modules\Connectors\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Modules\Connectors\**" />
+  </ItemGroup>
 
   <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">
     <ItemGroup>

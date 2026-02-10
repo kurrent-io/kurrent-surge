@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Processors\Kurrent.Processors.csproj" />
-    <ProjectReference Include="..\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
   </ItemGroup>
 </Project>

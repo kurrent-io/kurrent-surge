@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
-    <ProjectReference Include="..\..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\..\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
   </ItemGroup>
 </Project>

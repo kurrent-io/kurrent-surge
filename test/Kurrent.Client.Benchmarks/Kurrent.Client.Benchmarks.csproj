@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/KurrentDB.Client/KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="../Kurrent.Testing/Kurrent.Testing.csproj" />
     <ProjectReference Include="../Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj" />
   </ItemGroup>

@@ -4,7 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
@@ -25,11 +25,7 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Remove="Users\**" />
     <None Remove="Registry\**" />
-    <None Remove="Projections\**" />
-    <None Remove="Admin\**" />
-    <None Remove="Subscriptions\**" />
     <None Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 
@@ -41,20 +37,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Users\**" />
     <Compile Remove="Registry\**" />
-    <Compile Remove="Projections\**" />
-    <Compile Remove="Admin\**" />
-    <Compile Remove="Subscriptions\**" />
     <Compile Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Remove="Users\**" />
     <EmbeddedResource Remove="Registry\**" />
-    <EmbeddedResource Remove="Projections\**" />
-    <EmbeddedResource Remove="Admin\**" />
-    <EmbeddedResource Remove="Subscriptions\**" />
     <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 </Project>

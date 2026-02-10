@@ -4,7 +4,7 @@
   </Configurations>
   <Folder Name="/Client/">
     <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
-    <Project Path="src\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
     <Project Path="test/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/Client/Tests/">
