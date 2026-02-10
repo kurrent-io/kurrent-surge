@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Processors.Tests.Fixtures;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
 using CheckpointStore = Kurrent.Processors.Checkpointing.CheckpointStore;
 
-namespace Kurrent.Client.Tests.Processors;
+namespace Kurrent.Processors.Tests;
 
 /// <summary>
 /// Integration tests for CheckpointStore API against a real KurrentDB instance.

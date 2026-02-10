@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
 
-namespace Kurrent.Client.Tests.Processors;
+namespace Kurrent.Processors.Tests;
 
 sealed class TestRecordProcessor : IRecordProcessor {
     readonly ConcurrentQueue<Record> _records = new();

@@ -478,6 +478,9 @@ tasks/
 certs-*/
 
 # Local AI settings
+.claude
+.junie
+.conductor
 .dev-marketplace
 settings.local.json
 .project/repomix/output/

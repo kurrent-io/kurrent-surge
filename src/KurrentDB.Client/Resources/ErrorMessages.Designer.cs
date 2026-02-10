@@ -248,41 +248,5 @@ namespace Resources {
                 return ResourceManager.GetString("ConnectionStringCertificateCreationFailed", resourceCulture);
             }
         }
-
-        internal static string InitializeException {
-            get {
-                return ResourceManager.GetString("InitializeException", resourceCulture);
-            }
-        }
-
-        internal static string Worker_ProcessRecordsFailed {
-            get {
-                return ResourceManager.GetString("Worker_ProcessRecordsFailed", resourceCulture);
-            }
-        }
-
-        internal static string Worker_OnCheckpointFailed {
-            get {
-                return ResourceManager.GetString("Worker_OnCheckpointFailed", resourceCulture);
-            }
-        }
-
-        internal static string AssignmentChangeException {
-            get {
-                return ResourceManager.GetString("AssignmentChangeException", resourceCulture);
-            }
-        }
-
-        internal static string Worker_OnErrorFailed {
-            get {
-                return ResourceManager.GetString("Worker_OnErrorFailed", resourceCulture);
-            }
-        }
-
-        internal static string Worker_OnCompleteFailed {
-            get {
-                return ResourceManager.GetString("Worker_OnCompleteFailed", resourceCulture);
-            }
-        }
     }
 }

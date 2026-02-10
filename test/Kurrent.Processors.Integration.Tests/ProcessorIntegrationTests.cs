@@ -1,9 +1,9 @@
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Processors.Tests.Fixtures;
 using Kurrent.Processors;
 using Kurrent.Processors.Models;
 
-namespace Kurrent.Client.Tests.Processors;
+namespace Kurrent.Processors.Tests;
 
 [Category("Processors")]
 [Category("Integration")]

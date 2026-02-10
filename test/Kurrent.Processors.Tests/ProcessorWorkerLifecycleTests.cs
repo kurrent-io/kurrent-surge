@@ -1,3 +1,4 @@
+using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Processors;
 using Kurrent.Processors.Diagnostics;
@@ -6,7 +7,7 @@ using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Kurrent.Client.Tests.Modules.Processors;
+namespace Kurrent.Processors.Tests;
 
 [Category("Processors")]
 public class ProcessorWorkerLifecycleTests {

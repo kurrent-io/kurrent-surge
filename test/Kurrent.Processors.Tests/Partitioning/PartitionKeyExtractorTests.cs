@@ -1,7 +1,8 @@
+using Kurrent.Client;
 using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Tests.Filters;
+using Kurrent.Processors.Tests.Fakes;
 
-namespace Kurrent.Client.Tests.Modules.Processors.Partitioning;
+namespace Kurrent.Processors.Tests.Partitioning;
 
 [Category("Processors")]
 public class PartitionKeyExtractorTests {

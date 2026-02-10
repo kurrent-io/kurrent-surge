@@ -1,30 +1,59 @@
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+
 namespace Kurrent.Client.Tests.Extensions;
 
-/// <summary>
-/// Tests for the ReadBatched extension method in AsyncEnumerableExtensions.
-/// This is a hot-path component used by LegacyWorkerSession.GetAsyncEnumerator for batching records.
-/// </summary>
 public class ReadBatchedTests {
-    // Test types (no dependencies on production code)
-    record TestItem(int Value);
-    record TestTrigger(int Id);
-    record TestBatch(TestItem[] Items);
-
     // Classification helper
-    static BatchAction<TestItem, object> Classify(object msg) => msg switch {
-        TestItem item    => BatchAction<TestItem, object>.Batch(item),
-        TestTrigger      => BatchAction<TestItem, object>.FlushThenYield(msg),
-        _                => throw new InvalidOperationException($"Unknown message type: {msg.GetType()}")
-    };
+    static BatchAction<TestItem, object> Classify(object msg) =>
+        msg switch {
+            TestItem item => BatchAction<TestItem, object>.Batch(item),
+            TestTrigger   => BatchAction<TestItem, object>.FlushThenYield(msg),
+            _             => throw new InvalidOperationException($"Unknown message type: {msg.GetType()}")
+        };
 
     // Batch converter
     static object ToBatch(TestItem[] items) => new TestBatch(items);
 
-    // Helper to create async enumerable from params
     static async IAsyncEnumerable<T> AsAsyncEnumerable<T>(params T[] items) {
-        foreach (var item in items)
-            yield return item;
+        foreach (var item in items) yield return item;
     }
+
+    #region Fast Path
+
+    [Test]
+    public async ValueTask synchronous_source_hits_fast_path() {
+        // A synchronous source should complete without async delays
+        // This tests that IsCompletedSuccessfully branch is taken
+        var source = Enumerable.Range(0, 100)
+            .Select(i => (object)new TestItem(i))
+            .ToAsyncEnumerable();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        var results = new List<object>();
+        await foreach (var result in source.ReadBatched(
+                           10,
+                           TimeSpan.FromSeconds(30),
+                           Classify,
+                           ToBatch
+                       ))
+            results.Add(result);
+
+        sw.Stop();
+
+        // Should complete nearly instantly (fast path)
+        await Assert.That(sw.ElapsedMilliseconds).IsLessThan(1000);
+        await Assert.That(results).HasCount().EqualTo(10); // 100 items / 10 batch size
+    }
+
+    #endregion
+
+    // Test types (no dependencies on production code)
+    record TestItem(int Value);
+
+    record TestTrigger(int Id);
+
+    record TestBatch(TestItem[] Items);
 
     #region Basic Batching
 
@@ -33,17 +62,13 @@ public class ReadBatchedTests {
         var source = AsAsyncEnumerable(new TestItem(1));
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).HasCount().EqualTo(1);
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
+
         var batch = (TestBatch)results[0];
         await Assert.That(batch.Items).HasCount().EqualTo(1);
         await Assert.That(batch.Items[0].Value).IsEqualTo(1);
@@ -51,22 +76,16 @@ public class ReadBatchedTests {
 
     [Test]
     public async ValueTask exact_batch_size_yields_one_full_batch() {
-        var source = AsAsyncEnumerable<object>(
-            new TestItem(1), new TestItem(2), new TestItem(3)
-        );
+        var source = AsAsyncEnumerable<object>(new TestItem(1), new TestItem(2), new TestItem(3));
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 3,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(3, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).HasCount().EqualTo(1);
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
+
         var batch = (TestBatch)results[0];
         await Assert.That(batch.Items).HasCount().EqualTo(3);
     }
@@ -75,19 +94,12 @@ public class ReadBatchedTests {
     [MethodDataSource(nameof(BatchingTestCases))]
     public async ValueTask items_are_batched_correctly(int itemCount, int batchSize, int[][] expectedBatches) {
         // Arrange: create items 1..itemCount
-        var source = AsAsyncEnumerable(
-            Enumerable.Range(1, itemCount).Select(object (i) => new TestItem(i)).ToArray()
-        );
+        var source = AsAsyncEnumerable(Enumerable.Range(1, itemCount).Select(object (i) => new TestItem(i)).ToArray());
 
         // Act
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: batchSize,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(batchSize, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         // Assert: correct number of batches
         await Assert.That(results).HasCount().EqualTo(expectedBatches.Length)
@@ -98,7 +110,7 @@ public class ReadBatchedTests {
             await Assert.That(results[i]).IsTypeOf<TestBatch>()
                 .Because($"batch {i} should be TestBatch");
 
-            var batch = (TestBatch)results[i];
+            var batch        = (TestBatch)results[i];
             var actualValues = batch.Items.Select(item => item.Value).ToArray();
 
             await Assert.That(actualValues).IsEquivalentTo(expectedBatches[i])
@@ -134,13 +146,8 @@ public class ReadBatchedTests {
         var source = AsAsyncEnumerable<object>();
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).IsEmpty();
     }
@@ -154,53 +161,47 @@ public class ReadBatchedTests {
         // Input:  [Item(1), Item(2), Trigger(100), Item(3)]
         // Output: [Batch([1,2]), Trigger(100), Batch([3])]
         var source = AsAsyncEnumerable<object>(
-            new TestItem(1), new TestItem(2), new TestTrigger(100), new TestItem(3)
+            new TestItem(1),
+            new TestItem(2),
+            new TestTrigger(100),
+            new TestItem(3)
         );
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).HasCount().EqualTo(3);
 
         // First: batch with items 1, 2
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
+
         var batch1 = (TestBatch)results[0];
         await Assert.That(batch1.Items.Select(i => i.Value)).IsEquivalentTo([1, 2]);
 
         // Second: the trigger
         await Assert.That(results[1]).IsTypeOf<TestTrigger>()
             .Because($"expected TestTrigger but got {results[1].GetType().Name}");
+
         var trigger = (TestTrigger)results[1];
         await Assert.That(trigger.Id).IsEqualTo(100);
 
         // Third: batch with item 3
         await Assert.That(results[2]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[2].GetType().Name}");
+
         var batch2 = (TestBatch)results[2];
         await Assert.That(batch2.Items.Select(i => i.Value)).IsEquivalentTo([3]);
     }
 
     [Test]
     public async ValueTask flush_trigger_with_no_pending_items_yields_only_trigger() {
-        var source = AsAsyncEnumerable<object>(
-            new TestTrigger(1), new TestItem(10)
-        );
+        var source = AsAsyncEnumerable<object>(new TestTrigger(1), new TestItem(10));
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).HasCount().EqualTo(2);
         await Assert.That(results[0]).IsTypeOf<TestTrigger>();
@@ -210,17 +211,13 @@ public class ReadBatchedTests {
     [Test]
     public async ValueTask consecutive_flush_triggers_yield_separately() {
         var source = AsAsyncEnumerable<object>(
-            new TestItem(1), new TestTrigger(100), new TestTrigger(200), new TestItem(2)
+            new TestItem(1), new TestTrigger(100), new TestTrigger(200),
+            new TestItem(2)
         );
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).HasCount().EqualTo(4);
 
@@ -240,16 +237,10 @@ public class ReadBatchedTests {
     [Test]
     public async ValueTask partial_batch_yields_on_timeout() {
         // Source yields 3 items quickly, then blocks for a finite time (until cancelled)
-        using var cts = new CancellationTokenSource();
-        var results = new List<object>();
+        using var cts     = new CancellationTokenSource();
+        var       results = new List<object>();
 
-        await foreach (var result in YieldThenBlock(3, cts.Token).ReadBatched(
-            batchSize: 100,
-            timeout: TimeSpan.FromMilliseconds(100),
-            Classify,
-            ToBatch,
-            cts.Token
-        )) {
+        await foreach (var result in YieldThenBlock(3, cts.Token).ReadBatched(100, TimeSpan.FromMilliseconds(100), Classify, ToBatch, cts.Token)) {
             results.Add(result);
             // After getting first batch, cancel to exit
             await cts.CancelAsync();
@@ -259,20 +250,20 @@ public class ReadBatchedTests {
         await Assert.That(results).HasCount().EqualTo(1);
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
+
         var batch = (TestBatch)results[0];
         await Assert.That(batch.Items).HasCount().EqualTo(3);
     }
 
     // Helper: yields N items then blocks until cancellation
-    static IAsyncEnumerable<object> YieldThenBlock(int count, CancellationToken ct) =>
-        new YieldThenBlockEnumerable(count, ct);
+    static IAsyncEnumerable<object> YieldThenBlock(int count, CancellationToken ct) => new YieldThenBlockEnumerable(count, ct);
 
     sealed class YieldThenBlockEnumerable(int count, CancellationToken ct) : IAsyncEnumerable<object> {
-        public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) =>
-            new Enumerator(count, ct);
+        public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) => new Enumerator(count, ct);
 
         sealed class Enumerator(int count, CancellationToken ct) : IAsyncEnumerator<object> {
             int _index;
+
             public object Current { get; private set; } = null!;
 
             public async ValueTask<bool> MoveNextAsync() {
@@ -289,6 +280,7 @@ public class ReadBatchedTests {
                 catch (OperationCanceledException) {
                     // Expected - just exit
                 }
+
                 return false;
             }
 
@@ -300,18 +292,11 @@ public class ReadBatchedTests {
     public async ValueTask zero_timeout_with_sync_source_batches_normally() {
         // With synchronous source (fast path), zero timeout shouldn't matter
         // because items arrive without async delay
-        var source = AsAsyncEnumerable<object>(
-            new TestItem(1), new TestItem(2), new TestItem(3)
-        );
+        var source = AsAsyncEnumerable<object>(new TestItem(1), new TestItem(2), new TestItem(3));
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 2,
-            timeout: TimeSpan.Zero,
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(2, TimeSpan.Zero, Classify, ToBatch))
             results.Add(result);
-        }
 
         // Should still batch properly due to fast path
         await Assert.That(results.Count).IsGreaterThanOrEqualTo(1);
@@ -340,18 +325,18 @@ public class ReadBatchedTests {
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
 
         var results = new List<object>();
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
         try {
             await foreach (var result in BlockForever(cts.Token).ReadBatched(
-                batchSize: 10,
-                timeout: TimeSpan.FromSeconds(30),
-                Classify,
-                ToBatch,
-                cts.Token
-            )) {
+                               10,
+                               TimeSpan.FromSeconds(30),
+                               Classify,
+                               ToBatch,
+                               cts.Token
+                           ))
                 results.Add(result);
-            }
         }
         catch (OperationCanceledException) {
             // Expected - cancellation propagates cleanly
@@ -365,12 +350,10 @@ public class ReadBatchedTests {
     }
 
     // Helper: blocks until cancelled (yields nothing)
-    static IAsyncEnumerable<object> BlockForever(CancellationToken ct) =>
-        new BlockForeverEnumerable(ct);
+    static IAsyncEnumerable<object> BlockForever(CancellationToken ct) => new BlockForeverEnumerable(ct);
 
     sealed class BlockForeverEnumerable(CancellationToken ct) : IAsyncEnumerable<object> {
-        public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) =>
-            new Enumerator(ct);
+        public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) => new Enumerator(ct);
 
         sealed class Enumerator(CancellationToken ct) : IAsyncEnumerator<object> {
             public object Current => null!;
@@ -383,6 +366,7 @@ public class ReadBatchedTests {
                 catch (OperationCanceledException) {
                     // Expected - just exit
                 }
+
                 return false;
             }
 
@@ -398,16 +382,11 @@ public class ReadBatchedTests {
         );
 
         using var cts = new CancellationTokenSource();
+
         var batchCount = 0;
 
         try {
-            await foreach (var _ in source.ReadBatched(
-                batchSize: 2,
-                timeout: TimeSpan.FromSeconds(10),
-                Classify,
-                ToBatch,
-                cts.Token
-            )) {
+            await foreach (var _ in source.ReadBatched(2, TimeSpan.FromSeconds(10), Classify, ToBatch, cts.Token)) {
                 batchCount++;
                 if (batchCount >= 2)
                     await cts.CancelAsync();
@@ -418,36 +397,6 @@ public class ReadBatchedTests {
         }
 
         await Assert.That(batchCount).IsGreaterThanOrEqualTo(2);
-    }
-
-    #endregion
-
-    #region Fast Path
-
-    [Test]
-    public async ValueTask synchronous_source_hits_fast_path() {
-        // A synchronous source should complete without async delays
-        // This tests that IsCompletedSuccessfully branch is taken
-        var source = Enumerable.Range(0, 100)
-            .Select(i => (object)new TestItem(i))
-            .ToAsyncEnumerable();
-
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-
-        var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(30),
-            Classify,
-            ToBatch)) {
-            results.Add(result);
-        }
-
-        sw.Stop();
-
-        // Should complete nearly instantly (fast path)
-        await Assert.That(sw.ElapsedMilliseconds).IsLessThan(1000);
-        await Assert.That(results).HasCount().EqualTo(10); // 100 items / 10 batch size
     }
 
     #endregion
@@ -463,13 +412,8 @@ public class ReadBatchedTests {
         var source = AsAsyncEnumerable(items);
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 7,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(7, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         // Flatten all batched items
         var allValues = results
@@ -496,13 +440,8 @@ public class ReadBatchedTests {
         var source = AsAsyncEnumerable(messages);
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         // Expected: Batch([0,1]), Trigger(100), Batch([2,3,4]), Trigger(200), Batch([5])
         await Assert.That(results).HasCount().EqualTo(5);
@@ -534,18 +473,11 @@ public class ReadBatchedTests {
     public async ValueTask pool_buffer_returned_on_normal_completion() {
         // This test verifies the code path completes without leaking
         // (ArrayPool returns happen in finally block)
-        var source = AsAsyncEnumerable<object>(
-            new TestItem(1), new TestItem(2), new TestItem(3)
-        );
+        var source = AsAsyncEnumerable<object>(new TestItem(1), new TestItem(2), new TestItem(3));
 
         var results = new List<object>();
-        await foreach (var result in source.ReadBatched(
-            batchSize: 10,
-            timeout: TimeSpan.FromSeconds(10),
-            Classify,
-            ToBatch)) {
+        await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
-        }
 
         await Assert.That(results).HasCount().EqualTo(1);
         // If we get here without exception, the finally block executed
@@ -554,17 +486,12 @@ public class ReadBatchedTests {
     [Test]
     public async ValueTask pool_buffer_returned_on_exception_in_source() {
         var throwAfter = 3;
-        var count = 0;
+        var count      = 0;
 
         Exception? caught = null;
 
         try {
-            await foreach (var _ in ThrowingSource().ReadBatched(
-                batchSize: 10,
-                timeout: TimeSpan.FromSeconds(10),
-                Classify,
-                ToBatch
-            )) {
+            await foreach (var _ in ThrowingSource().ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch)) {
                 // Just consume - we're testing cleanup on exception
             }
         }
@@ -576,12 +503,14 @@ public class ReadBatchedTests {
         await Assert.That(caught!.Message).IsEqualTo("Test exception");
 
         return;
+
         // If we get here, the finally block executed despite the exception
 
         async IAsyncEnumerable<object> ThrowingSource() {
             while (true) {
                 if (count++ >= throwAfter)
                     throw new InvalidOperationException("Test exception");
+
                 yield return new TestItem(count);
             }
         }

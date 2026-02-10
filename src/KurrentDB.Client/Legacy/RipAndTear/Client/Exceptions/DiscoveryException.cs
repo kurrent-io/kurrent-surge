@@ -6,7 +6,7 @@ namespace KurrentDB.Client;
 /// <summary>
 /// The exception that is thrown when <see cref="System.Net.EndPoint"/> discovery fails.
 /// </summary>
-public class DiscoveryException : KurrentException {
+class DiscoveryException : KurrentException {
 	/// <summary>
 	/// Constructs a new <see cref="DiscoveryException"/>.
 	/// </summary>

@@ -7,6 +7,6 @@
     <AssemblyName>Kurrent.Variant</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Humanizer.Core" />
+    <InternalsVisibleTo Include="Kurrent.Variant.Tests" />
   </ItemGroup>
 </Project>

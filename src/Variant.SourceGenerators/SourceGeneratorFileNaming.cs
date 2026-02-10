@@ -110,7 +110,7 @@ public sealed class FileNamingOptions {
         UseFoldersForNamespace = true,
         UseFoldersForPrefix    = true,
         LowercasePath          = false,
-        Prefix                 = null
+        Prefix                 = ""
     };
 
     /// <summary>
@@ -138,7 +138,7 @@ public sealed class FileNamingOptions {
     /// Behavior depends on UseFoldersForPrefix.
     /// Default: null
     /// </summary>
-    public string? Prefix { get; set; }
+    public string Prefix { get; set; } = "";
 
     /// <summary>
     /// Creates a new instance with flat file naming (no folders).

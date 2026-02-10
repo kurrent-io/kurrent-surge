@@ -1,7 +1,7 @@
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 
-namespace Kurrent.Client.Tests.Modules.Processors.Checkpoints;
+namespace Kurrent.Processors.Tests.Checkpoints;
 
 [Category("Processors")]
 public class PositionTrackerTests {

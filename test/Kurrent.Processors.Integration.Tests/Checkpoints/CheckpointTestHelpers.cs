@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Tests.Processors;
+namespace Kurrent.Processors.Tests;
 
 /// <summary>
 /// Test helpers for CheckpointStore tests.

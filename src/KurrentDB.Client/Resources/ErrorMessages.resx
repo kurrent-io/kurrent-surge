@@ -158,48 +158,4 @@
     <value>Failed to create client certificate.</value>
     <comment>The exception message for when certificate creation fails.</comment>
   </data>
-
-  <!-- Processor Callback Exceptions -->
-  <data name="InitializeException" xml:space="preserve">
-    <value>Processor initialization failed.</value>
-    <comment>The exception message for when IRecordProcessor.Initialize callback throws an exception.</comment>
-  </data>
-  <data name="Worker_ProcessRecordsFailed" xml:space="preserve">
-    <value>An error occurred while processing records.</value>
-    <comment>The exception message for when IRecordProcessor.ProcessRecords callback throws an exception.</comment>
-  </data>
-  <data name="Worker_OnCheckpointFailed" xml:space="preserve">
-    <value>An error occurred during checkpoint handling.</value>
-    <comment>The exception message for when IRecordProcessor.OnCheckpoint callback throws an exception.</comment>
-  </data>
-  <data name="AssignmentChangeException" xml:space="preserve">
-    <value>Assignment change processing failed.</value>
-    <comment>The exception message for when IRecordProcessor.OnAssignmentChange callback throws an exception.</comment>
-  </data>
-
-  <data name="Worker_OnErrorFailed" xml:space="preserve">
-    <value>An error occurred in the error handler.</value>
-    <comment>The exception message for when IRecordProcessor.OnError callback throws an exception.</comment>
-  </data>
-  <data name="Worker_OnCompleteFailed" xml:space="preserve">
-    <value>An error occurred in the completion handler.</value>
-    <comment>The exception message for when IRecordProcessor.OnComplete callback throws an exception.</comment>
-  </data>
-
-  <!-- <data name="ProcessorInitializationFailed" xml:space="preserve"> -->
-  <!--   <value>Processor initialization failed.</value> -->
-  <!--   <comment>The exception message for when IRecordProcessor.Initialize throws an exception.</comment> -->
-  <!-- </data> -->
-  <!-- <data name="RecordProcessingFailed" xml:space="preserve"> -->
-  <!--   <value>Record processing failed.</value> -->
-  <!--   <comment>The exception message for when IRecordProcessor.ProcessRecords throws an exception.</comment> -->
-  <!-- </data> -->
-  <!-- <data name="HeartbeatProcessingFailed" xml:space="preserve"> -->
-  <!--   <value>Heartbeat processing failed.</value> -->
-  <!--   <comment>The exception message for when IRecordProcessor.OnHeartbeat throws an exception.</comment> -->
-  <!-- </data> -->
-  <!-- <data name="ProcessorShutdownFailed" xml:space="preserve"> -->
-  <!--   <value>Processor shutdown failed.</value> -->
-  <!--   <comment>The exception message for when IRecordProcessor.OnShutdown throws an exception.</comment> -->
-  <!-- </data> -->
 </root>

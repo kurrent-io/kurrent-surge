@@ -1,6 +1,7 @@
 // ReSharper disable CheckNamespace
 
 using Google.Rpc;
+using Kurrent.Client.Errors;
 using Kurrent.Client.Streams;
 using KurrentDB.Protocol.V2.Streams.Errors;
 using Resources;

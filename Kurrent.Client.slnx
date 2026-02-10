@@ -2,56 +2,42 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
-  <Folder Name="/Client/" />
-  <Folder Name="/Examples/">
-    <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
+  <Folder Name="/Client/">
+    <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
+    <Project Path="src\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <Project Path="test/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/Client/Tests/">
+    <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
+    <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Processors/">
+    <Project Path="src/Kurrent.Processors/Kurrent.Processors.csproj" />
+  </Folder>
+  <Folder Name="/Processors/Examples/">
     <Project Path="examples/processors/Processor.AspNetMinimal/Processor.AspNetMinimal.csproj" />
-    <Project Path="examples/processors/Processor.WithPostgres/Processor.WithPostgres.csproj" />
-    <Project Path="examples/processors/Processor.WithRedisCache/Processor.WithRedisCache.csproj" />
-    <Project Path="examples/processors/Processor.FullExample/Processor.FullExample.csproj" />
-    <Project Path="examples/processors/Processor.WordCount/Processor.WordCount.csproj" />
-    <Project Path="examples/processors/Processor.IoTMonitoring/Processor.IoTMonitoring.csproj" />
     <Project Path="examples/processors/Processor.ClickstreamSessions/Processor.ClickstreamSessions.csproj" />
     <Project Path="examples/processors/Processor.FraudDetection/Processor.FraudDetection.csproj" />
-    <Project Path="examples/processors/Processor.OrderEnrichment/Processor.OrderEnrichment.csproj" />
+    <Project Path="examples/processors/Processor.FullExample/Processor.FullExample.csproj" />
+    <Project Path="examples/processors/Processor.IoTMonitoring/Processor.IoTMonitoring.csproj" />
     <Project Path="examples/processors/Processor.Leaderboard/Processor.Leaderboard.csproj" />
+    <Project Path="examples/processors/Processor.OrderEnrichment/Processor.OrderEnrichment.csproj" />
+    <Project Path="examples/processors/Processor.WithPostgres/Processor.WithPostgres.csproj" />
+    <Project Path="examples/processors/Processor.WithRedisCache/Processor.WithRedisCache.csproj" />
+    <Project Path="examples/processors/Processor.WordCount/Processor.WordCount.csproj" />
+    <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
   </Folder>
-  <Folder Name="/Processors/" />
-  <Folder Name="/Shared/" />
-  <Folder Name="/Tests/">
-    <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj">
-      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-    </Project>
-    <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj">
-      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-    </Project>
+  <Folder Name="/Processors/Tests/">
+    <Project Path="test\Kurrent.Processors.Integration.Tests\Kurrent.Processors.Integration.Tests.csproj" />
+    <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Shared/">
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
   </Folder>
-  <Folder Name="/Variant/">
-    <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj">
-      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-    </Project>
-    <Project Path="src\Variant\Variant.csproj">
-      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-    </Project>
-    <Project Path="test\Variant.Tests\Variant.Tests.csproj">
-      <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-      <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-    </Project>
+  <Folder Name="/Shared/Variant/">
+    <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" />
+    <Project Path="src\Variant\Variant.csproj" />
+    <Project Path="test\Variant.Tests\Variant.Tests.csproj" />
   </Folder>
-  <Project Path="src/Kurrent.Processors/Kurrent.Processors.csproj" />
   <Project Path="src/Kurrent.SDK/Kurrent.SDK.csproj" />
-  <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj">
-    <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-    <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-  </Project>
-  <Project Path="src\KurrentDB.Client\KurrentDB.Client.csproj">
-    <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
-    <Configuration Solution="Release|x64" Project="Release|Any CPU" />
-  </Project>
-  <Project Path="test/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
 </Solution>

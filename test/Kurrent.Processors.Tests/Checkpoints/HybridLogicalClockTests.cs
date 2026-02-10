@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Kurrent.Processors.Checkpointing;
 using Microsoft.Extensions.Time.Testing;
 
-namespace Kurrent.Client.Tests.Modules.Processors.Checkpoints;
+namespace Kurrent.Processors.Tests.Checkpoints;
 
 [Category("Processors")]
 public class HybridLogicalClockTests {

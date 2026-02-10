@@ -1,6 +1,7 @@
 // ReSharper disable CheckNamespace
 
 using Kurrent.Client;
+using Kurrent.Client.Errors;
 
 namespace Google.Rpc.Exceptions;
 

@@ -38,7 +38,7 @@
   ================================================================
   -->
   <PropertyGroup Label="NuGet Package Metadata" Condition="'$(IsPackable)' == 'true'">
-    <Title>KurrentDB .NET Client</Title>
+    <Title>Kurrent .NET Client</Title>
     <Product>KurrentDB .NET Client</Product>
     <Description>Teh client library for the Kurrent Platform. Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
     <Authors>Kurrent Inc.</Authors>
@@ -46,7 +46,7 @@
     <Copyright>Copyright © 2011-$([System.DateTime]::Now.Year) $(Company)</Copyright>
 
     <PackageIcon>ouro.png</PackageIcon>
-    <PackageTags>kurrent kurrentdb client eventstore</PackageTags>
+    <PackageTags>kurrent kurrentdb client sdk eventstore</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/kurrent-io/Kurrent.Client</PackageProjectUrl>
     <PackageReleaseNotes>https://kurrent.io/blog/</PackageReleaseNotes>

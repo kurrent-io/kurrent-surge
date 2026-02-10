@@ -209,7 +209,7 @@ public class TokenCompletionSourceTests {
 		// Act
         ExceptionDispatchInfo? captured = null;
         try {
-            await sut.Task.WaitAsync(TimeSpan.FromMilliseconds(1000));
+            await sut.Task.ConfigureAwait(false);
         }
         catch (Exception ex) {
             captured = ExceptionDispatchInfo.Capture(ex);

@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Client.Integration.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Processors.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Processors.Integration.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +27,13 @@
   <ItemGroup>
     <Using Include="Microsoft.Extensions.Logging" />
     <Using Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\ErrorMessages.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
   <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">

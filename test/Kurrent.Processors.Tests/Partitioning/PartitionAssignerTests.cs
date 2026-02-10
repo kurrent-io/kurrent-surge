@@ -3,7 +3,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Partitioning;
 
-namespace Kurrent.Client.Tests.Modules.Processors.Partitioning;
+namespace Kurrent.Processors.Tests.Partitioning;
 
 [Category("Processors")]
 public class PartitionAssignerTests {

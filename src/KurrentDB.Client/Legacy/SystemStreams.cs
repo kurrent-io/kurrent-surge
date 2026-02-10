@@ -1,4 +1,4 @@
-namespace KurrentDB.Client;
+namespace KurrentDB.Client.Legacy;
 
 /// <summary>
 /// A collection of constants and methods to identify streams.

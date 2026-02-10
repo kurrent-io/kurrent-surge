@@ -1,4 +1,5 @@
 using System.Text;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
 using Kurrent.Processors.Models;
@@ -8,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Client.Tests.Modules.Processors;
+namespace Kurrent.Processors.Tests;
 
 /// <summary>
 /// Unit tests for processor configuration, validation, and worker creation.
