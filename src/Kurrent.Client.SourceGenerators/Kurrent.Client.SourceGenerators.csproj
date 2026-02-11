@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- override the default TargetFramework to netstandard2.0 for source generators -->
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <!-- override the default multi-targeting; source generators must target netstandard2.0 only -->
+    <TargetFrameworks />
+    <TargetFramework>netstandard2.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IncludeBuildOutput>false</IncludeBuildOutput>

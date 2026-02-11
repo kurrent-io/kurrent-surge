@@ -2,8 +2,9 @@
   <PropertyGroup>
     <RootNamespace>Kurrent.Variant.SourceGenerators</RootNamespace>
     <AssemblyName>Kurrent.Variant.SourceGenerators</AssemblyName>
-    <!-- override the default TargetFramework to netstandard2.0 for source generators -->
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <!-- override the default multi-targeting; source generators must target netstandard2.0 only -->
+    <TargetFrameworks />
+    <TargetFramework>netstandard2.0</TargetFramework>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IsPackable>false</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
