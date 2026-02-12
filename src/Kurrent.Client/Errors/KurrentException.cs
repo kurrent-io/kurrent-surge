@@ -27,7 +27,7 @@ public class KurrentException : Exception {
     protected internal KurrentException(ErrorCode code, Status status) : base(status.Message, status.GetDetail<DebugInfo>().ToException()) {
         var details = new KurrentErrorDetails { ErrorCode = code };
 
-        if (status.GetDetail<Google.Rpc.ResourceInfo>() is { } resourceInfo)
+        if (status.GetDetail<Google.Rpc.ResourceInfo>() is { ResourceType.Length: > 0, ResourceName.Length: > 0 } resourceInfo)
             details.ResourceInfo = ResourceInfo.From(resourceInfo.ResourceType, resourceInfo.ResourceName);
 
         if (status.GetDetail<Google.Rpc.RetryInfo>() is { } retryInfo)

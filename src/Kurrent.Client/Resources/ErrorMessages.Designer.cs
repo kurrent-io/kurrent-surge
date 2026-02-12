@@ -123,6 +123,48 @@ namespace Resources {
             }
         }
 
+        internal static string SchemaNotFoundException {
+            get {
+                return ResourceManager.GetString("SchemaNotFoundException", resourceCulture);
+            }
+        }
+
+        internal static string SchemaAlreadyExistsException {
+            get {
+                return ResourceManager.GetString("SchemaAlreadyExistsException", resourceCulture);
+            }
+        }
+
+        internal static string SchemaDeletedException {
+            get {
+                return ResourceManager.GetString("SchemaDeletedException", resourceCulture);
+            }
+        }
+
+        internal static string SchemaIncompatibleException {
+            get {
+                return ResourceManager.GetString("SchemaIncompatibleException", resourceCulture);
+            }
+        }
+
+        internal static string ConnectorNotFoundException {
+            get {
+                return ResourceManager.GetString("ConnectorNotFoundException", resourceCulture);
+            }
+        }
+
+        internal static string ConnectorAlreadyExistsException {
+            get {
+                return ResourceManager.GetString("ConnectorAlreadyExistsException", resourceCulture);
+            }
+        }
+
+        internal static string ConnectorDeletedException {
+            get {
+                return ResourceManager.GetString("ConnectorDeletedException", resourceCulture);
+            }
+        }
+
         internal static string ConnectionStringNoScheme {
             get {
                 return ResourceManager.GetString("ConnectionStringNoScheme", resourceCulture);

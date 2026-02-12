@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package eventstore.connectors.v1;
+
+import "google/api/http.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "kurrentdb/protocol/v2/connectors/protocol.proto";
+import "kurrentdb/protocol/v2/connectors/managementplane/resources.proto";
+
+import "google/protobuf/struct.proto";
+
+option csharp_namespace = "KurrentDB.Connectors.Management.Contracts.Commands";
+
+service ConnectorsCommandService {
+  rpc Create(CreateConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/connectors/{connector_id}",
+      body: "*"
+    };
+  }
+
+  rpc Reconfigure(ReconfigureConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      put: "/connectors/{connector_id}/settings",
+      body: "settings"
+      additional_bindings {
+        put: "/connectors/{connector_id}/configuration"
+        body: "configuration"
+      }
+    };
+  }
+
+  rpc Delete(DeleteConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/connectors/{connector_id}"
+    };
+  }
+
+  rpc Start(StartConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/connectors/{connector_id}/start",
+      additional_bindings {
+        post: "/connectors/{connector_id}/start/{start_from.log_position}"
+      }
+    };
+  }
+
+  rpc Reset(ResetConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/connectors/{connector_id}/reset",
+      additional_bindings {
+        post: "/connectors/{connector_id}/reset/{start_from.log_position}"
+      }
+    };
+  }
+
+  rpc Stop(StopConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/connectors/{connector_id}/stop"
+    };
+  }
+
+  rpc Rename(RenameConnector) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      put: "/connectors/{connector_id}/rename",
+      body: "*"
+    };
+  }
+}
+
+message CreateConnector {
+  string                                   connector_id  = 1;
+  google.protobuf.StringValue              name          = 3;
+  map<string, google.protobuf.StringValue> settings      = 5;
+  google.protobuf.Struct                   configuration = 6;
+}
+
+message ReconfigureConnector {
+  string                                   connector_id  = 1;
+  map<string, google.protobuf.StringValue> settings      = 3;
+  google.protobuf.Struct                   configuration = 4;
+}
+
+message DeleteConnector {
+  string connector_id = 1;
+}
+
+message StartConnector {
+  string            connector_id = 1;
+  StartFromPosition start_from   = 3 [json_name = "start"];
+}
+
+message ResetConnector {
+  string            connector_id = 1;
+  StartFromPosition start_from   = 3 [json_name = "start"];
+}
+
+message StopConnector {
+  string connector_id = 1;
+}
+
+message RenameConnector {
+  string connector_id = 1;
+  string name         = 3;
+}
+
+message RecordConnectorStateChange {
+  string                    connector_id  = 1;
+  ConnectorState            from_state    = 3;
+  ConnectorState            to_state      = 5;
+  Error                     error_details = 7;
+  google.protobuf.Timestamp timestamp     = 9;
+}

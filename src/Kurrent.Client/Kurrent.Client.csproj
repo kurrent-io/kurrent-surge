@@ -89,17 +89,6 @@
     <Folder Update="..\..\proto" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="Modules\Connectors\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Remove="Modules\Connectors\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Modules\Connectors\**" />
-  </ItemGroup>
 
   <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">
     <ItemGroup>

@@ -30,8 +30,23 @@ public enum CompatibilityMode {
     /// </summary>
     [Description("COMPATIBILITY_MODE_FULL")] Full = 3,
     /// <summary>
+    /// Backward All compatibility ensures new schemas can read data written by ALL previous schema versions,
+    /// not just the immediately preceding one.
+    /// </summary>
+    [Description("COMPATIBILITY_MODE_BACKWARD_ALL")] BackwardAll = 4,
+    /// <summary>
+    /// Forward All compatibility ensures ALL previous schema versions can read data written by new schemas.
+    /// This provides stronger guarantees than regular forward compatibility.
+    /// </summary>
+    [Description("COMPATIBILITY_MODE_FORWARD_ALL")] ForwardAll = 5,
+    /// <summary>
+    /// Full All compatibility combines backward all and forward all compatibility modes.
+    /// This ensures complete compatibility across all schema versions, providing the strongest compatibility guarantees.
+    /// </summary>
+    [Description("COMPATIBILITY_MODE_FULL_ALL")] FullAll = 6,
+    /// <summary>
     /// Disables compatibility checks, allowing any kind of schema change.
     /// This mode should be used with caution, as it may lead to compatibility issues.
     /// </summary>
-    [Description("COMPATIBILITY_MODE_NONE")] None = 4,
+    [Description("COMPATIBILITY_MODE_NONE")] None = 7,
 }

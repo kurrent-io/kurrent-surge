@@ -1,24 +1,31 @@
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Registry;
 
-public class CreateSchemaTests : KurrentClientTestFixture {
-	const int TestTimeoutMs = 20_000;
+[Category("Registry")]
+[Category("Integration")]
+public class CreateSchemaTests {
+	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task registers_initial_version_of_new_schema(CancellationToken ct) {
-		var schemaName       = NewSchemaName();
-		var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask registers_initial_version_of_new_schema(CancellationToken ct) {
+		var schemaName       = KurrentClientTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		var schemaVersion = await AutomaticClient.Registry
+		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
 			.ShouldNotThrowOrFailAsync(version => {
                 version.VersionId.ShouldBeGuid();
                 version.VersionNumber.ShouldBe(1);
             });
 
-        await AutomaticClient.Registry
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+        await Fixture.Client.Registry
             .GetSchemaVersionById(schemaVersion.VersionId, ct)
             .ShouldNotThrowOrFailAsync(version => {
                 version.VersionId.ShouldBe(schemaVersion.VersionId);
@@ -29,18 +36,17 @@ public class CreateSchemaTests : KurrentClientTestFixture {
             });
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task fails_to_create_schema_when_schema_already_exists(CancellationToken ct) {
-        var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask fails_to_create_schema_when_schema_already_exists(CancellationToken ct) {
+        var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		await AutomaticClient.Registry
+		await Fixture.Client.Registry
 			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
 			.ShouldNotThrowOrFailAsync();
 
-		await AutomaticClient.Registry
+		await Fixture.Client.Registry
 			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(CreateSchemaError.CreateSchemaErrorCase.AlreadyExists));
+			.ShouldFailAsync(failure => failure.Case.ShouldBe(CreateSchemaError.CreateSchemaErrorCase.SchemaAlreadyExistsException));
 	}
 }
