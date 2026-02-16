@@ -40,4 +40,23 @@ public partial class StreamsClient {
             return AppendSessionError.FromEx(ex);
         }
     }
+
+    public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> Append(
+        AppendRecordsRequest request, CancellationToken cancellationToken = default
+    ) {
+        try {
+            var serviceRequest = await Mapper
+                .ToContract(request, cancellationToken)
+                .ConfigureAwait(false);
+
+            var response = await ServiceClient
+                .AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return Mapper.ToModel(response);
+        }
+        catch (Exception ex) {
+            return AppendRecordsError.FromEx(ex);
+        }
+    }
 }

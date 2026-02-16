@@ -158,4 +158,26 @@
     <value>Failed to create client certificate.</value>
     <comment>The exception message for when certificate creation fails.</comment>
   </data>
+
+  <!-- AppendRecord Validation Messages -->
+  <data name="AppendRecordRecordIdRequired" xml:space="preserve">
+    <value>Record ID cannot be empty.</value>
+    <comment>Validation error when AppendRecord.RecordId is Guid.Empty.</comment>
+  </data>
+  <data name="AppendRecordValueRequired" xml:space="preserve">
+    <value>Record value cannot be null.</value>
+    <comment>Validation error when AppendRecord.Value is null.</comment>
+  </data>
+  <data name="AppendRecordDataFormatRequired" xml:space="preserve">
+    <value>Schema format cannot be Unspecified.</value>
+    <comment>Validation error when AppendRecord.DataFormat is Unspecified.</comment>
+  </data>
+  <data name="AppendRecordByteValueRequiresBytesFormat" xml:space="preserve">
+    <value>Schema format must be 'Bytes' when the value is a byte array.</value>
+    <comment>Validation error when byte value uses wrong format.</comment>
+  </data>
+  <data name="AppendRecordStreamRequired" xml:space="preserve">
+    <value>A record must have a destination stream.</value>
+    <comment>Validation error when AppendRecord.Stream is None.</comment>
+  </data>
 </root>

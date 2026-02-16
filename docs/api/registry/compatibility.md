@@ -14,12 +14,12 @@ The `CompatibilityMode` enum defines how the registry validates new schema versi
 
 ### CompatibilityMode reference
 
-| Mode | Value | Description |
-|------|-------|-------------|
-| `None` | 4 | No compatibility checks. Any schema change is accepted. Use with caution. |
-| `Backward` | 1 | New schemas can read data written by the previous schema version. |
-| `Forward` | 2 | Previous schemas can read data written by the new schema version. |
-| `Full` | 3 | Both backward and forward compatible with the previous schema version. |
+| Mode       | Value | Description                                                               |
+|------------|-------|---------------------------------------------------------------------------|
+| `None`     | 4     | No compatibility checks. Any schema change is accepted. Use with caution. |
+| `Backward` | 1     | New schemas can read data written by the previous schema version.         |
+| `Forward`  | 2     | Previous schemas can read data written by the new schema version.         |
+| `Full`     | 3     | Both backward and forward compatible with the previous schema version.    |
 
 ### Backward compatibility
 
@@ -119,12 +119,12 @@ public async ValueTask<Result<SchemaVersionId, CheckSchemaCompatibilityError>> C
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `identifier` | `SchemaIdentifier` | The schema to check against. Can be a `SchemaName` (checks against the latest version) or a `SchemaVersionId` (checks against a specific version). |
-| `schemaDefinition` | `string` | The proposed new schema definition. |
-| `dataFormat` | `SchemaDataFormat` | The data format of the schema (`Json`, `Protobuf`, `Avro`, `Bytes`). |
-| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+| Parameter           | Type                | Description                                                                                                                                        |
+|---------------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `identifier`        | `SchemaIdentifier`  | The schema to check against. Can be a `SchemaName` (checks against the latest version) or a `SchemaVersionId` (checks against a specific version). |
+| `schemaDefinition`  | `string`            | The proposed new schema definition.                                                                                                                |
+| `dataFormat`        | `SchemaDataFormat`  | The data format of the schema (`Json`, `Protobuf`, `Avro`, `Bytes`).                                                                               |
+| `cancellationToken` | `CancellationToken` | Optional cancellation token.                                                                                                                       |
 
 ### Identifying the target schema
 
@@ -190,13 +190,13 @@ When a compatibility check fails, the error provides structured information abou
 
 Each individual incompatibility is represented by a `SchemaCompatibilityError`:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Kind` | `SchemaCompatibilityErrorKind` | The category of incompatibility. |
-| `Details` | `string` | A human-readable description of the issue. |
-| `PropertyPath` | `string` | The JSON path to the incompatible property. |
-| `OriginalType` | `JsonObjectType` | The type in the original schema. |
-| `NewType` | `JsonObjectType` | The type in the proposed schema. |
+| Property       | Type                           | Description                                 |
+|----------------|--------------------------------|---------------------------------------------|
+| `Kind`         | `SchemaCompatibilityErrorKind` | The category of incompatibility.            |
+| `Details`      | `string`                       | A human-readable description of the issue.  |
+| `PropertyPath` | `string`                       | The JSON path to the incompatible property. |
+| `OriginalType` | `JsonObjectType`               | The type in the original schema.            |
+| `NewType`      | `JsonObjectType`               | The type in the proposed schema.            |
 
 The `ToString()` method produces a summary like:
 
@@ -206,15 +206,15 @@ IncompatibleTypeChange at 'properties.quantity': Type changed from Integer to St
 
 ### SchemaCompatibilityErrorKind
 
-| Kind | Direction | Description |
-|------|-----------|-------------|
-| `MissingRequiredProperty` | Backward | A required property from the old schema is missing in the new schema. |
-| `IncompatibleTypeChange` | Backward | A property's type changed incompatibly between versions. |
-| `OptionalToRequired` | Backward | A property changed from optional to required. |
-| `NewRequiredProperty` | Forward | A new required property was added that old readers cannot provide. |
-| `RemovedProperty` | Forward | A property was removed that old readers still expect. |
-| `ArrayTypeIncompatibility` | Both | Array item types are incompatible between versions. |
-| `DataFormatMismatch` | Both | The data format of the proposed schema does not match the existing schema. |
+| Kind                       | Direction | Description                                                                |
+|----------------------------|-----------|----------------------------------------------------------------------------|
+| `MissingRequiredProperty`  | Backward  | A required property from the old schema is missing in the new schema.      |
+| `IncompatibleTypeChange`   | Backward  | A property's type changed incompatibly between versions.                   |
+| `OptionalToRequired`       | Backward  | A property changed from optional to required.                              |
+| `NewRequiredProperty`      | Forward   | A new required property was added that old readers cannot provide.         |
+| `RemovedProperty`          | Forward   | A property was removed that old readers still expect.                      |
+| `ArrayTypeIncompatibility` | Both      | Array item types are incompatible between versions.                        |
+| `DataFormatMismatch`       | Both      | The data format of the proposed schema does not match the existing schema. |
 
 ### SchemaCompatibilityErrors collection
 
@@ -257,14 +257,14 @@ var message = result.Match(
 
 ## When to use each compatibility mode
 
-| Scenario | Recommended Mode | Rationale |
-|----------|------------------|-----------|
-| Consumers upgrade before producers | `Backward` | New consumers must read old data. |
-| Producers upgrade before consumers | `Forward` | Old consumers must read new data. |
-| Independent upgrade schedules | `Full` | Either side may upgrade first. |
-| Rapid prototyping / development | `None` | Breaking changes are expected and acceptable. |
-| Shared events across many services | `Full` | Minimizes coordination overhead. |
-| Internal single-service events | `Backward` or `None` | Fewer consumers to coordinate. |
+| Scenario                           | Recommended Mode     | Rationale                                     |
+|------------------------------------|----------------------|-----------------------------------------------|
+| Consumers upgrade before producers | `Backward`           | New consumers must read old data.             |
+| Producers upgrade before consumers | `Forward`            | Old consumers must read new data.             |
+| Independent upgrade schedules      | `Full`               | Either side may upgrade first.                |
+| Rapid prototyping / development    | `None`               | Breaking changes are expected and acceptable. |
+| Shared events across many services | `Full`               | Minimizes coordination overhead.              |
+| Internal single-service events     | `Backward` or `None` | Fewer consumers to coordinate.                |
 
 ## Workflow: evolving a schema safely
 

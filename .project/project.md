@@ -8,14 +8,20 @@
 
 ## Project Overview
 
-KurrentDB .NET Client is an enterprise-grade event store client library for .NET. 
+Kurrent .NET Client is an enterprise-grade client library for .NET. 
 It provides type-safe, high-performance access to KurrentDB event streaming database with sophisticated features including schema registry integration, dual protocol support, and advanced resilience patterns.
 
+Kurrent is a **platform**, not a database. 
+
+The SDK is a .NET monorepo with separate NuGet packages (no meta-package). 
+
+Always refer to the KDD naming decision document and existing README for product positioning before writing any public-facing copy.
+
 **Core Principles:**
-- **Type-safe error handling** - Result pattern throughout, no exception-based flow control
-- **Functional programming influence** - Discriminated unions, Result monads, immutability
-- **Zero reflection** - Source generators for AOT compatibility
-- **Protocol versioning** - Dual support for v1 (EventStoreDB compatibility) and v2 (KurrentDB native)
+- **Type-safe error handling** – Result pattern throughout, no exception-based flow control
+- **Functional programming influence** – Discriminated unions, Result monads, immutability
+- **Zero reflection** – Source generators for AOT compatibility
+- **Protocol versioning** – Dual support for v1 (EventStoreDB compatibility) and v2 (KurrentDB native)
 - **Schema governance** - First-class schema registry integration with validation
 
 **Technology Stack:**
@@ -494,7 +500,7 @@ dotnet pack --configuration Release
 
 ### Protocol Buffers Integration
 
-**Automatic compilation during build** - No manual protoc needed. Configuration is in `KurrentDB.Client.csproj`.
+**Automatic compilation during build** – No manual protoc needed. Configuration is in `KurrentDB.Client.csproj`.
 
 **Protocol files:** `proto/kurrentdb/protocol/v1/`, `proto/kurrentdb/protocol/v2/`, `proto/kurrent/rpc/`
 
@@ -694,14 +700,14 @@ SerializerProvider = new SchemaSerializerProvider([
 
 1. **DON'T use `dotnet test`** - TUnit requires `dotnet run`
 2. **DON'T use Allman brace style** - K&R is mandatory
-3. **DON'T use PascalCase for test methods** - Use snake_case
-4. **DON'T throw exceptions for expected failures** - Return Result types
+3. **DON'T use PascalCase for test methods** – Use snake_case
+4. **DON'T throw exceptions for expected failures** – Return Result types
 5. **DON'T forget `ConfigureAwait(false)`** - Required in all library async code
-6. **DON'T use reflection for type mapping** - Use MessageTypeMapper registration
-7. **DON'T create folder-based namespaces** - Use feature-based (e.g., `Kurrent.Client.Streams`, not `Kurrent.Client.Modules.Streams`)
-8. **DON'T mix operations in one file** - Use partial classes per operation
-9. **DON'T use TestContainers** - Use FluentDocker
-10. **DON'T use xUnit/NUnit attributes** - Use TUnit attributes (`[Test]`, `[Arguments]`, `[Category]`)
+6. **DON'T use reflection for type mapping** – Use MessageTypeMapper registration
+7. **DON'T create folder-based namespaces** – Use feature-based (e.g., `Kurrent.Client.Streams`, not `Kurrent.Client.Modules.Streams`)
+8. **DON'T mix operations in one file** – Use partial classes per operation
+9. **DON'T use TestContainers** – Use FluentDocker
+10. **DON'T use xUnit/NUnit attributes** – Use TUnit attributes (`[Test]`, `[Arguments]`, `[Category]`)
 
 ---
 

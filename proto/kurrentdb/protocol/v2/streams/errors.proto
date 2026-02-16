@@ -91,6 +91,31 @@ enum StreamsError {
     has_details: true
   }];
 
+  // The same stream appears multiple times in a single append session.
+  // This is currently not supported to prevent complexity with expected revisions and ordering.
+  //
+  // Common causes:
+  // - Accidentally appending to the same stream twice in one session
+  // - Application logic error in batch operations
+  //
+  // Client action: Remove duplicate streams from the append session or split into multiple sessions.
+  // Recoverable by restructuring the append session to reference each stream only once.
+  STREAMS_ERROR_STREAM_ALREADY_IN_APPEND_SESSION = 8 [(kurrent.rpc.error) = {
+    status_code: ABORTED
+  }];
+
+  // An append session was started but no append requests were sent before completing the stream.
+  //
+  // Common causes:
+  // - Client completed the stream without sending any AppendRequest messages
+  // - Application logic error
+  //
+  // Client action: Ensure at least one AppendRequest is sent before completing the stream.
+  // Recoverable by properly implementing the append session protocol.
+  STREAMS_ERROR_APPEND_SESSION_NO_REQUESTS = 9 [(kurrent.rpc.error) = {
+    status_code: FAILED_PRECONDITION
+  }];
+
   // A single record being appended exceeds the maximum allowed size.
   //
   // Common causes:
@@ -119,31 +144,6 @@ enum StreamsError {
     has_details: true
   }];
 
-  // The same stream appears multiple times in a single append session.
-  // This is currently not supported to prevent complexity with expected revisions and ordering.
-  //
-  // Common causes:
-  // - Accidentally appending to the same stream twice in one session
-  // - Application logic error in batch operations
-  //
-  // Client action: Remove duplicate streams from the append session or split into multiple sessions.
-  // Recoverable by restructuring the append session to reference each stream only once.
-  STREAMS_ERROR_STREAM_ALREADY_IN_APPEND_SESSION = 8 [(kurrent.rpc.error) = {
-    status_code: ABORTED
-  }];
-
-  // An append session was started but no append requests were sent before completing the stream.
-  //
-  // Common causes:
-  // - Client completed the stream without sending any AppendRequest messages
-  // - Application logic error
-  //
-  // Client action: Ensure at least one AppendRequest is sent before completing the stream.
-  // Recoverable by properly implementing the append session protocol.
-  STREAMS_ERROR_APPEND_SESSION_NO_REQUESTS = 9 [(kurrent.rpc.error) = {
-    status_code: FAILED_PRECONDITION
-  }];
-
   STREAMS_ERROR_RECORD_NOT_FOUND = 10 [(kurrent.rpc.error) = {
     status_code: NOT_FOUND
   }];
@@ -155,6 +155,71 @@ enum StreamsError {
   STREAMS_ERROR_STREAM_REVISION_NOT_FOUND = 12 [(kurrent.rpc.error) = {
     status_code: NOT_FOUND
   }];
+
+  // One or more consistency checks failed during an AppendRecords operation.
+  // The transaction is aborted — no records are written.
+  //
+  // Common causes:
+  // - A stream revision check found the stream at a different revision than expected
+  // - A stream referenced in a revision check does not exist, was deleted, or was tombstoned
+  // - A query-based check evaluated to false
+  //
+  // Client action: Inspect the ConsistencyCheckFailedErrorDetails to determine which checks
+  // failed and why, then correct the request or refresh local state and retry.
+  // Recoverable by reading the current state and resubmitting with updated checks.
+  STREAMS_ERROR_CONSISTENCY_CHECK_FAILED = 13 [(kurrent.rpc.error) = {
+    status_code: FAILED_PRECONDITION,
+    has_details: true
+  }];
+}
+
+// Details for CONSISTENCY_CHECK_FAILED errors.
+//
+// Contains a map of all checks that failed, keyed by their zero-based index
+// in the original AppendRecordsRequest.consistency_checks list.
+// Only failed checks are included; passing checks are omitted.
+message ConsistencyCheckFailedErrorDetails {
+  // Map from the check index (position in consistency_checks) to its failure details.
+  // Enables the client to correlate each failure back to the specific check that was sent.
+  map<uint32, ConsistencyCheckError> failed_checks = 1;
+}
+
+// Failure details for a single consistency check.
+//
+// Mirrors the ConsistencyCheck oneof: a revision check produces RevisionCheckError,
+// a query check produces QueryCheckError.
+message ConsistencyCheckError {
+  oneof type {
+    // Failure details when a stream revision check did not hold.
+    RevisionCheckError revision = 1;
+
+    // Failure details when a query-based check evaluated to false.
+    QueryCheckError query = 2;
+  }
+
+  // A stream revision check failed because the actual state did not satisfy the expected value.
+  //
+  // The actual_revision field reports the stream's state:
+  //   >= 0   : The stream exists and is at this revision
+  //   -1     : The stream does not exist (NO_STREAM)
+  //   -10    : The stream has been soft-deleted (DELETED)
+  //   -100   : The stream has been tombstoned (TOMBSTONED)
+  //
+  // Note: ANY (-2) and EXISTS (-4) are never returned as actual_revision values.
+  // When a stream exists, the server returns the actual revision number (>= 0).
+  message RevisionCheckError {
+    // The name of the stream that failed the check.
+    string stream = 1;
+
+    // The actual state of the stream at the time the check was evaluated.
+    // Non-negative values (>= 0) are real revision numbers.
+    // Negative values are RevisionConstants sentinels: -1 (NO_STREAM), -10 (DELETED), -100 (TOMBSTONED).
+    sint64 actual_revision = 2;
+  }
+
+  // A query-based consistency check evaluated to false.
+  // No additional details are currently provided.
+  message QueryCheckError { }
 }
 
 // Details for STREAM_REVISION_CONFLICT errors.

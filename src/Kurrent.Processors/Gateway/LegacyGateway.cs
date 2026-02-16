@@ -54,7 +54,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                     .UnwrapAsync().ConfigureAwait(false);
 
                 throw info.State switch {
-                    StreamState.Missing => new StreamNotFoundException(stream),
+                    StreamState.Missing    => new StreamNotFoundException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
                     _ => throw new InvalidOperationException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };

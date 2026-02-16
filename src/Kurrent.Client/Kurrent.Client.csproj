@@ -8,7 +8,6 @@
     <Description>The official .NET client for the Kurrent Platform. Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
     <PackageTags>kurrent kurrentdb client sdk eventstore event-sourcing</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <RootNamespace />
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
     <!-- Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack -->
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>
@@ -75,7 +74,7 @@
     <InternalsVisibleTo Include="Kurrent.Client.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Processors" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <Compile Remove="Modules\Connectors\**" />
     <EmbeddedResource Remove="Modules\Connectors\**" />

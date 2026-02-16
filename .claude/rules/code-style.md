@@ -1,3 +1,8 @@
+---
+paths:
+  - "src/**/*.cs"
+---
+
 # Kurrent.Client Code Style
 
 ## Braces: K&R Style (NON-NEGOTIABLE)

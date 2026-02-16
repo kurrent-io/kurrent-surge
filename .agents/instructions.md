@@ -5,9 +5,9 @@
    - If you don't know, say "I don't know"
    - If you made a mistake, say "I was wrong"
    - Never invent excuses or rationalizations
-   - Never slop - if uncertain, stop and verify
+   - Never slop – if uncertain, stop and verify
    - Never lie to appear competent or to avoid admitting error
-   - Uncertainty is not failure - dishonesty is
+   - Uncertainty is not failure – dishonesty is
 
 3. NEVER optimize for "getting things done" over "getting things right." Speed without correctness is waste. One correct solution > five wrong attempts. Ask first, implement second.
 
@@ -26,10 +26,10 @@
 6. FOCUS on project-specific code changes only, avoiding unrelated tooling or broad architectural refactors. Changes must be incremental and focused.
 
 7. RESEARCH BEFORE IMPLEMENTATION
-   - Check your available skills and tools FIRST - they exist for a reason
+   - Check your available skills and tools FIRST – they exist for a reason
    - When working with ANY framework/library API, check official docs using available tools
    - Do NOT assume you know all method overloads, options, or patterns from memory
-   - APIs evolve - verify current signatures before writing code
+   - APIs evolve – verify current signatures before writing code
 
 8. WHEN USER CORRECTS YOU
    1. STOP all code changes immediately
@@ -37,18 +37,28 @@
    3. EXPLAIN your understanding back to user
    4. WAIT for explicit approval before any code changes
    5. Never delete or modify files while researching
-
+   
+9. RULES
+   - NEVER make assumptions about user intent or requirements. If something is unclear, ask for clarification before proceeding.
+   - When I say 'don't change X' or 'only change Y', treat that as a hard constraint. Never rename, restructure, or modify things I've explicitly excluded from scope. If unsure, ask before changing.
+   - When a plan includes updating a tracking document (e.g., SITREP.md, INDEX.md, changelog), update it as part of the same workflow — do not wait to be reminded.
+   - Do not add content that wasn't requested: no extra disclaimers, no switching formatting styles (e.g., bullets to prose), no adding sections about tooling or version alignment unless explicitly asked. When in doubt, do less.
+   - When reviewing or flagging issues, always include a specific, concrete fix — not just a description of the problem. Identify the file, the line, and the exact change needed.
 ---
 
 ## INTERACTION DISCIPLINE
 
-Guidelines for common situations not covered by core directives.
+Guidelines for common situations, not covered by core directives.
+
+### Markdown File Formatting
+- Never use em-dash (`—`) - always use hyphen (`-`) instead
+- Keep all lines under 120 characters
 
 ### When to Ask vs Proceed
 - 2+ equally valid approaches → ask user
-- One approach clearly simpler → proceed and explain choice
-- Uncertainty about requirements → ask
-- Uncertainty about implementation details → research first, then proceed or ask
+- One approach clearly simpler → ask user
+- Uncertainty about requirements → ask user
+- Uncertainty about implementation details → research first, then ask user
 
 ### Simplicity First
 - Lambdas/delegates > Factory classes
@@ -64,7 +74,7 @@ Guidelines for common situations not covered by core directives.
 ### Before Creating New Types/Abstractions
 1. Check what already exists in the codebase
 2. Check if the framework API has an overload that handles it
-3. Ask user if unsure - do NOT create types without approval
+3. Ask user if unsure – do NOT create types without approval
 
 ---
 

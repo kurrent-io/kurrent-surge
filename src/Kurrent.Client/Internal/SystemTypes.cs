@@ -45,7 +45,8 @@ static class SystemTypes {
         public bool IsBytes() =>
             type == typeof(byte[]) ||
             type == typeof(ReadOnlyMemory<byte>) ||
-            type == typeof(Memory<byte>);
+            type == typeof(Memory<byte>) ||
+            type == typeof(ArraySegment<byte>);
 
         /// <summary>
         /// Checks if the specified type is the placeholder type representing a missing type.

@@ -7,6 +7,43 @@ using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;
 
+
+public readonly partial record struct ConsistencyCheck : IVariant<RevisionConsistencyCheck, QueryConsistencyCheck>;
+
+public readonly record struct RevisionConsistencyCheck(StreamName Stream, StreamRevision Revision);
+
+public readonly record struct QueryConsistencyCheck(string Expression);
+
+
+[PublicAPI]
+[method: SetsRequiredMembers]
+public record AppendRecordsRequest(AppendRecord[] Records, ConsistencyCheck[] Checks) {
+    public required AppendRecord[]     Records { get; init; } = Records;
+    public required ConsistencyCheck[] Checks  { get; init; } = Checks;
+}
+
+[PublicAPI]
+[method: SetsRequiredMembers]
+public record AppendRecordsSuccess((string Stream, long Revision)[] Revisions, LogPosition Position) {
+    public required (string Stream, long Revision)[] Revisions { get; init; } = Revisions;
+    public required LogPosition                      Position  { get; init; } = Position;
+}
+
+
+[PublicAPI]
+public partial class AppendRecordsError : IVariantException<
+    StreamConsistencyCheckException,
+    MaxAppendRecordSizeExceededException,
+    MaxAppendTransactionSizeExceededException,
+    Exception> {
+    public static AppendRecordsError FromEx(Exception ex) =>
+        ex.ToExceptionalErrorResult<AppendRecordsError>(
+            static (s, e) => StreamConsistencyCheckException.From(s, e),
+            static (s, e) => MaxAppendRecordSizeExceededException.From(s, e),
+            static (s, e) => MaxAppendTransactionSizeExceededException.From(s, e));
+}
+
+
 [PublicAPI]
 [method: SetsRequiredMembers]
 public record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {

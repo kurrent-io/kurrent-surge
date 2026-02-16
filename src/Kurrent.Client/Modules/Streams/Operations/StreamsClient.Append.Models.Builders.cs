@@ -51,63 +51,32 @@ public class AppendStreamRequestBuilder {
 
 [PublicAPI]
 public class AppendRecordBuilder {
-	AppendRecord _appendRecord = new() {
-		RecordId   = Guid.NewGuid(),
-		Value      = null!,
-		DataFormat = SchemaDataFormat.Json,
-        Metadata   = new Metadata()
-        // Metadata   = new Metadata().With(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Json)
-	};
+    AppendRecord _appendRecord = new();
 
     public AppendRecordBuilder FromRecord(AppendRecord record) {
         _appendRecord = record;
         return this;
     }
 
+    public AppendRecordBuilder ForStream(StreamName stream) {
+        _appendRecord = _appendRecord with { Stream = stream };
+        return this;
+    }
+
     public AppendRecordBuilder WithRecordId(Guid recordId) {
-		if (_appendRecord.RecordId == Guid.Empty)
-			throw new ArgumentNullException(nameof(recordId), "RecordId cannot be empty");
+        _appendRecord = _appendRecord with { RecordId = recordId };
+        return this;
+    }
 
-		_appendRecord = _appendRecord with { RecordId = recordId };
-		return this;
-	}
+    public AppendRecordBuilder WithValue(object recordValue) {
+        _appendRecord = _appendRecord with { Value = recordValue };
+        return this;
+    }
 
-	public AppendRecordBuilder WithValue(object value) {
-        if (value is null)
-            throw new ArgumentNullException(nameof(value), "Message value cannot be null");
-
-		_appendRecord = _appendRecord with { Value = value };
-
-		return this;
-	}
-
-	public AppendRecordBuilder WithDataFormat(SchemaDataFormat dataFormat) {
-		if (dataFormat == SchemaDataFormat.Unspecified)
-			throw new ArgumentNullException(nameof(dataFormat), "Data format cannot be unspecified");
-
-		if (_appendRecord.Value.IsBytes() && dataFormat != SchemaDataFormat.Bytes)
-			throw new ArgumentException($"Data format must be {SchemaDataFormat.Bytes} because the value is a byte array");
-
-		_appendRecord = _appendRecord with {
-			DataFormat = dataFormat
-		};
-
-		return this;
-	}
-
-	// public AppendRecordBuilder WithMetadata(Metadata metadata) {
-	// 	var dataFormat = metadata.GetSchemaFormat();
-	// 	if (dataFormat == SchemaDataFormat.Unspecified)
-	// 		dataFormat = _appendRecord.DataFormat;
-	//
-	// 	_appendRecord = _appendRecord with {
-	// 		DataFormat = dataFormat,
-	// 		Metadata   = metadata.CreateUnlockedCopy()
-	// 			.With(SystemMetadataKeys.SchemaFormat, dataFormat)
-	// 	};
-	//
-	// 	return this;
-	// }
+    public AppendRecordBuilder WithDataFormat(SchemaDataFormat dataFormat) {
+        _appendRecord = _appendRecord with { DataFormat = dataFormat };
+        return this;
+    }
 
     public AppendRecordBuilder WithMetadata(Metadata metadata) {
         _appendRecord = _appendRecord with {
@@ -120,19 +89,64 @@ public class AppendRecordBuilder {
 	public AppendRecordBuilder WithMetadata<T>(string key, T value) =>
 		WithMetadata(_appendRecord.Metadata.With(key, value));
 
-	public AppendRecordBuilder WithMetadata(IDictionary<string, object?> entries) =>
-		WithMetadata(_appendRecord.Metadata.WithMany(entries));
+    public AppendRecord Build() => _appendRecord.EnsureValid();
+}
 
-	public AppendRecord Build() {
-		if (_appendRecord.Value is null)
-			throw new InvalidOperationException("Message value cannot be null");
+[PublicAPI]
+public class AppendRecordsRequestBuilder {
+    readonly List<ConsistencyCheck> _checks  = [];
+    readonly List<AppendRecord>     _records = [];
 
-		// // Create a copy of metadata to avoid modifying the original
-		// var metadata = _appendRecord.Metadata.CreateUnlockedCopy()
-		// 	.With(SystemMetadataKeys.SchemaFormat, _appendRecord.DataFormat);
-		//
-		// return _appendRecord with { Metadata = metadata };
+    StreamName _defaultStream = StreamName.None;
 
-        return _appendRecord;
+    internal AppendRecordsRequestBuilder() { }
+
+    public AppendRecordsRequestBuilder ForStream(StreamName stream) {
+        _defaultStream = stream;
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(AppendRecord record) {
+        _records.Add(record);
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(Action<AppendRecordBuilder> configure) {
+        _records.Add(new AppendRecordBuilder().With(configure).Build());
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(AppendRecordBuilder builder) {
+        _records.Add(builder.Build());
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json, Metadata? metadata = null) =>
+        WithRecord(AppendRecord.New.WithValue(value).WithDataFormat(dataFormat).WithMetadata(metadata ?? new Metadata()).Build());
+
+    public AppendRecordsRequestBuilder WithRecords(params AppendRecord[] records) {
+        _records.AddRange(records);
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithChecks(params ConsistencyCheck[] checks) {
+        foreach (var check in checks)
+            _checks.Add(check);
+
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRevisionCheck(StreamName stream, StreamRevision revision) =>
+        WithChecks(new RevisionConsistencyCheck(stream, revision));
+
+    public AppendRecordsRequest Build() {
+        var records = _defaultStream != StreamName.None
+            ? _records.Select(r => r.Stream == StreamName.None ? r with { Stream = _defaultStream } : r).ToArray()
+            : _records.ToArray();
+
+        foreach (var record in records)
+            record.EnsureValid();
+
+        return new AppendRecordsRequest(records, _checks.ToArray());
     }
 }

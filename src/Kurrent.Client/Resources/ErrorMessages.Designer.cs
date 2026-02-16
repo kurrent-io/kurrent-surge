@@ -28,7 +28,7 @@ namespace Resources {
         internal static System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.Equals(null, resourceMan)) {
-                    System.Resources.ResourceManager temp = new System.Resources.ResourceManager("Resources.ErrorMessages", typeof(ErrorMessages).Assembly);
+                    System.Resources.ResourceManager temp = new System.Resources.ResourceManager("Kurrent.Client.Resources.ErrorMessages", typeof(ErrorMessages).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -246,6 +246,36 @@ namespace Resources {
         internal static string ConnectionStringCertificateCreationFailed {
             get {
                 return ResourceManager.GetString("ConnectionStringCertificateCreationFailed", resourceCulture);
+            }
+        }
+
+        internal static string AppendRecordRecordIdRequired {
+            get {
+                return ResourceManager.GetString("AppendRecordRecordIdRequired", resourceCulture);
+            }
+        }
+
+        internal static string AppendRecordValueRequired {
+            get {
+                return ResourceManager.GetString("AppendRecordValueRequired", resourceCulture);
+            }
+        }
+
+        internal static string AppendRecordDataFormatRequired {
+            get {
+                return ResourceManager.GetString("AppendRecordDataFormatRequired", resourceCulture);
+            }
+        }
+
+        internal static string AppendRecordByteValueRequiresBytesFormat {
+            get {
+                return ResourceManager.GetString("AppendRecordByteValueRequiresBytesFormat", resourceCulture);
+            }
+        }
+
+        internal static string AppendRecordStreamRequired {
+            get {
+                return ResourceManager.GetString("AppendRecordStreamRequired", resourceCulture);
             }
         }
     }

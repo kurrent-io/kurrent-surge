@@ -1,11 +1,11 @@
 // ReSharper disable CheckNamespace
 
 using Google.Rpc;
-using Kurrent.Client.Errors;
 using Kurrent.Client.Streams;
 using KurrentDB.Protocol.V2.Streams.Errors;
 using Resources;
 using static System.String;
+using ConsistencyCheckError = Kurrent.Client.Streams.ConsistencyCheckError;
 
 namespace Kurrent.Client.Exceptions;
 
@@ -55,6 +55,31 @@ public partial class StreamRevisionConflictException {
         self.ActualRevision = details.ActualRevision >= 0
             ? StreamRevision.From(details.ActualRevision)
             : StreamRevision.Unset;
+    }
+}
+
+[KurrentOperationError(StreamsError.ConsistencyCheckFailed)]
+public partial class StreamConsistencyCheckException {
+    public IReadOnlyDictionary<int, ConsistencyCheckError> FailedChecks { get; private set; } = new Dictionary<int, ConsistencyCheckError>(); //ConsistencyCheckError
+
+    public StreamConsistencyCheckException(string operationName, Dictionary<int, ConsistencyCheckError> failedChecks)
+        : this(Format(ErrorMessages.StreamRevisionConflictException, operationName, failedChecks)) {
+        FailedChecks   = failedChecks;
+    }
+
+    public void AfterParseRpcStatus(Status status, StreamConsistencyCheckException self) {
+        var details = status.GetDetail<ConsistencyCheckFailedErrorDetails>()!;
+
+        self.FailedChecks = details.FailedChecks.ToDictionary<KeyValuePair<uint, KurrentDB.Protocol.V2.Streams.Errors.ConsistencyCheckError>, int, ConsistencyCheckError>(
+            kvp => (int)kvp.Key,
+            kvp => kvp.Value.TypeCase switch {
+                KurrentDB.Protocol.V2.Streams.Errors.ConsistencyCheckError.TypeOneofCase.Revision => new RevisionConsistencyCheckError {
+                    Stream   = kvp.Value.Revision.Stream,
+                    Revision = kvp.Value.Revision.ActualRevision
+                },
+                _ => ConsistencyCheckError.None
+            }
+        );
     }
 }
 
