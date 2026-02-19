@@ -52,7 +52,7 @@ public class AppendTests {
 
         // create stream
         var result = await Fixture.Client.Streams
-            .Append(smartHomeActivity.Stream, ExpectedStreamState.NoStream, smartHomeActivity.Records.Take(3), ct)
+            .Append(smartHomeActivity.Stream, ExpectedStreamCondition.NoStream, smartHomeActivity.Records.Take(3), ct)
             .ShouldNotThrowOrFailAsync();
 
         // append to existing stream
@@ -67,8 +67,8 @@ public class AppendTests {
 
     public class AppendToStreamInAnyState : TestCaseGenerator<ExpectedStreamState> {
         protected override IEnumerable<ExpectedStreamState> Data() => [
-            ExpectedStreamState.NoStream,
-            ExpectedStreamState.StreamExists
+            ExpectedStreamCondition.NoStream,
+            ExpectedStreamCondition.Exists
         ];
     }
 
@@ -76,7 +76,7 @@ public class AppendTests {
     public async Task appends_to_stream_in_any_state(ExpectedStreamState expectedStreamState, CancellationToken ct) {
         var smartHomeActivity = await Fixture.SeedSmartHomeActivity(6, ct); // Ensure at least 6 records for Take(3) + Skip(3)
 
-        if (ExpectedStreamState.NoStream == expectedStreamState) {
+        if (expectedStreamState == (ExpectedStreamState)ExpectedStreamCondition.NoStream) {
             var expectedRevision = StreamRevision.From(smartHomeActivity.Records.Count() - 1);
 
             // should create the stream
@@ -88,15 +88,15 @@ public class AppendTests {
                     success.Position.ShouldBeGreaterThan(LogPosition.Earliest);
                 });
         }
-        else if(ExpectedStreamState.StreamExists == expectedStreamState) {
+        else if(expectedStreamState == (ExpectedStreamState)ExpectedStreamCondition.Exists) {
             // create stream
             await Fixture.Client.Streams
-                .Append(smartHomeActivity.Stream, ExpectedStreamState.NoStream, smartHomeActivity.Records.Take(3), ct)
+                .Append(smartHomeActivity.Stream, ExpectedStreamCondition.NoStream, smartHomeActivity.Records.Take(3), ct)
                 .ShouldNotThrowOrFailAsync();
 
             // append to existing stream
             await Fixture.Client.Streams
-                .Append(smartHomeActivity.Stream, ExpectedStreamState.StreamExists, smartHomeActivity.Records.Skip(3), ct)
+                .Append(smartHomeActivity.Stream, ExpectedStreamCondition.Exists, smartHomeActivity.Records.Skip(3), ct)
                 .ShouldNotThrowOrFailAsync();
         }
     }
@@ -154,7 +154,7 @@ public class AppendTests {
         // Act - Append 10 records
         var activity = HomeAutomationTestData.SimulateHomeActivity(10);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Assert - Verify retention enforced (only last 5 records should be kept)
@@ -188,7 +188,7 @@ public class AppendTests {
         // Act - Append records
         var activity = HomeAutomationTestData.SimulateHomeActivity(5);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Assert - Verify MaxAge retention policy is set
@@ -228,7 +228,7 @@ public class AppendTests {
         // Act - Append more than MaxCount
         var activity = HomeAutomationTestData.SimulateHomeActivity(20);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Assert - MaxCount should take precedence (immediate effect)
@@ -260,13 +260,13 @@ public class AppendTests {
         // Create stream first
         var activity = HomeAutomationTestData.SimulateHomeActivity(1);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Act & Assert - Attempt to append with NoStream expectation
         var activity2 = HomeAutomationTestData.SimulateHomeActivity(1);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity2.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity2.Messages, ct)
             .ShouldFailAsync(error => {
                 error.Value.ShouldBeOfType<StreamRevisionConflictException>();
             });
@@ -278,10 +278,10 @@ public class AppendTests {
         var streamName = $"stream-missing-{Guid.NewGuid():N}";
 
         // Act & Assert - Attempt to append with StreamExists expectation
-        // Note: ExpectedStreamState.StreamExists on missing stream throws StreamRevisionConflictException, not StreamNotFoundException
+        // Note: ExpectedStreamCondition.Exists on missing stream throws StreamRevisionConflictException, not StreamNotFoundException
         var activity = HomeAutomationTestData.SimulateHomeActivity(1);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.StreamExists, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.Exists, activity.Messages, ct)
             .ShouldFailAsync(error => {
                 error.Value.ShouldBeOfType<StreamRevisionConflictException>();
             });
@@ -295,7 +295,7 @@ public class AppendTests {
         // Create stream with 3 records (revision will be 2)
         var activity1 = HomeAutomationTestData.SimulateHomeActivity(3);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity1.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity1.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Act & Assert - Attempt to append expecting wrong revision
@@ -305,8 +305,8 @@ public class AppendTests {
             .ShouldFailAsync(error => {
                 var ex = error.Value as StreamRevisionConflictException;
                 ex.ShouldNotBeNull();
-                ex.ExpectedRevision.ShouldBe(StreamRevision.From(5));
-                ex.ActualRevision.ShouldBe(StreamRevision.From(2));
+                ex.ExpectedRevision.ShouldBe((ExpectedStreamState)StreamRevision.From(5));
+                ex.ActualRevision.ShouldBe((ActualStreamState)StreamRevision.From(2));
             });
     }
 
@@ -328,7 +328,7 @@ public class AppendTests {
         // Act - Append records
         var activity = HomeAutomationTestData.SimulateHomeActivity(5);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Assert - Custom metadata should still exist
@@ -355,7 +355,7 @@ public class AppendTests {
         // Act - Append records
         var activity = HomeAutomationTestData.SimulateHomeActivity(5);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync();
 
         // Assert - CacheControl should be preserved
@@ -381,7 +381,7 @@ public class AppendTests {
         // Act - Create stream via first append (using NoStream)
         var activity = HomeAutomationTestData.SimulateHomeActivity(3);
         await Fixture.Client.Streams
-            .Append(streamName, ExpectedStreamState.NoStream, activity.Messages, ct)
+            .Append(streamName, ExpectedStreamCondition.NoStream, activity.Messages, ct)
             .ShouldNotThrowOrFailAsync(result => {
                 result.StreamRevision.ShouldBe(StreamRevision.From(2)); // 3 records = revision 2
             });

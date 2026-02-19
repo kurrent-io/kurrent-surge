@@ -340,11 +340,11 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 return (state, record.Position.StreamRevision);
 
             // Stream exists but has no valid checkpoint - stream is empty, expect it to exist
-            return (new ProcessorCheckpointState(), ExpectedStreamState.StreamExists);
+            return (new ProcessorCheckpointState(), ExpectedStreamCondition.Exists);
         }
         catch (StreamNotFoundException) {
             // Stream doesn't exist yet - use NoStream to create it
-            return (new ProcessorCheckpointState(), ExpectedStreamState.NoStream);
+            return (new ProcessorCheckpointState(), ExpectedStreamCondition.NoStream);
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using NodaTime;
 using NodaTime.Serialization.SystemTextJson;
 
@@ -9,10 +10,26 @@ namespace Kurrent.Client.Schema.Serialization.Json;
 public record JsonSchemaSerializerOptions : SchemaSerializerOptions {
 	public static readonly JsonSchemaSerializerOptions Default = new();
 
-	public static readonly JsonSerializerOptions DefaultJsonSerializerOptions = CreateDefaultOptions();
+	public static readonly JsonSerializerOptions DefaultJsonSerializerOptions = BuildOptions([]);
 
-	static JsonSerializerOptions CreateDefaultOptions() {
-		var options = new JsonSerializerOptions(JsonSerializerOptions.Default) {
+	/// <summary>
+	/// User-provided <see cref="JsonSerializerContext"/> instances for domain type serialization.
+	/// When provided, they are added to the <see cref="System.Text.Json.JsonSerializerOptions.TypeInfoResolverChain"/>
+	/// alongside the internal <see cref="KurrentJsonContext"/>.
+	/// </summary>
+	public IReadOnlyList<JsonSerializerContext> UserJsonContexts { get; init; } = [];
+
+	public JsonSerializerOptions JsonSerializerOptions =>
+		UserJsonContexts.Count == 0
+			? DefaultJsonSerializerOptions
+			: BuildOptions(UserJsonContexts);
+
+	public bool UseProtobufFormatter { get; init; } = true;
+
+	static JsonSerializerOptions CreateDefaultOptions() => BuildOptions([]);
+
+	static JsonSerializerOptions BuildOptions(IReadOnlyList<JsonSerializerContext> userContexts) {
+		var options = new JsonSerializerOptions {
 			PropertyNamingPolicy        = JsonNamingPolicy.CamelCase,
 			DictionaryKeyPolicy         = JsonNamingPolicy.CamelCase,
 			PropertyNameCaseInsensitive = false,
@@ -21,16 +38,20 @@ public record JsonSchemaSerializerOptions : SchemaSerializerOptions {
 			UnmappedMemberHandling      = JsonUnmappedMemberHandling.Skip,
 			NumberHandling              = JsonNumberHandling.AllowReadingFromString,
 			Converters                  = {
-				new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
 				new NullableTimeSpanIso8601Converter(),
 				new TimeSpanIso8601Converter()
 			}
 		};
 
+		options.TypeInfoResolverChain.Add(KurrentJsonContext.Default);
+
+		foreach (var context in userContexts)
+			options.TypeInfoResolverChain.Add(context);
+
+		// reflection fallback for types not covered by source-gen contexts
+		options.TypeInfoResolverChain.Add(new DefaultJsonTypeInfoResolver());
+
 		options.ConfigureForNodaTime(DateTimeZoneProviders.Tzdb);
 		return options;
 	}
-
-	public JsonSerializerOptions JsonSerializerOptions { get; init; } = DefaultJsonSerializerOptions;
-	public bool                  UseProtobufFormatter  { get; init; } = true;
 }

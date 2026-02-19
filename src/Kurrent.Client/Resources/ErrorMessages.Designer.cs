@@ -278,5 +278,11 @@ namespace Resources {
                 return ResourceManager.GetString("AppendRecordStreamRequired", resourceCulture);
             }
         }
+
+        internal static string AppendRecordsRequestEmpty {
+            get {
+                return ResourceManager.GetString("AppendRecordsRequestEmpty", resourceCulture);
+            }
+        }
     }
 }

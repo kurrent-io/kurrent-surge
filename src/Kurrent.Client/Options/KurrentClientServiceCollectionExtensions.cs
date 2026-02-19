@@ -89,7 +89,7 @@ public static class KurrentClientServiceCollectionExtensions {
                 var configuration = sp.GetService<IConfiguration>();
                 var builder       = KurrentClientOptionsBuilder.Create();
 
-                if (configuration is not null)
+                if (configuration is { })
                     builder.FromConfiguration(configuration);
 
                 configure(builder, sp);

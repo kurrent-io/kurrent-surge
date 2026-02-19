@@ -10,12 +10,12 @@ public readonly record struct PlayerId {
     /// </summary>
     public static readonly PlayerId None = new(Guid.Empty);
 
-    PlayerId(Guid value) => Value = value;
+    public PlayerId(Guid value) => Value = value;
 
     /// <summary>
     /// The underlying GUID value.
     /// </summary>
-    public Guid Value { get; }
+    public Guid Value { get; init; }
 
     /// <summary>
     /// Indicates whether this identifier is unset.

@@ -5,14 +5,17 @@ using Kurrent.Client.Streams;
 using KurrentDB.Protocol.V2.Streams.Errors;
 using Resources;
 using static System.String;
+
 using ConsistencyCheckError = Kurrent.Client.Streams.ConsistencyCheckError;
 
 namespace Kurrent.Client.Exceptions;
 
 [KurrentOperationError(StreamsError.StreamNotFound)]
 public partial class StreamNotFoundException {
-    public StreamNotFoundException(StreamName stream)
-        : this(Format(ErrorMessages.StreamNotFoundException, stream)) { }
+    public StreamNotFoundException(StreamName stream) : this(Format(ErrorMessages.StreamNotFoundException, stream)) =>
+        Stream = stream;
+
+    public StreamName Stream { get; }
 }
 
 [KurrentOperationError(StreamsError.StreamAlreadyExists)]
@@ -20,52 +23,55 @@ public partial class StreamAlreadyExistsException;
 
 [KurrentOperationError(StreamsError.StreamDeleted)]
 public partial class StreamDeletedException {
-    public StreamDeletedException(StreamName stream)
-        : this(Format(ErrorMessages.StreamDeletedException, stream)) { }
+    public StreamDeletedException(StreamName stream) : this(Format(ErrorMessages.StreamDeletedException, stream)) =>
+        Stream = stream;
+
+    public StreamName Stream { get; }
 }
 
 [KurrentOperationError(StreamsError.StreamTombstoned)]
 public partial class StreamTombstonedException {
-    public StreamTombstonedException(StreamName stream)
-        : this(Format(ErrorMessages.StreamTombstonedException, stream)) { }
+    public StreamTombstonedException(StreamName stream) : this(Format(ErrorMessages.StreamTombstonedException, stream)) =>
+        Stream = stream;
+
+    public StreamName Stream { get; }
 }
 
 [KurrentOperationError(StreamsError.StreamRevisionConflict)]
 public partial class StreamRevisionConflictException {
-    public StreamRevision ExpectedRevision { get; private set; } = StreamRevision.Unset;
-    public StreamRevision ActualRevision   { get; private set; } = StreamRevision.Unset;
+    public ExpectedStreamState ExpectedRevision { get; private set; } = ExpectedStreamState.Any;
+    public ActualStreamState   ActualRevision   { get; private set; } = ActualStreamCondition.NoStream;
+    public StreamName          Stream           { get; private set; } = StreamName.None;
 
-    public StreamRevisionConflictException(string operationName, StreamName stream, StreamRevision expectedRevision, StreamRevision actualRevision)
+    public StreamRevisionConflictException(string operationName, StreamName stream, ExpectedStreamState expectedRevision, ActualStreamState actualRevision)
         : this(Format(ErrorMessages.StreamRevisionConflictException, operationName, stream, expectedRevision, actualRevision)) {
         ExpectedRevision = expectedRevision;
         ActualRevision   = actualRevision;
+        Stream           = stream;
     }
 
     public void AfterParseRpcStatus(Status status, StreamRevisionConflictException self) {
         var details = status.GetDetail<StreamRevisionConflictErrorDetails>()!;
-
-        // ExpectedRevision can be -1 (NoStream), -2 (Any), -4 (StreamExists), or >= 0 (specific revision)
-        // StreamRevision only accepts -1000 (Unset) or >= 0
-        // Map -1, -2, -4 to Unset since they represent expected states, not actual revisions
-        self.ExpectedRevision = details.ExpectedRevision >= 0
-            ? StreamRevision.From(details.ExpectedRevision)
-            : StreamRevision.Unset;
-
-        // ActualRevision should always be >= 0 (actual stream revision) or -1 if stream doesn't exist
-        self.ActualRevision = details.ActualRevision >= 0
-            ? StreamRevision.From(details.ActualRevision)
-            : StreamRevision.Unset;
+        self.ExpectedRevision = ExpectedStreamState.FromWireValue(details.ExpectedRevision);
+        self.ActualRevision   = ActualStreamState.FromWireValue(details.ActualRevision);
+        self.Stream           = details.Stream;
     }
 }
 
 [KurrentOperationError(StreamsError.ConsistencyCheckFailed)]
 public partial class StreamConsistencyCheckException {
-    public IReadOnlyDictionary<int, ConsistencyCheckError> FailedChecks { get; private set; } = new Dictionary<int, ConsistencyCheckError>(); //ConsistencyCheckError
+    public IReadOnlyDictionary<int, ConsistencyCheckError> FailedChecks { get; private set; } = new Dictionary<int, ConsistencyCheckError>();
 
-    public StreamConsistencyCheckException(string operationName, Dictionary<int, ConsistencyCheckError> failedChecks)
-        : this(Format(ErrorMessages.StreamRevisionConflictException, operationName, failedChecks)) {
-        FailedChecks   = failedChecks;
+    public StreamConsistencyCheckException(Dictionary<int, ConsistencyCheckError> failedChecks)
+        : this(Format(ErrorMessages.StreamRevisionConflictException, failedChecks)) {
+        FailedChecks = failedChecks;
     }
+
+    public StreamConsistencyCheckException(RevisionConsistencyCheckError failedCheck)
+        : this(new Dictionary<int, ConsistencyCheckError> { { 0, failedCheck } }) { }
+
+    public StreamConsistencyCheckException(StreamName stream, ActualStreamState actualState)
+        : this(new RevisionConsistencyCheckError { Stream = stream, State  = actualState }) { }
 
     public void AfterParseRpcStatus(Status status, StreamConsistencyCheckException self) {
         var details = status.GetDetail<ConsistencyCheckFailedErrorDetails>()!;
@@ -74,8 +80,8 @@ public partial class StreamConsistencyCheckException {
             kvp => (int)kvp.Key,
             kvp => kvp.Value.TypeCase switch {
                 KurrentDB.Protocol.V2.Streams.Errors.ConsistencyCheckError.TypeOneofCase.Revision => new RevisionConsistencyCheckError {
-                    Stream   = kvp.Value.Revision.Stream,
-                    Revision = kvp.Value.Revision.ActualRevision
+                    Stream = kvp.Value.Revision.Stream,
+                    State  = ActualStreamState.FromWireValue(kvp.Value.Revision.ActualRevision)
                 },
                 _ => ConsistencyCheckError.None
             }

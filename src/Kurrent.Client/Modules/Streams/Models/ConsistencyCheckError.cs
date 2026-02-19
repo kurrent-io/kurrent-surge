@@ -7,8 +7,8 @@ public  readonly partial record struct ConsistencyCheckError : IVariant<Revision
 }
 
 public readonly record struct RevisionConsistencyCheckError() {
-    public StreamName     Stream   { get; init; } = StreamName.None;
-    public StreamRevision Revision { get; init; } = StreamRevision.Unset;
+    public StreamName        Stream { get; init; } = StreamName.None;
+    public ActualStreamState State  { get; init; } = ActualStreamCondition.NoStream;
 }
 
 public readonly record struct GenericConsistencyCheckError() {

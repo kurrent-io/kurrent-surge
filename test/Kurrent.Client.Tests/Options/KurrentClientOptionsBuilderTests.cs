@@ -44,13 +44,14 @@ public class KurrentClientOptionsBuilderTests {
         var validOptions = KurrentClientOptions.Parse(connectionString);
 
         var builder = validOptions.GetBuilder()
-            .ConfigureMessages(options => options.Map<StreamMetadata>("$metadata"));
+            .ConfigureSchema(schema => schema
+                .ConfigureMessages(options => options.Map<StreamMetadata>("$metadata")));
 
         var newOptions = builder.Build();
 
         // WithMessages performs complete replacement
-        newOptions.Mapper.ShouldNotBe(validOptions.Mapper);
-        newOptions.Mapper.TryGetSchemaName(typeof(StreamMetadata), out var schemaName).ShouldBeTrue();
+        newOptions.Schema.Mapper.ShouldNotBe(validOptions.Schema.Mapper);
+        newOptions.Schema.Mapper.TryGetSchemaName(typeof(StreamMetadata), out var schemaName).ShouldBeTrue();
         schemaName.Value.ShouldBe("$metadata");
 
         // Other properties should be preserved

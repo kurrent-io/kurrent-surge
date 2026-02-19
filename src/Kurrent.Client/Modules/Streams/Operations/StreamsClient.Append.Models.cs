@@ -1,6 +1,7 @@
 #pragma warning disable CS8604 // Possible null reference argument.
 
 using System.Collections;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Exceptions;
 using Kurrent.Variant;
@@ -10,16 +11,16 @@ namespace Kurrent.Client.Streams;
 
 public readonly partial record struct ConsistencyCheck : IVariant<RevisionConsistencyCheck, QueryConsistencyCheck>;
 
-public readonly record struct RevisionConsistencyCheck(StreamName Stream, StreamRevision Revision);
+public readonly record struct RevisionConsistencyCheck(StreamName Stream, ExpectedStreamState ExpectedState);
 
 public readonly record struct QueryConsistencyCheck(string Expression);
 
 
 [PublicAPI]
 [method: SetsRequiredMembers]
-public record AppendRecordsRequest(AppendRecord[] Records, ConsistencyCheck[] Checks) {
-    public required AppendRecord[]     Records { get; init; } = Records;
-    public required ConsistencyCheck[] Checks  { get; init; } = Checks;
+public record AppendRecordsRequest(ImmutableArray<AppendRecord> Records, ImmutableArray<ConsistencyCheck> Checks) {
+    public required ImmutableArray<AppendRecord>     Records { get; init; } = Records;
+    public required ImmutableArray<ConsistencyCheck> Checks  { get; init; } = Checks;
 }
 
 [PublicAPI]

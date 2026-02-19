@@ -12,7 +12,7 @@ public readonly record struct PlayerName {
     /// </summary>
     public static readonly PlayerName Unknown = new("", "", [], "", "");
 
-    PlayerName(
+    public PlayerName(
         string firstName,
         string lastName,
         ImmutableArray<string> nicknames,
@@ -29,27 +29,27 @@ public readonly record struct PlayerName {
     /// <summary>
     /// The player's first name (given name).
     /// </summary>
-    public string FirstName { get; }
+    public string FirstName { get; init; }
 
     /// <summary>
     /// The player's last name (family name).
     /// </summary>
-    public string LastName { get; }
+    public string LastName { get; init; }
 
     /// <summary>
     /// Known nicknames or aliases for the player.
     /// </summary>
-    public ImmutableArray<string> Nicknames { get; }
+    public ImmutableArray<string> Nicknames { get; init; }
 
     /// <summary>
     /// The full name (first + last).
     /// </summary>
-    public string FullName { get; }
+    public string FullName { get; init; }
 
     /// <summary>
     /// The primary display name (first nickname if available, otherwise full name).
     /// </summary>
-    public string DisplayName { get; }
+    public string DisplayName { get; init; }
 
     /// <summary>
     /// Whether this is an unknown/unset name.

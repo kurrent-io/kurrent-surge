@@ -47,7 +47,9 @@ public abstract class MetadataDecoder : IMetadataDecoder {
         // [2] = {DebugViewDictionaryItem<string, JsonValue>} [$p]=10868
         // [3] = {DebugViewDictionaryItem<string, JsonValue>} [$causedBy]=373c6630-d8fe-ff2c-16af-e286265e7e98
 
-        var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(bytes.Span)!;
+        var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(
+            bytes.Span,
+            Schema.Serialization.Json.KurrentJsonContext.Default.Options)!;
 
         return new Metadata()
             .With(SystemMetadataKeys.SchemaName, LinkSchemaName)

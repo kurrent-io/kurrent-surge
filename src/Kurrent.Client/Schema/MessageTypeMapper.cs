@@ -189,16 +189,16 @@ public class MessageTypeMapper {
 		TypeMap.ContainsKey(schemaName);
 
 	/// <summary>
-	/// Resolves the message type associated with the specified schema name. Attempts to retrieve
-	/// the message type from the existing mapping or resolve it using known system types. If the schema
-	/// name is not mapped and cannot be resolved, an exception is thrown.
+	/// Resolves the message type associated with the specified schema name.
+	/// Types must be explicitly registered via <see cref="Map"/> or auto-mapped during serialization.
 	/// </summary>
 	/// <param name="schemaName">The schema name for which the message type should be resolved.</param>
 	/// <returns>The resolved message type associated with the specified schema name.</returns>
 	/// <exception cref="MessageTypeResolutionException">
-	/// Thrown if the schema name is not mapped and cannot be resolved to any known type.
+	/// Thrown if the schema name is not mapped to any known type.
 	/// </exception>
 	public Type GetOrResolveMessageType(SchemaName schemaName) =>
-		TryGetMessageType(schemaName, out var messageType) || SystemTypes.TryResolveType(schemaName, out messageType)
-			? messageType : throw new MessageTypeResolutionException(schemaName);
+		TryGetMessageType(schemaName, out var messageType)
+			? messageType
+			: throw new MessageTypeResolutionException(schemaName);
 }

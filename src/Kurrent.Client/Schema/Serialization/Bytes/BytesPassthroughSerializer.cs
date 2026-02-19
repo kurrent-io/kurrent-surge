@@ -18,8 +18,8 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
 
 	public ValueTask<ReadOnlyMemory<byte>> Serialize(object? value, SchemaSerializationContext context) {
 		Debug.Assert(
-            value is null or byte[] or ReadOnlyMemory<byte> or Memory<byte> or ReadOnlySequence<byte>,
-            "value must be byte[] or ReadOnlyMemory<byte> or Memory<byte> or ReadOnlySequence<byte>");
+            value is null or byte[] or ReadOnlyMemory<byte> or Memory<byte> or ReadOnlySequence<byte> or ArraySegment<byte>,
+            "value must be byte[], ReadOnlyMemory<byte>, Memory<byte>, ReadOnlySequence<byte>, or ArraySegment<byte>");
 
 		// enforce the schema data format
         context.RecordSchema = context.RecordSchema with {

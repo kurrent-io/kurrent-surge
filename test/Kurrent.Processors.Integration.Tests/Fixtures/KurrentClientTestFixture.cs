@@ -49,9 +49,10 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
        var lazyClient = new Lazy<KurrentClient>(() => {
             var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
                 .WithLoggerFactory(new TestkitLoggerFactory())
-                .ConfigureSchema(KurrentClientSchemaOptions.NoValidation)
-                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-                .ConfigureMessages(options => options.Map<StreamMetadata>("$metadata"));
+                .ConfigureSchema(schema => schema
+                    .WithValidation(false)
+                    .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
+                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience);
 
             return builder.CreateClient();
         });
@@ -144,7 +145,7 @@ public record SmartHomeActivity(SmartHome Home, AppendStreamRequest AppendReques
         this with { AppendRequest = HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp) };
 
     public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
-        this with { AppendRequest = AppendRequest with { ExpectedState = expectedRevision } };
+        this with { AppendRequest = AppendRequest with { ExpectedState = StreamRevision.From(expectedRevision) } };
 
     public static implicit operator AppendStreamRequest(SmartHomeActivity _) => _.AppendRequest;
 

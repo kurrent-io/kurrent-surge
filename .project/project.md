@@ -776,3 +776,7 @@ dotnet pack --configuration Release
 - Seq (logs): http://localhost:5341
 - Aspire Dashboard (telemetry): http://localhost:18888
 - OTLP endpoint: port 4317
+
+# Code Style Rule: Ban Decorative Separator Comments
+
+Project enforces hard rule against ASCII art section dividers in code comments

@@ -9,14 +9,20 @@ public partial class StreamsClient {
             using var session = ServiceClient.AppendSession(cancellationToken: cancellationToken);
 
             await foreach (var request in requests.WithCancellation(cancellationToken).ConfigureAwait(false)) {
+                if (request.Stream == StreamName.None || request.Stream == StreamName.All)
+                    throw new ArgumentException("Stream cannot be StreamName.None or StreamName.All", nameof(request.Stream));
+
                 var records = await request.Messages
                     .Map(request.Stream, SerializerProvider, cancellationToken)
                     .ToArrayAsync(cancellationToken)
                     .ConfigureAwait(false);
 
+                if (!records.Any())
+                    throw new ArgumentException("At least one record must be provided", nameof(records));
+
                 var serviceRequest = new Contracts.AppendRequest {
                     Stream           = request.Stream,
-                    ExpectedRevision = request.ExpectedState,
+                    ExpectedRevision = request.ExpectedState.ToWireValue(),
                     Records          = { records }
                 };
 
@@ -42,7 +48,8 @@ public partial class StreamsClient {
     }
 
     public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> Append(
-        AppendRecordsRequest request, CancellationToken cancellationToken = default
+        AppendRecordsRequest request,
+        CancellationToken cancellationToken = default
     ) {
         try {
             var serviceRequest = await Mapper

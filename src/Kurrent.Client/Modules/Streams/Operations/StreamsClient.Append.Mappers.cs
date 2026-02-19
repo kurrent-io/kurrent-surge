@@ -70,7 +70,7 @@ partial class StreamsProtocolMapper {
             case RevisionConsistencyCheck check:
                 result.Revision = new Contracts.StreamRevision {
                     Stream   = check.Stream,
-                    Revision = check.Revision
+                    Revision = check.ExpectedState.ToWireValue()
                 };
                 break;
             default:

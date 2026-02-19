@@ -204,36 +204,6 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
         With(options => options with { Resilience = configure(options.Resilience) });
 
     /// <summary>
-    /// Configures message type mappings for schema resolution.
-    /// </summary>
-    /// <param name="configure">
-    /// An action to configure the message mapping builder.
-    /// </param>
-    /// <returns>The builder instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// This method creates a <b>new message mapper</b> and applies the specified configuration.
-    /// Any existing message type mappings will be replaced with the newly configured mappings.
-    /// </para>
-    /// </remarks>
-    public KurrentClientOptionsBuilder ConfigureMessages(Action<MessageMappingBuilder> configure) =>
-        With(options => options with { Mapper = new MessageMappingBuilder().With(configure).Build() });
-
-    /// <summary>
-    /// Sets a pre-configured message type mapper for schema resolution.
-    /// </summary>
-    /// <param name="mapper">The message type mapper instance to use.</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// This method performs <b>complete replacement</b> of the Mapper property.
-    /// Use this when you have a pre-configured <see cref="MessageTypeMapper"/> instance.
-    /// </para>
-    /// </remarks>
-    public KurrentClientOptionsBuilder ConfigureMessages(MessageTypeMapper mapper) =>
-        With(options => options with { Mapper = mapper ?? throw new ArgumentNullException(nameof(mapper)) });
-
-    /// <summary>
     /// Sets the interceptors.
     /// </summary>
     /// <param name="interceptors">The gRPC interceptors to use.</param>
@@ -264,4 +234,12 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// <returns>The builder instance for method chaining.</returns>
     public KurrentClientOptionsBuilder ConfigureSchema(KurrentClientSchemaOptions schemaOptions) =>
         With(options => options with { Schema = schemaOptions });
+
+    /// <summary>
+    /// Configures the schema options using a sub-builder.
+    /// </summary>
+    /// <param name="configure">Action to configure the schema options builder.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    public KurrentClientOptionsBuilder ConfigureSchema(Action<SchemaOptionsBuilder> configure) =>
+        WithBuilder(configure);
 }

@@ -10,12 +10,12 @@ public readonly record struct TransferId {
     /// </summary>
     public static readonly TransferId None = new(Guid.Empty);
 
-    TransferId(Guid value) => Value = value;
+    public TransferId(Guid value) => Value = value;
 
     /// <summary>
     /// The underlying GUID value.
     /// </summary>
-    public Guid Value { get; }
+    public Guid Value { get; init; }
 
     /// <summary>
     /// Indicates whether this identifier is unset.

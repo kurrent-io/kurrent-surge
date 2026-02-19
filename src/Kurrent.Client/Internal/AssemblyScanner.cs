@@ -8,6 +8,7 @@ namespace Kurrent.Client;
 /// Experimental and intended for internal use only.
 /// </remarks>
 /// </summary>
+[Obsolete("AssemblyScanner uses reflection and is not AOT-compatible. Use explicit type registration instead.")]
 class AssemblyScanner {
     public static readonly AssemblyScanner System = UsingAppDomainAssemblies();
 
@@ -61,6 +62,7 @@ class AssemblyScanner {
 /// The methods allow narrowing down results by type, generic type, or specific attributes such as full name
 /// and instantiability of classes.
 /// </summary>
+[Obsolete("AssemblyScanner uses reflection and is not AOT-compatible. Use explicit type registration instead.")]
 static class AssemblyScannerExtensions {
     /// <summary>
     /// Filters the query to include only types that are assignable to the specified type and are instantiable classes.

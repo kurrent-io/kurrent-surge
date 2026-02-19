@@ -1,4 +1,7 @@
+using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Client.Schema.Serialization.Json;
+using Kurrent.Client.Schema.Serialization.Protobuf;
 
 namespace Kurrent.Client;
 
@@ -88,7 +91,26 @@ public record KurrentClientSchemaOptions : OptionsBase<KurrentClientSchemaOption
 	/// Defaults to <see cref="MessageSchemaNameStrategy"/>, which enables zero-code automatic serialization and deserialization.
 	/// </para>
 	/// </remarks>
-	public ISchemaNameStrategy NameStrategy { get; init; } = new MessageSchemaNameStrategy();
+	public ISchemaNameStrategy NameStrategy { get; init; } = SchemaNameStrategies.TypeName();
+
+	/// <summary>
+	/// Configuration options for the JSON schema serializer.
+	/// </summary>
+	public JsonSchemaSerializerOptions Json { get; init; } = JsonSchemaSerializerOptions.Default;
+
+	/// <summary>
+	/// Configuration options for the Protobuf schema serializer.
+	/// </summary>
+	public ProtobufSchemaSerializerOptions Protobuf { get; init; } = ProtobufSchemaSerializerOptions.Default;
+
+	/// <summary>
+	/// Provides a mechanism for mapping message types to their corresponding schemas.
+	/// </summary>
+	/// <remarks>
+	/// The mapper is used to associate specific message types with their schemas in the schema registry.
+	/// This ensures that the correct schema is used when producing or consuming messages.
+	/// </remarks>
+	public MessageTypeMapper Mapper { get; init; } = new();
 
 	/// <summary>
 	/// The default schema registry settings with all standard options enabled.

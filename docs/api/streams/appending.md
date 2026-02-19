@@ -71,7 +71,7 @@ The append succeeds regardless of whether the stream exists or what revision it 
 ```csharp
 var request = new AppendStreamRequest(
     stream: "order-123",
-    expectedState: ExpectedStreamState.NoStream,
+    expectedState: ExpectedStreamCondition.NoStream,
     messages: [new AppendRecord("OrderCreated", payload)]
 );
 ```
@@ -83,7 +83,7 @@ The append fails with `StreamAlreadyExistsException` if the stream already has e
 ```csharp
 var request = new AppendStreamRequest(
     stream: "order-123",
-    expectedState: ExpectedStreamState.StreamExists,
+    expectedState: ExpectedStreamCondition.Exists,
     messages: [new AppendRecord("OrderUpdated", payload)]
 );
 ```
@@ -95,7 +95,7 @@ The append fails with `StreamNotFoundException` if the stream does not exist.
 ```csharp
 var request = new AppendStreamRequest(
     stream: "order-123",
-    expectedState: new ExpectedStreamState(4),
+    expectedState: StreamRevision.From(4),
     messages: [new AppendRecord("OrderUpdated", payload)]
 );
 ```
@@ -109,7 +109,7 @@ var last = await client.Streams.ReadLastStreamRecordAsync("order-123");
 
 var request = new AppendStreamRequest(
     stream: "order-123",
-    expectedState: new ExpectedStreamState(last.StreamRevision),
+    expectedState: last.StreamRevision,
     messages: [new AppendRecord("OrderUpdated", payload)]
 );
 
@@ -120,10 +120,10 @@ var result = await client.Streams.AppendAsync(request);
 
 | Value | Behavior |
 |-------|----------|
-| `ExpectedStreamState.Any` | No check — always succeeds |
-| `ExpectedStreamState.NoStream` | Stream must not exist |
-| `ExpectedStreamState.StreamExists` | Stream must exist |
-| `new ExpectedStreamState(revision)` | Stream revision must match exactly |
+| `ExpectedStreamState.Any` | No check - always succeeds |
+| `ExpectedStreamCondition.NoStream` | Stream must not exist |
+| `ExpectedStreamCondition.Exists` | Stream must exist |
+| `StreamRevision.From(revision)` | Stream revision must match exactly |
 
 ## Builder API
 
@@ -132,7 +132,7 @@ For more complex scenarios, use the fluent builder:
 ```csharp
 var request = AppendStreamRequest.New()
     .ForStream("order-789")
-    .ExpectingRevision(ExpectedStreamState.NoStream)
+    .ExpectingRevision(ExpectedStreamCondition.NoStream)
     .WithRecord(new AppendRecord("OrderPlaced", new { OrderId = "order-789" }))
     .WithRecord(new AppendRecord("OrderConfirmed", new { OrderId = "order-789" }))
     .Build();
@@ -209,7 +209,7 @@ The idiomatic `AppendAsync` methods throw on failure. For explicit error handlin
 
 ```csharp
 var result = await client.Streams.Append(
-    new AppendStreamRequest("order-123", ExpectedStreamState.NoStream, [record])
+    new AppendStreamRequest("order-123", ExpectedStreamCondition.NoStream, [record])
 );
 
 result.Switch(
@@ -232,7 +232,7 @@ result.Switch(
 
 | Error | Cause |
 |-------|-------|
-| `StreamNotFoundException` | Stream does not exist (when `StreamExists` expected) |
+| `StreamNotFoundException` | Stream does not exist (when `Exists` expected) |
 | `StreamAlreadyExistsException` | Stream exists (when `NoStream` expected) |
 | `StreamTombstonedException` | Stream was permanently deleted |
 | `StreamRevisionConflictException` | Current revision does not match expected |

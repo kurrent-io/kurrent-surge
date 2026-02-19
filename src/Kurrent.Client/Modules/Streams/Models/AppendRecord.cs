@@ -74,11 +74,7 @@ public record AppendRecord {
     }
 
     public AppendRecord EnsureValid() {
-        var result = Validate();
-
-        if (result.IsFailure)
-            throw result.Error.GetOrCreateException();
-
+        Validate().Unwrap();
         return this;
     }
 }

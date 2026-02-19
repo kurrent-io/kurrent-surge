@@ -71,7 +71,7 @@ public record SmartHomeActivity(SmartHome Home, AppendStreamRequest AppendReques
         this with { AppendRequest = HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp) };
 
     public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
-        this with { AppendRequest = AppendRequest with { ExpectedState = expectedRevision } };
+        this with { AppendRequest = AppendRequest with { ExpectedState = StreamRevision.From(expectedRevision) } };
 
     public static implicit operator AppendStreamRequest(SmartHomeActivity _) => _.AppendRequest;
 

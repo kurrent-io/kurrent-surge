@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 
@@ -39,41 +40,6 @@ static class ProtobufExtensions {
 
     public static TValue GetRequiredMessageExtensionValue<TValue>(this MessageDescriptor descriptor, Extension<MessageOptions, TValue> extension) where TValue : IMessage =>
         !descriptor.TryGetMessageExtensionValue(extension, out var value) || value is null ? throw new InvalidOperationException($"Type {descriptor.Name} does not have {typeof(TValue)} extension defined.") : value;
-
-    // public static bool TryGetFieldExtensionValue<TValue>(this MessageDescriptor descriptor, string fieldName, Extension<FieldOptions, TValue> extension, [MaybeNullWhen(false)] out TValue value) where TValue : IMessage {
-    //     var options = descriptor.FindFieldByName(fieldName).GetOptions();
-    //     if (options?.HasExtension(extension) ?? false) {
-    //         value = options.GetExtension(extension);
-    //         return true;
-    //     }
-    //
-    //     value = default!;
-    //     return false;
-    // }
-    //
-    // public static ReadOnlyMemory<byte> ToUtf8JsonBytes(this IMessage message) {
-	   //  return Encoding.UTF8.GetBytes(
-		  //   RemoveWhitespacesExceptInQuotes(JsonFormatter.Default.Format(message))
-	   //  );
-    //
-	   //  // simply because protobuf is so stupid that it adds spaces
-	   //  // between property names and values. absurd...
-	   //  static string RemoveWhitespacesExceptInQuotes(string json) {
-		  //   var inQuotes = false;
-    //
-		  //   var result = new StringBuilder(json.Length);
-    //
-		  //   foreach (var c in json) {
-			 //    if (c == '\"') {
-				//     inQuotes = !inQuotes;
-				//     result.Append(c); // Always include the quote characters
-			 //    } else if (inQuotes || (!inQuotes && !char.IsWhiteSpace(c)))
-				//     result.Append(c);
-		  //   }
-    //
-		  //   return result.ToString();
-	   //  }
-    // }
 }
 
 class ProtobufMessages {
@@ -81,27 +47,49 @@ class ProtobufMessages {
 
     ConcurrentDictionary<Type, (MessageParser Parser, MessageDescriptor Descriptor)> Types { get; } = new();
 
+    ProtoSerializerContext? _context;
+
+    /// <summary>
+    /// Configures a <see cref="ProtoSerializerContext"/> for AOT-compatible protobuf type resolution.
+    /// Types registered in the context are resolved without reflection.
+    /// </summary>
+    internal void Configure(ProtoSerializerContext context) => _context = context;
+
     public MessageParser GetParser(Type messageType) =>
-        Types.GetOrAdd(messageType, GetContext).Parser;
+        Types.GetOrAdd(messageType, ResolveContext).Parser;
 
     public MessageDescriptor GetDescriptor(Type messageType) =>
-        Types.GetOrAdd(messageType, GetContext).Descriptor;
+        Types.GetOrAdd(messageType, ResolveContext).Descriptor;
 
     public MessageDescriptor GetDescriptor<T>() =>
         GetDescriptor(typeof(T));
 
-    static (MessageParser Parser, MessageDescriptor Descriptor) GetContext(Type messageType) {
-        return (GetMessageParser(messageType), GetMessageDescriptor(messageType));
+    (MessageParser Parser, MessageDescriptor Descriptor) ResolveContext(Type messageType) {
+        // check registered context first (AOT-safe path)
+        if (_context is not null && _context.TryGet(messageType, out var ctx))
+            return ctx;
 
-        static MessageParser GetMessageParser(Type messageType) =>
-            (MessageParser)messageType
-                .GetProperty("Parser", BindingFlags.Public | BindingFlags.Static)!
-                .GetValue(null)!;
+        // reflection fallback for JIT environments
+        if (!RuntimeFeature.IsDynamicCodeSupported)
+            throw new InvalidOperationException(
+                $"Type '{messageType.Name}' is not registered in ProtoSerializerContext. " +
+                "In AOT environments, all protobuf types must be explicitly registered.");
 
-        static MessageDescriptor GetMessageDescriptor(Type messageType) =>
-            (MessageDescriptor)messageType
-                .GetProperty("Descriptor", BindingFlags.Public | BindingFlags.Static)!
-                .GetValue(null)!;
+        return ReflectionFallback(messageType);
+
+        static (MessageParser Parser, MessageDescriptor Descriptor) ReflectionFallback(Type messageType) {
+            return (GetMessageParser(messageType), GetMessageDescriptor(messageType));
+
+            static MessageParser GetMessageParser(Type messageType) =>
+                (MessageParser)messageType
+                    .GetProperty("Parser", BindingFlags.Public | BindingFlags.Static)!
+                    .GetValue(null)!;
+
+            static MessageDescriptor GetMessageDescriptor(Type messageType) =>
+                (MessageDescriptor)messageType
+                    .GetProperty("Descriptor", BindingFlags.Public | BindingFlags.Static)!
+                    .GetValue(null)!;
+        }
     }
 
     static ConcurrentDictionary<Type, MessageOptions?> OptionsCache { get; } = new();

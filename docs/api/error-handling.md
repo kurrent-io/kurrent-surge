@@ -26,7 +26,7 @@ Methods without the `Async` suffix return `Result<TSuccess, TError>`. Use when y
 
 ```csharp
 var result = await client.Streams.Append(
-    new AppendStreamRequest("order-123", ExpectedStreamState.NoStream, [record])
+    new AppendStreamRequest("order-123", ExpectedStreamCondition.NoStream, [record])
 );
 
 result.Switch(

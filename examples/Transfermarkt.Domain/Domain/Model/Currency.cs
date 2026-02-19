@@ -1,4 +1,5 @@
-using System.Collections.Immutable;
+
+// ReSharper disable InconsistentNaming
 
 namespace Transfermarkt.Domain;
 
@@ -35,11 +36,11 @@ public readonly record struct Currency {
     /// <summary>
     /// All defined currencies.
     /// </summary>
-    public static readonly ImmutableArray<Currency> All = [EUR, GBP, USD, CHF, JPY];
+    public static readonly IReadOnlyList<Currency> All = [EUR, GBP, USD, CHF, JPY];
 
     static readonly Dictionary<string, Currency> ByCode = All.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
 
-    Currency(string code, string name, string symbol) {
+    public Currency(string code, string name, string symbol) {
         Code   = code;
         Name   = name;
         Symbol = symbol;
@@ -48,17 +49,17 @@ public readonly record struct Currency {
     /// <summary>
     /// ISO 4217 currency code (e.g., "EUR", "GBP", "USD").
     /// </summary>
-    public string Code { get; }
+    public string Code { get; init; }
 
     /// <summary>
     /// Full currency name.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; init; }
 
     /// <summary>
     /// Currency symbol (e.g., "€", "£", "$").
     /// </summary>
-    public string Symbol { get; }
+    public string Symbol { get; init; }
 
     /// <summary>
     /// Gets a currency by its ISO code.

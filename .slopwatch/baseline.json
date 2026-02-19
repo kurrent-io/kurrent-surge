@@ -1,0 +1,701 @@
+{
+  "version": 1,
+  "createdAt": "2026-02-17T20:04:36.349801+00:00",
+  "updatedAt": "2026-02-17T20:04:36.352756+00:00",
+  "description": "Initial baseline created by 'slopwatch init' on 2026-02-17 20:04:36 UTC",
+  "entries": [
+    {
+      "hash": "02db1f2febff4969",
+      "ruleId": "SW005",
+      "filePath": "Directory.Build.props",
+      "lineNumber": 19,
+      "codeSnippet": "<NoWarn>$(NoWarn);NETSDK1057;RS2008</NoWarn>",
+      "message": "Adding warnings to NoWarn: NETSDK1057;RS2008",
+      "baselinedAt": "2026-02-17T20:04:36.352523+00:00"
+    },
+    {
+      "hash": "dc3534904914a42a",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultUnwrapTests.cs",
+      "lineNumber": 138,
+      "codeSnippet": "resultTask\n            .MapAsync(async id => {\n                await Task.Delay(1);\n                return id.Value.ToString();\n            })\n            .UnwrapAsync()",
+      "message": "Test uses Task.Delay(?) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352562+00:00"
+    },
+    {
+      "hash": "e05926aff3e1e9a4",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultUnwrapTests.cs",
+      "lineNumber": 140,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352565+00:00"
+    },
+    {
+      "hash": "b81f1c5b696ad75e",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultMatchTests.cs",
+      "lineNumber": 179,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352571+00:00"
+    },
+    {
+      "hash": "8a3f2e536043f677",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultBindTests.cs",
+      "lineNumber": 120,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352587+00:00"
+    },
+    {
+      "hash": "95e64485fda6abfe",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultBindTests.cs",
+      "lineNumber": 408,
+      "codeSnippet": "result\n            .BindAsync(async id => {\n                await Task.Delay(1);\n                return Kurrent.Result.Success<Position, InvalidMoveError>(new Position(2, 2));\n            })\n            .BindAsync(async pos => {\n                await Task.Delay(1);\n                return pos.Row == pos.Column\n                    ? Kurrent.Result.Success<string, InvalidMoveError>(\"Diagonal\")\n                    : Kurrent.Result.Failure<string, InvalidMoveError>(\n                        new InvalidMoveError(Guid.Empty, \"Not diagonal\"));\n            })",
+      "message": "Test uses Task.Delay(async pos => {\n                await Task.Delay(1);\n                return pos.Row == pos.Column\n                    ? Kurrent.Result.Success<string, InvalidMoveError>(\"Diagonal\")\n                    : Kurrent.Result.Failure<string, InvalidMoveError>(\n                        new InvalidMoveError(Guid.Empty, \"Not diagonal\"));\n            }) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352604+00:00"
+    },
+    {
+      "hash": "1a8736e33d8e7fb2",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultSwitchTests.cs",
+      "lineNumber": 204,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352607+00:00"
+    },
+    {
+      "hash": "82791f6acad5b326",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultTryTests.cs",
+      "lineNumber": 140,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352617+00:00"
+    },
+    {
+      "hash": "2213137fc8aad129",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultTryTests.cs",
+      "lineNumber": 405,
+      "codeSnippet": "Task.Delay(100, cts.Token)",
+      "message": "Test uses Task.Delay(100) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352624+00:00"
+    },
+    {
+      "hash": "b72a8e52ffd6cf32",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultTryTests.cs",
+      "lineNumber": 555,
+      "codeSnippet": "Task.Delay(delay, cts.Token)",
+      "message": "Test uses Task.Delay(delay) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352626+00:00"
+    },
+    {
+      "hash": "7f1497c7f066cfda",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultMapTests.cs",
+      "lineNumber": 183,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352628+00:00"
+    },
+    {
+      "hash": "faae77e3cd56bb21",
+      "ruleId": "SW004",
+      "filePath": "test/Variant.Tests/Result/ResultInspectTests.cs",
+      "lineNumber": 296,
+      "codeSnippet": "Task.Delay(1)",
+      "message": "Test uses Task.Delay(1) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352637+00:00"
+    },
+    {
+      "hash": "81aad12561c15ad3",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Processors.Tests/ProcessorWorkerLifecycleTests.cs",
+      "lineNumber": 103,
+      "codeSnippet": "catch (OperationCanceledException) {\n            // expected\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352646+00:00"
+    },
+    {
+      "hash": "4a5b5ba816181704",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Processors.Tests/ProcessorWorkerLifecycleTests.cs",
+      "lineNumber": 133,
+      "codeSnippet": "catch (InvalidOperationException) {\n            // expected — HandleShutdown re-throws\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.35265+00:00"
+    },
+    {
+      "hash": "5ba35ee469c61f26",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Processors.Tests/ProcessorWorkerLifecycleTests.cs",
+      "lineNumber": 327,
+      "codeSnippet": "Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false)",
+      "message": "Test uses Task.Delay(false) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352651+00:00"
+    },
+    {
+      "hash": "c474afec20cf47b3",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Processors.Tests/ProcessorWorkerLifecycleTests.cs",
+      "lineNumber": 327,
+      "codeSnippet": "Task.Delay(Timeout.Infinite, ct)",
+      "message": "Test uses Task.Delay(Timeout.Infinite) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352652+00:00"
+    },
+    {
+      "hash": "70f6d1573ddf66b6",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Client.Tests/Locks/TokenCompletionSourceTests.cs",
+      "lineNumber": 146,
+      "codeSnippet": "Task.Delay(10)",
+      "message": "Test uses Task.Delay(10) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352653+00:00"
+    },
+    {
+      "hash": "5c909868a5928f91",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Client.Tests/Internal/AsyncEnumerableExtensionsTests.cs",
+      "lineNumber": 75,
+      "codeSnippet": "catch (OperationCanceledException) {\n            // expected when cancelled\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352655+00:00"
+    },
+    {
+      "hash": "c585273bb2716d5e",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Client.Tests/Internal/AsyncEnumerableExtensionsTests.cs",
+      "lineNumber": 25,
+      "codeSnippet": "Enumerable.Range(0, testCase.ItemCount)\n            .Select(i => {\n                Thread.Sleep(testCase.ItemDelay); // because using task delay breaks tunit test runner...improve later\n                return i;\n            }\n        ).ToAsyncEnumerable()",
+      "message": "Test uses Thread.Sleep(?) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352658+00:00"
+    },
+    {
+      "hash": "e80d9ad83dcbd398",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Client.Tests/Internal/AsyncEnumerableExtensionsTests.cs",
+      "lineNumber": 27,
+      "codeSnippet": "Thread.Sleep(testCase.ItemDelay)",
+      "message": "Test uses Thread.Sleep(testCase.ItemDelay) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352659+00:00"
+    },
+    {
+      "hash": "6f5d157120f21591",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Client.Tests/Internal/ConcurrentBidirectionalDictionaryTests.cs",
+      "lineNumber": 669,
+      "codeSnippet": "catch (ArgumentException) {\n                                /* Expected for some concurrent sets/adds */\n                            }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.35266+00:00"
+    },
+    {
+      "hash": "2adb3443250ece5f",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Client.Tests/Internal/ConcurrentBidirectionalDictionaryTests.cs",
+      "lineNumber": 672,
+      "codeSnippet": "catch (KeyNotFoundException) {\n                                /* Expected for some concurrent removes */\n                            }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352663+00:00"
+    },
+    {
+      "hash": "5067b68d2f80e2cc",
+      "ruleId": "SW002",
+      "filePath": "test/Kurrent.Client.Tests/Legacy/SharingProviderTests.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously",
+      "message": "#pragma warning disable for warnings CS1998 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352664+00:00"
+    },
+    {
+      "hash": "775148ac52e51752",
+      "ruleId": "SW002",
+      "filePath": "test/Kurrent.Client.Tests/Extensions/ReadBatchedTests.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously",
+      "message": "#pragma warning disable for warnings CS1998 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352665+00:00"
+    },
+    {
+      "hash": "ed5f91fb566c18ac",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Client.Tests/Extensions/ReadBatchedTests.cs",
+      "lineNumber": 280,
+      "codeSnippet": "catch (OperationCanceledException) {\n                    // Expected - just exit\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352667+00:00"
+    },
+    {
+      "hash": "860cfa652eb5cbba",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Client.Tests/Extensions/ReadBatchedTests.cs",
+      "lineNumber": 341,
+      "codeSnippet": "catch (OperationCanceledException) {\n            // Expected - cancellation propagates cleanly\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352668+00:00"
+    },
+    {
+      "hash": "bfea056aef866e53",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Client.Tests/Extensions/ReadBatchedTests.cs",
+      "lineNumber": 395,
+      "codeSnippet": "catch (OperationCanceledException) {\n            // Expected when cancelled\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352671+00:00"
+    },
+    {
+      "hash": "2530dca3d6e509f0",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Client.Tests/Extensions/ReadBatchedTests.cs",
+      "lineNumber": 278,
+      "codeSnippet": "Task.Delay(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false)",
+      "message": "Test uses Task.Delay(false) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352672+00:00"
+    },
+    {
+      "hash": "d726a5e2b18f7b1c",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Client.Tests/Extensions/ReadBatchedTests.cs",
+      "lineNumber": 278,
+      "codeSnippet": "Task.Delay(TimeSpan.FromSeconds(30), ct)",
+      "message": "Test uses Task.Delay(TimeSpan.FromSeconds(30)) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352673+00:00"
+    },
+    {
+      "hash": "70165fa777f80c1d",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Client.Integration.Tests/Streams/Read/ReadTests.cs",
+      "lineNumber": 155,
+      "codeSnippet": "Task.Delay(25)",
+      "message": "Test uses Task.Delay(25) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352677+00:00"
+    },
+    {
+      "hash": "77bd4d1a02ef3e87",
+      "ruleId": "SW002",
+      "filePath": "test/Kurrent.Client.Integration.Tests/Fixtures/KurrentClientTestFixture.Extended.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CA1822 // Mark members as static",
+      "message": "#pragma warning disable for warnings CA1822 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352678+00:00"
+    },
+    {
+      "hash": "1a10e9977b4b1193",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Processors.Integration.Tests/ProcessorIntegrationTests.cs",
+      "lineNumber": 202,
+      "codeSnippet": "catch (KurrentWorkerException) {\n            // Expected\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.35268+00:00"
+    },
+    {
+      "hash": "59c24940a8618d3f",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Processors.Integration.Tests/ProcessorIntegrationTests.cs",
+      "lineNumber": 41,
+      "codeSnippet": "Task.Delay(200, ct)",
+      "message": "Test uses Task.Delay(200) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352681+00:00"
+    },
+    {
+      "hash": "d7b08a14aa676336",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Processors.Integration.Tests/Checkpoints/CheckpointStoreTests.cs",
+      "lineNumber": 221,
+      "codeSnippet": "Task.Delay(100, ct)",
+      "message": "Test uses Task.Delay(100) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352682+00:00"
+    },
+    {
+      "hash": "41b1ee87f24cead3",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Testing/Shouldly/ShouldlyObjectGraphTestExtensions.cs",
+      "lineNumber": 180,
+      "codeSnippet": "catch (ShouldAssertException) {\n                    // Not a match, continue searching\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352683+00:00"
+    },
+    {
+      "hash": "ab77651e2334a780",
+      "ruleId": "SW003",
+      "filePath": "test/Kurrent.Testing/Shouldly/ShouldlyObjectGraphTestExtensions.cs",
+      "lineNumber": 450,
+      "codeSnippet": "catch (ShouldAssertException) {\n                    // This item didn't match, try the next one\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352685+00:00"
+    },
+    {
+      "hash": "33299786dc3d161c",
+      "ruleId": "SW004",
+      "filePath": "test/Kurrent.Testing/Containers/FluentDocker/FluentDockerServiceExtensions.cs",
+      "lineNumber": 49,
+      "codeSnippet": "Task.Delay(DefaultRetryDelay)",
+      "message": "Test uses Task.Delay(DefaultRetryDelay) which may indicate a timing-dependent test",
+      "baselinedAt": "2026-02-17T20:04:36.352686+00:00"
+    },
+    {
+      "hash": "42eccbd31d925934",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Options/KurrentClientOptions.cs",
+      "lineNumber": 13,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352687+00:00"
+    },
+    {
+      "hash": "ea48ea3f10a92219",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Options/KurrentClientResilienceOptions.cs",
+      "lineNumber": 315,
+      "codeSnippet": "SuppressMessage(\"ReSharper\", \"MemberHidesStaticFromOuterClass\")",
+      "message": "SuppressMessage attribute suppressing ReSharper:MemberHidesStaticFromOuterClass",
+      "baselinedAt": "2026-02-17T20:04:36.352689+00:00"
+    },
+    {
+      "hash": "f0f74d41207c5bc1",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Options/KurrentClientOptionsBuilder.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352691+00:00"
+    },
+    {
+      "hash": "a720fdcb4252f77a",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Internal/ManualResetEventSlimExtensions.cs",
+      "lineNumber": 12,
+      "codeSnippet": "catch (OperationCanceledException) when (safe) {\n                // safe to ignore\n            }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352693+00:00"
+    },
+    {
+      "hash": "3fbac7ddd511c273",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Internal/Extensions/AsyncEnumerableExtensions.cs",
+      "lineNumber": 128,
+      "codeSnippet": "catch (OperationCanceledException) {\n                        // Expected on cancellation\n                    }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352695+00:00"
+    },
+    {
+      "hash": "ab974255419e7a93",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Internal/Extensions/AsyncEnumerableExtensions.cs",
+      "lineNumber": 142,
+      "codeSnippet": "catch (NotSupportedException) {\n                    // Expected: async iterator disposal not supported in certain states\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352696+00:00"
+    },
+    {
+      "hash": "cbde2592ef76cf18",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Legacy/RipAndTear/HashCode.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable 1591",
+      "message": "#pragma warning disable for warnings 1591 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.3527+00:00"
+    },
+    {
+      "hash": "bb887dad0a7e98be",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Legacy/RipAndTear/X509Certificates.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member",
+      "message": "#pragma warning disable for warnings CS1591 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352701+00:00"
+    },
+    {
+      "hash": "e970340639e0329e",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Legacy/RipAndTear/X509Certificates.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable SYSLIB0057",
+      "message": "#pragma warning disable for warnings SYSLIB0057 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352704+00:00"
+    },
+    {
+      "hash": "22b8b10109f4a6ec",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Legacy/RipAndTear/Client/LegacyClusterClient.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352705+00:00"
+    },
+    {
+      "hash": "3253de6dfef84506",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Legacy/RipAndTear/Client/Gossip/ServerCapabilities.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable 1591",
+      "message": "#pragma warning disable for warnings 1591 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352706+00:00"
+    },
+    {
+      "hash": "fe23858a69e65d57",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Schema/Serialization/SchemaSerializerBase.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously",
+      "message": "#pragma warning disable for warnings CS1998 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352707+00:00"
+    },
+    {
+      "hash": "107484c7bcfffc08",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Schema/Serialization/Bytes/BytesPassthroughSerializer.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352709+00:00"
+    },
+    {
+      "hash": "2b376fd130011bfc",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Schema/NameStrategies/SchemaNameStrategyBase.cs",
+      "lineNumber": 3,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.35271+00:00"
+    },
+    {
+      "hash": "86a3651d4fb18bbd",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/RecordStream.cs",
+      "lineNumber": 42,
+      "codeSnippet": "catch {\n            // swallow - exception was already propagated via GetAsyncEnumerator\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352712+00:00"
+    },
+    {
+      "hash": "35f3043fe7149b7f",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/RecordStream.cs",
+      "lineNumber": 73,
+      "codeSnippet": "catch (OperationCanceledException) {\n                    // ignore cancellation\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352713+00:00"
+    },
+    {
+      "hash": "3aa30e36595c7b7a",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/AppendRecord.cs",
+      "lineNumber": 7,
+      "codeSnippet": "#pragma warning disable CS8604",
+      "message": "#pragma warning disable for warnings CS8604 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352714+00:00"
+    },
+    {
+      "hash": "dc6e84c87bbf6d37",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/StreamDataRetentionOptions.cs",
+      "lineNumber": 3,
+      "codeSnippet": "#pragma warning disable CS8604",
+      "message": "#pragma warning disable for warnings CS8604 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352715+00:00"
+    },
+    {
+      "hash": "f6b0dc7c55721ee8",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/RecordBatchStream.cs",
+      "lineNumber": 53,
+      "codeSnippet": "catch {\n            // swallow - exception was already propagated via GetAsyncEnumerator\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352717+00:00"
+    },
+    {
+      "hash": "4ac08b1acf2ec189",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/RecordBatchStream.cs",
+      "lineNumber": 111,
+      "codeSnippet": "catch (OperationCanceledException) {\n                            // ignore cancellation\n                        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352719+00:00"
+    },
+    {
+      "hash": "7ba85aa7fcb8cc0d",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/Maps/StreamsClientV1Mapper.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352721+00:00"
+    },
+    {
+      "hash": "201ec384df3bca81",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/Maps/StreamsClientV1Mapper.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352722+00:00"
+    },
+    {
+      "hash": "62d6ebb8aaffea7e",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Models/Maps/ProtocolMapper.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352723+00:00"
+    },
+    {
+      "hash": "b2aa0dc2c2887548",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Manage.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352724+00:00"
+    },
+    {
+      "hash": "abc63c512bf56894",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Manage.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352725+00:00"
+    },
+    {
+      "hash": "9e8aeb8e029ad5d8",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Append.Mappers.cs",
+      "lineNumber": 14,
+      "codeSnippet": "SuppressMessage(\"Performance\", \"CA1822:Mark members as static\")",
+      "message": "SuppressMessage attribute suppressing Performance:CA1822:Mark members as static",
+      "baselinedAt": "2026-02-17T20:04:36.352727+00:00"
+    },
+    {
+      "hash": "675821427f1d53fe",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Append.Models.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8604 // Possible null reference argument.",
+      "message": "#pragma warning disable for warnings CS8604 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352728+00:00"
+    },
+    {
+      "hash": "f75cbd0e364dd8ff",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Read.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8509",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352729+00:00"
+    },
+    {
+      "hash": "3061f9cca771b370",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Read.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352738+00:00"
+    },
+    {
+      "hash": "f5bdb52b03e237ce",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Manage.Errors.cs",
+      "lineNumber": 4,
+      "codeSnippet": "#pragma warning disable CS8604 // Possible null reference argument.",
+      "message": "#pragma warning disable for warnings CS8604 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352739+00:00"
+    },
+    {
+      "hash": "8961dbede2d2df35",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Processors/IRecordProcessor.cs",
+      "lineNumber": 135,
+      "codeSnippet": "SuppressMessage(\"Performance\", \"CA1822:Mark members as static\")",
+      "message": "SuppressMessage attribute suppressing Performance:CA1822:Mark members as static",
+      "baselinedAt": "2026-02-17T20:04:36.352741+00:00"
+    },
+    {
+      "hash": "7e69cef03bb0de71",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Processors/ProcessorWorker.cs",
+      "lineNumber": 251,
+      "codeSnippet": "catch {\n            // Swallow — protocol signaling, not critical\n        }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352742+00:00"
+    },
+    {
+      "hash": "217f36847557ac4a",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Processors/Options/KurrentProcessorBuilder.cs",
+      "lineNumber": 455,
+      "codeSnippet": "catch (ObjectDisposedException) { }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352744+00:00"
+    },
+    {
+      "hash": "b7c2ccedac428bc9",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Processors/Models/StreamsClientV1Mapper.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352748+00:00"
+    },
+    {
+      "hash": "4df87a24d3734d23",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Processors/Models/StreamsClientV1Mapper.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352749+00:00"
+    },
+    {
+      "hash": "ad6071c8d3a4e8d0",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Processors/Gateway/LegacyGateway.cs",
+      "lineNumber": 1,
+      "codeSnippet": "#pragma warning disable CS8509",
+      "message": "#pragma warning disable for warnings CS8509 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.35275+00:00"
+    },
+    {
+      "hash": "14d6ea40859a9e1e",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Processors/Gateway/LegacyGateway.cs",
+      "lineNumber": 2,
+      "codeSnippet": "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.",
+      "message": "#pragma warning disable for warnings CS8524 without matching restore in same scope",
+      "baselinedAt": "2026-02-17T20:04:36.352751+00:00"
+    },
+    {
+      "hash": "5f823cb5f745d298",
+      "ruleId": "SW003",
+      "filePath": "src/Kurrent.Processors/Gateway/LegacyGateway.cs",
+      "lineNumber": 245,
+      "codeSnippet": "catch (OperationCanceledException) {\n                    // Expected on shutdown\n                }",
+      "message": "Empty catch block swallows exceptions without handling",
+      "baselinedAt": "2026-02-17T20:04:36.352754+00:00"
+    },
+    {
+      "hash": "36535ca21f556cff",
+      "ruleId": "SW002",
+      "filePath": "src/Kurrent.Client.SourceGenerators/KurrentOperationErrorGenerator.cs",
+      "lineNumber": 17,
+      "codeSnippet": "SuppressMessage(\"MicrosoftCodeAnalysisReleaseTracking\", \"RS2008:Enable analyzer release tracking\")",
+      "message": "SuppressMessage attribute suppressing MicrosoftCodeAnalysisReleaseTracking:RS2008:Enable analyzer release tracking",
+      "baselinedAt": "2026-02-17T20:04:36.352755+00:00"
+    },
+    {
+      "hash": "a61d65b43cdff984",
+      "ruleId": "SW002",
+      "filePath": "src/Variant.SourceGenerators/VariantGenerator.cs",
+      "lineNumber": 12,
+      "codeSnippet": "SuppressMessage(\"MicrosoftCodeAnalysisReleaseTracking\", \"RS2008:Enable analyzer release tracking\")",
+      "message": "SuppressMessage attribute suppressing MicrosoftCodeAnalysisReleaseTracking:RS2008:Enable analyzer release tracking",
+      "baselinedAt": "2026-02-17T20:04:36.352756+00:00"
+    }
+  ]
+}

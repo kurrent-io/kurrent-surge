@@ -5,24 +5,13 @@ namespace Transfermarkt.Domain;
 /// </summary>
 [PublicAPI]
 public sealed record ReturnFromLoan {
-    ReturnFromLoan(TransferId originalLoanTransferId, DateOnly returnDate) {
-        OriginalLoanTransferId = originalLoanTransferId;
-        ReturnDate             = returnDate;
-    }
-
     /// <summary>
     /// The original loan transfer.
     /// </summary>
-    public TransferId OriginalLoanTransferId { get; }
+    public TransferId OriginalLoanTransferId { get; init; }
 
     /// <summary>
     /// The date the player returns to their parent club.
     /// </summary>
-    public DateOnly ReturnDate { get; }
-
-    /// <summary>
-    /// Creates a ReturnFromLoan command.
-    /// </summary>
-    public static ReturnFromLoan Create(TransferId originalLoanTransferId, DateOnly returnDate) =>
-        new(originalLoanTransferId, returnDate);
+    public DateOnly ReturnDate { get; init; }
 }

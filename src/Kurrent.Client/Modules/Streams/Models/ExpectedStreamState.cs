@@ -1,37 +1,158 @@
+using Kurrent.Variant;
+
 namespace Kurrent.Client.Streams;
 
-#pragma warning disable CS8604
 /// <summary>
-/// Represents the expected state of a stream when performing operations such as appending messages.
+/// Represents the expected state of a stream when performing operations such as appending records.
+/// Either a named condition (Any, Exists, NoStream, Deleted, Tombstoned) or a concrete <see cref="StreamRevision"/>.
+/// Superset of <see cref="ActualStreamState"/>.
 /// </summary>
-public readonly record struct ExpectedStreamState {
-    /// <summary>
-    /// The stream should not exist.
-    /// </summary>
-    public static readonly ExpectedStreamState NoStream = new(-1);
+[PublicAPI]
+public readonly partial record struct ExpectedStreamState
+    : IVariant<ExpectedStreamCondition, StreamRevision> {
 
     /// <summary>
-    /// The stream may or may not exist.
+    /// No precondition on the stream's existence or revision.
     /// </summary>
-    public static readonly ExpectedStreamState Any = new(-2);
+    /// <remarks>
+    /// The operation succeeds regardless of whether the stream exists, has been deleted, or is at any particular revision.
+    /// <para />
+    /// Use this when you do not need optimistic concurrency and simply want the operation to proceed unconditionally.
+    /// <para />
+    /// Convenience alias for <see cref="ExpectedStreamCondition.Any"/>.
+    /// </remarks>
+    public static readonly ExpectedStreamState Any = ExpectedStreamCondition.Any;
 
     /// <summary>
-    /// The stream must exist.
+    /// The stream must already exist with at least one committed record.
     /// </summary>
-    public static readonly ExpectedStreamState StreamExists = new(-4);
+    /// <remarks>
+    /// The operation fails if the stream has never been written to or is in the NoStream state.
+    /// <para />
+    /// Unlike specifying a concrete <see cref="StreamRevision"/>, this does not check the exact revision -
+    /// only that the stream is non-empty.
+    /// <para />
+    /// Convenience alias for <see cref="ExpectedStreamCondition.Exists"/>.
+    /// </remarks>
+    public static readonly ExpectedStreamState Exists = ExpectedStreamCondition.Exists;
 
-    public long Value { get; }
+    /// <summary>
+    /// The stream must not exist.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream already has any committed records.
+    /// <para />
+    /// Use this to guarantee that the operation creates a new stream rather than appending to an existing one.
+    /// <para />
+    /// Convenience alias for <see cref="ExpectedStreamCondition.NoStream"/>.
+    /// </remarks>
+    public static readonly ExpectedStreamState NoStream = ExpectedStreamCondition.NoStream;
 
-    internal ExpectedStreamState(long value) {
-        Value = value switch {
-            -1 or -2 or -4 or >= 0 => value,
-            -1000                  => -2, // Special case for unset revision to Any
-            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "ExpectedStreamState must be NoStream(-1), Any(-2), StreamExists(-4), or a StreamRevision(0+)")
+    /// <summary>
+    /// The stream must be in a soft-deleted state.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream has not been soft-deleted.
+    /// <para />
+    /// A soft-deleted stream can be recreated; its revision is preserved and continues to increment for new records.
+    /// <para />
+    /// Convenience alias for <see cref="ExpectedStreamCondition.Deleted"/>.
+    /// </remarks>
+    public static readonly ExpectedStreamState Deleted = ExpectedStreamCondition.Deleted;
+
+    /// <summary>
+    /// The stream must be in a tombstoned state.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream has not been hard-deleted and tombstoned.
+    /// <para />
+    /// A tombstoned stream cannot be recreated or have any new records appended to it.
+    /// <para />
+    /// Convenience alias for <see cref="ExpectedStreamCondition.Tombstoned"/>.
+    /// </remarks>
+    public static readonly ExpectedStreamState Tombstoned = ExpectedStreamCondition.Tombstoned;
+
+    internal static ExpectedStreamState FromWireValue(long value) =>
+        value switch {
+            >= 0 => StreamRevision.From(value),
+            _    => ExpectedStreamCondition.From(value)
         };
-    }
 
-    public static implicit operator ExpectedStreamState(long _)           => new(_);
-    public static implicit operator long(ExpectedStreamState _)           => _.Value;
-    public static implicit operator StreamRevision(ExpectedStreamState _) => _.Value;
-    public static implicit operator ulong(ExpectedStreamState _)          => (ulong)_.Value;
+    internal long ToWireValue() =>
+        Match(condition => condition.Value, revision => revision.Value);
+
+    /// <summary>
+    /// Cross-DU conversion: an actual stream state is always a valid expectation.
+    /// </summary>
+    public static implicit operator ExpectedStreamState(ActualStreamState state) =>
+        state.Match<ExpectedStreamState>(condition => ExpectedStreamCondition.From(condition.Value), revision => revision);
+}
+
+/// <summary>
+/// The expected state of a stream as a named precondition. Not a concrete revision.
+/// Superset of <see cref="ActualStreamCondition"/> - includes the expectation-only values Any and Exists.
+/// </summary>
+[PublicAPI]
+public readonly record struct ExpectedStreamCondition(string Name, long Value) {
+    /// <summary>
+    /// No precondition on the stream's existence or revision.
+    /// </summary>
+    /// <remarks>
+    /// The operation succeeds regardless of whether the stream exists, has been deleted, or is at any particular revision.
+    /// <para />
+    /// Use this when you do not need optimistic concurrency and simply want the operation to proceed unconditionally.
+    /// </remarks>
+    public static readonly ExpectedStreamCondition Any = new(nameof(Any), -2);
+
+    /// <summary>
+    /// The stream must already exist with at least one committed record.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream has never been written to or is in the NoStream state.
+    /// <para />
+    /// Unlike specifying a concrete <see cref="StreamRevision"/>, this does not check the exact revision -
+    /// only that the stream is non-empty.
+    /// </remarks>
+    public static readonly ExpectedStreamCondition Exists = new(nameof(Exists), -4);
+
+    /// <summary>
+    /// The stream must not exist.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream already has any committed records.
+    /// <para />
+    /// Use this to guarantee that the operation creates a new stream rather than appending to an existing one.
+    /// </remarks>
+    public static readonly ExpectedStreamCondition NoStream = new(nameof(NoStream), -1);
+
+    /// <summary>
+    /// The stream must be in a soft-deleted state.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream has not been soft-deleted.
+    /// <para />
+    /// A soft-deleted stream can be recreated; its revision is preserved and continues to increment for new records.
+    /// </remarks>
+    public static readonly ExpectedStreamCondition Deleted = new(nameof(Deleted), -10);
+
+    /// <summary>
+    /// The stream must be in a tombstoned state.
+    /// </summary>
+    /// <remarks>
+    /// The operation fails if the stream has not been hard-deleted and tombstoned.
+    /// <para />
+    /// A tombstoned stream cannot be recreated or have any new records appended to it.
+    /// </remarks>
+    public static readonly ExpectedStreamCondition Tombstoned = new(nameof(Tombstoned), -100);
+
+    public override string ToString() => Name;
+
+    public static ExpectedStreamCondition From(long value) => value switch {
+        -1   => NoStream,
+        -2   => Any,
+        -4   => Exists,
+        -10  => Deleted,
+        -100 => Tombstoned,
+        _    => throw new ArgumentOutOfRangeException(nameof(value), value, $"Cannot convert value {value}. Expected -1 (NoStream), -2 (Any), -4 (Exists), -10 (Deleted), or -100 (Tombstoned).")
+    };
 }

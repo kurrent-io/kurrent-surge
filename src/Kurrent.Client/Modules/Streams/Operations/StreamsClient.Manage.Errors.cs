@@ -17,7 +17,8 @@ public partial class DeleteStreamError : IVariantException<
     StreamDeletedException,
     StreamTombstonedException,
     StreamRevisionConflictException,
-    Exception> {
+    Exception
+> {
     public static DeleteStreamError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<DeleteStreamError>(
             static (s, e) => StreamNotFoundException.From(s, e),
@@ -33,7 +34,8 @@ public partial class TombstoneStreamError : IVariantException<
     StreamDeletedException,
     StreamTombstonedException,
     StreamRevisionConflictException,
-    Exception> {
+    Exception
+> {
     public static TombstoneStreamError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<TombstoneStreamError>(
             static (s, e) => StreamNotFoundException.From(s, e),
@@ -49,7 +51,8 @@ public partial class TruncateStreamError : IVariantException<
     StreamDeletedException,
     StreamTombstonedException,
     StreamRevisionConflictException,
-    Exception> {
+    Exception
+> {
     public static TruncateStreamError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<TruncateStreamError>(
             static (s, e) => StreamNotFoundException.From(s, e),
@@ -65,7 +68,8 @@ public partial class SetStreamMetadataError : IVariantException<
     StreamDeletedException,
     StreamTombstonedException,
     StreamRevisionConflictException,
-    Exception> {
+    Exception
+> {
     public static SetStreamMetadataError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<SetStreamMetadataError>(
             static (s, e) => StreamNotFoundException.From(s, e),
@@ -80,7 +84,8 @@ public partial class GetStreamMetadataError : IVariantException<
     StreamNotFoundException,
     StreamDeletedException,
     StreamTombstonedException,
-    Exception> {
+    Exception
+> {
     public static GetStreamMetadataError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<GetStreamMetadataError>(
             static (s, e) => StreamNotFoundException.From(s, e),

@@ -163,10 +163,10 @@ public partial class StreamsClient {
         }
     }
 
-    public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetStreamMetadata(StreamName stream, StreamMetadata metadata, StreamRevision expectedRevision, CancellationToken cancellationToken = default) {
+    public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetStreamMetadata(StreamName stream, StreamMetadata metadata, StreamRevision revision, CancellationToken cancellationToken = default) {
         var req = AppendStreamRequest.New()
             .ForStream(stream.Metastream)
-            .ExpectingRevision(expectedRevision)
+            .ExpectingRevision(revision)
             .WithRecord(metadata)
             .Build();
 
@@ -199,7 +199,6 @@ public partial class StreamsClient {
             return TruncateStreamError.FromEx(ex);
         }
     }
-
 
     public ValueTask<Result<StreamRevision, SetStreamMetadataError>> ConfigureStreamDataRetention(StreamName stream, StreamDataRetentionOptions options, StreamRevision metaStreamRevision, CancellationToken cancellationToken) {
         var metadata = new StreamMetadata { MaxCount = options.MaxCount, MaxAge = options.MaxAge };

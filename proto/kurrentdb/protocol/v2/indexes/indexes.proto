@@ -49,60 +49,54 @@ service CustomIndexesService {
 }
 
 enum KeyType {
-  KEY_TYPE_UNSPECIFIED = 0;
-  KEY_TYPE_STRING = 1;
-  KEY_TYPE_NUMBER = 2;
-  KEY_TYPE_INT_16 = 3;
-  KEY_TYPE_INT_32 = 4;
-  KEY_TYPE_INT_64 = 5;
+  KEY_TYPE_UNSPECIFIED     = 0;
+  KEY_TYPE_STRING          = 1;
+  KEY_TYPE_NUMBER          = 2;
+  KEY_TYPE_INT_16          = 3;
+  KEY_TYPE_INT_32          = 4;
+  KEY_TYPE_INT_64          = 5;
   KEY_TYPE_UNSIGNED_INT_32 = 6;
   KEY_TYPE_UNSIGNED_INT_64 = 7;
 }
-
 
 //
 // Write-side messages
 //
 
 message CreateCustomIndexRequest {
-  string name = 1;
-  string filter = 2;
-  string partition_key_selector = 3;
-  KeyType partition_key_type = 4;
-  optional bool enable = 5; // if unspecified: treated as true
-  optional bool force = 6;
+  string        name                   = 1;
+  string        filter                 = 2;
+  string        partition_key_selector = 3;
+  KeyType       partition_key_type     = 4;
+  optional bool enable                 = 5;  // if unspecified: treated as true
+  optional bool force                  = 6;
 }
 
-message CreateCustomIndexResponse {
-}
+message CreateCustomIndexResponse {}
 
 message EnableCustomIndexRequest {
   string name = 1;
 }
 
-message EnableCustomIndexResponse {
-}
+message EnableCustomIndexResponse {}
 
 message DisableCustomIndexRequest {
   string name = 1;
 }
 
-message DisableCustomIndexResponse {
-}
+message DisableCustomIndexResponse {}
 
 message DeleteCustomIndexRequest {
   string name = 1;
 }
 
-message DeleteCustomIndexResponse {
-}
+message DeleteCustomIndexResponse {}
 
 //
 // Read-side messages
 //
 
-message ListCustomIndexesRequest {
-}
+message ListCustomIndexesRequest {}
 
 message ListCustomIndexesResponse {
   map<string, CustomIndex> custom_indexes = 1;
@@ -117,15 +111,15 @@ message GetCustomIndexResponse {
 }
 
 message CustomIndex {
-  string filter = 1;
-  string partition_key_selector = 2;
-  KeyType partition_key_type = 3;
-  CustomIndexStatus status = 4;
+  string            filter                 = 1;
+  string            partition_key_selector = 2;
+  KeyType           partition_key_type     = 3;
+  CustomIndexStatus status                 = 4;
 }
 
 enum CustomIndexStatus {
   CUSTOM_INDEX_STATUS_UNSPECIFIED = 0;
-  CUSTOM_INDEX_STATUS_DISABLED = 1;
-  CUSTOM_INDEX_STATUS_ENABLED = 2;
-  CUSTOM_INDEX_STATUS_DELETED = 3;
+  CUSTOM_INDEX_STATUS_DISABLED    = 1;
+  CUSTOM_INDEX_STATUS_ENABLED     = 2;
+  CUSTOM_INDEX_STATUS_DELETED     = 3;
 }
