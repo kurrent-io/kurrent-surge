@@ -395,7 +395,7 @@ public class ServerFilterExtractorTests {
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 Stream         = StreamName.From("Orders-ABC123"),
-                StreamRevision = StreamRevision.From(0)
+                Revision = Revision.From(0)
             },
             Timestamp = new DateTime(
                 2024, 6, 15,
@@ -412,7 +412,7 @@ public class ServerFilterExtractorTests {
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 Stream         = StreamName.From("Orders-ABC123"),
-                StreamRevision = StreamRevision.From(0)
+                Revision = Revision.From(0)
             },
             Timestamp = new DateTime(
                 2023, 6, 15,
@@ -437,7 +437,7 @@ public class ServerFilterExtractorTests {
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 Stream         = StreamName.From("Orders-D0332EB7480643E4"),
-                StreamRevision = StreamRevision.From(0)
+                Revision = Revision.From(0)
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
@@ -450,7 +450,7 @@ public class ServerFilterExtractorTests {
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 Stream         = StreamName.From("Payments-F9E8D7C6B5A43210"),
-                StreamRevision = StreamRevision.From(0)
+                Revision = Revision.From(0)
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
@@ -471,7 +471,7 @@ public class ServerFilterExtractorTests {
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 Stream         = StreamName.From("Orders-ABC123"),
-                StreamRevision = StreamRevision.From(0)
+                Revision = Revision.From(0)
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
@@ -485,7 +485,7 @@ public class ServerFilterExtractorTests {
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 Stream         = StreamName.From("Orders-ABC123"),
-                StreamRevision = StreamRevision.From(0)
+                Revision = Revision.From(0)
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()

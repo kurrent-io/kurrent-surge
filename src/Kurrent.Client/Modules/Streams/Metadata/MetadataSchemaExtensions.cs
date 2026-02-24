@@ -39,11 +39,11 @@ public static class MetadataSchemaExtensions {
             source.GetOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.None);
 
         public Metadata AddSchemaNameIfMissing(SchemaName schemaName) =>
-            source.WithIf(x => x.GetSchemaName() == SchemaName.None, SystemMetadataKeys.SchemaName, schemaName);
+            source.WithIf(SystemMetadataKeys.SchemaName, schemaName, source.GetSchemaName() == SchemaName.None);
 
         public Metadata AddSchemaFormatIfMissing(SchemaDataFormat dataFormat) {
             return dataFormat != SchemaDataFormat.Unspecified
-                ? source.WithIf(x => x.GetSchemaFormat() == SchemaDataFormat.Unspecified, SystemMetadataKeys.SchemaFormat, dataFormat)
+                ? source.WithIf(SystemMetadataKeys.SchemaFormat, dataFormat, source.GetSchemaFormat() == SchemaDataFormat.Unspecified)
                 : throw new ArgumentOutOfRangeException(nameof(dataFormat), "SchemaFormat cannot be Unspecified when adding to metadata.");
         }
     }

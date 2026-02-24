@@ -4,12 +4,12 @@ namespace Kurrent.Client.Streams;
 
 /// <summary>
 /// Represents the expected state of a stream when performing operations such as appending records.
-/// Either a named condition (Any, Exists, NoStream, Deleted, Tombstoned) or a concrete <see cref="StreamRevision"/>.
+/// Either a named condition (Any, Exists, NoStream, Deleted, Tombstoned) or a concrete <see cref="Revision"/>.
 /// Superset of <see cref="ActualStreamState"/>.
 /// </summary>
 [PublicAPI]
 public readonly partial record struct ExpectedStreamState
-    : IVariant<ExpectedStreamCondition, StreamRevision> {
+    : IVariant<ExpectedStreamCondition, Revision> {
 
     /// <summary>
     /// No precondition on the stream's existence or revision.
@@ -29,7 +29,7 @@ public readonly partial record struct ExpectedStreamState
     /// <remarks>
     /// The operation fails if the stream has never been written to or is in the NoStream state.
     /// <para />
-    /// Unlike specifying a concrete <see cref="StreamRevision"/>, this does not check the exact revision -
+    /// Unlike specifying a concrete <see cref="Revision"/>, this does not check the exact revision -
     /// only that the stream is non-empty.
     /// <para />
     /// Convenience alias for <see cref="ExpectedStreamCondition.Exists"/>.
@@ -74,8 +74,9 @@ public readonly partial record struct ExpectedStreamState
 
     internal static ExpectedStreamState FromWireValue(long value) =>
         value switch {
-            >= 0 => StreamRevision.From(value),
-            _    => ExpectedStreamCondition.From(value)
+            >= 0  => Revision.From(value),
+            -1000 => ExpectedStreamCondition.Any,
+            _     => ExpectedStreamCondition.From(value)
         };
 
     internal long ToWireValue() =>
@@ -110,7 +111,7 @@ public readonly record struct ExpectedStreamCondition(string Name, long Value) {
     /// <remarks>
     /// The operation fails if the stream has never been written to or is in the NoStream state.
     /// <para />
-    /// Unlike specifying a concrete <see cref="StreamRevision"/>, this does not check the exact revision -
+    /// Unlike specifying a concrete <see cref="Revision"/>, this does not check the exact revision -
     /// only that the stream is non-empty.
     /// </remarks>
     public static readonly ExpectedStreamCondition Exists = new(nameof(Exists), -4);

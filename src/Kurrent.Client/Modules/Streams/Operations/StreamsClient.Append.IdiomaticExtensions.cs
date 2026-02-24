@@ -1,29 +1,36 @@
+using System.Collections.Immutable;
+
 namespace Kurrent.Client.Streams;
 
 public static partial class StreamsClientExtensions {
     extension(StreamsClient client) {
-        public async ValueTask<AppendSessionSuccess> AppendSessionAsync(
-            IAsyncEnumerable<AppendStreamRequest> requests, CancellationToken cancellationToken = default
-        ) => await client.AppendSession(requests, cancellationToken).UnwrapAsync().ConfigureAwait(false);
+        public ValueTask<AppendRecordsSuccess> AppendRecordsAsync(
+            AppendRecordsRequest request,
+            CancellationToken    cancellationToken = default
+        ) => client.AppendRecords(request, cancellationToken).UnwrapAsync();
 
-        public async ValueTask<AppendSessionSuccess> AppendSessionAsync(
-            IEnumerable<AppendStreamRequest> requests,
-            CancellationToken cancellationToken = default
-        ) => await AppendSession(client, requests, cancellationToken).UnwrapAsync().ConfigureAwait(false);
+        public ValueTask<AppendRecordsSuccess> AppendRecordsAsync(
+            ImmutableArray<AppendRecord>     records,
+            ImmutableArray<ConsistencyCheck> checks,
+            CancellationToken                cancellationToken = default
+        ) => client.AppendRecords(records, checks, cancellationToken).UnwrapAsync();
 
-        public async ValueTask<AppendStreamSuccess> AppendAsync(
-            AppendStreamRequest request,
-            CancellationToken cancellationToken = default
-        ) => await Append(client, request, cancellationToken).UnwrapAsync().ConfigureAwait(false);
+        public ValueTask<AppendRecordsSuccess> AppendRecordsAsync(
+            ImmutableArray<AppendRecord> records,
+            ConsistencyCheck?            check             = null,
+            CancellationToken            cancellationToken = default
+        ) => client.AppendRecords(records, check, cancellationToken).UnwrapAsync();
 
-        public async ValueTask<AppendStreamSuccess> AppendAsync(
-            StreamName stream, ExpectedStreamState expectedState, IEnumerable<AppendRecord> records,
-            CancellationToken cancellationToken = default
-        ) => await client.AppendAsync(new AppendStreamRequest(stream, expectedState, records), cancellationToken).ConfigureAwait(false);
+        public ValueTask<AppendRecordsSuccess> AppendRecordsAsync(
+            AppendRecord                     record,
+            ImmutableArray<ConsistencyCheck> checks,
+            CancellationToken                cancellationToken = default
+        ) => client.AppendRecords(record, checks, cancellationToken).UnwrapAsync();
 
-        public async ValueTask<AppendStreamSuccess> AppendAsync(
-            StreamName stream, AppendRecord record,
+        public ValueTask<AppendRecordsSuccess> AppendRecordsAsync(
+            AppendRecord      record,
+            ConsistencyCheck? check             = null,
             CancellationToken cancellationToken = default
-        ) => await client.AppendAsync(new AppendStreamRequest(stream, ExpectedStreamState.Any ,[record]), cancellationToken).ConfigureAwait(false);
+        ) => client.AppendRecords(record, [check ?? ConsistencyCheck.None], cancellationToken).UnwrapAsync();
     }
 }

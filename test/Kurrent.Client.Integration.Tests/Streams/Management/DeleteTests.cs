@@ -28,7 +28,7 @@ public class DeleteTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, simulation.StreamRevision, ct)
+            .Delete(simulation.Stream, simulation.Revision, ct)
             .ShouldNotThrowOrFailAsync(position =>
                 position.ShouldBeGreaterThanOrEqualTo(simulation.Position));
     }
@@ -36,7 +36,7 @@ public class DeleteTests {
     [Test]
     public async ValueTask fails_to_delete_stream_with_revision_conflict_error_when_revision_is_not_matched(CancellationToken ct) {
         var simulation  = await Fixture.SeedSmartHomeActivity(ct);
-        var badRevision = simulation.StreamRevision + 1;
+        var badRevision = simulation.Revision + 1;
 
         await Fixture.Client.Streams
             .Delete(simulation.Stream, badRevision, ct)

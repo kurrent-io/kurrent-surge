@@ -23,14 +23,11 @@ static class ProtocolMapper {
             };
     }
 
-    public static MapField<string, Value> ToProperties(this Metadata source) {
-        return source.Aggregate(
-            new MapField<string, Value>(), (seed, entry) => {
-                seed.Add(entry.Key, ToValue(entry.Value));
-                return seed;
-            }
-        );
-    }
+    public static MapField<string, Value> ToProperties(this Metadata source) =>
+        source.Aggregate(new MapField<string, Value>(), (seed, entry) => {
+            seed.Add(entry.Key, ToValue(entry.Value));
+            return seed;
+        });
 
     /// <summary>
     /// This is tricky, because we need to map a lot of different types to a protobuf value
@@ -39,7 +36,7 @@ static class ProtocolMapper {
     /// Need to figure this out properly even with numbers, because protobuf only supports double as number type.
     /// perhaps we can go lazy with a try/catch around map to value and if it fails we convert to string?
     /// </summary>
-    public static Value ToValue(object? source, bool treatByteArrayAsString = false) {
+    static Value ToValue(object? source, bool treatByteArrayAsString = false) {
         if (IsNumber(source))
             return new Value { NumberValue = Convert.ToDouble(source) };
 
@@ -66,45 +63,4 @@ static class ProtocolMapper {
         static bool IsNumber(object? source) =>
             source is int or double or float or decimal or long or short or byte or sbyte or ushort or uint or ulong;
     }
-
-    //public record ValueMappingOptions(bool ConvertBytes = false);
-
-    // extension(object? source) {
-    //     /// <summary>
-    //     /// This is tricky, because we need to map a lot of different types to a protobuf value
-    //     /// The main challenge is to decide what to do with byte arrays. We can either treat them as strings (base64) or as lists of numbers.
-    //     /// By default we treat them as strings, but if the flag is set to true, we convert them to lists of numbers.
-    //     /// Need to figure this out properly even with numbers, because protobuf only supports double as number type.
-    //     /// perhaps we can go lazy with a try/catch around map to value and if it fails we convert to string?
-    //     /// </summary>
-    //     public Value MapToValue(object? source, bool treatByteArrayAsString = false) {
-    //         if (IsNumber(source))
-    //             return new Value { NumberValue = Convert.ToDouble(source) };
-    //
-    //         // somehow I need to check if the source is somesort of collection or enumerableso I can map them to a list value
-    //         if (source is IEnumerable and not string and not byte[] and not Metadata) {
-    //             var values = ((IEnumerable)source).Cast<object?>()
-    //                 .Select(val => val.MapToValue(treatByteArrayAsString));
-    //
-    //             return new Value { ListValue = new ListValue { Values = { values } } };
-    //         }
-    //
-    //         return source switch {
-    //             null     => new Value { NullValue   = NullValue.NullValue },
-    //             string x => new Value { StringValue = x },
-    //             bool x   => new Value { BoolValue   = x },
-    //             // Metadata x => new Value { StructValue = new Struct { Fields = { x.MapToMapField() } } },
-    //
-    //             // ReadOnlyMemory<byte> x => new Value { StringValue = Convert.ToBase64String(x.Span) },
-    //             // Memory<byte> x         => new Value { StringValue = Convert.ToBase64String(x.Span) },
-    //             // ArraySegment<byte> x   => new Value { StringValue = Convert.ToBase64String(x.Array ?? x.ToArray()) },
-    //             // byte[] x               => new Value { StringValue = Convert.ToBase64String(x) },
-    //
-    //             _ => new Value { StringValue = source.ToString() }
-    //         };
-    //
-    //         bool IsNumber(object? source) =>
-    //             source is int or double or float or decimal or long or short or byte or sbyte or ushort or uint or ulong;
-    //     }
-    // }
 }

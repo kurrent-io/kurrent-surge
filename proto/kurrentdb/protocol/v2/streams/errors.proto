@@ -48,7 +48,7 @@ enum StreamsError {
   }];
 
   // The stream has been soft deleted.
-  // Soft-deleted streams are hidden from stream lists but can be restored by appending to them.
+  // Soft-deleted streams are "hidden" from stream lists but can be restored by appending to them.
   //
   // Common causes:
   // - Stream was explicitly soft-deleted via delete operation
@@ -167,7 +167,7 @@ enum StreamsError {
   // Client action: Inspect the ConsistencyCheckFailedErrorDetails to determine which checks
   // failed and why, then correct the request or refresh local state and retry.
   // Recoverable by reading the current state and resubmitting with updated checks.
-  STREAMS_ERROR_CONSISTENCY_CHECK_FAILED = 13 [(kurrent.rpc.error) = {
+  STREAMS_ERROR_CONSISTENCY_VIOLATION = 13 [(kurrent.rpc.error) = {
     status_code: FAILED_PRECONDITION,
     has_details: true
   }];
@@ -178,23 +178,24 @@ enum StreamsError {
 // Contains a map of all checks that failed, keyed by their zero-based index
 // in the original AppendRecordsRequest.consistency_checks list.
 // Only failed checks are included; passing checks are omitted.
-message ConsistencyCheckFailedErrorDetails {
+message ConsistencyViolationErrorDetails {
   // Map from the check index (position in consistency_checks) to its failure details.
   // Enables the client to correlate each failure back to the specific check that was sent.
-  map<uint32, ConsistencyCheckError> failed_checks = 1;
+  map<uint32, ConsistencyCheckFailure> failed_checks = 1;
 }
 
-// Failure details for a single consistency check.
-//
-// Mirrors the ConsistencyCheck oneof: a revision check produces RevisionCheckError,
-// a query check produces QueryCheckError.
-message ConsistencyCheckError {
+// Details for a single consistency check failure.
+// The failure details depend on the type of check that failed:
+// - For stream state checks, the details include the expected and actual stream state.
+// - For query-based checks, the details may include an optional message describing the failure.
+// The oneof allows for extensibility to support different types of consistency checks in the future.
+message ConsistencyCheckFailure {
   oneof type {
     // Failure details when a stream revision check did not hold.
-    RevisionCheckError revision = 1;
+    StreamConsistencyCheckFailure revision = 1;
 
     // Failure details when a query-based check evaluated to false.
-    QueryCheckError query = 2;
+    QueryConsistencyCheckFailure query = 2;
   }
 
   // A stream revision check failed because the actual state did not satisfy the expected value.
@@ -205,21 +206,29 @@ message ConsistencyCheckError {
   //   -10    : The stream has been soft-deleted (DELETED)
   //   -100   : The stream has been tombstoned (TOMBSTONED)
   //
-  // Note: ANY (-2) and EXISTS (-4) are never returned as actual_revision values.
-  // When a stream exists, the server returns the actual revision number (>= 0).
-  message RevisionCheckError {
+  // Notes:
+  //  - ANY (-2) and EXISTS (-4) are never returned as actual_revision values.
+  //  - When a stream exists, the server returns the actual revision number (>= 0).
+  message StreamConsistencyCheckFailure {
     // The name of the stream that failed the check.
     string stream = 1;
+
+    // The expected state of the stream as specified in the consistency check.
+    // Non-negative values (>= 0) are real revision numbers.
+    // Negative values are RevisionConstants sentinels: -2 (ANY), -4 (EXISTS), -1 (NO_STREAM), -10 (DELETED), -100 (TOMBSTONED).
+    sint64 expected_revision = 2;
 
     // The actual state of the stream at the time the check was evaluated.
     // Non-negative values (>= 0) are real revision numbers.
     // Negative values are RevisionConstants sentinels: -1 (NO_STREAM), -10 (DELETED), -100 (TOMBSTONED).
-    sint64 actual_revision = 2;
+    sint64 actual_revision = 3;
   }
 
   // A query-based consistency check evaluated to false.
   // No additional details are currently provided.
-  message QueryCheckError { }
+  message QueryConsistencyCheckFailure {
+    string message = 1; // Optional message describing the query failure, if available.
+  }
 }
 
 // Details for STREAM_REVISION_CONFLICT errors.

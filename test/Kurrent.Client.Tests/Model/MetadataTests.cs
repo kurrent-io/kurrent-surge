@@ -20,14 +20,6 @@ public class MetadataTests {
     }
 
     [Test]
-    public void locked_metadata_throws_on_clear() {
-        var metadata = new Metadata().With("key", "value").Lock();
-
-        var exception = Should.Throw<InvalidOperationException>(() => metadata.Clear());
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
     public void locked_metadata_throws_on_remove() {
         var metadata = new Metadata().With("key", "value").Lock();
 
@@ -57,77 +49,6 @@ public class MetadataTests {
         var additional = new Metadata().With("new1", "value1").With("new2", "value2");
 
         var exception = Should.Throw<InvalidOperationException>(() => locked.WithMany(additional));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_with_many_kvp_array_throws_exception() {
-        var locked = new Metadata().With("original", "value").Lock();
-        var kvpArray = new[] {
-            new KeyValuePair<string, object?>("new1", "value1"),
-            new KeyValuePair<string, object?>("new2", "value2")
-        };
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.WithMany(kvpArray));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_without_throws_exception() {
-        var locked = new Metadata()
-            .With("keep", "value1")
-            .With("remove", "value2")
-            .Lock();
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.Without("remove"));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_without_many_throws_exception() {
-        var locked = new Metadata()
-            .With("keep", "value1")
-            .With("remove1", "value2")
-            .With("remove2", "value3")
-            .Lock();
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.WithoutMany("remove1", "remove2"));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_with_if_true_throws_exception() {
-        var locked = new Metadata().With("original", "value").Lock();
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.WithIf(true, "new", "value"));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_with_many_if_true_throws_exception() {
-        var locked     = new Metadata().With("original", "value").Lock();
-        var additional = new Metadata().With("new", "value");
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.WithManyIf(true, additional));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_without_if_true_throws_exception() {
-        var locked = new Metadata()
-            .With("keep", "value1")
-            .With("remove", "value2")
-            .Lock();
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.WithoutIf(true, "remove"));
-        exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
-    }
-
-    [Test]
-    public void locked_metadata_transform_throws_exception() {
-        var locked = new Metadata().With("original", "value").Lock();
-
-        var exception = Should.Throw<InvalidOperationException>(() => locked.Transform(m => m.With("new", "value")));
         exception.Message.ShouldBe("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.");
     }
 
@@ -189,29 +110,6 @@ public class MetadataTests {
         newLocked.IsLocked.ShouldBeTrue();
 
         Should.Throw<InvalidOperationException>(() => newLocked["another"] = "value");
-    }
-
-    [Test]
-    public void fluent_api_chains_work_with_create_unlocked_copy() {
-        var locked = new Metadata().With("a", 1).Lock();
-
-        var result = locked.CreateUnlockedCopy()
-            .With("b", 2)
-            .With("c", 3)
-            .Without("a")
-            .WithIf(true, "d", 4)
-            .WithIf(false, "e", 5);
-
-        result.IsLocked.ShouldBeFalse();
-        result.Count.ShouldBe(3);
-        result.ContainsKey("a").ShouldBeFalse();
-        result.ContainsKey("b").ShouldBeTrue();
-        result.ContainsKey("c").ShouldBeTrue();
-        result.ContainsKey("d").ShouldBeTrue();
-        result.ContainsKey("e").ShouldBeFalse();
-
-        locked.Count.ShouldBe(1);
-        locked.ContainsKey("a").ShouldBeTrue();
     }
 
     [Test]

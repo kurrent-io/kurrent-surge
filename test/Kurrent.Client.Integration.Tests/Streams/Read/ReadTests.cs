@@ -82,7 +82,7 @@ public class ReadTests {
             var iotEvent = simulation.Records[i];
 
             record.Stream.ShouldBe(simulation.Stream);
-            record.StreamRevision.ShouldBeEquivalentTo(StreamRevision.From(i));
+            record.Revision.ShouldBeEquivalentTo(Revision.From(i));
             record.Position.LogPosition.ShouldBeLessThanOrEqualTo(simulation.Position);
 
             record.Schema.SchemaName.Value.ShouldNotBeEmpty();
@@ -247,7 +247,7 @@ public class ReadTests {
         var startFrom = 5;
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, StreamRevision.From(startFrom), ct)
+            .ReadStreamRecords(simulation.Stream, Revision.From(startFrom), ct)
             .ShouldNotThrowOrFailAsync();
 
         var records = await messages
@@ -264,7 +264,7 @@ public class ReadTests {
             var expected = expectedRecords[i];
 
             record.Stream.ShouldBe(simulation.Stream);
-            record.StreamRevision.ShouldBeEquivalentTo(StreamRevision.From(startFrom + i));
+            record.Revision.ShouldBeEquivalentTo(Revision.From(startFrom + i));
             record.Id.ShouldBe(expected.RecordId);
             record.Value.ShouldBeEquivalentTo(expected.Value);
         }

@@ -17,10 +17,10 @@ public class ExpectedStreamStateTests {
 
     [Test]
     public async ValueTask revision_converts_to_du_implicitly() {
-        ExpectedStreamState state = StreamRevision.From(99);
+        ExpectedStreamState state = Revision.From(99);
 
-        await Assert.That(state.IsStreamRevision).IsTrue();
-        await Assert.That(state.AsStreamRevision).IsEqualTo(StreamRevision.From(99));
+        await Assert.That(state.IsRevision).IsTrue();
+        await Assert.That(state.AsRevision).IsEqualTo(Revision.From(99));
     }
 
     [Test]
@@ -41,7 +41,7 @@ public class ExpectedStreamStateTests {
 
         var result = state.Match(
             onExpectedStreamCondition: c => c.Name,
-            onStreamRevision: _ => "revision"
+            onRevision: _ => "revision"
         );
 
         await Assert.That(result).IsEqualTo("Exists");
@@ -49,11 +49,11 @@ public class ExpectedStreamStateTests {
 
     [Test]
     public async ValueTask match_dispatches_to_revision_branch() {
-        ExpectedStreamState state = StreamRevision.From(3);
+        ExpectedStreamState state = Revision.From(3);
 
         var result = state.Match(
             onExpectedStreamCondition: _ => -1L,
-            onStreamRevision: r => (long)r
+            onRevision: r => (long)r
         );
 
         await Assert.That(result).IsEqualTo(3L);
@@ -82,19 +82,22 @@ public class ExpectedStreamStateTests {
         await Assert.That(state.AsExpectedStreamCondition).IsEqualTo(ExpectedStreamCondition.Any);
     }
 
-    [Test]
-    public async ValueTask from_wire_value_returns_condition_for_sentinel_values() {
-        var any        = ExpectedStreamState.FromWireValue(-2);
-        var exists     = ExpectedStreamState.FromWireValue(-4);
-        var noStream   = ExpectedStreamState.FromWireValue(-1);
-        var deleted    = ExpectedStreamState.FromWireValue(-10);
-        var tombstoned = ExpectedStreamState.FromWireValue(-100);
+    public class SentinelValueCases : TestCaseGenerator<long, ExpectedStreamCondition> {
+        protected override IEnumerable<(long, ExpectedStreamCondition)> Data() => [
+            (-1, ExpectedStreamCondition.NoStream),
+            (-2, ExpectedStreamCondition.Any),
+            (-4, ExpectedStreamCondition.Exists),
+            (-10, ExpectedStreamCondition.Deleted),
+            (-100, ExpectedStreamCondition.Tombstoned)
+        ];
+    }
 
-        await Assert.That(any.IsExpectedStreamCondition).IsTrue();
-        await Assert.That(exists.IsExpectedStreamCondition).IsTrue();
-        await Assert.That(noStream.IsExpectedStreamCondition).IsTrue();
-        await Assert.That(deleted.IsExpectedStreamCondition).IsTrue();
-        await Assert.That(tombstoned.IsExpectedStreamCondition).IsTrue();
+    [Test, SentinelValueCases]
+    public async ValueTask from_wire_value_returns_condition_for_sentinel_values(long wireValue, ExpectedStreamCondition expected) {
+        var state = ExpectedStreamState.FromWireValue(wireValue);
+
+        await Assert.That(state.IsExpectedStreamCondition).IsTrue();
+        await Assert.That(state.AsExpectedStreamCondition).IsEqualTo(expected);
     }
 
     [Test]
@@ -102,8 +105,8 @@ public class ExpectedStreamStateTests {
         var zero = ExpectedStreamState.FromWireValue(0);
         var ten  = ExpectedStreamState.FromWireValue(10);
 
-        await Assert.That(zero.IsStreamRevision).IsTrue();
-        await Assert.That(ten.IsStreamRevision).IsTrue();
+        await Assert.That(zero.IsRevision).IsTrue();
+        await Assert.That(ten.IsRevision).IsTrue();
     }
 
     [Test]
@@ -125,8 +128,8 @@ public class ExpectedStreamStateTests {
 
     [Test]
     public async ValueTask same_revision_values_are_equal() {
-        ExpectedStreamState a = StreamRevision.From(5);
-        ExpectedStreamState b = StreamRevision.From(5);
+        ExpectedStreamState a = Revision.From(5);
+        ExpectedStreamState b = Revision.From(5);
 
         await Assert.That(a).IsEqualTo(b);
     }
@@ -134,7 +137,7 @@ public class ExpectedStreamStateTests {
     [Test]
     public async ValueTask condition_and_revision_are_not_equal() {
         ExpectedStreamState condition = ExpectedStreamCondition.NoStream;
-        ExpectedStreamState revision  = StreamRevision.From(0);
+        ExpectedStreamState revision  = Revision.From(0);
 
         await Assert.That(condition).IsNotEqualTo(revision);
     }
@@ -162,11 +165,11 @@ public class ExpectedStreamStateTests {
 
     [Test]
     public async ValueTask actual_revision_converts_to_expected_revision() {
-        ActualStreamState actual = StreamRevision.From(77);
+        ActualStreamState actual = Revision.From(77);
         ExpectedStreamState expected = actual;
 
-        await Assert.That(expected.IsStreamRevision).IsTrue();
-        await Assert.That(expected.AsStreamRevision).IsEqualTo(StreamRevision.From(77));
+        await Assert.That(expected.IsRevision).IsTrue();
+        await Assert.That(expected.AsRevision).IsEqualTo(Revision.From(77));
     }
 
     [Test]

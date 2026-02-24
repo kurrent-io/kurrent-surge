@@ -40,7 +40,7 @@ public class StreamInfoTests {
                 // Other properties
                 info.MetadataRevision.ShouldBe(0);
                 info.LastStreamPosition.ShouldBeGreaterThan(LogPosition.Earliest);
-                info.LastStreamRevision.ShouldBe(simulation.StreamRevision);
+                info.LastRevision.ShouldBe(simulation.Revision);
                 info.LastStreamAppendTime.ShouldBeGreaterThan(DateTime.MinValue);
                 info.State.ShouldBe(StreamState.Active);
             });
@@ -54,9 +54,9 @@ public class StreamInfoTests {
             .GetStreamInfo(simulation.Stream, ct)
             .ShouldNotThrowOrFailAsync(info => {
                 info.HasMetadata.ShouldBeFalse();
-                info.MetadataRevision.ShouldBe(StreamRevision.Unset);
+                info.MetadataRevision.ShouldBe(Revision.Unset);
                 info.LastStreamPosition.ShouldBeGreaterThan(LogPosition.Earliest);
-                info.LastStreamRevision.ShouldBe(simulation.StreamRevision);
+                info.LastRevision.ShouldBe(simulation.Revision);
                 info.LastStreamAppendTime.ShouldBeGreaterThan(DateTime.MinValue);
                 info.State.ShouldBe(StreamState.Active);
             });

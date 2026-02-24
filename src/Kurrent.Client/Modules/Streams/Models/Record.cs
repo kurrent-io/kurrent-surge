@@ -58,7 +58,7 @@ namespace Kurrent.Client.Streams;
 //     /// <summary>
 //     /// The revision of the index associated with the record.
 //     /// </summary>
-//     StreamRevision IndexRevision { get; init; }
+//     Revision IndexRevision { get; init; }
 //
 //     /// <summary>
 //     /// Represents the index link associated with the record.
@@ -73,7 +73,7 @@ namespace Kurrent.Client.Streams;
 //     /// <summary>
 //     /// Represents the revision of a stream at a specific point in time.
 //     /// </summary>
-//     StreamRevision StreamRevision => Position.StreamRevision;
+//     Revision Revision => Position.Revision;
 // }
 //
 // public record EncodedRecord : IRecord {
@@ -97,7 +97,7 @@ namespace Kurrent.Client.Streams;
 // 	/// <summary>
 // 	/// The revision of the index associated with the record.
 // 	/// </summary>
-// 	public StreamRevision IndexRevision { get; init; } = StreamRevision.Unset;
+// 	public Revision IndexRevision { get; init; } = Revision.Unset;
 //
 // 	/// <summary>
 // 	/// Represents the index link associated with the record.
@@ -171,7 +171,7 @@ namespace Kurrent.Client.Streams;
 // 	public ValueTask<bool> TryDecode(CancellationToken cancellationToken = default) =>
 //         Decoder.Decode(this, cancellationToken);
 //
-//     public override string ToString() => $"{Schema.SchemaName} {StreamRevision}@{Stream} - {Position}";
+//     public override string ToString() => $"{Schema.SchemaName} {Revision}@{Stream} - {Position}";
 // }
 //
 // [PublicAPI]
@@ -237,7 +237,7 @@ namespace Kurrent.Client.Streams;
 //     /// <summary>
 //     /// The revision of the index associated with the record.
 //     /// </summary>
-//     public StreamRevision IndexRevision { get; init; } = StreamRevision.Unset;
+//     public Revision IndexRevision { get; init; } = Revision.Unset;
 //
 //     /// <summary>
 //     /// Represents the index link associated with the record.
@@ -252,7 +252,7 @@ namespace Kurrent.Client.Streams;
 //     /// <summary>
 //     /// Represents the revision of a stream at a specific point in time.
 //     /// </summary>
-//     public StreamRevision StreamRevision => Position.StreamRevision;
+//     public Revision Revision => Position.Revision;
 //
 //
 //
@@ -285,10 +285,10 @@ namespace Kurrent.Client.Streams;
 // 	public ValueTask<bool> TryDecode(CancellationToken cancellationToken = default) =>
 //         Decoder.Decode(this, cancellationToken);
 //
-//     public override string ToString() => $"{Schema.SchemaName} {StreamRevision}@{Stream} - {Position}";
+//     public override string ToString() => $"{Schema.SchemaName} {Revision}@{Stream} - {Position}";
 //
 // 	string ToDebugString() =>
-// 		$"Record: Id={Id}, Position={Position}, Stream={Stream}, StreamRevision={StreamRevision}, " +
+// 		$"Record: Id={Id}, Position={Position}, Stream={Stream}, Revision={Revision}, " +
 // 		$"Value={Value ?? "Not Decoded"}, ValueType={ValueType}";
 // }
 
@@ -315,7 +315,7 @@ public record Record {
 	/// <summary>
 	/// The revision of the index associated with the record.
 	/// </summary>
-	public StreamRevision IndexRevision { get; init; } = StreamRevision.Unset;
+	public Revision IndexRevision { get; init; } = Revision.Unset;
 
 	/// <summary>
 	/// Represents the index link associated with the record.
@@ -388,7 +388,7 @@ public record Record {
     /// <summary>
     /// Represents the revision of a stream at a specific point in time.
     /// </summary>
-    public StreamRevision StreamRevision => Position.StreamRevision;
+    public Revision Revision => Position.Revision;
 
 
 
@@ -421,10 +421,10 @@ public record Record {
 	public ValueTask<bool> TryDecode(CancellationToken cancellationToken = default) =>
         Decoder.Decode(this, cancellationToken);
 
-    public override string ToString() => $"{Schema.SchemaName} {StreamRevision}@{Stream} - {Position}";
+    public override string ToString() => $"{Schema.SchemaName} {Revision}@{Stream} - {Position}";
 
 	string ToDebugString() =>
-		$"Record: Id={Id}, Position={Position}, Stream={Stream}, StreamRevision={StreamRevision}, " +
+		$"Record: Id={Id}, Position={Position}, Stream={Stream}, Revision={Revision}, " +
 		$"Value={Value ?? "Not Decoded"}, ValueType={ValueType}";
 }
 
@@ -433,7 +433,7 @@ public readonly record struct Link() {
 
 	public SchemaName     Name     { get; init; } = SchemaName.None;
 	public LogPosition    Position { get; init; } = LogPosition.Unset;
-	public StreamRevision Revision { get; init; } = StreamRevision.Unset;
+	public Revision Revision { get; init; } = Revision.Unset;
 	public StreamName     Stream   { get; init; } = StreamName.None;
 }
 

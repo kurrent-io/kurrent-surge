@@ -64,25 +64,19 @@ partial class StreamsProtocolMapper {
     }
 
     public Contracts.ConsistencyCheck ToContract(ConsistencyCheck source) {
-        var result = new Contracts.ConsistencyCheck();
-
-        switch (source.Value) {
-            case RevisionConsistencyCheck check:
-                result.Revision = new Contracts.StreamRevision {
-                    Stream   = check.Stream,
-                    Revision = check.ExpectedState.ToWireValue()
-                };
-                break;
-            default:
-                throw new ArgumentException($"Unsupported consistency check type: {source.Value.GetType().Name}");
-        }
+        var result = new Contracts.ConsistencyCheck {
+            Revision = source.Value switch {
+                StreamConsistencyCheck check => new Contracts.StreamConsistencyCheck { Stream = check.Stream, ExpectedState = check.ExpectedState.ToWireValue() },
+                _                            => throw new ArgumentException($"Unsupported consistency check type: {source.Value.GetType().Name}")
+            }
+        };
 
         return result;
     }
 
     public AppendRecordsSuccess ToModel(Contracts.AppendRecordsResponse source) {
-        var revisions = new (string Stream, long Revision)[source.Revisions.Count];
-        revisions.AddAll(source.Revisions.Select(x => (x.Stream, x.Revision)));
+        var revisions = new StreamRevision[source.Revisions.Count];
+        revisions.AddAll(source.Revisions.Select(x => new StreamRevision(x.Stream, x.Revision)));
         return new(revisions, source.Position);
     }
 }

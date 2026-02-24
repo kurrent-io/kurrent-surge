@@ -72,11 +72,9 @@ public partial class SetStreamMetadataError : IVariantException<
 > {
     public static SetStreamMetadataError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<SetStreamMetadataError>(
-            static (s, e) => StreamNotFoundException.From(s, e),
-            static (s, e) => StreamDeletedException.From(s, e),
-            static (s, e) => StreamTombstonedException.From(s, e),
-            static (s, e) => StreamRevisionConflictException.From(s, e)
-        );
+            static (s, e) => ConsistencyViolationException.From(s, e),
+            static (s, e) => MaxAppendRecordSizeExceededException.From(s, e),
+            static (s, e) => MaxAppendTransactionSizeExceededException.From(s, e));
 }
 
 [PublicAPI]

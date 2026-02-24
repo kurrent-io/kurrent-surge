@@ -3,7 +3,7 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient {
-    public async ValueTask<Result<AppendSessionSuccess, AppendSessionError>> AppendSession(
+    internal async ValueTask<Result<AppendSessionSuccess, AppendSessionError>> AppendSession(
         IAsyncEnumerable<AppendStreamRequest> requests, CancellationToken cancellationToken = default) {
         try {
             using var session = ServiceClient.AppendSession(cancellationToken: cancellationToken);
@@ -47,7 +47,7 @@ public partial class StreamsClient {
         }
     }
 
-    public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> Append(
+    public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
         AppendRecordsRequest request,
         CancellationToken cancellationToken = default
     ) {

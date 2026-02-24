@@ -76,7 +76,7 @@ public record ReadStreamOptions : ReadOptionsBase, IOptions {
     /// <summary>
     /// Starting revision within the specified stream to begin reading from.
     /// </summary>
-    public StreamRevision Start { get; init; } = StreamRevision.Min;
+    public Revision Start { get; init; } = Revision.Min;
 
     /// <inheritdoc />
     public ValidationResult ValidateOptions() =>

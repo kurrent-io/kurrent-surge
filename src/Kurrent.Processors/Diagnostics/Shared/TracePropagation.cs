@@ -73,8 +73,8 @@ public static class TracePropagationExtensions {
         /// </summary>
         public Metadata InjectTraceContext(ActivityContext context) =>
             source
-                .WithIf(!source.ContainsKey(TraceContextKeys.TraceId), TraceContextKeys.TraceId, context.TraceId.ToString())
-                .WithIf(!source.ContainsKey(TraceContextKeys.SpanId), TraceContextKeys.SpanId, context.SpanId.ToString());
+                .WithIf(TraceContextKeys.TraceId, context.TraceId.ToString(), !source.ContainsKey(TraceContextKeys.TraceId))
+                .WithIf(TraceContextKeys.SpanId, context.SpanId.ToString(), !source.ContainsKey(TraceContextKeys.SpanId));
     }
 
     extension(Record source) {

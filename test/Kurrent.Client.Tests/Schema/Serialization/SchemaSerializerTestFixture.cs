@@ -53,25 +53,32 @@ public abstract class SchemaSerializerTestFixture {
 
     [Test]
     public async ValueTask data_format_matches_expected() {
+        // Assert
         await Assert.That(_sut.DataFormat).IsEqualTo(ExpectedDataFormat);
     }
 
     [Test]
     public async ValueTask serialize_null_returns_empty_bytes() {
+        // Arrange
         var context = CreateSerializeContext();
 
+        // Act
         var result = await _sut.Serialize(null, context).ConfigureAwait(false);
 
+        // Assert
         await Assert.That(result.Length).IsEqualTo(0);
     }
 
     [Test]
     public async ValueTask serialize_produces_non_empty_bytes() {
         foreach (var message in CreateTestMessages()) {
+            // Arrange
             var context = CreateSerializeContext();
 
+            // Act
             var result = await _sut.Serialize(message, context).ConfigureAwait(false);
 
+            // Assert
             await Assert.That(result.Length).IsGreaterThan(0);
         }
     }
@@ -79,13 +86,16 @@ public abstract class SchemaSerializerTestFixture {
     [Test]
     public async ValueTask serialize_and_deserialize_round_trips() {
         foreach (var message in CreateTestMessages()) {
+            // Arrange
             var context = CreateSerializeContext();
-
-            var bytes = await _sut.Serialize(message, context).ConfigureAwait(false);
+            var bytes   = await _sut.Serialize(message, context).ConfigureAwait(false);
 
             var deserializeContext = CreateDeserializeContext(context);
-            var result             = await _sut.Deserialize(bytes, deserializeContext).ConfigureAwait(false);
 
+            // Act
+            var result = await _sut.Deserialize(bytes, deserializeContext).ConfigureAwait(false);
+
+            // Assert
             await AssertDeserialized(message, result);
         }
     }

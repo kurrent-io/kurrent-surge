@@ -118,6 +118,21 @@ message AppendRecordsResponse {
   sint64 position = 2;
 }
 
+// A value type representing a specific revision of a stream.
+// Used in responses to report the resulting revision of a stream after an append,
+// and in consistency checks to assert the expected state of a stream before commit.
+// The revision field can represent either:
+// - A specific revision number (>= 0) indicating the exact revision of the stream
+// - A RevisionConstants value (-100, -10, -4, -2, -1) indicating special stream states or semantics
+message StreamRevision {
+  // The stream name.
+  string stream = 1;
+
+  // The resulting revision of the stream after the append.
+  // This is the revision number of the last record written to this stream.
+  sint64 revision = 2;
+}
+
 // A pre-commit condition that must hold true for the transaction to succeed.
 //
 // Consistency checks are evaluated atomically before any records are written.
@@ -132,11 +147,11 @@ message ConsistencyCheck {
     // The revision field accepts RevisionConstants values or a specific revision number (>= 0).
     // Checks are evaluated using writability semantics — see RevisionConstants for the
     // full pass/fail matrix.
-    StreamRevision revision = 1;
+    StreamConsistencyCheck revision = 1;
 
     // Evaluate a server-side query expression.
     // The transaction is aborted if the expression evaluates to false.
-    Query query = 2;
+    QueryConsistencyCheck query = 2;
   }
 }
 
@@ -147,14 +162,12 @@ message ConsistencyCheck {
 //   Accepts RevisionConstants values (-100, -10, -4, -2, -1) or a specific revision (>= 0).
 //   Evaluated using writability semantics — see RevisionConstants for the full pass/fail matrix.
 // - As a response field: Reports the actual revision of a stream after a successful write.
-message StreamRevision {
+message StreamConsistencyCheck {
   // The stream name.
   string stream = 1;
 
-  // The revision number.
-  // When used as a consistency check, this is the expected state (RevisionConstants or >= 0).
-  // When used in a response, this is the actual revision after the write.
-  sint64 revision = 2;
+  // The expected state of the stream for consistency checks, or the actual state in responses.
+  sint64 expected_state = 2;
 }
 
 // A server-side query expression used as a consistency check.
@@ -162,7 +175,7 @@ message StreamRevision {
 // The expression is evaluated before commit. If it evaluates to false,
 // the entire transaction is aborted. Can be used to enforce cross-stream
 // invariants or other complex preconditions.
-message Query {
+message QueryConsistencyCheck {
   // The query expression to evaluate.
   string expression = 1;
 }

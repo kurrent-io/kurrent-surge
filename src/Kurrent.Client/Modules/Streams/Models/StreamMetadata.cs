@@ -17,10 +17,10 @@ public record StreamMetadata {
     public TimeSpan? MaxAge { get; init; }
 
     /// <summary>
-    /// The optional <see cref="StreamRevision"/> from which previous events can be scavenged.
+    /// The optional <see cref="Revision"/> from which previous events can be scavenged.
     /// This is used to implement soft-deletion of streams.
     /// </summary>
-    public StreamRevision? TruncateBefore { get; init; }
+    public Revision? TruncateBefore { get; init; }
 
     /// <summary>
     /// The optional amount of time for which the stream head is cacheable.
@@ -117,19 +117,19 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
     public static readonly StreamMetadataJsonConverter Instance = new();
 
     public override StreamMetadata Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
-        int?            maxCount       = null;
-        TimeSpan?       maxAge         = null;
-        TimeSpan?       cacheControl = null;
-        StreamRevision? truncateBefore = null;
-        StreamAcl?      acl            = null;
+        int?       maxCount       = null;
+        TimeSpan?  maxAge         = null;
+        TimeSpan?  cacheControl   = null;
+        Revision?  truncateBefore = null;
+        StreamAcl? acl            = null;
 
-        using var stream               = new MemoryStream();
-        using var customMetadataWriter = new Utf8JsonWriter(stream);
+        using var stream = new MemoryStream();
+        using var writer = new Utf8JsonWriter(stream);
 
         if (reader.TokenType != JsonTokenType.StartObject)
-            throw new InvalidOperationException();
+            throw new InvalidOperationException($"Expected start of object token, but got {reader.TokenType}.");
 
-        customMetadataWriter.WriteStartObject();
+        writer.WriteStartObject();
 
         while (reader.Read()) {
             if (reader.TokenType == JsonTokenType.EndObject) break;
@@ -156,8 +156,8 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
                     if (!reader.Read()) throw new InvalidOperationException();
                     var value = reader.GetInt64();
                     truncateBefore = value == long.MaxValue
-                        ? StreamRevision.Max
-                        : StreamRevision.From(value);
+                        ? Revision.Max
+                        : Revision.From(value);
 
                     break;
 
@@ -167,29 +167,29 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
                     break;
 
                 default:
-                    customMetadataWriter.WritePropertyName(reader.GetString()!);
+                    writer.WritePropertyName(reader.GetString()!);
                     reader.Read();
                     switch (reader.TokenType) {
                         case JsonTokenType.Comment:
-                            customMetadataWriter.WriteCommentValue(reader.GetComment());
+                            writer.WriteCommentValue(reader.GetComment());
                             break;
 
                         case JsonTokenType.String:
-                            customMetadataWriter.WriteStringValue(reader.GetString());
+                            writer.WriteStringValue(reader.GetString());
                             break;
 
                         case JsonTokenType.Number:
-                            customMetadataWriter.WriteNumberValue(reader.GetDouble());
+                            writer.WriteNumberValue(reader.GetDouble());
                             break;
 
                         case JsonTokenType.True:
                         case JsonTokenType.False:
-                            customMetadataWriter.WriteBooleanValue(reader.GetBoolean());
+                            writer.WriteBooleanValue(reader.GetBoolean());
                             break;
 
                         case JsonTokenType.Null:
                             reader.Read();
-                            customMetadataWriter.WriteNullValue();
+                            writer.WriteNullValue();
                             break;
 
                         default:
@@ -201,8 +201,8 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
             }
         }
 
-        customMetadataWriter.WriteEndObject();
-        customMetadataWriter.Flush();
+        writer.WriteEndObject();
+        writer.Flush();
 
         stream.Position = 0;
 
@@ -225,7 +225,7 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
         if (value.MaxAge.HasValue)
             writer.WriteNumber(MaxAgeKey, (long)value.MaxAge.Value.TotalSeconds);
 
-        if (value.TruncateBefore != null && value.TruncateBefore != StreamRevision.Unset)
+        if (value.TruncateBefore != null && value.TruncateBefore != Revision.Unset)
             writer.WriteNumber(TruncateBeforeKey, value.TruncateBefore);
 
         if (value.CacheControl.HasValue)

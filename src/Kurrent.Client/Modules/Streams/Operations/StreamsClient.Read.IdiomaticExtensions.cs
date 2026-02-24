@@ -24,7 +24,7 @@ public static partial class StreamsClientExtensions {
         public async ValueTask<RecordStream> ReadStreamRecordsAsync(ReadStreamOptions options) =>
             await client.ReadRecords(options).UnwrapAsync().ConfigureAwait(false);
 
-        public async ValueTask<RecordStream> ReadStreamRecordsAsync(StreamName stream, StreamRevision start, CancellationToken cancellationToken = default) =>
+        public async ValueTask<RecordStream> ReadStreamRecordsAsync(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
             await client.ReadStreamRecords(stream, start, cancellationToken).UnwrapAsync().ConfigureAwait(false);
 
         public async ValueTask<RecordStream> ReadStreamRecordsAsync(StreamName stream, CancellationToken cancellationToken = default) =>
@@ -41,25 +41,6 @@ public static partial class StreamsClientExtensions {
 
         public async ValueTask<Record> ReadLastStreamRecordAsync(StreamName stream, CancellationToken cancellationToken = default) =>
             await client.ReadLastStreamRecordAsync(stream, false, cancellationToken).ConfigureAwait(false);
-
-        #endregion
-
-        #region . Read Batches .
-
-        public async ValueTask<RecordBatchStream> ReadBatchesAsync(ReadOptions options, int batchSize, TimeSpan batchTimeout) =>
-            await client.ReadBatches(options, batchSize, batchTimeout).UnwrapAsync().ConfigureAwait(false);
-
-        public async ValueTask<RecordBatchStream> ReadBatchesAsync(LogPosition start, int batchSize, TimeSpan batchTimeout, CancellationToken cancellationToken = default) =>
-            await client.ReadBatches(start, batchSize, batchTimeout, cancellationToken).UnwrapAsync().ConfigureAwait(false);
-
-        public async ValueTask<RecordBatchStream> ReadStreamBatchesAsync(ReadStreamOptions options, int batchSize, TimeSpan batchTimeout) =>
-            await client.ReadBatches(options, batchSize, batchTimeout).UnwrapAsync().ConfigureAwait(false);
-
-        public async ValueTask<RecordBatchStream> ReadStreamBatchesAsync(StreamName stream, int batchSize, TimeSpan batchTimeout, CancellationToken cancellationToken = default) =>
-            await client.ReadStreamBatches(stream, batchSize, batchTimeout, cancellationToken).UnwrapAsync().ConfigureAwait(false);
-
-        public async ValueTask<RecordBatchStream> ReadStreamBatchesAsync(StreamName stream, StreamRevision start, int batchSize, TimeSpan batchTimeout, CancellationToken cancellationToken = default) =>
-            await client.ReadStreamBatches(stream, start, batchSize, batchTimeout, cancellationToken).UnwrapAsync().ConfigureAwait(false);
 
         #endregion
     }

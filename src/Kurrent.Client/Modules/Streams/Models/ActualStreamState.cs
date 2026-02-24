@@ -4,11 +4,11 @@ namespace Kurrent.Client.Streams;
 
 /// <summary>
 /// Represents the actual state of a stream as reported by the server.
-/// Either a named condition (NoStream, Deleted, Tombstoned) or a concrete <see cref="StreamRevision"/>.
+/// Either a named condition (NoStream, Deleted, Tombstoned) or a concrete <see cref="Revision"/>.
 /// </summary>
 [PublicAPI]
 public readonly partial record struct ActualStreamState
-    : IVariant<ActualStreamCondition, StreamRevision> {
+    : IVariant<ActualStreamCondition, Revision> {
 
     /// <summary>
     /// The stream does not exist.
@@ -47,7 +47,7 @@ public readonly partial record struct ActualStreamState
     public static readonly ActualStreamState Tombstoned = ActualStreamCondition.Tombstoned;
 
     internal static ActualStreamState FromWireValue(long value) => value switch {
-        >= 0              => StreamRevision.From(value),
+        >= 0              => Revision.From(value),
         -1 or -10 or -100 => ActualStreamCondition.From(value),
         _                 => throw new ArgumentOutOfRangeException(nameof(value), value, $"Cannot convert value {value}. Expected a stream revision or -1 (NoStream), -10 (Deleted), or -100 (Tombstoned).")
     };

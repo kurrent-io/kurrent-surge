@@ -139,35 +139,6 @@ public partial class StreamsClient {
         );
     }
 
-    public ValueTask<Result<RecordBatchStream, ReadError>> ReadBatches(
-        ReadOptions options, int batchSize, TimeSpan batchTimeout
-    ) {
-        options.ValidateOptions().Unwrap();
-
-        var request = Requests.CreateReadLogRequest(options);
-
-        return ReadBatchCore(
-            request, options.BufferCapacity,
-            options.SkipDecoding, options.Filter, batchSize, batchTimeout,
-            options.CancellationToken
-        );
-    }
-
-    public ValueTask<Result<RecordBatchStream, ReadError>> ReadBatches(
-        ReadStreamOptions options, int batchSize, TimeSpan batchTimeout
-    ) {
-        options.ValidateOptions().Unwrap();
-
-        var request = Requests.CreateReadStreamRequest(options);
-
-        return ReadBatchCore(
-            request, options.BufferCapacity,
-            options.SkipDecoding, options.Filter,
-            batchSize, batchTimeout,
-            options.CancellationToken
-        );
-    }
-
     async ValueTask<Result<RecordStream, ReadError>> ReadCore(
         ReadReq request, int bufferCapacity, bool skipDecoding,
         IRecordFilter filter, CancellationToken cancellationToken
@@ -228,66 +199,6 @@ public partial class StreamsClient {
             () => StartMessageRelay(session, bufferCapacity, skipDecoding, filter, cancellator));
 
         return new RecordStream(channelFactory);
-    }
-
-    async ValueTask<Result<RecordBatchStream, ReadError>> ReadBatchCore(
-        ReadReq request, int bufferCapacity, bool skipDecoding,
-        IRecordFilter filter, int batchSize, TimeSpan batchTimeout,
-        CancellationToken cancellationToken
-    ) {
-        var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var stoppingToken = cancellator.Token;
-
-        var session = LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
-
-        try {
-            await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
-
-            // determine the actual stream state when not found (v1 protocol quirk)
-            if (session.ResponseStream.Current?.ContentCase is StreamNotFound) {
-                StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-
-                var info = await GetStreamInfo(stream, stoppingToken)
-                    .UnwrapAsync().ConfigureAwait(false);
-
-                throw info.State switch {
-                    StreamState.Missing    => new StreamNotFoundException(stream),
-                    StreamState.Deleted    => new StreamDeletedException(stream),
-                    StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    _                      => new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
-                };
-            }
-        }
-        catch (RpcException rex) {
-            session.Dispose();
-            cancellator.Dispose();
-
-            if (rex.StatusCode == StatusCode.Cancelled)
-                return ReadError.FromEx(new OperationCanceledException(rex.Message, rex));
-
-            if (rex.StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted") {
-                StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-                return ReadError.FromEx(new StreamTombstonedException(stream));
-            }
-
-            if (rex.StatusCode == StatusCode.Unknown && rex.Message.Contains("InvalidPosition >>", OrdinalIgnoreCase)) {
-                var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Latest;
-                var details  = rex.Message.Split(">>").Last().Trim();
-                return ReadError.FromEx(new LogPositionNotFoundException(position, details));
-            }
-
-            return ReadError.FromEx(rex);
-        }
-        catch (Exception ex) {
-            session.Dispose();
-            cancellator.Dispose();
-            return ReadError.FromEx(ex);
-        }
-
-        var channelFactory = new Func<Channel<ReadRecordsResult>>(
-            () => StartMessageRelay(session, bufferCapacity, skipDecoding, filter, cancellator));
-
-        return new RecordBatchStream(channelFactory, batchSize, batchTimeout);
     }
 
     Channel<ReadRecordsResult> StartMessageRelay(

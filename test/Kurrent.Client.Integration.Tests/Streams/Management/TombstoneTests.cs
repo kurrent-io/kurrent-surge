@@ -27,7 +27,7 @@ public class TombstoneTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, simulation.StreamRevision, ct)
+            .Tombstone(simulation.Stream, simulation.Revision, ct)
             .ShouldNotThrowOrFailAsync(position =>
                 position.ShouldBeGreaterThanOrEqualTo(simulation.Position));
     }
@@ -37,7 +37,7 @@ public class TombstoneTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, simulation.StreamRevision + 99, ct)
+            .Tombstone(simulation.Stream, simulation.Revision + 99, ct)
             .ShouldFailAsync(error =>
                 error.Case.ShouldBe(TombstoneStreamError.TombstoneStreamErrorCase.StreamRevisionConflictException));
     }

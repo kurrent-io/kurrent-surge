@@ -45,77 +45,108 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 
 	[Test]
 	public async ValueTask serialize_byte_array_returns_same_bytes() {
+		// Arrange
 		var context = CreateSerializeContext();
 		var input   = Faker.Random.Bytes(16);
 
+		// Act
 		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(input);
 	}
 
 	[Test]
 	public async ValueTask serialize_readonly_memory_returns_same_bytes() {
+		// Arrange
 		var context = CreateSerializeContext();
 		ReadOnlyMemory<byte> input = Faker.Random.Bytes(16);
 
+		// Act
 		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(input.ToArray());
 	}
 
 	[Test]
 	public async ValueTask serialize_memory_returns_same_bytes() {
+		// Arrange
 		var context = CreateSerializeContext();
 		Memory<byte> input = Faker.Random.Bytes(16);
 
+		// Act
 		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(input.ToArray());
 	}
 
 	[Test]
 	public async ValueTask serialize_readonly_sequence_returns_same_bytes() {
+		// Arrange
 		var context = CreateSerializeContext();
 		var bytes   = Faker.Random.Bytes(16);
 		var input   = new ReadOnlySequence<byte>(bytes);
 
+		// Act
 		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(bytes);
 	}
 
 	[Test]
 	public async ValueTask serialize_array_segment_returns_same_bytes() {
+		// Arrange
 		var context = CreateSerializeContext();
 		var bytes   = Faker.Random.Bytes(16);
 		var input   = new ArraySegment<byte>(bytes);
 
+		// Act
 		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(bytes);
 	}
 
 	[Test]
 	public async ValueTask serialize_sets_schema_format_to_bytes() {
+		// Arrange
 		var context = new SchemaSerializationContext {
 			Stream       = "test-stream",
 			RecordSchema = new RecordSchemaInfo { SchemaFormat = SchemaDataFormat.Unspecified }
 		};
 
+		// Act
 		await _sut.Serialize(Faker.Random.Bytes(8), context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(context.RecordSchema.SchemaFormat).IsEqualTo(SchemaDataFormat.Bytes);
 	}
 
 	[Test]
 	public async ValueTask deserialize_returns_readonly_memory_of_input() {
+		// Arrange
 		var context = CreateSerializeContext();
 		ReadOnlyMemory<byte> input = Faker.Random.Bytes(16);
 
+		// Act
 		var result = await _sut.Deserialize(input, context).ConfigureAwait(false);
 
+		// Assert
 		await Assert.That(result).IsTypeOf<ReadOnlyMemory<byte>>();
 		var memory = (ReadOnlyMemory<byte>)result!;
 		await Assert.That(memory.Span.ToArray()).IsEquivalentTo(input.ToArray());
+	}
+
+	[Test]
+	public async ValueTask serialize_non_byte_type_throws() {
+		// Arrange
+		var context = CreateSerializeContext();
+
+		// Act & Assert
+		await Assert.That(async () => await _sut.Serialize("not-bytes", context).ConfigureAwait(false))
+			.ThrowsException();
 	}
 }

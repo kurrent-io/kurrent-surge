@@ -2,6 +2,7 @@
 // ReSharper disable DuplicatedSequentialIfBodies
 
 using System.Text.RegularExpressions;
+using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
 
@@ -54,27 +55,6 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
             _     => throw new InvalidLogPosition(new LogPosition(position))
         };
 
-    /// <summary>
-    /// Creates a <see cref="LogPosition"/> instance from a provided position string.
-    /// </summary>
-    /// <param name="position">
-    /// The position string in the format "C:commit/P:prepare".
-    /// </param>
-    internal static LogPosition From(string position) {
-        if (string.IsNullOrEmpty(position))
-            return Unset;
-
-        var match = LogPositionRegex().Match(position.Trim());
-
-        if (!match.Success)
-            throw new InvalidLogPosition(position);
-
-        if (!ulong.TryParse(match.Groups["commit"].Value, out var commitPosition))
-            throw new InvalidLogPosition(position);
-
-        return new LogPosition((long)commitPosition);
-    }
-
     public static implicit operator long(LogPosition _) => _.Value;
     public static implicit operator LogPosition(long _) => From(_);
 
@@ -107,18 +87,11 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
 /// <summary>
 /// Exception thrown when a log position is invalid.
 /// </summary>
-public class InvalidLogPosition : ArgumentException {
+public class InvalidLogPosition : KurrentException {
     /// <summary>
     /// Initializes a new instance with the specified <paramref name="value"/>.
     /// </summary>
     /// <param name="value">The invalid log position.</param>
     public InvalidLogPosition(LogPosition value)
-        : base($"Log position is invalid: {value.ToString()}") { }
-
-    /// <summary>
-    /// Initializes a new instance with the specified <paramref name="value"/>.
-    /// </summary>
-    /// <param name="value">The invalid log position as a string.</param>
-    public InvalidLogPosition(string value)
-        : base($"Log position is invalid: {value}") { }
+        : base(ErrorCode.FromType<InvalidLogPosition>(), $"Log position is invalid: {value.ToString()}") { }
 }

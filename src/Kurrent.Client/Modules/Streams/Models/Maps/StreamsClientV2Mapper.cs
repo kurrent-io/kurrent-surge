@@ -17,7 +17,7 @@
 // 		var record = new Record(decoder) {
 // 			Id             = Guid.Parse(source.RecordId),
 // 			Stream         = source.Stream,
-// 			StreamRevision = source.StreamRevision,
+// 			Revision = source.Revision,
 // 			Position       = source.Position,
 // 			Timestamp      = source.Timestamp.ToDateTime(),
 // 			Metadata       = metadata,
@@ -66,7 +66,7 @@
 // 				_                                  => throw new UnreachableException($"Unexpected heartbeat type: {source.Type}")
 // 			},
 // 			source.Position,
-// 			StreamRevision.Unset,
+// 			Revision.Unset,
 // 			source.Timestamp.ToDateTimeOffset()
 // 		);
 // 	}

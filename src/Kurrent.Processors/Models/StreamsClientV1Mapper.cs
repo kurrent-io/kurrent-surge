@@ -68,8 +68,8 @@ static class ProtocolMapping {
         //     };
         //
         //     var streamRevision = subscription.StartPosition switch {
-        //         0 => StreamRevision.Min,
-        //         _ => StreamRevision.From(subscription.StartPosition)
+        //         0 => Revision.Min,
+        //         _ => Revision.From(subscription.StartPosition)
         //     };
         //
         //     if (subscription.Filter == RecordFilter.None)
@@ -135,8 +135,8 @@ static class ProtocolMapping {
         //         req.Options.NoFilter = DefaultEmpty;
         //     else if (isSpecificStream) {
         //         var streamRevision = subscriptionOptions.StartPosition switch {
-        //             0 => StreamRevision.Min,
-        //             _ => StreamRevision.From(subscriptionOptions.StartPosition)
+        //             0 => Revision.Min,
+        //             _ => Revision.From(subscriptionOptions.StartPosition)
         //         };
         //
         //         req.Options.Stream   = ConvertToStreamOptions(subscriptionOptions.Filter.TargetStream, streamRevision);
@@ -219,7 +219,7 @@ static class ProtocolMapping {
         // first parse all info
         var stream    = StreamName.From(recordedEvent.StreamIdentifier);
         var recordId  = Uuid.FromDto(recordedEvent.Id).ToGuid();
-        var revision  = StreamRevision.From((long)recordedEvent.StreamRevision);
+        var revision  = Revision.From((long)recordedEvent.StreamRevision);
         var position  = LogPosition.From((long)recordedEvent.CommitPosition);
         var data      = recordedEvent.Data.Memory;
         var timestamp = Convert.ToInt64(recordedEvent.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
@@ -247,8 +247,8 @@ static class ProtocolMapping {
             : Link.None;
 
         var indexRevision = readEvent.HasCommitPosition
-            ? StreamRevision.From((long)readEvent.CommitPosition)
-            : link.Revision == StreamRevision.Unset ? revision : link.Revision;
+            ? Revision.From((long)readEvent.CommitPosition)
+            : link.Revision == Revision.Unset ? revision : link.Revision;
 
         // create a decoder
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);

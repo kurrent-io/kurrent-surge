@@ -80,19 +80,23 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          dotnet test -c Release --no-build --no-progress \
-          --project test/Kurrent.Client.Tests \
-          --results-directory "./artifacts/test-results" \
-          --report-trx --report-trx-filename "unit-tests.trx"  \
-          --treenode-filter "/*/*/*/*[Category!=Integration]"
+          for tfm in net8.0 net9.0 net10.0; do
+            dotnet run --project test/Kurrent.Client.Tests \
+              --configuration Release --no-build --framework $tfm -- \
+              --no-progress \
+              --results-directory "./artifacts/test-results" \
+              --report-trx --report-trx-filename "unit-tests-$tfm.trx" \
+              --treenode-filter "/*/*/*/*[Category!=Integration]"
+          done
 
       - name: Run Integration Tests
         run: |
-          dotnet test -c Release -f net10.0 --no-build --no-progress \
-          --project test/Kurrent.Client.Integration.Tests \
-          --results-directory "./artifacts/test-results" \
-          --report-trx --report-trx-filename "integration-tests.trx"  \
-          --treenode-filter "/*/*/*/*[Category=Integration]"
+          dotnet run --project test/Kurrent.Client.Integration.Tests \
+            --configuration Release --no-build --framework net10.0 -- \
+            --no-progress \
+            --results-directory "./artifacts/test-results" \
+            --report-trx --report-trx-filename "integration-tests.trx" \
+            --treenode-filter "/*/*/*/*[Category=Integration]"
 
       - name: Test Reports
         uses: dorny/test-reporter@v2.1.1

@@ -15,7 +15,7 @@ public static class RecordTracingExtensions {
             new(TracingTags.Messaging.System, "kurrentdb"),
             new(TracingTags.Messaging.MessageId, source.Id.ToString()),
             new(TracingTags.Kurrent.RecordStream, source.Stream.ToString()),
-            new(TracingTags.Kurrent.RecordRevision, source.StreamRevision.Value),
+            new(TracingTags.Kurrent.RecordRevision, source.Revision.Value),
             new(TracingTags.Kurrent.RecordPosition, source.Position.LogPosition.Value),
             new(TracingTags.Kurrent.RecordSchema, source.Schema.SchemaName.ToString()),
             new(TracingTags.Kurrent.RecordTimestamp, source.Timestamp)

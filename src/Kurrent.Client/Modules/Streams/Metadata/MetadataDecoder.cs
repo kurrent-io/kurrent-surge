@@ -57,7 +57,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
             .With("$v", deserialized["$v"].ToString())
             .With("$c", deserialized["$c"].GetValue<long>())
             .With("$p", deserialized["$p"].GetValue<long>())
-            .WithIf(_ => deserialized.ContainsKey("$o"), "$o", () => StreamName.From(deserialized["$o"].ToString()))
+            .WithIf("$o", () => StreamName.From(deserialized["$o"].ToString()), deserialized.ContainsKey("$o"))
             .With("$causedBy", deserialized["$causedBy"].GetValue<Guid>());
     }
 

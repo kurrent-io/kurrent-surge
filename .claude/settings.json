@@ -1,72 +1,91 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "0"
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   },
   "includeCoAuthoredBy": false,
+  "spinnerTipsEnabled": false,
   "permissions": {
     "allow": [
-      "Read",
+      "AskUserQuestion",
+      "Bash",
       "Edit",
-      "Write",
       "Glob",
       "Grep",
-      "Bash",
+      "Read",
+      "Task",
       "WebFetch",
       "WebSearch",
-      "Task",
-      "mcp__ide__getDiagnostics",
-      "mcp__plugin_microsoft-docs_microsoft-learn__*",
+      "Write",
+      "mcp__plugin_claude-mem_mcp-search__*",
       "mcp__plugin_context7_context7__*",
-      "mcp__plugin_github_github__*",
-      "mcp__claude-in-chrome__*",
-      "Skill(microsoft-docs:*)"
+      "mcp__plugin_microsoft-docs_microsoft-learn__*",
+      "mcp__rider__*",
+      "Skill(claude-code-setup:*)",
+      "Skill(claude-md-management:*)",
+      "Skill(claude-mem:*)",
+      "Skill(dotnet-nuget-proxy:*)",
+      "Skill(dotnet-skills:*)",
+      "Skill(microsoft-docs:*)",
+      "Skill(skill-creator:*)"
     ],
     "deny": [
+      "Read(./**/*.key)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*credential*)",
+      "Read(./**/*password*)",
+      "Read(./**/*secret*)",
+      "Read(./**/*token*.json)",
+      "Read(./**/launchSettings.json)",
+      "Read(./**/secrets.json)",
+      "Read(./**/secrets/**)",
       "Read(./.env)",
       "Read(./.env.*)",
-      "Read(./appsettings.Development.json)",
       "Read(./appsettings.*.Local.json)",
+      "Read(./appsettings.Development.json)",
       "Read(./secrets.json)",
-      "Read(./**/secrets.json)",
-      "Read(./**/launchSettings.json)",
-      "Read(./**/secrets/**)",
-      "Read(./**/*.pfx)",
-      "Read(./**/*.p12)",
-      "Read(./**/*.key)",
-      "Read(./**/*.pem)",
-      "Read(./**/*secret*)",
-      "Read(./**/*password*)",
-      "Read(./**/*credential*)",
-      "Read(./**/*token*.json)"
+      "mcp__rider__execute_run_configuration",
+      "mcp__rider__get_run_configurations",
+      "mcp__rider__execute_terminal_command"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledPlugins": {
+    "claude-code-setup@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "claude-mem@thedotmack": true,
     "context7@claude-plugins-official": true,
-    "microsoft-docs@microsoft-docs-marketplace": true,
-    "csharp-lsp@claude-plugins-official": false
+    "dotnet-nuget-proxy@dotnet-nuget-proxy": true,
+    "dotnet-skills@dotnet-skills": true,
+    "microsoft-docs@microsoft-docs-marketplace": true
   },
   "extraKnownMarketplaces": {
+    "dotnet-nuget-proxy": {
+      "source": {
+        "source": "github",
+        "repo": "logiclabs/dotnet-nuget-proxy-skill"
+      }
+    },
+    "dotnet-skills": {
+      "source": {
+        "source": "github",
+        "repo": "petabridge/dotnet-skills"
+      }
+    },
     "microsoft-docs-marketplace": {
       "source": {
         "source": "github",
         "repo": "microsoftdocs/mcp"
       }
-    }
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "slopwatch analyze -d . --hook",
-            "timeout": 60000
-          }
-        ]
+    },
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
       }
-    ]
+    }
   }
 }

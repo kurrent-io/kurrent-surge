@@ -47,12 +47,15 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 
 	[Test]
 	public async ValueTask serialize_uses_camel_case_by_default() {
+		// Arrange
 		var context  = CreateSerializeContext();
 		var transfer = TransfermarktFakers.PlayerTransferred.Generate();
 
+		// Act
 		var result = await _sut.Serialize(transfer, context).ConfigureAwait(false);
 		var json   = Encoding.UTF8.GetString(result.Span);
 
+		// Assert
 		await Assert.That(json).Contains("\"transferId\"");
 		await Assert.That(json).Contains("\"playerId\"");
 		await Assert.That(json).Contains("\"playerName\"");
@@ -60,5 +63,20 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 
 		await Assert.That(json).DoesNotContain("\"TransferId\"");
 		await Assert.That(json).DoesNotContain("\"PlayerId\"");
+	}
+
+	[Test]
+	public async ValueTask deserialize_malformed_bytes_throws() {
+		// Arrange - serialize first to register the schema via auto-map
+		var context  = CreateSerializeContext();
+		var transfer = TransfermarktFakers.PlayerTransferred.Generate();
+		await _sut.Serialize(transfer, context).ConfigureAwait(false);
+
+		var deserializeContext = CreateDeserializeContext(context);
+		var malformedBytes    = new ReadOnlyMemory<byte>([0xFF, 0xFE, 0x00, 0x01]);
+
+		// Act & Assert
+		await Assert.That(async () => await _sut.Deserialize(malformedBytes, deserializeContext).ConfigureAwait(false))
+			.ThrowsException();
 	}
 }

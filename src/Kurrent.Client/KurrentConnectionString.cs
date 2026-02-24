@@ -96,7 +96,7 @@ public record KurrentConnectionString {
         if (hosts.Length == 0)
             throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringNoEndpoints);
 
-        if (hosts.Length > 1 && scheme == DefaultDirectScheme)
+        if (hosts.Length > 1 && !DiscoverySchemes.Contains(scheme))
             throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringMultipleHostsDirectScheme);
 
         currentIndex = hostSeparatorIndex;
@@ -125,7 +125,7 @@ public record KurrentConnectionString {
 
         static string ParseScheme(string input) =>
             AllSchemes.Contains(input)
-                ? input.ToLowerInvariant()
+                ? input
                 : throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidScheme);
 
         static (string, string) ParseUserInfo(string input) {
@@ -153,7 +153,9 @@ public record KurrentConnectionString {
 
                     var endpoint = token.Length switch {
                         1 => new DnsEndPoint(token[0], DefaultPort),
-                        2 => new DnsEndPoint(token[0], int.TryParse(token[1], out var port) ? port : throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost)),
+                        2 => int.TryParse(token[1], out var port) && port is > 0 and <= 65535
+                            ? new DnsEndPoint(token[0], port)
+                            : throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost),
                         _ => throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost)
                     };
 

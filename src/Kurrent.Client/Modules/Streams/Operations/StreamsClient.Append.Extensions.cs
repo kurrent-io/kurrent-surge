@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
@@ -5,34 +6,53 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public static partial class StreamsClientExtensions {
     extension(StreamsClient client) {
-        public async ValueTask<Result<AppendSessionSuccess, AppendSessionError>> AppendSession(
-            IEnumerable<AppendStreamRequest> requests,
-            CancellationToken cancellationToken = default
-        ) => await client.AppendSession(requests.ToAsyncEnumerable(), cancellationToken).ConfigureAwait(false);
-
-        public async ValueTask<Result<AppendStreamSuccess, AppendSessionError>> Append(
-            AppendStreamRequest request,
-            CancellationToken cancellationToken = default
-        ) => await client.AppendSession([request], cancellationToken).MapAsync(ok => ok[0]).ConfigureAwait(false);
-
-        public async ValueTask<Result<AppendStreamSuccess, AppendSessionError>> Append(
-            StreamName stream, ExpectedStreamState expectedState, IEnumerable<AppendRecord> records,
-            CancellationToken cancellationToken = default
-        ) => await client.Append(new AppendStreamRequest(stream, expectedState, records), cancellationToken).ConfigureAwait(false);
+        public ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
+            ImmutableArray<AppendRecord>     records,
+            ImmutableArray<ConsistencyCheck> checks,
+            CancellationToken                cancellationToken = default
+        ) => client.AppendRecords(new AppendRecordsRequest(records, checks), cancellationToken);
 
         public ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
-            StreamName stream, ExpectedStreamState expectedState, IEnumerable<AppendRecord> records,
+            ImmutableArray<AppendRecord> records,
+            ConsistencyCheck?            check = null,
+            CancellationToken            cancellationToken = default
+        ) => client.AppendRecords(records, [check ?? ConsistencyCheck.None], cancellationToken);
+
+        public ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
+            AppendRecord                     record,
+            ImmutableArray<ConsistencyCheck> checks,
+            CancellationToken                cancellationToken = default
+        ) => client.AppendRecords([record], checks, cancellationToken);
+
+        public ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
+            AppendRecord      record,
+            ConsistencyCheck? check             = null,
+            CancellationToken cancellationToken = default
+        ) => client.AppendRecords(record, [check ?? ConsistencyCheck.None], cancellationToken);
+
+        // public ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
+        //     object      value,
+        //     ConsistencyCheck? check             = null,
+        //     CancellationToken cancellationToken = default
+        // ) => client.AppendRecords(new AppendRecord { Value = value }, check ?? ConsistencyCheck.None, cancellationToken);
+
+        public ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendAdapter(
+            StreamName stream,
+            ExpectedStreamState expectedState,
+            IEnumerable<AppendRecord> records,
             CancellationToken cancellationToken = default
         ) {
-            var request = new AppendStreamRequest(stream, expectedState, records);
+            var request = new List<AppendStreamRequest> {
+                new AppendStreamRequest(stream, expectedState, records)
+            }.ToAsyncEnumerable();
 
             return client
-                .AppendSession([request], cancellationToken)
-                .MapAsync(value => new AppendRecordsSuccess([(value[0].Stream, value[0].StreamRevision)], value.Position))
+                .AppendSession(request, cancellationToken)
+                .MapAsync(value => new AppendRecordsSuccess([new StreamRevision(value[0].Stream, value[0].Revision)], value.Position))
                 .MapErrorAsync(error => AppendRecordsError.FromEx(error.Value switch {
-                    StreamNotFoundException ex                   => new StreamConsistencyCheckException(ex.Stream, ActualStreamCondition.NoStream),
-                    StreamTombstonedException ex                 => new StreamConsistencyCheckException(ex.Stream, ActualStreamCondition.Tombstoned),
-                    StreamRevisionConflictException ex           => new StreamConsistencyCheckException(ex.Stream, ex.ActualRevision),
+                    StreamNotFoundException ex                   => new ConsistencyViolationException(new StreamConsistencyCheckFailure(ex.Stream, expectedState, ActualStreamCondition.NoStream)),
+                    StreamTombstonedException ex                 => new ConsistencyViolationException(new StreamConsistencyCheckFailure(ex.Stream, expectedState, ActualStreamCondition.Tombstoned)),
+                    StreamRevisionConflictException ex           => new ConsistencyViolationException(new StreamConsistencyCheckFailure(ex.Stream, expectedState, ex.ActualRevision)),
                     MaxAppendTransactionSizeExceededException ex => ex,
                     MaxAppendRecordSizeExceededException ex      => ex,
                     _                                            => (Exception) error.Value

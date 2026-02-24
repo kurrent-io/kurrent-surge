@@ -57,8 +57,8 @@ public partial class StreamsClient {
             var metadata = (StreamMetadata)metadataRecord.Value!;
             details = new StreamInfo {
                 Metadata         = metadata,
-                MetadataRevision = metadataRecord.StreamRevision,
-                State            = metadata.TruncateBefore == StreamRevision.Max ? StreamState.Deleted : StreamState.Missing
+                MetadataRevision = metadataRecord.Revision,
+                State            = metadata.TruncateBefore == Revision.Max ? StreamState.Deleted : StreamState.Missing
             };
         }
 
@@ -95,7 +95,7 @@ public partial class StreamsClient {
             return details with {
                 State                = StreamState.Active,
                 LastStreamPosition   = record.Position.LogPosition,
-                LastStreamRevision   = record.StreamRevision,
+                LastRevision   = record.Revision,
                 LastStreamAppendTime = record.Timestamp
             };
         }
@@ -107,7 +107,7 @@ public partial class StreamsClient {
         }
     }
 
-    public async ValueTask<Result<LogPosition, DeleteStreamError>> Delete(StreamName stream, StreamRevision revision, CancellationToken cancellationToken = default) {
+    public async ValueTask<Result<LogPosition, DeleteStreamError>> Delete(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
         try {
             var request = Requests.CreateDeleteRequest(stream, revision);
 
@@ -120,7 +120,7 @@ public partial class StreamsClient {
         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
             dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
                 ok => ok.State switch {
-                    StreamState.Active     => new StreamRevisionConflictException(nameof(Delete), stream, revision, ok.LastStreamRevision),
+                    StreamState.Active     => new StreamRevisionConflictException(stream, revision, ok.LastRevision),
                     StreamState.Deleted    => new StreamDeletedException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
                     StreamState.Missing    => new StreamNotFoundException(stream)
@@ -135,7 +135,7 @@ public partial class StreamsClient {
         }
     }
 
-    public async ValueTask<Result<LogPosition, TombstoneStreamError>> Tombstone(StreamName stream, StreamRevision revision, CancellationToken cancellationToken = default) {
+    public async ValueTask<Result<LogPosition, TombstoneStreamError>> Tombstone(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
         try {
             var request = Requests.CreateTombstoneRequest(stream, revision);
 
@@ -148,7 +148,7 @@ public partial class StreamsClient {
         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
             dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
                 ok => ok.State switch {
-                    StreamState.Active     => new StreamRevisionConflictException(nameof(Tombstone), stream, revision, ok.LastStreamRevision),
+                    StreamState.Active     => new StreamRevisionConflictException(stream, revision, ok.LastRevision),
                     StreamState.Deleted    => new StreamDeletedException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
                     StreamState.Missing    => new StreamNotFoundException(stream)
@@ -163,26 +163,24 @@ public partial class StreamsClient {
         }
     }
 
-    public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetStreamMetadata(StreamName stream, StreamMetadata metadata, StreamRevision revision, CancellationToken cancellationToken = default) {
-        var req = AppendStreamRequest.New()
-            .ForStream(stream.Metastream)
-            .ExpectingRevision(revision)
-            .WithRecord(metadata)
-            .Build();
-
-        return this.Append(req, cancellationToken)
-            .MapErrorAsync(ko => ko.ForwardError<SetStreamMetadataError>())
-            .MapAsync(ok => ok.StreamRevision);
+    public ValueTask<Result<Revision, SetStreamMetadataError>> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision revision, CancellationToken cancellationToken = default) {
+        return  this.AppendRecords(
+                new AppendRecord { Value = metadata },
+                ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision),
+                cancellationToken
+            )
+            .MapAsync(ok => ok.Revisions[0].Revision)
+            .MapErrorAsync(ko => ko.ForwardError<SetStreamMetadataError>());
     }
 
-    public async ValueTask<Result<Success, TruncateStreamError>> Truncate(StreamName stream, StreamRevision truncateRevision, CancellationToken cancellationToken) {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(truncateRevision, StreamRevision.Min);
+    public async ValueTask<Result<Success, TruncateStreamError>> Truncate(StreamName stream, Revision truncateRevision, CancellationToken cancellationToken) {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(truncateRevision, Revision.Min);
 
         try {
             var info = await GetStreamInfo(stream, cancellationToken).UnwrapAsync(); // we can let it flow ;)
 
             if (info.State is StreamState.Active) {
-                var actualRevision = info.LastStreamRevision;
+                var actualRevision = info.LastRevision;
                 var maxRevision    = actualRevision + 1; // all existing revisions
 
                 if (truncateRevision > maxRevision)
@@ -200,23 +198,23 @@ public partial class StreamsClient {
         }
     }
 
-    public ValueTask<Result<StreamRevision, SetStreamMetadataError>> ConfigureStreamDataRetention(StreamName stream, StreamDataRetentionOptions options, StreamRevision metaStreamRevision, CancellationToken cancellationToken) {
+    public ValueTask<Result<Revision, SetStreamMetadataError>> ConfigureStreamDataRetention(StreamName stream, StreamDataRetentionOptions options, Revision metaRevision, CancellationToken cancellationToken) {
         var metadata = new StreamMetadata { MaxCount = options.MaxCount, MaxAge = options.MaxAge };
-        return SetStreamMetadata(stream, metadata, metaStreamRevision, cancellationToken);
+        return SetStreamMetadata(stream, metadata, metaRevision, cancellationToken);
     }
 
-    // public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetDataRetention(StreamName stream, int? maxCount, TimeSpan? maxAge, CancellationToken cancellationToken) =>
-    //     ConfigureStreamDataRetention(stream, maxCount, maxAge, StreamRevision.Unset, cancellationToken);
+    // public ValueTask<Result<Revision, SetStreamMetadataError>> SetDataRetention(StreamName stream, int? maxCount, TimeSpan? maxAge, CancellationToken cancellationToken) =>
+    //     ConfigureStreamDataRetention(stream, maxCount, maxAge, Revision.Unset, cancellationToken);
     //
-    // public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetDataRetention(StreamName stream, int maxCount, CancellationToken cancellationToken) {
+    // public ValueTask<Result<Revision, SetStreamMetadataError>> SetDataRetention(StreamName stream, int maxCount, CancellationToken cancellationToken) {
     //     ArgumentOutOfRangeException.ThrowIfLessThan(maxCount, 1);
     //     ArgumentOutOfRangeException.ThrowIfGreaterThan(maxCount, int.MaxValue);
-    //     return SetDataRetention(stream, maxCount, null, StreamRevision.Unset, cancellationToken);
+    //     return SetDataRetention(stream, maxCount, null, Revision.Unset, cancellationToken);
     // }
     //
-    // public ValueTask<Result<StreamRevision, SetStreamMetadataError>> SetDataRetention(StreamName stream, TimeSpan maxAge, CancellationToken cancellationToken) {
+    // public ValueTask<Result<Revision, SetStreamMetadataError>> SetDataRetention(StreamName stream, TimeSpan maxAge, CancellationToken cancellationToken) {
     //     ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxAge, TimeSpan.Zero);
     //     ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(maxAge, TimeSpan.MaxValue);
-    //     return SetDataRetention(stream, null, maxAge, StreamRevision.Unset, cancellationToken);
+    //     return SetDataRetention(stream, null, maxAge, Revision.Unset, cancellationToken);
     // }
 }

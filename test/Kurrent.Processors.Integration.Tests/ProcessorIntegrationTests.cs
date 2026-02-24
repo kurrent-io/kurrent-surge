@@ -233,6 +233,6 @@ public class ProcessorIntegrationTests {
 
         // Assert
         for (var i = 0; i < processor.Records.Length; i++)
-            await Assert.That(processor.Records[i].StreamRevision).IsEqualTo(StreamRevision.From(i));
+            await Assert.That(processor.Records[i].Revision).IsEqualTo(Revision.From(i));
     }
 }

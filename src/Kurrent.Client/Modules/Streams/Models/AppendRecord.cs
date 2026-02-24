@@ -44,6 +44,11 @@ public record AppendRecord {
     /// </summary>
     public StreamName Stream { get; internal init; } = StreamName.None;
 
+    /// <summary>
+    /// Validates the properties of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
+    /// indicating whether the instance is valid or contains validation problems.
+    /// </summary>
+    /// <returns>A <see cref="ValidationResult"/> containing any validation problems found, or success if the instance is valid.</returns>
     public ValidationResult Validate() {
         var problems = new List<ValidationProblem>();
 
@@ -73,6 +78,10 @@ public record AppendRecord {
             : Results.Success;
     }
 
+    /// <summary>
+    /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
+    /// </summary>
+    /// <returns>The current instance if validation succeeds.</returns>
     public AppendRecord EnsureValid() {
         Validate().Unwrap();
         return this;

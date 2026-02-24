@@ -665,7 +665,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
             "schema_name" or "schema"       => record.Schema.SchemaName.Value,
             "timestamp" or "ts"             => record.Timestamp,
             "position" or "pos"             => record.Position.LogPosition.Value,
-            "stream_revision" or "revision" => (long)record.StreamRevision,
+            "stream_revision" or "revision" => (long)record.Revision,
             "record_id" or "id"             => record.Id,
             "properties" or "props" => Key is null
                 ? null

@@ -300,19 +300,18 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             var merged = MergePositions(currentState, workerId, checkpointId, positions);
 
             // 3. Attempt to store with expected revision
-            var request = AppendStreamRequest.New()
-                .ForStream(_stream)
-                .ExpectingRevision(expectedRevision)
+            var request = AppendRecordsRequest.ToStream(_stream)
+                .ExpectingState(expectedRevision)
                 .WithRecord(rec => rec
                     .WithValue(merged)
                     .WithMetadata("processor_id", ProcessorId)
                     .WithMetadata("worker_id", workerId))
                 .Build();
 
-            var result = await _client.Append(request, ct).ConfigureAwait(false);
+            var result = await _client.AppendRecords(request, ct).ConfigureAwait(false);
 
             if (result.IsSuccess) {
-                LogStored(ProcessorId, workerId, positions.Count, result.Value.StreamRevision);
+                LogStored(ProcessorId, workerId, positions.Count, result.Value.Revisions[0].Revision);
                 return;
             }
 
@@ -337,7 +336,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 .ConfigureAwait(false);
 
             if (record.Value is ProcessorCheckpointState state)
-                return (state, record.Position.StreamRevision);
+                return (state, record.Position.Revision);
 
             // Stream exists but has no valid checkpoint - stream is empty, expect it to exist
             return (new ProcessorCheckpointState(), ExpectedStreamCondition.Exists);

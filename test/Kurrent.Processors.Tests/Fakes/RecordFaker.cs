@@ -21,7 +21,7 @@ class RecordFaker : Faker<Record> {
                     Position       = new RecordPosition {
                         LogPosition    = LogPosition.From(f.IndexGlobal + 1),
                         Stream         = StreamName.From(f.Lorem.Slug()),
-                        StreamRevision = StreamRevision.From(f.Random.Long(1, 20))
+                        Revision = Revision.From(f.Random.Long(1, 20))
                     },
                     Timestamp      = TimeProvider.System.GetLocalNow().LocalDateTime,
                     Schema         = new RecordSchemaInfo {
@@ -89,7 +89,7 @@ class RecordFaker : Faker<Record> {
             Position = new RecordPosition {
                 LogPosition    = position.HasValue ? LogPosition.From(position.Value) : record.Position.LogPosition,
                 Stream         = stream is not null ? StreamName.From(stream) : record.Position.Stream,
-                StreamRevision = streamRevision.HasValue ? StreamRevision.From(streamRevision.Value) : record.Position.StreamRevision,
+                Revision = streamRevision.HasValue ? Revision.From(streamRevision.Value) : record.Position.Revision,
                 Partition      = record.Position.Partition
             },
             Timestamp = timestamp ?? record.Timestamp,
