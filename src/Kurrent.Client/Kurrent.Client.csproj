@@ -81,6 +81,12 @@
     <None Remove="Modules\Connectors\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
+      <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
+    </Folder>
+  </ItemGroup>
+
   <!--
     Embed internal project-reference DLLs into the NuGet package.
 

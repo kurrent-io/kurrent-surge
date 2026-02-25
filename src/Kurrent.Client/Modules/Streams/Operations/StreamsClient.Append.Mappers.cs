@@ -22,7 +22,7 @@ partial class StreamsProtocolMapper {
             result.Records.Add(await ToContract(record, ct).ConfigureAwait(false));
 
         foreach (var check in source.Checks)
-            result.ConsistencyChecks.Add(ToContract(check));
+            result.Checks.Add(ToContract(check));
 
         return result;
     }
@@ -65,9 +65,9 @@ partial class StreamsProtocolMapper {
 
     public Contracts.ConsistencyCheck ToContract(ConsistencyCheck source) {
         var result = new Contracts.ConsistencyCheck {
-            Revision = source.Value switch {
-                StreamConsistencyCheck check => new Contracts.StreamConsistencyCheck { Stream = check.Stream, ExpectedState = check.ExpectedState.ToWireValue() },
-                _                            => throw new ArgumentException($"Unsupported consistency check type: {source.Value.GetType().Name}")
+            StreamState = source.Value switch {
+                StreamStateCheck check => new Contracts.ConsistencyCheck.Types.StreamStateCheck { Stream = check.Stream, ExpectedState = check.ExpectedState.ToWireValue() },
+                _                      => throw new ArgumentException($"Unsupported consistency check type: {source.Value.GetType().Name}")
             }
         };
 

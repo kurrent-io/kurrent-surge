@@ -9,13 +9,13 @@ namespace Kurrent.Client.Streams;
 
 [PublicAPI]
 public partial class AppendRecordsError : IVariantException<
-    ConsistencyViolationException,
+    AppendConsistencyViolationException,
     MaxAppendRecordSizeExceededException,
     MaxAppendTransactionSizeExceededException,
     Exception> {
     public static AppendRecordsError FromEx(Exception ex) =>
         ex.ToExceptionalErrorResult<AppendRecordsError>(
-            static (s, e) => ConsistencyViolationException.From(s, e),
+            static (s, e) => AppendConsistencyViolationException.From(s, e),
             static (s, e) => MaxAppendRecordSizeExceededException.From(s, e),
             static (s, e) => MaxAppendTransactionSizeExceededException.From(s, e));
 }

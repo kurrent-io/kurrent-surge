@@ -43,15 +43,16 @@ service StreamsService {
   // - UNAVAILABLE: Service unavailable
   // - BAD_REQUEST: Request contains invalid data
   rpc AppendSession(stream AppendRequest) returns (AppendSessionResponse) {
+    option deprecated = true;
     option (kurrent.rpc.possible_errors) =
       "NOT_FOUND,"
       "ALREADY_EXISTS,"
-      "DELETED,"
-      "STREAM_TOMBSTONED,"
-      "STREAM_REVISION_CONFLICT,"
-      "STREAM_ALREADY_IN_APPEND_SESSION,"
-      "APPEND_SESSION_NO_REQUESTS,"
-      "MAX_APPEND_RECORD_SIZE_EXCEEDED,"
+      "DELETED"
+      "STREAM_TOMBSTONED"
+      "STREAM_REVISION_CONFLICT"
+      "STREAM_ALREADY_IN_APPEND_SESSION"
+      "APPEND_SESSION_NO_REQUESTS"
+      "MAX_APPEND_RECORD_SIZE_EXCEEDED"
       "MAX_APPEND_TRANSACTION_SIZE_EXCEEDED";
   }
 
@@ -68,8 +69,8 @@ service StreamsService {
   // - Ordering: Records within each stream maintain their order from the request
   //
   // Consistency checks are evaluated before commit. They can validate:
-  // - Stream revisions: A specific stream must be at an expected revision
-  // - Queries: Arbitrary server-side expressions that must hold true
+  // - Stream state: a stream must be at an expected revision or lifecycle state
+  // - Query predicates: server-side expressions that must evaluate to true
   //
   // Example flow:
   //   1. Client builds request with records targeting "orders" and "inventory" streams
@@ -84,173 +85,18 @@ service StreamsService {
   // - INTERNAL: Internal server error
   // - UNAVAILABLE: Service unavailable
   // - BAD_REQUEST: Request contains invalid data
-  rpc AppendRecords(AppendRecordsRequest) returns (AppendRecordsResponse);
-}
-
-// Request to append records to one or more streams atomically.
-//
-// All records are committed in a single transaction. Each record specifies
-// its target stream via AppendRecord.stream. Consistency checks are evaluated
-// before any records are written.
-message AppendRecordsRequest {
-  // The records to append.
-  // Each record specifies its target stream via the AppendRecord.stream field.
-  // Records targeting the same stream maintain their order from this list.
-  repeated AppendRecord records = 1;
-
-  // Optional consistency checks evaluated before commit.
-  // If any check fails, the entire transaction is aborted.
-  // Can include stream revision checks and/or query-based conditions.
-  repeated ConsistencyCheck consistency_checks = 2;
-}
-
-// Response from a successful AppendRecords operation.
-//
-// Contains the resulting revision for each stream that was written to,
-// and the global commit position of the transaction.
-message AppendRecordsResponse {
-  // The resulting revision for each stream that received records.
-  // One entry per distinct stream written to, in no guaranteed order.
-  repeated StreamRevision revisions = 1;
-
-  // The global commit position of the last record written in this transaction.
-  // Can be used for read-your-writes consistency or progress tracking.
-  sint64 position = 2;
-}
-
-// A value type representing a specific revision of a stream.
-// Used in responses to report the resulting revision of a stream after an append,
-// and in consistency checks to assert the expected state of a stream before commit.
-// The revision field can represent either:
-// - A specific revision number (>= 0) indicating the exact revision of the stream
-// - A RevisionConstants value (-100, -10, -4, -2, -1) indicating special stream states or semantics
-message StreamRevision {
-  // The stream name.
-  string stream = 1;
-
-  // The resulting revision of the stream after the append.
-  // This is the revision number of the last record written to this stream.
-  sint64 revision = 2;
-}
-
-// A pre-commit condition that must hold true for the transaction to succeed.
-//
-// Consistency checks are evaluated atomically before any records are written.
-// If any check fails, the entire transaction is aborted.
-//
-// Two types of checks are supported:
-// - Revision: Validates a stream's state using writability semantics (see RevisionConstants)
-// - Query: Evaluates a server-side expression (e.g., cross-stream invariants)
-message ConsistencyCheck {
-  oneof type {
-    // Check that a stream is at a specific state.
-    // The revision field accepts RevisionConstants values or a specific revision number (>= 0).
-    // Checks are evaluated using writability semantics — see RevisionConstants for the
-    // full pass/fail matrix.
-    StreamConsistencyCheck revision = 1;
-
-    // Evaluate a server-side query expression.
-    // The transaction is aborted if the expression evaluates to false.
-    QueryConsistencyCheck query = 2;
+  rpc AppendRecords(AppendRecordsRequest) returns (AppendRecordsResponse) {
+    option (kurrent.rpc.possible_errors) =
+        "APPEND_CONSISTENCY_VIOLATION"
+        "MAX_APPEND_RECORD_SIZE_EXCEEDED"
+        "MAX_APPEND_TRANSACTION_SIZE_EXCEEDED";
   }
 }
 
-// A stream paired with its revision number.
-//
-// Used in two contexts:
-// - As a consistency check: Asserts the stream is at the expected state before commit.
-//   Accepts RevisionConstants values (-100, -10, -4, -2, -1) or a specific revision (>= 0).
-//   Evaluated using writability semantics — see RevisionConstants for the full pass/fail matrix.
-// - As a response field: Reports the actual revision of a stream after a successful write.
-message StreamConsistencyCheck {
-  // The stream name.
-  string stream = 1;
-
-  // The expected state of the stream for consistency checks, or the actual state in responses.
-  sint64 expected_state = 2;
-}
-
-// A server-side query expression used as a consistency check.
-//
-// The expression is evaluated before commit. If it evaluates to false,
-// the entire transaction is aborted. Can be used to enforce cross-stream
-// invariants or other complex preconditions.
-message QueryConsistencyCheck {
-  // The query expression to evaluate.
-  string expression = 1;
-}
-
-
-// Revision constants used in consistency checks and error details.
-//
-// These constants cover both directions:
-// - Input: Expected state sent by the client in consistency checks
-// - Output: Actual state returned by the server in error details
-//
-// Non-negative values (>= 0) represent actual stream revision numbers.
-// Negative values represent special stream states or semantics.
-//
-// Consistency checks validate **writability**, not just existence:
-// - A soft-deleted stream is writable (appending restores it)
-// - A tombstoned stream is never writable (permanently sealed)
-//
-// Not all values are valid in both directions:
-// - ANY (-2) and EXISTS (-4) are input-only (never returned as output)
-//
-// Pass/fail matrix (rows = input, columns = actual state):
-//
-//   Input \ Actual   | Revision M (>= 0) | NO_STREAM | DELETED  | TOMBSTONED
-//   -----------------|--------------------|-----------|----------|----------
-//   Revision N (>= 0)| pass (M = N)       | fail: -1  | pass (M = N) / fail: ? | fail: -100
-//   NO_STREAM  (-1)  | fail: M            | pass      | pass     | fail: -100
-//   ANY        (-2)  | pass               | pass      | pass     | fail: -100
-//   EXISTS     (-4)  | pass               | fail: -1  | fail: -10| fail: -100
-//   DELETED    (-10) | fail: M            | fail: -1  | pass     | fail: -100
-//   TOMBSTONED (-100)| fail: M            | fail: -1  | fail: -10| pass
-//
-enum RevisionConstants {
-  option allow_alias = true;
-
-  // Default protobuf enum value. Aliases SINGLE_EVENT (0).
-  // Avoid using directly — prefer SINGLE_EVENT for clarity.
-  REVISION_CONSTANTS_UNSPECIFIED = 0;
-
-  // Revision 0: the first revision of a stream.
-  // Input: The stream must be at revision 0 (has exactly one record).
-  // Output: The stream is at revision 0.
-  REVISION_CONSTANTS_SINGLE_EVENT = 0;
-
-  // Input: The stream must be writable as new — either it does not exist,
-  //        or it has been soft-deleted (appending restores it).
-  // Output: The stream does not exist (never created or fully removed).
-  REVISION_CONSTANTS_NO_STREAM = -1;
-
-  // Input only: Accept any writable state (no concurrency check).
-  //             Passes for all states except TOMBSTONED.
-  // Not valid as an output value.
-  REVISION_CONSTANTS_ANY = -2;
-
-  // Input only: The stream must be active (exist with a revision >= 0).
-  //             Fails for NO_STREAM, DELETED, and TOMBSTONED.
-  //             Note: a scavenged stream with no remaining records still
-  //             satisfies this check if it has a revision.
-  // Not valid as an output value.
-  REVISION_CONSTANTS_EXISTS = -4;
-
-  // Input: The stream must be soft-deleted.
-  // Output: The stream has been soft-deleted.
-  // A soft-deleted stream can be restored by appending new records.
-  REVISION_CONSTANTS_DELETED = -10;
-
-  // Input: The stream must be tombstoned.
-  // Output: The stream has been tombstoned (permanently deleted).
-  // A tombstoned stream cannot be restored or written to.
-  REVISION_CONSTANTS_TOMBSTONED = -100;
-}
-
-
 // Represents the input for appending records to a specific stream.
 message AppendRequest {
+  option deprecated = true;
+
   // The stream to append records to.
   string stream = 1;
 
@@ -268,6 +114,8 @@ message AppendRequest {
 
 // Represents the outcome of an append operation.
 message AppendResponse {
+  option deprecated = true;
+
   // The stream to which records were appended.
   string stream = 1;
 
@@ -280,6 +128,8 @@ message AppendResponse {
 }
 
 message AppendSessionResponse {
+  option deprecated = true;
+
   // The results of each append request in the session.
   repeated AppendResponse output = 1;
 
@@ -324,10 +174,11 @@ message AppendRecord {
 // Constants for expected revision validation in optimistic concurrency control.
 // These can be used in the expected_revision field, or you can specify an actual revision number.
 enum ExpectedRevisionConstants {
+  option deprecated = true;
+
   // The stream must have exactly one event at revision 0.
   // Used for scenarios requiring strict single-event semantics.
   EXPECTED_REVISION_CONSTANTS_SINGLE_EVENT = 0;
-//  EXPECTED_REVISION_CONSTANTS_SINGLE_RECORD = 0;
 
   // The stream must not exist yet (first write to the stream).
   // Fails if the stream already has events.
@@ -342,107 +193,149 @@ enum ExpectedRevisionConstants {
   EXPECTED_REVISION_CONSTANTS_EXISTS = -4;
 }
 
-//// Configuration for progress heartbeats during filtered reads.
-////
-//// Heartbeats provide progress visibility when a filter excludes records.
-//// Without heartbeats, a worker processing a filter that matches few
-//// records would have no way to know its actual position in the log.
-////
-//// Heartbeats report the current log position even when no records
-//// are delivered, allowing workers to:
-//// - Track progress through the log
-//// - Detect when caught up to the head
-//// - Confirm the connection is alive during quiet periods
-////
-//// Useful when:
-//// - Filter uses predicates that exclude most records
-//// - Low-traffic scenarios where liveness confirmation is needed
-////
-//// Less useful when:
-//// - No filter is set (every record provides position information)
-//// - Filter selects a single stream (stream head is known)
-//message HeartbeatSettings {
-//  // Send heartbeat after scanning N non-matching records.
-//  //
-//  // During filtered processing, the server scans records looking
-//  // for matches. This setting triggers a heartbeat after scanning
-//  // this many non-matching records, providing progress visibility.
-//  //
-//  // Smaller values: More frequent progress updates, higher overhead.
-//  // Larger values: Less overhead, less granular progress tracking.
-//  //
-//  // Default: 1000
-//  // Range: 1-100000
-//  int32 records_threshold = 1;
+
+/**
+ * Request to append records to one or more streams atomically.
+ *
+ * All records are committed in a single transaction. Each record specifies its
+ * target stream via AppendRecord.stream. Consistency checks are evaluated before
+ * any records are written.
+ */
+message AppendRecordsRequest {
+  // The records to append. Records targeting the same stream maintain their
+  // order from this list.
+  repeated AppendRecord records = 1;
+
+  // Optional consistency checks evaluated before commit. If any check fails,
+  // the entire transaction is aborted.
+  repeated ConsistencyCheck checks = 2;
+}
+
+/**
+ * Response from a successful AppendRecords operation.
+ *
+ * Contains the resulting revision for each stream that was written to and the
+ * global commit position of the transaction.
+ */
+message AppendRecordsResponse {
+  // The resulting revision for each stream that received records. One entry per
+  // distinct stream written to, in no guaranteed order.
+  repeated StreamRevision revisions = 1;
+
+  // The global commit position of the last record written in this transaction.
+  // Can be used for read-your-writes consistency or progress tracking.
+  sint64 position = 2;
+}
+
+/**
+ * A pre-commit condition that must hold true for the transaction to succeed.
+ *
+ * Consistency checks are evaluated atomically before any records are written. If
+ * any check is violated, the entire transaction is aborted. Two types of checks
+ * are supported: stream state checks (validates a stream's revision or lifecycle
+ * state) and query predicates (evaluates a server-side expression).
+ */
+message ConsistencyCheck {
+  oneof type {
+    // Check that a stream is at a specific revision or lifecycle state.
+    StreamStateCheck stream_state = 1;
+
+    // Evaluate a server-side query predicate that must return true.
+    QueryPredicateCheck query_predicate = 2;
+  }
+
+  /**
+   * Asserts a stream is at a specific revision or lifecycle state before commit.
+   *
+   * The expected_state field accepts a specific revision number (>= 0) or a
+   * special state constant (e.g., -1 for NO_STREAM, -10 for DELETED). Evaluated
+   * using writability semantics: a soft-deleted stream is writable (appending
+   * restores it), but a tombstoned stream is never writable.
+   */
+  message StreamStateCheck {
+    // The stream name.
+    string stream = 1;
+
+    // The expected state of the stream (revision number or state constant).
+    sint64 expected_state = 2;
+  }
+
+  /**
+   * A server-side query predicate evaluated before commit.
+   *
+   * If the predicate expression evaluates to false, the entire transaction is
+   * aborted. Can be used to enforce cross-stream conditions or other complex
+   * preconditions.
+   */
+  message QueryPredicateCheck {
+    // The predicate expression to evaluate.
+    string expression = 1;
+  }
+}
+
+// Constants used in consistency checks and error details.
 //
-//  // Send heartbeat every N milliseconds if no records sent.
-//  //
-//  // Triggers a heartbeat after this duration of silence (no records
-//  // delivered). Provides liveness confirmation during low-traffic
-//  // periods or when caught up to the head.
-//  //
-//  // Default: 10000 (10 seconds)
-//  // Range: 100-300000
-//  int64 interval_ms = 2;
-//}
+// These constants cover both directions:
+// - Input: Expected state sent by the client in consistency checks
+// - Output: Actual state returned by the server in error details
 //
-//// The type of heartbeat sent by the server.
-////
-//// Heartbeats provide progress visibility and status updates during
-//// stream processing, especially important for filtered processing
-//// where records may not match.
-//enum HeartbeatType {
-//  HEARTBEAT_TYPE_UNSPECIFIED = 0;
+// Non-negative values (>= 0) represent actual stream revision numbers.
+// Negative values represent special stream states or semantics.
 //
-//  // Progress update during filtered processing.
-//  //
-//  // Sent when the server has scanned records_threshold non-matching
-//  // records, or after interval_ms of silence. Indicates the server
-//  // is still working and reports current position.
-//  HEARTBEAT_TYPE_PROGRESS = 1;
+// Consistency checks validate **writability**, not just existence:
+// - A soft-deleted stream is writable (appending restores it)
+// - A tombstoned stream is never writable (permanently sealed)
 //
-//  // Worker has caught up to the head of the log.
-//  //
-//  // Sent when position reaches latest_position. The worker is now
-//  // processing in real-time.
-//  HEARTBEAT_TYPE_CAUGHT_UP = 2;
+// Not all values are valid in both directions:
+// - ANY (-2) and EXISTS (-4) are input-only (never returned as output)
 //
-//  // Worker has fallen behind after being caught up.
-//  //
-//  // Sent when a worker that was caught up is now behind the head.
-//  // Can be used to trigger alerts or scaling decisions.
-//  HEARTBEAT_TYPE_FELL_BEHIND = 3;
-//}
+// Pass/fail matrix (rows = input, columns = actual state):
 //
-//// Heartbeat message sent by the server during stream processing.
-////
-//// Provides progress updates, caught-up/fell-behind notifications,
-//// and current log boundaries for lag calculation.
-//message Heartbeat {
-//  // The type of heartbeat.
-//  HeartbeatType type = 1;
+// |   Input \ Actual  | Revision M (>= 0) | NO_STREAM | DELETED  | TOMBSTONED               |
+// |-------------------|-------------------|-----------|----------|--------------------------|
+// | Revision N (>= 0) | pass (M = N)      | fail: -1  | pass (M = N) / fail: ? | fail: -100 |
+// | NO_STREAM  (-1)   | fail: M           | pass      | pass     | fail: -100               |
+// | ANY        (-2)   | pass              | pass      | pass     | fail: -100               |
+// | EXISTS     (-4)   | pass              | fail: -1  | fail: -10| fail: -100               |
+// | DELETED    (-10)  | fail: M           | fail: -1  | pass     | fail: -100               |
+// | TOMBSTONED (-100) | fail: M           | fail: -1  | fail: -10| pass                     |
 //
-//  // Current processing position.
-//  //
-//  // For PROGRESS: The position the server has scanned up to.
-//  // For CAUGHT_UP: Same as latest_position.
-//  // For FELL_BEHIND: The position where the worker currently is.
-//  RecordPosition position = 2;
-//
-//  // When this heartbeat was sent.
-//  google.protobuf.Timestamp timestamp = 3;
-//
-//  // Earliest available position (tail of log).
-//  //
-//  // The oldest record still available. Use to detect if checkpoints
-//  // have been scavenged: if checkpoint < earliest_position, data was lost.
-//  RecordPosition earliest_position = 4;
-//
-//  // Latest available position (head of log).
-//  //
-//  // The newest record in the log. Use for lag calculation:
-//  // lag = latest_position - position
-//  //
-//  // When type is CAUGHT_UP, position equals latest_position.
-//  RecordPosition latest_position = 5;
-//}
+enum StreamStateConstants {
+  option allow_alias = true;
+
+  // Default protobuf enum value. Aliases SINGLE_EVENT (0).
+  // Avoid using directly — prefer SINGLE_RECORD for clarity.
+  STREAM_STATE_CONSTANTS_UNSPECIFIED = 0;
+
+  // Revision 0: the first revision of a stream.
+  // Input: The stream must be at revision 0 (has exactly one record).
+  // Output: The stream is at revision 0.
+  STREAM_STATE_CONSTANTS_SINGLE_RECORD = 0;
+
+  // Input: The stream must be writable as new — either it does not exist,
+  //        or it has been soft-deleted (appending restores it).
+  // Output: The stream does not exist (never created or fully removed).
+  STREAM_STATE_CONSTANTS_NO_STREAM = -1;
+
+  // Input only: Accept any writable state (no concurrency check).
+  //             Passes for all states except TOMBSTONED.
+  // Not valid as an output value.
+  STREAM_STATE_CONSTANTS_ANY = -2;
+
+  // Input only: The stream must be active (exist with a revision >= 0).
+  //             Fails for NO_STREAM, DELETED, and TOMBSTONED.
+  //             Note: a scavenged stream with no remaining records still
+  //             satisfies this check if it has a revision.
+  // Not valid as an output value.
+  STREAM_STATE_CONSTANTS_EXISTS = -4;
+
+  // Input: The stream must be soft-deleted.
+  // Output: The stream has been soft-deleted.
+  // A soft-deleted stream can be restored by appending new records.
+  STREAM_STATE_CONSTANTS_DELETED = -10;
+
+  // Input: The stream must be tombstoned.
+  // Output: The stream has been tombstoned (permanently deleted).
+  // A tombstoned stream cannot be restored or written to.
+  STREAM_STATE_CONSTANTS_TOMBSTONED = -100;
+}

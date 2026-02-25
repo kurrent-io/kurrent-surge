@@ -42,7 +42,7 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 			Stream   = Faker.Random.AlphaNumeric(12),
 			Revision = Faker.Random.Long(0, 1_000_000)
 		},
-		new KurrentDB.Protocol.V2.Streams.QueryConsistencyCheck {
+		new KurrentDB.Protocol.V2.Streams.ConsistencyCheck.Types.QueryPredicateCheck {
 			Expression = Faker.Lorem.Sentence()
 		}
 	];

@@ -50,9 +50,9 @@ public static partial class StreamsClientExtensions {
                 .AppendSession(request, cancellationToken)
                 .MapAsync(value => new AppendRecordsSuccess([new StreamRevision(value[0].Stream, value[0].Revision)], value.Position))
                 .MapErrorAsync(error => AppendRecordsError.FromEx(error.Value switch {
-                    StreamNotFoundException ex                   => new ConsistencyViolationException(new StreamConsistencyCheckFailure(ex.Stream, expectedState, ActualStreamCondition.NoStream)),
-                    StreamTombstonedException ex                 => new ConsistencyViolationException(new StreamConsistencyCheckFailure(ex.Stream, expectedState, ActualStreamCondition.Tombstoned)),
-                    StreamRevisionConflictException ex           => new ConsistencyViolationException(new StreamConsistencyCheckFailure(ex.Stream, expectedState, ex.ActualRevision)),
+                    StreamNotFoundException ex                   => new AppendConsistencyViolationException(new StreamStateViolation(ex.Stream, expectedState, ActualStreamCondition.NoStream)),
+                    StreamTombstonedException ex                 => new AppendConsistencyViolationException(new StreamStateViolation(ex.Stream, expectedState, ActualStreamCondition.Tombstoned)),
+                    StreamRevisionConflictException ex           => new AppendConsistencyViolationException(new StreamStateViolation(ex.Stream, expectedState, ex.ActualRevision)),
                     MaxAppendTransactionSizeExceededException ex => ex,
                     MaxAppendRecordSizeExceededException ex      => ex,
                     _                                            => (Exception) error.Value

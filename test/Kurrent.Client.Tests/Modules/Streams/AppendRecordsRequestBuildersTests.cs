@@ -59,7 +59,7 @@ public class AppendRecordsRequestBuildersTests {
         // Assert
         await Assert.That(request.Checks).HasCount().EqualTo(1);
 
-        var check = request.Checks[0].AsStreamConsistencyCheck;
+        var check = request.Checks[0].AsStreamStateCheck;
         await Assert.That(check.Stream).IsEqualTo((StreamName)"test-stream");
         await Assert.That(check.ExpectedState).IsEqualTo(ExpectedStreamState.Exists);
     }
@@ -247,7 +247,7 @@ public class AppendRecordsRequestBuildersTests {
         // Assert
         await Assert.That(request.Checks).HasCount().EqualTo(1);
 
-        var streamCheck = request.Checks[0].AsStreamConsistencyCheck;
+        var streamCheck = request.Checks[0].AsStreamStateCheck;
         await Assert.That(streamCheck.Stream).IsEqualTo((StreamName)"my-stream");
         await Assert.That(streamCheck.ExpectedState).IsEqualTo(ExpectedStreamState.Exists);
     }

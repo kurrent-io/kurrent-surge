@@ -211,7 +211,7 @@ public class SingleStreamAppendBuilder {
         }
 
         ImmutableArray<ConsistencyCheck> checks = _expectedState.HasValue
-            ? [new StreamConsistencyCheck(_stream, _expectedState.Value)]
+            ? [new StreamStateCheck(_stream, _expectedState.Value)]
             : [];
 
         return new AppendRecordsRequest(records.MoveToImmutable(), checks);

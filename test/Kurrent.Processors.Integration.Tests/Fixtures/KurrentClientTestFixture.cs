@@ -77,7 +77,7 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
 
         Log.Debug(
             "Seeded SmartHomeActivity to stream {Stream} with {Count} events with revision {Revision} at position {Position}",
-            request.Checks[0].AsStreamConsistencyCheck.Stream, request.Records.Length, response.Revisions[0].Revision, response.Position);
+            request.Checks[0].AsStreamStateCheck.Stream, request.Records.Length, response.Revisions[0].Revision, response.Position);
 
         return new SeededSmartHomeActivity(omgRefactor, response.Revisions[0].Revision, response.Position);
     }

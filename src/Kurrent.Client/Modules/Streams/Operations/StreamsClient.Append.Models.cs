@@ -155,63 +155,65 @@ public record AppendSessionSuccess(IReadOnlyList<AppendStreamSuccess> Results, L
 }
 
 /// <summary>
-/// Represents a mechanism to verify and enforce the consistency and integrity of data or operations
-/// within a given context, ensuring that predefined conditions or rules are met.
+/// A pre-commit condition that must hold true for the append transaction to succeed.
+/// Can be either a <see cref="StreamStateCheck"/> (stream must be at a specific state)
+/// or a <see cref="QueryPredicateCheck"/> (a query predicate must evaluate to true).
 /// </summary>
-public readonly partial record struct ConsistencyCheck : IVariant<StreamConsistencyCheck, QueryConsistencyCheck> {
+public readonly partial record struct ConsistencyCheck : IVariant<StreamStateCheck, QueryPredicateCheck> {
     public static readonly ConsistencyCheck None = new();
 
     /// <summary>
-    /// Starts building a stream consistency check for the specified stream.
+    /// Starts building a stream state check for the specified stream.
     /// </summary>
     /// <param name="stream">The stream name to check.</param>
-    public static StreamConsistencyCheckBuilder Stream(StreamName stream) => new(stream);
+    public static StreamStateCheckBuilder Stream(StreamName stream) => new(stream);
 }
 
 /// <summary>
-/// Fluent builder for constructing a <see cref="StreamConsistencyCheck"/> against a specific stream.
+/// Fluent builder for constructing a <see cref="StreamStateCheck"/> against a specific stream.
 /// </summary>
 [PublicAPI]
-public readonly struct StreamConsistencyCheckBuilder(StreamName stream) {
+public readonly struct StreamStateCheckBuilder(StreamName stream) {
     /// <summary>
     /// The stream must be at the specified revision.
     /// </summary>
     /// <param name="revision">The exact revision the stream is expected to be at.</param>
-    public StreamConsistencyCheck AtRevision(Revision revision) => new(stream, revision);
+    public StreamStateCheck AtRevision(Revision revision) => new(stream, revision);
 
     /// <summary>
     /// The stream must exist.
     /// </summary>
-    public StreamConsistencyCheck Exists() => new(stream, ExpectedStreamCondition.Exists);
+    public StreamStateCheck Exists() => new(stream, ExpectedStreamCondition.Exists);
 
     /// <summary>
     /// The stream must not exist. A soft-deleted stream satisfies this check
     /// because its data has been removed and it can be recreated.
     /// </summary>
-    public StreamConsistencyCheck DoesNotExist() => new(stream, ExpectedStreamCondition.NoStream);
+    public StreamStateCheck DoesNotExist() => new(stream, ExpectedStreamCondition.NoStream);
 
     /// <summary>
     /// The stream must be in a soft-deleted state.
     /// </summary>
-    public StreamConsistencyCheck IsDeleted() => new(stream, ExpectedStreamCondition.Deleted);
+    public StreamStateCheck IsDeleted() => new(stream, ExpectedStreamCondition.Deleted);
 
     /// <summary>
     /// The stream must be in a tombstoned (hard-deleted) state.
     /// </summary>
-    public StreamConsistencyCheck IsTombstoned() => new(stream, ExpectedStreamCondition.Tombstoned);
+    public StreamStateCheck IsTombstoned() => new(stream, ExpectedStreamCondition.Tombstoned);
 }
 
 /// <summary>
-/// A consistency check for a specific stream's expected state.
+/// Asserts a stream is at a specific revision or lifecycle state before commit.
 /// </summary>
-public readonly record struct StreamConsistencyCheck(StreamName Stream, ExpectedStreamState ExpectedState);
+public readonly record struct StreamStateCheck(StreamName Stream, ExpectedStreamState ExpectedState);
 
 /// <summary>
-/// Defines a consistency check using a custom query expression to validate data consistency.
+/// A query predicate evaluated before commit.
+/// The transaction is aborted if the predicate expression evaluates to false.
 /// </summary>
-public readonly record struct QueryConsistencyCheck(string Expression) {
+public readonly record struct QueryPredicateCheck(string Expression) {
     /// <summary>
-    /// Gets the query expression used to validate consistency.
+    /// Gets the predicate expression to evaluate.
     /// </summary>
     public required string Expression { get; init; } = Expression;
 }

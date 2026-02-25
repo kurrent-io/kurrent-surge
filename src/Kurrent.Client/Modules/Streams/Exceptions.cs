@@ -1,4 +1,5 @@
 // ReSharper disable CheckNamespace
+// ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
 using System.Diagnostics;
 using Google.Rpc;
@@ -67,51 +68,37 @@ public partial class StreamRevisionConflictException {
     }
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.ConsistencyViolation)]
-public partial class ConsistencyViolationException {
-    public IReadOnlyDictionary<int, ConsistencyCheckFailure> FailedChecks { get; private set; } = new Dictionary<int, ConsistencyCheckFailure>();
+[KurrentOperationError(Contracts.Errors.StreamsError.AppendConsistencyViolation)]
+public partial class AppendConsistencyViolationException {
+    public IReadOnlyList<ConsistencyViolation> Violations { get; private set; } = [];
 
-    public ConsistencyViolationException(Dictionary<int, ConsistencyCheckFailure> failedChecks)
-        : this(Format(ErrorMessages.StreamRevisionConflictException, failedChecks)) {
-        FailedChecks = failedChecks;
+    public AppendConsistencyViolationException(IReadOnlyList<ConsistencyViolation> violations)
+        : this(Format(ErrorMessages.StreamRevisionConflictException, violations)) {
+        Violations = violations;
     }
 
-    public ConsistencyViolationException(StreamConsistencyCheckFailure failedCheck)
-        : this(new Dictionary<int, ConsistencyCheckFailure> { { 0, failedCheck } }) { }
+    public AppendConsistencyViolationException(StreamStateViolation violation) : this([violation]) { }
 
-    public ConsistencyViolationException(QueryConsistencyCheckFailure failedCheck)
-        : this(new Dictionary<int, ConsistencyCheckFailure> { { 0, failedCheck } }) { }
+    public AppendConsistencyViolationException(QueryPredicateViolation violation) : this([violation]) { }
 
-    public void AfterParseRpcStatus(Status status, ConsistencyViolationException self) {
-        var details = status.GetDetail<Contracts.Errors.ConsistencyViolationErrorDetails>()!;
+    public void AfterParseRpcStatus(Status status, AppendConsistencyViolationException self) {
+        var details = status.GetDetail<Contracts.Errors.AppendConsistencyViolationErrorDetails>()!;
 
-        self.FailedChecks = details.FailedChecks.ToDictionary(
-            kvp => (int)kvp.Key,
-            kvp => {
-                ConsistencyCheckFailure f = kvp.Value.TypeCase switch {
-                    Contracts.Errors.ConsistencyCheckFailure.TypeOneofCase.Revision => new StreamConsistencyCheckFailure {
-                        Stream        = kvp.Value.Revision.Stream,
-                        ExpectedState = ExpectedStreamState.FromWireValue(kvp.Value.Revision.ActualRevision), //TODO SS: duh!
-                        ActualState   = ActualStreamState.FromWireValue(kvp.Value.Revision.ActualRevision)
-                    },
-                    _ => throw new UnreachableException($"Unknown consistency check error type: {kvp.Value.TypeCase}")
-                };
+        self.Violations = details.Violations.Select(v => {
+            ConsistencyViolation violation = v.TypeCase switch {
+                Contracts.Errors.ConsistencyViolation.TypeOneofCase.StreamState => new StreamStateViolation {
+                    Stream        = v.StreamState.Stream,
+                    ExpectedState = ExpectedStreamState.FromWireValue(v.StreamState.ExpectedState),
+                    ActualState   = ActualStreamState.FromWireValue(v.StreamState.ActualState)
+                },
+                // Contracts.Errors.ConsistencyViolation.TypeOneofCase.QueryPredicate => new QueryPredicateViolation {
+                //     Message = v.QueryPredicate.Message
+                // },
+                _ => throw new ArgumentOutOfRangeException($"Unknown consistency check error type: {v.TypeCase}")
+            };
 
-                return f;
-            }
-        );
-
-        // self.FailedChecks = details.FailedChecks.ToDictionary<KeyValuePair<uint, Contracts.Errors.ConsistencyCheckFailure>, int, Contracts.Errors.ConsistencyCheckFailure>(
-        //     kvp => (int)kvp.Key,
-        //     kvp => kvp.Value.TypeCase switch {
-        //         Contracts.Errors.ConsistencyCheckFailure.TypeOneofCase.Revision => new StreamConsistencyCheckFailure {
-        //             Stream        = kvp.Value.Revision.Stream,
-        //             ExpectedState = ExpectedStreamState.FromWireValue(kvp.Value.Revision.ActualRevision), //TODO SS: duh!
-        //             ActualState   = ActualStreamState.FromWireValue(kvp.Value.Revision.ActualRevision)
-        //         },
-        //         _ => throw new UnreachableException($"Unknown consistency check error type: {kvp.Value.TypeCase}")
-        //     }
-        // );
+            return violation with { CheckIndex = v.CheckIndex };
+        }).ToList();
     }
 }
 
