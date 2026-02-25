@@ -14,34 +14,42 @@ import "kurrent/rpc/rpc.proto";
 
 import "kurrentdb/protocol/v2/streams/shared.proto";
 
+/**
+ * Service for appending records to streams.
+ */
 service StreamsService {
-  // Appends records to multiple streams atomically within a single transaction.
-  //
-  // This is a client-streaming RPC where the client sends multiple AppendRequest messages
-  // (one per stream) and receives a single AppendSessionResponse upon commit.
-  //
-  // Guarantees:
-  // - Atomicity: All writes succeed or all fail together
-  // - Optimistic Concurrency: Expected revisions are validated for all streams before commit
-  // - Ordering: Records within each stream maintain send order
-  //
-  // Current Limitations:
-  // - Each stream can only appear once per session (no multiple appends to same stream)
-  //
-  // Example flow:
-  //   1. Client opens stream
-  //   2. Client sends AppendRequest for stream "orders" with 3 records
-  //   3. Client sends AppendRequest for stream "inventory" with 2 records
-  //   4. Client completes the stream
-  //   5. Server validates, commits, returns AppendSessionResponse with positions
-  //
-  // Common errors (automatically apply to all operations):
-  // - UNAUTHENTICATED: No valid authentication credentials
-  // - ACCESS_DENIED: User lacks write permission
-  // - NOT_LEADER_NODE: Server is not the cluster leader
-  // - INTERNAL: Internal server error
-  // - UNAVAILABLE: Service unavailable
-  // - BAD_REQUEST: Request contains invalid data
+  /**
+   * Appends records to multiple streams atomically within a single transaction.
+   *
+   * Deprecated: Use AppendRecords instead.
+   *
+   * This is a client-streaming RPC where the client sends multiple AppendRequest
+   * messages (one per stream) and receives a single AppendSessionResponse upon
+   * commit.
+   *
+   * Guarantees:
+   * - Atomicity: All writes succeed or all fail together.
+   * - Optimistic Concurrency: Expected revisions validated before commit.
+   * - Ordering: Records within each stream maintain send order.
+   *
+   * Current Limitations:
+   * - Each stream can only appear once per session.
+   *
+   * Example flow:
+   * 1. Client opens stream.
+   * 2. Client sends AppendRequest for stream "orders" with 3 records.
+   * 3. Client sends AppendRequest for stream "inventory" with 2 records.
+   * 4. Client completes the stream.
+   * 5. Server validates, commits, returns AppendSessionResponse with positions.
+   *
+   * Common errors (all operations):
+   * - UNAUTHENTICATED: No valid authentication credentials.
+   * - ACCESS_DENIED: User lacks write permission.
+   * - NOT_LEADER_NODE: Server is not the cluster leader.
+   * - INTERNAL: Internal server error.
+   * - UNAVAILABLE: Service unavailable.
+   * - BAD_REQUEST: Request contains invalid data.
+   */
   rpc AppendSession(stream AppendRequest) returns (AppendSessionResponse) {
     option deprecated = true;
     option (kurrent.rpc.possible_errors) =
@@ -56,35 +64,38 @@ service StreamsService {
       "MAX_APPEND_TRANSACTION_SIZE_EXCEEDED";
   }
 
-  // Appends records to multiple streams atomically within a single transaction.
-  //
-  // This is a unary RPC where the client sends a single AppendRecordsRequest containing
-  // all records and consistency checks, and receives a single AppendRecordsResponse.
-  //
-  // Records specify their target stream individually via the AppendRecord.stream field,
-  // allowing a single request to write to multiple streams.
-  //
-  // Guarantees:
-  // - Atomicity: All records across all streams are committed or all fail together
-  // - Ordering: Records within each stream maintain their order from the request
-  //
-  // Consistency checks are evaluated before commit. They can validate:
-  // - Stream state: a stream must be at an expected revision or lifecycle state
-  // - Query predicates: server-side expressions that must evaluate to true
-  //
-  // Example flow:
-  //   1. Client builds request with records targeting "orders" and "inventory" streams
-  //   2. Client adds consistency checks (e.g., "orders" must be at revision 5)
-  //   3. Client sends the request
-  //   4. Server validates consistency checks, commits, returns stream revisions and position
-  //
-  // Common errors (automatically apply to all operations):
-  // - UNAUTHENTICATED: No valid authentication credentials
-  // - ACCESS_DENIED: User lacks write permission
-  // - NOT_LEADER_NODE: Server is not the cluster leader
-  // - INTERNAL: Internal server error
-  // - UNAVAILABLE: Service unavailable
-  // - BAD_REQUEST: Request contains invalid data
+  /**
+   * Appends records to multiple streams atomically within a single transaction.
+   *
+   * This is a unary RPC where the client sends a single AppendRecordsRequest
+   * containing all records and consistency checks, and receives a single
+   * AppendRecordsResponse.
+   *
+   * Records specify their target stream individually via the AppendRecord.stream
+   * field, allowing a single request to write to multiple streams.
+   *
+   * Guarantees:
+   * - Atomicity: All records across all streams are committed or all fail together.
+   * - Ordering: Records within each stream maintain their order from the request.
+   *
+   * Consistency checks are evaluated before commit. They can validate:
+   * - Stream state: a stream must be at an expected revision or lifecycle state.
+   * - Query predicates: server-side expressions that must evaluate to true.
+   *
+   * Example flow:
+   * 1. Client builds request with records targeting "orders" and "inventory".
+   * 2. Client adds consistency checks (e.g., "orders" must be at revision 5).
+   * 3. Client sends the request.
+   * 4. Server validates, commits, returns stream revisions and position.
+   *
+   * Common errors (all operations):
+   * - UNAUTHENTICATED: No valid authentication credentials.
+   * - ACCESS_DENIED: User lacks write permission.
+   * - NOT_LEADER_NODE: Server is not the cluster leader.
+   * - INTERNAL: Internal server error.
+   * - UNAVAILABLE: Service unavailable.
+   * - BAD_REQUEST: Request contains invalid data.
+   */
   rpc AppendRecords(AppendRecordsRequest) returns (AppendRecordsResponse) {
     option (kurrent.rpc.possible_errors) =
         "APPEND_CONSISTENCY_VIOLATION"
@@ -93,7 +104,11 @@ service StreamsService {
   }
 }
 
-// Represents the input for appending records to a specific stream.
+/**
+ * Represents the input for appending records to a specific stream.
+ *
+ * Deprecated: Use AppendRecordsRequest instead.
+ */
 message AppendRequest {
   option deprecated = true;
 
@@ -103,30 +118,36 @@ message AppendRequest {
   // The records to append to the stream.
   repeated AppendRecord records = 2;
 
-  // The expected revision for optimistic concurrency control.
-  // Can be either:
-  // - A specific revision number (0, 1, 2, ...) - the stream must be at exactly this revision
-  // - An ExpectedRevisionConstants value (-4, -2, -1) for special semantics
-  //
-  // If omitted, defaults to EXPECTED_REVISION_CONSTANTS_ANY (-2).
+  // The expected revision for optimistic concurrency control. Accepts a specific
+  // revision number (0, 1, 2, ...) or an ExpectedRevisionConstants value (-4,
+  // -2, -1). Defaults to EXPECTED_REVISION_CONSTANTS_ANY (-2) if omitted.
   sint64 expected_revision = 3;
 }
 
-// Represents the outcome of an append operation.
+/**
+ * Represents the outcome of an append operation.
+ *
+ * Deprecated: Returned as part of AppendSessionResponse. Use
+ * AppendRecordsResponse instead.
+ */
 message AppendResponse {
   option deprecated = true;
 
   // The stream to which records were appended.
   string stream = 1;
 
-  // The actual/current revision of the stream after the append.
-  // This is the revision number of the last record written to this stream.
+  // The resulting revision of the stream after the append.
   sint64 stream_revision = 2;
 
   // The position of the last appended record in the global log.
   sint64 position = 3;
 }
 
+/**
+ * Response from a deprecated AppendSession operation.
+ *
+ * Deprecated: Use AppendRecordsResponse instead.
+ */
 message AppendSessionResponse {
   option deprecated = true;
 
@@ -137,59 +158,64 @@ message AppendSessionResponse {
   sint64 position = 2;
 }
 
-// Record to be appended to a stream.
+/**
+ * Record to be appended to a stream.
+ *
+ * Each record specifies its target stream via the stream field, allowing
+ * multiple records for different streams to be sent in a single request.
+ */
 message AppendRecord {
   // Unique identifier for this record (must be a valid UUID/GUID).
-  // If not provided, the server will generate a new one.
+  // If not provided, the server generates a new one.
   string record_id = 1;
 
-  // A collection of properties providing additional information about the
-  // record. Can contain user-defined or system propreties.
-  // System keys will be prefixed with "$" (e.g., "$timestamp").
-  // User-defined keys MUST NOT start with "$".
-  //
-  // Common examples:
-  //   User metadata:
-  //     - "user-id": "12345"
-  //     - "tenant": "acme-corp"
-  //     - "source": "mobile-app"
-  //
-  //   System metadata (with $ prefix):
-  //     - "$trace-id": "4bf92f3577b34da6a3ce929d0e0e4736"  // OpenTelemetry trace ID
-  //     - "$span-id": "00f067aa0ba902b7"                   // OpenTelemetry span ID
-  //     - "$timestamp": "2025-01-15T10:30:00.000Z"         // ISO 8601 timestamp
+  /**
+   * Properties providing additional information about the record.
+   *
+   * Can contain user-defined or system properties. System keys are prefixed
+   * with "$" (e.g., "$timestamp"). User-defined keys must not start with "$".
+   *
+   * User metadata examples:
+   * - "user-id": "12345"
+   * - "tenant": "acme-corp"
+   * - "source": "mobile-app"
+   *
+   * System metadata examples:
+   * - "$trace-id": "4bf92f3577b34da6a3ce929d0e0e4736" (OpenTelemetry trace ID)
+   * - "$span-id": "00f067aa0ba902b7" (OpenTelemetry span ID)
+   * - "$timestamp": "2025-01-15T10:30:00.000Z" (ISO 8601 timestamp)
+   */
   map<string, google.protobuf.Value> properties = 2;
 
-  // Schema information for this record.
+  // Schema info for this record.
   SchemaInfo schema = 3;
 
-  // The record payload as raw bytes.
-  // The format specified in SchemaInfo determines how to interpret these bytes.
+  // The record payload as raw bytes. Format is determined by SchemaInfo.
   bytes data = 4;
 
-  // The stream to which this record should be appended. This allows multiple records for different streams to be sent in a single request.
+  // The target stream for this record.
   string stream = 5;
 }
 
-// Constants for expected revision validation in optimistic concurrency control.
-// These can be used in the expected_revision field, or you can specify an actual revision number.
+/**
+ * Expected revision constants for optimistic concurrency control.
+ *
+ * Deprecated: Use StreamStateConstants with AppendRecordsRequest instead.
+ * Retained for the deprecated AppendSession RPC only.
+ */
 enum ExpectedRevisionConstants {
   option deprecated = true;
 
-  // The stream must have exactly one event at revision 0.
-  // Used for scenarios requiring strict single-event semantics.
+  // The stream must have exactly one record at revision 0.
   EXPECTED_REVISION_CONSTANTS_SINGLE_EVENT = 0;
 
-  // The stream must not exist yet (first write to the stream).
-  // Fails if the stream already has events.
+  // The stream must not exist yet (first write).
   EXPECTED_REVISION_CONSTANTS_NO_STREAM = -1;
 
-  // Accept any current state of the stream (no optimistic concurrency check).
-  // The write will succeed regardless of the stream's current revision.
+  // Accept any current state (no concurrency check).
   EXPECTED_REVISION_CONSTANTS_ANY = -2;
 
-  // The stream must exist (have at least one record).
-  // Fails if the stream doesn't exist yet.
+  // The stream must exist (at least one record).
   EXPECTED_REVISION_CONSTANTS_EXISTS = -4;
 }
 
@@ -273,69 +299,61 @@ message ConsistencyCheck {
   }
 }
 
-// Constants used in consistency checks and error details.
-//
-// These constants cover both directions:
-// - Input: Expected state sent by the client in consistency checks
-// - Output: Actual state returned by the server in error details
-//
-// Non-negative values (>= 0) represent actual stream revision numbers.
-// Negative values represent special stream states or semantics.
-//
-// Consistency checks validate **writability**, not just existence:
-// - A soft-deleted stream is writable (appending restores it)
-// - A tombstoned stream is never writable (permanently sealed)
-//
-// Not all values are valid in both directions:
-// - ANY (-2) and EXISTS (-4) are input-only (never returned as output)
-//
-// Pass/fail matrix (rows = input, columns = actual state):
-//
-// |   Input \ Actual  | Revision M (>= 0) | NO_STREAM | DELETED  | TOMBSTONED               |
-// |-------------------|-------------------|-----------|----------|--------------------------|
-// | Revision N (>= 0) | pass (M = N)      | fail: -1  | pass (M = N) / fail: ? | fail: -100 |
-// | NO_STREAM  (-1)   | fail: M           | pass      | pass     | fail: -100               |
-// | ANY        (-2)   | pass              | pass      | pass     | fail: -100               |
-// | EXISTS     (-4)   | pass              | fail: -1  | fail: -10| fail: -100               |
-// | DELETED    (-10)  | fail: M           | fail: -1  | pass     | fail: -100               |
-// | TOMBSTONED (-100) | fail: M           | fail: -1  | fail: -10| pass                     |
-//
+/**
+ * Stream state constants used in consistency checks and error details.
+ *
+ * These constants cover both directions:
+ * - Input: Expected state sent by the client in consistency checks.
+ * - Output: Actual state returned by the server in error details.
+ *
+ * Non-negative values (>= 0) represent actual stream revision numbers.
+ * Negative values represent special stream states.
+ *
+ * Consistency checks validate writability, not just existence:
+ * - A soft-deleted stream is writable (appending restores it).
+ * - A tombstoned stream is never writable (permanently sealed).
+ *
+ * Not all values are valid in both directions:
+ * - ANY (-2) and EXISTS (-4) are input-only (never returned as output).
+ *
+ * Pass/fail matrix (rows = input, columns = actual state):
+ *
+ * | Input \ Actual     | Rev M (>= 0) | NO_STREAM | DELETED       | TOMBSTONED |
+ * |--------------------|---------------|-----------|---------------|------------|
+ * | Rev N (>= 0)       | pass (M = N)  | fail: -1  | pass/fail (N) | fail: -100 |
+ * | NO_STREAM  (-1)    | fail: M       | pass      | pass          | fail: -100 |
+ * | ANY        (-2)    | pass          | pass      | pass          | fail: -100 |
+ * | EXISTS     (-4)    | pass          | fail: -1  | fail: -10     | fail: -100 |
+ * | DELETED    (-10)   | fail: M       | fail: -1  | pass          | fail: -100 |
+ * | TOMBSTONED (-100)  | fail: M       | fail: -1  | fail: -10     | pass       |
+ */
 enum StreamStateConstants {
   option allow_alias = true;
 
-  // Default protobuf enum value. Aliases SINGLE_EVENT (0).
-  // Avoid using directly — prefer SINGLE_RECORD for clarity.
+  // Default protobuf enum value. Use STREAM_STATE_CONSTANTS_SINGLE_RECORD.
   STREAM_STATE_CONSTANTS_UNSPECIFIED = 0;
 
-  // Revision 0: the first revision of a stream.
-  // Input: The stream must be at revision 0 (has exactly one record).
-  // Output: The stream is at revision 0.
+  // Revision 0: the stream has exactly one record.
   STREAM_STATE_CONSTANTS_SINGLE_RECORD = 0;
 
-  // Input: The stream must be writable as new — either it does not exist,
-  //        or it has been soft-deleted (appending restores it).
-  // Output: The stream does not exist (never created or fully removed).
+  // Input: stream must be writable as new (does not exist or soft-deleted).
+  // Output: stream does not exist.
   STREAM_STATE_CONSTANTS_NO_STREAM = -1;
 
-  // Input only: Accept any writable state (no concurrency check).
-  //             Passes for all states except TOMBSTONED.
-  // Not valid as an output value.
+  // Input only: accept any writable state (no concurrency check).
+  // Passes for all states except TOMBSTONED.
   STREAM_STATE_CONSTANTS_ANY = -2;
 
-  // Input only: The stream must be active (exist with a revision >= 0).
-  //             Fails for NO_STREAM, DELETED, and TOMBSTONED.
-  //             Note: a scavenged stream with no remaining records still
-  //             satisfies this check if it has a revision.
-  // Not valid as an output value.
+  // Input only: stream must be active (revision >= 0).
+  // Fails for NO_STREAM, DELETED, and TOMBSTONED. A scavenged stream with
+  // no remaining records still satisfies this check if it has a revision.
   STREAM_STATE_CONSTANTS_EXISTS = -4;
 
-  // Input: The stream must be soft-deleted.
-  // Output: The stream has been soft-deleted.
+  // Input: stream must be soft-deleted. Output: stream is soft-deleted.
   // A soft-deleted stream can be restored by appending new records.
   STREAM_STATE_CONSTANTS_DELETED = -10;
 
-  // Input: The stream must be tombstoned.
-  // Output: The stream has been tombstoned (permanently deleted).
+  // Input: stream must be tombstoned. Output: stream is tombstoned.
   // A tombstoned stream cannot be restored or written to.
   STREAM_STATE_CONSTANTS_TOMBSTONED = -100;
 }
