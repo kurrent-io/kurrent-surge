@@ -75,6 +75,7 @@ public record AppendRecordsSuccess(StreamRevision[] Revisions, LogPosition Posit
 /// </remarks>
 [PublicAPI]
 [method: SetsRequiredMembers]
+[Obsolete("Use AppendRecordsRequest with a single stream and appropriate consistency checks instead.")]
 public record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {
     /// <summary>
     /// Gets the target stream name.
@@ -107,6 +108,7 @@ public record AppendStreamRequest(StreamName Stream, ExpectedStreamState Expecte
 /// </remarks>
 [PublicAPI]
 [method: SetsRequiredMembers]
+[Obsolete("Use AppendRecordsSuccess with appropriate stream revisions instead.")]
 public record AppendStreamSuccess(StreamName Stream, LogPosition Position, Revision Revision) {
     /// <summary>
     /// Gets the stream name where the messages were appended.
@@ -132,6 +134,7 @@ public record AppendStreamSuccess(StreamName Stream, LogPosition Position, Revis
 /// allowing enumeration and indexed access to each stream's append outcome.
 /// </remarks>
 [PublicAPI]
+[Obsolete("Use AppendRecordsSuccess with appropriate stream revisions instead.")]
 public record AppendSessionSuccess(IReadOnlyList<AppendStreamSuccess> Results, LogPosition Position) : IReadOnlyList<AppendStreamSuccess> {
     /// <summary>
     /// Gets the number of stream append results in this session.

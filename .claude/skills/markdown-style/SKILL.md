@@ -1,9 +1,8 @@
 ---
 name: markdown-style
-description: >
+description: |
   Markdown writing conventions. Invoke BEFORE writing or editing any .md file, plan, doc, PR description, commit
   message, report, or any markdown content. This includes skill files, templates, project docs, and scratch files.
-model: haiku
 ---
 
 ## Prose
@@ -11,6 +10,9 @@ model: haiku
 - Keep lines under 120 characters
 - Never use em dashes, en dashes, or hyphens to join phrases. Use periods, semicolons, or restructure the sentence
   instead
+
+TRIPWIRE: if you are capping lines way before the 120 character limit - because of your natural bias - reflow the text 
+to use more of the line.
 
 ## Structure
 
@@ -24,10 +26,7 @@ model: haiku
 
 ## Links
 
-- Always use markdown links for file paths, never bare backticks. `[project.md](.project/project.md)` not
-  `` `project.md` ``
-- Use relative paths from the file being edited
-- Link text should be the filename or a natural description, not the full path when avoidable
+- When using markdown links the link text is normally the filename or a natural description, not the full path
 
 ## Lists
 
@@ -38,17 +37,18 @@ model: haiku
 ## Code blocks
 
 - Always specify the language for fenced code blocks (```sh, ```csharp)
-- Use inline backticks for code references within prose (`ClassName`, `methodName`), not for file paths (use links
-  instead)
+- Use inline backticks for code references within prose (`ClassName`, `methodName`)
 
 ## Tables
 
 - Always align columns with padding so the pipes form straight vertical lines
 - Keep tables simple. If a table has more than 5 columns, consider restructuring as a list or subsections
+- Format tables with `dotnet .claude/skills/markdown-style/scripts/format-tables.cs <file>` or pipe content via stdin
+
+TRIPWIRE: if you notice misaligned tables, run the formatter script instead of manually adjusting spaces
 
 ## What NOT to do
 
 - Do not add "last updated" timestamps
 - Do not use emoji unless the user explicitly asks for it
 - Do not wrap prose in HTML tags
-- Do not create markdown files unless the task requires it

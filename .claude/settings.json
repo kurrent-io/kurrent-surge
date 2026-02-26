@@ -18,17 +18,12 @@
       "WebFetch",
       "WebSearch",
       "Write",
-      "mcp__plugin_claude-mem_mcp-search__*",
       "mcp__plugin_context7_context7__*",
       "mcp__plugin_microsoft-docs_microsoft-learn__*",
       "mcp__rider__*",
-      "Skill(claude-code-setup:*)",
-      "Skill(claude-md-management:*)",
-      "Skill(claude-mem:*)",
-      "Skill(dotnet-nuget-proxy:*)",
-      "Skill(dotnet-skills:*)",
       "Skill(microsoft-docs:*)",
-      "Skill(skill-creator:*)"
+      "Skill(dotnet-nuget-proxy:*)",
+      "Skill(dotnet-skills:*)"
     ],
     "deny": [
       "Read(./**/*.key)",
@@ -54,13 +49,10 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledPlugins": {
-    "claude-code-setup@claude-plugins-official": true,
-    "claude-md-management@claude-plugins-official": true,
-    "claude-mem@thedotmack": true,
     "context7@claude-plugins-official": true,
+    "microsoft-docs@microsoft-docs-marketplace": true,
     "dotnet-nuget-proxy@dotnet-nuget-proxy": true,
-    "dotnet-skills@dotnet-skills": true,
-    "microsoft-docs@microsoft-docs-marketplace": true
+    "dotnet-skills@dotnet-skills": true
   },
   "extraKnownMarketplaces": {
     "dotnet-nuget-proxy": {
@@ -79,12 +71,6 @@
       "source": {
         "source": "github",
         "repo": "microsoftdocs/mcp"
-      }
-    },
-    "thedotmack": {
-      "source": {
-        "source": "github",
-        "repo": "thedotmack/claude-mem"
       }
     }
   }

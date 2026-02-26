@@ -1,7 +1,14 @@
 # Kurrent .NET SDK
 
-.NET monorepo for the Kurrent platform SDK. Kurrent is a platform, not a
-database. There is no meta-package; developers install only what they need.
+.NET monorepo for the Kurrent platform SDK. Kurrent is a platform, not a database. There is no meta-package;
+developers install only what they need.
+
+## Code Style
+
+### Style Precedence
+
+- Code conventions in [project-code-conventions.md](project-code-conventions.md) override file-local style (e.g. `.editorconfig`).
+- When conventions are silent, match the majority pattern in the file you are editing.
 
 ## Stack
 
@@ -14,15 +21,12 @@ database. There is no meta-package; developers install only what they need.
 ## Protocols
 
 - **V2 gRPC (native)** — All append operations, schema registry, processor management
-- **V1 gRPC (legacy)** — All read and stream management operations. Compatibility
-  layer for EventStoreDB; will be replaced by V2 as RPCs are implemented
+- **V1 gRPC (legacy)** — All read and stream management operations. Compatibility layer for EventStoreDB;
+  will be replaced by V2 as RPCs are implemented
 
-## Build and Test
+## Testing
 
 ```sh
-# build
-dotnet build
-
 # test all (TUnit requires dotnet run, NOT dotnet test)
 dotnet run --project test/Kurrent.Client.Tests/ \
   --disable-logo --no-ansi --no-progress --fail-fast \
@@ -42,11 +46,11 @@ dotnet run --project test/Kurrent.Client.Tests/ \
   --treenode-filter "/*/*/*/*[Category=Streams]"
 ```
 
-One-time setup: `sudo ./scripts/gencert.sh` generates TLS certs for secure
-test mode. FluentDocker containers are reused across runs.
+One-time setup: `sudo ./scripts/gencert.sh` generates TLS certs for secure test mode. FluentDocker containers are
+reused across runs.
 
-Observability: `cd test/Kurrent.Testing && docker compose up -d` starts
-Seq (logs, port 5341) and Aspire Dashboard (telemetry, port 18888).
+Observability: `cd test/Kurrent.Testing && docker compose up -d` starts Seq (logs, port 5341) and Aspire Dashboard
+(telemetry, port 18888).
 
 ## Reference
 
@@ -58,4 +62,3 @@ Read these before working on related areas. Do not read all upfront.
 | [Code Conventions](project-code-conventions.md) | Before writing new code in unfamiliar areas              |
 | [Kurrent.Client](project-client.md)             | Before working on the client library                     |
 | [Kurrent.Processors](project-processors.md)     | Before working on stream processing                      |
-| [Variant Library](project-variant.md)           | Before working with Result types or discriminated unions |

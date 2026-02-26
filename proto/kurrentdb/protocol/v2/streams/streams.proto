@@ -144,7 +144,7 @@ message AppendResponse {
 }
 
 /**
- * Response from a deprecated AppendSession operation.
+ * Response from the AppendSession operation.
  *
  * Deprecated: Use AppendRecordsResponse instead.
  */
@@ -205,16 +205,12 @@ message AppendRecord {
  */
 enum ExpectedRevisionConstants {
   option deprecated = true;
-
   // The stream must have exactly one record at revision 0.
   EXPECTED_REVISION_CONSTANTS_SINGLE_EVENT = 0;
-
   // The stream must not exist yet (first write).
   EXPECTED_REVISION_CONSTANTS_NO_STREAM = -1;
-
   // Accept any current state (no concurrency check).
   EXPECTED_REVISION_CONSTANTS_ANY = -2;
-
   // The stream must exist (at least one record).
   EXPECTED_REVISION_CONSTANTS_EXISTS = -4;
 }
@@ -318,7 +314,7 @@ message ConsistencyCheck {
  *
  * Pass/fail matrix (rows = input, columns = actual state):
  *
- * | Input \ Actual     | Rev M (>= 0) | NO_STREAM | DELETED       | TOMBSTONED |
+ * | Input \ Actual     | Rev M (>= 0)  | NO_STREAM | DELETED       | TOMBSTONED |
  * |--------------------|---------------|-----------|---------------|------------|
  * | Rev N (>= 0)       | pass (M = N)  | fail: -1  | pass/fail (N) | fail: -100 |
  * | NO_STREAM  (-1)    | fail: M       | pass      | pass          | fail: -100 |
@@ -329,30 +325,23 @@ message ConsistencyCheck {
  */
 enum StreamStateConstants {
   option allow_alias = true;
-
   // Default protobuf enum value. Use STREAM_STATE_CONSTANTS_SINGLE_RECORD.
   STREAM_STATE_CONSTANTS_UNSPECIFIED = 0;
-
   // Revision 0: the stream has exactly one record.
   STREAM_STATE_CONSTANTS_SINGLE_RECORD = 0;
-
   // Input: stream must be writable as new (does not exist or soft-deleted).
   // Output: stream does not exist.
   STREAM_STATE_CONSTANTS_NO_STREAM = -1;
-
   // Input only: accept any writable state (no concurrency check).
   // Passes for all states except TOMBSTONED.
   STREAM_STATE_CONSTANTS_ANY = -2;
-
   // Input only: stream must be active (revision >= 0).
   // Fails for NO_STREAM, DELETED, and TOMBSTONED. A scavenged stream with
   // no remaining records still satisfies this check if it has a revision.
   STREAM_STATE_CONSTANTS_EXISTS = -4;
-
   // Input: stream must be soft-deleted. Output: stream is soft-deleted.
   // A soft-deleted stream can be restored by appending new records.
   STREAM_STATE_CONSTANTS_DELETED = -10;
-
   // Input: stream must be tombstoned. Output: stream is tombstoned.
   // A tombstoned stream cannot be restored or written to.
   STREAM_STATE_CONSTANTS_TOMBSTONED = -100;

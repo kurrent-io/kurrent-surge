@@ -1,1 +1,1 @@
-.project/instructions.md
+.project/project.md

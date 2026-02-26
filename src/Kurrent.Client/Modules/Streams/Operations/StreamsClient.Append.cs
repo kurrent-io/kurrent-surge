@@ -3,6 +3,8 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient {
+
+    [Obsolete("Use AppendRecords instead.")]
     internal async ValueTask<Result<AppendSessionSuccess, AppendSessionError>> AppendSession(
         IAsyncEnumerable<AppendStreamRequest> requests, CancellationToken cancellationToken = default) {
         try {
