@@ -14,10 +14,10 @@ internal static partial class ProcessorMetrics {
     public static partial RecordsProcessedCounter CreateRecordsProcessed(Meter meter);
 
     /// <summary>
-    /// Creates a histogram for batch processing duration (milliseconds).
+    /// Creates a histogram for record processing duration (milliseconds).
     /// </summary>
-    [Histogram<double>("processor_id", Name = "kurrent_processor_batch_duration_ms")]
-    public static partial BatchDurationHistogram CreateBatchDuration(Meter meter);
+    [Histogram<double>("processor_id", Name = "kurrent_processor_record_duration_ms")]
+    public static partial RecordDurationHistogram CreateRecordDuration(Meter meter);
 
     /// <summary>
     /// Creates a counter for checkpoints completed.

@@ -5,8 +5,8 @@ namespace Kurrent.Processors;
 
 [PublicAPI]
 public class KurrentWorkerException(ErrorCode code, string message, Exception innerException) : KurrentException(code, message, innerException) {
-    public static KurrentWorkerException ProcessRecordsFailed(Exception innerException) =>
-        new("WORKER_PROCESSRECORDS_FAILED", ErrorMessages.Worker_ProcessRecordsFailed, innerException);
+    public static KurrentWorkerException ProcessRecordFailed(Exception innerException) =>
+        new("WORKER_PROCESSRECORD_FAILED", ErrorMessages.Worker_ProcessRecordFailed, innerException);
 
     public static KurrentWorkerException OnCheckpointFailed(Exception innerException) =>
         new("WORKER_ON_CHECKPOINT_FAILED", ErrorMessages.Worker_OnCheckpointFailed, innerException);

@@ -80,10 +80,8 @@ public class OrderProcessor : IRecordProcessor {
         _writer = writer;
     }
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            _writer.Buffer(record);
-        }
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        _writer.Buffer(context.Record);
     }
 
     public async ValueTask OnCheckpoint(CheckpointContext context) {
@@ -122,10 +120,8 @@ If you do not need a full class, use `RecordProcessorBuilder` to wire up `OnChec
 
 ```csharp
 var processor = new RecordProcessorBuilder()
-    .ProcessRecords(ctx => {
-        foreach (var record in ctx.Records) {
-            Console.WriteLine($"Processing: {record.Value}");
-        }
+    .ProcessRecord(ctx => {
+        Console.WriteLine($"Processing: {ctx.Record.Value}");
     })
     .OnCheckpoint(ctx => {
         Console.WriteLine($"Checkpoint {ctx.CheckpointId} [{ctx.Trigger}]");
@@ -136,8 +132,8 @@ Both synchronous (`Action<CheckpointContext>`) and asynchronous (`Func<Checkpoin
 
 ```csharp
 var processor = new RecordProcessorBuilder()
-    .ProcessRecordsAsync(async ctx => {
-        await ProcessBatchAsync(ctx.Records, ctx.CancellationToken);
+    .ProcessRecordAsync(async ctx => {
+        await ProcessRecordAsync(ctx.Record, ctx.CancellationToken);
     })
     .OnCheckpointAsync(async ctx => {
         await FlushExternalStateAsync(ctx.CancellationToken);
@@ -146,7 +142,7 @@ var processor = new RecordProcessorBuilder()
 
 ## Progress tracking
 
-The `WorkerProgress` struct provides a comprehensive snapshot of the worker's processing state. It is available through `ProcessRecordsContext.Progress` during record processing and through `IProcessorWorker.Progress` at any time when you hold a reference to the worker.
+The `WorkerProgress` struct provides a comprehensive snapshot of the worker's processing state. It is available through `ProcessRecordContext.Progress` during record processing and through `IProcessorWorker.Progress` at any time when you hold a reference to the worker.
 
 ```csharp
 var worker = KurrentProcessors.Create(new MyProcessor())
@@ -191,10 +187,7 @@ Real-time throughput and timing information computed from the start of the proce
 | Property | Type | Description |
 |---|---|---|
 | `TotalRecords` | `long` | Total number of records processed since the session started. |
-| `TotalBatches` | `long` | Total number of batches processed. |
 | `RecordsPerSecond` | `double` | Average records processed per second. |
-| `BatchesPerSecond` | `double` | Average batches processed per second. |
-| `AverageBatchSize` | `double` | Average number of records per batch. |
 | `StartedAt` | `DateTimeOffset` | When processing started. |
 | `Elapsed` | `TimeSpan` | Total elapsed time since processing started. |
 
@@ -213,7 +206,7 @@ Tracks checkpoint activity for the current session.
 
 Tracks position progress for a single partition. The distinction between tracked and flushed positions is central to understanding at-least-once delivery:
 
-- **Tracked** means the record was processed by your `ProcessRecords` handler.
+- **Tracked** means the record was processed by your `ProcessRecord` handler.
 - **Flushed** means the position was committed to the checkpoint store and will not be replayed.
 
 | Property | Type | Description |
@@ -227,13 +220,11 @@ The gap between `LastTrackedPosition` and `LastFlushedPosition` represents your 
 
 ### Accessing progress during processing
 
-Inside `ProcessRecords`, the current progress is available on the context:
+Inside `ProcessRecord`, the current progress is available on the context:
 
 ```csharp
-public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-    foreach (var record in context.Records) {
-        // process the record
-    }
+public ValueTask ProcessRecord(ProcessRecordContext context) {
+    // process the record
 
     var progress = context.Progress;
 
@@ -244,6 +235,8 @@ public async ValueTask ProcessRecords(ProcessRecordsContext context) {
             progress.Throughput.RecordsPerSecond,
             progress.Checkpoint.TotalCheckpoints);
     }
+
+    return ValueTask.CompletedTask;
 }
 ```
 
@@ -286,8 +279,9 @@ Both `CompleteContext` and `ErrorContext` include a final `WorkerProgress` snaps
 
 ```csharp
 public class MonitoredProcessor : IRecordProcessor {
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        // process records
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        // process the record
+        return ValueTask.CompletedTask;
     }
 
     public ValueTask OnComplete(CompleteContext context) {

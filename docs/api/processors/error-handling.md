@@ -15,11 +15,11 @@ A processor worker moves through a defined set of statuses during its lifetime:
 | Status | Meaning |
 |--------|---------|
 | `Starting` | Connecting, restoring state, preparing to process |
-| `Processing` | Actively processing record batches |
+| `Processing` | Actively processing records |
 | `Stopped` | Terminal -- clean shutdown or cancellation completed |
 | `Error` | Terminal -- an unrecoverable error occurred |
 
-When an exception propagates out of `ProcessRecords` or an internal operation, the worker:
+When an exception propagates out of `ProcessRecord` or an internal operation, the worker:
 
 1. Cancels the internal pump and timers
 2. Calls `OnError` with an `ErrorContext` containing the exception and a final progress snapshot
@@ -88,7 +88,7 @@ public ValueTask OnError(ErrorContext context) {
 
 ## OnError lifecycle
 
-`OnError` is called when the worker encounters an unrecoverable error -- an exception that escapes `ProcessRecords`, `OnCheckpoint`, or an internal runtime operation. It is invoked **before** the worker transitions to `ProcessorWorkerStatus.Error`.
+`OnError` is called when the worker encounters an unrecoverable error -- an exception that escapes `ProcessRecord`, `OnCheckpoint`, or an internal runtime operation. It is invoked **before** the worker transitions to `ProcessorWorkerStatus.Error`.
 
 This callback is purely informational. You cannot prevent the worker from stopping -- the error has already occurred. Use it for:
 
@@ -144,11 +144,9 @@ public ValueTask OnComplete(CompleteContext context) {
     var throughput = context.Progress.Throughput;
 
     context.Logger.LogInformation(
-        "Worker {WorkerId} completed. Processed {Total} records across {Batches} batches " +
-        "in {Elapsed} ({Rps:F1} records/sec)",
+        "Worker {WorkerId} completed. Processed {Total} records in {Elapsed} ({Rps:F1} records/sec)",
         context.WorkerId,
         throughput.TotalRecords,
-        throughput.TotalBatches,
         throughput.Elapsed,
         throughput.RecordsPerSecond
     );
@@ -170,10 +168,7 @@ Aggregate processing statistics:
 | Property | Type | Description |
 |----------|------|-------------|
 | `TotalRecords` | `long` | Total records processed |
-| `TotalBatches` | `long` | Total batches processed |
 | `RecordsPerSecond` | `double` | Average throughput |
-| `BatchesPerSecond` | `double` | Average batch throughput |
-| `AverageBatchSize` | `double` | Average records per batch |
 | `StartedAt` | `DateTimeOffset` | When processing started |
 | `Elapsed` | `TimeSpan` | Total processing duration |
 
@@ -216,7 +211,7 @@ The runtime automatically wraps every `IRecordProcessor` in a `SafeRecordProcess
 
 | Method | Error Code | Exception Factory |
 |--------|------------|-------------------|
-| `ProcessRecords` | `WORKER_PROCESSRECORDS_FAILED` | `KurrentWorkerException.ProcessRecordsFailed` |
+| `ProcessRecord` | `WORKER_PROCESSRECORD_FAILED` | `KurrentWorkerException.ProcessRecordFailed` |
 | `OnCheckpoint` | `WORKER_ON_CHECKPOINT_FAILED` | `KurrentWorkerException.OnCheckpointFailed` |
 | `OnError` | `WORKER_ON_ERROR_FAILED` | `KurrentWorkerException.OnErrorFailed` |
 | `OnComplete` | `WORKER_ON_COMPLETE_FAILED` | `KurrentWorkerException.OnCompleteFailed` |
@@ -240,7 +235,7 @@ try {
 
 ## Implementing error handling with IRecordProcessor
 
-Implement the `IRecordProcessor` interface to define error handling alongside your processing logic. All lifecycle methods except `ProcessRecords` have default implementations that do nothing, so you only override what you need:
+Implement the `IRecordProcessor` interface to define error handling alongside your processing logic. All lifecycle methods except `ProcessRecord` have default implementations that do nothing, so you only override what you need:
 
 ```csharp
 public class OrderProcessor : IRecordProcessor {
@@ -250,11 +245,8 @@ public class OrderProcessor : IRecordProcessor {
         _alerts = alerts;
     }
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            // Process each record
-            await HandleOrderAsync(record, context.CancellationToken).ConfigureAwait(false);
-        }
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        await HandleOrderAsync(context.Record, context.CancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask OnError(ErrorContext context) {
@@ -276,9 +268,8 @@ public class OrderProcessor : IRecordProcessor {
 
         context.Logger.LogInformation(
             "Order processor completed gracefully. " +
-            "Processed {Records} records in {Batches} batches over {Elapsed}",
+            "Processed {Records} records over {Elapsed}",
             throughput.TotalRecords,
-            throughput.TotalBatches,
             throughput.Elapsed
         );
 
@@ -302,9 +293,8 @@ Use the sync overloads when your handler does not need to await anything:
 
 ```csharp
 await KurrentProcessors.Create(p => p
-    .ProcessRecords(ctx => {
-        foreach (var record in ctx.Records)
-            HandleOrder(record);
+    .ProcessRecord(ctx => {
+        HandleOrder(ctx.Record);
     })
     .OnError(ctx => {
         ctx.Logger.LogError(
@@ -332,9 +322,8 @@ Use the async overloads when you need to perform asynchronous operations in your
 
 ```csharp
 await KurrentProcessors.Create(p => p
-    .ProcessRecordsAsync(async ctx => {
-        foreach (var record in ctx.Records)
-            await HandleOrderAsync(record, ctx.CancellationToken).ConfigureAwait(false);
+    .ProcessRecordAsync(async ctx => {
+        await HandleOrderAsync(ctx.Record, ctx.CancellationToken).ConfigureAwait(false);
     })
     .OnErrorAsync(async ctx => {
         ctx.Logger.LogError(ctx.Error, "Worker {Worker} failed", ctx.WorkerId);
@@ -403,9 +392,8 @@ public class MonitoredProcessor : IRecordProcessor {
         _metrics = metrics;
     }
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records)
-            await ProcessAsync(record, context.CancellationToken).ConfigureAwait(false);
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        await ProcessAsync(context.Record, context.CancellationToken).ConfigureAwait(false);
     }
 
     public ValueTask OnError(ErrorContext context) {

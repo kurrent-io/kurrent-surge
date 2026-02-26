@@ -1,12 +1,12 @@
 namespace Kurrent.Processors;
 
 sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
         try {
-            await inner.ProcessRecords(context).ConfigureAwait(false);
+            await inner.ProcessRecord(context).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) {
-            throw KurrentWorkerException.ProcessRecordsFailed(ex);
+            throw KurrentWorkerException.ProcessRecordFailed(ex);
         }
     }
 

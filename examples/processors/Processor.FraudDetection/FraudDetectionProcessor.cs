@@ -21,10 +21,9 @@ public sealed class FraudDetectionProcessor : IRecordProcessor {
     long _totalTransactions;
     long _fraudAlertsRaised;
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records)
-            if (record.Value is Transaction tx)
-                ProcessTransaction(tx, context.Logger);
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is Transaction tx)
+            ProcessTransaction(tx, context.Logger);
 
         return ValueTask.CompletedTask;
     }

@@ -22,18 +22,16 @@ public sealed class TransferAnalyticsProcessor(
 
     IDatabase Redis => redis.GetDatabase();
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            switch (record.Value) {
-                case PlayerRegistered registered:
-                    await CachePlayer(registered, context.Logger);
-                    break;
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        switch (context.Record.Value) {
+            case PlayerRegistered registered:
+                await CachePlayer(registered, context.Logger);
+                break;
 
-                case PlayerTransferred transfer:
-                    await UpdatePlayerCache(transfer);
-                    AccumulateSpending(transfer);
-                    break;
-            }
+            case PlayerTransferred transfer:
+                await UpdatePlayerCache(transfer);
+                AccumulateSpending(transfer);
+                break;
         }
     }
 

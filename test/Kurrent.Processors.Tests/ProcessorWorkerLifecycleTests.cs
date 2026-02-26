@@ -308,7 +308,7 @@ public class ProcessorWorkerLifecycleTests {
 #region Test helpers
 
 class NoOpProcessor : IRecordProcessor {
-    public ValueTask ProcessRecords(ProcessRecordsContext context) => ValueTask.CompletedTask;
+    public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
 }
 
 /// <summary>

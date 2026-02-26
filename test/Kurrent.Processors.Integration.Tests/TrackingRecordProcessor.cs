@@ -7,7 +7,7 @@ namespace Kurrent.Processors.Tests;
 sealed class TestRecordProcessor : IRecordProcessor {
     readonly ConcurrentQueue<Record> _records = new();
 
-    public Func<ProcessRecordsContext, ValueTask>? OnProcessRecords { get; set; }
+    public Func<ProcessRecordContext, ValueTask>? OnProcessRecord { get; set; }
 
     public ErrorContext? Error { get; private set; }
 
@@ -15,11 +15,10 @@ sealed class TestRecordProcessor : IRecordProcessor {
 
     public Record[] Records => _records.ToArray();
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records)
-            _records.Enqueue(record);
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        _records.Enqueue(context.Record);
 
-        return OnProcessRecords?.Invoke(context) ?? ValueTask.CompletedTask;
+        return OnProcessRecord?.Invoke(context) ?? ValueTask.CompletedTask;
     }
 
     ValueTask IRecordProcessor.OnError(ErrorContext context) {

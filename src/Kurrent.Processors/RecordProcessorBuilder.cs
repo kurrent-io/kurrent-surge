@@ -8,12 +8,12 @@ public sealed class RecordProcessorBuilder {
     Func<CheckpointContext, ValueTask>     _onCheckpoint   = static _ => ValueTask.CompletedTask;
     Func<CompleteContext, ValueTask>       _onComplete     = static _ => ValueTask.CompletedTask;
     Func<ErrorContext, ValueTask>          _onError        = static _ => ValueTask.CompletedTask;
-    Func<ProcessRecordsContext, ValueTask> _processRecords = static _ => ValueTask.CompletedTask;
-    bool                                   _processRecordsSet;
+    Func<ProcessRecordContext, ValueTask> _processRecord = static _ => ValueTask.CompletedTask;
+    bool                                  _processRecordSet;
 
-    public RecordProcessorBuilder ProcessRecordsAsync(Func<ProcessRecordsContext, ValueTask> handler) {
-        _processRecords    = handler;
-        _processRecordsSet = true;
+    public RecordProcessorBuilder ProcessRecordAsync(Func<ProcessRecordContext, ValueTask> handler) {
+        _processRecord    = handler;
+        _processRecordSet = true;
         return this;
     }
 
@@ -32,8 +32,8 @@ public sealed class RecordProcessorBuilder {
         return this;
     }
 
-    public RecordProcessorBuilder ProcessRecords(Action<ProcessRecordsContext> handler) =>
-        ProcessRecordsAsync(ctx => {
+    public RecordProcessorBuilder ProcessRecord(Action<ProcessRecordContext> handler) =>
+        ProcessRecordAsync(ctx => {
                 handler(ctx);
                 return ValueTask.CompletedTask;
             }
@@ -61,11 +61,11 @@ public sealed class RecordProcessorBuilder {
         );
 
     internal IRecordProcessor Build() {
-        if (!_processRecordsSet)
-            throw new InvalidOperationException("ProcessRecords handler is required.");
+        if (!_processRecordSet)
+            throw new InvalidOperationException("ProcessRecord handler is required.");
 
         return new DelegateRecordProcessor(
-            _processRecords,
+            _processRecord,
             _onCheckpoint,
             _onError,
             _onComplete
@@ -74,12 +74,12 @@ public sealed class RecordProcessorBuilder {
 }
 
 sealed class DelegateRecordProcessor(
-    Func<ProcessRecordsContext, ValueTask> processRecords,
+    Func<ProcessRecordContext, ValueTask> processRecord,
     Func<CheckpointContext, ValueTask> onCheckpoint,
     Func<ErrorContext, ValueTask> onError,
     Func<CompleteContext, ValueTask> onComplete
 ) : IRecordProcessor {
-    public ValueTask ProcessRecords(ProcessRecordsContext context) => processRecords(context);
+    public ValueTask ProcessRecord(ProcessRecordContext context) => processRecord(context);
 
     public ValueTask OnCheckpoint(CheckpointContext context) => onCheckpoint(context);
 

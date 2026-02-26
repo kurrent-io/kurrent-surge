@@ -4,7 +4,7 @@ order: 1
 
 # Getting Started with Kurrent.Processors
 
-Kurrent.Processors is an event processing framework for the Kurrent Platform. It provides a structured runtime for consuming records from KurrentDB with automatic checkpointing, batched delivery, and lifecycle management. You implement a processor that handles records, and the framework takes care of connecting, subscribing, batching, checkpointing, and graceful shutdown.
+Kurrent.Processors is an event processing framework for the Kurrent Platform. It provides a structured runtime for consuming records from KurrentDB with automatic checkpointing and lifecycle management. You implement a processor that handles records, and the framework takes care of connecting, subscribing, checkpointing, and graceful shutdown.
 
 ## Installation
 
@@ -30,23 +30,23 @@ Install-Package Kurrent.Processors
 
 ## Core Concepts
 
-A **processor** is your code that handles records. The framework delivers records in batches, manages checkpoints to track progress, and notifies you of lifecycle events. If the processor stops and restarts, it resumes from the last checkpoint rather than reprocessing everything from the beginning.
+A **processor** is your code that handles records. The framework delivers records, manages checkpoints to track progress, and notifies you of lifecycle events. If the processor stops and restarts, it resumes from the last checkpoint rather than reprocessing everything from the beginning.
 
 The main types you interact with are:
 
-- `IRecordProcessor` -- the interface you implement to handle records and lifecycle events
+- `IRecordProcessor` -- the interface you implement to handle a record and lifecycle events
 - `KurrentProcessors` -- the static entry point for creating and configuring processors
-- `KurrentProcessorBuilder` -- the fluent builder returned by `KurrentProcessors.Create` for configuring connection, filtering, batching, and running the processor
+- `KurrentProcessorBuilder` -- the fluent builder returned by `KurrentProcessors.Create` for configuring connection, filtering, and running the processor
 - `RecordProcessorBuilder` -- a delegate-based alternative for defining a processor inline without implementing a class
 
 ## The IRecordProcessor Interface
 
-`IRecordProcessor` defines four lifecycle methods. Only `ProcessRecords` is required -- the others have default no-op implementations that you can override as needed.
+`IRecordProcessor` defines four lifecycle methods. Only `ProcessRecord` is required -- the others have default no-op implementations that you can override as needed.
 
 ```csharp
 public interface IRecordProcessor {
-    // Required: Called when a batch of records is available for processing.
-    ValueTask ProcessRecords(ProcessRecordsContext context);
+    // Required: Called when a record is available for processing.
+    ValueTask ProcessRecord(ProcessRecordContext context);
 
     // Optional: Called when a checkpoint is signaled, before state is persisted.
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
@@ -59,11 +59,11 @@ public interface IRecordProcessor {
 }
 ```
 
-### ProcessRecords
+### ProcessRecord
 
-This is the only method you must implement. The framework calls it each time a batch of records is ready. The `ProcessRecordsContext` provides:
+This is the only method you must implement. The framework calls it each time a record is ready. The `ProcessRecordContext` provides:
 
-- `Records` -- a `RecordBatch` (implements `IReadOnlyList<Record>`) containing the records to process
+- `Record` -- the `Record` to process
 - `Progress` -- a `WorkerProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions
 - `Logger` -- an `ILogger` instance scoped to the worker
 - `CancellationToken` -- signals when processing should stop
@@ -99,18 +99,16 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors;
 
 public class OrderProcessor : IRecordProcessor {
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            context.Logger.LogInformation(
-                "Processing {Schema} from {Stream} at position {Position}",
-                record.SchemaName,
-                record.StreamName,
-                record.Position
-            );
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        context.Logger.LogInformation(
+            "Processing {Schema} from {Stream} at position {Position}",
+            context.Record.SchemaName,
+            context.Record.StreamName,
+            context.Record.Position
+        );
 
-            // Your processing logic here
-            await HandleRecordAsync(record, context.CancellationToken);
-        }
+        // Your processing logic here
+        await HandleRecordAsync(context.Record, context.CancellationToken);
     }
 
     public ValueTask OnCheckpoint(CheckpointContext context) {
@@ -158,10 +156,8 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors;
 
 await KurrentProcessors.Create(p => p
-        .ProcessRecordsAsync(async ctx => {
-            foreach (var record in ctx.Records) {
-                await HandleAsync(record, ctx.CancellationToken);
-            }
+        .ProcessRecordAsync(async ctx => {
+            await HandleAsync(ctx.Record, ctx.CancellationToken);
         })
         .OnCheckpoint(ctx => {
             ctx.Logger.LogInformation("Checkpoint {Id}", ctx.CheckpointId);
@@ -179,8 +175,8 @@ The `RecordProcessorBuilder` methods are:
 
 | Method | Description |
 |---|---|
-| `ProcessRecords(Action<ProcessRecordsContext>)` | Required. Synchronous record handler. |
-| `ProcessRecordsAsync(Func<ProcessRecordsContext, ValueTask>)` | Required. Asynchronous record handler. |
+| `ProcessRecord(Action<ProcessRecordContext>)` | Required. Synchronous record handler. |
+| `ProcessRecordAsync(Func<ProcessRecordContext, ValueTask>)` | Required. Asynchronous record handler. |
 | `OnCheckpoint(Action<CheckpointContext>)` | Optional. Synchronous checkpoint handler. |
 | `OnCheckpointAsync(Func<CheckpointContext, ValueTask>)` | Optional. Asynchronous checkpoint handler. |
 | `OnError(Action<ErrorContext>)` | Optional. Synchronous error handler. |
@@ -188,11 +184,11 @@ The `RecordProcessorBuilder` methods are:
 | `OnComplete(Action<CompleteContext>)` | Optional. Synchronous completion handler. |
 | `OnCompleteAsync(Func<CompleteContext, ValueTask>)` | Optional. Asynchronous completion handler. |
 
-You must call either `ProcessRecords` or `ProcessRecordsAsync` -- the builder will throw `InvalidOperationException` at build time if neither is set.
+You must call either `ProcessRecord` or `ProcessRecordAsync` -- the builder will throw `InvalidOperationException` at build time if neither is set.
 
 ## Configuring and Running a Processor
 
-`KurrentProcessors.Create` returns a `KurrentProcessorBuilder` that provides a fluent API for configuring the connection, filtering, batching, checkpointing, and execution.
+`KurrentProcessors.Create` returns a `KurrentProcessorBuilder` that provides a fluent API for configuring the connection, filtering, checkpointing, and execution.
 
 ### Connection
 
@@ -416,15 +412,13 @@ using Kurrent.Processors;
 using Kurrent.Processors.Models;
 
 public class OrderProcessor : IRecordProcessor {
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            context.Logger.LogInformation(
-                "[{Schema}] Stream={Stream} Position={Position}",
-                record.SchemaName,
-                record.StreamName,
-                record.Position
-            );
-        }
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        context.Logger.LogInformation(
+            "[{Schema}] Stream={Stream} Position={Position}",
+            context.Record.SchemaName,
+            context.Record.StreamName,
+            context.Record.Position
+        );
 
         return ValueTask.CompletedTask;
     }
@@ -466,7 +460,7 @@ This processor will:
 1. Connect to a local KurrentDB instance
 2. Subscribe to all streams starting with `order-`
 3. Process records from the beginning (`Earliest`)
-4. Receive records in batches of up to 100, delivered at most every 500ms
+4. Receive records in groups of up to 100, delivered at most every 500ms
 5. Automatically checkpoint every 10 seconds
 6. Perform a final checkpoint on graceful shutdown
 7. Resume from the last checkpoint on restart

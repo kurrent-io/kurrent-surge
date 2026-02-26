@@ -21,9 +21,9 @@
     </value>
   </resheader>
   <!-- Worker Callback Exceptions -->
-  <data name="Worker_ProcessRecordsFailed" xml:space="preserve">
-    <value>An error occurred while processing records.</value>
-    <comment>The exception message for when IRecordProcessor.ProcessRecords callback throws an exception.</comment>
+  <data name="Worker_ProcessRecordFailed" xml:space="preserve">
+    <value>An error occurred while processing a record.</value>
+    <comment>The exception message for when IRecordProcessor.ProcessRecord callback throws an exception.</comment>
   </data>
   <data name="Worker_OnCheckpointFailed" xml:space="preserve">
     <value>An error occurred during checkpoint handling.</value>

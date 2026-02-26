@@ -993,6 +993,6 @@ public class ConfigurationTests {
     /// A minimal processor implementation for testing configuration.
     /// </summary>
     sealed class NoOpProcessor : IRecordProcessor {
-        public ValueTask ProcessRecords(ProcessRecordsContext context) => ValueTask.CompletedTask;
+        public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
     }
 }

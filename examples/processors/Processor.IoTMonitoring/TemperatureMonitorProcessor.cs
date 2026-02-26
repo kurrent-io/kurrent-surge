@@ -19,11 +19,9 @@ public sealed class TemperatureMonitorProcessor : IRecordProcessor {
     long _totalReadings;
     long _alertsRaised;
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            if (record.Value is SensorReading reading) {
-                ProcessReading(reading, context.Logger);
-            }
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is SensorReading reading) {
+            ProcessReading(reading, context.Logger);
         }
 
         return ValueTask.CompletedTask;

@@ -15,7 +15,7 @@ sealed class ProcessorWorker : IProcessorWorker {
     readonly ProcessorSettings          _settings;
     readonly KurrentClient              _client;
     readonly IProcessorGateway          _gateway;
-    readonly WorkerTelemetry    _telemetry;
+    readonly WorkerTelemetry            _telemetry;
     readonly CheckpointStore            _checkpointStore;
     readonly PartitionedPositionTracker _tracker;
     readonly IRecordProcessor           _processor;
@@ -110,7 +110,7 @@ sealed class ProcessorWorker : IProcessorWorker {
                 await message
                     .SwitchAsync(
                         msg => HandleWorkOrder(msg, session, stoppingToken),
-                        msg => HandleRecordBatch(msg, session, stoppingToken),
+                        msg => HandleRecord(msg, session, stoppingToken),
                         msg => HandleCheckpoint(msg, session, stoppingToken)
                     )
                     .ConfigureAwait(false);
@@ -158,18 +158,18 @@ sealed class ProcessorWorker : IProcessorWorker {
         _telemetry.Processing(session.SessionId.Value);
     }
 
-    async ValueTask HandleRecordBatch(RecordBatch batch, IWorkerSession session, CancellationToken ct) {
-        using var scope = _telemetry.TrackBatch();
+    async ValueTask HandleRecord(Record record, IWorkerSession session, CancellationToken ct) {
+        using var scope = _telemetry.TrackRecord();
 
         await _processor
-            .ProcessRecords(WorkerContext.ForProcessRecords(batch, Progress))
+            .ProcessRecord(WorkerContext.ForProcessRecord(record, Progress))
             .ConfigureAwait(false);
 
-        _tracker.Track(batch);
-        _progress.TrackRecords(batch.Count);
+        _tracker.Track(record);
+        _progress.TrackRecord();
 
-        scope.Complete(batch.Count, Progress.Throughput.TotalRecords);
-        _telemetry.BatchProcessed(batch.Count, Progress.Throughput.TotalRecords);
+        scope.Complete(Progress.Throughput.TotalRecords);
+        _telemetry.RecordProcessed(Progress.Throughput.TotalRecords);
     }
 
     async ValueTask HandleCheckpoint(Checkpoint checkpoint, IWorkerSession session, CancellationToken ct) {
@@ -203,9 +203,9 @@ sealed class ProcessorWorker : IProcessorWorker {
         var throughput = progress.Throughput;
 
         _telemetry.Stopping(
-            throughput.TotalRecords, throughput.Elapsed,
-            throughput.RecordsPerSecond
-        );
+            throughput.TotalRecords,
+            throughput.Elapsed,
+            throughput.RecordsPerSecond);
 
         // Final checkpoint flush (best-effort)
         // Only attempt if we reached Processing state (partitions assigned, tracker initialized)
@@ -224,9 +224,7 @@ sealed class ProcessorWorker : IProcessorWorker {
 
                 // CancellationToken.None — cts is cancelled, stoppingToken may be cancelled
                 await _processor
-                    .OnCheckpoint(
-                        (WorkerContext with { CancellationToken = CancellationToken.None })
-                            .ForCheckpoint(checkpoint))
+                    .OnCheckpoint((WorkerContext with { CancellationToken = CancellationToken.None }).ForCheckpoint(checkpoint))
                     .ConfigureAwait(false);
 
                 await _checkpointStore

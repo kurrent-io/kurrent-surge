@@ -16,11 +16,9 @@ public sealed partial class WordCountProcessor : IRecordProcessor {
     long _totalTextsProcessed;
     long _totalWordsProcessed;
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            if (record.Value is TextSubmitted text) {
-                ProcessText(text, context.Logger);
-            }
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is TextSubmitted text) {
+            ProcessText(text, context.Logger);
         }
 
         return ValueTask.CompletedTask;
