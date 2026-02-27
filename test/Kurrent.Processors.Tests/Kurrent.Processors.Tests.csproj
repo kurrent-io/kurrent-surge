@@ -12,7 +12,6 @@
   <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
-    <Using Include="Shouldly" />
     <Using Include="TUnit" />
   </ItemGroup>
 
