@@ -13,7 +13,7 @@ public class KurrentClientOptionsBuilderTests {
 
         var newOptions = builder.Build();
 
-        await Assert.That(newOptions).IsEqualTo(validOptions);
+        await Assert.That(newOptions).IsEquivalentTo(validOptions);
     }
 
     [Test]
@@ -33,8 +33,8 @@ public class KurrentClientOptionsBuilderTests {
         // Other properties should be preserved
         await Assert.That(newOptions.ConnectionName).IsEqualTo(validOptions.ConnectionName);
         await Assert.That(newOptions.Endpoints).IsEqualTo(validOptions.Endpoints);
-        await Assert.That(newOptions.Security).IsEqualTo(validOptions.Security);
-        await Assert.That(newOptions.Gossip).IsEqualTo(validOptions.Gossip);
+        await Assert.That(newOptions.Security).IsEquivalentTo(validOptions.Security);
+        await Assert.That(newOptions.Gossip).IsEquivalentTo(validOptions.Gossip);
     }
 
     [Test]
@@ -57,7 +57,7 @@ public class KurrentClientOptionsBuilderTests {
         // Other properties should be preserved
         await Assert.That(newOptions.ConnectionName).IsEqualTo(validOptions.ConnectionName);
         await Assert.That(newOptions.Endpoints).IsEqualTo(validOptions.Endpoints);
-        await Assert.That(newOptions.Security).IsEqualTo(validOptions.Security);
+        await Assert.That(newOptions.Security).IsEquivalentTo(validOptions.Security);
         await Assert.That(newOptions.Resilience).IsEquivalentTo(validOptions.Resilience);
     }
 

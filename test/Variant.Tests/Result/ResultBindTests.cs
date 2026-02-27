@@ -375,7 +375,7 @@ public class ResultBindTests {
         // Assert - Both succeed but Bind could have returned failure
         await Assert.That(mapped.IsSuccess).IsTrue();
         await Assert.That(bound.IsSuccess).IsTrue();
-        await Assert.That(mapped.Value).IsEqualTo(bound.Value);
+        await Assert.That(mapped.Value).IsEquivalentTo(bound.Value);
     }
 
     [Test]

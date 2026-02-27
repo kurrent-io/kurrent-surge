@@ -442,7 +442,7 @@ public class ResultInspectTests {
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEqualTo(originalResult);
+        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
     }
 
     [Test]
@@ -457,7 +457,7 @@ public class ResultInspectTests {
 
         // Assert
         await Assert.That(actionExecuted).IsFalse();
-        await Assert.That(returnedResult).IsEqualTo(originalResult);
+        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
     }
 
     [Test]
@@ -472,7 +472,7 @@ public class ResultInspectTests {
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEqualTo(originalResult);
+        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
     }
 
     [Test]
@@ -487,7 +487,7 @@ public class ResultInspectTests {
 
         // Assert
         await Assert.That(actionExecuted).IsFalse();
-        await Assert.That(returnedResult).IsEqualTo(originalResult);
+        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
     }
 
     [Test]
@@ -535,7 +535,7 @@ public class ResultInspectTests {
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEqualTo(originalResult);
+        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
     }
 
     [Test]
@@ -553,7 +553,7 @@ public class ResultInspectTests {
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEqualTo(originalResult);
+        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
     }
 
     [Test]
