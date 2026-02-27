@@ -4,7 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Using Include="Shouldly" />
+    <Using Include="Kurrent.Testing.Assertions" />
     <Using Include="TUnit" />
   </ItemGroup>
 
@@ -41,7 +41,6 @@
     <PackageReference Include="Serilog.Sinks.Observable" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
     <PackageReference Include="Serilog.Sinks.Seq" />
-    <PackageReference Include="Shouldly" />
     <PackageReference Include="System.Reactive" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Grpc.StatusProto" />
@@ -52,9 +51,11 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Remove="KurrentDB.Testing.csproj.DotSettings" />
+    <EmbeddedResource Include="Sample\FormulaOne\Data\*.json" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
   </ItemGroup>
+
 </Project>
