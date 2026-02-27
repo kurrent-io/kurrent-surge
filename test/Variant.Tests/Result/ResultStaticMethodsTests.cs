@@ -8,7 +8,7 @@ public class ResultStaticMethodsTests {
     #region . Sync .
 
     [Test]
-    public void try_returns_success_when_function_succeeds() {
+    public async Task try_returns_success_when_function_succeeds() {
         // Arrange
         var expectedValue = new GameId(Faker.Random.Guid());
         var func          = () => expectedValue;
@@ -17,12 +17,12 @@ public class ResultStaticMethodsTests {
         var result = Kurrent.Result.Try<GameId, SimpleError>(func, ex => new SimpleError(ex.Message));
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(expectedValue);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expectedValue);
     }
 
     [Test]
-    public void try_returns_error_when_function_throws_exception() {
+    public async Task try_returns_error_when_function_throws_exception() {
         // Arrange
         var          errorMessage = "Function failed";
         Func<GameId> func         = () => throw new InvalidOperationException(errorMessage);
@@ -31,8 +31,8 @@ public class ResultStaticMethodsTests {
         var result = Kurrent.Result.Try<GameId, SimpleError>(func, ex => new SimpleError(ex.Message));
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldBe(errorMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).IsEqualTo(errorMessage);
     }
 
     #endregion
@@ -40,7 +40,7 @@ public class ResultStaticMethodsTests {
     #region . Async .
 
     [Test]
-    public async ValueTask try_async_returns_success_when_async_function_succeeds() {
+    public async Task try_async_returns_success_when_async_function_succeeds() {
         // Arrange
         var expectedValue = new GameId(Faker.Random.Guid());
         var func          = () => ValueTask.FromResult(expectedValue);
@@ -49,12 +49,12 @@ public class ResultStaticMethodsTests {
         var result = await Kurrent.Result.TryAsync<GameId, SimpleError>(func, ex => new SimpleError(ex.Message));
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(expectedValue);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expectedValue);
     }
 
     [Test]
-    public async ValueTask try_async_returns_error_when_async_function_throws_exception() {
+    public async Task try_async_returns_error_when_async_function_throws_exception() {
         // Arrange
         var errorMessage = "Async function failed";
         var func         = () => ValueTask.FromException<GameId>(new InvalidOperationException(errorMessage));
@@ -63,8 +63,8 @@ public class ResultStaticMethodsTests {
         var result = await Kurrent.Result.TryAsync<GameId, SimpleError>(func, ex => new SimpleError(ex.Message));
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldBe(errorMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).IsEqualTo(errorMessage);
     }
 
     #endregion

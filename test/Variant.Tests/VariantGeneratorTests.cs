@@ -8,7 +8,7 @@ namespace Kurrent.Variant.Tests;
 
 public class VariantGeneratorTests {
     // [Test]
-    public void should_generate_expected_code() {
+    public async Task should_generate_expected_code() {
         // Create a test compilation
         var source = """
             using Kurrent.Variant;
@@ -26,9 +26,9 @@ public class VariantGeneratorTests {
         var generatedSource = result.GeneratedTrees.First().ToString();
 
         // Assert expected patterns exist
-        generatedSource.ShouldContain("public bool IsString");
-        generatedSource.ShouldContain("public string AsString");
-        generatedSource.ShouldContain("public bool IsInt");
+        await Assert.That(generatedSource).Contains("public bool IsString");
+        await Assert.That(generatedSource).Contains("public string AsString");
+        await Assert.That(generatedSource).Contains("public bool IsInt");
     }
 
     static Compilation CreateCompilation(string source) =>
