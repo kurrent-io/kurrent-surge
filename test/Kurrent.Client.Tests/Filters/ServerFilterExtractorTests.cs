@@ -80,42 +80,42 @@ public class ServerFilterExtractorTests {
 
     [Test]
     [StreamExtractionTestCases]
-    public void extracts_stream_filter(StreamExtractionTestCase testcase) {
+    public async Task extracts_stream_filter(StreamExtractionTestCase testcase) {
         var expr   = ParseExpression(testcase.Expression);
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter
-            .ShouldBeOfType<StreamFilter>()
-            .ShouldBeEquivalentTo(testcase.ExpectedFilter);
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo(testcase.ExpectedFilter.Expression);
+        await Assert.That(filter.TargetStream).IsEqualTo(testcase.ExpectedFilter.TargetStream);
     }
 
     [Test]
-    public void extracts_target_stream_from_equality() {
+    public async Task extracts_target_stream_from_equality() {
         var expr   = ParseExpression("stream = 'Orders-A1B2C3D4E5F6'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBeOfType<StreamFilter>();
-        filter.TargetStream.ShouldBe(StreamName.From("Orders-A1B2C3D4E5F6"));
-        filter.Expression.ShouldBe("^Orders-A1B2C3D4E5F6$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("Orders-A1B2C3D4E5F6"));
+        await Assert.That(filter.Expression).IsEqualTo("^Orders-A1B2C3D4E5F6$");
     }
 
     [Test]
-    public void no_target_stream_for_category_prefix() {
+    public async Task no_target_stream_for_category_prefix() {
         var expr   = ParseExpression("stream LIKE 'Orders-%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.TargetStream.ShouldBe(StreamName.All);
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     [Test]
-    public void no_target_stream_for_in_expression() {
+    public async Task no_target_stream_for_in_expression() {
         var expr   = ParseExpression("stream IN ('Orders-123', 'Payments-456')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.TargetStream.ShouldBe(StreamName.All);
-        filter.ShouldBeOfType<StreamFilter>();
-        filter.Expression.ShouldBe("^(Orders-123|Payments-456)$");
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^(Orders-123|Payments-456)$");
     }
 
     #endregion
@@ -123,48 +123,48 @@ public class ServerFilterExtractorTests {
     #region Server-Side Stream Filters
 
     [Test]
-    public void converts_stream_equality_to_exact_regex() {
+    public async Task converts_stream_equality_to_exact_regex() {
         var expr   = ParseExpression("stream = 'Games-ABC123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^Games-ABC123$");
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^Games-ABC123$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     [Test]
-    public void converts_category_prefix_to_regex() {
+    public async Task converts_category_prefix_to_regex() {
         var expr   = ParseExpression("stream LIKE 'Orders-%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^Orders-.*$");
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^Orders-.*$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     [Test]
-    public void converts_stream_like_suffix_to_regex() {
+    public async Task converts_stream_like_suffix_to_regex() {
         var expr   = ParseExpression("stream LIKE '%-completed'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^.*-completed$");
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^.*-completed$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     [Test]
-    public void converts_stream_like_contains_to_regex() {
+    public async Task converts_stream_like_contains_to_regex() {
         var expr   = ParseExpression("stream LIKE '%order%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^.*order.*$");
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^.*order.*$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     [Test]
-    public void converts_stream_in_to_alternation_regex() {
+    public async Task converts_stream_in_to_alternation_regex() {
         var expr   = ParseExpression("stream IN ('Orders-001', 'Payments-002', 'Refunds-003')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^(Orders-001|Payments-002|Refunds-003)$");
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^(Orders-001|Payments-002|Refunds-003)$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     #endregion
@@ -172,39 +172,39 @@ public class ServerFilterExtractorTests {
     #region Server-Side Schema Filters
 
     [Test]
-    public void converts_schema_name_equality_to_exact_regex() {
+    public async Task converts_schema_name_equality_to_exact_regex() {
         var expr   = ParseExpression("schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^OrderCreated$");
-        filter.ShouldBeOfType<SchemaFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^OrderCreated$");
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
     }
 
     [Test]
-    public void converts_schema_alias_to_exact_regex() {
+    public async Task converts_schema_alias_to_exact_regex() {
         var expr   = ParseExpression("schema = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^OrderCreated$");
-        filter.ShouldBeOfType<SchemaFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^OrderCreated$");
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
     }
 
     [Test]
-    public void converts_schema_like_to_regex() {
+    public async Task converts_schema_like_to_regex() {
         var expr   = ParseExpression("schema_name LIKE 'Order%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^Order.*$");
-        filter.ShouldBeOfType<SchemaFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^Order.*$");
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
     }
 
     [Test]
-    public void converts_schema_in_to_alternation_regex() {
+    public async Task converts_schema_in_to_alternation_regex() {
         var expr   = ParseExpression("schema_name IN ('OrderCreated', 'OrderUpdated')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.Expression.ShouldBe("^(OrderCreated|OrderUpdated)$");
-        filter.ShouldBeOfType<SchemaFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^(OrderCreated|OrderUpdated)$");
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
     }
 
     #endregion
@@ -212,35 +212,35 @@ public class ServerFilterExtractorTests {
     #region Client-Side Filters (no server filter)
 
     [Test]
-    public void timestamp_filter_has_no_server_filter() {
+    public async Task timestamp_filter_has_no_server_filter() {
         var expr   = ParseExpression("timestamp >= '2024-01-01'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public void position_filter_has_no_server_filter() {
+    public async Task position_filter_has_no_server_filter() {
         var expr   = ParseExpression("position > 1000");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public void properties_filter_has_no_server_filter() {
+    public async Task properties_filter_has_no_server_filter() {
         var expr   = ParseExpression("properties.amount > 100");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public void revision_filter_has_no_server_filter() {
+    public async Task revision_filter_has_no_server_filter() {
         var expr   = ParseExpression("stream_revision > 10");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     #endregion
@@ -248,38 +248,38 @@ public class ServerFilterExtractorTests {
     #region Combined Server and Client Filters
 
     [Test]
-    public void extracts_server_filter_from_combined_expression() {
+    public async Task extracts_server_filter_from_combined_expression() {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND timestamp >= '2024-01-01'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBeOfType<StreamFilter>();
-        filter.Expression.ShouldBe("^Orders-ABC123$");
-        filter.TargetStream.ShouldBe(StreamName.From("Orders-ABC123"));
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^Orders-ABC123$");
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("Orders-ABC123"));
     }
 
     [Test]
-    public void extracts_server_filter_with_properties() {
+    public async Task extracts_server_filter_with_properties() {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBeOfType<StreamFilter>();
-        filter.Expression.ShouldBe("^Orders-ABC123$");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("^Orders-ABC123$");
     }
 
     [Test]
-    public void extracts_schema_filter_with_properties() {
+    public async Task extracts_schema_filter_with_properties() {
         var expr   = ParseExpression("schema_name = 'OrderCreated' AND properties.userId = 'Users-123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBeOfType<SchemaFilter>();
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
     }
 
     [Test]
-    public void extracts_server_filter_with_multiple_client_predicates() {
+    public async Task extracts_server_filter_with_multiple_client_predicates() {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties.amount > 100 AND timestamp >= '2024-01-01'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     #endregion
@@ -287,28 +287,28 @@ public class ServerFilterExtractorTests {
     #region Negated Expressions
 
     [Test]
-    public void negated_stream_filter_has_no_server_filter() {
+    public async Task negated_stream_filter_has_no_server_filter() {
         var expr   = ParseExpression("stream != 'Test-123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         // Negated comparisons cannot be lifted to server
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public void negated_like_has_no_server_filter() {
+    public async Task negated_like_has_no_server_filter() {
         var expr   = ParseExpression("stream NOT LIKE 'Test-%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public void negated_in_has_no_server_filter() {
+    public async Task negated_in_has_no_server_filter() {
         var expr   = ParseExpression("stream NOT IN ('Test-001', 'Demo-002')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     #endregion
@@ -316,12 +316,12 @@ public class ServerFilterExtractorTests {
     #region OR Expressions
 
     [Test]
-    public void or_expression_has_no_server_filter() {
+    public async Task or_expression_has_no_server_filter() {
         var expr   = ParseExpression("stream = 'Orders-001' OR stream = 'Payments-002'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         // OR expressions cannot be lifted to server as a single AND-flattened predicate
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     #endregion
@@ -329,13 +329,13 @@ public class ServerFilterExtractorTests {
     #region Mixed Scope Filters
 
     [Test]
-    public void stream_and_schema_filters_uses_stream_scope() {
+    public async Task stream_and_schema_filters_uses_stream_scope() {
         // When we have both stream and schema_name filters, stream takes priority
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         // Stream predicate goes to server (priority), schema is handled client-side
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     #endregion
@@ -343,35 +343,35 @@ public class ServerFilterExtractorTests {
     #region Edge Cases
 
     [Test]
-    public void client_only_expression_has_no_server_filter() {
+    public async Task client_only_expression_has_no_server_filter() {
         // Create a simple expression that doesn't match any server patterns
         var expr   = ParseExpression("position > 0");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        filter.ShouldBe(RecordFilter.None);
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public void escapes_special_regex_characters() {
+    public async Task escapes_special_regex_characters() {
         var expr   = ParseExpression("stream = 'Orders.v1-ABC123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         // The dot should be escaped in the regex, but '-' doesn't need escaping
-        filter.Expression.ShouldBe(@"^Orders\.v1-ABC123$");
+        await Assert.That(filter.Expression).IsEqualTo(@"^Orders\.v1-ABC123$");
     }
 
     [Test]
-    public void multiple_category_predicates_combine() {
+    public async Task multiple_category_predicates_combine() {
         // When we have multiple stream predicates in AND, they combine
         var expr   = ParseExpression("stream LIKE 'Orders-%' AND stream LIKE '%-completed'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         // Both predicates can go to server and should be combined
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
         // Regex should be an alternation of both patterns
-        filter.Expression.ShouldNotBeNull();
-        filter.Expression.ShouldContain("Orders");
-        filter.Expression.ShouldContain("completed");
+        await Assert.That(filter.Expression).IsNotNull();
+        await Assert.That(filter.Expression).Contains("Orders");
+        await Assert.That(filter.Expression).Contains("completed");
     }
 
     #endregion
@@ -379,15 +379,15 @@ public class ServerFilterExtractorTests {
     #region RecordFilter Integration
 
     [Test]
-    public void expression_filter_extracts_target_stream() {
+    public async Task expression_filter_extracts_target_stream() {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
 
-        filter.TargetStream.Value.ShouldBe("Orders-ABC123");
-        filter.Expression.ShouldBe("stream = 'Orders-ABC123' AND properties.amount > 100");
+        await Assert.That(filter.TargetStream.Value).IsEqualTo("Orders-ABC123");
+        await Assert.That(filter.Expression).IsEqualTo("stream = 'Orders-ABC123' AND properties.amount > 100");
     }
 
     [Test]
-    public void expression_filter_matches_records_correctly() {
+    public async Task expression_filter_matches_records_correctly() {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND timestamp >= '2024-01-01'");
 
         var matching = new Record {
@@ -424,12 +424,12 @@ public class ServerFilterExtractorTests {
                 .With(SystemMetadataKeys.SchemaFormat, "json")
         };
 
-        filter.IsMatch(matching).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
     [Test]
-    public void stream_filter_matches_category_prefix() {
+    public async Task stream_filter_matches_category_prefix() {
         var filter = RecordFilter.ByStreamPrefix("Orders-");
 
         var matching = new Record {
@@ -458,12 +458,12 @@ public class ServerFilterExtractorTests {
                 .With(SystemMetadataKeys.SchemaFormat, "json")
         };
 
-        filter.IsMatch(matching).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
     [Test]
-    public void expression_filter_with_client_predicate_matches() {
+    public async Task expression_filter_with_client_predicate_matches() {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
 
         var matching = new Record {
@@ -494,15 +494,17 @@ public class ServerFilterExtractorTests {
                 .With("amount", 50)
         };
 
-        filter.IsMatch(matching).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
     #endregion
 
     IFilterExpression ParseExpression(string input) {
         var result = _parser.Parse(input);
-        result.IsSuccess.ShouldBeTrue($"Failed to parse: {input}");
+        if (!result.IsSuccess)
+            throw new InvalidOperationException($"Failed to parse: {input}");
+
         return result.Value;
     }
 }

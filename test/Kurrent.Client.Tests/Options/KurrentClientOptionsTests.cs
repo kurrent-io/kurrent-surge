@@ -5,130 +5,131 @@ namespace Kurrent.Client.Tests.Options;
 
 public class KurrentClientOptionsTests {
     [Test]
-    public void default_options_should_be_valid() {
+    public async Task default_options_should_be_valid() {
         var options = new KurrentClientOptions();
 
         var validationResult = options.ValidateOptions();
 
-        validationResult.IsSuccess.ShouldBeTrue("Default options should be valid");
+        await Assert.That(validationResult.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void creates_default_options_with_single_endpoint() {
+    public async Task creates_default_options_with_single_endpoint() {
         var options = new KurrentClientOptions();
 
-        options.ConnectionScheme.ShouldBe(KurrentConnectionScheme.Direct);
-        options.Endpoints.ShouldHaveSingleItem();
-        options.Gossip.ShouldBeEquivalentTo(KurrentClientGossipOptions.Default);
-        options.Security.ShouldBe(KurrentClientSecurityOptions.Default);
-        options.Resilience.ShouldBeEquivalentTo(KurrentClientResilienceOptions.NoResilience);
-        options.Schema.ShouldBeEquivalentTo(KurrentClientSchemaOptions.FullValidation);
-        options.Interceptors.ShouldBeEmpty();
+        await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Direct);
+        await Assert.That(options.Endpoints).HasSingleItem();
+        await Assert.That(options.Gossip).IsEqualTo(KurrentClientGossipOptions.Default);
+        await Assert.That(options.Security).IsEqualTo(KurrentClientSecurityOptions.Default);
+        await Assert.That(options.Resilience).IsEquivalentTo(KurrentClientResilienceOptions.NoResilience);
+        await Assert.That(options.Schema.AutoRegister).IsEqualTo(KurrentClientSchemaOptions.FullValidation.AutoRegister);
+        await Assert.That(options.Schema.Validate).IsEqualTo(KurrentClientSchemaOptions.FullValidation.Validate);
+        await Assert.That(options.Interceptors).IsEmpty();
     }
 
     [Test]
-    public void creates_options_from_connection_string() {
+    public async Task creates_options_from_connection_string() {
         var connectionString = "kurrentdb://admin:changeit@localhost:2113?tls=false";
         var options          = KurrentClientOptions.Parse(connectionString);
 
-        options.HasOriginalConnectionString.ShouldBeTrue();
-        options.OriginalConnectionString.ShouldBe(connectionString);
-        options.ConnectionScheme.ShouldBe(KurrentConnectionScheme.Direct);
-        options.Endpoints.Length.ShouldBe(1);
-        options.Endpoints[0].Host.ShouldBe("localhost");
-        options.Endpoints[0].Port.ShouldBe(2113);
-        options.Security.Transport.IsEnabled.ShouldBeFalse();
-        options.Security.Authentication.IsBasicCredentials.ShouldBeTrue();
+        await Assert.That(options.HasOriginalConnectionString).IsTrue();
+        await Assert.That(options.OriginalConnectionString).IsEqualTo(connectionString);
+        await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Direct);
+        await Assert.That(options.Endpoints.Length).IsEqualTo(1);
+        await Assert.That(options.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2113);
+        await Assert.That(options.Security.Transport.IsEnabled).IsFalse();
+        await Assert.That(options.Security.Authentication.IsBasicCredentials).IsTrue();
 
         var credentials = options.Security.Authentication.AsBasicCredentials;
-        credentials.Username.ShouldBe("admin");
-        credentials.Password.ShouldBe("changeit");
+        await Assert.That(credentials.Username).IsEqualTo("admin");
+        await Assert.That(credentials.Password).IsEqualTo("changeit");
     }
 
     [Test]
-    public void creates_options_from_discovery_connection_string() {
+    public async Task creates_options_from_discovery_connection_string() {
         var connectionString = "kurrentdb+discover://admin:changeit@node1:2113,node2:2113?tls=true";
         var options          = KurrentClientOptions.Parse(connectionString);
 
-        options.ConnectionScheme.ShouldBe(KurrentConnectionScheme.Discover);
-        options.Endpoints.Length.ShouldBe(2);
-        options.Endpoints[0].Host.ShouldBe("node1");
-        options.Endpoints[0].Port.ShouldBe(2113);
-        options.Endpoints[1].Host.ShouldBe("node2");
-        options.Endpoints[1].Port.ShouldBe(2113);
-        options.Security.Transport.IsEnabled.ShouldBeTrue();
+        await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Discover);
+        await Assert.That(options.Endpoints.Length).IsEqualTo(2);
+        await Assert.That(options.Endpoints[0].Host).IsEqualTo("node1");
+        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2113);
+        await Assert.That(options.Endpoints[1].Host).IsEqualTo("node2");
+        await Assert.That(options.Endpoints[1].Port).IsEqualTo(2113);
+        await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
     }
 
     [Test]
-    public void generates_connection_string_that_matches_original() {
+    public async Task generates_connection_string_that_matches_original() {
         var originalString = "kurrentdb://admin:changeit@localhost:2113?tls=false";
         var options        = KurrentClientOptions.Parse(originalString);
 
         var generatedString = options.GenerateConnectionString();
 
-        generatedString.ShouldContain("kurrentdb://");
-        generatedString.ShouldContain("admin:changeit@");
-        generatedString.ShouldContain("localhost:2113");
-        generatedString.ShouldContain("tls=false");
+        await Assert.That(generatedString).Contains("kurrentdb://");
+        await Assert.That(generatedString).Contains("admin:changeit@");
+        await Assert.That(generatedString).Contains("localhost:2113");
+        await Assert.That(generatedString).Contains("tls=false");
     }
 
     [Test]
-    public void handles_special_characters_in_credentials() {
+    public async Task handles_special_characters_in_credentials() {
         var connectionString = "kurrentdb://user%40domain:p%40ssw%3Ard@localhost:2113";
         var options          = KurrentClientOptions.Parse(connectionString);
 
         var credentials = options.Security.Authentication.AsBasicCredentials;
-        credentials.Username.ShouldBe("user@domain");
-        credentials.Password.ShouldBe("p@ssw:rd");
+        await Assert.That(credentials.Username).IsEqualTo("user@domain");
+        await Assert.That(credentials.Password).IsEqualTo("p@ssw:rd");
 
         var generatedString = options.GenerateConnectionString();
-        generatedString.ShouldContain("user%40domain:p%40ssw%3Ard@");
+        await Assert.That(generatedString).Contains("user%40domain:p%40ssw%3Ard@");
     }
 
     [Test]
-    public void generates_proper_http_uri_based_on_transport_security() {
+    public async Task generates_proper_http_uri_based_on_transport_security() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new("localhost", 2113)],
             Security         = KurrentClientSecurityOptions.Default
         };
 
-        options.HttpUriScheme.ShouldBe(Uri.UriSchemeHttps);
+        await Assert.That(options.HttpUriScheme).IsEqualTo(Uri.UriSchemeHttps);
 
         options = options with { Security = KurrentClientSecurityOptions.Insecure };
-        options.HttpUriScheme.ShouldBe(Uri.UriSchemeHttp);
+        await Assert.That(options.HttpUriScheme).IsEqualTo(Uri.UriSchemeHttp);
     }
 
     [Test]
-    public void generates_address_correctly_for_direct_connection() {
+    public async Task generates_address_correctly_for_direct_connection() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new("localhost", 2113)],
             Security         = KurrentClientSecurityOptions.Default
         };
 
-        options.Address.ShouldNotBeNull();
-        options.Address.Scheme.ShouldBe("https");
-        options.Address.Host.ShouldBe("localhost");
-        options.Address.Port.ShouldBe(2113);
+        await Assert.That(options.Address).IsNotNull();
+        await Assert.That(options.Address.Scheme).IsEqualTo("https");
+        await Assert.That(options.Address.Host).IsEqualTo("localhost");
+        await Assert.That(options.Address.Port).IsEqualTo(2113);
     }
 
     [Test]
-    public void generates_guid_address_for_discovery_connection() {
+    public async Task generates_guid_address_for_discovery_connection() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Discover,
             Endpoints        = [new("node1", 2113), new("node2", 2113)]
         };
 
-        options.Address.ShouldNotBeNull();
-        options.Address.Scheme.ShouldBe("kurrentdb+discover");
-        options.Address.Host.ShouldNotBeNullOrEmpty();
+        await Assert.That(options.Address).IsNotNull();
+        await Assert.That(options.Address.Scheme).IsEqualTo("kurrentdb+discover");
+        await Assert.That(options.Address.Host).IsNotNullOrEmpty();
 
-        Guid.TryParse(options.Address.Host, out _).ShouldBeTrue();
+        await Assert.That(Guid.TryParse(options.Address.Host, out _)).IsTrue();
     }
 
     [Test]
-    public void preserves_gossip_options_in_connection_string() {
+    public async Task preserves_gossip_options_in_connection_string() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Discover,
             Endpoints        = [new("localhost", 2113)],
@@ -142,14 +143,14 @@ public class KurrentClientOptionsTests {
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldContain("maxDiscoverAttempts=15");
-        connectionString.ShouldContain("discoveryInterval=200");
-        connectionString.ShouldContain("gossipTimeout=10");
-        connectionString.ShouldContain("nodePreference=leader");
+        await Assert.That(connectionString).Contains("maxDiscoverAttempts=15");
+        await Assert.That(connectionString).Contains("discoveryInterval=200");
+        await Assert.That(connectionString).Contains("gossipTimeout=10");
+        await Assert.That(connectionString).Contains("nodePreference=leader");
     }
 
     [Test]
-    public void preserves_resilience_options_in_connection_string() {
+    public async Task preserves_resilience_options_in_connection_string() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new("localhost", 2113)],
@@ -162,13 +163,13 @@ public class KurrentClientOptionsTests {
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldContain("keepAliveInterval=120");
-        connectionString.ShouldContain("keepAliveTimeout=60");
-        connectionString.ShouldContain("defaultDeadline=45000");
+        await Assert.That(connectionString).Contains("keepAliveInterval=120");
+        await Assert.That(connectionString).Contains("keepAliveTimeout=60");
+        await Assert.That(connectionString).Contains("defaultDeadline=45000");
     }
 
     [Test]
-    public void direct_connection_with_multiple_hosts_is_not_valid() {
+    public async Task direct_connection_with_multiple_hosts_is_not_valid() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints = [
@@ -180,11 +181,11 @@ public class KurrentClientOptionsTests {
 
         var result = options.ValidateOptions();
 
-        result.IsSuccess.ShouldBe(false, "Direct connection with multiple hosts must not be valid.");
+        await Assert.That(result.IsSuccess).IsEqualTo(false);
     }
 
     [Test]
-    public void discovery_connection_with_many_hosts_preserves_all_hosts() {
+    public async Task discovery_connection_with_many_hosts_preserves_all_hosts() {
         var endpoints = new[] {
             new DnsEndPoint("node1.example.com", 2113),
             new DnsEndPoint("node2.example.com", 2113),
@@ -201,11 +202,11 @@ public class KurrentClientOptionsTests {
         var connectionString = options.GenerateConnectionString();
 
         foreach (var endpoint in endpoints)
-            connectionString.ShouldContain($"{endpoint.Host}:{endpoint.Port}");
+            await Assert.That(connectionString).Contains($"{endpoint.Host}:{endpoint.Port}");
     }
 
     [Test]
-    public void discovery_connection_with_different_node_preferences() {
+    public async Task discovery_connection_with_different_node_preferences() {
         var nodePreferences = new[] {
             NodePreference.Leader,
             NodePreference.Follower,
@@ -225,12 +226,12 @@ public class KurrentClientOptionsTests {
             var connectionString = options.GenerateConnectionString();
 
             if (preference != NodePreference.Random)
-                connectionString.ShouldContain($"nodePreference={preference.ToString().ToLowerInvariant()}");
+                await Assert.That(connectionString).Contains($"nodePreference={preference.ToString().ToLowerInvariant()}");
         }
     }
 
     [Test]
-    public void connection_string_with_custom_connection_name() {
+    public async Task connection_string_with_custom_connection_name() {
         var options = new KurrentClientOptions {
             ConnectionName   = "custom-connection-1",
             ConnectionScheme = KurrentConnectionScheme.Direct,
@@ -239,33 +240,33 @@ public class KurrentClientOptionsTests {
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldContain("connectionName=custom-connection-1");
+        await Assert.That(connectionString).Contains("connectionName=custom-connection-1");
     }
 
     [Test]
-    public void connection_string_with_auto_generated_connection_name_omits_parameter() {
+    public async Task connection_string_with_auto_generated_connection_name_omits_parameter() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("localhost", 2113)]
         };
 
-        options.ConnectionName.ShouldStartWith("conn-");
+        await Assert.That(options.ConnectionName).StartsWith("conn-");
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldNotContain("connectionName=");
+        await Assert.That(connectionString).DoesNotContain("connectionName=");
     }
 
     [Test]
-    public void parses_connection_string_with_empty_query_parameters() {
+    public async Task parses_connection_string_with_empty_query_parameters() {
         var connectionString = "kurrentdb://localhost:2113?tlsVerifyCert=";
         var options          = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Transport.VerifyServerCertificate.ShouldBeTrue();
+        await Assert.That(options.Security.Transport.VerifyServerCertificate).IsTrue();
     }
 
     [Test]
-    public void client_certificate_auth_is_preserved_in_connection_string() {
+    public async Task client_certificate_auth_is_preserved_in_connection_string() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("localhost", 2113)],
@@ -277,12 +278,12 @@ public class KurrentClientOptionsTests {
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldContain($"{Uri.EscapeDataString("/path/to/client.crt")}");
-        connectionString.ShouldContain($"{Uri.EscapeDataString("/path/to/client.key")}");
+        await Assert.That(connectionString).Contains($"{Uri.EscapeDataString("/path/to/client.crt")}");
+        await Assert.That(connectionString).Contains($"{Uri.EscapeDataString("/path/to/client.key")}");
     }
 
     [Test]
-    public void resilience_with_infinite_timeout_values_creates_valid_connection_string() {
+    public async Task resilience_with_infinite_timeout_values_creates_valid_connection_string() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("localhost", 2113)],
@@ -295,52 +296,52 @@ public class KurrentClientOptionsTests {
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldNotBeNullOrEmpty();
+        await Assert.That(connectionString).IsNotNullOrEmpty();
     }
 
     #region Error Handling and Edge Cases
 
     [Test]
-    public void throws_when_parsing_connection_string_with_invalid_node_preference() {
+    public async Task throws_when_parsing_connection_string_with_invalid_node_preference() {
         var connectionString = "kurrentdb+discover://localhost?nodePreference=invalidPreference";
 
-        Should.Throw<Exception>(() => KurrentClientOptions.Parse(connectionString));
+        await Assert.That(() => KurrentClientOptions.Parse(connectionString)).ThrowsException();
     }
 
     [Test]
-    public void throws_when_parsing_connection_string_with_invalid_integer_parameters() {
+    public async Task throws_when_parsing_connection_string_with_invalid_integer_parameters() {
         var connectionString = "kurrentdb://localhost?maxDiscoverAttempts=notAnInteger";
 
-        Should.Throw<Exception>(() => KurrentClientOptions.Parse(connectionString));
+        await Assert.That(() => KurrentClientOptions.Parse(connectionString)).ThrowsException();
     }
 
     [Test]
-    public void handles_negative_timeout_values_in_connection_string() {
+    public async Task handles_negative_timeout_values_in_connection_string() {
         var connectionString = "kurrentdb://localhost?keepAliveInterval=-500";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Resilience.KeepAliveInterval.TotalMilliseconds.ShouldBe(-500);
+        await Assert.That(options.Resilience.KeepAliveInterval.TotalMilliseconds).IsEqualTo(-500);
     }
 
     [Test]
-    public void handles_connection_string_with_zero_timeout_values() {
+    public async Task handles_connection_string_with_zero_timeout_values() {
         var connectionString = "kurrentdb://localhost?keepAliveInterval=0&keepAliveTimeout=0";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Resilience.KeepAliveInterval.ShouldBe(TimeSpan.Zero);
-        options.Resilience.KeepAliveTimeout.ShouldBe(TimeSpan.Zero);
+        await Assert.That(options.Resilience.KeepAliveInterval).IsEqualTo(TimeSpan.Zero);
+        await Assert.That(options.Resilience.KeepAliveTimeout).IsEqualTo(TimeSpan.Zero);
     }
 
     [Test]
-    public void handles_connection_string_with_invalid_boolean_parameters() {
+    public async Task handles_connection_string_with_invalid_boolean_parameters() {
         var connectionString = "kurrentdb://localhost?tls=maybe&tlsVerifyCert=perhaps";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Transport.IsEnabled.ShouldBeTrue();
-        options.Security.Transport.VerifyServerCertificate.ShouldBeTrue();
+        await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
+        await Assert.That(options.Security.Transport.VerifyServerCertificate).IsTrue();
     }
 
     #endregion
@@ -348,7 +349,7 @@ public class KurrentClientOptionsTests {
     #region Builder Functionality Tests
 
     [Test]
-    public void get_builder_returns_functional_builder() {
+    public async Task get_builder_returns_functional_builder() {
         var originalOptions = new KurrentClientOptions {
             ConnectionName   = "test-connection",
             ConnectionScheme = KurrentConnectionScheme.Discover,
@@ -357,23 +358,23 @@ public class KurrentClientOptionsTests {
 
         var builder = originalOptions.GetBuilder();
 
-        builder.ShouldNotBeNull();
+        await Assert.That(builder).IsNotNull();
 
         var newOptions = builder.Build();
-        newOptions.ConnectionName.ShouldBe(originalOptions.ConnectionName);
-        newOptions.ConnectionScheme.ShouldBe(originalOptions.ConnectionScheme);
-        newOptions.Endpoints.Length.ShouldBe(originalOptions.Endpoints.Length);
+        await Assert.That(newOptions.ConnectionName).IsEqualTo(originalOptions.ConnectionName);
+        await Assert.That(newOptions.ConnectionScheme).IsEqualTo(originalOptions.ConnectionScheme);
+        await Assert.That(newOptions.Endpoints.Length).IsEqualTo(originalOptions.Endpoints.Length);
     }
 
     [Test]
-    public void static_build_property_returns_builder_instance() {
+    public async Task static_build_property_returns_builder_instance() {
         var builder = KurrentClientOptions.Build;
 
-        builder.ShouldNotBeNull();
+        await Assert.That(builder).IsNotNull();
 
         var options = builder.Build();
-        options.ShouldNotBeNull();
-        options.ConnectionScheme.ShouldBe(KurrentConnectionScheme.Direct);
+        await Assert.That(options).IsNotNull();
+        await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Direct);
     }
 
     #endregion
@@ -381,20 +382,20 @@ public class KurrentClientOptionsTests {
     #region Complex Property Logic Tests
 
     [Test]
-    public void address_property_handles_discovery_scheme_correctly() {
+    public async Task address_property_handles_discovery_scheme_correctly() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Discover,
             Endpoints        = [new DnsEndPoint("node1", 2113), new DnsEndPoint("node2", 2113)]
         };
 
         var address = options.Address;
-        address.Scheme.ShouldBe("kurrentdb+discover");
+        await Assert.That(address.Scheme).IsEqualTo("kurrentdb+discover");
 
-        Guid.TryParse(address.Host, out _).ShouldBeTrue();
+        await Assert.That(Guid.TryParse(address.Host, out _)).IsTrue();
     }
 
     [Test]
-    public void address_property_uses_https_for_secure_transport() {
+    public async Task address_property_uses_https_for_secure_transport() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("secure-host", 2113)],
@@ -402,13 +403,13 @@ public class KurrentClientOptionsTests {
         };
 
         var address = options.Address;
-        address.Scheme.ShouldBe("https");
-        address.Host.ShouldBe("secure-host");
-        address.Port.ShouldBe(2113);
+        await Assert.That(address.Scheme).IsEqualTo("https");
+        await Assert.That(address.Host).IsEqualTo("secure-host");
+        await Assert.That(address.Port).IsEqualTo(2113);
     }
 
     [Test]
-    public void address_property_uses_http_for_insecure_transport() {
+    public async Task address_property_uses_http_for_insecure_transport() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("insecure-host", 2113)],
@@ -416,32 +417,32 @@ public class KurrentClientOptionsTests {
         };
 
         var address = options.Address;
-        address.Scheme.ShouldBe("http");
-        address.Host.ShouldBe("insecure-host");
-        address.Port.ShouldBe(2113);
+        await Assert.That(address.Scheme).IsEqualTo("http");
+        await Assert.That(address.Host).IsEqualTo("insecure-host");
+        await Assert.That(address.Port).IsEqualTo(2113);
     }
 
     [Test]
-    public void has_original_connection_string_returns_false_for_manually_created_options() {
+    public async Task has_original_connection_string_returns_false_for_manually_created_options() {
         var options = new KurrentClientOptions {
             ConnectionName = "manual-connection"
         };
 
-        options.HasOriginalConnectionString.ShouldBeFalse();
-        options.OriginalConnectionString.ShouldBeEmpty();
+        await Assert.That(options.HasOriginalConnectionString).IsFalse();
+        await Assert.That(options.OriginalConnectionString).IsEmpty();
     }
 
     [Test]
-    public void has_original_connection_string_returns_true_for_parsed_options() {
+    public async Task has_original_connection_string_returns_true_for_parsed_options() {
         var connectionString = "kurrentdb://localhost";
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.HasOriginalConnectionString.ShouldBeTrue();
-        options.OriginalConnectionString.ShouldBe(connectionString);
+        await Assert.That(options.HasOriginalConnectionString).IsTrue();
+        await Assert.That(options.OriginalConnectionString).IsEqualTo(connectionString);
     }
 
     [Test]
-    public void to_string_calls_generate_connection_string() {
+    public async Task to_string_calls_generate_connection_string() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("localhost", 2113)]
@@ -450,9 +451,9 @@ public class KurrentClientOptionsTests {
         var toString = options.ToString();
         var generated = options.GenerateConnectionString();
 
-        toString.ShouldBe(generated);
-        toString.ShouldContain("kurrentdb://");
-        toString.ShouldContain("localhost:2113");
+        await Assert.That(toString).IsEqualTo(generated);
+        await Assert.That(toString).Contains("kurrentdb://");
+        await Assert.That(toString).Contains("localhost:2113");
     }
 
     #endregion
@@ -460,34 +461,34 @@ public class KurrentClientOptionsTests {
     #region Authentication Configuration Edge Cases
 
     [Test]
-    public void handles_mixed_authentication_configuration_priority() {
+    public async Task handles_mixed_authentication_configuration_priority() {
         var connectionString = "kurrentdb://user:pass@localhost?userCertFile=/cert.crt&userKeyFile=/key.key";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Authentication.IsFileCertificateCredentials.ShouldBeTrue();
-        options.Security.Authentication.IsBasicCredentials.ShouldBeFalse();
+        await Assert.That(options.Security.Authentication.IsFileCertificateCredentials).IsTrue();
+        await Assert.That(options.Security.Authentication.IsBasicCredentials).IsFalse();
     }
 
     [Test]
-    public void handles_basic_authentication_from_connection_string() {
+    public async Task handles_basic_authentication_from_connection_string() {
         var connectionString = "kurrentdb://testuser:testpass@localhost";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Authentication.IsBasicCredentials.ShouldBeTrue();
+        await Assert.That(options.Security.Authentication.IsBasicCredentials).IsTrue();
         var credentials = options.Security.Authentication.AsBasicCredentials;
-        credentials.Username.ShouldBe("testuser");
-        credentials.Password.ShouldBe("testpass");
+        await Assert.That(credentials.Username).IsEqualTo("testuser");
+        await Assert.That(credentials.Password).IsEqualTo("testpass");
     }
 
     [Test]
-    public void handles_no_authentication_configuration() {
+    public async Task handles_no_authentication_configuration() {
         var connectionString = "kurrentdb://localhost";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Authentication.IsNoCredentials.ShouldBeTrue();
+        await Assert.That(options.Security.Authentication.IsNoCredentials).IsTrue();
     }
 
     #endregion
@@ -495,32 +496,32 @@ public class KurrentClientOptionsTests {
     #region Transport Security Combinations
 
     [Test]
-    public void handles_tls_enabled_with_certificate_verification_disabled() {
+    public async Task handles_tls_enabled_with_certificate_verification_disabled() {
         var connectionString = "kurrentdb://localhost?tls=true&tlsVerifyCert=false";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Transport.IsEnabled.ShouldBeTrue();
-        options.Security.Transport.VerifyServerCertificate.ShouldBeFalse();
+        await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
+        await Assert.That(options.Security.Transport.VerifyServerCertificate).IsFalse();
     }
 
     [Test]
-    public void handles_tls_disabled_configuration() {
+    public async Task handles_tls_disabled_configuration() {
         var connectionString = "kurrentdb://localhost?tls=false";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Transport.IsEnabled.ShouldBeFalse();
+        await Assert.That(options.Security.Transport.IsEnabled).IsFalse();
     }
 
     [Test]
-    public void handles_custom_ca_certificate_configuration() {
+    public async Task handles_custom_ca_certificate_configuration() {
         var connectionString = "kurrentdb://localhost?tls=true&tlsCaFile=/path/to/ca.crt";
 
         var options = KurrentClientOptions.Parse(connectionString);
 
-        options.Security.Transport.IsEnabled.ShouldBeTrue();
-        options.Security.Transport.IsFileCertificateTls.ShouldBeTrue();
+        await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
+        await Assert.That(options.Security.Transport.IsFileCertificateTls).IsTrue();
     }
 
     #endregion
@@ -528,7 +529,7 @@ public class KurrentClientOptionsTests {
     #region Validation Integration Tests
 
     [Test]
-    public void validation_fails_for_direct_connection_with_multiple_endpoints() {
+    public async Task validation_fails_for_direct_connection_with_multiple_endpoints() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints = [
@@ -538,11 +539,11 @@ public class KurrentClientOptionsTests {
         };
 
         var result = options.ValidateOptions();
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void validation_succeeds_for_discovery_connection_with_multiple_endpoints() {
+    public async Task validation_succeeds_for_discovery_connection_with_multiple_endpoints() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Discover,
             Endpoints = [
@@ -552,18 +553,18 @@ public class KurrentClientOptionsTests {
         };
 
         var result = options.ValidateOptions();
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void validation_fails_for_empty_endpoints_array() {
+    public async Task validation_fails_for_empty_endpoints_array() {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = []
         };
 
         var result = options.ValidateOptions();
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     #endregion
@@ -571,18 +572,18 @@ public class KurrentClientOptionsTests {
     #region Connection String Generation Edge Cases
 
     [Test]
-    public void generates_minimal_connection_string_for_default_options() {
+    public async Task generates_minimal_connection_string_for_default_options() {
         var options = new KurrentClientOptions();
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldContain("kurrentdb://");
-        connectionString.ShouldContain("localhost:2113");
-        connectionString.ShouldNotContain("connectionName=conn-");
+        await Assert.That(connectionString).Contains("kurrentdb://");
+        await Assert.That(connectionString).Contains("localhost:2113");
+        await Assert.That(connectionString).DoesNotContain("connectionName=conn-");
     }
 
     [Test]
-    public void generates_connection_string_with_all_custom_options() {
+    public async Task generates_connection_string_with_all_custom_options() {
         var options = new KurrentClientOptions {
             ConnectionName   = "custom-conn",
             ConnectionScheme = KurrentConnectionScheme.Discover,
@@ -603,18 +604,18 @@ public class KurrentClientOptionsTests {
 
         var connectionString = options.GenerateConnectionString();
 
-        connectionString.ShouldNotBeNullOrEmpty();
-        connectionString.ShouldContain("kurrentdb+discover://");
-        connectionString.ShouldContain("custom-host:2113");
-        connectionString.ShouldContain("tls=false");
-        connectionString.ShouldContain("connectionName=custom-conn");
-        connectionString.ShouldContain("nodePreference=leader");
-        connectionString.ShouldContain("maxDiscoverAttempts=20");
-        connectionString.ShouldContain("discoveryInterval=300");
-        connectionString.ShouldContain("gossipTimeout=15");
-        connectionString.ShouldContain("keepAliveInterval=120");
-        connectionString.ShouldContain("keepAliveTimeout=60");
-        connectionString.ShouldContain("defaultDeadline=45000");
+        await Assert.That(connectionString).IsNotNullOrEmpty();
+        await Assert.That(connectionString).Contains("kurrentdb+discover://");
+        await Assert.That(connectionString).Contains("custom-host:2113");
+        await Assert.That(connectionString).Contains("tls=false");
+        await Assert.That(connectionString).Contains("connectionName=custom-conn");
+        await Assert.That(connectionString).Contains("nodePreference=leader");
+        await Assert.That(connectionString).Contains("maxDiscoverAttempts=20");
+        await Assert.That(connectionString).Contains("discoveryInterval=300");
+        await Assert.That(connectionString).Contains("gossipTimeout=15");
+        await Assert.That(connectionString).Contains("keepAliveInterval=120");
+        await Assert.That(connectionString).Contains("keepAliveTimeout=60");
+        await Assert.That(connectionString).Contains("defaultDeadline=45000");
     }
 
     #endregion

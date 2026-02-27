@@ -8,7 +8,6 @@
   <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
-    <Using Include="Shouldly" />
     <Using Include="TUnit" />
   </ItemGroup>
 
@@ -18,7 +17,6 @@
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Shouldly" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

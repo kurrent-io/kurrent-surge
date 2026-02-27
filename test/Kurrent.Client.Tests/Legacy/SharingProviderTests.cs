@@ -14,7 +14,7 @@ public class SharingProviderTests {
             5
         );
 
-        (await sut.CurrentAsync).ShouldBe(6);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(6);
     }
 
     [Test, Retry(3)]
@@ -26,9 +26,9 @@ public class SharingProviderTests {
             true
         );
 
-        (await sut.CurrentAsync).ShouldBe(0);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
         sut.Reset();
-        (await sut.CurrentAsync).ShouldBe(1);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(1);
     }
 
     [Test, Retry(3)]
@@ -44,13 +44,13 @@ public class SharingProviderTests {
             true
         );
 
-        (await sut.CurrentAsync).ShouldBe(0);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
 
         onBroken?.Invoke(true);
-        (await sut.CurrentAsync).ShouldBe(1);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(1);
 
         onBroken?.Invoke(true);
-        (await sut.CurrentAsync).ShouldBe(2);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(2);
     }
 
     [Test, Retry(3)]
@@ -66,7 +66,7 @@ public class SharingProviderTests {
             true
         );
 
-        (await sut.CurrentAsync).ShouldBe(0);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
 
         var firstOnBroken = onBroken;
         firstOnBroken?.Invoke(true);
@@ -74,7 +74,7 @@ public class SharingProviderTests {
         firstOnBroken?.Invoke(true);
 
         // factory is only executed once
-        (await sut.CurrentAsync).ShouldBe(1);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(1);
     }
 
     [Test, Retry(3)]
@@ -95,25 +95,25 @@ public class SharingProviderTests {
 
         var currentTask = sut.CurrentAsync;
 
-        currentTask.IsCompleted.ShouldBeFalse();
+        await Assert.That(currentTask.IsCompleted).IsFalse();
 
         // return it even though it is pending
         onBroken?.Invoke(true);
 
         // box wasn't replaced
-        sut.CurrentAsync.ShouldBe(currentTask);
+        await Assert.That(ReferenceEquals(sut.CurrentAsync, currentTask)).IsTrue();
 
         // factory was not called again
-        count.ShouldBe(1);
+        await Assert.That(count).IsEqualTo(1);
 
         // complete whatever factory calls
         trigger.Release(100);
 
         // can get the value now
-        (await sut.CurrentAsync).ShouldBe(1);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(1);
 
         // factory still wasn't called again
-        count.ShouldBe(1);
+        await Assert.That(count).IsEqualTo(1);
     }
 
     [Test, Retry(3)]
@@ -125,9 +125,9 @@ public class SharingProviderTests {
         );
 
         // exception propagated to consumer
-        var ex = await Should.ThrowAsync<Exception>(async () => { await sut.CurrentAsync; });
+        var ex = await Assert.That(async () => { await sut.CurrentAsync; }).ThrowsExactly<Exception>();
 
-        ex.Message.ShouldBe("input 0");
+        await Assert.That(ex.Message).IsEqualTo("input 0");
     }
 
     // safe to call onBroken before the factory has returned, but it doesn't
@@ -147,7 +147,7 @@ public class SharingProviderTests {
         );
 
         // onBroken was called but it didn't do anything
-        (await sut.CurrentAsync).ShouldBe(0);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
     }
 
     [Test, Retry(3)]
@@ -165,9 +165,9 @@ public class SharingProviderTests {
             0
         );
 
-        var ex = await Should.ThrowAsync<Exception>(async () => { await sut.CurrentAsync; });
+        var ex = await Assert.That(async () => { await sut.CurrentAsync; }).ThrowsExactly<Exception>();
 
-        ex.Message.ShouldBe("input 0");
+        await Assert.That(ex.Message).IsEqualTo("input 0");
     }
 
     [Test, Retry(3)]
@@ -185,8 +185,8 @@ public class SharingProviderTests {
             true
         );
 
-        (await sut.CurrentAsync).ShouldBe(0);
-        count.ShouldBe(1);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
+        await Assert.That(count).IsEqualTo(1);
 
         sut.Dispose();
 
@@ -194,8 +194,8 @@ public class SharingProviderTests {
         onBroken?.Invoke(true);
 
         // the factory method isn't called any more
-        await Should.ThrowAsync<ObjectDisposedException>(async () => await sut.CurrentAsync);
-        count.ShouldBe(1);
+        await Assert.That(async () => await sut.CurrentAsync).ThrowsExactly<ObjectDisposedException>();
+        await Assert.That(count).IsEqualTo(1);
     }
 
     [Test, Retry(3)]
@@ -234,7 +234,7 @@ public class SharingProviderTests {
 
         // got an item (0)
         completeConstruction.Release();
-        (await sut.CurrentAsync).ShouldBe(0);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
 
         // when item 0 fails
         triggerFailure.Release();
@@ -243,7 +243,7 @@ public class SharingProviderTests {
         // then a new item is produced (1)
         await constructionCompleted.WaitAsync();
         completeConstruction.Release();
-        (await sut.CurrentAsync).ShouldBe(1);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(1);
 
         // when item 1 fails
         triggerFailure.Release();
@@ -253,8 +253,8 @@ public class SharingProviderTests {
         var t = sut.CurrentAsync;
         await constructionCompleted.WaitAsync();
         completeConstruction.Release();
-        var ex = await Should.ThrowAsync<Exception>(async () => { await t; });
-        ex.Message.ShouldBe("fail to create 2 in factory");
+        var ex = await Assert.That(async () => { await t; }).ThrowsExactly<Exception>();
+        await Assert.That(ex.Message).IsEqualTo("fail to create 2 in factory");
 
         // when the factory is allowed to produce another item (0), it does:
         await constructionCompleted.WaitAsync();
@@ -265,6 +265,6 @@ public class SharingProviderTests {
         // the previous awaiting this semaphor are only there so that we can tell when
         // this one is done.
         await constructionCompleted.WaitAsync();
-        (await sut.CurrentAsync).ShouldBe(0);
+        await Assert.That(await sut.CurrentAsync).IsEqualTo(0);
     }
 }
