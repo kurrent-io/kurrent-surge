@@ -73,7 +73,7 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
             Checks  = [ConsistencyCheck.Stream(omgRefactor.Stream).DoesNotExist()]
         };
 
-        var response = await Client.Streams.AppendRecordsAsync(request, cancellationToken: cancellationToken);
+        var response = await Client.Streams.AppendRecords(request, cancellationToken: cancellationToken);
 
         Log.Debug(
             "Seeded SmartHomeActivity to stream {Stream} with {Count} events with revision {Revision} at position {Position}",
@@ -98,7 +98,7 @@ public record SeededSmartHomeActivity(SmartHomeActivity Activity, Revision Revis
     public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
         Activity.WithExpectedRevision(expectedRevision);
 
-    public static implicit operator AppendStreamRequest(SeededSmartHomeActivity _) => _.Activity;
+    public static implicit operator AppendRecordsRequest(SeededSmartHomeActivity _) => _.Activity;
 }
 
 static class HomeAutomationTestData {
@@ -118,7 +118,7 @@ static class HomeAutomationTestData {
             .Build();
 
         var lastEventTs = request.Records.Last().Metadata
-            .GetRequired<long>("iot.evt.timestamp");
+            .GetRequiredValue<long>("iot.evt.timestamp");
 
         return new SmartHomeActivity(home, request, lastEventTs);
     }
@@ -144,17 +144,21 @@ static class HomeAutomationTestData {
     }
 }
 
-public record SmartHomeActivity(SmartHome Home, AppendStreamRequest Request, long LastTimestamp) : IEnumerable<AppendRecord> {
-    public StreamName                  Stream   { get; } = Request.Stream;
-    public ImmutableList<AppendRecord> Messages { get; } = Request.Messages.ToImmutableList();
+public record SmartHomeActivity(SmartHome Home, AppendRecordsRequest Request, long LastTimestamp) : IEnumerable<AppendRecord> {
+    public StreamName                  Stream   { get; } = Request.Records[0].Stream;
+    public ImmutableList<AppendRecord> Messages { get; } = Request.Records.ToImmutableList();
 
     public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
-        this with { Request = HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp) };
+        HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp);
 
     public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
-        this with { Request = Request with { ExpectedState = Revision.From(expectedRevision) } };
+        this with {
+            Request = Request with {
+                Checks = [ConsistencyCheck.Stream(Stream).AtRevision(Revision.From(expectedRevision))]
+            }
+        };
 
-    public static implicit operator AppendStreamRequest(SmartHomeActivity _) => _.Request;
+    public static implicit operator AppendRecordsRequest(SmartHomeActivity _) => _.Request;
 
     public IEnumerator<AppendRecord> GetEnumerator() => Messages.GetEnumerator();
 

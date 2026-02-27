@@ -12,14 +12,12 @@
   <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
-    <Using Include="Shouldly" />
     <Using Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FakeItEasy" />
-    <PackageReference Include="Shouldly" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 
