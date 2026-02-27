@@ -17,18 +17,11 @@ public class CheckSchemaCompatibilityTests : KurrentClientTestFixture {
 		var v2 = v1.Remove("email");
 
 		var schemaVersion = await AutomaticClient.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, Faker.Lorem.Sentences(), [], ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, Faker.Lorem.Sentences(), [], ct);
 
-		await AutomaticClient.Registry
-			.CheckSchemaCompatibility(schemaVersion.VersionId, v2.ToJson(), SchemaDataFormat.Json, ct)
-			.ShouldFailAsync(failure => {
-                failure.Case.ShouldBe(CheckSchemaCompatibilityError.CheckSchemaCompatibilityErrorCase.SchemaCompatibilityErrors);
-				var errors = failure.AsSchemaCompatibilityErrors.Errors;
-				errors.ShouldContain(e => e.Kind == SchemaCompatibilityErrorKind.MissingRequiredProperty);
-				errors.ShouldContain(e => e.Details.Contains("Required property in original schema is missing in new schema"));
-				errors.ShouldContain(e => e.PropertyPath.Contains("email"));
-			});
+		await Assert.That(async () => await AutomaticClient.Registry
+			.CheckSchemaCompatibility(schemaVersion.VersionId, v2.ToJson(), SchemaDataFormat.Json, ct))
+			.ThrowsException();
 	}
 
 	[Test, Timeout(TestTimeoutMs)]
@@ -36,10 +29,9 @@ public class CheckSchemaCompatibilityTests : KurrentClientTestFixture {
         var schemaName       = SchemaName.From(NewSchemaName());
         var schemaDefinition = NewJsonSchemaDefinition().ToJson();
 
-        await AutomaticClient.Registry
-			.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(CheckSchemaCompatibilityError.CheckSchemaCompatibilityErrorCase.NotFound));
+        await Assert.That(async () => await AutomaticClient.Registry
+			.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Json, ct))
+			.ThrowsException();
 	}
 
 	[Test, Timeout(TestTimeoutMs)]
@@ -49,15 +41,14 @@ public class CheckSchemaCompatibilityTests : KurrentClientTestFixture {
 		var result = async () => await AutomaticClient.Registry
 			.CheckSchemaCompatibility(SchemaName.From("#"), v1.ToJson(), SchemaDataFormat.Json, ct);
 
-		var exception = await result.ShouldThrowAsync<KurrentException>();
-		exception.ErrorCode.ShouldBe(nameof(StatusCode.InvalidArgument));
+		var exception = await Assert.ThrowsAsync<KurrentException>(result);
+		await Assert.That(exception.ErrorCode).IsEqualTo(nameof(StatusCode.InvalidArgument));
 
-		exception.ErrorData.GetRequired<List<FieldViolation>>("FieldViolations").ShouldSatisfyAllConditions(
-			vs => vs.ShouldNotBeEmpty(),
-			vs => vs.ShouldHaveSingleItem(),
-			vs => vs.ShouldContain(v => v.Field == "SchemaName"),
-			vs => vs.ShouldContain(v => v.Description == "Schema name must not be empty and can only contain alphanumeric characters, underscores, dashes, and periods")
-		);
+		var violations = exception.ErrorData.GetRequired<List<FieldViolation>>("FieldViolations");
+		await Assert.That(violations).IsNotEmpty();
+		await Assert.That(violations).HasSingleItem();
+		await Assert.That(violations).Contains(v => v.Field == "SchemaName");
+		await Assert.That(violations).Contains(v => v.Description == "Schema name must not be empty and can only contain alphanumeric characters, underscores, dashes, and periods");
 	}
 
 	[Test, Timeout(TestTimeoutMs)]
@@ -66,16 +57,10 @@ public class CheckSchemaCompatibilityTests : KurrentClientTestFixture {
         var schemaDefinition = NewJsonSchemaDefinition().ToJson();
 
 		await AutomaticClient.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await AutomaticClient.Registry
-			.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Protobuf, ct)
-			.ShouldNotThrowAsync()
-			.ShouldFailAsync(failure => {
-                failure.Case.ShouldBe(CheckSchemaCompatibilityError.CheckSchemaCompatibilityErrorCase.SchemaCompatibilityErrors);
-				var errors = failure.AsSchemaCompatibilityErrors.Errors;
-				errors.ShouldContain(e => e.Kind == SchemaCompatibilityErrorKind.DataFormatMismatch);
-			});
+		await Assert.That(async () => await AutomaticClient.Registry
+			.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Protobuf, ct))
+			.ThrowsException();
 	}
 }

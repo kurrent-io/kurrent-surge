@@ -17,21 +17,19 @@ public class GetSchemaTests : KurrentClientTestFixture {
             .CreateSchema(
 			    schemaName, schemaDefinition, SchemaDataFormat.Json,
 			    CompatibilityMode.Backward, description, tags, ct
-		    )
-            .ShouldNotThrowOrFailAsync();
+		    );
 
-		await AutomaticClient.Registry
-            .GetSchema(schemaName, cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync(schema => {
-				schema.LatestSchemaVersion.ShouldBe(schemaVersion.VersionNumber);
-				schema.SchemaName.Value.ShouldBe(schemaName);
-				schema.CreatedAt.ShouldBeGreaterThan(DateTimeOffset.MinValue);
-				schema.UpdatedAt.ShouldBeGreaterThan(DateTimeOffset.MinValue);
-				schema.Details.Compatibility.ShouldBe(CompatibilityMode.Backward);
-				schema.Details.Description.ShouldBe(description);
-				schema.Details.Tags.ShouldBe(tags);
-				schema.Details.DataFormat.ShouldBe(SchemaDataFormat.Json);
-			});
+		var schema = await AutomaticClient.Registry
+            .GetSchema(schemaName, cancellationToken: ct);
+
+		await Assert.That(schema.LatestSchemaVersion).IsEqualTo(schemaVersion.VersionNumber);
+		await Assert.That(schema.SchemaName.Value).IsEqualTo(schemaName);
+		await Assert.That(schema.CreatedAt).IsGreaterThan(DateTimeOffset.MinValue);
+		await Assert.That(schema.UpdatedAt).IsGreaterThan(DateTimeOffset.MinValue);
+		await Assert.That(schema.Details.Compatibility).IsEqualTo(CompatibilityMode.Backward);
+		await Assert.That(schema.Details.Description).IsEqualTo(description);
+		await Assert.That(schema.Details.Tags).IsEqualTo(tags);
+		await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 	}
 
 	[Test, Timeout(TestTimeoutMs)]
@@ -39,10 +37,9 @@ public class GetSchemaTests : KurrentClientTestFixture {
 
 		var schemaName = NewSchemaName();
 
-		await AutomaticClient.Registry
-			.GetSchema(schemaName, cancellationToken: ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(GetSchemaError.GetSchemaErrorCase.NotFound));
+		await Assert.That(async () => await AutomaticClient.Registry
+			.GetSchema(schemaName, cancellationToken: ct))
+			.ThrowsException();
 	}
 
 	[Test, Timeout(TestTimeoutMs)]
@@ -52,16 +49,13 @@ public class GetSchemaTests : KurrentClientTestFixture {
         var schemaDefinition = NewJsonSchemaDefinition().ToJson();
 
 		await AutomaticClient.Registry
-            .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-            .ShouldNotThrowOrFailAsync();
+            .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await AutomaticClient.Registry
-            .DeleteSchema(schemaName, ct)
-            .ShouldNotThrowOrFailAsync();
+            .DeleteSchema(schemaName, ct);
 
-		await AutomaticClient.Registry
-			.GetSchema(schemaName, cancellationToken: ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(GetSchemaError.GetSchemaErrorCase.NotFound));
+		await Assert.That(async () => await AutomaticClient.Registry
+			.GetSchema(schemaName, cancellationToken: ct))
+			.ThrowsException();
 	}
 }

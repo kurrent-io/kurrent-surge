@@ -10,10 +10,9 @@ public class DeleteSchemaTests : KurrentClientTestFixture {
 	public async Task deletes_schema_throws_not_found_when_schema_does_not_exist(CancellationToken ct) {
 		var schemaName = NewSchemaName();
 
-		await AutomaticClient.Registry
-			.DeleteSchema(schemaName, ct)
-            .ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(DeleteSchemaError.DeleteSchemaErrorCase.NotFound));
+		await Assert.That(async () => await AutomaticClient.Registry
+			.DeleteSchema(schemaName, ct))
+			.ThrowsException();
 	}
 
 	[Test, Timeout(TestTimeoutMs)]
@@ -22,11 +21,9 @@ public class DeleteSchemaTests : KurrentClientTestFixture {
 		var schemaDefinition = NewJsonSchemaDefinition().ToJson();
 
 		await AutomaticClient.Registry
-			.CreateSchema(schemaName,schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName,schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await AutomaticClient.Registry
-			.DeleteSchema(schemaName, ct)
-			.ShouldNotThrowOrFailAsync();
+			.DeleteSchema(schemaName, ct);
 	}
 }

@@ -27,55 +27,64 @@ public static class HomeAutomationTestData {
 
         var request = events
             .Aggregate(
-                AppendStreamRequest.New(),
-                (bldr, evt) => bldr.WithRecord(CreateRecord(evt, bldr.MessageCount + 1)))
-            .ForStream($"{nameof(SmartHomeActivity)}-{home.Id}")
+                AppendRecordsRequest.ToStream($"{nameof(SmartHomeActivity)}-{home.Id}"),
+                (bldr, evt) => {
+                    dynamic iotEvent = evt;
+                    return bldr.WithRecord(rec => rec
+                        .WithRecordId(iotEvent.EventId)
+                        .WithValue(evt)
+                        .WithDataFormat(SchemaDataFormat.Json)
+                        .WithMetadata("iot.evt.sequence", bldr.RecordsCount + 1)
+                        .WithMetadata("iot.evt.timestamp", iotEvent.Timestamp));
+                }
+            )
             .Build();
 
-        var lastEventTs = request.Messages.Last().Metadata
-            .GetRequired<long>("iot.evt.timestamp");
+        var lastEventTs = request.Records.Last().Metadata.GetRequiredValue<long>("iot.evt.timestamp");
 
-        return new SmartHomeActivity(home, request, lastEventTs);
+        return SmartHomeActivity.From(home, request, lastEventTs);
     }
 
     public static SmartHomeActivity SimulateHomeActivity(int? numberOfEvents = null, long? startTime = null) =>
         SimulateHomeActivity(HomeAutomationDataSet.Default.Home(), numberOfEvents, startTime);
-
-    static AppendRecord CreateRecord(object evt, int sequence) {
-        dynamic iotEvent = evt;
-
-        Guid recordId  = iotEvent.EventId;
-        long timestamp = iotEvent.Timestamp;
-
-        var meta = Metadata.New
-            .With("iot.evt.sequence", sequence)
-            // .With(SystemMetadataKeys.Timestamp, timestamp)
-            .With("iot.evt.timestamp", timestamp);
-
-        var record = AppendRecord.New
-            .WithValue(evt)
-            .WithDataFormat(SchemaDataFormat.Json)
-            .WithRecordId(recordId)
-            .WithMetadata(meta)
-            .Build();
-
-        return record;
-    }
 }
 
-public record SmartHomeActivity(SmartHome Home, AppendStreamRequest AppendRequest, long LastTimestamp) : IEnumerable<AppendRecord> {
-    public StreamName                  Stream   { get; } = AppendRequest.Stream;
-    public ImmutableList<AppendRecord> Messages { get; } = AppendRequest.Messages.ToImmutableList();
+public record SmartHomeActivity : IEnumerable<AppendRecord> {
+    SmartHomeActivity() { }
 
-    public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
-        this with { AppendRequest = HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp) };
+    public required StreamName                  Stream        { get; init; }
+    public required ImmutableList<AppendRecord> Records       { get; init; }
+    public required SmartHome                   Home          { get; init; }
+    public required AppendRecordsRequest        AppendRequest { get; init; }
+    public required long                        LastTimestamp { get; init; }
 
-    public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
-        this with { AppendRequest = AppendRequest with { ExpectedState = Revision.From(expectedRevision) } };
+    public static SmartHomeActivity From(SmartHome home, AppendRecordsRequest request, long lastTimestamp) =>
+        new() {
+            Home          = home,
+            AppendRequest = request,
+            LastTimestamp = lastTimestamp,
+            Stream        = request.Records[0].Stream,
+            Records       = request.Records.ToImmutableList()
+        };
 
-    public static implicit operator AppendStreamRequest(SmartHomeActivity _) => _.AppendRequest;
-
-    public IEnumerator<AppendRecord> GetEnumerator() => Messages.GetEnumerator();
+    public IEnumerator<AppendRecord> GetEnumerator() => Records.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) => HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp);
+
+    public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
+        this with {
+            AppendRequest = AppendRequest with {
+                Checks = [ConsistencyCheck.Stream(Stream).AtRevision(Revision.From(expectedRevision))]
+            }
+        };
+
+    public static implicit operator AppendRecordsRequest(SmartHomeActivity _) => _.AppendRequest;
+
+    public void Deconstruct(out SmartHome home, out AppendRecordsRequest request, out long lastTimestamp) {
+        home          = Home;
+        request       = AppendRequest;
+        lastTimestamp = LastTimestamp;
+    }
 }

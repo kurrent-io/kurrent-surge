@@ -1,6 +1,6 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -16,15 +16,13 @@ public class TruncateTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await  Fixture.Client.Streams
-            .Truncate(simulation.Stream, simulation.Revision, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Truncate(simulation.Stream, simulation.Revision, ct);
 
         var messages = await  Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .ReadStreamRecords(simulation.Stream, ct);
 
         var count = await messages.CountAsync(ct);
-        count.ShouldBe(1, "Stream should contain only the truncation marker message");
+        await Assert.That(count).IsEqualTo(1);
     }
 
     [Test]
@@ -34,15 +32,13 @@ public class TruncateTests {
         var revision = simulation.Revision + 1; // all messages
 
         await Fixture.Client.Streams
-            .Truncate(simulation.Stream, revision, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Truncate(simulation.Stream, revision, ct);
 
         var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .ReadStreamRecords(simulation.Stream, ct);
 
         var count = await messages.CountAsync(ct);
-        count.ShouldBe(0, "Stream should be empty after truncation");
+        await Assert.That(count).IsEqualTo(0);
     }
 
     [Test]
@@ -51,9 +47,8 @@ public class TruncateTests {
 
         var badRevision = simulation.Revision + 99;
 
-        await Fixture.Client.Streams
-            .Truncate(simulation.Stream, badRevision, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(TruncateStreamError.TruncateStreamErrorCase.StreamRevisionConflictException));
+        await Assert.That(async () => await Fixture.Client.Streams
+            .Truncate(simulation.Stream, badRevision, ct))
+            .Throws<StreamRevisionConflictException>();
     }
 }
