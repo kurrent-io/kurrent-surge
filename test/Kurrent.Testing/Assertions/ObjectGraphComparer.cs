@@ -27,25 +27,25 @@ static class ObjectGraphComparer {
         if (BothValuesAreNull(actual, expected, path))
             return;
 
-        var type = GetTypeToCompare(actual, expected, path);
+        var (actualType, expectedType) = GetTypesToCompare(actual, expected, path, config);
 
-        if (config != null && TryCustomCompare(actual, expected, type, config, path))
+        if (config != null && TryCustomCompare(actual, expected, actualType, config, path))
             return;
 
-        if (config?.ShouldCompareByValue(type) == true) {
+        if (config?.ShouldCompareByValue(actualType) == true) {
             if (!actual.Equals(expected))
                 Throw(actual, expected, path);
             return;
         }
 
-        if (type == typeof(string))
+        if (actualType == typeof(string))
             CompareStrings((string)actual, (string)expected, path, config);
-        else if (typeof(IEnumerable).IsAssignableFrom(type))
+        else if (typeof(IEnumerable).IsAssignableFrom(actualType))
             CompareEnumerables((IEnumerable)actual, (IEnumerable)expected, path, previousComparisons, config, depth);
-        else if (type.IsValueType)
+        else if (actualType.IsValueType)
             CompareValueTypes((ValueType)actual, (ValueType)expected, path, config);
         else
-            CompareReferenceTypes(actual, expected, type, path, previousComparisons, config, depth);
+            CompareReferenceTypes(actual, expected, actualType, expectedType, path, previousComparisons, config, depth);
     }
 
     static bool TryCustomCompare(
@@ -78,11 +78,13 @@ static class ObjectGraphComparer {
         return false;
     }
 
-    static Type GetTypeToCompare(object actual, object expected, IList<string> path) {
+    static (Type actualType, Type expectedType) GetTypesToCompare(
+        object actual, object expected, IList<string> path, EquivalencyConfiguration? config
+    ) {
         var expectedType = expected.GetType();
         var actualType   = actual.GetType();
 
-        if (actualType != expectedType)
+        if (actualType != expectedType && config?.ExcludeMissingMembers != true)
             Throw(actualType, expectedType, path);
 
         var typeName = $" [{actualType.FullName}]";
@@ -92,7 +94,7 @@ static class ObjectGraphComparer {
         else
             path[^1] += typeName;
 
-        return actualType;
+        return (actualType, expectedType);
     }
 
     static void CompareValueTypes(
@@ -123,7 +125,7 @@ static class ObjectGraphComparer {
         TypeCode.Byte or TypeCode.SByte;
 
     static void CompareReferenceTypes(
-        object actual, object expected, Type type,
+        object actual, object expected, Type actualType, Type expectedType,
         IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
         EquivalencyConfiguration? config, int depth
     ) {
@@ -141,7 +143,7 @@ static class ObjectGraphComparer {
         previousComparisons.Record(actual, expected);
 
         CompareMembers(
-            actual, expected, type, path, previousComparisons, config, depth
+            actual, expected, actualType, expectedType, path, previousComparisons, config, depth
         );
     }
 
@@ -223,21 +225,38 @@ static class ObjectGraphComparer {
     }
 
     static void CompareMembers(
-        object actual, object expected, Type type,
+        object actual, object expected, Type actualType, Type expectedType,
         IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
         EquivalencyConfiguration? config, int depth
     ) {
-        IEnumerable<MemberInfo> members = type.GetFields(DefaultBindingFlags);
-        members = members.Concat(type.GetProperties(DefaultBindingFlags));
+        // Use expected's members as the reference set
+        IEnumerable<MemberInfo> members = expectedType.GetFields(DefaultBindingFlags);
+        members = members.Concat(expectedType.GetProperties(DefaultBindingFlags));
+
+        // When types differ and ExcludeMissingMembers is on, build lookup for actual's members
+        Dictionary<string, MemberInfo>? actualMembersByName = null;
+        if (actualType != expectedType && config?.ExcludeMissingMembers == true) {
+            actualMembersByName = actualType.GetFields(DefaultBindingFlags)
+                .Cast<MemberInfo>()
+                .Concat(actualType.GetProperties(DefaultBindingFlags))
+                .ToDictionary(m => m.Name);
+        }
 
         foreach (var member in members) {
             if (member is PropertyInfo p2 && p2.GetIndexParameters().Length != 0)
                 throw new NotSupportedException("Comparing types that have indexers is not supported.");
 
+            // When types differ, skip members not found on actual
+            MemberInfo actualMember = member;
+            if (actualMembersByName != null) {
+                if (!actualMembersByName.TryGetValue(member.Name, out var found))
+                    continue;
+                actualMember = found;
+            }
+
             if (config?.IsExcludedByName(member.Name) == true)
                 continue;
 
-            // Get member's declared type for type-based exclusion
             var memberType = member switch {
                 FieldInfo f    => f.FieldType,
                 PropertyInfo p => p.PropertyType,
@@ -255,9 +274,15 @@ static class ObjectGraphComparer {
             if (config?.IsExcluded(newPath) == true)
                 continue;
 
-            var (actualVal, expectedVal) = member switch {
-                FieldInfo f    => (f.GetValue(actual), f.GetValue(expected)),
-                PropertyInfo p => (p.GetValue(actual, []), p.GetValue(expected, [])),
+            var actualVal = actualMember switch {
+                FieldInfo f    => f.GetValue(actual),
+                PropertyInfo p => p.GetValue(actual, []),
+                _              => throw new NotSupportedException($"Unsupported member type: {actualMember.GetType()}")
+            };
+
+            var expectedVal = member switch {
+                FieldInfo f    => f.GetValue(expected),
+                PropertyInfo p => p.GetValue(expected, []),
                 _              => throw new NotSupportedException($"Unsupported member type: {member.GetType()}")
             };
 

@@ -21,6 +21,7 @@ public class EquivalencyConfiguration {
     public bool             TrimTrailingWhitespace { get; private set; }
     public bool             CompareEnumsByName     { get; private set; }
     public bool             ExcludeNestedObjects   { get; private set; }
+    public bool             ExcludeMissingMembers  { get; private set; }
     public int?             MaxRecursionDepth      { get; private set; }
 
     bool HasInclusions     => _includedPaths.Count > 0 || _includedPredicates.Count > 0;
@@ -122,6 +123,11 @@ public class EquivalencyConfiguration {
 
     public EquivalencyConfiguration ExcludingNestedObjects() {
         ExcludeNestedObjects = true;
+        return this;
+    }
+
+    public EquivalencyConfiguration ExcludingMissingMembers() {
+        ExcludeMissingMembers = true;
         return this;
     }
 

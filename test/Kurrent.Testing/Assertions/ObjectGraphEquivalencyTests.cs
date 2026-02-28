@@ -823,6 +823,67 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: ExcludingMissingMembers
+
+    [Test]
+    public async Task excluding_missing_members_compares_shared_members_only() {
+        var name  = Faker.Name.FullName();
+        var email = Faker.Internet.Email();
+
+        var actual = new FullUser {
+            Name    = name,
+            Email   = email,
+            Age     = Faker.Random.Int(18, 99),
+            Address = Faker.Address.FullAddress()
+        };
+
+        var expected = new UserSummary {
+            Name  = name,
+            Email = email
+        };
+
+        // FullUser has Age and Address that UserSummary lacks — should be skipped
+        await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ExcludingMissingMembers()
+        );
+    }
+
+    [Test]
+    public async Task excluding_missing_members_fails_on_shared_member_difference() {
+        var actual = new FullUser {
+            Name    = Faker.Name.FullName(),
+            Email   = Faker.Internet.Email(),
+            Age     = Faker.Random.Int(18, 99),
+            Address = Faker.Address.FullAddress()
+        };
+
+        var expected = new UserSummary {
+            Name  = actual.Name,
+            Email = $"{Faker.Internet.Email()}_different"
+        };
+
+        var action = async () => await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ExcludingMissingMembers()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task excluding_missing_members_with_same_type_is_noop() {
+        var original = ComplexObjectFaker.Generate();
+        var clone    = CloneComplexObject(original);
+
+        await Assert.That(original).IsDeepEquivalentTo(
+            clone,
+            cfg => cfg.ExcludingMissingMembers()
+        );
+    }
+
+    #endregion
+
     #region Complex object with all property types
 
     [Test]
@@ -1120,6 +1181,18 @@ public class ObjectGraphEquivalencyTests {
     class MoneyHolder {
         public string Name  { get; set; } = null!;
         public Money  Price { get; set; } = null!;
+    }
+
+    class FullUser {
+        public string Name    { get; set; } = null!;
+        public string Email   { get; set; } = null!;
+        public int    Age     { get; set; }
+        public string Address { get; set; } = null!;
+    }
+
+    class UserSummary {
+        public string Name  { get; set; } = null!;
+        public string Email { get; set; } = null!;
     }
 
     #endregion
