@@ -32,6 +32,12 @@ static class ObjectGraphComparer {
         if (config != null && TryCustomCompare(actual, expected, type, config, path))
             return;
 
+        if (config?.ShouldCompareByValue(type) == true) {
+            if (!actual.Equals(expected))
+                Throw(actual, expected, path);
+            return;
+        }
+
         if (type == typeof(string))
             CompareStrings((string)actual, (string)expected, path, config);
         else if (typeof(IEnumerable).IsAssignableFrom(type))

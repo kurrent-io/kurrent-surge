@@ -4,8 +4,10 @@ using System.Reflection;
 namespace Kurrent.Testing.Assertions;
 
 public class EquivalencyConfiguration {
-    readonly Dictionary<Type, Delegate> _customComparers = new();
-    readonly HashSet<string>            _excludedPaths   = [];
+    readonly Dictionary<Type, Delegate> _customComparers    = new();
+    readonly HashSet<string>            _excludedPaths     = [];
+    readonly HashSet<Type>              _valueComparedTypes  = [];
+    readonly HashSet<Type>              _memberComparedTypes = [];
 
     public StringComparison StringComparison      { get; private set; } = StringComparison.Ordinal;
     public double           NumericTolerance      { get; private set; }
@@ -29,6 +31,16 @@ public class EquivalencyConfiguration {
 
     public EquivalencyConfiguration Using<T>(Func<T, T, bool> comparer) {
         _customComparers[typeof(T)] = comparer;
+        return this;
+    }
+
+    public EquivalencyConfiguration ComparingByValue<T>() {
+        _valueComparedTypes.Add(typeof(T));
+        return this;
+    }
+
+    public EquivalencyConfiguration ComparingByMembers<T>() {
+        _memberComparedTypes.Add(typeof(T));
         return this;
     }
 
@@ -77,6 +89,9 @@ public class EquivalencyConfiguration {
         MaxRecursionDepth = depth;
         return this;
     }
+
+    internal bool ShouldCompareByValue(Type type) => _valueComparedTypes.Contains(type);
+    internal bool ShouldCompareByMembers(Type type) => _memberComparedTypes.Contains(type);
 
     public bool IsExcluded(IEnumerable<string> path) {
         var cleanPath = path.Select(p => {

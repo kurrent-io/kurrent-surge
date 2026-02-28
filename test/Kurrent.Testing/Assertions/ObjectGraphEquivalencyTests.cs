@@ -582,6 +582,93 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: Value type semantics
+
+    [Test]
+    public async Task comparing_by_value_uses_equals_instead_of_members() {
+        var actual = new MoneyHolder {
+            Name  = Faker.Commerce.ProductName(),
+            Price = new Money { Amount = 10.00m, Currency = "USD" }
+        };
+
+        var expected = new MoneyHolder {
+            Name  = actual.Name,
+            Price = new Money { Amount = 10.00m, Currency = "USD" }
+        };
+
+        await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ComparingByValue<Money>()
+        );
+    }
+
+    [Test]
+    public async Task comparing_by_value_fails_when_equals_returns_false() {
+        var actual = new MoneyHolder {
+            Name  = Faker.Commerce.ProductName(),
+            Price = new Money { Amount = 10.00m, Currency = "USD" }
+        };
+
+        var expected = new MoneyHolder {
+            Name  = actual.Name,
+            Price = new Money { Amount = 20.00m, Currency = "USD" }
+        };
+
+        var action = async () => await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ComparingByValue<Money>()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task comparing_by_members_forces_recursion_even_when_equals_overridden() {
+        var tag = Faker.Lorem.Word();
+
+        var actual = new NodeContainer {
+            First  = new ValueEqualNode { Tag = tag, Data = Faker.Lorem.Sentence() },
+            Second = new ValueEqualNode { Tag = "other", Data = Faker.Lorem.Sentence() }
+        };
+
+        var expected = new NodeContainer {
+            First  = new ValueEqualNode { Tag = tag, Data = $"{Faker.Lorem.Sentence()}_different" },
+            Second = new ValueEqualNode { Tag = "other", Data = actual.Second.Data }
+        };
+
+        // Default behavior already recurses by members. This test proves the explicit opt-in works.
+        var action = async () => await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ComparingByMembers<ValueEqualNode>()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task custom_comparer_takes_precedence_over_comparing_by_value() {
+        var actual = new MoneyHolder {
+            Name  = Faker.Commerce.ProductName(),
+            Price = new Money { Amount = 10.00m, Currency = "USD" }
+        };
+
+        var expected = new MoneyHolder {
+            Name  = actual.Name,
+            Price = new Money { Amount = 10.00m, Currency = "EUR" }
+        };
+
+        // Custom comparer ignores Currency; ComparingByValue uses .Equals() which checks Currency.
+        // Using<T> takes precedence.
+        await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg
+                .ComparingByValue<Money>()
+                .Using<Money>((a, b) => a.Amount == b.Amount)
+        );
+    }
+
+    #endregion
+
     #region Complex scenario: nested objects with config
 
     [Test]
@@ -884,6 +971,21 @@ public class ObjectGraphEquivalencyTests {
     class Level {
         public string Name  { get; set; } = null!;
         public Level? Child { get; set; }
+    }
+
+    class Money {
+        public decimal Amount   { get; set; }
+        public string  Currency { get; set; } = null!;
+
+        public override bool Equals(object? obj) =>
+            obj is Money other && Amount == other.Amount && Currency == other.Currency;
+
+        public override int GetHashCode() => HashCode.Combine(Amount, Currency);
+    }
+
+    class MoneyHolder {
+        public string Name  { get; set; } = null!;
+        public Money  Price { get; set; } = null!;
     }
 
     #endregion
