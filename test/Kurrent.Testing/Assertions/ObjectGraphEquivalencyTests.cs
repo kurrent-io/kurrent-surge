@@ -884,6 +884,73 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: Per-path ordering
+
+    [Test]
+    public async Task strict_ordering_globally_fails_for_reordered_collection() {
+        var items    = Faker.Make(3, () => Faker.Random.Int()).ToList();
+        var reversed = items.AsEnumerable().Reverse().ToList();
+
+        var action = async () => await Assert.That(items).IsDeepEquivalentTo(
+            reversed,
+            cfg => cfg.WithStrictOrdering()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task without_strict_ordering_for_path_overrides_global_strict() {
+        var name  = Faker.Lorem.Word();
+        var items = Faker.Make(3, () => Faker.Random.Int()).ToList();
+
+        var actual = new MultiCollection {
+            Name     = name,
+            Ordered  = items.ToList(),
+            Flexible = items.ToList()
+        };
+
+        var expected = new MultiCollection {
+            Name     = name,
+            Ordered  = items.ToList(),
+            Flexible = items.AsEnumerable().Reverse().ToList()
+        };
+
+        // Global strict ordering, but Flexible is exempted
+        await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.WithStrictOrdering().WithoutStrictOrderingFor("Flexible")
+        );
+    }
+
+    [Test]
+    public async Task with_strict_ordering_for_path_overrides_global_unordered() {
+        var name  = Faker.Lorem.Word();
+        var items = Faker.Make(3, () => Faker.Random.Int()).ToList();
+
+        var actual = new MultiCollection {
+            Name     = name,
+            Ordered  = items.AsEnumerable().Reverse().ToList(),
+            Flexible = items.AsEnumerable().Reverse().ToList()
+        };
+
+        var expected = new MultiCollection {
+            Name     = name,
+            Ordered  = items.ToList(),
+            Flexible = items.ToList()
+        };
+
+        // Global unordered, but Ordered is strictly ordered — should fail
+        var action = async () => await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.IgnoringCollectionOrder().WithStrictOrderingFor("Ordered")
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    #endregion
+
     #region Complex object with all property types
 
     [Test]
@@ -1193,6 +1260,12 @@ public class ObjectGraphEquivalencyTests {
     class UserSummary {
         public string Name  { get; set; } = null!;
         public string Email { get; set; } = null!;
+    }
+
+    class MultiCollection {
+        public string      Name     { get; set; } = null!;
+        public List<int>   Ordered  { get; set; } = [];
+        public List<int>   Flexible { get; set; } = [];
     }
 
     #endregion

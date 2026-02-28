@@ -184,7 +184,7 @@ static class ObjectGraphComparer {
             Throw(actualList.Count, expectedList.Count, newPath);
         }
 
-        if (config?.IgnoreCollectionOrder == true) {
+        if (config?.ShouldIgnoreOrder(path) == true) {
             CompareEnumerablesOrderIndependent(actualList, expectedList, path, previousComparisons, config, depth);
         } else {
             for (var i = 0; i < actualList.Count; i++) {

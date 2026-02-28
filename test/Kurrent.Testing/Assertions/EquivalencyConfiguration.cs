@@ -12,10 +12,13 @@ public class EquivalencyConfiguration {
     readonly HashSet<Type>              _memberComparedTypes = [];
     readonly HashSet<string>              _includedPaths      = [];
     readonly List<Func<MemberInfo, bool>> _includedPredicates = [];
+    readonly HashSet<string> _strictOrderingPaths = [];
+    readonly HashSet<string> _unorderedPaths      = [];
 
     public StringComparison StringComparison      { get; private set; } = StringComparison.Ordinal;
     public double           NumericTolerance      { get; private set; }
     public bool             IgnoreCollectionOrder { get; private set; }
+    public bool             StrictOrdering        { get; private set; }
     public bool             NormalizeNewlines      { get; private set; }
     public bool             TrimLeadingWhitespace  { get; private set; }
     public bool             TrimTrailingWhitespace { get; private set; }
@@ -101,6 +104,21 @@ public class EquivalencyConfiguration {
         return this;
     }
 
+    public EquivalencyConfiguration WithStrictOrdering() {
+        StrictOrdering = true;
+        return this;
+    }
+
+    public EquivalencyConfiguration WithStrictOrderingFor(string path) {
+        _strictOrderingPaths.Add(path);
+        return this;
+    }
+
+    public EquivalencyConfiguration WithoutStrictOrderingFor(string path) {
+        _unorderedPaths.Add(path);
+        return this;
+    }
+
     public EquivalencyConfiguration IgnoringNewlineStyle() {
         NormalizeNewlines = true;
         return this;
@@ -135,6 +153,28 @@ public class EquivalencyConfiguration {
         ArgumentOutOfRangeException.ThrowIfNegative(depth);
         MaxRecursionDepth = depth;
         return this;
+    }
+
+    internal bool ShouldIgnoreOrder(IEnumerable<string> path) {
+        var memberName = path.LastOrDefault();
+        if (memberName != null) {
+            var cleanName = memberName;
+            var bracketIndex = cleanName.IndexOf(" [", StringComparison.Ordinal);
+            if (bracketIndex >= 0)
+                cleanName = cleanName[..bracketIndex];
+
+            // Path-specific overrides take precedence
+            if (_strictOrderingPaths.Contains(cleanName))
+                return false;
+            if (_unorderedPaths.Contains(cleanName))
+                return true;
+        }
+
+        // Fall back to global flags
+        if (StrictOrdering)
+            return false;
+
+        return IgnoreCollectionOrder;
     }
 
     internal bool ShouldCompareByValue(Type type) => _valueComparedTypes.Contains(type);
