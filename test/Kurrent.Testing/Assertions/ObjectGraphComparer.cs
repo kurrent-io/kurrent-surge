@@ -249,6 +249,9 @@ static class ObjectGraphComparer {
 
             var newPath = path.Concat([member.Name]).ToList();
 
+            if (config?.IsIncluded(member, newPath) == false)
+                continue;
+
             if (config?.IsExcluded(newPath) == true)
                 continue;
 

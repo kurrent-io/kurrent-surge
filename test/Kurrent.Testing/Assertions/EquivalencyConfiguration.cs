@@ -10,6 +10,8 @@ public class EquivalencyConfiguration {
     readonly HashSet<Type>              _excludedMemberTypes = [];
     readonly HashSet<Type>              _valueComparedTypes  = [];
     readonly HashSet<Type>              _memberComparedTypes = [];
+    readonly HashSet<string>              _includedPaths      = [];
+    readonly List<Func<MemberInfo, bool>> _includedPredicates = [];
 
     public StringComparison StringComparison      { get; private set; } = StringComparison.Ordinal;
     public double           NumericTolerance      { get; private set; }
@@ -21,12 +23,21 @@ public class EquivalencyConfiguration {
     public bool             ExcludeNestedObjects   { get; private set; }
     public int?             MaxRecursionDepth      { get; private set; }
 
+    bool HasInclusions     => _includedPaths.Count > 0 || _includedPredicates.Count > 0;
+    bool HasPathExclusions => _excludedPaths.Count > 0;
+
     public EquivalencyConfiguration Excluding<T>(Expression<Func<T, object>> propertyExpression) {
+        if (HasInclusions)
+            throw new InvalidOperationException("Cannot use Including and Excluding together.");
+
         _excludedPaths.Add(ExpressionPathResolver.GetPath(propertyExpression));
         return this;
     }
 
     public EquivalencyConfiguration Excluding(string propertyPath) {
+        if (HasInclusions)
+            throw new InvalidOperationException("Cannot use Including and Excluding together.");
+
         _excludedPaths.Add(propertyPath);
         return this;
     }
@@ -39,6 +50,23 @@ public class EquivalencyConfiguration {
 
     public EquivalencyConfiguration ExcludingType<TType>() {
         _excludedMemberTypes.Add(typeof(TType));
+        return this;
+    }
+
+    public EquivalencyConfiguration Including<T>(params Expression<Func<T, object>>[] propertyExpressions) {
+        if (HasPathExclusions)
+            throw new InvalidOperationException("Cannot use Including and Excluding together.");
+
+        foreach (var expr in propertyExpressions)
+            _includedPaths.Add(ExpressionPathResolver.GetPath(expr));
+        return this;
+    }
+
+    public EquivalencyConfiguration Including(Func<MemberInfo, bool> predicate) {
+        if (HasPathExclusions)
+            throw new InvalidOperationException("Cannot use Including and Excluding together.");
+
+        _includedPredicates.Add(predicate);
         return this;
     }
 
@@ -109,6 +137,24 @@ public class EquivalencyConfiguration {
 
     internal bool IsExcludedByType(Type memberType) =>
         _excludedMemberTypes.Count > 0 && _excludedMemberTypes.Any(t => t.IsAssignableFrom(memberType));
+
+    internal bool IsIncluded(MemberInfo member, IEnumerable<string> path) {
+        if (!HasInclusions)
+            return true;
+
+        if (_includedPredicates.Any(p => p(member)))
+            return true;
+
+        var cleanPath = path.Select(p => {
+            var bracketIndex = p.IndexOf(" [", StringComparison.Ordinal);
+            return bracketIndex >= 0 ? p[..bracketIndex] : p;
+        }).Where(p => !string.IsNullOrEmpty(p) && !p.StartsWith(" [")).ToList();
+
+        var pathString         = string.Join(".", cleanPath);
+        var relativePathString = cleanPath.Count > 1 ? string.Join(".", cleanPath.Skip(1)) : pathString;
+
+        return _includedPaths.Contains(pathString) || _includedPaths.Contains(relativePathString);
+    }
 
     public bool IsExcluded(IEnumerable<string> path) {
         var cleanPath = path.Select(p => {

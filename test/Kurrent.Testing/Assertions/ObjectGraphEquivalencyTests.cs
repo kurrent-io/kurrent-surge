@@ -5,6 +5,7 @@
 // ReSharper disable NotAccessedPositionalProperty.Local
 
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Bogus;
 using Kurrent.Testing.Bogus;
 
@@ -757,6 +758,64 @@ public class ObjectGraphEquivalencyTests {
         var action = async () => await Assert.That(original).IsDeepEquivalentTo(
             modified,
             cfg => cfg.ExcludingType<DateTime>()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    #endregion
+
+    #region EquivalencyConfiguration: Including (whitelist mode)
+
+    [Test]
+    public async Task including_by_expression_compares_only_specified_members() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.Age     = original.Age + 10;
+        modified.Score   = original.Score + 100.0;
+        modified.Balance = original.Balance + 999m;
+
+        // Only Name and Email are compared; Age, Score, Balance differences are ignored
+        await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.Including<ComplexObject>(x => x.Name, x => x.Email)
+        );
+    }
+
+    [Test]
+    public async Task including_by_expression_fails_when_included_member_differs() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.Name = $"{Faker.Name.FullName()}_different";
+
+        var action = async () => await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.Including<ComplexObject>(x => x.Name, x => x.Email)
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task including_by_predicate_compares_only_matching_members() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.Age = original.Age + 10;
+
+        // Only include string properties
+        await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.Including(m => m is PropertyInfo p && p.PropertyType == typeof(string))
+        );
+    }
+
+    [Test]
+    public async Task including_and_excluding_throws_invalid_operation() {
+        var action = async () => await Assert.That(new SimpleRecord("a", 1)).IsDeepEquivalentTo(
+            new SimpleRecord("a", 1),
+            cfg => cfg
+                .Including<SimpleRecord>(x => x.Name)
+                .Excluding<SimpleRecord>(x => x.Age)
         );
 
         await Assert.That(action).ThrowsException();
