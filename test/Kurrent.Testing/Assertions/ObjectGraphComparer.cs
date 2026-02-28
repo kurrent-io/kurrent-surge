@@ -234,6 +234,9 @@ static class ObjectGraphComparer {
             if (member is PropertyInfo p2 && p2.GetIndexParameters().Length != 0)
                 throw new NotSupportedException("Comparing types that have indexers is not supported.");
 
+            if (config?.IsExcludedByName(member.Name) == true)
+                continue;
+
             var newPath = path.Concat([member.Name]).ToList();
 
             if (config?.IsExcluded(newPath) == true)

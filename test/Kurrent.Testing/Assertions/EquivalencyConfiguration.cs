@@ -4,8 +4,9 @@ using System.Reflection;
 namespace Kurrent.Testing.Assertions;
 
 public class EquivalencyConfiguration {
-    readonly Dictionary<Type, Delegate> _customComparers    = new();
-    readonly HashSet<string>            _excludedPaths     = [];
+    readonly Dictionary<Type, Delegate> _customComparers      = new();
+    readonly HashSet<string>            _excludedPaths       = [];
+    readonly HashSet<string>            _excludedMemberNames = [];
     readonly HashSet<Type>              _valueComparedTypes  = [];
     readonly HashSet<Type>              _memberComparedTypes = [];
 
@@ -26,6 +27,12 @@ public class EquivalencyConfiguration {
 
     public EquivalencyConfiguration Excluding(string propertyPath) {
         _excludedPaths.Add(propertyPath);
+        return this;
+    }
+
+    public EquivalencyConfiguration ExcludingMembersNamed(params string[] names) {
+        foreach (var name in names)
+            _excludedMemberNames.Add(name);
         return this;
     }
 
@@ -92,6 +99,7 @@ public class EquivalencyConfiguration {
 
     internal bool ShouldCompareByValue(Type type) => _valueComparedTypes.Contains(type);
     internal bool ShouldCompareByMembers(Type type) => _memberComparedTypes.Contains(type);
+    internal bool IsExcludedByName(string memberName) => _excludedMemberNames.Contains(memberName);
 
     public bool IsExcluded(IEnumerable<string> path) {
         var cleanPath = path.Select(p => {

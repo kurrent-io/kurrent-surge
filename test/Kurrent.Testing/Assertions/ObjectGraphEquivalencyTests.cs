@@ -689,6 +689,50 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: ExcludingMembersNamed
+
+    [Test]
+    public async Task excluding_members_named_skips_at_all_depths() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.PrimaryAddress.City = $"{Faker.Address.City()}_different";
+        modified.Addresses[0].City   = $"{Faker.Address.City()}_different";
+
+        await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.ExcludingMembersNamed("City")
+        );
+    }
+
+    [Test]
+    public async Task excluding_members_named_multiple_names() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.Name  = $"{Faker.Name.FullName()}_different";
+        modified.Email = $"{Faker.Internet.Email()}_different";
+
+        await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.ExcludingMembersNamed("Name", "Email")
+        );
+    }
+
+    [Test]
+    public async Task excluding_members_named_does_not_skip_other_members() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.Age = original.Age + 10;
+
+        var action = async () => await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.ExcludingMembersNamed("Name")
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    #endregion
+
     #region Complex object with all property types
 
     [Test]
