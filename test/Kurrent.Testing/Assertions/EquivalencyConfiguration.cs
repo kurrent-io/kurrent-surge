@@ -13,6 +13,7 @@ public class EquivalencyConfiguration {
     public bool             NormalizeNewlines      { get; private set; }
     public bool             TrimLeadingWhitespace  { get; private set; }
     public bool             TrimTrailingWhitespace { get; private set; }
+    public bool             CompareEnumsByName     { get; private set; }
 
     public EquivalencyConfiguration Excluding<T>(Expression<Func<T, object>> propertyExpression) {
         _excludedPaths.Add(ExpressionPathResolver.GetPath(propertyExpression));
@@ -56,6 +57,11 @@ public class EquivalencyConfiguration {
 
     public EquivalencyConfiguration IgnoringTrailingWhitespace() {
         TrimTrailingWhitespace = true;
+        return this;
+    }
+
+    public EquivalencyConfiguration ComparingEnumsByName() {
+        CompareEnumsByName = true;
         return this;
     }
 

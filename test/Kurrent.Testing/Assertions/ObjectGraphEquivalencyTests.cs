@@ -425,6 +425,35 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: ComparingEnumsByName
+
+    [Test]
+    public async Task comparing_enums_by_name_passes_for_matching_names() {
+        var original = ComplexObjectFaker.Generate();
+        var clone    = CloneComplexObject(original);
+
+        await Assert.That(original).IsDeepEquivalentTo(
+            clone,
+            cfg => cfg.ComparingEnumsByName()
+        );
+    }
+
+    [Test]
+    public async Task comparing_enums_by_name_fails_for_different_names() {
+        var original = ComplexObjectFaker.Generate();
+        var clone    = CloneComplexObject(original);
+        clone.Priority = original.Priority == Priority.Critical ? Priority.Low : Priority.Critical;
+
+        var action = async () => await Assert.That(original).IsDeepEquivalentTo(
+            clone,
+            cfg => cfg.ComparingEnumsByName()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    #endregion
+
     #region Circular reference handling
 
     [Test]
@@ -761,6 +790,10 @@ public class ObjectGraphEquivalencyTests {
     class NodeContainer {
         public ValueEqualNode First  { get; set; } = null!;
         public ValueEqualNode Second { get; set; } = null!;
+    }
+
+    class EnumContainer {
+        public Priority Priority { get; set; }
     }
 
     #endregion

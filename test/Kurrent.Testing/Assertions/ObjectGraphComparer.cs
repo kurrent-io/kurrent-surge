@@ -91,6 +91,12 @@ static class ObjectGraphComparer {
     static void CompareValueTypes(
         ValueType actual, ValueType expected, IEnumerable<string> path, EquivalencyConfiguration? config
     ) {
+        if (config?.CompareEnumsByName == true && actual.GetType().IsEnum) {
+            if (!string.Equals(actual.ToString(), expected.ToString(), StringComparison.Ordinal))
+                Throw(actual, expected, path);
+            return;
+        }
+
         if (config is { NumericTolerance: > 0 } && IsNumericType(actual.GetType())) {
             var actualDouble   = Convert.ToDouble(actual);
             var expectedDouble = Convert.ToDouble(expected);
