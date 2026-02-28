@@ -14,6 +14,8 @@ public class EquivalencyConfiguration {
     public bool             TrimLeadingWhitespace  { get; private set; }
     public bool             TrimTrailingWhitespace { get; private set; }
     public bool             CompareEnumsByName     { get; private set; }
+    public bool             ExcludeNestedObjects   { get; private set; }
+    public int?             MaxRecursionDepth      { get; private set; }
 
     public EquivalencyConfiguration Excluding<T>(Expression<Func<T, object>> propertyExpression) {
         _excludedPaths.Add(ExpressionPathResolver.GetPath(propertyExpression));
@@ -62,6 +64,17 @@ public class EquivalencyConfiguration {
 
     public EquivalencyConfiguration ComparingEnumsByName() {
         CompareEnumsByName = true;
+        return this;
+    }
+
+    public EquivalencyConfiguration ExcludingNestedObjects() {
+        ExcludeNestedObjects = true;
+        return this;
+    }
+
+    public EquivalencyConfiguration WithMaxRecursionDepth(int depth) {
+        ArgumentOutOfRangeException.ThrowIfNegative(depth);
+        MaxRecursionDepth = depth;
         return this;
     }
 

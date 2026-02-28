@@ -21,7 +21,8 @@ static class ObjectGraphComparer {
         [NotNullIfNotNull(nameof(actual))] object?   expected,
         IList<string>                                 path,
         IDictionary<object, IList<object?>>           previousComparisons,
-        EquivalencyConfiguration?                     config
+        EquivalencyConfiguration?                     config,
+        int                                           depth = 0
     ) {
         if (BothValuesAreNull(actual, expected, path))
             return;
@@ -34,11 +35,11 @@ static class ObjectGraphComparer {
         if (type == typeof(string))
             CompareStrings((string)actual, (string)expected, path, config);
         else if (typeof(IEnumerable).IsAssignableFrom(type))
-            CompareEnumerables((IEnumerable)actual, (IEnumerable)expected, path, previousComparisons, config);
+            CompareEnumerables((IEnumerable)actual, (IEnumerable)expected, path, previousComparisons, config, depth);
         else if (type.IsValueType)
             CompareValueTypes((ValueType)actual, (ValueType)expected, path, config);
         else
-            CompareReferenceTypes(actual, expected, type, path, previousComparisons, config);
+            CompareReferenceTypes(actual, expected, type, path, previousComparisons, config, depth);
     }
 
     static bool TryCustomCompare(
@@ -118,15 +119,23 @@ static class ObjectGraphComparer {
     static void CompareReferenceTypes(
         object actual, object expected, Type type,
         IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
-        EquivalencyConfiguration? config
+        EquivalencyConfiguration? config, int depth
     ) {
+        if (config?.ExcludeNestedObjects == true && depth > 0)
+            return;
+
+        if (config is { MaxRecursionDepth: not null, ExcludeNestedObjects: false } && depth > config.MaxRecursionDepth)
+            throw new ObjectGraphComparisonException(
+                $"Maximum recursion depth {config.MaxRecursionDepth} exceeded at '{string.Join(".", path)}'"
+            );
+
         if (ReferenceEquals(actual, expected) || previousComparisons.Contains(actual, expected))
             return;
 
         previousComparisons.Record(actual, expected);
 
         CompareMembers(
-            actual, expected, type, path, previousComparisons, config
+            actual, expected, type, path, previousComparisons, config, depth
         );
     }
 
@@ -156,7 +165,8 @@ static class ObjectGraphComparer {
 
     static void CompareEnumerables(
         IEnumerable actual, IEnumerable expected, IEnumerable<string> path,
-        IDictionary<object, IList<object?>> previousComparisons, EquivalencyConfiguration? config
+        IDictionary<object, IList<object?>> previousComparisons, EquivalencyConfiguration? config,
+        int depth
     ) {
         var expectedList = expected.Cast<object?>().ToList();
         var actualList   = actual.Cast<object?>().ToList();
@@ -167,11 +177,11 @@ static class ObjectGraphComparer {
         }
 
         if (config?.IgnoreCollectionOrder == true) {
-            CompareEnumerablesOrderIndependent(actualList, expectedList, path, previousComparisons, config);
+            CompareEnumerablesOrderIndependent(actualList, expectedList, path, previousComparisons, config, depth);
         } else {
             for (var i = 0; i < actualList.Count; i++) {
                 var newPath = path.Concat([$"Element [{i}]"]);
-                CompareObjects(actualList[i], expectedList[i], newPath.ToList(), previousComparisons, config);
+                CompareObjects(actualList[i], expectedList[i], newPath.ToList(), previousComparisons, config, depth);
             }
         }
     }
@@ -179,7 +189,7 @@ static class ObjectGraphComparer {
     static void CompareEnumerablesOrderIndependent(
         IList<object?> actualList, IList<object?> expectedList,
         IEnumerable<string> path, IDictionary<object, IList<object?>> previousComparisons,
-        EquivalencyConfiguration? config
+        EquivalencyConfiguration? config, int depth
     ) {
         var expectedCopy = expectedList.ToList();
 
@@ -190,7 +200,7 @@ static class ObjectGraphComparer {
             for (var j = 0; j < expectedCopy.Count; j++) {
                 try {
                     var newPath = path.Concat([$"Element [{i}]"]).ToList();
-                    CompareObjects(actualItem, expectedCopy[j], newPath, previousComparisons, config);
+                    CompareObjects(actualItem, expectedCopy[j], newPath, previousComparisons, config, depth);
                     expectedCopy.RemoveAt(j);
                     matchFound = true;
                     break;
@@ -209,7 +219,7 @@ static class ObjectGraphComparer {
     static void CompareMembers(
         object actual, object expected, Type type,
         IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
-        EquivalencyConfiguration? config
+        EquivalencyConfiguration? config, int depth
     ) {
         IEnumerable<MemberInfo> members = type.GetFields(DefaultBindingFlags);
         members = members.Concat(type.GetProperties(DefaultBindingFlags));
@@ -229,7 +239,7 @@ static class ObjectGraphComparer {
                 _              => throw new NotSupportedException($"Unsupported member type: {member.GetType()}")
             };
 
-            CompareObjects(actualVal, expectedVal, newPath, previousComparisons, config);
+            CompareObjects(actualVal, expectedVal, newPath, previousComparisons, config, depth + 1);
         }
     }
 

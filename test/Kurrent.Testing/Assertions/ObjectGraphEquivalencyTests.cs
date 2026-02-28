@@ -454,6 +454,91 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: Recursion control
+
+    [Test]
+    public async Task excluding_nested_objects_compares_only_top_level_members() {
+        var actual = new Level {
+            Name  = Faker.Lorem.Word(),
+            Child = new Level { Name = Faker.Lorem.Word() }
+        };
+
+        var expected = new Level {
+            Name  = actual.Name,
+            Child = new Level { Name = $"{Faker.Lorem.Word()}_different" }
+        };
+
+        // Child is a nested reference type — should be skipped
+        await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ExcludingNestedObjects()
+        );
+    }
+
+    [Test]
+    public async Task excluding_nested_objects_still_compares_value_types_and_strings() {
+        var actual = new Level {
+            Name  = Faker.Lorem.Word(),
+            Child = new Level { Name = Faker.Lorem.Word() }
+        };
+
+        var expected = new Level {
+            Name  = $"{Faker.Lorem.Word()}_different",
+            Child = new Level { Name = Faker.Lorem.Word() }
+        };
+
+        var action = async () => await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.ExcludingNestedObjects()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task max_recursion_depth_throws_when_exceeded() {
+        var deep = new Level { Name = "L0" };
+        var current = deep;
+        for (var i = 1; i <= 5; i++) {
+            current.Child = new Level { Name = $"L{i}" };
+            current = current.Child;
+        }
+
+        var clone = new Level { Name = "L0" };
+        var cloneCurrent = clone;
+        for (var i = 1; i <= 5; i++) {
+            cloneCurrent.Child = new Level { Name = $"L{i}" };
+            cloneCurrent = cloneCurrent.Child;
+        }
+
+        var action = async () => await Assert.That(deep).IsDeepEquivalentTo(
+            clone,
+            cfg => cfg.WithMaxRecursionDepth(2)
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task max_recursion_depth_passes_when_within_limit() {
+        var actual = new Level {
+            Name  = "L0",
+            Child = new Level { Name = "L1" }
+        };
+
+        var expected = new Level {
+            Name  = "L0",
+            Child = new Level { Name = "L1" }
+        };
+
+        await Assert.That(actual).IsDeepEquivalentTo(
+            expected,
+            cfg => cfg.WithMaxRecursionDepth(5)
+        );
+    }
+
+    #endregion
+
     #region Circular reference handling
 
     [Test]
@@ -794,6 +879,11 @@ public class ObjectGraphEquivalencyTests {
 
     class EnumContainer {
         public Priority Priority { get; set; }
+    }
+
+    class Level {
+        public string Name  { get; set; } = null!;
+        public Level? Child { get; set; }
     }
 
     #endregion
