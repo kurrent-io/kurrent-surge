@@ -1,0 +1,260 @@
+using System.Collections;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+
+namespace Kurrent.Testing.Assertions;
+
+public class ObjectGraphComparisonException(string message) : Exception(message);
+
+static class ObjectGraphComparer {
+    const BindingFlags DefaultBindingFlags = BindingFlags.Public | BindingFlags.Instance;
+
+    public static void AssertEquivalent(
+        object? actual,
+        object? expected,
+        EquivalencyConfiguration? config = null
+    ) =>
+        CompareObjects(actual, expected, [], new Dictionary<object, IList<object?>>(ReferenceEqualityComparer.Instance), config);
+
+    static void CompareObjects(
+        [NotNullIfNotNull(nameof(expected))] object? actual,
+        [NotNullIfNotNull(nameof(actual))] object?   expected,
+        IList<string>                                 path,
+        IDictionary<object, IList<object?>>           previousComparisons,
+        EquivalencyConfiguration?                     config
+    ) {
+        if (BothValuesAreNull(actual, expected, path))
+            return;
+
+        var type = GetTypeToCompare(actual, expected, path);
+
+        if (config != null && TryCustomCompare(actual, expected, type, config, path))
+            return;
+
+        if (type == typeof(string))
+            CompareStrings((string)actual, (string)expected, path, config);
+        else if (typeof(IEnumerable).IsAssignableFrom(type))
+            CompareEnumerables((IEnumerable)actual, (IEnumerable)expected, path, previousComparisons, config);
+        else if (type.IsValueType)
+            CompareValueTypes((ValueType)actual, (ValueType)expected, path, config);
+        else
+            CompareReferenceTypes(actual, expected, type, path, previousComparisons, config);
+    }
+
+    static bool TryCustomCompare(
+        object actual, object expected, Type type, EquivalencyConfiguration config, IEnumerable<string> path
+    ) {
+        if (!config.TryGetCustomComparer(type, out var comparer))
+            return false;
+
+        var result = (bool)comparer!.DynamicInvoke(actual, expected)!;
+
+        if (!result)
+            Throw(actual, expected, path);
+
+        return true;
+    }
+
+    static bool BothValuesAreNull(
+        [NotNullWhen(false)] object? actual,
+        [NotNullWhen(false)] object? expected,
+        IEnumerable<string>          path
+    ) {
+        if (expected == null) {
+            if (actual == null)
+                return true;
+            Throw(actual, expected, path);
+        } else if (actual == null) {
+            Throw(actual, expected, path);
+        }
+
+        return false;
+    }
+
+    static Type GetTypeToCompare(object actual, object expected, IList<string> path) {
+        var expectedType = expected.GetType();
+        var actualType   = actual.GetType();
+
+        if (actualType != expectedType)
+            Throw(actualType, expectedType, path);
+
+        var typeName = $" [{actualType.FullName}]";
+
+        if (path.Count == 0)
+            path.Add(typeName);
+        else
+            path[^1] += typeName;
+
+        return actualType;
+    }
+
+    static void CompareValueTypes(
+        ValueType actual, ValueType expected, IEnumerable<string> path, EquivalencyConfiguration? config
+    ) {
+        if (config is { NumericTolerance: > 0 } && IsNumericType(actual.GetType())) {
+            var actualDouble   = Convert.ToDouble(actual);
+            var expectedDouble = Convert.ToDouble(expected);
+
+            if (Math.Abs(actualDouble - expectedDouble) <= config.NumericTolerance)
+                return;
+        }
+
+        if (!actual.Equals(expected))
+            Throw(actual, expected, path);
+    }
+
+    static bool IsNumericType(Type type) => Type.GetTypeCode(type) is
+        TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
+        TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 or
+        TypeCode.Single or TypeCode.Double or TypeCode.Decimal or
+        TypeCode.Byte or TypeCode.SByte;
+
+    static void CompareReferenceTypes(
+        object actual, object expected, Type type,
+        IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
+        EquivalencyConfiguration? config
+    ) {
+        if (ReferenceEquals(actual, expected) || previousComparisons.Contains(actual, expected))
+            return;
+
+        previousComparisons.Record(actual, expected);
+
+        CompareMembers(
+            actual, expected, type, path, previousComparisons, config
+        );
+    }
+
+    static void CompareStrings(
+        string actual, string expected, IEnumerable<string> path, EquivalencyConfiguration? config
+    ) {
+        if (config?.NormalizeNewlines == true) {
+            actual   = actual.ReplaceLineEndings("\n");
+            expected = expected.ReplaceLineEndings("\n");
+        }
+
+        if (config?.TrimLeadingWhitespace == true) {
+            actual   = actual.TrimStart();
+            expected = expected.TrimStart();
+        }
+
+        if (config?.TrimTrailingWhitespace == true) {
+            actual   = actual.TrimEnd();
+            expected = expected.TrimEnd();
+        }
+
+        var comparison = config?.StringComparison ?? StringComparison.Ordinal;
+
+        if (!actual.Equals(expected, comparison))
+            Throw(actual, expected, path);
+    }
+
+    static void CompareEnumerables(
+        IEnumerable actual, IEnumerable expected, IEnumerable<string> path,
+        IDictionary<object, IList<object?>> previousComparisons, EquivalencyConfiguration? config
+    ) {
+        var expectedList = expected.Cast<object?>().ToList();
+        var actualList   = actual.Cast<object?>().ToList();
+
+        if (actualList.Count != expectedList.Count) {
+            var newPath = path.Concat(["Count"]);
+            Throw(actualList.Count, expectedList.Count, newPath);
+        }
+
+        if (config?.IgnoreCollectionOrder == true) {
+            CompareEnumerablesOrderIndependent(actualList, expectedList, path, previousComparisons, config);
+        } else {
+            for (var i = 0; i < actualList.Count; i++) {
+                var newPath = path.Concat([$"Element [{i}]"]);
+                CompareObjects(actualList[i], expectedList[i], newPath.ToList(), previousComparisons, config);
+            }
+        }
+    }
+
+    static void CompareEnumerablesOrderIndependent(
+        IList<object?> actualList, IList<object?> expectedList,
+        IEnumerable<string> path, IDictionary<object, IList<object?>> previousComparisons,
+        EquivalencyConfiguration? config
+    ) {
+        var expectedCopy = expectedList.ToList();
+
+        for (var i = 0; i < actualList.Count; i++) {
+            var actualItem = actualList[i];
+            var matchFound = false;
+
+            for (var j = 0; j < expectedCopy.Count; j++) {
+                try {
+                    var newPath = path.Concat([$"Element [{i}]"]).ToList();
+                    CompareObjects(actualItem, expectedCopy[j], newPath, previousComparisons, config);
+                    expectedCopy.RemoveAt(j);
+                    matchFound = true;
+                    break;
+                } catch (ObjectGraphComparisonException) {
+                    // not a match
+                }
+            }
+
+            if (!matchFound) {
+                var newPath = path.Concat([$"Element [{i}]"]);
+                Throw(actualItem, "<no matching element>", newPath);
+            }
+        }
+    }
+
+    static void CompareMembers(
+        object actual, object expected, Type type,
+        IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
+        EquivalencyConfiguration? config
+    ) {
+        IEnumerable<MemberInfo> members = type.GetFields(DefaultBindingFlags);
+        members = members.Concat(type.GetProperties(DefaultBindingFlags));
+
+        foreach (var member in members) {
+            if (member is PropertyInfo p2 && p2.GetIndexParameters().Length != 0)
+                throw new NotSupportedException("Comparing types that have indexers is not supported.");
+
+            var newPath = path.Concat([member.Name]).ToList();
+
+            if (config?.IsExcluded(newPath) == true)
+                continue;
+
+            var (actualVal, expectedVal) = member switch {
+                FieldInfo f    => (f.GetValue(actual), f.GetValue(expected)),
+                PropertyInfo p => (p.GetValue(actual, []), p.GetValue(expected, [])),
+                _              => throw new NotSupportedException($"Unsupported member type: {member.GetType()}")
+            };
+
+            CompareObjects(actualVal, expectedVal, newPath, previousComparisons, config);
+        }
+    }
+
+    [DoesNotReturn]
+    static void Throw(object? actual, object? expected, IEnumerable<string> path) {
+        var pathStr = string.Join(".", path.Select(p => {
+            var bracketIndex = p.IndexOf(" [", StringComparison.Ordinal);
+            return bracketIndex >= 0 ? p[..bracketIndex] : p;
+        }).Where(p => !string.IsNullOrEmpty(p)));
+
+        var location = string.IsNullOrEmpty(pathStr) ? "root" : pathStr;
+
+        throw new ObjectGraphComparisonException(
+            $"At '{location}': expected '{Format(expected)}' but was '{Format(actual)}'"
+        );
+    }
+
+    static string Format(object? value) => value switch {
+        null       => "<null>",
+        string s   => $"\"{s}\"",
+        Type t     => t.FullName ?? t.Name,
+        _          => value.ToString() ?? "<null>"
+    };
+
+    static bool Contains(this IDictionary<object, IList<object?>> comparisons, object actual, object? expected) =>
+        comparisons.TryGetValue(actual, out var list) && list.Any(e => ReferenceEquals(e, expected));
+
+    static void Record(this IDictionary<object, IList<object?>> comparisons, object actual, object? expected) {
+        if (comparisons.TryGetValue(actual, out var list))
+            list.Add(expected);
+        else
+            comparisons.Add(actual, new List<object?>([expected]));
+    }
+}
