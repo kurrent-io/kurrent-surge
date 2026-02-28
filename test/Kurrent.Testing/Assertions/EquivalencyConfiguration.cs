@@ -7,6 +7,7 @@ public class EquivalencyConfiguration {
     readonly Dictionary<Type, Delegate> _customComparers      = new();
     readonly HashSet<string>            _excludedPaths       = [];
     readonly HashSet<string>            _excludedMemberNames = [];
+    readonly HashSet<Type>              _excludedMemberTypes = [];
     readonly HashSet<Type>              _valueComparedTypes  = [];
     readonly HashSet<Type>              _memberComparedTypes = [];
 
@@ -33,6 +34,11 @@ public class EquivalencyConfiguration {
     public EquivalencyConfiguration ExcludingMembersNamed(params string[] names) {
         foreach (var name in names)
             _excludedMemberNames.Add(name);
+        return this;
+    }
+
+    public EquivalencyConfiguration ExcludingType<TType>() {
+        _excludedMemberTypes.Add(typeof(TType));
         return this;
     }
 
@@ -100,6 +106,9 @@ public class EquivalencyConfiguration {
     internal bool ShouldCompareByValue(Type type) => _valueComparedTypes.Contains(type);
     internal bool ShouldCompareByMembers(Type type) => _memberComparedTypes.Contains(type);
     internal bool IsExcludedByName(string memberName) => _excludedMemberNames.Contains(memberName);
+
+    internal bool IsExcludedByType(Type memberType) =>
+        _excludedMemberTypes.Count > 0 && _excludedMemberTypes.Any(t => t.IsAssignableFrom(memberType));
 
     public bool IsExcluded(IEnumerable<string> path) {
         var cleanPath = path.Select(p => {

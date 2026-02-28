@@ -733,6 +733,37 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region EquivalencyConfiguration: Excluding by type
+
+    [Test]
+    public async Task excluding_by_type_skips_all_members_of_that_type() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.CreatedAt = original.CreatedAt.AddYears(1);
+
+        // Exclude all DateTime members
+        await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.ExcludingType<DateTime>()
+        );
+    }
+
+    [Test]
+    public async Task excluding_by_type_does_not_skip_other_types() {
+        var original = ComplexObjectFaker.Generate();
+        var modified = CloneComplexObject(original);
+        modified.Name = $"{Faker.Name.FullName()}_different";
+
+        var action = async () => await Assert.That(original).IsDeepEquivalentTo(
+            modified,
+            cfg => cfg.ExcludingType<DateTime>()
+        );
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    #endregion
+
     #region Complex object with all property types
 
     [Test]

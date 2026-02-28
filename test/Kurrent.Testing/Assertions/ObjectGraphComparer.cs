@@ -237,6 +237,16 @@ static class ObjectGraphComparer {
             if (config?.IsExcludedByName(member.Name) == true)
                 continue;
 
+            // Get member's declared type for type-based exclusion
+            var memberType = member switch {
+                FieldInfo f    => f.FieldType,
+                PropertyInfo p => p.PropertyType,
+                _              => null
+            };
+
+            if (memberType != null && config?.IsExcludedByType(memberType) == true)
+                continue;
+
             var newPath = path.Concat([member.Name]).ToList();
 
             if (config?.IsExcluded(newPath) == true)
