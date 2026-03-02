@@ -5,7 +5,7 @@ using Bogus;
 
 namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
 
-internal record ArcadeRaceState {
+public record ArcadeRaceState {
     public List<Car>                Cars            { get; init; } = [];
     public List<Car>                RaceOrder       { get; init; } = [];
     public Dictionary<Guid, double> CumulativeTimes { get; init; } = [];
