@@ -4,6 +4,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Kurrent.Testing.Assertions" />
     <Using Include="TUnit" />
   </ItemGroup>
@@ -52,6 +56,8 @@
     </None>
     <None Remove="KurrentDB.Testing.csproj.DotSettings" />
     <EmbeddedResource Include="Sample\FormulaOne\Data\*.json" />
+    <Compile Remove="Sample\FormulaOne\Tests\**" />
+    <Compile Remove="Bogus\Datasets\ArcadeRacer\Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

@@ -6,8 +6,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Kurrent.Testing\Sample\FormulaOne\Tests\**\*.cs" LinkBase="FormulaOne" />
+    <Compile Include="..\Kurrent.Testing\Bogus\Datasets\ArcadeRacer\Tests\**\*.cs" LinkBase="ArcadeRacer" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
+    <Using Include="Kurrent.Testing.Assertions" />
     <Using Include="TUnit" />
   </ItemGroup>
 
