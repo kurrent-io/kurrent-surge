@@ -3,6 +3,11 @@
 
 namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
 
+public interface IRaceEvent {
+    Guid EventId   { get; init; }
+    long Timestamp { get; init; }
+}
+
 public record RaceStarted : IRaceEvent {
     public required Guid           EventId    { get; init; }
     public required Circuit        Circuit    { get; init; }
