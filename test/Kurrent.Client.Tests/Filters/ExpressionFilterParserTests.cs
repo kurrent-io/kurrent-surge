@@ -525,4 +525,57 @@ public class ExpressionFilterParserTests {
     }
 
     #endregion
+
+    #region Column Aliases
+
+    [Test]
+    public async Task parses_event_type_alias() {
+        var result = _parser.Parse("event_type = 'OrderPlaced'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_event_number_alias() {
+        var result = _parser.Parse("event_number > 5");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_log_position_alias() {
+        var result = _parser.Parse("log_position > 1000");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_created_at_alias() {
+        var result = _parser.Parse("created_at >= '2026-01-01'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_created_ts_alias() {
+        var result = _parser.Parse("created_ts >= '2026-01-01'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_metadata_alias() {
+        var result = _parser.Parse("metadata.region = 'us-east'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_stream_name_alias() {
+        var result = _parser.Parse("stream_name = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
 }

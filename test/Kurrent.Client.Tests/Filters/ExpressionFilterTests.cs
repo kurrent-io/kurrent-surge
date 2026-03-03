@@ -531,6 +531,90 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region Column Aliases
+
+    [Test]
+    public async Task evaluates_event_type_alias() {
+        var filter      = Parse("event_type = 'OrderPlaced'");
+        var matching    = _faker.With(schemaName: "OrderPlaced");
+        var nonMatching = _faker.With(schemaName: "OrderShipped");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_event_number_alias() {
+        var filter      = Parse("event_number > 5");
+        var matching    = _faker.With(streamRevision: 10);
+        var nonMatching = _faker.With(streamRevision: 3);
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_log_position_alias() {
+        var filter      = Parse("log_position > 1000");
+        var matching    = _faker.With(position: 1500);
+        var nonMatching = _faker.With(position: 500);
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_created_at_alias() {
+        var filter = Parse("created_at >= '2026-01-01'");
+        var matching = _faker.With(
+            timestamp: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        var nonMatching = _faker.With(
+            timestamp: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_created_ts_alias() {
+        var filter = Parse("created_ts >= '2026-01-01'");
+        var matching = _faker.With(
+            timestamp: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        var nonMatching = _faker.With(
+            timestamp: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_metadata_alias() {
+        var filter      = Parse("metadata.region = 'us-east'");
+        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_stream_name_alias() {
+        var filter      = Parse("stream_name = 'orders-99'");
+        var matching    = _faker.With("orders-99");
+        var nonMatching = _faker.With("payments-1");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
     #region Edge Cases
 
     [Test]

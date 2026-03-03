@@ -661,13 +661,14 @@ sealed record NullFilterValue : FilterValue {
 public sealed record PropertyAccess(string PropertyName, string? Key = null) {
     public object? Resolve(Record record) =>
         PropertyName.ToLowerInvariant() switch {
-            "stream"                        => record.Stream.Value,
-            "schema_name" or "schema"       => record.Schema.SchemaName.Value,
-            "timestamp" or "ts"             => record.Timestamp,
-            "position" or "pos"             => record.Position.LogPosition.Value,
-            "stream_revision" or "revision" => (long)record.Revision,
-            "record_id" or "id"             => record.Id,
-            "properties" or "props" => Key is null
+            "stream" or "stream_name"                          => record.Stream.Value,
+            "schema_name" or "schema" or "event_type"          => record.Schema.SchemaName.Value,
+            "timestamp" or "ts" or "created_at" or "created_ts"
+                                                               => record.Timestamp,
+            "position" or "pos" or "log_position"              => record.Position.LogPosition.Value,
+            "stream_revision" or "revision" or "event_number"  => (long)record.Revision,
+            "record_id" or "id"                                => record.Id,
+            "properties" or "props" or "metadata" => Key is null
                 ? null
                 : record.Metadata.TryGetValue<object>(Key, out var value)
                     ? value
@@ -780,7 +781,9 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
 file static class ValueComparer {
     public static int Compare(object? left, object? right) {
         if (left is null && right is null) return 0;
+
         if (left is null) return -1;
+
         if (right is null) return 1;
 
         if (left is string ls && right is string rs)
