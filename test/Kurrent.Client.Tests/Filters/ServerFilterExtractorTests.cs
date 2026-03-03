@@ -266,6 +266,37 @@ public class ServerFilterExtractorTests {
 
     #endregion
 
+    #region Index Filter Extraction
+
+    [Test]
+    public async Task extracts_index_to_idx_user_stream() {
+        var expr   = ParseExpression("index = 'orders-by-country'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-orders-by-country"));
+    }
+
+    [Test]
+    public async Task index_combined_with_schema_uses_index() {
+        var expr   = ParseExpression("index = 'orders-by-country' AND schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-orders-by-country"));
+    }
+
+    [Test]
+    public async Task category_wins_over_index() {
+        var expr   = ParseExpression("category = 'orders' AND index = 'orders-by-country'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+    }
+
+    #endregion
+
     #region Client-Side Filters (no server filter)
 
     [Test]

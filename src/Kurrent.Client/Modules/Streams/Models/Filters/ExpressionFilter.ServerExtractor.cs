@@ -24,7 +24,11 @@ static class ServerFilterExtractor {
         if (TryExtractCategoryFilter(conjuncts, out var categoryFilter))
             return categoryFilter;
 
-        // Priority 3: Schema filters
+        // Priority 3: Index filters (targets $idx-user-* user-defined index streams)
+        if (TryExtractIndexFilter(conjuncts, out var indexFilter))
+            return indexFilter;
+
+        // Priority 4: Schema filters
         if (TryExtractSchemaFilter(conjuncts, out var schemaFilter))
             return schemaFilter;
 
@@ -165,6 +169,24 @@ static class ServerFilterExtractor {
 
     static bool IsCategoryProperty(string propertyName) =>
         propertyName.Equals("category", StringComparison.OrdinalIgnoreCase);
+
+    #endregion
+
+    #region Index Filter Extraction
+
+    static bool TryExtractIndexFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
+        foreach (var conjunct in conjuncts) {
+            if (conjunct is IndexExpression { IndexName: var name }) {
+                var pattern       = $"^{Regex.Escape($"$idx-user-{name}")}$";
+                var compiledRegex = new Regex(pattern, RegexOptions.Compiled);
+                filter = new StreamFilter(compiledRegex);
+                return true;
+            }
+        }
+
+        filter = RecordFilter.None;
+        return false;
+    }
 
     #endregion
 
