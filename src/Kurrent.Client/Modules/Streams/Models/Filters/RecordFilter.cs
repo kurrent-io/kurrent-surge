@@ -28,10 +28,14 @@ public static class RecordFilter {
     public static IRecordFilter ByStreamPrefix(params string[] prefixes) => new StreamFilter(prefixes, exactMatch: false);
 
     /// <summary>
-    /// Creates a filter that matches stream categories.
+    /// Creates a filter that matches stream categories by targeting $idx-ce-* secondary index streams.
     /// </summary>
     /// <param name="categories">The stream category names to match.</param>
-    public static IRecordFilter ByCategory(params string[] categories) => new StreamFilter(categories, exactMatch: false);
+    public static IRecordFilter ByCategory(params string[] categories) {
+        ArgumentOutOfRangeException.ThrowIfZero(categories.Length, nameof(categories));
+        var streams = categories.Select(c => $"$idx-ce-{c}").ToArray();
+        return new StreamFilter(streams, exactMatch: true);
+    }
 
     /// <summary>
     /// Creates a filter that matches one or more schema names (event types) exactly.

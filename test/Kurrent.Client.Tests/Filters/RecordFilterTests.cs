@@ -76,6 +76,28 @@ public class RecordFilterTests {
     }
 
     [Test]
+    public async Task by_category_returns_stream_filter_targeting_idx_ce() {
+        var filter = RecordFilter.ByCategory("orders");
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+    }
+
+    [Test]
+    public async Task by_category_multiple_returns_stream_filter_with_alternation() {
+        var filter = RecordFilter.ByCategory("orders", "payments");
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).Contains("\\$idx-ce-orders");
+        await Assert.That(filter.Expression).Contains("\\$idx-ce-payments");
+    }
+
+    [Test]
+    public async Task by_category_throws_on_empty_array() {
+        await Assert.That(() => RecordFilter.ByCategory()).ThrowsExactly<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public async Task by_expression_returns_expression_filter() {
         var filter = RecordFilter.ByExpression("stream = 'orders'");
 
