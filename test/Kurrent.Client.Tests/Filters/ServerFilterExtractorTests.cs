@@ -208,6 +208,64 @@ public class ServerFilterExtractorTests {
 
     #endregion
 
+    #region Category Filter Extraction
+
+    [Test]
+    public async Task extracts_category_equality_to_idx_ce_stream() {
+        var expr   = ParseExpression("category = 'orders'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+    }
+
+    [Test]
+    public async Task extracts_category_in_to_idx_ce_streams() {
+        var expr   = ParseExpression("category IN ('orders', 'payments')");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).Contains("\\$idx-ce-orders");
+        await Assert.That(filter.Expression).Contains("\\$idx-ce-payments");
+    }
+
+    [Test]
+    public async Task extracts_category_like_to_idx_ce_pattern() {
+        var expr   = ParseExpression("category LIKE 'order%'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.Expression).Contains("\\$idx-ce-order");
+    }
+
+    [Test]
+    public async Task category_wins_over_schema() {
+        var expr   = ParseExpression("category = 'orders' AND schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+    }
+
+    [Test]
+    public async Task stream_wins_over_category() {
+        var expr   = ParseExpression("stream = 'orders-99' AND category = 'orders'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-99"));
+    }
+
+    [Test]
+    public async Task category_or_schema_has_no_server_filter() {
+        var expr   = ParseExpression("category = 'orders' OR schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
     #region Client-Side Filters (no server filter)
 
     [Test]

@@ -11,7 +11,7 @@ namespace Kurrent.Client.Streams;
 static class ServerFilterExtractor {
     /// <summary>
     /// Extracts a server-side filter from the parsed expression.
-    /// Returns StreamFilter (priority 1), SchemaFilter (priority 2), or RecordFilter.None.
+    /// Priority: Stream (1) > Category (2) > Index (3) > Schema (4).
     /// </summary>
     public static IRecordFilter Extract(IFilterExpression expression) {
         var conjuncts = FlattenAnd(expression);
@@ -20,7 +20,11 @@ static class ServerFilterExtractor {
         if (TryExtractStreamFilter(conjuncts, out var streamFilter))
             return streamFilter;
 
-        // Priority 2: Schema filters (only if no stream predicates)
+        // Priority 2: Category filters (targets $idx-ce-* secondary index streams)
+        if (TryExtractCategoryFilter(conjuncts, out var categoryFilter))
+            return categoryFilter;
+
+        // Priority 3: Schema filters
         if (TryExtractSchemaFilter(conjuncts, out var schemaFilter))
             return schemaFilter;
 
@@ -86,6 +90,81 @@ static class ServerFilterExtractor {
 
     static bool IsStreamProperty(string propertyName) =>
         propertyName.Equals("stream", StringComparison.OrdinalIgnoreCase);
+
+    #endregion
+
+    #region Category Filter Extraction
+
+    static bool TryExtractCategoryFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
+        var regexPatterns   = new List<string>();
+        var caseInsensitive = false;
+
+        foreach (var conjunct in conjuncts) {
+            if (TryExtractCategoryPredicate(conjunct, out var regex, out var ignoreCase)) {
+                regexPatterns.Add(regex);
+                caseInsensitive |= ignoreCase;
+            }
+        }
+
+        if (regexPatterns.Count == 0) {
+            filter = RecordFilter.None;
+            return false;
+        }
+
+        var combinedRegex = CombineRegexPatterns(regexPatterns);
+        var finalPattern  = caseInsensitive ? $"(?i){combinedRegex}" : combinedRegex;
+        var compiledRegex = new Regex(finalPattern, RegexOptions.Compiled);
+
+        filter = new StreamFilter(compiledRegex);
+        return true;
+    }
+
+    static bool TryExtractCategoryPredicate(IFilterExpression expr, out string regex, out bool caseInsensitive) {
+        switch (expr) {
+            case ComparisonExpression { Op: ComparisonOperator.Equal, Value: StringFilterValue sv } comp
+                when IsCategoryProperty(comp.Property.PropertyName):
+                regex           = $"^{Regex.Escape($"$idx-ce-{sv.Value}")}$";
+                caseInsensitive = false;
+                return true;
+
+            case LikeExpression { Negated: false } like
+                when IsCategoryProperty(like.Property.PropertyName):
+                regex           = ConvertCategoryLikeToRegex(like.Pattern);
+                caseInsensitive = like.CaseInsensitive;
+                return true;
+
+            case InExpression { Negated: false } inExpr
+                when IsCategoryProperty(inExpr.Property.PropertyName) && TryExtractStringValues(inExpr.Values, out var values):
+                var escaped = values.Select(v => Regex.Escape($"$idx-ce-{v}"));
+                regex           = $"^({string.Join("|", escaped)})$";
+                caseInsensitive = false;
+                return true;
+
+            default:
+                regex           = string.Empty;
+                caseInsensitive = false;
+                return false;
+        }
+    }
+
+    static string ConvertCategoryLikeToRegex(string pattern) {
+        var result = new System.Text.StringBuilder();
+        result.Append(Regex.Escape("$idx-ce-"));
+
+        foreach (var ch in pattern) {
+            if (ch == '%')
+                result.Append(".*");
+            else if (ch == '_')
+                result.Append('.');
+            else
+                result.Append(Regex.Escape(ch.ToString()));
+        }
+
+        return $"^{result}$";
+    }
+
+    static bool IsCategoryProperty(string propertyName) =>
+        propertyName.Equals("category", StringComparison.OrdinalIgnoreCase);
 
     #endregion
 
