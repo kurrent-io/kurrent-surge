@@ -26,32 +26,6 @@ public class StreamFilterTests {
 
     #endregion
 
-    #region ByStreamPrefix
-
-    [Test]
-    public async Task by_stream_prefix_matches_category_prefixes() {
-        var filter           = RecordFilter.ByStreamPrefix("Orders-", "Payments-");
-        var matchingOrders   = _faker.With(OrdersStream);
-        var matchingPayments = _faker.With(PaymentsStream);
-        var nonMatching      = _faker.With(UsersStream);
-
-        await Assert.That(filter.IsMatch(matchingOrders)).IsTrue();
-        await Assert.That(filter.IsMatch(matchingPayments)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task by_stream_prefix_with_single_category() {
-        var filter      = RecordFilter.ByStreamPrefix("Orders-");
-        var matching    = _faker.With(OrdersStream);
-        var nonMatching = _faker.With(PaymentsStream);
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    #endregion
-
     #region ByStreamPattern - Auto-Derivation of TargetStream
 
     [Test]

@@ -21,18 +21,15 @@ public abstract record RegexFilter : IRecordFilter {
     /// <summary>
     /// Creates a regex filter for exact multi-value match.
     /// </summary>
-    protected RegexFilter(string[] values, bool exactMatch) {
+    protected RegexFilter(string[] values) {
         if (values.Length == 0)
             throw new ArgumentException("At least one value is required.", nameof(values));
 
         var escaped = values.Select(v => Regex.Escape(v.Trim())).ToArray();
 
         var pattern = escaped.Length == 1
-            ? $"^{escaped[0]}"
-            : $"^({string.Join("|", escaped)})";
-
-        if (exactMatch)
-            pattern += "$";
+            ? $"^{escaped[0]}$"
+            : $"^({string.Join("|", escaped)})$";
 
         Regex = new Regex(pattern, RegexOptions.Compiled);
     }

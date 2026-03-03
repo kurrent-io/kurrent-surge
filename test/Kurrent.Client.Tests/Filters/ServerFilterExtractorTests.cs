@@ -518,7 +518,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task stream_filter_matches_category_prefix() {
-        var filter = RecordFilter.ByStreamPrefix("Orders-");
+        var filter = RecordFilter.ByStreamPattern("^Orders-");
 
         var matching = new Record {
             Id       = Guid.NewGuid(),

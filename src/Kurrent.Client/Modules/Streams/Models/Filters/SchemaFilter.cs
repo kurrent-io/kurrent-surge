@@ -8,9 +8,9 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public sealed record SchemaFilter : RegexFilter {
     /// <summary>
-    /// Creates a filter that matches any of the specified schema names.
+    /// Creates a filter that matches any of the specified schema names exactly.
     /// </summary>
-    public SchemaFilter(string[] schemas, bool exactMatch) : base(schemas, exactMatch) { }
+    public SchemaFilter(string[] schemas) : base(schemas) { }
 
     /// <summary>
     /// Creates a filter from a raw regex pattern.

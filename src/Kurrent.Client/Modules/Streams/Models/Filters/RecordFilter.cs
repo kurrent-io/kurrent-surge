@@ -18,14 +18,8 @@ public static class RecordFilter {
     /// <param name="streams">The stream names to match.</param>
     public static IRecordFilter ByStream(params string[] streams) {
         ArgumentOutOfRangeException.ThrowIfZero(streams.Length, nameof(streams));
-        return new StreamFilter(streams, exactMatch: true);
+        return new StreamFilter(streams);
     }
-
-    /// <summary>
-    /// Creates a filter that matches streams by prefix patterns.
-    /// </summary>
-    /// <param name="prefixes">The stream name prefixes to match.</param>
-    public static IRecordFilter ByStreamPrefix(params string[] prefixes) => new StreamFilter(prefixes, exactMatch: false);
 
     /// <summary>
     /// Creates a filter that matches stream categories by targeting $idx-ce-* secondary index streams.
@@ -34,7 +28,7 @@ public static class RecordFilter {
     public static IRecordFilter ByCategory(params string[] categories) {
         ArgumentOutOfRangeException.ThrowIfZero(categories.Length, nameof(categories));
         var streams = categories.Select(c => $"$idx-ce-{c}").ToArray();
-        return new StreamFilter(streams, exactMatch: true);
+        return new StreamFilter(streams);
     }
 
     /// <summary>
@@ -43,14 +37,8 @@ public static class RecordFilter {
     /// <param name="schemas">The schema names to match.</param>
     public static IRecordFilter BySchema(params string[] schemas) {
         ArgumentOutOfRangeException.ThrowIfZero(schemas.Length, nameof(schemas));
-        return new SchemaFilter(schemas, exactMatch: true);
+        return new SchemaFilter(schemas);
     }
-
-    /// <summary>
-    /// Creates a filter that matches schemas by prefix patterns.
-    /// </summary>
-    /// <param name="prefixes">The schema name prefixes to match.</param>
-    public static IRecordFilter BySchemaPrefix(params string[] prefixes) => new SchemaFilter(prefixes, exactMatch: false);
 
     /// <summary>
     /// Creates a filter from a DuckDB-compatible expression.

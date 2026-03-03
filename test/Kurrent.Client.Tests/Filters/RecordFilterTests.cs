@@ -36,18 +36,6 @@ public class RecordFilterTests {
     }
 
     [Test]
-    public async Task by_stream_prefix_returns_stream_filter() {
-        var filter = RecordFilter.ByStreamPrefix("order", "payment");
-
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-    }
-
-    [Test]
-    public async Task by_stream_prefix_throws_on_empty_array() {
-        await Assert.That(() => RecordFilter.ByStreamPrefix()).ThrowsExactly<ArgumentException>();
-    }
-
-    [Test]
     public async Task by_schema_returns_schema_filter() {
         var filter = RecordFilter.BySchema("Order");
         await Assert.That(filter).IsTypeOf<SchemaFilter>();
@@ -62,17 +50,6 @@ public class RecordFilterTests {
     [Test]
     public async Task by_schema_throws_on_empty_array() {
         await Assert.That(() => RecordFilter.BySchema()).ThrowsExactly<ArgumentOutOfRangeException>();
-    }
-
-    [Test]
-    public async Task by_schema_prefix_returns_schema_filter() {
-        var filter = RecordFilter.BySchemaPrefix("Order", "Payment");
-        await Assert.That(filter).IsTypeOf<SchemaFilter>();
-    }
-
-    [Test]
-    public async Task by_schema_prefix_throws_on_empty_array() {
-        await Assert.That(() => RecordFilter.BySchemaPrefix()).ThrowsExactly<ArgumentException>();
     }
 
     [Test]
