@@ -434,7 +434,11 @@ file sealed class PrattParser(List<Token> tokens) {
 
     IFilterExpression ParsePropertyExpression() {
         var property = ParsePropertyAccess();
-        var token    = Peek();
+
+        if (property.PropertyName.Equals("index", StringComparison.OrdinalIgnoreCase))
+            return ParseIndexExpression();
+
+        var token = Peek();
 
         switch (token.Type) {
             case TokenType.Is:
@@ -470,6 +474,12 @@ file sealed class PrattParser(List<Token> tokens) {
             default:
                 throw new ParseException(token.Value.Length > 0 ? token.Value : "end of input", token.Position);
         }
+    }
+
+    IndexExpression ParseIndexExpression() {
+        Expect(TokenType.Equal, "=");
+        var name = Expect(TokenType.String, "index name");
+        return new IndexExpression(name.Value);
     }
 
     PropertyAccess ParsePropertyAccess() {
@@ -766,6 +776,10 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
         var found = values.Any(v => ValueComparer.Compare(propValue, v.GetValue()) == 0);
         return negated ? !found : found;
     }
+}
+
+public sealed record IndexExpression(string IndexName) : IFilterExpression {
+    public bool IsMatch(Record record) => true;
 }
 
 file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, FilterValue upper, bool negated) : IFilterExpression {

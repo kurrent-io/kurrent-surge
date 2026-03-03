@@ -615,6 +615,28 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region Index Virtual Column
+
+    [Test]
+    public async Task evaluates_index_always_true() {
+        var filter = Parse("index = 'orders-by-country'");
+        var record = _faker.With("anything-123");
+
+        await Assert.That(filter.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task evaluates_index_combined_with_schema() {
+        var filter      = Parse("index = 'orders-by-country' AND schema = 'OrderPlaced'");
+        var matching    = _faker.With(schemaName: "OrderPlaced");
+        var nonMatching = _faker.With(schemaName: "OrderShipped");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
     #region Category Derivation
 
     [Test]
