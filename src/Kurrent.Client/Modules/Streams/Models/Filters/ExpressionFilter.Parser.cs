@@ -666,6 +666,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
             "timestamp" or "ts" or "created_at" or "created_ts"
                                                                => record.Timestamp,
             "position" or "pos" or "log_position"              => record.Position.LogPosition.Value,
+            "category"                                         => DeriveCategory(record.Stream.Value),
             "stream_revision" or "revision" or "event_number"  => (long)record.Revision,
             "record_id" or "id"                                => record.Id,
             "properties" or "props" or "metadata" => Key is null
@@ -675,6 +676,11 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
                     : null,
             _ => null
         };
+
+    static string DeriveCategory(string stream) {
+        var idx = stream.IndexOf('-');
+        return idx < 0 ? stream : stream[..idx];
+    }
 }
 
 public enum ComparisonOperator {

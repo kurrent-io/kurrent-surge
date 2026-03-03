@@ -615,6 +615,38 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region Category Derivation
+
+    [Test]
+    public async Task evaluates_category_from_stream_with_delimiter() {
+        var filter      = Parse("category = 'order'");
+        var matching    = _faker.With("order-abc123");
+        var nonMatching = _faker.With("payment-2026-001");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_category_from_stream_with_multiple_delimiters() {
+        var filter   = Parse("category = 'payment'");
+        var matching = _faker.With("payment-2026-001");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+    }
+
+    [Test]
+    public async Task evaluates_category_from_stream_without_delimiter() {
+        var filter      = Parse("category = 'nodelimiter'");
+        var matching    = _faker.With("nodelimiter");
+        var nonMatching = _faker.With("other");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
     #region Edge Cases
 
     [Test]
