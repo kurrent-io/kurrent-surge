@@ -42,7 +42,7 @@ public sealed class BenchmarkFixture : IAsyncDisposable {
         var activity = HomeAutomationTestData.SimulateHomeActivity(messageCount);
 
         await Client.Streams
-            .AppendRecordsAsync(activity)
+            .AppendRecords(activity.Stream, ExpectedStreamState.Any, activity.Records)
             .ConfigureAwait(false);
 
         _seededStreams[messageCount] = activity.Stream;

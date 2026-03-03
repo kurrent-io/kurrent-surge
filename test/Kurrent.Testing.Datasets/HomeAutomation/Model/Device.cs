@@ -1,5 +1,5 @@
 using Humanizer;
-using Kurrent.Testing.Sample.HomeAutomation;
+using Testing.Datasets.HomeAutomation.Contracts.Events;
 
 namespace Testing.Datasets.HomeAutomation.Model;
 

@@ -7,12 +7,11 @@ description: |
 
 ## Prose
 
-- Keep lines under 120 characters
+- Keep lines under yet close to 120 characters. This improves readability in side-by-side diffs and on smaller screens.
 - Never use em dashes, en dashes, or hyphens to join phrases. Use periods, semicolons, or restructure the sentence
   instead
 
-TRIPWIRE: if you are capping lines way before the 120 character limit - because of your natural bias - reflow the text 
-to use more of the line.
+TRIPWIRE:  If you find yourself capping lines at 80 characters out of habit, reflow the text to use more of the line.
 
 ## Structure
 
@@ -49,6 +48,6 @@ TRIPWIRE: if you notice misaligned tables, run the formatter script instead of m
 
 ## What NOT to do
 
-- Do not add "last updated" timestamps
+- Do not add "last updated" timestamps unless the user explicitly asks for it
 - Do not use emoji unless the user explicitly asks for it
 - Do not wrap prose in HTML tags

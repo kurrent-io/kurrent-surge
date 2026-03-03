@@ -5,7 +5,6 @@
     "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   },
   "includeCoAuthoredBy": false,
-  "spinnerTipsEnabled": false,
   "permissions": {
     "allow": [
       "AskUserQuestion",
@@ -51,16 +50,11 @@
   "enabledPlugins": {
     "context7@claude-plugins-official": true,
     "microsoft-docs@microsoft-docs-marketplace": true,
+    "dotnet-skills@dotnet-skills": true,
     "dotnet-nuget-proxy@dotnet-nuget-proxy": true,
-    "dotnet-skills@dotnet-skills": true
+    "csharp-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
-    "dotnet-nuget-proxy": {
-      "source": {
-        "source": "github",
-        "repo": "logiclabs/dotnet-nuget-proxy-skill"
-      }
-    },
     "dotnet-skills": {
       "source": {
         "source": "github",
@@ -73,5 +67,6 @@
         "repo": "microsoftdocs/mcp"
       }
     }
-  }
+  },
+  "spinnerTipsEnabled": false
 }

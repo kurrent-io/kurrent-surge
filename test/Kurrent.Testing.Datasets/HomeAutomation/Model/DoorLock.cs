@@ -2,6 +2,7 @@ namespace Testing.Datasets.HomeAutomation.Model;
 
 public class DoorLock(Room room, string deviceId)
     : Device(room, DeviceType.DoorLock, false, deviceId ) {
+
     public bool       IsOpen     { get; set; }
     public LockStatus LockStatus { get; set; } = LockStatus.Locked;
 

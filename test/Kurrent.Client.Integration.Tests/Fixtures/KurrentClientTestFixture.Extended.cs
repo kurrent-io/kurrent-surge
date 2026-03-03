@@ -5,8 +5,8 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.Sample.HomeAutomation;
 using Serilog;
+using Testing.Datasets.HomeAutomation.Model;
 using AppendRecord = Kurrent.Client.Streams.AppendRecord;
 
 namespace Kurrent.Client.Tests.Fixtures;

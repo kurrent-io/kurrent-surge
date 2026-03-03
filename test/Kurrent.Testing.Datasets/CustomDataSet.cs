@@ -2,7 +2,7 @@ using Bogus;
 using Bogus.Platform;
 using static System.StringComparison;
 
-namespace Kurrent.Testing.Bogus.Datasets;
+namespace Testing.Datasets;
 
 /// <summary>
 /// Represents a customizable data set for generating mock data.

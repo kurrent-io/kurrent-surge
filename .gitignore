@@ -481,10 +481,9 @@ certs-*/
 .claude
 .junie
 .conductor
-.dev-marketplace
 settings.local.json
 .project/docs/research
+.project/docs/plans/
 
-
-#others
+# Others
 .worktrees/

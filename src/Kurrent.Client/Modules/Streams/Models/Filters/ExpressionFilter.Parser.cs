@@ -669,7 +669,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
             "record_id" or "id"             => record.Id,
             "properties" or "props" => Key is null
                 ? null
-                : record.Metadata.TryGet<object>(Key, out var value)
+                : record.Metadata.TryGetValue<object>(Key, out var value)
                     ? value
                     : null,
             _ => null

@@ -1,5 +1,5 @@
 using Bogus;
-using Kurrent.Testing.Sample.HomeAutomation;
+using Testing.Datasets.HomeAutomation.Contracts.Events;
 using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation;

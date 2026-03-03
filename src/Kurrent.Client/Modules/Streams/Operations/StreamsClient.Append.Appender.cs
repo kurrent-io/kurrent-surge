@@ -1,3 +1,4 @@
+using Kurrent.Client.Exceptions;
 using static KurrentDB.Protocol.V2.Streams.StreamsService;
 
 namespace Kurrent.Client.Streams;
@@ -20,15 +21,13 @@ public class StreamsAppender : IAsyncDisposable {
 
     public MultiStreamAppendBuilder NewRequestBuilder() => new();
 
-    public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendAsync(AppendRecordsRequest request, CancellationToken ct) {
+    public async ValueTask<AppendRecordsSuccess> AppendAsync(AppendRecordsRequest request, CancellationToken ct) {
         if (request.Records.Length == 0)
-            return AppendRecordsError.FromEx(
-                new InvalidOperationException("No records to append. Add at least one record before calling AppendAsync."));
+            throw new InvalidOperationException("No records to append. Add at least one record before calling AppendAsync.");
 
         var missingStream = request.Records.FirstOrDefault(r => r.Stream == StreamName.None);
         if (missingStream is not null)
-            return AppendRecordsError.FromEx(
-                new InvalidOperationException($"Record '{missingStream.RecordId}' has no stream assigned. Set the stream on each record or use ForStream on the builder."));
+            throw new InvalidOperationException($"Record '{missingStream.RecordId}' has no stream assigned. Set the stream on each record or use ForStream on the builder.");
 
         try {
             var contract = await _mapper
@@ -42,11 +41,11 @@ public class StreamsAppender : IAsyncDisposable {
             return _mapper.ToModel(response);
         }
         catch (Exception ex) {
-            return AppendRecordsError.FromEx(ex);
+            throw ex.ToException(AppendConsistencyViolationException.From, MaxAppendRecordSizeExceededException.From, MaxAppendTransactionSizeExceededException.From);
         }
     }
 
-    public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendAsync(Action<MultiStreamAppendBuilder> configure, CancellationToken ct) {
+    public async ValueTask<AppendRecordsSuccess> AppendAsync(Action<MultiStreamAppendBuilder> configure, CancellationToken ct) {
         var builder = NewRequestBuilder();
         configure(builder);
         return await AppendAsync(builder.Build(), ct).ConfigureAwait(false);

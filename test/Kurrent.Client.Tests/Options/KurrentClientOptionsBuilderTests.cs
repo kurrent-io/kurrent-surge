@@ -13,7 +13,7 @@ public class KurrentClientOptionsBuilderTests {
 
         var newOptions = builder.Build();
 
-        await Assert.That(newOptions).IsEquivalentTo(validOptions);
+        await Assert.That(newOptions).IsDeepEquivalentTo(validOptions);
     }
 
     [Test]
@@ -28,13 +28,13 @@ public class KurrentClientOptionsBuilderTests {
         var newOptions = builder.Build();
 
         // WithResilience performs complete replacement
-        await Assert.That(newOptions.Resilience).IsEquivalentTo(KurrentClientResilienceOptions.NoResilience);
+        await Assert.That(newOptions.Resilience).IsDeepEquivalentTo(KurrentClientResilienceOptions.NoResilience);
 
         // Other properties should be preserved
         await Assert.That(newOptions.ConnectionName).IsEqualTo(validOptions.ConnectionName);
         await Assert.That(newOptions.Endpoints).IsEqualTo(validOptions.Endpoints);
-        await Assert.That(newOptions.Security).IsEquivalentTo(validOptions.Security);
-        await Assert.That(newOptions.Gossip).IsEquivalentTo(validOptions.Gossip);
+        await Assert.That(newOptions.Security).IsDeepEquivalentTo(validOptions.Security);
+        await Assert.That(newOptions.Gossip).IsDeepEquivalentTo(validOptions.Gossip);
     }
 
     [Test]
@@ -57,8 +57,8 @@ public class KurrentClientOptionsBuilderTests {
         // Other properties should be preserved
         await Assert.That(newOptions.ConnectionName).IsEqualTo(validOptions.ConnectionName);
         await Assert.That(newOptions.Endpoints).IsEqualTo(validOptions.Endpoints);
-        await Assert.That(newOptions.Security).IsEquivalentTo(validOptions.Security);
-        await Assert.That(newOptions.Resilience).IsEquivalentTo(validOptions.Resilience);
+        await Assert.That(newOptions.Security).IsDeepEquivalentTo(validOptions.Security);
+        await Assert.That(newOptions.Resilience).IsDeepEquivalentTo(validOptions.Resilience);
     }
 
     [Test]

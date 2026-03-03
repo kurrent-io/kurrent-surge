@@ -1,6 +1,7 @@
 using Bogus;
+using Testing.Datasets.ArcadeRacer.Contracts;
 
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>
 /// Aggregate that drives a single arcade race simulation. Tracks positions,

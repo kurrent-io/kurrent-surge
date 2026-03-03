@@ -1,6 +1,7 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
+// ReSharper disable CheckNamespace
 // ReSharper disable UnusedParameter.Local
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable UnusedType.Global
@@ -8,22 +9,8 @@
 
 using Testing.Datasets.HomeAutomation.Model;
 
-namespace Kurrent.Testing.Sample.HomeAutomation;
 
-public record DeviceInfo {
-    public required string     Id               { get; init; }
-    public required string     Name             { get; init; }
-    public required Guid       RoomId           { get; init; }
-    public required DeviceType DeviceType       { get; init; }
-    public required bool       IsBatteryPowered { get; init; }
-    public          int?       BatteryLevel     { get; init; }
-}
-
-public interface IHomeAutomationEvent {
-    Guid       EventId   { get; init; }
-    DeviceInfo Device    { get; init; }
-    long       Timestamp { get; init; }
-}
+namespace Testing.Datasets.HomeAutomation.Contracts.Events;
 
 public record TemperatureReading : IHomeAutomationEvent {
     public Guid EventId { get; init; } = Guid.NewGuid();
@@ -101,4 +88,19 @@ public record HumidityReading : IHomeAutomationEvent {
     public required double       Humidity     { get; init; }
     public required ComfortLevel ComfortLevel { get; init; }
     public required long         Timestamp    { get; init; }
+}
+
+public record DeviceInfo {
+    public required string     Id               { get; init; }
+    public required string     Name             { get; init; }
+    public required Guid       RoomId           { get; init; }
+    public required DeviceType DeviceType       { get; init; }
+    public required bool       IsBatteryPowered { get; init; }
+    public          int?       BatteryLevel     { get; init; }
+}
+
+public interface IHomeAutomationEvent {
+    Guid       EventId   { get; init; }
+    DeviceInfo Device    { get; init; }
+    long       Timestamp { get; init; }
 }

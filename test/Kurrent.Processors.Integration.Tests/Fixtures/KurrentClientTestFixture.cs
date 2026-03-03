@@ -6,11 +6,12 @@ using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Containers.KurrentDB;
-using Kurrent.Testing.Sample.HomeAutomation;
 using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Serilog;
+using Testing.Datasets.HomeAutomation;
+using Testing.Datasets.HomeAutomation.Model;
 using TUnit.Core.Interfaces;
 using AppendRecord = Kurrent.Client.Streams.AppendRecord;
 

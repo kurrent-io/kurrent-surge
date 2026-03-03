@@ -178,7 +178,7 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	/// <param name="key">The key to retrieve.</param>
 	/// <param name="value">When this method returns, contains the value if found and successfully converted; otherwise, default(T).</param>
 	/// <returns>true if the key was found and the value could be converted to type T; otherwise, false.</returns>
-	public bool TryGet<T>(string key, out T? value) {
+	public bool TryGetValue<T>(string key, out T? value) {
 		// check if the key exists
 		if (!Dictionary.TryGetValue(key, out var obj)) {
 			value = default;
@@ -257,8 +257,8 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
     /// <param name="key">The key to locate.</param>
     /// <param name="defaultValue">The default value to return if the key is not found or if the value cannot be cast.</param>
     /// <returns>The value associated with the specified key cast to type T, or the default value if the key is not found or the value cannot be cast.</returns>
-    public T? GetOrDefault<T>(string key, T? defaultValue = default) =>
-        TryGet<T>(key, out var typedValue)
+    public T? GetValueOrDefault<T>(string key, T? defaultValue = default) =>
+        TryGetValue<T>(key, out var typedValue)
             ? typedValue
             : defaultValue;
 
@@ -271,8 +271,8 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
     /// <returns>
     /// The value associated with the specified key cast to type T.
     /// </returns>
-    public T GetRequired<T>(string key) =>
-        TryGet<T>(key, out var typedValue) && typedValue is not null
+    public T GetRequiredValue<T>(string key) =>
+        TryGetValue<T>(key, out var typedValue) && typedValue is not null
             ? typedValue
             : throw new KeyNotFoundException($"Key '{key}' not found or value is null.");
 
@@ -286,7 +286,7 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	public Metadata EvolveValue<T, TE>(string key, Func<T?, TE> transform) {
 		ThrowIfLocked();
 
-		if (TryGet<T>(key, out var value))
+		if (TryGetValue<T>(key, out var value))
 			Dictionary[key] = transform(value);
 
 		return this;

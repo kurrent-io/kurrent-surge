@@ -4,21 +4,21 @@ using System.Reflection;
 namespace Kurrent.Testing.Assertions;
 
 public class EquivalencyConfiguration {
-    readonly Dictionary<Type, Delegate> _customComparers      = new();
-    readonly HashSet<string>            _excludedPaths       = [];
-    readonly HashSet<string>            _excludedMemberNames = [];
-    readonly HashSet<Type>              _excludedMemberTypes = [];
-    readonly HashSet<Type>              _valueComparedTypes  = [];
-    readonly HashSet<Type>              _memberComparedTypes = [];
-    readonly HashSet<string>              _includedPaths      = [];
-    readonly List<Func<MemberInfo, bool>> _includedPredicates = [];
-    readonly HashSet<string> _strictOrderingPaths = [];
-    readonly HashSet<string> _unorderedPaths      = [];
+    readonly Dictionary<Type, Delegate>   _customComparers     = new();
+    readonly HashSet<string>              _excludedPaths       = [];
+    readonly HashSet<string>              _excludedMemberNames = [];
+    readonly HashSet<Type>                _excludedMemberTypes = [];
+    readonly HashSet<Type>                _valueComparedTypes  = [];
+    readonly HashSet<Type>                _memberComparedTypes = [];
+    readonly HashSet<string>              _includedPaths       = [];
+    readonly List<Func<MemberInfo, bool>> _includedPredicates  = [];
+    readonly HashSet<string>              _strictOrderingPaths = [];
+    readonly HashSet<string>              _unorderedPaths      = [];
 
-    public StringComparison StringComparison      { get; private set; } = StringComparison.Ordinal;
-    public double           NumericTolerance      { get; private set; }
-    public bool             IgnoreCollectionOrder { get; private set; }
-    public bool             StrictOrdering        { get; private set; }
+    public StringComparison StringComparison       { get; private set; } = StringComparison.Ordinal;
+    public double           NumericTolerance       { get; private set; }
+    public bool             IgnoreCollectionOrder  { get; private set; }
+    public bool             StrictOrdering         { get; private set; }
     public bool             NormalizeNewlines      { get; private set; }
     public bool             TrimLeadingWhitespace  { get; private set; }
     public bool             TrimTrailingWhitespace { get; private set; }
@@ -49,6 +49,7 @@ public class EquivalencyConfiguration {
     public EquivalencyConfiguration ExcludingMembersNamed(params string[] names) {
         foreach (var name in names)
             _excludedMemberNames.Add(name);
+
         return this;
     }
 
@@ -63,6 +64,7 @@ public class EquivalencyConfiguration {
 
         foreach (var expr in propertyExpressions)
             _includedPaths.Add(ExpressionPathResolver.GetPath(expr));
+
         return this;
     }
 
@@ -158,7 +160,7 @@ public class EquivalencyConfiguration {
     internal bool ShouldIgnoreOrder(IEnumerable<string> path) {
         var memberName = path.LastOrDefault();
         if (memberName != null) {
-            var cleanName = memberName;
+            var cleanName    = memberName;
             var bracketIndex = cleanName.IndexOf(" [", StringComparison.Ordinal);
             if (bracketIndex >= 0)
                 cleanName = cleanName[..bracketIndex];
@@ -166,6 +168,7 @@ public class EquivalencyConfiguration {
             // Path-specific overrides take precedence
             if (_strictOrderingPaths.Contains(cleanName))
                 return false;
+
             if (_unorderedPaths.Contains(cleanName))
                 return true;
         }
@@ -177,12 +180,16 @@ public class EquivalencyConfiguration {
         return IgnoreCollectionOrder;
     }
 
-    internal bool ShouldCompareByValue(Type type) => _valueComparedTypes.Contains(type);
-    internal bool ShouldCompareByMembers(Type type) => _memberComparedTypes.Contains(type);
-    internal bool IsExcludedByName(string memberName) => _excludedMemberNames.Contains(memberName);
+    internal bool ShouldCompareByValue(Type   type)       =>
+        _valueComparedTypes.Contains(type);
 
-    internal bool IsExcludedByType(Type memberType) =>
-        _excludedMemberTypes.Count > 0 && _excludedMemberTypes.Any(t => t.IsAssignableFrom(memberType));
+    internal bool ShouldCompareByMembers(Type type)       =>
+        _memberComparedTypes.Contains(type);
+
+    internal bool IsExcludedByName(string     memberName) =>
+        _excludedMemberNames.Contains(memberName);
+
+    internal bool IsExcludedByType(Type memberType) => _excludedMemberTypes.Count > 0 && _excludedMemberTypes.Any(t => t.IsAssignableFrom(memberType));
 
     internal bool IsIncluded(MemberInfo member, IEnumerable<string> path) {
         if (!HasInclusions)
@@ -192,9 +199,10 @@ public class EquivalencyConfiguration {
             return true;
 
         var cleanPath = path.Select(p => {
-            var bracketIndex = p.IndexOf(" [", StringComparison.Ordinal);
-            return bracketIndex >= 0 ? p[..bracketIndex] : p;
-        }).Where(p => !string.IsNullOrEmpty(p) && !p.StartsWith(" [")).ToList();
+                var bracketIndex = p.IndexOf(" [", StringComparison.Ordinal);
+                return bracketIndex >= 0 ? p[..bracketIndex] : p;
+            }
+        ).Where(p => !string.IsNullOrEmpty(p) && !p.StartsWith(" [")).ToList();
 
         var pathString         = string.Join(".", cleanPath);
         var relativePathString = cleanPath.Count > 1 ? string.Join(".", cleanPath.Skip(1)) : pathString;
@@ -225,8 +233,7 @@ public class EquivalencyConfiguration {
         return false;
     }
 
-    internal bool TryGetCustomComparer(Type type, out Delegate? comparer) =>
-        _customComparers.TryGetValue(type, out comparer);
+    internal bool TryGetCustomComparer(Type type, out Delegate? comparer) => _customComparers.TryGetValue(type, out comparer);
 }
 
 static class ExpressionPathResolver {
@@ -246,11 +253,7 @@ static class ExpressionPathResolver {
             return base.VisitMember(node);
         }
 
-        protected override Expression VisitUnary(UnaryExpression node) {
-            if (node.NodeType == ExpressionType.Convert)
-                return Visit(node.Operand);
-
-            return base.VisitUnary(node);
-        }
+        protected override Expression VisitUnary(UnaryExpression node) =>
+            node.NodeType == ExpressionType.Convert ? Visit(node.Operand) : base.VisitUnary(node);
     }
 }

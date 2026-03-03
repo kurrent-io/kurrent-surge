@@ -1,7 +1,9 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+using Testing.Datasets.ArcadeRacer.Model;
+
+namespace Testing.Datasets.ArcadeRacer.Contracts;
 
 /// <summary>Marker interface for all events produced by the arcade race simulation.</summary>
 public interface IRaceEvent {

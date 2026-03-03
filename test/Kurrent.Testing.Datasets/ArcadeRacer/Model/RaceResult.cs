@@ -1,4 +1,4 @@
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>Final standings entry for a single car in a completed race.</summary>
 /// <param name="CarId">Unique car identifier.</param>

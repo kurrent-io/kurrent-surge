@@ -1,4 +1,4 @@
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>A racing circuit with layout characteristics that influence lap time calculations.</summary>
 public class Circuit {

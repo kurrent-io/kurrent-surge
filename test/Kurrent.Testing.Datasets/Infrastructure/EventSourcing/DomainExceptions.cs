@@ -1,10 +1,12 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
+// ReSharper disable CheckNamespace
+
 using Eventuous;
 using Humanizer;
 
-namespace KurrentDB.SchemaRegistry.Services.Domain;
+namespace EventSourcing;
 
 [PublicAPI]
 public class DomainExceptions {
@@ -23,5 +25,5 @@ public class DomainExceptions {
     public class InvalidEntityStatus(string entityType, string entityId, string status)
         : EntityException($"{entityType} {entityId} status is {status}");
 
-    public class EntityException(string message) : DomainException(message);
+    public abstract class EntityException(string message) : DomainException(message);
 }

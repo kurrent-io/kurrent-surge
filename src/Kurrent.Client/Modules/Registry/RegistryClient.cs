@@ -1,7 +1,6 @@
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
 using Google.Protobuf;
-using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using static KurrentDB.Protocol.V2.Registry.SchemaRegistryService;
@@ -41,13 +40,12 @@ public class RegistryClient : ClientModuleBase {
 	/// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
 	/// </param>
 	/// <returns>
-	/// A <see cref="Result{SchemaVersionDescriptor, CreateSchemaError}"/> representing the outcome of the schema creation,
-	/// which may contain the newly generated schema version or an error in case of failure.
+	/// A <see cref="SchemaVersionDescriptor"/> representing the newly generated schema version.
 	/// </returns>
 	/// <exception cref="Exception">
 	/// Throws an exception if the operation encounters an error, such as a network issue or invalid input.
 	/// </exception>
-	public async ValueTask<Result<SchemaVersionDescriptor, CreateSchemaError>> CreateSchema(
+	public async ValueTask<SchemaVersionDescriptor> CreateSchema(
 		SchemaName schemaName, string schemaDefinition,
 		SchemaDataFormat dataFormat, CompatibilityMode compatibilityMode,
 		string description, Dictionary<string, string> tags,
@@ -72,7 +70,7 @@ public class RegistryClient : ClientModuleBase {
             return new SchemaVersionDescriptor(Guid.Parse(response.SchemaVersionId), response.VersionNumber);
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<CreateSchemaError>();
+            throw ex.ToException();
         }
 	}
 
@@ -86,12 +84,12 @@ public class RegistryClient : ClientModuleBase {
 	/// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
 	/// </param>
 	/// <returns>
-	/// A <see cref="Result{Schema, GetSchemaError}"/> that either contains the retrieved schema or an error indicating the issue encountered, such as the schema not being found.
+	/// A <see cref="Schema"/> containing the retrieved schema details.
 	/// </returns>
 	/// <exception cref="Exception">
 	/// Throws an exception if an error occurs while trying to retrieve the schema, including issues with network connectivity or invalid input.
 	/// </exception>
-	public async ValueTask<Result<Schema, GetSchemaError>> GetSchema(SchemaName schemaName, CancellationToken cancellationToken = default) {
+	public async ValueTask<Schema> GetSchema(SchemaName schemaName, CancellationToken cancellationToken = default) {
 		var request = new Contracts.GetSchemaRequest {
 			SchemaName = schemaName
 		};
@@ -104,7 +102,7 @@ public class RegistryClient : ClientModuleBase {
             return Schema.FromProto(response.Schema);
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<GetSchemaError>();
+            throw ex.ToException();
         }
 	}
 
@@ -121,12 +119,12 @@ public class RegistryClient : ClientModuleBase {
 	/// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
 	/// </param>
 	/// <returns>
-	/// A <see cref="Result{SchemaVersion, GetSchemaVersionError}"/> containing either the schema version details or an error indicating that the schema could not be found.
+	/// A <see cref="SchemaVersion"/> containing the schema version details.
 	/// </returns>
 	/// <exception cref="Exception">
 	/// Throws an exception if an error occurs during the operation, such as network issues or invalid input.
 	/// </exception>
-	public async ValueTask<Result<SchemaVersion, GetSchemaVersionError>> GetSchemaVersion(
+	public async ValueTask<SchemaVersion> GetSchemaVersion(
 		SchemaName schemaName,
         int? versionNumber = null,
         CancellationToken cancellationToken = default
@@ -144,7 +142,7 @@ public class RegistryClient : ClientModuleBase {
             return SchemaVersion.FromProto(response.Version);
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<GetSchemaVersionError>();
+            throw ex.ToException();
         }
 	}
 
@@ -158,13 +156,12 @@ public class RegistryClient : ClientModuleBase {
 	/// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
 	/// </param>
 	/// <returns>
-	/// A <see cref="Result{SchemaVersion, GetSchemaVersionError}"/> containing the requested schema version details or an error
-	/// if the schema version is not found.
+	/// A <see cref="SchemaVersion"/> containing the requested schema version details.
 	/// </returns>
 	/// <exception cref="RpcException">
 	/// Throws an exception in case of communication errors with the schema registry service.
 	/// </exception>
-	public async ValueTask<Result<SchemaVersion, GetSchemaVersionError>> GetSchemaVersionById(
+	public async ValueTask<SchemaVersion> GetSchemaVersionById(
 		SchemaVersionId schemaVersionId,
         CancellationToken cancellationToken = default
 	) {
@@ -178,7 +175,7 @@ public class RegistryClient : ClientModuleBase {
             return SchemaVersion.FromProto(response.Version);
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<GetSchemaVersionError>();
+            throw ex.ToException();
         }
 	}
 
@@ -192,13 +189,12 @@ public class RegistryClient : ClientModuleBase {
 	/// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
 	/// </param>
 	/// <returns>
-	/// A <see cref="Result{Success, DeleteSchemaError}"/> indicating the result of the schema deletion operation.
-	/// The result can either indicate success or specify that the schema was not found.
+	/// A <see cref="Success"/> indicating the schema was successfully deleted.
 	/// </returns>
 	/// <exception cref="Exception">
 	/// Throws an exception if the operation encounters an error, such as a network issue or invalid input.
 	/// </exception>
-	public async ValueTask<Result<Success, DeleteSchemaError>> DeleteSchema(
+	public async ValueTask<Success> DeleteSchema(
         SchemaName schemaName,
         CancellationToken cancellationToken = default
     ) {
@@ -212,7 +208,7 @@ public class RegistryClient : ClientModuleBase {
             return Results.Success;
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<DeleteSchemaError>();
+            throw ex.ToException();
         }
 	}
 
@@ -232,13 +228,12 @@ public class RegistryClient : ClientModuleBase {
 	/// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
 	/// </param>
 	/// <returns>
-	/// A <see cref="Result{TSuccess, TError}"/> of type <see cref="SchemaVersionId"/> on success, or
-	/// <see cref="CheckSchemaCompatibilityError"/> on failure indicating details of the compatibility issues.
+	/// A <see cref="SchemaVersionId"/> on success indicating the compatible schema version.
 	/// </returns>
 	/// <exception cref="Exception">
 	/// Throws an exception if there is an error during the compatibility check process.
 	/// </exception>
-	public async ValueTask<Result<SchemaVersionId, CheckSchemaCompatibilityError>> CheckSchemaCompatibility(
+	public async ValueTask<SchemaVersionId> CheckSchemaCompatibility(
 		SchemaIdentifier identifier, string schemaDefinition, SchemaDataFormat dataFormat, CancellationToken cancellationToken = default
 	) {
         var request = new Contracts.CheckSchemaCompatibilityRequest {
@@ -265,7 +260,7 @@ public class RegistryClient : ClientModuleBase {
         }
 
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<CheckSchemaCompatibilityError>();
+            throw ex.ToException();
         }
         // catch (RpcException rex) {
         //     return Result.Failure<SchemaVersionId, CheckSchemaCompatibilityError>(rex.StatusCode switch {

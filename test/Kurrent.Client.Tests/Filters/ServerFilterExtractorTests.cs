@@ -85,7 +85,7 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter).IsEquivalentTo(testcase.ExpectedFilter);
+        await Assert.That(filter).IsDeepEquivalentTo(testcase.ExpectedFilter);
     }
 
     [Test]

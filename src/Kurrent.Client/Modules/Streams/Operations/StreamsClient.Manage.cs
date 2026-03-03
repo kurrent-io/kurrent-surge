@@ -21,7 +21,7 @@ static class LegacyServiceClientExtensions {
 }
 
 public partial class StreamsClient {
-    public async ValueTask<Result<StreamInfo, GetStreamInfoError>> GetStreamInfo(StreamName stream, CancellationToken cancellationToken = default) {
+    public async ValueTask<StreamInfo> GetStreamInfo(StreamName stream, CancellationToken cancellationToken = default) {
         // This operation can be greatly optimized by implementing it in the server
         // and as unbelievable as it sounds, the code bellow is the simplest most effective
         // way to get the stream details for the time being.
@@ -48,7 +48,7 @@ public partial class StreamsClient {
             return new StreamInfo { State = StreamState.Tombstoned };
         }
         catch (Exception ex) {
-            return GetStreamInfoError.FromEx(ex);
+            throw ex.ToException();
         }
 
         var details = StreamInfo.None;
@@ -103,11 +103,11 @@ public partial class StreamsClient {
             // no permissions to access the stream itself... sigh...
             // instead of returning what we have cause its ambiguous,
             // we return access denied and invalidate the operation
-            return GetStreamInfoError.FromEx(ex);
+            throw ex.ToException();
         }
     }
 
-    public async ValueTask<Result<LogPosition, DeleteStreamError>> Delete(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
+    public async ValueTask<LogPosition> Delete(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
         try {
             var request = Requests.CreateDeleteRequest(stream, revision);
 
@@ -118,24 +118,26 @@ public partial class StreamsClient {
             return resp.Position.MapToLogPosition();
         }
         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
-            dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
-                ok => ok.State switch {
-                    StreamState.Active     => new StreamRevisionConflictException(stream, revision, ok.LastRevision),
-                    StreamState.Deleted    => new StreamDeletedException(stream),
-                    StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    StreamState.Missing    => new StreamNotFoundException(stream)
-                },
-                ko => ko.AsException
-            );
+            var info = await GetStreamInfo(stream, cancellationToken).ConfigureAwait(false);
 
-            return Result<LogPosition, DeleteStreamError>.Failure(error);
+            throw info.State switch {
+                StreamState.Active     => new StreamRevisionConflictException(stream, revision, info.LastRevision),
+                StreamState.Deleted    => new StreamDeletedException(stream),
+                StreamState.Tombstoned => new StreamTombstonedException(stream),
+                StreamState.Missing    => new StreamNotFoundException(stream),
+                _                      => rex
+            };
         }
         catch (Exception ex) {
-            return DeleteStreamError.FromEx(ex);
+            throw ex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
+                StreamRevisionConflictException.From);
         }
     }
 
-    public async ValueTask<Result<LogPosition, TombstoneStreamError>> Tombstone(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
+    public async ValueTask<LogPosition> Tombstone(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
         try {
             var request = Requests.CreateTombstoneRequest(stream, revision);
 
@@ -146,59 +148,64 @@ public partial class StreamsClient {
             return resp?.Position?.MapToLogPosition() ?? LogPosition.Unset;
         }
         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
-            dynamic error = await GetStreamInfo(stream, cancellationToken).MatchAsync(
-                ok => ok.State switch {
-                    StreamState.Active     => new StreamRevisionConflictException(stream, revision, ok.LastRevision),
-                    StreamState.Deleted    => new StreamDeletedException(stream),
-                    StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    StreamState.Missing    => new StreamNotFoundException(stream)
-                },
-                ko => ko.AsException
-            );
+            var info = await GetStreamInfo(stream, cancellationToken).ConfigureAwait(false);
 
-            return Result<LogPosition, TombstoneStreamError>.Failure(error);
+            throw info.State switch {
+                StreamState.Active     => new StreamRevisionConflictException(stream, revision, info.LastRevision),
+                StreamState.Deleted    => new StreamDeletedException(stream),
+                StreamState.Tombstoned => new StreamTombstonedException(stream),
+                StreamState.Missing    => new StreamNotFoundException(stream),
+                _                      => rex
+            };
         }
         catch (Exception ex) {
-            return TombstoneStreamError.FromEx(ex);
+            throw ex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
+                StreamRevisionConflictException.From);
         }
     }
 
-    public ValueTask<Result<Revision, SetStreamMetadataError>> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision revision, CancellationToken cancellationToken = default) {
-        return  this.AppendRecords(
-                new AppendRecord { Value = metadata },
-                ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision),
-                cancellationToken
-            )
-            .MapAsync(ok => ok.Revisions[0].Revision)
-            .MapErrorAsync(ko => ko.ForwardError<SetStreamMetadataError>());
+    public async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision revision, CancellationToken cancellationToken = default) {
+        var result = await this.AppendRecords(
+            new AppendRecord { Value = metadata },
+            ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision),
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        return result.Revisions[0].Revision;
     }
 
-    public async ValueTask<Result<Success, TruncateStreamError>> Truncate(StreamName stream, Revision truncateRevision, CancellationToken cancellationToken) {
+    public async ValueTask<Success> Truncate(StreamName stream, Revision truncateRevision, CancellationToken cancellationToken) {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(truncateRevision, Revision.Min);
 
         try {
-            var info = await GetStreamInfo(stream, cancellationToken).UnwrapAsync(); // we can let it flow ;)
+            var info = await GetStreamInfo(stream, cancellationToken).ConfigureAwait(false);
 
             if (info.State is StreamState.Active) {
                 var actualRevision = info.LastRevision;
                 var maxRevision    = actualRevision + 1; // all existing revisions
 
                 if (truncateRevision > maxRevision)
-                    return Result.Failure<Success, TruncateStreamError>(new StreamRevisionConflictException("Truncate revision cannot be greater than the last stream revision plus one."));
+                    throw new StreamRevisionConflictException("Truncate revision cannot be greater than the last stream revision plus one.");
             }
 
             var metadata = new StreamMetadata { TruncateBefore = truncateRevision };
 
-            return await SetStreamMetadata(stream, metadata, info.MetadataRevision, cancellationToken)
-                .MapErrorAsync(ko => ko.ForwardError<TruncateStreamError>())
-                .MapAsync(Results.Success);
+            await SetStreamMetadata(stream, metadata, info.MetadataRevision, cancellationToken).ConfigureAwait(false);
+            return Results.Success;
         }
         catch (Exception ex) {
-            return TruncateStreamError.FromEx(ex);
+            throw ex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
+                StreamRevisionConflictException.From);
         }
     }
 
-    public ValueTask<Result<Revision, SetStreamMetadataError>> ConfigureStreamDataRetention(StreamName stream, StreamDataRetentionOptions options, Revision metaRevision, CancellationToken cancellationToken) {
+    public ValueTask<Revision> ConfigureStreamDataRetention(StreamName stream, StreamDataRetentionOptions options, Revision metaRevision, CancellationToken cancellationToken) {
         var metadata = new StreamMetadata { MaxCount = options.MaxCount, MaxAge = options.MaxAge };
         return SetStreamMetadata(stream, metadata, metaRevision, cancellationToken);
     }

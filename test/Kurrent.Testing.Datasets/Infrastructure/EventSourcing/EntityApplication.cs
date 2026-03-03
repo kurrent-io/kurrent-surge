@@ -2,12 +2,10 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Eventuous;
-using KurrentDB.SchemaRegistry.Services.Domain;
 
-namespace KurrentDB.SchemaRegistry.Infrastructure.Eventuous;
+namespace EventSourcing;
 
-public abstract class EntityApplication<TEntity>(IEventStore store)
-    : CommandService<TEntity>(store) where TEntity : State<TEntity>, new() {
+public abstract class EntityApplication<TEntity>(IEventStore store) : CommandService<TEntity>(store) where TEntity : State<TEntity>, new() {
     IEventStore Store { get; } = store;
 
     static readonly string EntityName = typeof(TEntity).Name.Replace("Entity", "").Replace("State", "");
@@ -24,8 +22,7 @@ public abstract class EntityApplication<TEntity>(IEventStore store)
             return await Store.StreamExists(stream, token).Then(
                 exists => exists
                     ? throw new DomainExceptions.EntityAlreadyExists(EntityName, entityId)
-                    : executeCommand(cmd)
-            );
+                    : executeCommand(cmd));
         });
 
     protected void OnExisting<T>(Func<TEntity, T, IEnumerable<object>> executeCommand) where T : class => On<T>()

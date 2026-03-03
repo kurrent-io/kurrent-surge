@@ -76,7 +76,7 @@ public record AppendRecordsSuccess(StreamRevision[] Revisions, LogPosition Posit
 [PublicAPI]
 [method: SetsRequiredMembers]
 [Obsolete("Use AppendRecordsRequest with a single stream and appropriate consistency checks instead.")]
-public record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {
+record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {
     /// <summary>
     /// Gets the target stream name.
     /// </summary>
@@ -91,12 +91,6 @@ public record AppendStreamRequest(StreamName Stream, ExpectedStreamState Expecte
     /// Gets the expected state condition that must be satisfied before appending.
     /// </summary>
     public required ExpectedStreamState       ExpectedState { get; init; } = ExpectedState;
-
-    /// <summary>
-    /// Creates a new builder for fluently constructing an <see cref="AppendStreamRequest"/>.
-    /// </summary>
-    /// <returns>A new <see cref="AppendStreamRequestBuilder"/> instance.</returns>
-    public static AppendStreamRequestBuilder New() => new();
 }
 
 /// <summary>

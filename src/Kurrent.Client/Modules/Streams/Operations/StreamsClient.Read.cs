@@ -30,7 +30,7 @@ public partial class StreamsClient {
     /// <param name="cancellationToken">
     /// A cancellation token to observe while waiting for the task to complete.
     /// </param>
-    public async ValueTask<Result<Record, InspectRecordError>> InspectRecord(LogPosition position, bool skipDecoding = true, CancellationToken cancellationToken = default) {
+    public async ValueTask<Record> InspectRecord(LogPosition position, bool skipDecoding = true, CancellationToken cancellationToken = default) {
         if (position == LogPosition.Unset)
             throw new ArgumentOutOfRangeException(nameof(position), "Log position cannot be Unset.");
 
@@ -38,32 +38,33 @@ public partial class StreamsClient {
             var request = Requests.CreateInspectRecordRequest(position);
 
             await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
-                .UnwrapAsync().ConfigureAwait(false);
+                .ConfigureAwait(false);
 
             var message = await messages
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             if (message.Value is not Record record)
-                return Result<Record, InspectRecordError>.Failure(
-                    new LogPositionNotFoundException(position));
+                throw new LogPositionNotFoundException(position);
 
             // Check if the source stream has been deleted or tombstoned
             if (record.Position.Stream != StreamName.None) {
                 var streamInfo = await GetStreamInfo(record.Position.Stream, cancellationToken)
-                    .UnwrapAsync().ConfigureAwait(false);
+                    .ConfigureAwait(false);
 
-                return streamInfo.State switch {
-                    StreamState.Deleted    => Result<Record, InspectRecordError>.Failure(new StreamDeletedException(record.Position.Stream)),
-                    StreamState.Tombstoned => Result<Record, InspectRecordError>.Failure(new StreamTombstonedException(record.Position.Stream)),
-                    _                      => record
-                };
+                switch (streamInfo.State) {
+                    case StreamState.Deleted:    throw new StreamDeletedException(record.Position.Stream);
+                    case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
+                }
             }
 
             return record;
         }
         catch (Exception ex) {
-            return InspectRecordError.FromEx(ex);
+            throw ex.ToException(
+                StreamTombstonedException.From,
+                StreamDeletedException.From,
+                LogPositionNotFoundException.From);
         }
 
         // {
@@ -90,7 +91,7 @@ public partial class StreamsClient {
     /// <param name="cancellationToken">
     /// A cancellation token to observe while waiting for the task to complete.
     /// </param>
-    public async ValueTask<Result<Record, ReadError>> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding, CancellationToken cancellationToken) {
+    public async ValueTask<Record> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding, CancellationToken cancellationToken) {
         if (stream == StreamName.None)
             throw new ArgumentException("Stream name cannot be None", nameof(stream));
 
@@ -101,21 +102,25 @@ public partial class StreamsClient {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction);
 
             await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
-                .UnwrapAsync().ConfigureAwait(false);
+                .ConfigureAwait(false);
 
             var message = await messages.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
             if (message.IsRecord)
                 return message.AsRecord;
 
-            return Result<Record, ReadError>.Failure(new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})"));
+            throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
         }
         catch (Exception ex) {
-            return ReadError.FromEx(ex);
+            throw ex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
+                LogPositionNotFoundException.From);
         }
     }
 
-    public ValueTask<Result<RecordStream, ReadError>> ReadRecords(ReadOptions options) {
+    public ValueTask<RecordStream> ReadRecords(ReadOptions options) {
         options.ValidateOptions().Unwrap();
 
         var request = Requests.CreateReadLogRequest(options);
@@ -127,7 +132,7 @@ public partial class StreamsClient {
         );
     }
 
-    public ValueTask<Result<RecordStream, ReadError>> ReadRecords(ReadStreamOptions options) {
+    public ValueTask<RecordStream> ReadRecords(ReadStreamOptions options) {
         options.ValidateOptions().Unwrap();
 
         var request = Requests.CreateReadStreamRequest(options);
@@ -139,7 +144,7 @@ public partial class StreamsClient {
         );
     }
 
-    async ValueTask<Result<RecordStream, ReadError>> ReadCore(
+    async ValueTask<RecordStream> ReadCore(
         ReadReq request, int bufferCapacity, bool skipDecoding,
         IRecordFilter filter, CancellationToken cancellationToken
     ) {
@@ -156,7 +161,7 @@ public partial class StreamsClient {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
 
                 var info = await GetStreamInfo(stream, stoppingToken)
-                    .UnwrapAsync().ConfigureAwait(false);
+                    .ConfigureAwait(false);
 
                 throw info.State switch {
                     StreamState.Missing    => new StreamNotFoundException(stream),
@@ -172,27 +177,27 @@ public partial class StreamsClient {
 
             // handle cancellation gracefully
             if (rex.StatusCode == StatusCode.Cancelled)
-                return ReadError.FromEx(new OperationCanceledException(rex.Message, rex));
+                throw new OperationCanceledException(rex.Message, rex);
 
             // when stream is tombstoned an exception is thrown for some weird reason
             if (rex.StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted") {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-                return ReadError.FromEx(new StreamTombstonedException(stream));
+                throw new StreamTombstonedException(stream);
             }
 
             // when a position does not exist (targets a position between records in the same stream)
             if (rex.StatusCode == StatusCode.Unknown && rex.Message.Contains("InvalidPosition >>", OrdinalIgnoreCase)) {
                 var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Latest;
                 var details  = rex.Message.Split(">>").Last().Trim();
-                return ReadError.FromEx(new LogPositionNotFoundException(position, details));
+                throw new LogPositionNotFoundException(position, details);
             }
 
-            return ReadError.FromEx(rex);
+            throw rex.ToException(StreamNotFoundException.From, StreamDeletedException.From, StreamTombstonedException.From, LogPositionNotFoundException.From);
         }
         catch (Exception ex) {
             session.Dispose();
             cancellator.Dispose();
-            return ReadError.FromEx(ex);
+            throw ex.ToException(StreamNotFoundException.From, StreamDeletedException.From, StreamTombstonedException.From, LogPositionNotFoundException.From);
         }
 
         var channelFactory = new Func<Channel<ReadRecordsResult>>(

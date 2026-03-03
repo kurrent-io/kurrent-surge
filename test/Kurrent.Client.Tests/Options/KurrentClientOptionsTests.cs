@@ -19,10 +19,10 @@ public class KurrentClientOptionsTests {
 
         await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Direct);
         await Assert.That(options.Endpoints).HasSingleItem();
-        await Assert.That(options.Gossip).IsEquivalentTo(KurrentClientGossipOptions.Default);
-        await Assert.That(options.Security).IsEquivalentTo(KurrentClientSecurityOptions.Default);
-        await Assert.That(options.Resilience).IsEquivalentTo(KurrentClientResilienceOptions.NoResilience);
-        await Assert.That(options.Schema).IsEquivalentTo(KurrentClientSchemaOptions.FullValidation);
+        await Assert.That(options.Gossip).IsDeepEquivalentTo(KurrentClientGossipOptions.Default);
+        await Assert.That(options.Security).IsDeepEquivalentTo(KurrentClientSecurityOptions.Default);
+        await Assert.That(options.Resilience).IsDeepEquivalentTo(KurrentClientResilienceOptions.NoResilience);
+        await Assert.That(options.Schema).IsDeepEquivalentTo(KurrentClientSchemaOptions.FullValidation);
         await Assert.That(options.Interceptors).IsEmpty();
     }
 

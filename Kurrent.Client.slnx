@@ -35,6 +35,7 @@
     <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="test/Kurrent.Testing.Datasets/Kurrent.Testing.Datasets.csproj" />
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
   </Folder>
   <Folder Name="/Shared/Variant/">

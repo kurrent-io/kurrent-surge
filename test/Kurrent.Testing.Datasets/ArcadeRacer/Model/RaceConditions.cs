@@ -1,4 +1,4 @@
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>Environmental conditions that affect the <see cref="DifficultyProfile"/>.</summary>
 /// <param name="TimeOfDay">Time of day (day or night).</param>

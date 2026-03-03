@@ -41,7 +41,6 @@ public class ReadStreamBenchmarks {
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)
-            .UnwrapAsync()
             .ConfigureAwait(false);
 
         try {
@@ -69,7 +68,6 @@ public class ReadStreamBenchmarks {
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)
-            .UnwrapAsync()
             .ConfigureAwait(false);
 
         try {
@@ -96,7 +94,6 @@ public class ReadStreamBenchmarks {
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)
-            .UnwrapAsync()
             .ConfigureAwait(false);
 
         try {

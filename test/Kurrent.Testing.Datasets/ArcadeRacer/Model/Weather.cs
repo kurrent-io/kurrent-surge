@@ -1,4 +1,4 @@
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>Weather condition affecting grip and top speed effectiveness.</summary>
 public enum Weather { Unspecified, Sunny, Rainy }

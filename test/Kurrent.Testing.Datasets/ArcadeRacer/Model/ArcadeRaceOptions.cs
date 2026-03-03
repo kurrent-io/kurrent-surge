@@ -1,4 +1,4 @@
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>Configuration used to initialize an <see cref="ArcadeRace"/>.</summary>
 record ArcadeRaceOptions {

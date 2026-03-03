@@ -5,62 +5,6 @@ using Resources;
 namespace Kurrent.Client.Streams;
 
 [PublicAPI]
-public class AppendStreamRequestBuilder {
-    ExpectedStreamState       _expectedState   = ExpectedStreamState.Any;
-    List<AppendRecordBuilder> _messageBuilders = [];
-
-    string _stream = "";
-
-    public AppendStreamRequestBuilder ForStream(string stream) {
-        _stream = stream;
-        return this;
-    }
-
-    public AppendStreamRequestBuilder ExpectingRevision(Revision expectedRevision) {
-        _expectedState = expectedRevision;
-        return this;
-    }
-
-    public AppendStreamRequestBuilder ExpectingRevision(ExpectedStreamState expectedState) {
-        _expectedState = expectedState;
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord(AppendRecord record) =>
-        WithRecord(builder => builder.FromRecord(record));
-
-    public AppendStreamRequestBuilder WithRecords(IEnumerable<AppendRecord> records) {
-        foreach (var record in records)
-            WithRecord(record);
-
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord(Action<AppendRecordBuilder> configureBuilder) {
-        var messageBuilder = new AppendRecordBuilder();
-        configureBuilder(messageBuilder);
-        _messageBuilders.Add(messageBuilder);
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord(AppendRecordBuilder appendRecordBuilder) {
-        _messageBuilders.Add(appendRecordBuilder);
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json, Metadata? metadata = null) =>
-        WithRecord(builder => builder.WithValue(value).WithDataFormat(dataFormat).WithMetadata(metadata ?? new Metadata()));
-
-    public int MessageCount => _messageBuilders.Count;
-
-    public AppendStreamRequest Build() {
-        var messages = _messageBuilders.Select(x => x.ForStream(_stream).Build());
-        var request  = new AppendStreamRequest(_stream, _expectedState, messages);
-        return request;
-    }
-}
-
-[PublicAPI]
 public class AppendRecordBuilder {
     AppendRecord _appendRecord = new();
 

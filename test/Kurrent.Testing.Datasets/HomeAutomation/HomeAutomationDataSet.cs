@@ -4,8 +4,10 @@
 // ReSharper disable UnusedParameter.Local
 
 using Bogus;
+using Testing.Datasets.HomeAutomation.Contracts.Events;
+using Testing.Datasets.HomeAutomation.Model;
 
-namespace Kurrent.Testing.Sample.HomeAutomation;
+namespace Testing.Datasets.HomeAutomation;
 
 public class HomeAutomationDataSet : DataSet {
     public static readonly HomeAutomationDataSet Default = new();

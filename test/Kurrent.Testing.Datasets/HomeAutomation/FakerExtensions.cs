@@ -8,7 +8,7 @@
 
 using Bogus;
 
-namespace Kurrent.Testing.Sample.HomeAutomation;
+namespace Testing.Datasets.HomeAutomation;
 
 /// <summary>
 /// Bogus extension to enable faker.HomeAutomation() syntax

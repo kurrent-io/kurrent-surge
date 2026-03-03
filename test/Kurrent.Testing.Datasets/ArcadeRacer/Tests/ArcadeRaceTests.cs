@@ -2,8 +2,10 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
+using Testing.Datasets.ArcadeRacer.Contracts;
+using Testing.Datasets.ArcadeRacer.Model;
 
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer.Tests;
+namespace Testing.Datasets.ArcadeRacer.Tests;
 
 [Category("ArcadeRacer")]
 public class ArcadeRaceTests {

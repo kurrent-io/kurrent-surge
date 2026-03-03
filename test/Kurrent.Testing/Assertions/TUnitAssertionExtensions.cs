@@ -3,7 +3,7 @@ using TUnit.Assertions.Core;
 
 namespace Kurrent.Testing.Assertions;
 
-public static class KurrentAssertionExtensions {
+public static class TUnitAssertionExtensions {
     extension<TValue>(IAssertionSource<TValue> source) {
         public GuidAssertion<TValue> IsGuid() {
             source.Context.ExpressionBuilder.Append(".IsGuid()");

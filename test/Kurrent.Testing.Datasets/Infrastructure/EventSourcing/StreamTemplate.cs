@@ -3,15 +3,23 @@ using System.Runtime.CompilerServices;
 namespace EventSourcing;
 
 /// <summary>
-/// The StreamTemplate class represents a format for constructing,
-/// parsing, and managing stream identifiers.
-/// This class provides functionality for handling stream templates
-/// with optional category-based organization.
+/// A composite format template for constructing and categorizing stream identifiers.
+/// The category is extracted from the first segment of the format string, split by the separator.
+/// <example>
+/// <code>
+/// StreamTemplate schema = new("$registry/schemas/{0}");
+/// schema.Category;              // "$registry"
+/// schema.GetStream("user-v1");  // "$registry/schemas/user-v1"
+///
+/// StreamTemplate group = new("$registry/groups/{0}");
+/// group.GetStream(someGuid);    // "$registry/groups/7a3f..."
+/// </code>
+/// </example>
 /// </summary>
 public record StreamTemplate {
     public StreamTemplate(string format, char categorySeparator = '/') {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
-        ArgumentOutOfRangeException.ThrowIfNegative(categorySeparator);
+        ArgumentOutOfRangeException.ThrowIfEqual(categorySeparator, '\0');
 
         Format   = format;
         Category = Format.Split(categorySeparator, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;

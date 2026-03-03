@@ -1,4 +1,6 @@
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+using Testing.Datasets.ArcadeRacer.Contracts;
+
+namespace Testing.Datasets.ArcadeRacer.Model;
 
 /// <summary>Mutable state of a race, mutated in place by the <see cref="ArcadeRace"/> aggregate.</summary>
 public class ArcadeRaceState {

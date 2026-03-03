@@ -41,10 +41,11 @@ See `StreamsClient.Append.cs` for the canonical file naming pattern.
 **Manage** (V1 legacy gRPC): `GetStreamInfo`, `Delete`, `Tombstone`, `SetStreamMetadata`, `Truncate`,
 `ConfigureStreamDataRetention`.
 
-### Error Types
+### Error Handling
 
-All decorated with `[KurrentOperationError]`, source-generated. Each operation returns `Result<TSuccess, TError>`
-where `TError` is an `IVariantException`. See `src/Kurrent.Client/Modules/Streams/Exceptions.cs:14` for the full set.
+Exception types decorated with `[KurrentOperationError]` are source-generated. Operations throw these typed exceptions
+directly. RPC errors are parsed via `ex.ToException(parsers...)` where each parser is a static `From` method group on
+the exception type. See `src/Kurrent.Client/Modules/Streams/Exceptions.cs:14` for the full set.
 
 ### Filter System
 

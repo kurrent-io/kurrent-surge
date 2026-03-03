@@ -2,27 +2,25 @@ using TUnit.Assertions.Core;
 
 namespace Kurrent.Testing.Assertions;
 
-public class GuidAssertion<TValue> : Assertion<TValue> {
-    public GuidAssertion(AssertionContext<TValue> context) : base(context) { }
-
+public class GuidAssertion<TValue>(AssertionContext<TValue> context) : Assertion<TValue>(context) {
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<TValue> metadata) {
-        if (metadata.Exception is not null)
-            return Task.FromResult(
-                AssertionResult.Failed($"threw {metadata.Exception.GetType().Name}: {metadata.Exception.Message}")
-            );
+        return Task.FromResult(Check(metadata));
 
-        var value = metadata.Value;
+        static AssertionResult Check(EvaluationMetadata<TValue> metadata) {
+            if (metadata.Exception is { })
+                return AssertionResult.Failed($"threw {metadata.Exception.GetType().Name}: {metadata.Exception.Message}");
 
-        if (value is null)
-            return Task.FromResult(AssertionResult.Failed("was null"));
+            if (metadata.Value is Guid)
+                return AssertionResult.Passed;
 
-        var str = value is string s ? s : value.ToString();
+            if (metadata.Value is null)
+                return AssertionResult.Failed("was null");
 
-        return Task.FromResult(
-            Guid.TryParse(str, out _)
+            var value = metadata.Value.ToString();
+            return Guid.TryParse(value, out _)
                 ? AssertionResult.Passed
-                : AssertionResult.Failed($"'{str}' is not a valid GUID")
-        );
+                : AssertionResult.Failed($"'{value}' is not a valid GUID");
+        }
     }
 
     protected override string GetExpectation() => "to be a valid GUID";

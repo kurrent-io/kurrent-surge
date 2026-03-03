@@ -1,7 +1,8 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Sample.HomeAutomation;
+using Testing.Datasets.HomeAutomation;
+using Testing.Datasets.HomeAutomation.Model;
 
 namespace Kurrent.Client.Tests.Tools;
 

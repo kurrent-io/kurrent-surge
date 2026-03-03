@@ -1,3 +1,4 @@
+using Kurrent.Client.Exceptions;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Client.Streams;
@@ -5,7 +6,7 @@ namespace Kurrent.Client.Streams;
 public partial class StreamsClient {
 
     [Obsolete("Use AppendRecords instead.")]
-    internal async ValueTask<Result<AppendSessionSuccess, AppendSessionError>> AppendSession(
+    async ValueTask<AppendSessionSuccess> AppendSession(
         IAsyncEnumerable<AppendStreamRequest> requests, CancellationToken cancellationToken = default) {
         try {
             using var session = ServiceClient.AppendSession(cancellationToken: cancellationToken);
@@ -45,11 +46,43 @@ public partial class StreamsClient {
             return response.Map();
         }
         catch (Exception ex) {
-            return AppendSessionError.FromEx(ex);
+            throw ex.ToException(StreamNotFoundException.From, StreamTombstonedException.From, StreamRevisionConflictException.From, StreamAlreadyInAppendSessionException.From, MaxAppendRecordSizeExceededException.From, MaxAppendTransactionSizeExceededException.From, AppendSessionNoRequestsException.From);
         }
     }
 
-    public async ValueTask<Result<AppendRecordsSuccess, AppendRecordsError>> AppendRecords(
+    public async ValueTask<AppendRecordsSuccess> AppendRecords(
+        StreamName                stream,
+        ExpectedStreamState       expectedState,
+        IEnumerable<AppendRecord> records,
+        CancellationToken         cancellationToken = default
+    ) {
+        var request = new List<AppendStreamRequest> {
+            new AppendStreamRequest(stream, expectedState, records)
+        }.ToAsyncEnumerable();
+
+        try {
+            var value = await AppendSession(request, cancellationToken)
+                .ConfigureAwait(false);
+
+            return new AppendRecordsSuccess(
+                [new StreamRevision(value[0].Stream, value[0].Revision)],
+                value.Position);
+        }
+        catch (StreamNotFoundException ex) {
+            throw new AppendConsistencyViolationException(
+                new StreamStateViolation(ex.Stream, expectedState, ActualStreamCondition.NoStream));
+        }
+        catch (StreamTombstonedException ex) {
+            throw new AppendConsistencyViolationException(
+                new StreamStateViolation(ex.Stream, expectedState, ActualStreamCondition.Tombstoned));
+        }
+        catch (StreamRevisionConflictException ex) {
+            throw new AppendConsistencyViolationException(
+                new StreamStateViolation(ex.Stream, expectedState, ex.ActualRevision));
+        }
+    }
+
+    public async ValueTask<AppendRecordsSuccess> AppendRecords(
         AppendRecordsRequest request,
         CancellationToken cancellationToken = default
     ) {
@@ -65,7 +98,10 @@ public partial class StreamsClient {
             return Mapper.ToModel(response);
         }
         catch (Exception ex) {
-            return AppendRecordsError.FromEx(ex);
+            throw ex.ToException(
+                AppendConsistencyViolationException.From,
+                MaxAppendRecordSizeExceededException.From,
+                MaxAppendTransactionSizeExceededException.From);
         }
     }
 }

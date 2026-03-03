@@ -2,8 +2,10 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
+using Testing.Datasets.ArcadeRacer.Contracts;
+using Testing.Datasets.ArcadeRacer.Model;
 
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer;
 
 
 /// <summary>
@@ -129,7 +131,7 @@ public class ArcadeRaceBuilder {
     /// <summary>Builds the <see cref="ArcadeRaceSimulation"/> with randomized defaults for any unset options.</summary>
     /// <returns>A configured simulation ready for streaming or resolution.</returns>
     public ArcadeRaceSimulation Create() {
-        var faker = BogusFaker.Shared;
+        var faker = new Faker();
         var ds    = new ArcadeRacerDataSet(faker);
 
         var conditions = _conditions;

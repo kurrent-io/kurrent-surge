@@ -47,7 +47,6 @@ public class ReadLogBenchmarks {
 
         var messages = await _fixture.Client.Streams
             .ReadRecords(options)
-            .UnwrapAsync()
             .ConfigureAwait(false);
 
         try {

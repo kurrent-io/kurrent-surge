@@ -20,7 +20,7 @@ Conventions that `.editorconfig` cannot enforce or only marks as `suggestion` (w
 
 ## Error Handling
 
-- Never throw exceptions for expected failures; return `Result` types
+- Public operations return `ValueTask<T>` and throw typed exceptions on failure
 - Never add error handling for scenarios that cannot occur
 
 ## Testing
@@ -29,13 +29,13 @@ Conventions that `.editorconfig` cannot enforce or only marks as `suggestion` (w
 - **`dotnet run`, not `dotnet test`** — TUnit uses Microsoft.Testing.Platform
 - FluentDocker for containers, not TestContainers
 - New tests use `Assert.That(...)` exclusively, not Shouldly
-- Custom Result-aware extensions: `ShouldNotThrowOrFailAsync`, `ShouldFailAsync` (in `test/Kurrent.Testing/Shouldly/`)
+- Custom assertion extensions: `ShouldNotThrow`, `ShouldNotThrowAsync` (in `test/Kurrent.Testing/Shouldly/`)
 
 ## Type Mapping
 
 - Use `MessageTypeMapper` registration, not reflection
 - Partial class files follow: `{Module}Client.{Operation}.cs`, `{Module}Client.{Operation}.Models.cs`, `.Mappers.cs`,
-  `.Extensions.cs`, `.IdiomaticExtensions.cs`, `.Errors.cs`, `.Models.Builders.cs`.
+  `.Extensions.cs`, `.Models.Builders.cs`.
   See `src/Kurrent.Client/Modules/Streams/Operations/StreamsClient.Append.cs` for the canonical example
 
 ## Public API Surface

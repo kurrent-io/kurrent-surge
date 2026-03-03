@@ -14,14 +14,14 @@ static class ObjectGraphComparer {
         object? expected,
         EquivalencyConfiguration? config = null
     ) =>
-        CompareObjects(actual, expected, [], new Dictionary<object, IList<object?>>(ReferenceEqualityComparer.Instance), config);
+        CompareObjects(actual, expected, [], new Dictionary<object, IList<object?>>(ReferenceEqualityComparer.Instance), config ?? new());
 
     static void CompareObjects(
         [NotNullIfNotNull(nameof(expected))] object? actual,
         [NotNullIfNotNull(nameof(actual))] object?   expected,
         IList<string>                                 path,
         IDictionary<object, IList<object?>>           previousComparisons,
-        EquivalencyConfiguration?                     config,
+        EquivalencyConfiguration                      config,
         int                                           depth = 0
     ) {
         if (BothValuesAreNull(actual, expected, path))
@@ -29,10 +29,10 @@ static class ObjectGraphComparer {
 
         var (actualType, expectedType) = GetTypesToCompare(actual, expected, path, config);
 
-        if (config != null && TryCustomCompare(actual, expected, actualType, config, path))
+        if (TryCustomCompare(actual, expected, actualType, config, path))
             return;
 
-        if (config?.ShouldCompareByValue(actualType) == true) {
+        if (config.ShouldCompareByValue(actualType)) {
             if (!actual.Equals(expected))
                 Throw(actual, expected, path);
             return;
@@ -79,12 +79,12 @@ static class ObjectGraphComparer {
     }
 
     static (Type actualType, Type expectedType) GetTypesToCompare(
-        object actual, object expected, IList<string> path, EquivalencyConfiguration? config
+        object actual, object expected, IList<string> path, EquivalencyConfiguration config
     ) {
         var expectedType = expected.GetType();
         var actualType   = actual.GetType();
 
-        if (actualType != expectedType && config?.ExcludeMissingMembers != true)
+        if (actualType != expectedType && !config.ExcludeMissingMembers)
             Throw(actualType, expectedType, path);
 
         var typeName = $" [{actualType.FullName}]";
@@ -98,15 +98,15 @@ static class ObjectGraphComparer {
     }
 
     static void CompareValueTypes(
-        ValueType actual, ValueType expected, IEnumerable<string> path, EquivalencyConfiguration? config
+        ValueType actual, ValueType expected, IEnumerable<string> path, EquivalencyConfiguration config
     ) {
-        if (config?.CompareEnumsByName == true && actual.GetType().IsEnum) {
+        if (config.CompareEnumsByName && actual.GetType().IsEnum) {
             if (!string.Equals(actual.ToString(), expected.ToString(), StringComparison.Ordinal))
                 Throw(actual, expected, path);
             return;
         }
 
-        if (config is { NumericTolerance: > 0 } && IsNumericType(actual.GetType())) {
+        if (config.NumericTolerance > 0 && IsNumericType(actual.GetType())) {
             var actualDouble   = Convert.ToDouble(actual);
             var expectedDouble = Convert.ToDouble(expected);
 
@@ -127,9 +127,9 @@ static class ObjectGraphComparer {
     static void CompareReferenceTypes(
         object actual, object expected, Type actualType, Type expectedType,
         IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
-        EquivalencyConfiguration? config, int depth
+        EquivalencyConfiguration config, int depth
     ) {
-        if (config?.ExcludeNestedObjects == true && depth > 0)
+        if (config.ExcludeNestedObjects && depth > 0)
             return;
 
         if (config is { MaxRecursionDepth: not null, ExcludeNestedObjects: false } && depth > config.MaxRecursionDepth)
@@ -148,24 +148,24 @@ static class ObjectGraphComparer {
     }
 
     static void CompareStrings(
-        string actual, string expected, IEnumerable<string> path, EquivalencyConfiguration? config
+        string actual, string expected, IEnumerable<string> path, EquivalencyConfiguration config
     ) {
-        if (config?.NormalizeNewlines == true) {
+        if (config.NormalizeNewlines) {
             actual   = actual.ReplaceLineEndings("\n");
             expected = expected.ReplaceLineEndings("\n");
         }
 
-        if (config?.TrimLeadingWhitespace == true) {
+        if (config.TrimLeadingWhitespace) {
             actual   = actual.TrimStart();
             expected = expected.TrimStart();
         }
 
-        if (config?.TrimTrailingWhitespace == true) {
+        if (config.TrimTrailingWhitespace) {
             actual   = actual.TrimEnd();
             expected = expected.TrimEnd();
         }
 
-        var comparison = config?.StringComparison ?? StringComparison.Ordinal;
+        var comparison = config.StringComparison;
 
         if (!actual.Equals(expected, comparison))
             Throw(actual, expected, path);
@@ -173,7 +173,7 @@ static class ObjectGraphComparer {
 
     static void CompareEnumerables(
         IEnumerable actual, IEnumerable expected, IEnumerable<string> path,
-        IDictionary<object, IList<object?>> previousComparisons, EquivalencyConfiguration? config,
+        IDictionary<object, IList<object?>> previousComparisons, EquivalencyConfiguration config,
         int depth
     ) {
         var expectedList = expected.Cast<object?>().ToList();
@@ -184,7 +184,7 @@ static class ObjectGraphComparer {
             Throw(actualList.Count, expectedList.Count, newPath);
         }
 
-        if (config?.ShouldIgnoreOrder(path) == true) {
+        if (config.ShouldIgnoreOrder(path)) {
             CompareEnumerablesOrderIndependent(actualList, expectedList, path, previousComparisons, config, depth);
         } else {
             for (var i = 0; i < actualList.Count; i++) {
@@ -197,7 +197,7 @@ static class ObjectGraphComparer {
     static void CompareEnumerablesOrderIndependent(
         IList<object?> actualList, IList<object?> expectedList,
         IEnumerable<string> path, IDictionary<object, IList<object?>> previousComparisons,
-        EquivalencyConfiguration? config, int depth
+        EquivalencyConfiguration config, int depth
     ) {
         var expectedCopy = expectedList.ToList();
 
@@ -227,7 +227,7 @@ static class ObjectGraphComparer {
     static void CompareMembers(
         object actual, object expected, Type actualType, Type expectedType,
         IList<string> path, IDictionary<object, IList<object?>> previousComparisons,
-        EquivalencyConfiguration? config, int depth
+        EquivalencyConfiguration config, int depth
     ) {
         // Use expected's members as the reference set
         IEnumerable<MemberInfo> members = expectedType.GetFields(DefaultBindingFlags);
@@ -235,7 +235,7 @@ static class ObjectGraphComparer {
 
         // When types differ and ExcludeMissingMembers is on, build lookup for actual's members
         Dictionary<string, MemberInfo>? actualMembersByName = null;
-        if (actualType != expectedType && config?.ExcludeMissingMembers == true) {
+        if (actualType != expectedType && config.ExcludeMissingMembers) {
             actualMembersByName = actualType.GetFields(DefaultBindingFlags)
                 .Cast<MemberInfo>()
                 .Concat(actualType.GetProperties(DefaultBindingFlags))
@@ -254,7 +254,7 @@ static class ObjectGraphComparer {
                 actualMember = found;
             }
 
-            if (config?.IsExcludedByName(member.Name) == true)
+            if (config.IsExcludedByName(member.Name))
                 continue;
 
             var memberType = member switch {
@@ -263,15 +263,15 @@ static class ObjectGraphComparer {
                 _              => null
             };
 
-            if (memberType != null && config?.IsExcludedByType(memberType) == true)
+            if (memberType != null && config.IsExcludedByType(memberType))
                 continue;
 
             var newPath = path.Concat([member.Name]).ToList();
 
-            if (config?.IsIncluded(member, newPath) == false)
+            if (!config.IsIncluded(member, newPath))
                 continue;
 
-            if (config?.IsExcluded(newPath) == true)
+            if (config.IsExcluded(newPath))
                 continue;
 
             var actualVal = actualMember switch {

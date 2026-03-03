@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Testing.Datasets</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bogus" />
+    <PackageReference Include="Eventuous.Application" />
+    <PackageReference Include="Humanizer.Core" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ArcadeRacer\Fakers\" />
+    <Folder Include="HomeAutomation\Tests\" />
+  </ItemGroup>
+</Project>

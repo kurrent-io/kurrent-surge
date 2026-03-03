@@ -2,8 +2,9 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
+using Testing.Datasets.ArcadeRacer.Model;
 
-namespace Kurrent.Testing.Bogus.Datasets.ArcadeRacer;
+namespace Testing.Datasets.ArcadeRacer;
 
 /// <summary>Bogus <see cref="DataSet"/> that generates randomized cars, circuits, and race conditions.</summary>
 public class ArcadeRacerDataSet(Faker? faker = null) : CustomDataSet<ArcadeRacerDataSet>(faker ?? new Faker()) {
@@ -60,9 +61,9 @@ public class ArcadeRacerDataSet(Faker? faker = null) : CustomDataSet<ArcadeRacer
 
     #region Generators
 
-    /// <summary>Generates a randomized <see cref="ArcadeRacer.RaceCar"/> with random name, pilot, and spec.</summary>
+    /// <summary>Generates a randomized <see cref="Testing.Datasets.ArcadeRacer.Model.RaceCar"/> with random name, pilot, and spec.</summary>
     /// <param name="number">Grid number assigned to the car.</param>
-    /// <returns>A new <see cref="ArcadeRacer.RaceCar"/> with randomized attributes.</returns>
+    /// <returns>A new <see cref="Testing.Datasets.ArcadeRacer.Model.RaceCar"/> with randomized attributes.</returns>
     public RaceCar RaceCar(int number = 1) {
         var adj    = Random.ArrayElement(CarAdjectives);
         var noun   = Random.ArrayElement(CarNouns);
