@@ -526,6 +526,52 @@ public class ExpressionFilterParserTests {
 
     #endregion
 
+    #region Multi-Segment Dot Paths
+
+    [Test]
+    public async Task parses_two_segment_dot_path() {
+        var result = _parser.Parse("rec.stream = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_three_segment_dot_path() {
+        var result = _parser.Parse("rec.schema.name = 'OrderPlaced'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_position_stream_dot_path() {
+        var result = _parser.Parse("rec.position.stream = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_position_stream_revision_dot_path() {
+        var result = _parser.Parse("rec.position.streamRevision > 5");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_position_log_position_dot_path() {
+        var result = _parser.Parse("rec.position.logPosition > 1000");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_metadata_dot_path_as_property_key() {
+        var result = _parser.Parse("metadata.region = 'us-east'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
+
     #region Column Aliases
 
     [Test]

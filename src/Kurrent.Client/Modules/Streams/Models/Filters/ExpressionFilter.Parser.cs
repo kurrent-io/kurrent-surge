@@ -494,9 +494,20 @@ file sealed class PrattParser(List<Token> tokens) {
             Expect(TokenType.RightBracket, "]");
         }
         else if (Peek().Type == TokenType.Dot) {
-            Advance();
-            var keyToken = Expect(TokenType.Identifier, "property key");
-            key = keyToken.Value;
+            var segments = new List<string> { name };
+            while (Peek().Type == TokenType.Dot) {
+                Advance();
+                var segment = Expect(TokenType.Identifier, "property segment");
+                segments.Add(segment.Value);
+            }
+
+            var baseName = segments[0].ToLowerInvariant();
+            if (baseName is "properties" or "props" or "metadata") {
+                name = segments[0];
+                key  = string.Join(".", segments[1..]);
+            } else {
+                name = string.Join(".", segments);
+            }
         }
 
         return new PropertyAccess(name, key);
