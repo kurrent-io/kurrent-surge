@@ -624,4 +624,29 @@ public class ExpressionFilterParserTests {
     }
 
     #endregion
+
+    #region Field Prefix Stripping
+
+    [Test]
+    public async Task parses_field_stream_alias() {
+        var result = _parser.Parse("field_stream = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_field_category_alias() {
+        var result = _parser.Parse("field_category = 'orders'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_field_schema_alias() {
+        var result = _parser.Parse("field_schema = 'OrderPlaced'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
 }

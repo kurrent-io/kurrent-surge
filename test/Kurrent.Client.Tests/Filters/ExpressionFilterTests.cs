@@ -778,6 +778,40 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region Field Prefix Stripping
+
+    [Test]
+    public async Task evaluates_field_stream_alias() {
+        var filter      = Parse("field_stream = 'orders-99'");
+        var matching    = _faker.With("orders-99");
+        var nonMatching = _faker.With("payments-1");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_field_category_alias() {
+        var filter      = Parse("field_category = 'orders'");
+        var matching    = _faker.With("orders-abc123");
+        var nonMatching = _faker.With("payments-1");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_field_schema_alias() {
+        var filter      = Parse("field_schema = 'OrderPlaced'");
+        var matching    = _faker.With(schemaName: "OrderPlaced");
+        var nonMatching = _faker.With(schemaName: "OrderShipped");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
     #region Edge Cases
 
     [Test]

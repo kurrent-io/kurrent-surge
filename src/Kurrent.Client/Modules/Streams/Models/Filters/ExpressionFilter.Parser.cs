@@ -714,7 +714,9 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
                 : record.Metadata.TryGetValue<object>(Key, out var v)
                     ? v
                     : null,
-            _ => null
+            _ => PropertyName.StartsWith("field_", StringComparison.OrdinalIgnoreCase)
+                ? new PropertyAccess(PropertyName[6..], Key).Resolve(record)
+                : null
         };
 
     static string DeriveCategory(string stream) {
