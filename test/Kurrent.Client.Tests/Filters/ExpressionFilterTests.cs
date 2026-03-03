@@ -637,6 +637,115 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region Rec Dot Notation Aliases
+
+    [Test]
+    public async Task evaluates_rec_stream() {
+        var filter      = Parse("rec.stream = 'orders-99'");
+        var matching    = _faker.With("orders-99");
+        var nonMatching = _faker.With("payments-1");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_category() {
+        var filter      = Parse("rec.category = 'order'");
+        var matching    = _faker.With("order-abc123");
+        var nonMatching = _faker.With("payment-1");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_schema_name() {
+        var filter      = Parse("rec.schema.name = 'OrderPlaced'");
+        var matching    = _faker.With(schemaName: "OrderPlaced");
+        var nonMatching = _faker.With(schemaName: "OrderShipped");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_revision() {
+        var filter      = Parse("rec.revision > 5");
+        var matching    = _faker.With(streamRevision: 10);
+        var nonMatching = _faker.With(streamRevision: 3);
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_position_stream() {
+        var filter      = Parse("rec.position.stream = 'orders-99'");
+        var matching    = _faker.With("orders-99");
+        var nonMatching = _faker.With("payments-1");
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_position_stream_revision() {
+        var filter      = Parse("rec.position.streamRevision > 5");
+        var matching    = _faker.With(streamRevision: 10);
+        var nonMatching = _faker.With(streamRevision: 3);
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_position_log_position() {
+        var filter      = Parse("rec.position.logPosition > 1000");
+        var matching    = _faker.With(position: 1500);
+        var nonMatching = _faker.With(position: 500);
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_timestamp() {
+        var filter = Parse("rec.timestamp >= '2026-01-01'");
+        var matching = _faker.With(
+            timestamp: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        var nonMatching = _faker.With(
+            timestamp: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Utc)
+        );
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_id() {
+        var filter = Parse("rec.id = '00000000-0000-0000-0000-000000000001'");
+        var record = _faker.With();
+
+        // rec.id resolves to a Guid, comparing against string
+        // This test verifies it resolves without error (match depends on generated ID)
+        _ = filter.IsMatch(record);
+    }
+
+    [Test]
+    public async Task evaluates_rec_properties_with_key() {
+        var filter      = Parse("rec.properties.region = 'us-east'");
+        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
     #region Category Derivation
 
     [Test]

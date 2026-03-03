@@ -501,10 +501,17 @@ file sealed class PrattParser(List<Token> tokens) {
                 segments.Add(segment.Value);
             }
 
-            var baseName = segments[0].ToLowerInvariant();
-            if (baseName is "properties" or "props" or "metadata") {
-                name = segments[0];
-                key  = string.Join(".", segments[1..]);
+            // find the property map segment (properties, props, metadata) to split name/key
+            var mapIndex = segments.FindIndex(s =>
+                s.Equals("properties", StringComparison.OrdinalIgnoreCase) ||
+                s.Equals("props", StringComparison.OrdinalIgnoreCase) ||
+                s.Equals("metadata", StringComparison.OrdinalIgnoreCase)
+            );
+
+            if (mapIndex >= 0 && mapIndex < segments.Count - 1) {
+                // everything up to and including the map segment is the name
+                name = string.Join(".", segments[..(mapIndex + 1)]);
+                key  = string.Join(".", segments[(mapIndex + 1)..]);
             } else {
                 name = string.Join(".", segments);
             }
@@ -694,6 +701,18 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
                 ? null
                 : record.Metadata.TryGetValue<object>(Key, out var value)
                     ? value
+                    : null,
+            "rec.stream" or "rec.position.stream"            => record.Stream.Value,
+            "rec.category"                                   => DeriveCategory(record.Stream.Value),
+            "rec.schema.name"                                => record.Schema.SchemaName.Value,
+            "rec.revision" or "rec.position.streamrevision"  => (long)record.Revision,
+            "rec.position.logposition"                       => record.Position.LogPosition.Value,
+            "rec.timestamp"                                  => record.Timestamp,
+            "rec.id"                                         => record.Id,
+            "rec.properties" => Key is null
+                ? null
+                : record.Metadata.TryGetValue<object>(Key, out var v)
+                    ? v
                     : null,
             _ => null
         };
