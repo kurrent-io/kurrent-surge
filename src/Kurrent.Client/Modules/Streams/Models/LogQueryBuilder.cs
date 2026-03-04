@@ -95,6 +95,8 @@ public class LogQueryBuilder {
         return this;
     }
 
+    internal ReadOptions Build() => _inner.Build();
+
     #endregion
 
     #region Terminals
