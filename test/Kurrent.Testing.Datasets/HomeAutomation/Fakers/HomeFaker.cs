@@ -24,9 +24,9 @@ public class HomeFaker : Faker<SmartHome> {
                 // Generate rooms
                 var roomFaker = new RoomFaker();
                 var baseRooms = new List<Room> {
-                    new(Guid.NewGuid(), "Living Room", RoomType.LivingRoom),
-                    new(Guid.NewGuid(), "Kitchen", RoomType.Kitchen),
-                    new(Guid.NewGuid(), "Master Bedroom", RoomType.Bedroom)
+                    new() { RoomId = Guid.NewGuid(), Name = "Living Room", Type = RoomType.LivingRoom },
+                    new() { RoomId = Guid.NewGuid(), Name = "Kitchen", Type = RoomType.Kitchen },
+                    new() { RoomId = Guid.NewGuid(), Name = "Master Bedroom", Type = RoomType.Bedroom }
                 };
 
                 var additionalRooms = roomFaker.Generate(f.Random.Number(2, 5));

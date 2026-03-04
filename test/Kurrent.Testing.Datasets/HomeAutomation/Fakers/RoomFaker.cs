@@ -8,7 +8,7 @@ public class RoomFaker : Faker<Room> {
         CustomInstantiator(f => {
                 var roomType = f.PickRandom<RoomType>();
                 var roomName = GenerateRoomName(f, roomType);
-                return new Room(Guid.NewGuid(), roomName, roomType);
+                return new Room { RoomId = Guid.NewGuid(), Name = roomName, Type = roomType };
             }
         );
     }

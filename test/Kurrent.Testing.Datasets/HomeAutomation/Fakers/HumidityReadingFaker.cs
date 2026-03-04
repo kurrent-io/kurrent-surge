@@ -6,25 +6,18 @@ namespace Testing.Datasets.HomeAutomation;
 
 public class HumidityReadingFaker : Faker<HumidityReading> {
     public HumidityReadingFaker(HumiditySensor device, long timestamp) {
+        var humidity = 0.0;
         RuleFor(e => e.EventId, f => f.Random.Guid())
-            .RuleFor(e => e.Device, f => device.CreateDeviceInfo(device.BatteryLevel))
-            .RuleFor(
-                e => e.Humidity, f => {
-                    var change = f.Random.Double(-5.0, 5.0);
-                    device.UpdateHumidity(device.HumidityLevel + change);
-
-                    if (f.Random.Bool(0.1f)) device.DepleteBattery();
-
-                    return Math.Round(device.HumidityLevel, 1);
-                }
-            )
-            .RuleFor(e => e.ComfortLevel, f => {
-                var humidity = device.HumidityLevel;
-                return humidity switch {
-                    < 30 or > 70    => ComfortLevel.Low,
-                    >= 40 and <= 60 => ComfortLevel.Optimal,
-                    _               => ComfortLevel.High
-                };
+            .RuleFor(e => e.Device, f => device.CreateDeviceInfo(
+                device.IsBatteryPowered ? f.Random.Number(5, 100) : null))
+            .RuleFor(e => e.Humidity, f => {
+                humidity = Math.Round(f.Random.Double(20.0, 80.0), 1);
+                return humidity;
+            })
+            .RuleFor(e => e.ComfortLevel, f => humidity switch {
+                < 30  => ComfortLevel.Low,
+                > 60  => ComfortLevel.High,
+                _     => ComfortLevel.Optimal
             })
             .RuleFor(e => e.Timestamp, timestamp);
     }

@@ -6,18 +6,14 @@ namespace Testing.Datasets.HomeAutomation;
 
 public class DoorStateChangedFaker : Faker<DoorStateChanged> {
     public DoorStateChangedFaker(DoorLock device, long timestamp) {
+        var isOpen = false;
         RuleFor(e => e.EventId, f => f.Random.Guid())
             .RuleFor(e => e.Device, f => device.CreateDeviceInfo())
-            .RuleFor(
-                e => e.IsOpen, f => {
-                    if (f.Random.Bool(0.05f)) device.ToggleDoor();
-                    if (!device.IsOpen && f.Random.Bool(0.2f))
-                        device.SetLockStatus(f.Random.Bool(0.8f) ? LockStatus.Locked : LockStatus.Unlocked);
-
-                    return device.IsOpen;
-                }
-            )
-            .RuleFor(e => e.LockStatus, f => device.LockStatus)
+            .RuleFor(e => e.IsOpen, f => {
+                isOpen = f.Random.Bool(0.3f);
+                return isOpen;
+            })
+            .RuleFor(e => e.LockStatus, f => isOpen ? LockStatus.Unlocked : f.PickRandom<LockStatus>())
             .RuleFor(e => e.UserId, f => f.Internet.UserName())
             .RuleFor(e => e.Timestamp, timestamp);
     }

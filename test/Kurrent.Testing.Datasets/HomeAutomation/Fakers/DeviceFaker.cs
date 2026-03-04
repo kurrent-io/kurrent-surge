@@ -1,4 +1,5 @@
 using Bogus;
+using Humanizer;
 using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation;
@@ -8,21 +9,27 @@ public class DeviceFaker : Faker<Device> {
         CustomInstantiator(f => {
                 var actualDeviceType = deviceType ?? SelectWeightedDeviceType(f, room.Type);
                 var deviceId         = GenerateDeviceUrn(homeId ?? f.Random.AlphaNumeric(6).ToLower(), actualDeviceType, f);
+                var friendlyName     = $"{room.Name} {actualDeviceType.Humanize()}";
+                var isBattery        = IsBatteryPowered(actualDeviceType);
 
                 return actualDeviceType switch {
-                    DeviceType.Thermostat     => new Thermostat(room, deviceId),
-                    DeviceType.MotionSensor   => new MotionSensor(room, deviceId),
-                    DeviceType.SmartLight     => new SmartLight(room, deviceId),
-                    DeviceType.DoorLock       => new DoorLock(room, deviceId),
-                    DeviceType.SmokeDetector  => new SmokeDetector(room, deviceId),
-                    DeviceType.HumiditySensor => new HumiditySensor(room, deviceId),
-                    DeviceType.WindowSensor   => new WindowSensor(room, deviceId),
-                    DeviceType.WaterSensor    => new WaterSensor(room, deviceId),
-                    _                         => new Thermostat(room, deviceId)
+                    DeviceType.Thermostat     => new Thermostat     { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.MotionSensor   => new MotionSensor   { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.SmartLight     => new SmartLight     { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.DoorLock       => new DoorLock       { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.SmokeDetector  => new SmokeDetector  { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.HumiditySensor => new HumiditySensor { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.WindowSensor   => new WindowSensor   { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    DeviceType.WaterSensor    => new WaterSensor    { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery },
+                    _                         => new Thermostat     { Id = deviceId, FriendlyName = friendlyName, Room = room, DeviceType = actualDeviceType, IsBatteryPowered = isBattery }
                 };
             }
         );
     }
+
+    static bool IsBatteryPowered(DeviceType type) =>
+        type is DeviceType.Thermostat or DeviceType.SmokeDetector or DeviceType.HumiditySensor
+            or DeviceType.WindowSensor or DeviceType.WaterSensor;
 
     static string GenerateDeviceUrn(string homeId, DeviceType deviceType, Faker faker) {
         var deviceTypeName = deviceType.ToString().ToLower();

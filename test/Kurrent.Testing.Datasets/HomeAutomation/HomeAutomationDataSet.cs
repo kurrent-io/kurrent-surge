@@ -9,16 +9,12 @@ using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation;
 
-public class HomeAutomationDataSet : DataSet {
+public class HomeAutomationDataSet : CustomDataSet<HomeAutomationDataSet> {
     public static readonly HomeAutomationDataSet Default = new();
 
-    public HomeAutomationDataSet(string locale = "en") : base(locale) =>
-        Faker = new Faker(locale);
+    public HomeAutomationDataSet(Faker? faker = null) : base(faker ?? new Faker()) { }
 
-    public HomeAutomationDataSet(Faker faker) : base(faker.Locale) =>
-        Faker = faker;
-
-    Faker Faker { get; }
+    protected override void Initialize() { }
 
     /// <summary>
     /// Generate a random home with optional configuration parameters
@@ -74,9 +70,9 @@ public class HomeAutomationDataSet : DataSet {
         List<Room> GenerateDefaultRooms() {
             var roomFaker = new RoomFaker();
             return new List<Room> {
-                new(Guid.NewGuid(), "Living Room", RoomType.LivingRoom),
-                new(Guid.NewGuid(), "Kitchen", RoomType.Kitchen),
-                new(Guid.NewGuid(), "Master Bedroom", RoomType.Bedroom)
+                new() { RoomId = Guid.NewGuid(), Name = "Living Room", Type = RoomType.LivingRoom },
+                new() { RoomId = Guid.NewGuid(), Name = "Kitchen", Type = RoomType.Kitchen },
+                new() { RoomId = Guid.NewGuid(), Name = "Master Bedroom", Type = RoomType.Bedroom }
             }.Concat(roomFaker.Generate(Faker.Random.Number(2, 4))).ToList();
         }
     }
