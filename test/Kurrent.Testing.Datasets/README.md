@@ -27,7 +27,7 @@ Model types live under `Testing.Datasets.{DatasetName}.Model`.
 | Dataset        | Description                                               | Simulation |
 |----------------|-----------------------------------------------------------|------------|
 | ArcadeRacer    | Arcade racing with circuits, cars, laps, and weather      | Yes        |
-| HomeAutomation | Smart home devices, rooms, and sensor events              | No         |
+| HomeAutomation | Smart home devices, rooms, and sensor events              | Yes        |
 
 ## Usage
 
@@ -39,7 +39,11 @@ var home = HomeAutomationDataSet.Default.SmartHome();
 var faker = new Faker();
 var race = faker.ArcadeRacer().Race();
 
-// Via simulation stream
+// Via simulation stream (ArcadeRacer)
 await foreach (var evt in ArcadeRaceSimulation.Create().MaxEvents(100).Build())
+    Console.WriteLine(evt);
+
+// Via simulation stream (HomeAutomation)
+await foreach (var evt in HomeSimulator.NewSimulation().MaxEvents(100).Create())
     Console.WriteLine(evt);
 ```
