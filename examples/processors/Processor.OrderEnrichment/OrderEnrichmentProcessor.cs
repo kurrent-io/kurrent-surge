@@ -20,21 +20,19 @@ public sealed class OrderEnrichmentProcessor : IRecordProcessor {
     long _customerUpdates;
     long _productUpdates;
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            switch (record.Value) {
-                case CustomerUpdated customer:
-                    UpdateCustomerLookup(customer, context.Logger);
-                    break;
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        switch (context.Record.Value) {
+            case CustomerUpdated customer:
+                UpdateCustomerLookup(customer, context.Logger);
+                break;
 
-                case ProductUpdated product:
-                    UpdateProductLookup(product, context.Logger);
-                    break;
+            case ProductUpdated product:
+                UpdateProductLookup(product, context.Logger);
+                break;
 
-                case OrderPlaced order:
-                    EnrichAndLogOrder(order, context.Logger);
-                    break;
-            }
+            case OrderPlaced order:
+                EnrichAndLogOrder(order, context.Logger);
+                break;
         }
 
         return ValueTask.CompletedTask;

@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-
 namespace Transfermarkt.Domain;
 
 /// <summary>
@@ -236,7 +234,7 @@ public readonly record struct Country {
     /// <summary>
     /// All CAF (Africa) member countries.
     /// </summary>
-    public static readonly ImmutableArray<Country> Africa = [
+    public static readonly IReadOnlyList<Country> Africa = [
         Algeria, Angola, Benin, Botswana, BurkinaFaso, Burundi, Cameroon, CapeVerde, CentralAfricanRepublic,
         Chad, Comoros, Congo, CongoDR, CoteDIvoire, Djibouti, Egypt, EquatorialGuinea, Eritrea, Ethiopia,
         Gabon, Gambia, Ghana, Guinea, GuineaBissau, Kenya, Lesotho, Liberia, Libya, Madagascar, Malawi,
@@ -248,7 +246,7 @@ public readonly record struct Country {
     /// <summary>
     /// All AFC (Asia) member countries.
     /// </summary>
-    public static readonly ImmutableArray<Country> Asia = [
+    public static readonly IReadOnlyList<Country> Asia = [
         Afghanistan, Australia, Bahrain, Bangladesh, Bhutan, Brunei, Cambodia, China, ChineseTaipei,
         EastTimor, HongKong, India, Indonesia, Iran, Iraq, Japan, Jordan, NorthKorea, SouthKorea, Kuwait,
         Kyrgyzstan, Laos, Lebanon, Malaysia, Maldives, Mongolia, Myanmar, Nepal, Oman, Pakistan, Palestine,
@@ -259,7 +257,7 @@ public readonly record struct Country {
     /// <summary>
     /// All UEFA (Europe) member countries.
     /// </summary>
-    public static readonly ImmutableArray<Country> Europe = [
+    public static readonly IReadOnlyList<Country> Europe = [
         Albania, Andorra, Armenia, Austria, Azerbaijan, Belarus, Belgium, BosniaHerzegovina, Bulgaria,
         Croatia, Cyprus, Czechia, Denmark, England, Estonia, FaroeIslands, Finland, France, Georgia,
         Germany, Gibraltar, Greece, Netherlands, Hungary, Iceland, Israel, Italy, Kazakhstan, Kosovo,
@@ -271,7 +269,7 @@ public readonly record struct Country {
     /// <summary>
     /// All CONCACAF (North/Central America &amp; Caribbean) member countries.
     /// </summary>
-    public static readonly ImmutableArray<Country> NorthAmerica = [
+    public static readonly IReadOnlyList<Country> NorthAmerica = [
         Anguilla, AntiguaAndBarbuda, Aruba, Bahamas, Barbados, Belize, Bermuda, BritishVirginIslands,
         Canada, CaymanIslands, CostaRica, Cuba, Curacao, Dominica, DominicanRepublic, ElSalvador,
         Grenada, Guatemala, Guyana, Haiti, Honduras, Jamaica, Mexico, Montserrat, Nicaragua, Panama,
@@ -282,7 +280,7 @@ public readonly record struct Country {
     /// <summary>
     /// All OFC (Oceania) member countries.
     /// </summary>
-    public static readonly ImmutableArray<Country> Oceania = [
+    public static readonly IReadOnlyList<Country> Oceania = [
         AmericanSamoa, CookIslands, Fiji, NewCaledonia, NewZealand, PapuaNewGuinea, Samoa,
         SolomonIslands, Tahiti, Tonga, Vanuatu
     ];
@@ -290,19 +288,19 @@ public readonly record struct Country {
     /// <summary>
     /// All CONMEBOL (South America) member countries.
     /// </summary>
-    public static readonly ImmutableArray<Country> SouthAmerica = [
+    public static readonly IReadOnlyList<Country> SouthAmerica = [
         Argentina, Bolivia, Brazil, Chile, Colombia, Ecuador, Paraguay, Peru, Uruguay, Venezuela
     ];
 
     /// <summary>
     /// All defined countries (209 FIFA members).
     /// </summary>
-    public static readonly ImmutableArray<Country> All =
+    public static readonly IReadOnlyList<Country> All =
         [..Africa, ..Asia, ..Europe, ..NorthAmerica, ..Oceania, ..SouthAmerica];
 
     static readonly Dictionary<string, Country> ByCode = All.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
 
-    Country(string code, string name, Continent continent) {
+    public Country(string code, string name, Continent continent) {
         Code      = code;
         Name      = name;
         Continent = continent;
@@ -311,17 +309,17 @@ public readonly record struct Country {
     /// <summary>
     /// Official FIFA country code (e.g., "BRA", "GER", "ESP").
     /// </summary>
-    public string Code { get; }
+    public string Code { get; init; }
 
     /// <summary>
     /// Full country name.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; init; }
 
     /// <summary>
     /// The continent this country belongs to.
     /// </summary>
-    public Continent Continent { get; }
+    public Continent Continent { get; init; }
 
     /// <summary>
     /// Whether this is an unknown country.

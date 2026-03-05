@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
 
@@ -241,7 +242,7 @@ public readonly record struct StreamName {
 }
 
 public sealed class InvalidStreamNameException(string message, Exception? innerException = null)
-    : Exception(message, innerException), IThrowableException<InvalidStreamNameException> {
+    : KurrentException(ErrorCode.FromType<InvalidStreamNameException>(), message, innerException), IThrowableException<InvalidStreamNameException> {
     public static InvalidStreamNameException Create(string message, Exception? innerException) => new(message, innerException);
 }
 

@@ -1,7 +1,7 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 using NJsonSchema;
 
 namespace Kurrent.Client.Tests.Registry;
@@ -18,18 +18,18 @@ public class RegisterSchemaVersionTests {
 		var v1         = KurrentClientTestFixture.NewJsonSchemaDefinition();
 		var v2         = v1.AddOptional("email", JsonObjectType.String);
 
-		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync(version => version.VersionNumber.ShouldBe(1));
+		var created = await Fixture.Client.Registry
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
+
+		await Assert.That(created.VersionNumber).IsEqualTo(1);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct)
-			.ShouldNotThrowOrFailAsync(version => {
-				version.VersionId.ShouldBeGuid();
-				version.VersionNumber.ShouldBe(2);
-			});
+		var registered = await Fixture.Client.Registry
+			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
+
+		await Assert.That(registered.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(registered.VersionNumber).IsEqualTo(2);
 	}
 
 	[Test]
@@ -40,20 +40,21 @@ public class RegisterSchemaVersionTests {
 		var v3         = v2.AddOptional("phone", JsonObjectType.String);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct)
-			.ShouldNotThrowOrFailAsync(version => version.VersionNumber.ShouldBe(2));
+		var reg2 = await Fixture.Client.Registry
+			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
+
+		await Assert.That(reg2.VersionNumber).IsEqualTo(2);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, v3.ToJson(), ct)
-			.ShouldNotThrowOrFailAsync(version => version.VersionNumber.ShouldBe(3));
+		var reg3 = await Fixture.Client.Registry
+			.RegisterSchemaVersion(schemaName, v3.ToJson(), ct);
+
+		await Assert.That(reg3.VersionNumber).IsEqualTo(3);
 	}
 
 	[Test]
@@ -63,26 +64,23 @@ public class RegisterSchemaVersionTests {
 		var v2         = v1.AddOptional("address", JsonObjectType.String);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
 		var registered = await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct)
-			.ShouldNotThrowOrFailAsync();
+			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.GetSchemaVersionById(registered.VersionId, ct)
-			.ShouldNotThrowOrFailAsync(version => {
-				version.VersionId.ShouldBe(registered.VersionId);
-				version.VersionNumber.ShouldBe(2);
-				version.SchemaDefinition.ShouldBe(v2.ToJson());
-				version.DataFormat.ShouldBe(SchemaDataFormat.Json);
-				version.RegisteredAt.ShouldBeGreaterThan(DateTimeOffset.MinValue);
-			});
+		var version = await Fixture.Client.Registry
+			.GetSchemaVersionById(registered.VersionId, ct);
+
+		await Assert.That(version.VersionId).IsEqualTo(registered.VersionId);
+		await Assert.That(version.VersionNumber).IsEqualTo(2);
+		await Assert.That(version.SchemaDefinition).IsEqualTo(v2.ToJson());
+		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
+		await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
 	}
 
 	[Test]
@@ -90,10 +88,9 @@ public class RegisterSchemaVersionTests {
 		var schemaName       = KurrentClientTestFixture.NewSchemaName();
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, schemaDefinition, ct)
-			.ShouldFailAsync(failure =>
-				failure.Case.ShouldBe(RegisterSchemaVersionError.RegisterSchemaVersionErrorCase.SchemaNotFoundException));
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry
+				.RegisterSchemaVersion(schemaName, schemaDefinition, ct));
 	}
 
 	[Test]
@@ -102,21 +99,18 @@ public class RegisterSchemaVersionTests {
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
 		await Fixture.Client.Registry
-			.DeleteSchema(schemaName, ct)
-			.ShouldNotThrowOrFailAsync();
+			.DeleteSchema(schemaName, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, schemaDefinition, ct)
-			.ShouldFailAsync(failure =>
-				failure.Case.ShouldBe(RegisterSchemaVersionError.RegisterSchemaVersionErrorCase.SchemaNotFoundException));
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry
+				.RegisterSchemaVersion(schemaName, schemaDefinition, ct));
 	}
 
 	[Test]
@@ -126,20 +120,18 @@ public class RegisterSchemaVersionTests {
 		var v2         = v1.AddOptional("age", JsonObjectType.Integer);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
 		await Fixture.Client.Registry
-			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct)
-			.ShouldNotThrowOrFailAsync();
+			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.GetSchema(schemaName, ct)
-			.ShouldNotThrowOrFailAsync(schema =>
-				schema.LatestSchemaVersion.ShouldBe(2));
+		var schema = await Fixture.Client.Registry
+			.GetSchema(schemaName, ct);
+
+		await Assert.That(schema.LatestSchemaVersion).IsEqualTo(2);
 	}
 }

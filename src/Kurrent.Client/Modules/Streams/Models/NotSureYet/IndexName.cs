@@ -1,3 +1,5 @@
+using Kurrent.Client.Exceptions;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -39,6 +41,6 @@ public readonly record struct IndexName {
 /// Exception thrown when a index name is invalid.
 /// </summary>
 public sealed class InvalidIndexNameException(string message, Exception? innerException = null)
-    : Exception(message, innerException), IThrowableException<InvalidIndexNameException> {
+    : KurrentException(ErrorCode.FromType<InvalidIndexNameException>(), message, innerException), IThrowableException<InvalidIndexNameException> {
     public static InvalidIndexNameException Create(string message, Exception? innerException) => new(message, innerException);
 }

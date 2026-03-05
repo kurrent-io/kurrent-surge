@@ -1,7 +1,6 @@
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Registry;
 
@@ -19,22 +18,19 @@ public class ListSchemasTests {
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName1, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName1, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName2, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName2, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync(schemas => {
-				schemas.Count.ShouldBeGreaterThanOrEqualTo(2);
-				schemas.ShouldContain(s => s.SchemaName.Value == schemaName1);
-				schemas.ShouldContain(s => s.SchemaName.Value == schemaName2);
-			});
+		var schemas = await Fixture.Client.Registry
+			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct);
+
+		await Assert.That(schemas.Count).IsGreaterThanOrEqualTo(2);
+		await Assert.That(schemas).Contains(s => s.SchemaName.Value == schemaName1);
+		await Assert.That(schemas).Contains(s => s.SchemaName.Value == schemaName2);
 	}
 
 	[Test]
@@ -43,15 +39,14 @@ public class ListSchemasTests {
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.ListSchemas(cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync(schemas =>
-				schemas.Count.ShouldBeGreaterThanOrEqualTo(1));
+		var schemas = await Fixture.Client.Registry
+			.ListSchemas(cancellationToken: ct);
+
+		await Assert.That(schemas.Count).IsGreaterThanOrEqualTo(1);
 	}
 
 	[Test]
@@ -62,21 +57,18 @@ public class ListSchemasTests {
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-			.CreateSchema(matchingName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(matchingName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await Fixture.Client.Registry
-			.CreateSchema(nonMatchingName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(nonMatchingName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync(schemas => {
-				schemas.ShouldContain(s => s.SchemaName.Value == matchingName);
-				schemas.ShouldNotContain(s => s.SchemaName.Value == nonMatchingName);
-			});
+		var schemas = await Fixture.Client.Registry
+			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct);
+
+		await Assert.That(schemas).Contains(s => s.SchemaName.Value == matchingName);
+		await Assert.That(schemas).DoesNotContain(s => s.SchemaName.Value == nonMatchingName);
 	}
 
 	[Test]
@@ -91,30 +83,27 @@ public class ListSchemasTests {
 		var untaggedName = $"{prefix}-untagged";
 
 		await Fixture.Client.Registry
-			.CreateSchema(taggedName, schemaDefinition, SchemaDataFormat.Json, tags: tags, cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(taggedName, schemaDefinition, SchemaDataFormat.Json, tags: tags, cancellationToken: ct);
 
 		await Fixture.Client.Registry
-			.CreateSchema(untaggedName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(untaggedName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: prefix, tags: tags, cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync(schemas => {
-				schemas.ShouldContain(s => s.SchemaName.Value == taggedName);
-				schemas.ShouldNotContain(s => s.SchemaName.Value == untaggedName);
-			});
+		var schemas = await Fixture.Client.Registry
+			.ListSchemas(schemaNamePrefix: prefix, tags: tags, cancellationToken: ct);
+
+		await Assert.That(schemas).Contains(s => s.SchemaName.Value == taggedName);
+		await Assert.That(schemas).DoesNotContain(s => s.SchemaName.Value == untaggedName);
 	}
 
 	[Test]
 	public async ValueTask lists_schemas_with_non_matching_prefix_returns_empty(CancellationToken ct) {
 		var nonExistentPrefix = $"no-match-{Guid.NewGuid():N}";
 
-		await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: nonExistentPrefix, cancellationToken: ct)
-			.ShouldNotThrowOrFailAsync(schemas =>
-				schemas.Count.ShouldBe(0));
+		var schemas = await Fixture.Client.Registry
+			.ListSchemas(schemaNamePrefix: nonExistentPrefix, cancellationToken: ct);
+
+		await Assert.That(schemas.Count).IsEqualTo(0);
 	}
 }

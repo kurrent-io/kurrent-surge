@@ -45,18 +45,18 @@ public class ReadStreamBuilder : OptionsBuilder<ReadStreamBuilder, ReadStreamOpt
     /// Start from the beginning of the stream (forwards).
     /// </summary>
     public ReadStreamBuilder FromStart() =>
-        With(options => options with { Start = StreamRevision.Min, Direction = ReadDirection.Forwards });
+        With(options => options with { Start = Revision.Min, Direction = ReadDirection.Forwards });
 
     /// <summary>
     /// Start from the end of the stream (backwards).
     /// </summary>
     public ReadStreamBuilder FromEnd() =>
-        With(options => options with { Start = StreamRevision.Max, Direction = ReadDirection.Backwards });
+        With(options => options with { Start = Revision.Max, Direction = ReadDirection.Backwards });
 
     /// <summary>
     /// Start reading from a specific stream revision.
     /// </summary>
-    public ReadStreamBuilder FromRevision(StreamRevision revision) =>
+    public ReadStreamBuilder FromRevision(Revision revision) =>
         With(options => options with { Start = revision });
 
     /// <summary>

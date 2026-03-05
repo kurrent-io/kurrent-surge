@@ -30,20 +30,20 @@ public static class MetadataSchemaExtensions {
         }
 
         public SchemaName GetSchemaName() =>
-            source.GetOrDefault(SystemMetadataKeys.SchemaName, SchemaName.None);
+            source.GetValueOrDefault(SystemMetadataKeys.SchemaName, SchemaName.None);
 
         public SchemaDataFormat GetSchemaFormat() =>
-            source.GetOrDefault(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Unspecified);
+            source.GetValueOrDefault(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Unspecified);
 
         public SchemaVersionId GetSchemaId() =>
-            source.GetOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.None);
+            source.GetValueOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.None);
 
         public Metadata AddSchemaNameIfMissing(SchemaName schemaName) =>
-            source.WithIf(x => x.GetSchemaName() == SchemaName.None, SystemMetadataKeys.SchemaName, schemaName);
+            source.WithIf(SystemMetadataKeys.SchemaName, schemaName, source.GetSchemaName() == SchemaName.None);
 
         public Metadata AddSchemaFormatIfMissing(SchemaDataFormat dataFormat) {
             return dataFormat != SchemaDataFormat.Unspecified
-                ? source.WithIf(x => x.GetSchemaFormat() == SchemaDataFormat.Unspecified, SystemMetadataKeys.SchemaFormat, dataFormat)
+                ? source.WithIf(SystemMetadataKeys.SchemaFormat, dataFormat, source.GetSchemaFormat() == SchemaDataFormat.Unspecified)
                 : throw new ArgumentOutOfRangeException(nameof(dataFormat), "SchemaFormat cannot be Unspecified when adding to metadata.");
         }
     }

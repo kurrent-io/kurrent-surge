@@ -6,7 +6,7 @@ public static partial class RegistryClientExtensions {
     extension(RegistryClient client) {
         #region CreateSchema
 
-        public ValueTask<Result<SchemaVersionDescriptor, CreateSchemaError>> CreateSchema(
+        public ValueTask<SchemaVersionDescriptor> CreateSchema(
             SchemaName schemaName, string schemaDefinition, SchemaDataFormat dataFormat,
             CancellationToken cancellationToken
         ) => client.CreateSchema(schemaName, schemaDefinition, dataFormat, cancellationToken: cancellationToken);
@@ -15,7 +15,7 @@ public static partial class RegistryClientExtensions {
 
         #region GetSchemaVersion
 
-        public ValueTask<Result<SchemaVersion, GetSchemaVersionError>> GetSchemaVersion(
+        public ValueTask<SchemaVersion> GetSchemaVersion(
             SchemaName schemaName, CancellationToken cancellationToken = default
         ) => client.GetSchemaVersion(schemaName, null, cancellationToken);
 
@@ -23,7 +23,7 @@ public static partial class RegistryClientExtensions {
 
         #region ListSchemas
 
-        public ValueTask<Result<IReadOnlyList<Schema>, ListSchemasError>> ListSchemas(
+        public ValueTask<IReadOnlyList<Schema>> ListSchemas(
             CancellationToken cancellationToken
         ) => client.ListSchemas(null, null, cancellationToken);
 

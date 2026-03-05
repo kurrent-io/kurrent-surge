@@ -4,22 +4,27 @@ namespace Kurrent.Surge.Transformers;
 
 [PublicAPI]
 public static class RedactionExtensions {
-    public static Span<byte> Redact(this Span<byte> data) {
-        data.Fill(0xFF);
-        return data;
+    extension(Span<byte> data) {
+        public Span<byte> Redact() {
+            data.Fill(0xFF);
+            return data;
+        }
     }
 
-    public static byte[] Redact(this byte[] data) =>
-        Redact(data.AsSpan()).ToArray();
+    extension(byte[] data) {
+        public byte[] Redact() => data.AsSpan().Redact().ToArray();
+    }
 
-    public static ReadOnlyMemory<byte> Redact(this ReadOnlyMemory<byte> data) =>
-        Redact(data.ToArray());
+    extension(ReadOnlyMemory<byte> data) {
+        public ReadOnlyMemory<byte> Redact() => data.ToArray().Redact();
+    }
 
-    public static Record Redact(this Record record) =>
-        record with {
+    extension(Record record) {
+        public Record Redact() => record with {
+            Data       = record.Data.Redact(),
             Value      = null!,
             ValueType  = null!,
-            Data       = record.Data.Redact(),
             IsRedacted = true
         };
+    }
 }

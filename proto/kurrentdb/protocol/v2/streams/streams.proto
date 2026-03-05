@@ -14,85 +14,143 @@ import "kurrent/rpc/rpc.proto";
 
 import "kurrentdb/protocol/v2/streams/shared.proto";
 
+/**
+ * Service for appending records to streams.
+ */
 service StreamsService {
-  // Appends records to multiple streams atomically within a single transaction.
-  //
-  // This is a client-streaming RPC where the client sends multiple AppendRequest messages
-  // (one per stream) and receives a single AppendSessionResponse upon commit.
-  //
-  // Guarantees:
-  // - Atomicity: All writes succeed or all fail together
-  // - Optimistic Concurrency: Expected revisions are validated for all streams before commit
-  // - Ordering: Records within each stream maintain send order
-  //
-  // Current Limitations:
-  // - Each stream can only appear once per session (no multiple appends to same stream)
-  //
-  // Example flow:
-  //   1. Client opens stream
-  //   2. Client sends AppendRequest for stream "orders" with 3 records
-  //   3. Client sends AppendRequest for stream "inventory" with 2 records
-  //   4. Client completes the stream
-  //   5. Server validates, commits, returns AppendSessionResponse with positions
-  //
-  // Common errors (automatically apply to all operations):
-  // - UNAUTHENTICATED: No valid authentication credentials
-  // - ACCESS_DENIED: User lacks write permission
-  // - NOT_LEADER_NODE: Server is not the cluster leader
-  // - INTERNAL: Internal server error
-  // - UNAVAILABLE: Service unavailable
-  // - BAD_REQUEST: Request contains invalid data
+  /**
+   * Appends records to multiple streams atomically within a single transaction.
+   *
+   * Deprecated: Use AppendRecords instead.
+   *
+   * This is a client-streaming RPC where the client sends multiple AppendRequest
+   * messages (one per stream) and receives a single AppendSessionResponse upon
+   * commit.
+   *
+   * Guarantees:
+   * - Atomicity: All writes succeed or all fail together.
+   * - Optimistic Concurrency: Expected revisions validated before commit.
+   * - Ordering: Records within each stream maintain send order.
+   *
+   * Current Limitations:
+   * - Each stream can only appear once per session.
+   *
+   * Example flow:
+   * 1. Client opens stream.
+   * 2. Client sends AppendRequest for stream "orders" with 3 records.
+   * 3. Client sends AppendRequest for stream "inventory" with 2 records.
+   * 4. Client completes the stream.
+   * 5. Server validates, commits, returns AppendSessionResponse with positions.
+   *
+   * Common errors (all operations):
+   * - UNAUTHENTICATED: No valid authentication credentials.
+   * - ACCESS_DENIED: User lacks write permission.
+   * - NOT_LEADER_NODE: Server is not the cluster leader.
+   * - INTERNAL: Internal server error.
+   * - UNAVAILABLE: Service unavailable.
+   * - BAD_REQUEST: Request contains invalid data.
+   */
   rpc AppendSession(stream AppendRequest) returns (AppendSessionResponse) {
+    option deprecated = true;
     option (kurrent.rpc.possible_errors) =
       "NOT_FOUND,"
       "ALREADY_EXISTS,"
-      "DELETED,"
-      "STREAM_TOMBSTONED,"
-      "STREAM_REVISION_CONFLICT,"
-      "STREAM_ALREADY_IN_APPEND_SESSION,"
-      "APPEND_SESSION_NO_REQUESTS,"
-      "MAX_APPEND_RECORD_SIZE_EXCEEDED,"
+      "DELETED"
+      "STREAM_TOMBSTONED"
+      "STREAM_REVISION_CONFLICT"
+      "STREAM_ALREADY_IN_APPEND_SESSION"
+      "APPEND_SESSION_NO_REQUESTS"
+      "MAX_APPEND_RECORD_SIZE_EXCEEDED"
       "MAX_APPEND_TRANSACTION_SIZE_EXCEEDED";
+  }
+
+  /**
+   * Appends records to multiple streams atomically within a single transaction.
+   *
+   * This is a unary RPC where the client sends a single AppendRecordsRequest
+   * containing all records and consistency checks, and receives a single
+   * AppendRecordsResponse.
+   *
+   * Records specify their target stream individually via the AppendRecord.stream
+   * field, allowing a single request to write to multiple streams.
+   *
+   * Guarantees:
+   * - Atomicity: All records across all streams are committed or all fail together.
+   * - Ordering: Records within each stream maintain their order from the request.
+   *
+   * Consistency checks are evaluated before commit. They can validate:
+   * - Stream state: a stream must be at an expected revision or lifecycle state.
+   * - Query predicates: server-side expressions that must evaluate to true.
+   *
+   * Example flow:
+   * 1. Client builds request with records targeting "orders" and "inventory".
+   * 2. Client adds consistency checks (e.g., "orders" must be at revision 5).
+   * 3. Client sends the request.
+   * 4. Server validates, commits, returns stream revisions and position.
+   *
+   * Common errors (all operations):
+   * - UNAUTHENTICATED: No valid authentication credentials.
+   * - ACCESS_DENIED: User lacks write permission.
+   * - NOT_LEADER_NODE: Server is not the cluster leader.
+   * - INTERNAL: Internal server error.
+   * - UNAVAILABLE: Service unavailable.
+   * - BAD_REQUEST: Request contains invalid data.
+   */
+  rpc AppendRecords(AppendRecordsRequest) returns (AppendRecordsResponse) {
+    option (kurrent.rpc.possible_errors) =
+        "APPEND_CONSISTENCY_VIOLATION"
+        "MAX_APPEND_RECORD_SIZE_EXCEEDED"
+        "MAX_APPEND_TRANSACTION_SIZE_EXCEEDED";
   }
 }
 
-// Represents the input for appending records to a specific stream.
+/**
+ * Represents the input for appending records to a specific stream.
+ *
+ * Deprecated: Use AppendRecordsRequest instead.
+ */
 message AppendRequest {
+  option deprecated = true;
+
   // The stream to append records to.
   string stream = 1;
 
   // The records to append to the stream.
   repeated AppendRecord records = 2;
 
-  // The expected revision for optimistic concurrency control.
-  // Can be either:
-  // - A specific revision number (0, 1, 2, ...) - the stream must be at exactly this revision
-  // - An ExpectedRevisionConstants value (-4, -2, -1) for special semantics
-  //
-  // If omitted, defaults to EXPECTED_REVISION_CONSTANTS_ANY (-2).
+  // The expected revision for optimistic concurrency control. Accepts a specific
+  // revision number (0, 1, 2, ...) or an ExpectedRevisionConstants value (-4,
+  // -2, -1). Defaults to EXPECTED_REVISION_CONSTANTS_ANY (-2) if omitted.
   sint64 expected_revision = 3;
-
-  // Optional conditions on other streams that must be met for this append to succeed.
-  // Each entry specifies a stream name and the expected revision for that stream.
-  // This allows for cross-stream optimistic concurrency checks.
-  // If any condition is not met, the append will fail with a STREAM_REVISION_CONFLICT error.
-  map<string, sint64> stream_conditions = 4;
 }
 
-// Represents the outcome of an append operation.
+/**
+ * Represents the outcome of an append operation.
+ *
+ * Deprecated: Returned as part of AppendSessionResponse. Use
+ * AppendRecordsResponse instead.
+ */
 message AppendResponse {
+  option deprecated = true;
+
   // The stream to which records were appended.
   string stream = 1;
 
-  // The actual/current revision of the stream after the append.
-  // This is the revision number of the last record written to this stream.
+  // The resulting revision of the stream after the append.
   sint64 stream_revision = 2;
 
   // The position of the last appended record in the global log.
   sint64 position = 3;
 }
 
+/**
+ * Response from the AppendSession operation.
+ *
+ * Deprecated: Use AppendRecordsResponse instead.
+ */
 message AppendSessionResponse {
+  option deprecated = true;
+
   // The results of each append request in the session.
   repeated AppendResponse output = 1;
 
@@ -100,303 +158,191 @@ message AppendSessionResponse {
   sint64 position = 2;
 }
 
-
-// Record to be appended to a stream.
+/**
+ * Record to be appended to a stream.
+ *
+ * Each record specifies its target stream via the stream field, allowing
+ * multiple records for different streams to be sent in a single request.
+ */
 message AppendRecord {
   // Unique identifier for this record (must be a valid UUID/GUID).
-  // If not provided, the server will generate a new one.
+  // If not provided, the server generates a new one.
   string record_id = 1;
 
-  // A collection of properties providing additional information about the
-  // record. Can contain user-defined or system propreties.
-  // System keys will be prefixed with "$" (e.g., "$timestamp").
-  // User-defined keys MUST NOT start with "$".
-  //
-  // Common examples:
-  //   User metadata:
-  //     - "user-id": "12345"
-  //     - "tenant": "acme-corp"
-  //     - "source": "mobile-app"
-  //
-  //   System metadata (with $ prefix):
-  //     - "$trace-id": "4bf92f3577b34da6a3ce929d0e0e4736"  // OpenTelemetry trace ID
-  //     - "$span-id": "00f067aa0ba902b7"                   // OpenTelemetry span ID
-  //     - "$timestamp": "2025-01-15T10:30:00.000Z"         // ISO 8601 timestamp
+  /**
+   * Properties providing additional information about the record.
+   *
+   * Can contain user-defined or system properties. System keys are prefixed
+   * with "$" (e.g., "$timestamp"). User-defined keys must not start with "$".
+   *
+   * User metadata examples:
+   * - "user-id": "12345"
+   * - "tenant": "acme-corp"
+   * - "source": "mobile-app"
+   *
+   * System metadata examples:
+   * - "$trace-id": "4bf92f3577b34da6a3ce929d0e0e4736" (OpenTelemetry trace ID)
+   * - "$span-id": "00f067aa0ba902b7" (OpenTelemetry span ID)
+   * - "$timestamp": "2025-01-15T10:30:00.000Z" (ISO 8601 timestamp)
+   */
   map<string, google.protobuf.Value> properties = 2;
 
-  // Schema information for this record.
+  // Schema info for this record.
   SchemaInfo schema = 3;
 
-  // The record payload as raw bytes.
-  // The format specified in SchemaInfo determines how to interpret these bytes.
+  // The record payload as raw bytes. Format is determined by SchemaInfo.
   bytes data = 4;
+
+  // The target stream for this record.
+  string stream = 5;
 }
 
-// Constants for expected revision validation in optimistic concurrency control.
-// These can be used in the expected_revision field, or you can specify an actual revision number.
+/**
+ * Expected revision constants for optimistic concurrency control.
+ *
+ * Deprecated: Use StreamStateConstants with AppendRecordsRequest instead.
+ * Retained for the deprecated AppendSession RPC only.
+ */
 enum ExpectedRevisionConstants {
-  // The stream must have exactly one event at revision 0.
-  // Used for scenarios requiring strict single-event semantics.
+  option deprecated = true;
+  // The stream must have exactly one record at revision 0.
   EXPECTED_REVISION_CONSTANTS_SINGLE_EVENT = 0;
-//  EXPECTED_REVISION_CONSTANTS_SINGLE_RECORD = 0;
-
-  // The stream must not exist yet (first write to the stream).
-  // Fails if the stream already has events.
+  // The stream must not exist yet (first write).
   EXPECTED_REVISION_CONSTANTS_NO_STREAM = -1;
-
-  // Accept any current state of the stream (no optimistic concurrency check).
-  // The write will succeed regardless of the stream's current revision.
+  // Accept any current state (no concurrency check).
   EXPECTED_REVISION_CONSTANTS_ANY = -2;
-
-  // The stream must exist (have at least one record).
-  // Fails if the stream doesn't exist yet.
+  // The stream must exist (at least one record).
   EXPECTED_REVISION_CONSTANTS_EXISTS = -4;
 }
 
 
+/**
+ * Request to append records to one or more streams atomically.
+ *
+ * All records are committed in a single transaction. Each record specifies its
+ * target stream via AppendRecord.stream. Consistency checks are evaluated before
+ * any records are written.
+ */
+message AppendRecordsRequest {
+  // The records to append. Records targeting the same stream maintain their
+  // order from this list.
+  repeated AppendRecord records = 1;
 
-
-//import "kurrentdb/protocol/v2/shared.proto";
-
-//// Record retrieved from the database.
-//message Record {
-//  // The unique identifier of the record in the database.
-//  string record_id = 1;
-//  // The position of the record in the database.
-//  RecordPosition position = 2;
-//  // Schema information for interpreting the record data.
-//  SchemaInfo schema = 3;
-//  // The actual data payload of the record, stored as bytes.
-//  bytes data = 4;
-//  // Additional information about the record.
-//  map<string, google.protobuf.Value> properties = 5;
-//  // When the record was created.
-//  google.protobuf.Timestamp timestamp = 6;
-//}
-//
-//// A position in the log, optionally enriched with stream context.
-////
-//// The log_position is the primary identifier - it uniquely identifies a record
-//// in the log. All other fields are contextual information that can be derived
-//// from the record itself, but are included for convenience.
-////
-//// Used for:
-//// - Checkpoints: Represents processing progress (all records up to and
-////   including this position have been successfully processed)
-//// - Head positions: Represents the latest/newest position in a stream
-////   or the log, used for lag calculation
-//// - Start positions: Specifies where to begin processing
-////
-//// Stream ID structure:
-//// KurrentDB stream IDs can contain multiple parts:
-//// - Category: optional prefix before `-` (e.g., "orders" in "orders-123")
-//// - Entity ID: the unique identifier (e.g., "123" in "orders-123")
-//// - Partition: optional suffix after `!` (e.g., "games!1" for partition 1)
-////
-//// Examples:
-////
-////   1. Log position only (minimal, sufficient for unique identification)
-////   { log_position: 4815162342 }
-////
-////   2. Log position with stream context
-////   { log_position: 4815162342, stream: "orders-123", stream_revision: 99 }
-////
-////   3. Stream head position (for lag calculation)
-////   { stream: "orders-123", stream_revision: 150 }
-////
-////   4. $all head position
-////   { stream: "$all", log_position: 5000000000 }
-////
-////   5. Partitioned stream
-////   { log_position: 4815162342, stream: "games!1", stream_revision: 100 }
-////
-//// Note on scavenged/archived positions:
-//// If a checkpointed position no longer exists (was scavenged or archived),
-//// the server automatically finds the next available position. The worker
-//// does not need to handle this case.
-//message RecordPosition {
-//  // Global log position.
-//  //
-//  // The position in the $all stream. This is the primary identifier
-//  // that uniquely identifies a record in the log.
-//  int64 position = 1;
-//
-//  // The stream name (optional context).
-//  //
-//  // Provides stream context for the position. Can be derived from the
-//  // record at log_position, but included for convenience.
-//  //
-//  // For partitioned streams, includes the partition suffix (e.g., "games!1").
-//  string stream = 2;
-//
-//  // Position within the stream (optional context).
-//  //
-//  // The zero-based index of the record within the stream.
-//  // Can be derived from the record at log_position, but included
-//  // for stream-specific progress tracking and lag calculation.
-//  int64 stream_revision = 3;
-//}
-//
-//// Represents the data format of the schema.
-//enum SchemaFormat {
-//  // Default value, should not be used.
-//  SCHEMA_FORMAT_UNSPECIFIED = 0;
-//  SCHEMA_FORMAT_JSON        = 1;
-//  SCHEMA_FORMAT_PROTOBUF    = 2;
-//  SCHEMA_FORMAT_AVRO        = 3;
-//  SCHEMA_FORMAT_BYTES       = 4;
-//}
-//
-//// Schema information for record validation and interpretation.
-//message SchemaInfo {
-//  // The format of the data payload.
-//  // Determines how the bytes in AppendRecord.data should be interpreted.
-//  SchemaFormat format = 1;
-//
-//  // The schema name (replaces the legacy "event type" concept).
-//  // Identifies what kind of data this record contains.
-//  //
-//  // Common naming formats:
-//  //   - Kebab-case: "order-placed", "customer-registered"
-//  //   - URN format: "urn:kurrentdb:events:order-placed:v1"
-//  //   - Dotted namespace: "Teams.Player.V1", "Orders.OrderPlaced.V2"
-//  //   - Reverse domain: "com.acme.orders.placed"
-//  string name = 2;
-//
-//  // The identifier of the specific version of the schema that the record payload
-//  // conforms to. This should match a registered schema version in the system.
-//  // Not necessary when not enforcing schema validation.
-//  optional string id = 3;
-//}
-//
-//// Configuration for batching records before delivery.
-////
-//// Batching improves throughput by reducing per-record overhead,
-//// but increases latency. Tune based on your latency/throughput
-//// requirements.
-//message BatchingSettings {
-//  // Maximum number of records per batch.
-//  //
-//  // The server will deliver up to this many records at once.
-//  // Smaller values reduce latency; larger values improve throughput.
-//  //
-//  // Default: 100
-//  // Range: 1-10000
-//  int32 size = 1;
-//
-//  // Maximum time to wait while gathering a batch, in milliseconds.
-//  //
-//  // If fewer than `size` records are available, the server will
-//  // wait up to this duration before delivering a partial batch.
-//  // Smaller values reduce latency; larger values improve batching
-//  // efficiency.
-//  //
-//  // Default: 250 (250ms)
-//  // Range: 1-60000
-//  int64 timeout_ms = 2;
-//}
-
-// Configuration for progress heartbeats during filtered reads.
-//
-// Heartbeats provide progress visibility when a filter excludes records.
-// Without heartbeats, a worker processing a filter that matches few
-// records would have no way to know its actual position in the log.
-//
-// Heartbeats report the current log position even when no records
-// are delivered, allowing workers to:
-// - Track progress through the log
-// - Detect when caught up to the head
-// - Confirm the connection is alive during quiet periods
-//
-// Useful when:
-// - Filter uses predicates that exclude most records
-// - Low-traffic scenarios where liveness confirmation is needed
-//
-// Less useful when:
-// - No filter is set (every record provides position information)
-// - Filter selects a single stream (stream head is known)
-message HeartbeatSettings {
-  // Send heartbeat after scanning N non-matching records.
-  //
-  // During filtered processing, the server scans records looking
-  // for matches. This setting triggers a heartbeat after scanning
-  // this many non-matching records, providing progress visibility.
-  //
-  // Smaller values: More frequent progress updates, higher overhead.
-  // Larger values: Less overhead, less granular progress tracking.
-  //
-  // Default: 1000
-  // Range: 1-100000
-  int32 records_threshold = 1;
-
-  // Send heartbeat every N milliseconds if no records sent.
-  //
-  // Triggers a heartbeat after this duration of silence (no records
-  // delivered). Provides liveness confirmation during low-traffic
-  // periods or when caught up to the head.
-  //
-  // Default: 10000 (10 seconds)
-  // Range: 100-300000
-  int64 interval_ms = 2;
+  // Optional consistency checks evaluated before commit. If any check fails,
+  // the entire transaction is aborted.
+  repeated ConsistencyCheck checks = 2;
 }
 
-// The type of heartbeat sent by the server.
-//
-// Heartbeats provide progress visibility and status updates during
-// stream processing, especially important for filtered processing
-// where records may not match.
-enum HeartbeatType {
-  HEARTBEAT_TYPE_UNSPECIFIED = 0;
+/**
+ * Response from a successful AppendRecords operation.
+ *
+ * Contains the resulting revision for each stream that was written to and the
+ * global commit position of the transaction.
+ */
+message AppendRecordsResponse {
+  // The resulting revision for each stream that received records. One entry per
+  // distinct stream written to, in no guaranteed order.
+  repeated StreamRevision revisions = 1;
 
-  // Progress update during filtered processing.
-  //
-  // Sent when the server has scanned records_threshold non-matching
-  // records, or after interval_ms of silence. Indicates the server
-  // is still working and reports current position.
-  HEARTBEAT_TYPE_PROGRESS = 1;
-
-  // Worker has caught up to the head of the log.
-  //
-  // Sent when position reaches latest_position. The worker is now
-  // processing in real-time.
-  HEARTBEAT_TYPE_CAUGHT_UP = 2;
-
-  // Worker has fallen behind after being caught up.
-  //
-  // Sent when a worker that was caught up is now behind the head.
-  // Can be used to trigger alerts or scaling decisions.
-  HEARTBEAT_TYPE_FELL_BEHIND = 3;
+  // The global commit position of the last record written in this transaction.
+  // Can be used for read-your-writes consistency or progress tracking.
+  sint64 position = 2;
 }
 
-// Heartbeat message sent by the server during stream processing.
-//
-// Provides progress updates, caught-up/fell-behind notifications,
-// and current log boundaries for lag calculation.
-message Heartbeat {
-  // The type of heartbeat.
-  HeartbeatType type = 1;
+/**
+ * A pre-commit condition that must hold true for the transaction to succeed.
+ *
+ * Consistency checks are evaluated atomically before any records are written. If
+ * any check is violated, the entire transaction is aborted. Two types of checks
+ * are supported: stream state checks (validates a stream's revision or lifecycle
+ * state) and query predicates (evaluates a server-side expression).
+ */
+message ConsistencyCheck {
+  oneof type {
+    // Check that a stream is at a specific revision or lifecycle state.
+    StreamStateCheck stream_state = 1;
 
-  // Current processing position.
-  //
-  // For PROGRESS: The position the server has scanned up to.
-  // For CAUGHT_UP: Same as latest_position.
-  // For FELL_BEHIND: The position where the worker currently is.
-  RecordPosition position = 2;
+    // Evaluate a server-side query predicate that must return true.
+    QueryPredicateCheck query_predicate = 2;
+  }
 
-  // When this heartbeat was sent.
-  google.protobuf.Timestamp timestamp = 3;
+  /**
+   * Asserts a stream is at a specific revision or lifecycle state before commit.
+   *
+   * The expected_state field accepts a specific revision number (>= 0) or a
+   * special state constant (e.g., -1 for NO_STREAM, -10 for DELETED). Evaluated
+   * using writability semantics: a soft-deleted stream is writable (appending
+   * restores it), but a tombstoned stream is never writable.
+   */
+  message StreamStateCheck {
+    // The stream name.
+    string stream = 1;
 
-  // Earliest available position (tail of log).
-  //
-  // The oldest record still available. Use to detect if checkpoints
-  // have been scavenged: if checkpoint < earliest_position, data was lost.
-  RecordPosition earliest_position = 4;
+    // The expected state of the stream (revision number or state constant).
+    sint64 expected_state = 2;
+  }
 
-  // Latest available position (head of log).
-  //
-  // The newest record in the log. Use for lag calculation:
-  // lag = latest_position - position
-  //
-  // When type is CAUGHT_UP, position equals latest_position.
-  RecordPosition latest_position = 5;
+  /**
+   * A server-side query predicate evaluated before commit.
+   *
+   * If the predicate expression evaluates to false, the entire transaction is
+   * aborted. Can be used to enforce cross-stream conditions or other complex
+   * preconditions.
+   */
+  message QueryPredicateCheck {
+    // The predicate expression to evaluate.
+    string expression = 1;
+  }
+}
+
+/**
+ * Stream state constants used in consistency checks and error details.
+ *
+ * These constants cover both directions:
+ * - Input: Expected state sent by the client in consistency checks.
+ * - Output: Actual state returned by the server in error details.
+ *
+ * Non-negative values (>= 0) represent actual stream revision numbers.
+ * Negative values represent special stream states.
+ *
+ * Consistency checks validate writability, not just existence:
+ * - A soft-deleted stream is writable (appending restores it).
+ * - A tombstoned stream is never writable (permanently sealed).
+ *
+ * Not all values are valid in both directions:
+ * - ANY (-2) and EXISTS (-4) are input-only (never returned as output).
+ *
+ * Pass/fail matrix (rows = input, columns = actual state):
+ *
+ * | Input \ Actual     | Rev M (>= 0)  | NO_STREAM | DELETED       | TOMBSTONED |
+ * |--------------------|---------------|-----------|---------------|------------|
+ * | Rev N (>= 0)       | pass (M = N)  | fail: -1  | pass/fail (N) | fail: -100 |
+ * | NO_STREAM  (-1)    | fail: M       | pass      | pass          | fail: -100 |
+ * | ANY        (-2)    | pass          | pass      | pass          | fail: -100 |
+ * | EXISTS     (-4)    | pass          | fail: -1  | fail: -10     | fail: -100 |
+ * | DELETED    (-10)   | fail: M       | fail: -1  | pass          | fail: -100 |
+ * | TOMBSTONED (-100)  | fail: M       | fail: -1  | fail: -10     | pass       |
+ */
+enum StreamStateConstants {
+  option allow_alias = true;
+  // Default protobuf enum value. Use STREAM_STATE_CONSTANTS_SINGLE_RECORD.
+  STREAM_STATE_CONSTANTS_UNSPECIFIED = 0;
+  // Revision 0: the stream has exactly one record.
+  STREAM_STATE_CONSTANTS_SINGLE_RECORD = 0;
+  // Input: stream must be writable as new (does not exist or soft-deleted).
+  // Output: stream does not exist.
+  STREAM_STATE_CONSTANTS_NO_STREAM = -1;
+  // Input only: accept any writable state (no concurrency check).
+  // Passes for all states except TOMBSTONED.
+  STREAM_STATE_CONSTANTS_ANY = -2;
+  // Input only: stream must be active (revision >= 0).
+  // Fails for NO_STREAM, DELETED, and TOMBSTONED. A scavenged stream with
+  // no remaining records still satisfies this check if it has a revision.
+  STREAM_STATE_CONSTANTS_EXISTS = -4;
+  // Input: stream must be soft-deleted. Output: stream is soft-deleted.
+  // A soft-deleted stream can be restored by appending new records.
+  STREAM_STATE_CONSTANTS_DELETED = -10;
+  // Input: stream must be tombstoned. Output: stream is tombstoned.
+  // A tombstoned stream cannot be restored or written to.
+  STREAM_STATE_CONSTANTS_TOMBSTONED = -100;
 }

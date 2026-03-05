@@ -25,23 +25,23 @@ public class KurrentClientReadStreamOptionsValidator : FluentOptionsValidator<Ku
             .WithSeverity(Severity.Error);
 
         RuleFor(options => options.Start)
-            .Must(start => start != StreamRevision.Unset)
+            .Must(start => start != Revision.Unset)
             .WithMessage("Start revision cannot be Unset when reading from a specific stream. Specify a valid revision.")
             .WithSeverity(Severity.Error);
 
         RuleFor(options => options.Start)
-            .Must(start => start >= StreamRevision.Min)
+            .Must(start => start >= Revision.Min)
             .WithMessage("Start revision cannot be less than Min.")
             .WithSeverity(Severity.Error);
 
         RuleFor(options => options.Start)
-            .Must(start => start <= StreamRevision.Max)
+            .Must(start => start <= Revision.Max)
             .WithMessage("Start revision cannot be greater than Max.")
             .WithSeverity(Severity.Error);
 
         When(options => options.Direction == ReadDirection.Forwards, () => {
             RuleFor(options => options.Start)
-                .Must(start => start != StreamRevision.Max)
+                .Must(start => start != Revision.Max)
                 .WithMessage("Start revision cannot be Max when reading forwards.")
                 .WithSeverity(Severity.Error);
         });

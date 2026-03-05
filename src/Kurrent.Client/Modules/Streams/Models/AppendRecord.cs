@@ -1,13 +1,19 @@
+using System.Diagnostics.CodeAnalysis;
+using Kurrent.Validation;
+using Resources;
+
 namespace Kurrent.Client.Streams;
 
 #pragma warning disable CS8604
+
 [PublicAPI]
 public record AppendRecord {
     public static readonly AppendRecord None = new() {
         RecordId   = Guid.Empty,
         Value      = null!,
         DataFormat = SchemaDataFormat.Unspecified,
-        Metadata   = null!
+        Metadata   = null!,
+        Stream     = StreamName.None
     };
 
     public static AppendRecordBuilder New => new();
@@ -20,6 +26,7 @@ public record AppendRecord {
     /// <summary>
     /// The message payload.
     /// </summary>
+    [MaybeNull]
     public object Value { get; internal init; } = null!;
 
     /// <summary>
@@ -33,16 +40,50 @@ public record AppendRecord {
     public Metadata Metadata { get; internal init; } = new();
 
     /// <summary>
-    /// Creates a new <see cref="AppendRecord"/> instance with the specified value and data format.
+    /// The stream to which this record will be appended.
     /// </summary>
-    /// <param name="value">
-    /// The content value to include in the message. This cannot be null and must align with the specified
-    /// <paramref name="dataFormat"/> (e.g., when passing byte arrays, the format must be <see cref="SchemaDataFormat.Bytes"/>).
-    /// </param>
-    /// <param name="dataFormat">
-    /// The format of the data represented by <paramref name="value"/>. Defaults to <see cref="SchemaDataFormat.Json"/>.
-    /// Cannot be <see cref="SchemaDataFormat.Unspecified"/>.
-    /// </param>
-    public static AppendRecord Create(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
-        New.WithValue(value).WithDataFormat(dataFormat).Build();
+    public StreamName Stream { get; internal init; } = StreamName.None;
+
+    /// <summary>
+    /// Validates the properties of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
+    /// indicating whether the instance is valid or contains validation problems.
+    /// </summary>
+    /// <returns>A <see cref="ValidationResult"/> containing any validation problems found, or success if the instance is valid.</returns>
+    public ValidationResult Validate() {
+        var problems = new List<ValidationProblem>();
+
+        if (RecordId == Guid.Empty)
+            problems.Add(
+                ValidationProblem.CreateForField(nameof(RecordId), ErrorMessages.AppendRecordRecordIdRequired, RecordId));
+
+        if (Value is null)
+            problems.Add(
+                ValidationProblem.CreateForField(nameof(Value), ErrorMessages.AppendRecordValueRequired));
+
+        if (DataFormat == SchemaDataFormat.Unspecified)
+            problems.Add(
+                ValidationProblem.CreateForField(nameof(DataFormat), ErrorMessages.AppendRecordDataFormatRequired, DataFormat));
+
+        if (Value is not null && Value.IsBytes() && DataFormat != SchemaDataFormat.Bytes)
+            problems.Add(
+                ValidationProblem.CreateForField(nameof(DataFormat),
+                    ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
+
+        if (Stream == StreamName.None)
+            problems.Add(
+                ValidationProblem.CreateForField(nameof(Stream), ErrorMessages.AppendRecordStreamRequired, Stream));
+
+        return problems.Count > 0
+            ? ValidationError.Create(ErrorCode.FromType<AppendRecord>(), [.. problems])
+            : Results.Success;
+    }
+
+    /// <summary>
+    /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
+    /// </summary>
+    /// <returns>The current instance if validation succeeds.</returns>
+    public AppendRecord EnsureValid() {
+        Validate().Unwrap();
+        return this;
+    }
 }

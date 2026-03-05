@@ -28,7 +28,7 @@ public abstract class ClientModuleBase {
 
     protected ISchemaSerializerProvider SerializerProvider => KurrentClient.SerializerProvider;
     protected ServerCapabilities        ServerCapabilities => KurrentClient.LegacyCallInvoker.ServerCapabilities;
-    protected MessageTypeMapper         TypeMapper         => KurrentClient.Options.Mapper;
+    protected MessageTypeMapper         TypeMapper         => KurrentClient.Options.Schema.Mapper;
     protected IMetadataDecoder          MetadataDecoder    => KurrentClient.Options.MetadataDecoder;
 
     protected HttpClient GetBackdoorClient() =>

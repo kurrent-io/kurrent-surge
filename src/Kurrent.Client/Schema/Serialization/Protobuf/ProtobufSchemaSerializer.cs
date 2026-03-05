@@ -5,6 +5,12 @@ namespace Kurrent.Client.Schema.Serialization.Protobuf;
 
 public record ProtobufSchemaSerializerOptions : SchemaSerializerOptions {
 	public static readonly ProtobufSchemaSerializerOptions Default = new();
+
+	/// <summary>
+	/// An optional <see cref="ProtoSerializerContext"/> containing pre-registered protobuf
+	/// message parsers and descriptors for AOT-compatible deserialization.
+	/// </summary>
+	public ProtoSerializerContext? Context { get; init; }
 }
 
 public class ProtobufSchemaSerializer(ProtobufSchemaSerializerOptions options, SchemaManager schemaManager)

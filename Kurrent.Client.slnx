@@ -2,11 +2,14 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
+  <Folder Name="/Benchmarks/">
+    <Project Path="perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/Client/">
     <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
     <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
-    <Project Path="test/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
   </Folder>
+  <Folder Name="/Client/Examples/" />
   <Folder Name="/Client/Tests/">
     <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
     <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
@@ -32,6 +35,7 @@
     <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="test/Kurrent.Testing.Datasets/Kurrent.Testing.Datasets.csproj" />
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
   </Folder>
   <Folder Name="/Shared/Variant/">
@@ -39,5 +43,4 @@
     <Project Path="src\Variant\Variant.csproj" />
     <Project Path="test\Variant.Tests\Variant.Tests.csproj" />
   </Folder>
-  <Project Path="src/Kurrent.SDK/Kurrent.SDK.csproj" />
 </Solution>

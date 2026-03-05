@@ -16,17 +16,15 @@ public sealed class LeaderboardProcessor(IConnectionMultiplexer redis) : IRecord
     long _scoresProcessed;
     long _playersRegistered;
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            switch (record.Value) {
-                case PlayerJoined player:
-                    await RegisterPlayer(player, context.Logger);
-                    break;
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        switch (context.Record.Value) {
+            case PlayerJoined player:
+                await RegisterPlayer(player, context.Logger);
+                break;
 
-                case ScoreSubmitted score:
-                    await ProcessScore(score, context.Logger);
-                    break;
-            }
+            case ScoreSubmitted score:
+                await ProcessScore(score, context.Logger);
+                break;
         }
     }
 

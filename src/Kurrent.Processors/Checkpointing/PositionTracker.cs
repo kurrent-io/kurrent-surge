@@ -252,21 +252,26 @@ public sealed class PartitionedPositionTracker : IDisposable {
         return total;
     }
 
-    // /// <summary>
-    // /// Tracks a position for the specified partition.
-    // /// </summary>
-    // public int Track(Partition partition, LogPosition position) {
-    //     ObjectDisposedException.ThrowIf(_disposed, this);
-    //     return !_trackers.TryGetValue(partition, out var tracker)
-    //         ? throw new ArgumentException($"Partition {partition} is not being tracked.", nameof(partition))
-    //         : tracker.Track(position);
-    // }
-    //
-    // /// <summary>
-    // /// Tracks a position for its partition.
-    // /// </summary>
-    // public int Track(RecordPosition position) =>
-    //     Track(position.Partition, position.LogPosition);
+    /// <summary>
+    /// Tracks a position for the specified partition.
+    /// </summary>
+    public int Track(Partition partition, LogPosition position) {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return !_trackers.TryGetValue(partition, out var tracker)
+            ? throw new ArgumentException($"Partition {partition} is not being tracked.", nameof(partition))
+            : tracker.Track(RecordPosition.FromLogPosition(position, partition));
+    }
+
+    /// <summary>
+    /// Tracks a position for its partition.
+    /// </summary>
+    public int Track(RecordPosition position) =>
+        Track(position.Partition, position.LogPosition);
+
+    /// <summary>
+    /// Tracks a record's position for its partition.
+    /// </summary>
+    public int Track(Record record) => Track(record.Position);
 
     /// <summary>
     /// Prepares a flush without committing. Call <see cref="PendingPositionsFlush.Execute"/> after persistence succeeds.

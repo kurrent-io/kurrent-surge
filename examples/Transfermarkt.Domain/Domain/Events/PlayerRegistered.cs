@@ -12,95 +12,49 @@ namespace Transfermarkt.Domain;
 /// </remarks>
 [PublicAPI]
 public sealed record PlayerRegistered {
-    PlayerRegistered(
-        PlayerId playerId,
-        PlayerName name,
-        DateOnly dateOfBirth,
-        Country nationality,
-        Position mainPosition,
-        ImmutableArray<Position> otherPositions,
-        ClubId initialClubId,
-        TransferId triggeringTransferId,
-        DateTimeOffset registeredAt
-    ) {
-        PlayerId              = playerId;
-        Name                  = name;
-        DateOfBirth           = dateOfBirth;
-        Nationality           = nationality;
-        MainPosition          = mainPosition;
-        OtherPositions        = otherPositions;
-        InitialClubId         = initialClubId;
-        TriggeringTransferId  = triggeringTransferId;
-        RegisteredAt          = registeredAt;
-    }
-
     /// <summary>
     /// The newly registered player's identifier.
     /// </summary>
-    public PlayerId PlayerId { get; }
+    public PlayerId PlayerId { get; init; }
 
     /// <summary>
     /// The player's name.
     /// </summary>
-    public PlayerName Name { get; }
+    public PlayerName Name { get; init; }
 
     /// <summary>
     /// The player's date of birth.
     /// </summary>
-    public DateOnly DateOfBirth { get; }
+    public DateOnly DateOfBirth { get; init; }
 
     /// <summary>
     /// The player's nationality.
     /// </summary>
-    public Country Nationality { get; }
+    public Country Nationality { get; init; }
 
     /// <summary>
     /// The player's main position.
     /// </summary>
-    public Position MainPosition { get; }
+    public Position MainPosition { get; init; }
 
     /// <summary>
     /// Additional positions the player can play.
     /// </summary>
-    public ImmutableArray<Position> OtherPositions { get; }
+    public ImmutableArray<Position> OtherPositions { get; init; }
 
     /// <summary>
     /// The club where the player is initially registered.
     /// </summary>
-    public ClubId InitialClubId { get; }
+    public ClubId InitialClubId { get; init; }
 
     /// <summary>
     /// The transfer that triggered this registration.
     /// </summary>
-    public TransferId TriggeringTransferId { get; }
+    public TransferId TriggeringTransferId { get; init; }
 
     /// <summary>
     /// When the player was registered.
     /// </summary>
-    public DateTimeOffset RegisteredAt { get; }
+    public DateTimeOffset RegisteredAt { get; init; }
 
-    /// <summary>
-    /// Creates a PlayerRegistered event.
-    /// </summary>
-    public static PlayerRegistered Create(
-        PlayerId playerId,
-        PlayerName name,
-        Country nationality,
-        Position mainPosition,
-        DateOnly dateOfBirth,
-        ImmutableArray<Position> otherPositions,
-        ClubId initialClubId,
-        TransferId triggeringTransferId,
-        DateTimeOffset? registeredAt = null
-    ) => new(
-        playerId,
-        name,
-        dateOfBirth,
-        nationality,
-        mainPosition,
-        otherPositions,
-        initialClubId,
-        triggeringTransferId,
-        registeredAt ?? DateTimeOffset.UtcNow
-    );
 }

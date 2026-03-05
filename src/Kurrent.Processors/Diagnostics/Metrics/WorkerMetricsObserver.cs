@@ -11,7 +11,7 @@ namespace Kurrent.Processors.Diagnostics.Metrics;
 /// Call <see cref="Start"/> after construction to begin listening for events.
 /// </remarks>
 sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, IDisposable {
-    readonly BatchDurationHistogram      _batchDuration;
+    readonly RecordDurationHistogram     _recordDuration;
     readonly CheckpointDurationHistogram _checkpointDuration;
     readonly CheckpointsCompletedCounter _checkpointsCompleted;
     readonly RecordsProcessedCounter     _recordsProcessed;
@@ -28,7 +28,7 @@ sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, I
     public WorkerMetricsObserver(IMeterFactory meterFactory) {
         var meter = meterFactory.Create("Kurrent.Client.Processors");
         _recordsProcessed     = ProcessorMetrics.CreateRecordsProcessed(meter);
-        _batchDuration        = ProcessorMetrics.CreateBatchDuration(meter);
+        _recordDuration       = ProcessorMetrics.CreateRecordDuration(meter);
         _checkpointsCompleted = ProcessorMetrics.CreateCheckpointsCompleted(meter);
         _checkpointDuration   = ProcessorMetrics.CreateCheckpointDuration(meter);
         _workersConnected     = ProcessorMetrics.CreateWorkersConnected(meter);
@@ -46,9 +46,9 @@ sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, I
         // Note: Tracing spans are managed by BatchScope/CheckpointScope directly.
         // This observer only records metrics.
         switch (evt.Value) {
-            case BatchProcessedEvent e:
-                _recordsProcessed.Add(e.BatchSize, e.ProcessorId, e.WorkerId);
-                _batchDuration.Record(e.DurationMs, e.ProcessorId);
+            case RecordProcessedEvent e:
+                _recordsProcessed.Add(1, e.ProcessorId, e.WorkerId);
+                _recordDuration.Record(e.DurationMs, e.ProcessorId);
                 break;
 
             case CheckpointCompletedEvent e:

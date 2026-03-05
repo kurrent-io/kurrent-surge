@@ -3,15 +3,16 @@
   <PropertyGroup>
     <PackageId>Kurrent.Client</PackageId>
     <IsPackable>true</IsPackable>
+    <Title>Kurrent .NET Client</Title>
+    <Product>Kurrent .NET Client</Product>
+    <Description>The official .NET client for the Kurrent Platform. Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
+    <PackageTags>kurrent kurrentdb client sdk eventstore event-sourcing</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <RootNamespace />
-
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
-
-    <!-- Enable AOT compilation -->
-    <PublishAot>false</PublishAot>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <RuntimeIdentifiers>linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <!-- Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>
+    <!-- Embed source generator DLLs into analyzers/dotnet/cs/ during pack -->
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -41,10 +42,6 @@
     <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="System.Linq.Async" />
   </ItemGroup>
-
-<!--  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net9.0'">-->
-<!--    <PackageReference Include="System.Linq.Async" />-->
-<!--  </ItemGroup>-->
 
   <ItemGroup>
     <!-- protocol -->
@@ -79,79 +76,64 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\global.json">
-      <Link>global.json</Link>
-    </Content>
+    <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
+      <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
+    </Folder>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Kurrent.Client\" />
-    <Folder Update="..\..\proto" />
-  </ItemGroup>
+  <!--
+    Embed internal project-reference DLLs into the NuGet package.
 
+    Why: Projects like Variant are internal — they can't be published as separate
+    packages. Without this target, NuGet would list them as package dependencies
+    that don't exist on any feed, breaking consumers.
 
-  <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">
+    How it works: MSBuild tags every resolved assembly with NuGetPackageId metadata.
+    NuGet-sourced assemblies get the package id (e.g. "Google.Protobuf").
+    Project-reference assemblies get an empty string.
+    We filter on that to include only project-built DLLs.
+
+    Source generators (ReferenceOutputAssembly="false") never appear in
+    ReferenceCopyLocalPaths, so they are excluded automatically.
+
+    Result: only Kurrent.Variant.dll is embedded. NuGet dependencies remain
+    declared in the nuspec and resolved at restore time.
+  -->
+  <Target Name="PackProjectDependencies">
     <ItemGroup>
-      <ReferencedAssemblies Include="bin\$(Configuration)\**\*.dll" />
-      <ReferencedAssemblies Include="bin\$(Configuration)\**\*.pdb" Condition="'$(Configuration)' == 'Debug'" />
-      <ReferencedAssemblies Remove="@(ReferencedAssemblies->WithMetadataValue('FileName', '$(AssemblyName)'))" />
-      <_PackageFiles Include="@(ReferencedAssemblies)">
-        <PackagePath>lib\%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
-        <Visible>false</Visible>
-        <BuildAction>None</BuildAction>
-      </_PackageFiles>
+      <!-- NuGetPackageId is empty = came from a project reference, not a NuGet package -->
+      <_ProjectRefDlls Include="@(ReferenceCopyLocalPaths)"
+                       Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)' == '' AND '%(Extension)' == '.dll'" />
+      <!-- The main assembly is already packed by the SDK -->
+      <_ProjectRefDlls Remove="@(_ProjectRefDlls)"
+                       Condition="'%(FileName)' == '$(AssemblyName)'" />
+      <!-- Ship in lib/{tfm}/ alongside Kurrent.Client.dll -->
+      <BuildOutputInPackage Include="@(_ProjectRefDlls)" />
     </ItemGroup>
   </Target>
 
-  <!--  &lt;!&ndash; Include specific PackageReference dependencies in the package &ndash;&gt;-->
-  <!--  <Target Name="PackSelectedPackageReferences" BeforeTargets="GenerateNuspec">-->
-  <!--    <ItemGroup>-->
-  <!--      &lt;!&ndash; Find all PackageReferences with Pack="true" &ndash;&gt;-->
-  <!--      <PackageReferencesToInclude Include="@(PackageReference)" Condition="'%(PackageReference.Pack)' == 'true'" />-->
-  <!--    </ItemGroup>-->
+  <!--
+    Embed source-generator DLLs into analyzers/dotnet/cs/ inside the NuGet package.
 
-  <!--    &lt;!&ndash; For each marked PackageReference, find its resolved assemblies &ndash;&gt;-->
-  <!--    <ItemGroup>-->
-  <!--      <PackageReferenceAssemblies Include="@(ReferenceCopyLocalPaths)"-->
-  <!--                                  Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)' != '' AND -->
-  <!--                                          '@(PackageReferencesToInclude->WithMetadataValue('Identity', '%(ReferenceCopyLocalPaths.NuGetPackageId)'))' != ''" />-->
+    Source generators are referenced with OutputItemType="Analyzer" and
+    ReferenceOutputAssembly="false", so they never appear in ReferenceCopyLocalPaths
+    and are excluded by PackProjectDependencies above. This target collects them
+    separately and places them where NuGet expects Roslyn analyzers.
 
-  <!--      &lt;!&ndash; Add them to the package &ndash;&gt;-->
-  <!--      <_PackageFiles Include="@(PackageReferenceAssemblies)">-->
-  <!--        <PackagePath>lib\$(TargetFramework)\%(Filename)%(Extension)</PackagePath>-->
-  <!--        <Visible>false</Visible>-->
-  <!--        <BuildAction>None</BuildAction>-->
-  <!--      </_PackageFiles>-->
-  <!--    </ItemGroup>-->
-  <!--  </Target>-->
-
-  <!--  -->
-  <!--  <Target Name="PackProjectDependencies" BeforeTargets="GenerateNuspec">-->
-  <!--    <ItemGroup>-->
-  <!--      &lt;!&ndash; Get all files from bin folder &ndash;&gt;-->
-  <!--      <AllReferencedAssemblies Include="bin\$(Configuration)\**\*.dll" />-->
-  <!--      <AllReferencedAssemblies Include="bin\$(Configuration)\**\*.pdb" Condition="'$(Configuration)' == 'Debug'" />-->
-
-  <!--      &lt;!&ndash; Remove the main assembly &ndash;&gt;-->
-  <!--      <AllReferencedAssemblies Remove="@(AllReferencedAssemblies->WithMetadataValue('FileName', '$(AssemblyName)'))" />-->
-
-  <!--      &lt;!&ndash; Filter to only include:-->
-  <!--           1. Project references-->
-  <!--           2. PackageReferences marked with Pack="true" &ndash;&gt;-->
-  <!--      <ReferencedAssemblies Include="@(AllReferencedAssemblies)"-->
-  <!--                            Condition="'%(FileName)' == 'Whatever' OR -->
-  <!--                                   Exists('$(MSBuildProjectDirectory)\PackageIncludes\%(FileName).marker')" />-->
-
-  <!--      &lt;!&ndash; Fallback: If we can't determine package origin, check against our marked packages &ndash;&gt;-->
-  <!--      <ReferencedAssemblies Include="@(AllReferencedAssemblies)"-->
-  <!--                            Condition="'%(FileName)' == 'FluentValidation'" />-->
-
-  <!--      <_PackageFiles Include="@(ReferencedAssemblies)">-->
-  <!--        <PackagePath>lib\%(RecursiveDir)%(FileName)%(Extension)</PackagePath>-->
-  <!--        <Visible>false</Visible>-->
-  <!--        <BuildAction>None</BuildAction>-->
-  <!--      </_PackageFiles>-->
-  <!--    </ItemGroup>-->
-  <!--  </Target>-->
+    TargetFramework=netstandard2.0 is passed explicitly because generator projects
+    target netstandard2.0 (required by Roslyn), not the consuming project's TFMs.
+  -->
+  <Target Name="PackSourceGenerators">
+    <MSBuild Projects="@(ProjectReference)"
+             Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer'"
+             Targets="GetTargetPath"
+             Properties="TargetFramework=netstandard2.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_SourceGeneratorAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_SourceGeneratorAssembly)"
+                              PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
 
 </Project>

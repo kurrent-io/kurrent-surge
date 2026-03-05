@@ -1,7 +1,7 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Registry;
 
@@ -15,10 +15,8 @@ public class DeleteSchemaTests {
 	public async ValueTask deletes_schema_throws_not_found_when_schema_does_not_exist(CancellationToken ct) {
 		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-		await Fixture.Client.Registry
-			.DeleteSchema(schemaName, ct)
-            .ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(DeleteSchemaError.DeleteSchemaErrorCase.SchemaNotFoundException));
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry.DeleteSchema(schemaName, ct));
 	}
 
 	[Test]
@@ -27,11 +25,9 @@ public class DeleteSchemaTests {
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
 		await Fixture.Client.Registry
-			.DeleteSchema(schemaName, ct)
-			.ShouldNotThrowOrFailAsync();
+			.DeleteSchema(schemaName, ct);
 	}
 }

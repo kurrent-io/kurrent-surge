@@ -51,10 +51,10 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
 
                 var info = await StreamsClient.GetStreamInfo(stream, stoppingToken)
-                    .UnwrapAsync().ConfigureAwait(false);
+                    .ConfigureAwait(false);
 
                 throw info.State switch {
-                    StreamState.Missing => new StreamNotFoundException(stream),
+                    StreamState.Missing    => new StreamNotFoundException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
                     _ => throw new InvalidOperationException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };

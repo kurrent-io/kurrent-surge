@@ -1,45 +1,66 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Read",
+      "AskUserQuestion",
+      "Bash",
       "Edit",
-      "Write",
-      "MultiEdit",
       "Glob",
       "Grep",
-      "LS",
-      "Bash",
+      "Read",
+      "Task",
       "WebFetch",
       "WebSearch",
-      "Task",
-      "mcp__ide__getDiagnostics",
-      "mcp__plugin_microsoft-docs_microsoft-learn__*",
+      "Write",
       "mcp__plugin_context7_context7__*",
-      "Skill(microsoft-docs:*)"
+      "mcp__plugin_microsoft-docs_microsoft-learn__*",
+      "mcp__rider__*",
+      "Skill(microsoft-docs:*)",
+      "Skill(dotnet-nuget-proxy:*)",
+      "Skill(dotnet-skills:*)"
     ],
     "deny": [
+      "Read(./**/*.key)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*credential*)",
+      "Read(./**/*password*)",
+      "Read(./**/*secret*)",
+      "Read(./**/*token*.json)",
+      "Read(./**/launchSettings.json)",
+      "Read(./**/secrets.json)",
+      "Read(./**/secrets/**)",
       "Read(./.env)",
       "Read(./.env.*)",
-      "Read(./appsettings.Development.json)",
       "Read(./appsettings.*.Local.json)",
+      "Read(./appsettings.Development.json)",
       "Read(./secrets.json)",
-      "Read(./**/secrets.json)",
-      "Read(./**/launchSettings.json)",
-      "Read(./**/secrets/**)",
-      "Read(./**/*.pfx)",
-      "Read(./**/*.p12)",
-      "Read(./**/*secret*)",
-      "Read(./**/*password*)",
-      "Read(./**/*credential*)",
-      "Read(./**/*token*.json)"
+      "mcp__rider__execute_run_configuration",
+      "mcp__rider__get_run_configurations",
+      "mcp__rider__execute_terminal_command"
     ]
   },
+  "enableAllProjectMcpServers": true,
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "microsoft-docs@microsoft-docs-marketplace": true,
+    "dotnet-skills@dotnet-skills": true,
+    "dotnet-nuget-proxy@dotnet-nuget-proxy": true,
+    "csharp-lsp@claude-plugins-official": true
+  },
   "extraKnownMarketplaces": {
+    "dotnet-skills": {
+      "source": {
+        "source": "github",
+        "repo": "petabridge/dotnet-skills"
+      }
+    },
     "microsoft-docs-marketplace": {
       "source": {
         "source": "github",
@@ -47,10 +68,5 @@
       }
     }
   },
-  "enableAllProjectMcpServers": false,
-  "enabledPlugins": {
-    "github@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
-    "microsoft-docs@microsoft-docs-marketplace": true
-  }
+  "spinnerTipsEnabled": false
 }

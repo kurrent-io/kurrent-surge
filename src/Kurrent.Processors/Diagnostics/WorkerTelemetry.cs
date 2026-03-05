@@ -35,12 +35,12 @@ sealed partial class WorkerTelemetry : TelemetrySource {
         Publish("WorkerProcessing", new WorkerProcessingEvent(_processorId, _workerId, sessionId));
     }
 
-    public void BatchProcessed(int recordCount, long totalRecords) =>
-        BatchProcessedWithTiming(recordCount, totalRecords, 0);
+    public void RecordProcessed(long totalRecords) =>
+        RecordProcessedWithTiming(totalRecords, 0);
 
-    internal void BatchProcessedWithTiming(int recordCount, long totalRecords, double elapsedMs) {
-        LogBatchProcessed(_processorId, _workerId, recordCount, totalRecords);
-        Publish("BatchProcessed", new BatchProcessedEvent(_processorId, _workerId, recordCount, totalRecords, elapsedMs));
+    internal void RecordProcessedWithTiming(long totalRecords, double elapsedMs) {
+        LogRecordProcessed(_processorId, _workerId, totalRecords);
+        Publish("RecordProcessed", new RecordProcessedEvent(_processorId, _workerId, totalRecords, elapsedMs));
     }
 
     public void Checkpointing(CheckpointTrigger trigger, string checkpointId) {
@@ -81,9 +81,9 @@ sealed partial class WorkerTelemetry : TelemetrySource {
             _processorId, _workerId, ex.GetType().FullName ?? ex.GetType().Name, ex.Message));
     }
 
-    public BatchScope TrackBatch() {
+    public RecordScope TrackRecord() {
         var activity = ActivitySource.StartActivity(
-            "processor.process_batch",
+            "processor.process_record",
             ActivityKind.Consumer,
             parentContext: default,
             tags: [
@@ -92,22 +92,22 @@ sealed partial class WorkerTelemetry : TelemetrySource {
             ]
         );
 
-        var timestamp = IsEnabled("BatchProcessed") ? Stopwatch.GetTimestamp() : 0;
-        return new BatchScope(this, timestamp, activity);
+        var timestamp = IsEnabled("RecordProcessed") ? Stopwatch.GetTimestamp() : 0;
+        return new RecordScope(this, timestamp, activity);
     }
 
     /// <summary>
-    /// Tracks batch processing duration and tracing span. Call <see cref="Complete"/> when done.
+    /// Tracks record processing duration and tracing span. Call <see cref="RecordScope.Complete"/> when done.
     /// Manages both metrics (via DiagnosticSource) and tracing (via Activity).
     /// </summary>
-    public struct BatchScope : IDisposable {
+    public struct RecordScope : IDisposable {
         readonly WorkerTelemetry? _diagnostics;
         readonly long               _startTimestamp;
         readonly Activity?          _activity;
 
         bool _completed;
 
-        internal BatchScope(WorkerTelemetry? diagnostics, long startTimestamp, Activity? activity) {
+        internal RecordScope(WorkerTelemetry? diagnostics, long startTimestamp, Activity? activity) {
             _diagnostics    = diagnostics;
             _startTimestamp = startTimestamp;
             _activity       = activity;
@@ -115,11 +115,10 @@ sealed partial class WorkerTelemetry : TelemetrySource {
         }
 
         /// <summary>
-        /// Marks the batch as complete with success status.
+        /// Marks the record as processed with success status.
         /// </summary>
-        /// <param name="batchSize">Number of records in the batch.</param>
         /// <param name="totalRecords">Total records processed so far.</param>
-        public void Complete(int batchSize, long totalRecords) {
+        public void Complete(long totalRecords) {
             if (_completed) return;
 
             _completed = true;
@@ -129,19 +128,18 @@ sealed partial class WorkerTelemetry : TelemetrySource {
                 ? Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds
                 : 0;
 
-            _diagnostics?.BatchProcessedWithTiming(batchSize, totalRecords, elapsedMs);
+            _diagnostics?.RecordProcessedWithTiming(totalRecords, elapsedMs);
 
             // Complete the tracing span
             if (_activity is not null) {
-                _activity.SetTag("batch.size", batchSize);
-                _activity.SetTag("batch.total_records", totalRecords);
+                _activity.SetTag("record.total_records", totalRecords);
                 _activity.SetStatus(ActivityStatusCode.Ok);
                 _activity.Dispose();
             }
         }
 
         /// <summary>
-        /// Marks the batch as failed with error status.
+        /// Marks the record as failed with error status.
         /// </summary>
         /// <param name="exception">The exception that caused the failure.</param>
         public void Fail(Exception exception) {
@@ -192,8 +190,8 @@ sealed partial class WorkerTelemetry : TelemetrySource {
     [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Processing (sessionId: {SessionId})")]
     partial void LogProcessing(string processorId, string workerId, Guid sessionId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Batch processed ({RecordCount} records, total: {TotalRecords})")]
-    partial void LogBatchProcessed(string processorId, string workerId, int recordCount, long totalRecords);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Record processed (total: {TotalRecords})")]
+    partial void LogRecordProcessed(string processorId, string workerId, long totalRecords);
 
     [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{WorkerId}] Checkpointing (trigger: {Trigger}, checkpointId: {CheckpointId})")]
     partial void LogCheckpointing(string processorId, string workerId, CheckpointTrigger trigger, string checkpointId);

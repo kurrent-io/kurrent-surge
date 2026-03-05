@@ -19,17 +19,15 @@ public sealed class SessionAnalyticsProcessor : IRecordProcessor {
     long _sessionsCompleted;
     long _totalSessionDuration;
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
 
         // context.Records
         //     .Convert(rec => rec.Value is PageView pageView ? pageView : null)
         //     .Where(rec => rec is not null)
         //     .ForEach(pageView => ProcessPageView(pageView!, context.Logger));
 
-        foreach (var record in context.Records) {
-            if (record.Value is PageView pageView)
-                ProcessPageView(pageView, context.Logger);
-        }
+        if (context.Record.Value is PageView pageView)
+            ProcessPageView(pageView, context.Logger);
 
         return ValueTask.CompletedTask;
     }

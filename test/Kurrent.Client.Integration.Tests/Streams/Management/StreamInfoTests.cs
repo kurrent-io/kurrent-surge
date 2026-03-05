@@ -3,7 +3,6 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -29,47 +28,47 @@ public class StreamInfoTests {
         };
 
         await Fixture.Client.Streams
-            .SetStreamMetadata(simulation.Stream, meta, ct)
-            .ShouldNotThrowOrFailAsync();
+            .SetStreamMetadata(simulation.Stream, meta, ct);
 
-        await Fixture.Client.Streams
-            .GetStreamInfo(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(info => {
-                info.Metadata.ShouldBeEquivalentTo(meta, x => x.Using<JsonDocument>((left, right) => left.ToString() == right.ToString()));
+        var info = await Fixture.Client.Streams
+            .GetStreamInfo(simulation.Stream, ct);
 
-                // Other properties
-                info.MetadataRevision.ShouldBe(0);
-                info.LastStreamPosition.ShouldBeGreaterThan(LogPosition.Earliest);
-                info.LastStreamRevision.ShouldBe(simulation.StreamRevision);
-                info.LastStreamAppendTime.ShouldBeGreaterThan(DateTime.MinValue);
-                info.State.ShouldBe(StreamState.Active);
-            });
+        await Assert.That(info.Metadata.MaxAge).IsEqualTo(meta.MaxAge);
+        await Assert.That(info.Metadata.TruncateBefore).IsEqualTo(meta.TruncateBefore);
+        await Assert.That(info.Metadata.CacheControl).IsEqualTo(meta.CacheControl);
+        await Assert.That(info.Metadata.MaxCount).IsEqualTo(meta.MaxCount);
+        await Assert.That(info.Metadata.CustomMetadata?.RootElement.GetRawText()).IsEqualTo(meta.CustomMetadata?.RootElement.GetRawText());
+
+        // Other properties
+        await Assert.That(info.MetadataRevision).IsEqualTo(0);
+        await Assert.That(info.LastStreamPosition).IsGreaterThan(LogPosition.Earliest);
+        await Assert.That(info.LastRevision).IsEqualTo(simulation.Revision);
+        await Assert.That(info.LastStreamAppendTime).IsGreaterThan(DateTime.MinValue);
+        await Assert.That(info.State).IsEqualTo(StreamState.Active);
     }
 
     [Test]
     public async ValueTask returns_stream_info_with_empty_metadata_when_no_metadata_exists(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
-        await Fixture.Client.Streams
-            .GetStreamInfo(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(info => {
-                info.HasMetadata.ShouldBeFalse();
-                info.MetadataRevision.ShouldBe(StreamRevision.Unset);
-                info.LastStreamPosition.ShouldBeGreaterThan(LogPosition.Earliest);
-                info.LastStreamRevision.ShouldBe(simulation.StreamRevision);
-                info.LastStreamAppendTime.ShouldBeGreaterThan(DateTime.MinValue);
-                info.State.ShouldBe(StreamState.Active);
-            });
+        var info = await Fixture.Client.Streams
+            .GetStreamInfo(simulation.Stream, ct);
+
+        await Assert.That(info.HasMetadata).IsFalse();
+        await Assert.That(info.MetadataRevision).IsEqualTo(Revision.Unset);
+        await Assert.That(info.LastStreamPosition).IsGreaterThan(LogPosition.Earliest);
+        await Assert.That(info.LastRevision).IsEqualTo(simulation.Revision);
+        await Assert.That(info.LastStreamAppendTime).IsGreaterThan(DateTime.MinValue);
+        await Assert.That(info.State).IsEqualTo(StreamState.Active);
     }
 
     [Test]
     public async ValueTask returns_stream_info_when_stream_does_not_exist(CancellationToken ct) {
-        await Fixture.Client.Streams
-            .GetStreamInfo("does_not_exist", ct)
-            .ShouldNotThrowOrFailAsync(info => {
-                info.HasMetadata.ShouldBeFalse();
-                info.State.ShouldBe(StreamState.Missing);
-            });
+        var info = await Fixture.Client.Streams
+            .GetStreamInfo("does_not_exist", ct);
+
+        await Assert.That(info.HasMetadata).IsFalse();
+        await Assert.That(info.State).IsEqualTo(StreamState.Missing);
     }
 
     [Test]
@@ -77,15 +76,13 @@ public class StreamInfoTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Delete(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .GetStreamInfo(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(info => {
-                info.HasMetadata.ShouldBeTrue();
-                info.State.ShouldBe(StreamState.Deleted);
-            });
+        var info = await Fixture.Client.Streams
+            .GetStreamInfo(simulation.Stream, ct);
+
+        await Assert.That(info.HasMetadata).IsTrue();
+        await Assert.That(info.State).IsEqualTo(StreamState.Deleted);
     }
 
     [Test]
@@ -93,15 +90,13 @@ public class StreamInfoTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Tombstone(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .GetStreamInfo(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(info => {
-                info.HasMetadata.ShouldBeFalse();
-                info.State.ShouldBe(StreamState.Tombstoned);
-            });
+        var info = await Fixture.Client.Streams
+            .GetStreamInfo(simulation.Stream, ct);
+
+        await Assert.That(info.HasMetadata).IsFalse();
+        await Assert.That(info.State).IsEqualTo(StreamState.Tombstoned);
     }
 
     [Test]
@@ -118,9 +113,10 @@ public class StreamInfoTests {
             CustomMetadata = customMetadata
         };
 
-        await Fixture.Client.Streams
-            .SetStreamMetadata(simulation.Stream, meta, ct)
-            .ShouldNotThrowOrFailAsync(revision => revision.ShouldBe(0));
+        var revision = await Fixture.Client.Streams
+            .SetStreamMetadata(simulation.Stream, meta, ct);
+
+        await Assert.That(revision).IsEqualTo(0);
     }
 
     [Test]
@@ -137,16 +133,20 @@ public class StreamInfoTests {
             CustomMetadata = JsonDocument.Parse("""{"key1":"value1"}""")
         };
 
-        await Fixture.Client.Streams
-            .SetStreamMetadata(stream, meta, ct)
-            .ShouldNotThrowOrFailAsync(revision => revision.ShouldBe(0));
+        var revision = await Fixture.Client.Streams
+            .SetStreamMetadata(stream, meta, ct);
 
-        await Fixture.Client.Streams
-            .GetStreamInfo(stream, ct)
-            .ShouldNotThrowOrFailAsync(info => {
-                info.Metadata.ShouldBeEquivalentTo(meta, x => x.Using<JsonDocument>((l, r) => l.ToString() == r.ToString()));
-                info.State.ShouldBe(StreamState.Missing);
-            });
+        await Assert.That(revision).IsEqualTo(0);
+
+        var info = await Fixture.Client.Streams
+            .GetStreamInfo(stream, ct);
+
+        await Assert.That(info.Metadata.MaxAge).IsEqualTo(meta.MaxAge);
+        await Assert.That(info.Metadata.TruncateBefore).IsEqualTo(meta.TruncateBefore);
+        await Assert.That(info.Metadata.CacheControl).IsEqualTo(meta.CacheControl);
+        await Assert.That(info.Metadata.MaxCount).IsEqualTo(meta.MaxCount);
+        await Assert.That(info.Metadata.CustomMetadata?.RootElement.GetRawText()).IsEqualTo(meta.CustomMetadata?.RootElement.GetRawText());
+        await Assert.That(info.State).IsEqualTo(StreamState.Missing);
     }
 
     [Test]
@@ -154,16 +154,16 @@ public class StreamInfoTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Delete(simulation.Stream, ct);
 
         var meta = new StreamMetadata {
             MaxAge = TimeSpan.FromDays(1),
         };
 
-        await Fixture.Client.Streams
-            .SetStreamMetadata(simulation.Stream, meta, ct)
-            .ShouldNotThrowOrFailAsync(revision => revision.ShouldBe(1));
+        var revision = await Fixture.Client.Streams
+            .SetStreamMetadata(simulation.Stream, meta, ct);
+
+        await Assert.That(revision).IsEqualTo(1);
     }
 
     [Test]
@@ -171,8 +171,7 @@ public class StreamInfoTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Tombstone(simulation.Stream, ct);
 
         var meta = new StreamMetadata {
             MaxAge         = TimeSpan.FromDays(1),
@@ -181,8 +180,8 @@ public class StreamInfoTests {
             MaxCount       = 100
         };
 
-        await Fixture.Client.Streams
-            .SetStreamMetadata(simulation.Stream, meta, ct)
-            .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamTombstonedException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .SetStreamMetadata(simulation.Stream, meta, ct))
+            .Throws<StreamTombstonedException>();
     }
 }

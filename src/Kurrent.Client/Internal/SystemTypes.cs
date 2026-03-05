@@ -3,40 +3,13 @@ using System.Diagnostics;
 namespace Kurrent.Client;
 
 /// <summary>
-/// Provides functionality to resolve and retrieve types by their full names,
-/// searching the currently loaded assemblies or scanned assemblies.
+/// Provides type utilities for checking type characteristics such as byte types,
+/// missing type placeholders, and instantiability.
 /// </summary>
 static class SystemTypes {
     public static readonly Type MissingType = Type.Missing.GetType();
 
     public static bool IsBytes(this object value) => value.GetType().IsBytes();
-
-    /// <summary>
-    /// Resolves and retrieves a <see cref="Type"/> by its fully qualified name.
-    /// Searches the currently loaded assemblies or scanned assemblies if the type is not found initially.
-    /// Returns a special placeholder type if the specified type name cannot be resolved.
-    /// </summary>
-    /// <param name="fullName">The fully qualified name of the type to resolve.</param>
-    /// <returns>The <see cref="Type"/> object matching the specified full name, or a placeholder type if not found.</returns>
-    public static Type ResolveType(string fullName) =>
-        Type.GetType(fullName) ?? AssemblyScanner.System.Scan()
-            .InstancesWithFullName(fullName)
-            .FirstOrMissing();
-
-    public static Type ResolveTypeOrThrow(string fullName) =>
-        Type.GetType(fullName)
-     ?? AssemblyScanner.System.Scan().InstancesWithFullName(fullName).FirstOrDefault()
-     ?? throw new InvalidOperationException($"Type '{fullName}' could not be resolved. Ensure the type is defined in a loaded assembly or scanned assemblies.");
-
-    /// <summary>
-    /// Attempts to resolve and retrieve a <see cref="Type"/> by its fully qualified name.
-    /// Searches the currently loaded assemblies or scanned assemblies.
-    /// Returns a boolean indicating whether the type was successfully resolved.
-    /// </summary>
-    /// <param name="fullName">The fully qualified name of the type to resolve.</param>
-    /// <param name="type">When this method returns, contains the resolved <see cref="Type"/> if the resolution was successful; otherwise, contains a placeholder type.</param>
-    /// <returns><see langword="true"/> if the type was successfully resolved; otherwise, <see langword="false"/>.</returns>
-    public static bool TryResolveType(string fullName, out Type type) => (type = ResolveType(fullName)) != MissingType;
 
     /// <param name="type">
     /// The <see cref="Type"/> to check.
@@ -45,7 +18,8 @@ static class SystemTypes {
         public bool IsBytes() =>
             type == typeof(byte[]) ||
             type == typeof(ReadOnlyMemory<byte>) ||
-            type == typeof(Memory<byte>);
+            type == typeof(Memory<byte>) ||
+            type == typeof(ArraySegment<byte>);
 
         /// <summary>
         /// Checks if the specified type is the placeholder type representing a missing type.

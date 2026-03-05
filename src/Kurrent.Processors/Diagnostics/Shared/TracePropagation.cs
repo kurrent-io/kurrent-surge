@@ -34,8 +34,8 @@ public static class TracePropagationExtensions {
         /// Returns null if trace IDs are missing or malformed.
         /// </summary>
         public ActivityContext? ExtractTraceContext() {
-            if (!source.TryGet<string>(TraceContextKeys.TraceId, out var traceId) ||
-                !source.TryGet<string>(TraceContextKeys.SpanId, out var spanId))
+            if (!source.TryGetValue<string>(TraceContextKeys.TraceId, out var traceId) ||
+                !source.TryGetValue<string>(TraceContextKeys.SpanId, out var spanId))
                 return null;
 
             if (string.IsNullOrEmpty(traceId) || string.IsNullOrEmpty(spanId))
@@ -73,8 +73,8 @@ public static class TracePropagationExtensions {
         /// </summary>
         public Metadata InjectTraceContext(ActivityContext context) =>
             source
-                .WithIf(!source.ContainsKey(TraceContextKeys.TraceId), TraceContextKeys.TraceId, context.TraceId.ToString())
-                .WithIf(!source.ContainsKey(TraceContextKeys.SpanId), TraceContextKeys.SpanId, context.SpanId.ToString());
+                .WithIf(TraceContextKeys.TraceId, context.TraceId.ToString(), !source.ContainsKey(TraceContextKeys.TraceId))
+                .WithIf(TraceContextKeys.SpanId, context.SpanId.ToString(), !source.ContainsKey(TraceContextKeys.SpanId));
     }
 
     extension(Record source) {

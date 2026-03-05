@@ -71,7 +71,6 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         try {
             var record = await _client
                 .ReadLastStreamRecord(_stream, skipDecoding: false, ct)
-                .UnwrapAsync()
                 .ConfigureAwait(false);
 
             if (record.Value is not ProcessorCheckpointState state || state.Partitions.IsEmpty) {
@@ -187,7 +186,6 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
             await using var recordStream = await _client
                 .ReadRecords(readOptions)
-                .UnwrapAsync()
                 .ConfigureAwait(false);
 
             await foreach (var message in recordStream.WithCancellation(ct).ConfigureAwait(false)) {
@@ -300,30 +298,23 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             var merged = MergePositions(currentState, workerId, checkpointId, positions);
 
             // 3. Attempt to store with expected revision
-            var request = AppendStreamRequest.New()
-                .ForStream(_stream)
-                .ExpectingRevision(expectedRevision)
+            var request = AppendRecordsRequest.ToStream(_stream)
+                .ExpectingState(expectedRevision)
                 .WithRecord(rec => rec
                     .WithValue(merged)
                     .WithMetadata("processor_id", ProcessorId)
                     .WithMetadata("worker_id", workerId))
                 .Build();
 
-            var result = await _client.Append(request, ct).ConfigureAwait(false);
-
-            if (result.IsSuccess) {
-                LogStored(ProcessorId, workerId, positions.Count, result.Value.StreamRevision);
+            try {
+                var result = await _client.AppendRecords(request, ct).ConfigureAwait(false);
+                LogStored(ProcessorId, workerId, positions.Count, result.Revisions[0].Revision);
                 return;
             }
-
-            // Check if it's a concurrency conflict
-            if (result.Error.Value is StreamRevisionConflictException) {
+            catch (AppendConsistencyViolationException) {
                 LogConcurrencyConflict(ProcessorId, workerId);
                 continue; // Retry
             }
-
-            // Other errors - propagate
-            result.Unwrap();
         }
     }
 
@@ -333,18 +324,17 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         try {
             var record = await _client
                 .ReadLastStreamRecord(_stream, skipDecoding: false, ct)
-                .UnwrapAsync()
                 .ConfigureAwait(false);
 
             if (record.Value is ProcessorCheckpointState state)
-                return (state, record.Position.StreamRevision);
+                return (state, record.Position.Revision);
 
             // Stream exists but has no valid checkpoint - stream is empty, expect it to exist
-            return (new ProcessorCheckpointState(), ExpectedStreamState.StreamExists);
+            return (new ProcessorCheckpointState(), ExpectedStreamCondition.Exists);
         }
         catch (StreamNotFoundException) {
             // Stream doesn't exist yet - use NoStream to create it
-            return (new ProcessorCheckpointState(), ExpectedStreamState.NoStream);
+            return (new ProcessorCheckpointState(), ExpectedStreamCondition.NoStream);
         }
     }
 
@@ -376,12 +366,11 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             LogRetentionNotConfigured(ProcessorId);
         }
         else {
-            var info = await _client.GetStreamInfo(_stream, ct).UnwrapAsync().ConfigureAwait(false);
+            var info = await _client.GetStreamInfo(_stream, ct).ConfigureAwait(false);
 
             if (!info.Metadata.HasMaxCount) {
                 await _client
                     .ConfigureStreamDataRetention(_stream, new() { MaxCount = _maxCount }, ct)
-                    .UnwrapAsync()
                     .ConfigureAwait(false);
 
                 LogRetentionConfigured(ProcessorId, _maxCount);

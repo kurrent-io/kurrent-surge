@@ -10,7 +10,7 @@ namespace Kurrent.Processors;
 /// Defines the interface for processing records from a processor.
 /// Implement this interface to receive callbacks during the processing lifecycle.
 /// <para>
-/// All methods except <see cref="ProcessRecords"/> have default implementations
+/// All methods except <see cref="ProcessRecord"/> have default implementations
 /// that do nothing, allowing you to override only the methods you need.
 /// </para>
 /// </summary>
@@ -23,15 +23,15 @@ namespace Kurrent.Processors;
 [PublicAPI]
 public interface IRecordProcessor {
     /// <summary>
-    /// Called when records are available for processing.
+    /// Called when a record is available for processing.
     /// <remarks>
     /// This is the only method that must be implemented.
     /// </remarks>
     /// </summary>
     /// <param name="context">
-    /// Context containing the batch of records and cancellation token.
+    /// Context containing the record and cancellation token.
     /// </param>
-    ValueTask ProcessRecords(ProcessRecordsContext context);
+    ValueTask ProcessRecord(ProcessRecordContext context);
 
     /// <summary>
     /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
@@ -76,14 +76,14 @@ public record WorkerContext {
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
-    public ProcessRecordsContext ForProcessRecords(RecordBatch records, WorkerProgress progress) =>
+    public ProcessRecordContext ForProcessRecord(Record record, WorkerProgress progress) =>
         new() {
             ProcessorId       = ProcessorId,
             WorkerId          = WorkerId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
-            Records           = records,
+            Record            = record,
             Progress          = progress
         };
 
@@ -122,11 +122,11 @@ public record WorkerContext {
 }
 
 /// <summary>
-/// Context provided when records are available for processing.
+/// Context provided when a record is available for processing.
 /// </summary>
 [PublicAPI]
-public record ProcessRecordsContext : WorkerContext {
-    public required RecordBatch    Records  { get; init; }
+public record ProcessRecordContext : WorkerContext {
+    public required Record         Record   { get; init; }
     public required WorkerProgress Progress { get; init; }
 
     /// <summary>
@@ -248,26 +248,20 @@ public readonly record struct PartitionProgress(
 /// Throughput and timing metrics for a processor session.
 /// </summary>
 /// <param name="TotalRecords">Total number of records processed.</param>
-/// <param name="TotalBatches">Total number of batches processed.</param>
 /// <param name="RecordsPerSecond">Average records processed per second.</param>
-/// <param name="BatchesPerSecond">Average batches processed per second.</param>
-/// <param name="AverageBatchSize">Average number of records per batch.</param>
 /// <param name="StartedAt">When processing started.</param>
 /// <param name="Elapsed">Total time spent processing.</param>
 [PublicAPI]
 public readonly record struct ThroughputMetrics(
     long TotalRecords,
-    long TotalBatches,
     double RecordsPerSecond,
-    double BatchesPerSecond,
-    double AverageBatchSize,
     DateTimeOffset StartedAt,
     TimeSpan Elapsed
 ) {
     /// <summary>
     /// Empty metrics with no records processed.
     /// </summary>
-    public static readonly ThroughputMetrics Empty = new(0, 0, 0, 0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
+    public static readonly ThroughputMetrics Empty = new(0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
 }
 
 /// <summary>

@@ -1,3 +1,5 @@
+using Kurrent.Client.Exceptions;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -175,6 +177,6 @@ public readonly record struct CategoryParseOptions() {
 /// Exception thrown when a category name is invalid.
 /// </summary>
 public sealed class InvalidCategoryNameException(string message, Exception? innerException = null)
-    : Exception(message, innerException), IThrowableException<InvalidCategoryNameException> {
+    : KurrentException(ErrorCode.FromType<InvalidCategoryNameException>(), message, innerException), IThrowableException<InvalidCategoryNameException> {
     public static InvalidCategoryNameException Create(string message, Exception? innerException) => new(message, innerException);
 }

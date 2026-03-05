@@ -1,5 +1,4 @@
 using Google.Protobuf.WellKnownTypes;
-using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Contracts = KurrentDB.Connectors.Management.Contracts;
 using Commands = KurrentDB.Connectors.Management.Contracts.Commands;
@@ -14,8 +13,8 @@ public partial class ConnectorsClient {
     /// <param name="name">Optional human-readable name for the connector.</param>
     /// <param name="settings">Configuration settings for the connector. Null values are preserved as empty strings.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, CreateConnectorError>> Create(
+    /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
+    public async ValueTask<Success> Create(
         ConnectorId connectorId,
         string? name,
         Dictionary<string, string?> settings,
@@ -38,14 +37,8 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.AlreadyExists => CreateConnectorError.FromEx(new ConnectorAlreadyExistsException(connectorId)),
-                _                        => CreateConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return CreateConnectorError.FromEx(ex);
+            throw ex.ToException(ConnectorAlreadyExistsException.From);
         }
     }
 
@@ -56,8 +49,8 @@ public partial class ConnectorsClient {
     /// <param name="name">Optional human-readable name for the connector.</param>
     /// <param name="configuration">Hierarchical configuration for the connector as a Protobuf Struct.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, CreateConnectorError>> Create(
+    /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
+    public async ValueTask<Success> Create(
         ConnectorId connectorId,
         string? name,
         Struct configuration,
@@ -78,14 +71,8 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.AlreadyExists => CreateConnectorError.FromEx(new ConnectorAlreadyExistsException(connectorId)),
-                _                        => CreateConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return CreateConnectorError.FromEx(ex);
+            throw ex.ToException(ConnectorAlreadyExistsException.From);
         }
     }
 
@@ -95,8 +82,8 @@ public partial class ConnectorsClient {
     /// <param name="connectorId">Unique identifier of the connector to reconfigure.</param>
     /// <param name="settings">Updated configuration settings. Null values are preserved as empty strings.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, ReconfigureConnectorError>> Reconfigure(
+    /// <returns>A <see cref="Success"/> indicating the connector was reconfigured successfully.</returns>
+    public async ValueTask<Success> Reconfigure(
         ConnectorId connectorId,
         Dictionary<string, string?> settings,
         CancellationToken cancellationToken = default
@@ -115,15 +102,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => ReconfigureConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => ReconfigureConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => ReconfigureConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return ReconfigureConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -133,8 +115,8 @@ public partial class ConnectorsClient {
     /// <param name="connectorId">Unique identifier of the connector to reconfigure.</param>
     /// <param name="configuration">Updated hierarchical configuration as a Protobuf Struct.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, ReconfigureConnectorError>> Reconfigure(
+    /// <returns>A <see cref="Success"/> indicating the connector was reconfigured successfully.</returns>
+    public async ValueTask<Success> Reconfigure(
         ConnectorId connectorId,
         Struct configuration,
         CancellationToken cancellationToken = default
@@ -151,15 +133,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => ReconfigureConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => ReconfigureConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => ReconfigureConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return ReconfigureConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -168,8 +145,8 @@ public partial class ConnectorsClient {
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to delete.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, DeleteConnectorError>> Delete(
+    /// <returns>A <see cref="Success"/> indicating the connector was deleted successfully.</returns>
+    public async ValueTask<Success> Delete(
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
@@ -184,15 +161,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => DeleteConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => DeleteConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => DeleteConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return DeleteConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -202,8 +174,8 @@ public partial class ConnectorsClient {
     /// <param name="connectorId">Unique identifier of the connector to start.</param>
     /// <param name="logPosition">Optional log position to start processing from.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, StartConnectorError>> Start(
+    /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
+    public async ValueTask<Success> Start(
         ConnectorId connectorId,
         ulong? logPosition = null,
         CancellationToken cancellationToken = default
@@ -225,15 +197,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => StartConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => StartConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => StartConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return StartConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -243,8 +210,8 @@ public partial class ConnectorsClient {
     /// <param name="connectorId">Unique identifier of the connector to reset.</param>
     /// <param name="logPosition">Optional log position to reset processing to.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, ResetConnectorError>> Reset(
+    /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
+    public async ValueTask<Success> Reset(
         ConnectorId connectorId,
         ulong? logPosition = null,
         CancellationToken cancellationToken = default
@@ -266,15 +233,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => ResetConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => ResetConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => ResetConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return ResetConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -283,8 +245,8 @@ public partial class ConnectorsClient {
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to stop.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, StopConnectorError>> Stop(
+    /// <returns>A <see cref="Success"/> indicating the connector was stopped successfully.</returns>
+    public async ValueTask<Success> Stop(
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
@@ -299,15 +261,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => StopConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => StopConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => StopConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return StopConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -317,8 +274,8 @@ public partial class ConnectorsClient {
     /// <param name="connectorId">Unique identifier of the connector to rename.</param>
     /// <param name="name">New display name for the connector.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result indicating success or a specific error.</returns>
-    public async ValueTask<Result<Success, RenameConnectorError>> Rename(
+    /// <returns>A <see cref="Success"/> indicating the connector was renamed successfully.</returns>
+    public async ValueTask<Success> Rename(
         ConnectorId connectorId,
         string name,
         CancellationToken cancellationToken = default
@@ -335,15 +292,10 @@ public partial class ConnectorsClient {
 
             return Results.Success;
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => RenameConnectorError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => RenameConnectorError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => RenameConnectorError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return RenameConnectorError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 }

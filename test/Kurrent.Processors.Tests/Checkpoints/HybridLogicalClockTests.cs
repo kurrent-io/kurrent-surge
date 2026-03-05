@@ -9,7 +9,7 @@ public class HybridLogicalClockTests {
     #region . HybridTimestamp Value Type .
 
     [Test]
-    public void create_encodes_physical_time_in_upper_48_bits() {
+    public async Task create_encodes_physical_time_in_upper_48_bits() {
         // Arrange
         const long physicalTime = 1000;
         const int counter = 0;
@@ -18,11 +18,11 @@ public class HybridLogicalClockTests {
         var timestamp = HybridTimestamp.Create(physicalTime, counter);
 
         // Assert
-        (timestamp.Value >> 16).ShouldBe(physicalTime);
+        await Assert.That(timestamp.Value >> 16).IsEqualTo(physicalTime);
     }
 
     [Test]
-    public void create_encodes_counter_in_lower_16_bits() {
+    public async Task create_encodes_counter_in_lower_16_bits() {
         // Arrange
         const long physicalTime = 1000;
         const int counter = 42;
@@ -31,11 +31,11 @@ public class HybridLogicalClockTests {
         var timestamp = HybridTimestamp.Create(physicalTime, counter);
 
         // Assert
-        (timestamp.Value & 0xFFFF).ShouldBe(counter);
+        await Assert.That(timestamp.Value & 0xFFFF).IsEqualTo(counter);
     }
 
     [Test]
-    public void parse_round_trips_with_create() {
+    public async Task parse_round_trips_with_create() {
         // Arrange
         const long physicalTime = 123456789;
         const int counter = 12345;
@@ -45,71 +45,71 @@ public class HybridLogicalClockTests {
         var parsed = HybridTimestamp.Parse(original.Value);
 
         // Assert
-        parsed.PhysicalTime.ShouldBe(physicalTime);
-        parsed.Counter.ShouldBe(counter);
-        parsed.Value.ShouldBe(original.Value);
+        await Assert.That(parsed.PhysicalTime).IsEqualTo(physicalTime);
+        await Assert.That(parsed.Counter).IsEqualTo(counter);
+        await Assert.That(parsed.Value).IsEqualTo(original.Value);
     }
 
     [Test]
-    public void comparison_orders_by_physical_time_first() {
+    public async Task comparison_orders_by_physical_time_first() {
         // Arrange
         var earlier = HybridTimestamp.Create(99, ushort.MaxValue);
         var later = HybridTimestamp.Create(100, 5);
 
         // Act & Assert
-        (later > earlier).ShouldBeTrue();
-        (earlier < later).ShouldBeTrue();
-        later.CompareTo(earlier).ShouldBeGreaterThan(0);
+        await Assert.That(later > earlier).IsTrue();
+        await Assert.That(earlier < later).IsTrue();
+        await Assert.That(later.CompareTo(earlier)).IsGreaterThan(0);
     }
 
     [Test]
-    public void comparison_orders_by_counter_when_physical_time_equal() {
+    public async Task comparison_orders_by_counter_when_physical_time_equal() {
         // Arrange
         var earlier = HybridTimestamp.Create(100, 4);
         var later = HybridTimestamp.Create(100, 5);
 
         // Act & Assert
-        (later > earlier).ShouldBeTrue();
-        (earlier < later).ShouldBeTrue();
-        later.CompareTo(earlier).ShouldBeGreaterThan(0);
+        await Assert.That(later > earlier).IsTrue();
+        await Assert.That(earlier < later).IsTrue();
+        await Assert.That(later.CompareTo(earlier)).IsGreaterThan(0);
     }
 
     [Test]
-    public void create_rejects_negative_physical_time() {
+    public async Task create_rejects_negative_physical_time() {
         // Act & Assert
-        Should.Throw<ArgumentOutOfRangeException>(() => HybridTimestamp.Create(-1, 0));
+        await Assert.That(() => HybridTimestamp.Create(-1, 0)).Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public void create_rejects_counter_exceeding_max() {
+    public async Task create_rejects_counter_exceeding_max() {
         // Act & Assert
-        Should.Throw<ArgumentOutOfRangeException>(() => HybridTimestamp.Create(1000, ushort.MaxValue + 1));
+        await Assert.That(() => HybridTimestamp.Create(1000, ushort.MaxValue + 1)).Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public void create_rejects_negative_counter() {
+    public async Task create_rejects_negative_counter() {
         // Act & Assert
-        Should.Throw<ArgumentOutOfRangeException>(() => HybridTimestamp.Create(1000, -1));
+        await Assert.That(() => HybridTimestamp.Create(1000, -1)).Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public void parse_rejects_negative_value() {
+    public async Task parse_rejects_negative_value() {
         // Act & Assert
-        Should.Throw<ArgumentOutOfRangeException>(() => HybridTimestamp.Parse(-1));
+        await Assert.That(() => HybridTimestamp.Parse(-1)).Throws<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public void try_parse_returns_false_for_negative_value() {
+    public async Task try_parse_returns_false_for_negative_value() {
         // Act
         var result = HybridTimestamp.TryParse(-1, out var timestamp);
 
         // Assert
-        result.ShouldBeFalse();
-        timestamp.ShouldBe(default);
+        await Assert.That(result).IsFalse();
+        await Assert.That(timestamp).IsEqualTo(default(HybridTimestamp));
     }
 
     [Test]
-    public void try_parse_returns_true_for_valid_value() {
+    public async Task try_parse_returns_true_for_valid_value() {
         // Arrange
         var original = HybridTimestamp.Create(1000, 42);
 
@@ -117,13 +117,13 @@ public class HybridLogicalClockTests {
         var result = HybridTimestamp.TryParse(original.Value, out var parsed);
 
         // Assert
-        result.ShouldBeTrue();
-        parsed.PhysicalTime.ShouldBe(1000);
-        parsed.Counter.ShouldBe(42);
+        await Assert.That(result).IsTrue();
+        await Assert.That(parsed.PhysicalTime).IsEqualTo(1000);
+        await Assert.That(parsed.Counter).IsEqualTo(42);
     }
 
     [Test]
-    public void implicit_conversion_to_long_returns_value() {
+    public async Task implicit_conversion_to_long_returns_value() {
         // Arrange
         var timestamp = HybridTimestamp.Create(1000, 42);
 
@@ -131,11 +131,11 @@ public class HybridLogicalClockTests {
         long value = timestamp;
 
         // Assert
-        value.ShouldBe(timestamp.Value);
+        await Assert.That(value).IsEqualTo(timestamp.Value);
     }
 
     [Test]
-    public void explicit_conversion_from_long_parses_value() {
+    public async Task explicit_conversion_from_long_parses_value() {
         // Arrange
         var original = HybridTimestamp.Create(1000, 42);
 
@@ -143,8 +143,8 @@ public class HybridLogicalClockTests {
         var parsed = (HybridTimestamp)original.Value;
 
         // Assert
-        parsed.PhysicalTime.ShouldBe(original.PhysicalTime);
-        parsed.Counter.ShouldBe(original.Counter);
+        await Assert.That(parsed.PhysicalTime).IsEqualTo(original.PhysicalTime);
+        await Assert.That(parsed.Counter).IsEqualTo(original.Counter);
     }
 
     #endregion
@@ -152,7 +152,7 @@ public class HybridLogicalClockTests {
     #region . Clock.Now() - Monotonicity Guarantee .
 
     [Test]
-    public void now_advances_counter_when_wall_clock_unchanged() {
+    public async Task now_advances_counter_when_wall_clock_unchanged() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -163,17 +163,17 @@ public class HybridLogicalClockTests {
         var third = clock.Now();
 
         // Assert
-        first.PhysicalTime.ShouldBe(1000);
-        second.PhysicalTime.ShouldBe(1000);
-        third.PhysicalTime.ShouldBe(1000);
+        await Assert.That(first.PhysicalTime).IsEqualTo(1000);
+        await Assert.That(second.PhysicalTime).IsEqualTo(1000);
+        await Assert.That(third.PhysicalTime).IsEqualTo(1000);
 
-        first.Counter.ShouldBe(0);
-        second.Counter.ShouldBe(1);
-        third.Counter.ShouldBe(2);
+        await Assert.That(first.Counter).IsEqualTo(0);
+        await Assert.That(second.Counter).IsEqualTo(1);
+        await Assert.That(third.Counter).IsEqualTo(2);
     }
 
     [Test]
-    public void now_resets_counter_when_wall_clock_advances() {
+    public async Task now_resets_counter_when_wall_clock_advances() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -186,15 +186,15 @@ public class HybridLogicalClockTests {
         var afterAdvance = clock.Now();
 
         // Assert
-        first.PhysicalTime.ShouldBe(1000);
-        first.Counter.ShouldBe(0);
+        await Assert.That(first.PhysicalTime).IsEqualTo(1000);
+        await Assert.That(first.Counter).IsEqualTo(0);
 
-        afterAdvance.PhysicalTime.ShouldBe(1001);
-        afterAdvance.Counter.ShouldBe(0);
+        await Assert.That(afterAdvance.PhysicalTime).IsEqualTo(1001);
+        await Assert.That(afterAdvance.Counter).IsEqualTo(0);
     }
 
     [Test]
-    public void now_returns_monotonically_increasing_timestamps() {
+    public async Task now_returns_monotonically_increasing_timestamps() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -209,11 +209,11 @@ public class HybridLogicalClockTests {
 
         // Assert - all strictly increasing
         for (var i = 1; i < timestamps.Count; i++)
-            (timestamps[i] > timestamps[i - 1]).ShouldBeTrue($"Timestamp at {i} should be greater than {i - 1}");
+            await Assert.That(timestamps[i] > timestamps[i - 1]).IsTrue();
     }
 
     [Test]
-    public void now_detects_counter_overflow_when_stuck() {
+    public async Task now_detects_counter_overflow_when_stuck() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -223,7 +223,7 @@ public class HybridLogicalClockTests {
             clock.Now();
 
         // Act & Assert - next call should overflow
-        Should.Throw<InvalidOperationException>(() => clock.Now());
+        await Assert.That(() => clock.Now()).Throws<InvalidOperationException>();
     }
 
     #endregion
@@ -231,7 +231,7 @@ public class HybridLogicalClockTests {
     #region . Clock.Receive() - Causal Ordering .
 
     [Test]
-    public void receive_advances_past_received_when_local_behind() {
+    public async Task receive_advances_past_received_when_local_behind() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -241,13 +241,13 @@ public class HybridLogicalClockTests {
         var result = clock.Receive(received);
 
         // Assert - should be past received
-        (result > received).ShouldBeTrue();
-        result.PhysicalTime.ShouldBe(2000);
-        result.Counter.ShouldBe(6);
+        await Assert.That(result > received).IsTrue();
+        await Assert.That(result.PhysicalTime).IsEqualTo(2000);
+        await Assert.That(result.Counter).IsEqualTo(6);
     }
 
     [Test]
-    public void receive_advances_past_local_when_received_behind() {
+    public async Task receive_advances_past_local_when_received_behind() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(2000));
         var clock = new HybridLogicalClock(time);
@@ -260,12 +260,12 @@ public class HybridLogicalClockTests {
         var result = clock.Receive(received);
 
         // Assert - local stays ahead, counter incremented to 3
-        result.PhysicalTime.ShouldBe(2000);
-        result.Counter.ShouldBe(3);
+        await Assert.That(result.PhysicalTime).IsEqualTo(2000);
+        await Assert.That(result.Counter).IsEqualTo(3);
     }
 
     [Test]
-    public void receive_merges_counters_when_physical_times_equal() {
+    public async Task receive_merges_counters_when_physical_times_equal() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -279,12 +279,12 @@ public class HybridLogicalClockTests {
         var result = clock.Receive(received);
 
         // Assert - should be max(2, 10) + 1 = 11
-        result.PhysicalTime.ShouldBe(1000);
-        result.Counter.ShouldBe(11);
+        await Assert.That(result.PhysicalTime).IsEqualTo(1000);
+        await Assert.That(result.Counter).IsEqualTo(11);
     }
 
     [Test]
-    public void receive_uses_wall_clock_when_it_exceeds_both() {
+    public async Task receive_uses_wall_clock_when_it_exceeds_both() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(3000));
         var clock = new HybridLogicalClock(time);
@@ -299,12 +299,12 @@ public class HybridLogicalClockTests {
         var result = clock.Receive(received);
 
         // Assert - wall clock wins
-        result.PhysicalTime.ShouldBe(4000);
-        result.Counter.ShouldBe(0);
+        await Assert.That(result.PhysicalTime).IsEqualTo(4000);
+        await Assert.That(result.Counter).IsEqualTo(0);
     }
 
     [Test]
-    public void receive_throws_on_excessive_clock_drift() {
+    public async Task receive_throws_on_excessive_clock_drift() {
         // Arrange
         var maxOffset = TimeSpan.FromSeconds(10);
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
@@ -314,11 +314,11 @@ public class HybridLogicalClockTests {
         var received = HybridTimestamp.Create(12000, 0);
 
         // Act & Assert
-        Should.Throw<ClockDriftException>(() => clock.Receive(received));
+        await Assert.That(() => clock.Receive(received)).Throws<ClockDriftException>();
     }
 
     [Test]
-    public void receive_allows_drift_at_threshold() {
+    public async Task receive_allows_drift_at_threshold() {
         // Arrange
         var maxOffset = TimeSpan.FromSeconds(10);
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
@@ -329,8 +329,8 @@ public class HybridLogicalClockTests {
 
         // Act & Assert - should not throw
         var result = clock.Receive(received);
-        result.PhysicalTime.ShouldBe(11000);
-        result.Counter.ShouldBe(1);
+        await Assert.That(result.PhysicalTime).IsEqualTo(11000);
+        await Assert.That(result.Counter).IsEqualTo(1);
     }
 
     #endregion
@@ -338,7 +338,7 @@ public class HybridLogicalClockTests {
     #region . Clock.Sync() - Catch-Up Without Advance .
 
     [Test]
-    public void sync_catches_up_when_behind() {
+    public async Task sync_catches_up_when_behind() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -348,12 +348,12 @@ public class HybridLogicalClockTests {
         clock.Sync(targetTimestamp);
 
         // Assert
-        clock.Current.PhysicalTime.ShouldBe(2000);
-        clock.Current.Counter.ShouldBe(50);
+        await Assert.That(clock.Current.PhysicalTime).IsEqualTo(2000);
+        await Assert.That(clock.Current.Counter).IsEqualTo(50);
     }
 
     [Test]
-    public void sync_preserves_state_when_already_ahead() {
+    public async Task sync_preserves_state_when_already_ahead() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(3000));
         var clock = new HybridLogicalClock(time);
@@ -366,12 +366,12 @@ public class HybridLogicalClockTests {
         clock.Sync(behindTimestamp);
 
         // Assert - no change since local is ahead
-        clock.Current.PhysicalTime.ShouldBe(3000);
-        clock.Current.Counter.ShouldBe(2);
+        await Assert.That(clock.Current.PhysicalTime).IsEqualTo(3000);
+        await Assert.That(clock.Current.Counter).IsEqualTo(2);
     }
 
     [Test]
-    public void sync_catches_up_counter_when_physical_time_equal() {
+    public async Task sync_catches_up_counter_when_physical_time_equal() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var clock = new HybridLogicalClock(time);
@@ -384,12 +384,12 @@ public class HybridLogicalClockTests {
         clock.Sync(samePhysicalHigherCounter);
 
         // Assert
-        clock.Current.PhysicalTime.ShouldBe(1000);
-        clock.Current.Counter.ShouldBe(50);
+        await Assert.That(clock.Current.PhysicalTime).IsEqualTo(1000);
+        await Assert.That(clock.Current.Counter).IsEqualTo(50);
     }
 
     [Test]
-    public void sync_throws_on_excessive_drift() {
+    public async Task sync_throws_on_excessive_drift() {
         // Arrange
         var maxOffset = TimeSpan.FromSeconds(10);
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
@@ -399,7 +399,7 @@ public class HybridLogicalClockTests {
         var futureTimestamp = HybridTimestamp.Create(12000, 0);
 
         // Act & Assert
-        Should.Throw<ClockDriftException>(() => clock.Sync(futureTimestamp));
+        await Assert.That(() => clock.Sync(futureTimestamp)).Throws<ClockDriftException>();
     }
 
     #endregion
@@ -425,7 +425,7 @@ public class HybridLogicalClockTests {
         );
 
         // Assert
-        timestamps.Distinct().Count().ShouldBe(callsPerThread * threadCount);
+        await Assert.That(timestamps.Distinct().Count()).IsEqualTo(callsPerThread * threadCount);
     }
 
     [Test]
@@ -455,7 +455,7 @@ public class HybridLogicalClockTests {
 
         // Assert - all unique
         var list = timestamps.ToList();
-        list.Distinct().Count().ShouldBe(list.Count);
+        await Assert.That(list.Distinct().Count()).IsEqualTo(list.Count);
     }
 
     #endregion
@@ -463,7 +463,7 @@ public class HybridLogicalClockTests {
     #region . Constructor Initialization .
 
     [Test]
-    public void constructor_with_initial_timestamp_syncs_when_ahead_of_wall_clock() {
+    public async Task constructor_with_initial_timestamp_syncs_when_ahead_of_wall_clock() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(1000));
         var initialTimestamp = HybridTimestamp.Create(2000, 50);
@@ -472,12 +472,12 @@ public class HybridLogicalClockTests {
         var clock = new HybridLogicalClock(initialTimestamp, time);
 
         // Assert - should restore from persisted state since initial > wall clock
-        clock.Current.PhysicalTime.ShouldBe(2000);
-        clock.Current.Counter.ShouldBe(50);
+        await Assert.That(clock.Current.PhysicalTime).IsEqualTo(2000);
+        await Assert.That(clock.Current.Counter).IsEqualTo(50);
     }
 
     [Test]
-    public void constructor_with_initial_timestamp_uses_wall_clock_when_ahead() {
+    public async Task constructor_with_initial_timestamp_uses_wall_clock_when_ahead() {
         // Arrange
         var time = new FakeTimeProvider(DateTimeOffset.UnixEpoch.AddMilliseconds(3000));
         var initialTimestamp = HybridTimestamp.Create(1000, 50);
@@ -486,12 +486,12 @@ public class HybridLogicalClockTests {
         var clock = new HybridLogicalClock(initialTimestamp, time);
 
         // Assert - wall clock wins, counter reset
-        clock.Current.PhysicalTime.ShouldBe(3000);
-        clock.Current.Counter.ShouldBe(0);
+        await Assert.That(clock.Current.PhysicalTime).IsEqualTo(3000);
+        await Assert.That(clock.Current.Counter).IsEqualTo(0);
     }
 
     [Test]
-    public void constructor_uses_system_time_provider_by_default() {
+    public async Task constructor_uses_system_time_provider_by_default() {
         // Act
         var clock = new HybridLogicalClock();
         var before = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -499,17 +499,17 @@ public class HybridLogicalClockTests {
         var after = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         // Assert - physical time should be close to actual time
-        timestamp.PhysicalTime.ShouldBeGreaterThanOrEqualTo(before);
-        timestamp.PhysicalTime.ShouldBeLessThanOrEqualTo(after);
+        await Assert.That(timestamp.PhysicalTime).IsGreaterThanOrEqualTo(before);
+        await Assert.That(timestamp.PhysicalTime).IsLessThanOrEqualTo(after);
     }
 
     [Test]
-    public void constructor_uses_default_max_offset() {
+    public async Task constructor_uses_default_max_offset() {
         // Act
         var clock = new HybridLogicalClock();
 
         // Assert
-        clock.MaxOffset.ShouldBe(HybridLogicalClock.DefaultMaxOffset);
+        await Assert.That(clock.MaxOffset).IsEqualTo(HybridLogicalClock.DefaultMaxOffset);
     }
 
     #endregion

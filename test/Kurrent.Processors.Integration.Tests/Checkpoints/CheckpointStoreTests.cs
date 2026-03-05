@@ -243,7 +243,7 @@ public class CheckpointStoreTests {
 		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info to verify retention policy
-		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct).UnwrapAsync();
+		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
 
 		// Assert
 		await Assert.That(info.Metadata.HasMaxCount).IsTrue();
@@ -258,15 +258,14 @@ public class CheckpointStoreTests {
 
 		// Pre-configure stream with different retention
 		await Fixture.Client.Streams
-			.ConfigureStreamDataRetention(streamName, new() { MaxCount = 10 }, ct)
-			.UnwrapAsync();
+			.ConfigureStreamDataRetention(streamName, new() { MaxCount = 10 }, ct);
 
 		// Act - Create store with different maxCount
 		var store = CreateStore(processorId, maxCount: 100);
 		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info
-		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct).UnwrapAsync();
+		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
 
 		// Assert - Original retention should be preserved
 		await Assert.That(info.Metadata.MaxCount).IsEqualTo(10);
@@ -283,7 +282,7 @@ public class CheckpointStoreTests {
 		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info
-		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct).UnwrapAsync();
+		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
 
 		// Assert - No retention policy should be set
 		await Assert.That(info.Metadata.HasMaxCount).IsFalse();

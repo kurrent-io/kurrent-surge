@@ -20,64 +20,64 @@ public class ConfigurationTests {
     #region Default Values Tests
 
     [Test]
-    public void default_processor_id_is_empty() {
+    public async Task default_processor_id_is_empty() {
         var settings = new ProcessorSettings();
-        settings.ProcessorId.ShouldBe(string.Empty);
+        await Assert.That(settings.ProcessorId).IsEqualTo(string.Empty);
     }
 
     [Test]
-    public void default_worker_id_is_guid() {
+    public async Task default_worker_id_is_guid() {
         var settings = new ProcessorSettings();
-        settings.WorkerId.ShouldNotBeNullOrEmpty();
-        Guid.TryParse(settings.WorkerId, out _).ShouldBeTrue();
+        await Assert.That(settings.WorkerId).IsNotNull().And.IsNotEmpty();
+        await Assert.That(Guid.TryParse(settings.WorkerId, out _)).IsTrue();
     }
 
     [Test]
-    public void default_max_parallelism_is_128() {
+    public async Task default_max_parallelism_is_128() {
         var settings = new ProcessorSettings();
-        settings.MaxParallelism.ShouldBe(128);
+        await Assert.That(settings.MaxParallelism).IsEqualTo(128);
     }
 
     [Test]
-    public void default_buffer_capacity_is_1000() {
+    public async Task default_buffer_capacity_is_1000() {
         var settings = new ProcessorSettings();
-        settings.Worker.BufferCapacity.ShouldBe(1000);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000);
     }
 
     [Test]
-    public void default_batching_max_size_is_200() {
+    public async Task default_batching_max_size_is_200() {
         var settings = new ProcessorSettings();
-        settings.Batching.MaxSize.ShouldBe(200);
+        await Assert.That(settings.Batching.MaxSize).IsEqualTo(200);
     }
 
     [Test]
-    public void default_batching_timeout_is_250() {
+    public async Task default_batching_timeout_is_250() {
         var settings = new ProcessorSettings();
-        settings.Batching.Timeout.ShouldBe(250);
+        await Assert.That(settings.Batching.Timeout).IsEqualTo(250);
     }
 
     [Test]
-    public void default_checkpoint_interval_is_30000() {
+    public async Task default_checkpoint_interval_is_30000() {
         var settings = new ProcessorSettings();
-        settings.Checkpoint.Interval.ShouldBe(30000);
+        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(30000);
     }
 
     [Test]
-    public void default_checkpoint_timeout_is_30000() {
+    public async Task default_checkpoint_timeout_is_30000() {
         var settings = new ProcessorSettings();
-        settings.Checkpoint.Timeout.ShouldBe(30000);
+        await Assert.That(settings.Checkpoint.Timeout).IsEqualTo(30000);
     }
 
     [Test]
-    public void default_initial_position_is_latest() {
+    public async Task default_initial_position_is_latest() {
         var settings = new ProcessorSettings();
-        settings.Subscription.InitialPosition.ShouldBe(SubscriptionInitialPosition.Latest);
+        await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Latest);
     }
 
     [Test]
-    public void default_skip_decoding_is_false() {
+    public async Task default_skip_decoding_is_false() {
         var settings = new ProcessorSettings();
-        settings.Worker.SkipDecoding.ShouldBeFalse();
+        await Assert.That(settings.Worker.SkipDecoding).IsFalse();
     }
 
     #endregion
@@ -85,7 +85,7 @@ public class ConfigurationTests {
     #region Builder Configuration Tests
 
     [Test]
-    public void with_processor_id_sets_settings_processor_id() {
+    public async Task with_processor_id_sets_settings_processor_id() {
         var processorId = "test-processor-id";
 
         var worker = KurrentProcessors.Create(new NoOpProcessor())
@@ -94,12 +94,12 @@ public class ConfigurationTests {
             .WithMaxParallelism(1)
             .Build();
 
-        worker.Settings.ProcessorId.ShouldBe(processorId);
-        worker.ProcessorId.ShouldBe(processorId);
+        await Assert.That(worker.Settings.ProcessorId).IsEqualTo(processorId);
+        await Assert.That(worker.ProcessorId).IsEqualTo(processorId);
     }
 
     [Test]
-    public void with_worker_id_sets_settings_worker_id() {
+    public async Task with_worker_id_sets_settings_worker_id() {
         var workerId = "test-worker-id";
 
         var worker = KurrentProcessors.Create(new NoOpProcessor())
@@ -109,35 +109,35 @@ public class ConfigurationTests {
             .WithMaxParallelism(1)
             .Build();
 
-        worker.Settings.WorkerId.ShouldBe(workerId);
-        worker.WorkerId.ShouldBe(workerId);
+        await Assert.That(worker.Settings.WorkerId).IsEqualTo(workerId);
+        await Assert.That(worker.WorkerId).IsEqualTo(workerId);
     }
 
     [Test]
-    public void without_worker_id_generates_guid() {
+    public async Task without_worker_id_generates_guid() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
             .Build();
 
-        worker.WorkerId.ShouldNotBeNullOrEmpty();
-        Guid.TryParse(worker.WorkerId, out _).ShouldBeTrue();
+        await Assert.That(worker.WorkerId).IsNotNull().And.IsNotEmpty();
+        await Assert.That(Guid.TryParse(worker.WorkerId, out _)).IsTrue();
     }
 
     [Test]
-    public void with_max_parallelism_sets_settings() {
+    public async Task with_max_parallelism_sets_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
             .Build();
 
-        worker.Settings.MaxParallelism.ShouldBe(1);
+        await Assert.That(worker.Settings.MaxParallelism).IsEqualTo(1);
     }
 
     [Test]
-    public void configure_worker_sets_buffer_capacity() {
+    public async Task configure_worker_sets_buffer_capacity() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -145,11 +145,11 @@ public class ConfigurationTests {
             .ConfigureWorker(w => w.BufferCapacity(5000))
             .Build();
 
-        worker.Settings.Worker.BufferCapacity.ShouldBe(5000);
+        await Assert.That(worker.Settings.Worker.BufferCapacity).IsEqualTo(5000);
     }
 
     [Test]
-    public void configure_batching_sets_settings() {
+    public async Task configure_batching_sets_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -157,12 +157,12 @@ public class ConfigurationTests {
             .ConfigureBatching(b => b.MaxSize(200).Timeout(500))
             .Build();
 
-        worker.Settings.Batching.MaxSize.ShouldBe(200);
-        worker.Settings.Batching.Timeout.ShouldBe(500);
+        await Assert.That(worker.Settings.Batching.MaxSize).IsEqualTo(200);
+        await Assert.That(worker.Settings.Batching.Timeout).IsEqualTo(500);
     }
 
     [Test]
-    public void configure_checkpointing_sets_settings() {
+    public async Task configure_checkpointing_sets_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -170,13 +170,13 @@ public class ConfigurationTests {
             .ConfigureCheckpointing(c => c.Interval(60000).Timeout(30000).RetentionCount(5))
             .Build();
 
-        worker.Settings.Checkpoint.Interval.ShouldBe(60000);
-        worker.Settings.Checkpoint.Timeout.ShouldBe(30000);
-        worker.Settings.Checkpoint.RetentionCount.ShouldBe(5);
+        await Assert.That(worker.Settings.Checkpoint.Interval).IsEqualTo(60000);
+        await Assert.That(worker.Settings.Checkpoint.Timeout).IsEqualTo(30000);
+        await Assert.That(worker.Settings.Checkpoint.RetentionCount).IsEqualTo(5);
     }
 
     [Test]
-    public void with_initial_position_sets_settings() {
+    public async Task with_initial_position_sets_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -184,11 +184,11 @@ public class ConfigurationTests {
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .Build();
 
-        worker.Settings.Subscription.InitialPosition.ShouldBe(SubscriptionInitialPosition.Earliest);
+        await Assert.That(worker.Settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
     }
 
     [Test]
-    public void with_filter_sets_settings() {
+    public async Task with_filter_sets_settings() {
         var filter = RecordFilter.ByStream("test-stream");
 
         var worker = KurrentProcessors.Create(new NoOpProcessor())
@@ -198,11 +198,11 @@ public class ConfigurationTests {
             .WithFilter(filter)
             .Build();
 
-        worker.Settings.Subscription.Filter.ShouldBe(filter);
+        await Assert.That(worker.Settings.Subscription.Filter).IsEqualTo(filter);
     }
 
     [Test]
-    public void with_filter_expression_sets_both_expression_and_filter() {
+    public async Task with_filter_expression_sets_both_expression_and_filter() {
         var expression = "stream_id LIKE 'orders-%'";
 
         var worker = KurrentProcessors.Create(new NoOpProcessor())
@@ -212,13 +212,13 @@ public class ConfigurationTests {
             .WithFilterExpression(expression)
             .Build();
 
-        worker.Settings.Subscription.FilterExpression.ShouldBe(expression);
-        worker.Settings.Subscription.Filter.ShouldNotBeNull();
-        worker.Settings.Subscription.Filter.ShouldBeOfType<ExpressionFilter>();
+        await Assert.That(worker.Settings.Subscription.FilterExpression).IsEqualTo(expression);
+        await Assert.That(worker.Settings.Subscription.Filter).IsNotNull();
+        await Assert.That(worker.Settings.Subscription.Filter).IsTypeOf<ExpressionFilter>();
     }
 
     [Test]
-    public void with_partition_key_selector_sets_settings() {
+    public async Task with_partition_key_selector_sets_settings() {
         var selector = "data.customer_id";
 
         var worker = KurrentProcessors.Create(new NoOpProcessor())
@@ -228,11 +228,11 @@ public class ConfigurationTests {
             .WithPartitionKeySelector(selector)
             .Build();
 
-        worker.Settings.Subscription.PartitionKeySelector.ShouldBe(selector);
+        await Assert.That(worker.Settings.Subscription.PartitionKeySelector).IsEqualTo(selector);
     }
 
     [Test]
-    public void configure_worker_sets_skip_decoding() {
+    public async Task configure_worker_sets_skip_decoding() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -240,11 +240,11 @@ public class ConfigurationTests {
             .ConfigureWorker(w => w.SkipDecoding())
             .Build();
 
-        worker.Settings.Worker.SkipDecoding.ShouldBeTrue();
+        await Assert.That(worker.Settings.Worker.SkipDecoding).IsTrue();
     }
 
     [Test]
-    public void configure_multiple_settings_applies_all() {
+    public async Task configure_multiple_settings_applies_all() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -253,10 +253,10 @@ public class ConfigurationTests {
             .ConfigureBatching(b => b.MaxSize(50).Timeout(200))
             .Build();
 
-        worker.Settings.MaxParallelism.ShouldBe(1);
-        worker.Settings.Worker.BufferCapacity.ShouldBe(2000);
-        worker.Settings.Batching.MaxSize.ShouldBe(50);
-        worker.Settings.Batching.Timeout.ShouldBe(200);
+        await Assert.That(worker.Settings.MaxParallelism).IsEqualTo(1);
+        await Assert.That(worker.Settings.Worker.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(worker.Settings.Batching.MaxSize).IsEqualTo(50);
+        await Assert.That(worker.Settings.Batching.Timeout).IsEqualTo(200);
     }
 
     #endregion
@@ -264,7 +264,7 @@ public class ConfigurationTests {
     #region Worker Creation Tests
 
     [Test]
-    public void build_returns_worker_with_correct_settings() {
+    public async Task build_returns_worker_with_correct_settings() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -272,21 +272,21 @@ public class ConfigurationTests {
             .WithMaxParallelism(1)
             .Build();
 
-        worker.ShouldNotBeNull();
-        worker.ProcessorId.ShouldBe("test-processor");
-        worker.WorkerId.ShouldBe("test-worker");
-        worker.Settings.ShouldNotBeNull();
+        await Assert.That(worker).IsNotNull();
+        await Assert.That(worker.ProcessorId).IsEqualTo("test-processor");
+        await Assert.That(worker.WorkerId).IsEqualTo("test-worker");
+        await Assert.That(worker.Settings).IsNotNull();
     }
 
     [Test]
-    public void worker_initial_status_is_starting() {
+    public async Task worker_initial_status_is_starting() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
             .Build();
 
-        worker.Status.ShouldBe(ProcessorWorkerStatus.Starting);
+        await Assert.That(worker.Status).IsEqualTo(ProcessorWorkerStatus.Starting);
     }
 
     #endregion
@@ -294,7 +294,7 @@ public class ConfigurationTests {
     #region Validation Tests
 
     [Test]
-    public void valid_configuration_passes_validation() {
+    public async Task valid_configuration_passes_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "valid-processor",
             MaxParallelism = 1,
@@ -303,11 +303,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void empty_processor_id_fails_validation() {
+    public async Task empty_processor_id_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = string.Empty,
             MaxParallelism = 1
@@ -315,11 +315,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_max_parallelism_zero_fails_validation() {
+    public async Task invalid_max_parallelism_zero_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 0
@@ -327,11 +327,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_max_parallelism_negative_fails_validation() {
+    public async Task invalid_max_parallelism_negative_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = -1
@@ -339,11 +339,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_max_parallelism_exceeds_limit_fails_validation() {
+    public async Task invalid_max_parallelism_exceeds_limit_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 32769
@@ -351,11 +351,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_buffer_capacity_zero_fails_validation() {
+    public async Task invalid_buffer_capacity_zero_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -364,11 +364,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_buffer_capacity_exceeds_limit_fails_validation() {
+    public async Task invalid_buffer_capacity_exceeds_limit_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -377,11 +377,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_batching_max_size_fails_validation() {
+    public async Task invalid_batching_max_size_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -390,11 +390,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_batching_timeout_fails_validation() {
+    public async Task invalid_batching_timeout_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -403,11 +403,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void invalid_checkpoint_interval_fails_validation() {
+    public async Task invalid_checkpoint_interval_fails_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -416,11 +416,11 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeFalse();
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]
-    public void max_parallelism_without_partition_key_passes_with_warning() {
+    public async Task max_parallelism_without_partition_key_passes_with_warning() {
         // PartitionKeySelector is a warning, not an error, for backward compatibility
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
@@ -431,11 +431,11 @@ public class ConfigurationTests {
         var result = settings.ValidateOptions();
 
         // Validation passes (warnings are ignored), but the warning is generated
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void max_parallelism_with_partition_key_passes_validation() {
+    public async Task max_parallelism_with_partition_key_passes_validation() {
         var settings = new ProcessorSettings {
             ProcessorId    = "test-processor",
             MaxParallelism = 4,
@@ -444,40 +444,40 @@ public class ConfigurationTests {
 
         var result = settings.ValidateOptions();
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void build_with_invalid_buffer_capacity_throws() {
-        Should.Throw<ValidationException>(() =>
+    public async Task build_with_invalid_buffer_capacity_throws() {
+        await Assert.That(() =>
             KurrentProcessors.Create(new NoOpProcessor())
                 .ConnectTo("kurrentdb://localhost:2113")
                 .WithProcessorId("test-processor")
                 .WithMaxParallelism(1)
                 .ConfigureWorker(w => w.BufferCapacity(0))
                 .Build()
-        );
+        ).Throws<ValidationException>();
     }
 
     [Test]
-    public void build_without_processor_id_auto_generates_from_type_name() {
+    public async Task build_without_processor_id_auto_generates_from_type_name() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithMaxParallelism(1)
             .Build();
 
-        worker.ProcessorId.ShouldBe("no_op_processor");
+        await Assert.That(worker.ProcessorId).IsEqualTo("no_op_processor");
     }
 
     [Test]
-    public void build_with_invalid_max_parallelism_throws() {
-        Should.Throw<ValidationException>(() =>
+    public async Task build_with_invalid_max_parallelism_throws() {
+        await Assert.That(() =>
             KurrentProcessors.Create(new NoOpProcessor())
                 .ConnectTo("kurrentdb://localhost:2113")
                 .WithProcessorId("test-processor")
                 .WithMaxParallelism(0)
                 .Build()
-        );
+        ).Throws<ValidationException>();
     }
 
     #endregion
@@ -485,7 +485,7 @@ public class ConfigurationTests {
     #region DI Registration Tests
 
     [Test]
-    public void duplicate_registration_is_idempotent() {
+    public async Task duplicate_registration_is_idempotent() {
         var services = new ServiceCollection();
         services.AddKurrentClient("kurrentdb://localhost:2113");
 
@@ -498,11 +498,11 @@ public class ConfigurationTests {
             d.ServiceType == typeof(IHostedService) &&
             d.ImplementationFactory is not null);
 
-        hostedServiceCount.ShouldBe(1);
+        await Assert.That(hostedServiceCount).IsEqualTo(1);
     }
 
     [Test]
-    public void duplicate_registration_with_factory_is_idempotent() {
+    public async Task duplicate_registration_with_factory_is_idempotent() {
         var services = new ServiceCollection();
         services.AddKurrentClient("kurrentdb://localhost:2113");
 
@@ -519,11 +519,11 @@ public class ConfigurationTests {
             d.ServiceType == typeof(IHostedService) &&
             d.ImplementationFactory is not null);
 
-        hostedServiceCount.ShouldBe(1);
+        await Assert.That(hostedServiceCount).IsEqualTo(1);
     }
 
     [Test]
-    public void configuration_with_service_provider_can_access_services() {
+    public async Task configuration_with_service_provider_can_access_services() {
         var services = new ServiceCollection();
         services.AddSingleton(new TestSettings { ProcessorId = "configured-processor-id" });
         services.AddLogging();
@@ -544,7 +544,7 @@ public class ConfigurationTests {
         _ = provider.GetServices<IHostedService>().ToList();
 
         // The processor ID should have been captured from TestSettings
-        capturedId.ShouldBe("configured-processor-id");
+        await Assert.That(capturedId).IsEqualTo("configured-processor-id");
     }
 
     record TestSettings {
@@ -556,7 +556,7 @@ public class ConfigurationTests {
     #region Configuration Binding Tests
 
     [Test]
-    public void settings_loaded_from_json_configuration_by_processor_type_name() {
+    public async Task settings_loaded_from_json_configuration_by_processor_type_name() {
         const string json = """
             {
               "Kurrent": {
@@ -583,16 +583,16 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration(json);
         var settings = ResolveProcessorSettings(configuration);
 
-        settings.ProcessorId.ShouldBe("config-processor");
-        settings.MaxParallelism.ShouldBe(8);
-        settings.Worker.BufferCapacity.ShouldBe(2000);
-        settings.Batching.MaxSize.ShouldBe(100);
-        settings.Batching.Timeout.ShouldBe(500);
-        settings.Checkpoint.Interval.ShouldBe(15000);
+        await Assert.That(settings.ProcessorId).IsEqualTo("config-processor");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(8);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(settings.Batching.MaxSize).IsEqualTo(100);
+        await Assert.That(settings.Batching.Timeout).IsEqualTo(500);
+        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(15000);
     }
 
     [Test]
-    public void json_configuration_supports_camel_case_properties() {
+    public async Task json_configuration_supports_camel_case_properties() {
         const string json = """
             {
               "Kurrent": {
@@ -624,19 +624,19 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration(json);
         var settings = ResolveProcessorSettings(configuration);
 
-        settings.ProcessorId.ShouldBe("camel-processor");
-        settings.MaxParallelism.ShouldBe(4);
-        settings.Worker.BufferCapacity.ShouldBe(1500);
-        settings.Batching.MaxSize.ShouldBe(75);
-        settings.Batching.Timeout.ShouldBe(300);
-        settings.Checkpoint.Interval.ShouldBe(20000);
-        settings.Subscription.FilterExpression.ShouldBe("stream_id LIKE 'test-%'");
-        settings.Subscription.InitialPosition.ShouldBe(SubscriptionInitialPosition.Earliest);
-        settings.Subscription.PartitionKeySelector.ShouldBe("data.id");
+        await Assert.That(settings.ProcessorId).IsEqualTo("camel-processor");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(4);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1500);
+        await Assert.That(settings.Batching.MaxSize).IsEqualTo(75);
+        await Assert.That(settings.Batching.Timeout).IsEqualTo(300);
+        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(20000);
+        await Assert.That(settings.Subscription.FilterExpression).IsEqualTo("stream_id LIKE 'test-%'");
+        await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
+        await Assert.That(settings.Subscription.PartitionKeySelector).IsEqualTo("data.id");
     }
 
     [Test]
-    public void json_configuration_does_not_support_snake_case_properties() {
+    public async Task json_configuration_does_not_support_snake_case_properties() {
         // snake_case is NOT supported by default .NET configuration binding
         var json = """
             {
@@ -661,13 +661,13 @@ public class ConfigurationTests {
         );
 
         // snake_case keys are ignored - defaults/fluent values used instead
-        settings.ProcessorId.ShouldBe("fallback-processor");
-        settings.MaxParallelism.ShouldBe(1);
-        settings.Worker.BufferCapacity.ShouldBe(1000); // default value
+        await Assert.That(settings.ProcessorId).IsEqualTo("fallback-processor");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(1);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000); // default value
     }
 
     [Test]
-    public void fluent_configuration_overrides_json_settings() {
+    public async Task fluent_configuration_overrides_json_settings() {
         var json = """
             {
               "Kurrent": {
@@ -691,14 +691,14 @@ public class ConfigurationTests {
         );
 
         // Fluent overrides config
-        settings.ProcessorId.ShouldBe("fluent-processor");
-        settings.MaxParallelism.ShouldBe(4);
+        await Assert.That(settings.ProcessorId).IsEqualTo("fluent-processor");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(4);
         // Config value retained when no fluent override
-        settings.Worker.BufferCapacity.ShouldBe(2000);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(2000);
     }
 
     [Test]
-    public void missing_json_section_uses_defaults() {
+    public async Task missing_json_section_uses_defaults() {
         var json = """
             {
               "SomeOther": {
@@ -714,14 +714,14 @@ public class ConfigurationTests {
         );
 
         // Default values should be used
-        settings.Worker.BufferCapacity.ShouldBe(1000);
-        settings.Batching.MaxSize.ShouldBe(200);
-        settings.Batching.Timeout.ShouldBe(250);
-        settings.Checkpoint.Interval.ShouldBe(30000);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000);
+        await Assert.That(settings.Batching.MaxSize).IsEqualTo(200);
+        await Assert.That(settings.Batching.Timeout).IsEqualTo(250);
+        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(30000);
     }
 
     [Test]
-    public void nested_subscription_settings_bind_from_json() {
+    public async Task nested_subscription_settings_bind_from_json() {
         var json = """
             {
               "Kurrent": {
@@ -743,13 +743,13 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration(json);
         var settings = ResolveProcessorSettings(configuration);
 
-        settings.Subscription.FilterExpression.ShouldBe("stream_id LIKE 'orders-%'");
-        settings.Subscription.InitialPosition.ShouldBe(SubscriptionInitialPosition.Earliest);
-        settings.Subscription.PartitionKeySelector.ShouldBe("data.customer_id");
+        await Assert.That(settings.Subscription.FilterExpression).IsEqualTo("stream_id LIKE 'orders-%'");
+        await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
+        await Assert.That(settings.Subscription.PartitionKeySelector).IsEqualTo("data.customer_id");
     }
 
     [Test]
-    public void configuration_binding_works_with_service_provider_overload() {
+    public async Task configuration_binding_works_with_service_provider_overload() {
         var json = """
             {
               "Kurrent": {
@@ -786,13 +786,13 @@ public class ConfigurationTests {
         var settings = hostedService.Worker.Settings;
 
         // From service provider overload
-        settings.ProcessorId.ShouldBe("sp-processor");
+        await Assert.That(settings.ProcessorId).IsEqualTo("sp-processor");
         // From config
-        settings.Worker.BufferCapacity.ShouldBe(3000);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(3000);
     }
 
     [Test]
-    public void no_configuration_registered_uses_defaults() {
+    public async Task no_configuration_registered_uses_defaults() {
         var services = new ServiceCollection();
         // Intentionally NOT registering IConfiguration
         services.AddLogging();
@@ -810,8 +810,8 @@ public class ConfigurationTests {
         var settings = hostedService.Worker.Settings;
 
         // Default values should be used
-        settings.Worker.BufferCapacity.ShouldBe(1000);
-        settings.Batching.MaxSize.ShouldBe(200);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000);
+        await Assert.That(settings.Batching.MaxSize).IsEqualTo(200);
     }
 
     static IConfiguration BuildJsonConfiguration(string json) {
@@ -839,7 +839,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public void processor_id_auto_generated_from_processor_type_name_when_not_in_config() {
+    public async Task processor_id_auto_generated_from_processor_type_name_when_not_in_config() {
         var json = """
             {
               "Kurrent": {
@@ -875,13 +875,13 @@ public class ConfigurationTests {
         var settings = hostedService.Worker.Settings;
 
         // ProcessorId should be auto-generated from processor type name (section name)
-        settings.ProcessorId.ShouldBe("no_op_processor");
-        settings.MaxParallelism.ShouldBe(4);
-        settings.Worker.BufferCapacity.ShouldBe(2000);
+        await Assert.That(settings.ProcessorId).IsEqualTo("no_op_processor");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(4);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(2000);
     }
 
     [Test]
-    public void explicit_processor_id_in_config_overrides_auto_generation() {
+    public async Task explicit_processor_id_in_config_overrides_auto_generation() {
         var json = """
             {
               "Kurrent": {
@@ -913,11 +913,11 @@ public class ConfigurationTests {
         var settings = hostedService.Worker.Settings;
 
         // Explicit ProcessorId in config should be used
-        settings.ProcessorId.ShouldBe("my-custom-id");
+        await Assert.That(settings.ProcessorId).IsEqualTo("my-custom-id");
     }
 
     [Test]
-    public void standalone_builder_from_configuration_loads_settings() {
+    public async Task standalone_builder_from_configuration_loads_settings() {
         var json = """
             {
               "Kurrent": {
@@ -947,15 +947,15 @@ public class ConfigurationTests {
         var settings = worker.Settings;
 
         // ProcessorId auto-generated from processor type name
-        settings.ProcessorId.ShouldBe("no_op_processor");
-        settings.MaxParallelism.ShouldBe(2);
-        settings.Worker.BufferCapacity.ShouldBe(3000);
-        settings.Batching.MaxSize.ShouldBe(50);
-        settings.Batching.Timeout.ShouldBe(200);
+        await Assert.That(settings.ProcessorId).IsEqualTo("no_op_processor");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(2);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(3000);
+        await Assert.That(settings.Batching.MaxSize).IsEqualTo(50);
+        await Assert.That(settings.Batching.Timeout).IsEqualTo(200);
     }
 
     [Test]
-    public void standalone_builder_fluent_methods_override_configuration() {
+    public async Task standalone_builder_fluent_methods_override_configuration() {
         var json = """
             {
               "Kurrent": {
@@ -982,9 +982,9 @@ public class ConfigurationTests {
 
         var settings = worker.Settings;
 
-        settings.ProcessorId.ShouldBe("custom-id");
-        settings.MaxParallelism.ShouldBe(2);
-        settings.Worker.BufferCapacity.ShouldBe(5000); // From config
+        await Assert.That(settings.ProcessorId).IsEqualTo("custom-id");
+        await Assert.That(settings.MaxParallelism).IsEqualTo(2);
+        await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(5000); // From config
     }
 
     #endregion
@@ -993,6 +993,6 @@ public class ConfigurationTests {
     /// A minimal processor implementation for testing configuration.
     /// </summary>
     sealed class NoOpProcessor : IRecordProcessor {
-        public ValueTask ProcessRecords(ProcessRecordsContext context) => ValueTask.CompletedTask;
+        public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
     }
 }

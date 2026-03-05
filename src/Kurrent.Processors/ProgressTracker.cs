@@ -14,7 +14,6 @@ sealed class ProgressTracker {
     readonly long           _startTimestamp;
 
     long _totalRecords;
-    long _totalBatches;
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
@@ -38,12 +37,10 @@ sealed class ProgressTracker {
         _partitionTracker = tracker;
 
     /// <summary>
-    /// Tracks a batch of records being processed.
+    /// Tracks a single record being processed.
     /// </summary>
-    /// <param name="recordCount">Number of records in the batch.</param>
-    public void TrackRecords(int recordCount) {
-        _totalRecords += recordCount;
-        _totalBatches++;
+    public void TrackRecord() {
+        _totalRecords++;
     }
 
     /// <summary>
@@ -69,10 +66,7 @@ sealed class ProgressTracker {
 
             var throughput = new ThroughputMetrics(
                 TotalRecords:     _totalRecords,
-                TotalBatches:     _totalBatches,
                 RecordsPerSecond: totalSeconds > 0 ? _totalRecords / totalSeconds : 0,
-                BatchesPerSecond: totalSeconds > 0 ? _totalBatches / totalSeconds : 0,
-                AverageBatchSize: _totalBatches > 0 ? (double)_totalRecords / _totalBatches : 0,
                 StartedAt:        _startedAt,
                 Elapsed:          elapsed
             );

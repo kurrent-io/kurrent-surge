@@ -1,7 +1,7 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Registry;
 
@@ -22,33 +22,29 @@ public class GetSchemaTests {
             .CreateSchema(
 			    schemaName, schemaDefinition, SchemaDataFormat.Json,
 			    CompatibilityMode.Backward, description, tags, ct
-		    )
-            .ShouldNotThrowOrFailAsync();
+		    );
 
         await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-            .GetSchema(schemaName, ct)
-			.ShouldNotThrowOrFailAsync(schema => {
-				schema.LatestSchemaVersion.ShouldBe(schemaVersion.VersionNumber);
-				schema.SchemaName.Value.ShouldBe(schemaName);
-				schema.CreatedAt.ShouldBeGreaterThan(DateTimeOffset.MinValue);
-				schema.UpdatedAt.ShouldBeGreaterThan(DateTimeOffset.MinValue);
-				schema.Details.Compatibility.ShouldBe(CompatibilityMode.Backward);
-				schema.Details.Description.ShouldBe(description);
-				schema.Details.Tags.ShouldBe(tags);
-				schema.Details.DataFormat.ShouldBe(SchemaDataFormat.Json);
-			});
+		var schema = await Fixture.Client.Registry
+            .GetSchema(schemaName, ct);
+
+		await Assert.That(schema.LatestSchemaVersion).IsEqualTo(schemaVersion.VersionNumber);
+		await Assert.That(schema.SchemaName.Value).IsEqualTo((string)schemaName);
+		await Assert.That(schema.CreatedAt).IsGreaterThan(DateTimeOffset.MinValue);
+		await Assert.That(schema.UpdatedAt).IsGreaterThan(DateTimeOffset.MinValue);
+		await Assert.That(schema.Details.Compatibility).IsEqualTo(CompatibilityMode.Backward);
+		await Assert.That(schema.Details.Description).IsEqualTo(description);
+		await Assert.That(schema.Details.Tags).IsEquivalentTo(tags);
+		await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 	}
 
 	[Test]
 	public async ValueTask get_schema_when_schema_does_not_exist(CancellationToken ct) {
 		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-		await Fixture.Client.Registry
-			.GetSchema(schemaName, ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(GetSchemaError.GetSchemaErrorCase.SchemaNotFoundException));
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
 	}
 
 	[Test]
@@ -57,20 +53,16 @@ public class GetSchemaTests {
         var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-            .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-            .ShouldNotThrowOrFailAsync();
+            .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
         await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
 		await Fixture.Client.Registry
-            .DeleteSchema(schemaName, ct)
-            .ShouldNotThrowOrFailAsync();
+            .DeleteSchema(schemaName, ct);
 
         await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Fixture.Client.Registry
-			.GetSchema(schemaName, ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(GetSchemaError.GetSchemaErrorCase.SchemaNotFoundException));
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
 	}
 }

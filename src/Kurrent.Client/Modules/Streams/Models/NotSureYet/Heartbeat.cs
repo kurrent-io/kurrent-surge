@@ -16,11 +16,14 @@ namespace Kurrent.Client.Streams;
 /// </param>
 [PublicAPI]
 [method: SetsRequiredMembers]
-public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position, StreamRevision StreamRevision, DateTimeOffset Timestamp) {
-	public static readonly Heartbeat None = new(HeartbeatType.Unspecified, LogPosition.Unset, StreamRevision.Unset, DateTimeOffset.MinValue);
+public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position, Revision Revision, DateTimeOffset Timestamp) {
+	public static readonly Heartbeat None = new(HeartbeatType.Unspecified, LogPosition.Unset, Revision.Unset, DateTimeOffset.MinValue);
 
     // temporary until I fix it...
-    public RecordPosition RecordPosition => HasPosition ? RecordPosition.FromLogPosition(Position) : RecordPosition.Unset;
+    public RecordPosition RecordPosition =>
+        HasPosition
+            ? RecordPosition.FromLogPosition(Position)
+            : RecordPosition.Unset;
 
 	/// <summary>
 	/// The type of the heartbeat, representing the nature of the event
@@ -37,7 +40,7 @@ public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position
 	/// <summary>
 	/// Represents a specific point in the stream or sequence.
 	/// </summary>
-	public required StreamRevision StreamRevision { get; init; } = StreamRevision;
+	public required Revision Revision { get; init; } = Revision;
 
 	/// <summary>
 	/// The timestamp indicating when this heartbeat message was generated.
@@ -58,21 +61,21 @@ public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position
 
 	public bool HasPosition => Position != LogPosition.Unset;
 
-	public bool HasStreamRevision => StreamRevision != StreamRevision.Unset;
+	public bool HasRevision => Revision != Revision.Unset;
 
 	public override string ToString() =>
-		$"Heartbeat {{ Type = {Type}, Position = {Position}, StreamRevision = {StreamRevision}, Timestamp = {Timestamp:O} }}";
+		$"Heartbeat {{ Type = {Type}, Position = {Position}, Revision = {Revision}, Timestamp = {Timestamp:O} }}";
 
 	public static Heartbeat CreateCheckpoint(LogPosition position, DateTimeOffset timestamp) =>
-		new(HeartbeatType.Checkpoint, position, StreamRevision.Unset, timestamp);
+		new(HeartbeatType.Checkpoint, position, Revision.Unset, timestamp);
 
 	public static Heartbeat CreateCaughtUp(LogPosition position, DateTimeOffset timestamp) =>
-		new(HeartbeatType.CaughtUp, position, StreamRevision.Unset,  timestamp);
+		new(HeartbeatType.CaughtUp, position, Revision.Unset,  timestamp);
 
-	public static Heartbeat CreateCheckpoint(LogPosition position, StreamRevision streamRevision, DateTimeOffset timestamp) =>
+	public static Heartbeat CreateCheckpoint(LogPosition position, Revision streamRevision, DateTimeOffset timestamp) =>
 		new(HeartbeatType.Checkpoint, position, streamRevision, timestamp);
 
-	public static Heartbeat CreateCaughtUp(LogPosition position, StreamRevision streamRevision, DateTimeOffset timestamp) =>
+	public static Heartbeat CreateCaughtUp(LogPosition position, Revision streamRevision, DateTimeOffset timestamp) =>
 		new(HeartbeatType.CaughtUp, position, streamRevision, timestamp);
 }
 

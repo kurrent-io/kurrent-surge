@@ -5,7 +5,6 @@ using Google.Rpc.Exceptions;
 using Grpc.Core;
 using Kurrent.Client.Errors;
 using Kurrent.Rpc;
-using Kurrent.Variant;
 using Status = Google.Rpc.Status;
 
 namespace Kurrent.Client.Exceptions;
@@ -62,41 +61,6 @@ static class ExceptionExtensions {
     ];
 
     extension(Exception ex) {
-        /// <summary>
-        /// Dangerously converts an Exception into a variant error result by trying to parse it using the provided parsers,
-        /// followed by the built-in server and standard google parsers.
-        /// </summary>
-        public TError ToExceptionalErrorResult<TError>(params OperationExceptionParser[] parsers) where TError : class, IVariantException {
-            // pass through KurrentException as is (just in case)
-            if (ex is KurrentException kex)
-                return (dynamic)kex;
-
-            // fast fail for non-RpcException
-            if (ex is not RpcException rex)
-                return (dynamic)ex;
-
-            // extract status and error info
-            var status    = rex.GetRpcStatus();
-            var errorInfo = status?.GetDetail<ErrorInfo>();
-
-            // create status fallback
-            status ??= new Status {
-                Code    = (int)rex.StatusCode,
-                Message = rex.Message
-            };
-
-            // try to parse using the provided parsers, then server parsers, then google parsers
-            // and finally fallback to the original exception
-            return parsers
-                .Concat(ServerParsers)
-                .Concat(GoogleParsers)
-                .Select(parse => parse(status, errorInfo))
-                .SkipWhile(result => result is null)
-                .DefaultIfEmpty(ex)
-                .Select(ex => (TError)ex!)
-                .First();
-        }
-
         public Exception ToException(params OperationExceptionParser[] parsers) {
             // pass through KurrentException as is (just in case)
             if (ex is KurrentException kex)

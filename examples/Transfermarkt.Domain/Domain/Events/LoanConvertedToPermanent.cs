@@ -9,59 +9,29 @@ namespace Transfermarkt.Domain;
 /// </remarks>
 [PublicAPI]
 public sealed record LoanConvertedToPermanent {
-    LoanConvertedToPermanent(
-        TransferId originalLoanTransferId,
-        TransferId newPermanentTransferId,
-        PlayerId playerId,
-        Money fee,
-        DateTimeOffset convertedAt
-    ) {
-        OriginalLoanTransferId  = originalLoanTransferId;
-        NewPermanentTransferId  = newPermanentTransferId;
-        PlayerId                = playerId;
-        Fee                     = fee;
-        ConvertedAt             = convertedAt;
-    }
-
     /// <summary>
     /// The original loan transfer that is being converted.
     /// </summary>
-    public TransferId OriginalLoanTransferId { get; }
+    public TransferId OriginalLoanTransferId { get; init; }
 
     /// <summary>
     /// The new permanent transfer created.
     /// </summary>
-    public TransferId NewPermanentTransferId { get; }
+    public TransferId NewPermanentTransferId { get; init; }
 
     /// <summary>
     /// The player involved in the conversion.
     /// </summary>
-    public PlayerId PlayerId { get; }
+    public PlayerId PlayerId { get; init; }
 
     /// <summary>
     /// The fee paid for the permanent transfer.
     /// </summary>
-    public Money Fee { get; }
+    public Money Fee { get; init; }
 
     /// <summary>
     /// When the conversion was recorded.
     /// </summary>
-    public DateTimeOffset ConvertedAt { get; }
+    public DateTimeOffset ConvertedAt { get; init; }
 
-    /// <summary>
-    /// Creates a LoanConvertedToPermanent event.
-    /// </summary>
-    public static LoanConvertedToPermanent Create(
-        TransferId originalLoanTransferId,
-        TransferId newPermanentTransferId,
-        PlayerId playerId,
-        Money fee,
-        DateTimeOffset? convertedAt = null
-    ) => new(
-        originalLoanTransferId,
-        newPermanentTransferId,
-        playerId,
-        fee,
-        convertedAt ?? DateTimeOffset.UtcNow
-    );
 }

@@ -8,7 +8,7 @@ public class ResultUnwrapTests {
     Faker Faker { get; } = new();
 
     [Test]
-    public void unwrap_returns_value_on_success() {
+    public async Task unwrap_returns_value_on_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -17,23 +17,23 @@ public class ResultUnwrapTests {
         var value = result.Unwrap();
 
         // Assert
-        value.ShouldBe(gameId);
+        await Assert.That(value).IsEqualTo(gameId);
     }
 
     [Test]
-    public void unwrap_throws_exception_on_failure() {
+    public async Task unwrap_throws_exception_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Test error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
 
         // Act & Assert
-        var exception = Should.Throw<InvalidOperationException>(() => result.Unwrap());
-        exception.Message.ShouldContain(error.GameId.ToString());
-        exception.Message.ShouldContain("Test error");
+        var exception = await Assert.That(() => result.Unwrap()).ThrowsExactly<InvalidOperationException>();
+        await Assert.That(exception.Message).Contains(error.GameId.ToString());
+        await Assert.That(exception.Message).Contains("Test error");
     }
 
     [Test]
-    public void unwrap_throws_correct_exception_type_for_different_errors() {
+    public async Task unwrap_throws_correct_exception_type_for_different_errors() {
         // Arrange
         var invalidMoveError = new InvalidMoveError(Faker.Random.Guid(), "Invalid");
         var invalidMoveResult = Kurrent.Result.Failure<Position, InvalidMoveError>(invalidMoveError);
@@ -42,24 +42,24 @@ public class ResultUnwrapTests {
         var gameEndedResult = Kurrent.Result.Failure<Position, GameEndedError>(gameEndedError);
 
         // Act & Assert
-        Should.Throw<InvalidOperationException>(() => invalidMoveResult.Unwrap());
-        Should.Throw<InvalidOperationException>(() => gameEndedResult.Unwrap());
+        await Assert.That(() => invalidMoveResult.Unwrap()).ThrowsExactly<InvalidOperationException>();
+        await Assert.That(() => gameEndedResult.Unwrap()).ThrowsExactly<InvalidOperationException>();
     }
 
     [Test]
-    public void unwrap_preserves_exception_message_from_error() {
+    public async Task unwrap_preserves_exception_message_from_error() {
         // Arrange
         var errorMessage = Faker.Lorem.Sentence();
         var error = new SimpleError(errorMessage);
         var result = Kurrent.Result.Failure<GameId, SimpleError>(error);
 
         // Act & Assert
-        var exception = Should.Throw<InvalidOperationException>(() => result.Unwrap());
-        exception.Message.ShouldContain(errorMessage);
+        var exception = await Assert.That(() => result.Unwrap()).ThrowsExactly<InvalidOperationException>();
+        await Assert.That(exception.Message).Contains(errorMessage);
     }
 
     [Test]
-    public async ValueTask unwrap_async_returns_value_on_success() {
+    public async Task unwrap_async_returns_value_on_success() {
         // Arrange
         var position = new Position(1, 2);
         var resultTask = ValueTask.FromResult(
@@ -69,24 +69,23 @@ public class ResultUnwrapTests {
         var value = await resultTask.UnwrapAsync();
 
         // Assert
-        value.ShouldBe(position);
+        await Assert.That(value).IsEqualTo(position);
     }
 
     [Test]
-    public async ValueTask unwrap_async_throws_exception_on_failure() {
+    public async Task unwrap_async_throws_exception_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Async error");
         var resultTask = ValueTask.FromResult(
             Kurrent.Result.Failure<GameId, InvalidMoveError>(error));
 
         // Act & Assert
-        var exception = await Should.ThrowAsync<InvalidOperationException>(
-            async () => await resultTask.UnwrapAsync());
-        exception.Message.ShouldContain("Async error");
+        var exception = await Assert.That(async () => await resultTask.UnwrapAsync()).ThrowsExactly<InvalidOperationException>();
+        await Assert.That(exception.Message).Contains("Async error");
     }
 
     [Test]
-    public void unwrap_can_be_used_after_successful_pipeline() {
+    public async Task unwrap_can_be_used_after_successful_pipeline() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -98,24 +97,24 @@ public class ResultUnwrapTests {
             .Unwrap();
 
         // Assert
-        value.ShouldBe(2); // position.Row (1) * 2 = 2
+        await Assert.That(value).IsEqualTo(2); // position.Row (1) * 2 = 2
     }
 
     [Test]
-    public void unwrap_throws_at_end_of_failed_pipeline() {
+    public async Task unwrap_throws_at_end_of_failed_pipeline() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Pipeline error");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
 
         // Act & Assert
-        Should.Throw<InvalidOperationException>(() => result
+        await Assert.That(() => result
             .Map(pos => pos.Row)
             .Map(row => row * 2)
-            .Unwrap());
+            .Unwrap()).ThrowsExactly<InvalidOperationException>();
     }
 
     [Test]
-    public void unwrap_enables_direct_value_extraction() {
+    public async Task unwrap_enables_direct_value_extraction() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -124,11 +123,11 @@ public class ResultUnwrapTests {
         GameId extractedId = result.Unwrap();
 
         // Assert
-        extractedId.ShouldBe(gameId);
+        await Assert.That(extractedId).IsEqualTo(gameId);
     }
 
     [Test]
-    public async ValueTask unwrap_async_can_be_used_after_async_pipeline() {
+    public async Task unwrap_async_can_be_used_after_async_pipeline() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -143,28 +142,28 @@ public class ResultUnwrapTests {
             .UnwrapAsync();
 
         // Assert
-        value.ShouldBe(gameId.Value.ToString());
+        await Assert.That(value).IsEqualTo(gameId.Value.ToString());
     }
 
     [Test]
-    public async ValueTask unwrap_async_throws_at_end_of_failed_async_pipeline() {
+    public async Task unwrap_async_throws_at_end_of_failed_async_pipeline() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Async pipeline");
         var resultTask = ValueTask.FromResult(
             Kurrent.Result.Failure<GameId, InvalidMoveError>(error));
 
         // Act & Assert
-        await Should.ThrowAsync<InvalidOperationException>(async () =>
+        await Assert.That(async () =>
             await resultTask
                 .MapAsync(async id => {
                     await Task.Delay(1);
                     return id.Value.ToString();
                 })
-                .UnwrapAsync());
+                .UnwrapAsync()).ThrowsExactly<InvalidOperationException>();
     }
 
     [Test]
-    public void unwrap_vs_match_for_exception_handling() {
+    public async Task unwrap_vs_match_for_exception_handling() {
         // Arrange
         var successResult = Kurrent.Result.Success<int, SimpleError>(42);
         var failureResult = Kurrent.Result.Failure<int, SimpleError>(new SimpleError("Error"));
@@ -179,12 +178,12 @@ public class ResultUnwrapTests {
 
         // Act - Unwrap returns value or throws
         var unwrappedSuccess = successResult.Unwrap();
-        var unwrapFailureThrows = Should.Throw<InvalidOperationException>(() => failureResult.Unwrap());
+        var unwrapFailureThrows = await Assert.That(() => failureResult.Unwrap()).ThrowsExactly<InvalidOperationException>();
 
         // Assert
-        matchedSuccess.ShouldBe(42);
-        matchedFailure.ShouldBe(-1);
-        unwrappedSuccess.ShouldBe(42);
-        unwrapFailureThrows.ShouldNotBeNull();
+        await Assert.That(matchedSuccess).IsEqualTo(42);
+        await Assert.That(matchedFailure).IsEqualTo(-1);
+        await Assert.That(unwrappedSuccess).IsEqualTo(42);
+        await Assert.That(unwrapFailureThrows).IsNotNull();
     }
 }

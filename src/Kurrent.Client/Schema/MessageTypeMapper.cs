@@ -34,6 +34,13 @@ public class MessageTypeMapper {
 	        : Results.Success;
     }
 
+    /// <summary>
+    /// Attempts to add a mapping between a schema name and a message type.
+    /// </summary>
+    /// <param name="schemaName">The schema name to be mapped.</param>
+    /// <typeparam name="T">
+    /// The type to associate with the schema name. The <see cref="Type"/> of <typeparamref name="T"/>
+    /// </typeparam>
     public MapMessageTypeResult Map<T>(SchemaName schemaName) => Map(schemaName, typeof(T));
 
     /// <summary>
@@ -49,11 +56,10 @@ public class MessageTypeMapper {
 		if (TypeMap.TryAdd(schemaName, messageType)) return true;
 
 		var mappedType = TypeMap[schemaName];
-		if (mappedType != messageType)
-			throw new MessageTypeConflictException(schemaName, mappedType, messageType);
-
-		return false;
-	}
+		return mappedType != messageType
+            ? throw new MessageTypeConflictException(schemaName, mappedType, messageType)
+            : false;
+    }
 
 	/// <summary>
 	/// Attempts to add a mapping between a schema name and a message type.
@@ -124,15 +130,14 @@ public class MessageTypeMapper {
 	/// <exception cref="SchemaNameMapNotFoundException">
 	/// Thrown when the schema name is not found and <paramref name="throwWhenMissing"/> is <c>true</c>.
 	/// </exception>
-	public Type GetMessageType(string schemaName, bool throwWhenMissing = true) {
-		return TypeMap.TryGetValue(schemaName, out var messageType)
-			? messageType
-			: throwWhenMissing
-				? throw new SchemaNameMapNotFoundException(schemaName)
-				: Missing;
-	}
+	public Type GetMessageType(string schemaName, bool throwWhenMissing = true) =>
+        TypeMap.TryGetValue(schemaName, out var messageType)
+            ? messageType
+            : throwWhenMissing
+                ? throw new SchemaNameMapNotFoundException(schemaName)
+                : Missing;
 
-	/// <summary>
+    /// <summary>
 	/// Retrieves the schema name associated with the specified message type.
 	/// </summary>
 	/// <param name="messageType">The message type to look up.</param>
@@ -147,15 +152,14 @@ public class MessageTypeMapper {
 	/// <exception cref="MessageTypeMapNotFoundException">
 	/// Thrown when the message type is not found and <paramref name="throwWhenMissing"/> is <c>true</c>.
 	/// </exception>
-	public SchemaName GetSchemaName(Type messageType, bool throwWhenMissing = true) {
-		return TypeMap.TryGetKey(messageType, out var schemaName)
-			? schemaName
-			: throwWhenMissing
-				? throw new MessageTypeMapNotFoundException(messageType)
-				: SchemaName.None;
-	}
+	public SchemaName GetSchemaName(Type messageType, bool throwWhenMissing = true) =>
+        TypeMap.TryGetKey(messageType, out var schemaName)
+            ? schemaName
+            : throwWhenMissing
+                ? throw new MessageTypeMapNotFoundException(messageType)
+                : SchemaName.None;
 
-	/// <summary>
+    /// <summary>
 	/// Retrieves the schema name associated with the specified message type,
 	/// or returns the provided default schema name if the message type is not found.
 	/// </summary>
@@ -189,16 +193,16 @@ public class MessageTypeMapper {
 		TypeMap.ContainsKey(schemaName);
 
 	/// <summary>
-	/// Resolves the message type associated with the specified schema name. Attempts to retrieve
-	/// the message type from the existing mapping or resolve it using known system types. If the schema
-	/// name is not mapped and cannot be resolved, an exception is thrown.
+	/// Resolves the message type associated with the specified schema name.
+	/// Types must be explicitly registered via <see cref="Map"/> or auto-mapped during serialization.
 	/// </summary>
 	/// <param name="schemaName">The schema name for which the message type should be resolved.</param>
 	/// <returns>The resolved message type associated with the specified schema name.</returns>
 	/// <exception cref="MessageTypeResolutionException">
-	/// Thrown if the schema name is not mapped and cannot be resolved to any known type.
+	/// Thrown if the schema name is not mapped to any known type.
 	/// </exception>
 	public Type GetOrResolveMessageType(SchemaName schemaName) =>
-		TryGetMessageType(schemaName, out var messageType) || SystemTypes.TryResolveType(schemaName, out messageType)
-			? messageType : throw new MessageTypeResolutionException(schemaName);
+		TryGetMessageType(schemaName, out var messageType)
+			? messageType
+			: throw new MessageTypeResolutionException(schemaName);
 }

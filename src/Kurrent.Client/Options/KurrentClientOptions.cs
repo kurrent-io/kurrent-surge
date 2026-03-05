@@ -149,15 +149,6 @@ public record KurrentClientOptions : OptionsBase<KurrentClientOptions, KurrentCl
     /// </remarks>
     public KurrentClientSchemaOptions Schema { get; init; } = KurrentClientSchemaOptions.FullValidation;
 
-    /// <summary>
-    /// Provides a mechanism for mapping message types to their corresponding schemas.
-    /// </summary>
-    /// <remarks>
-    /// The mapper is used to associate specific message types with their schemas in the schema registry.
-    /// This ensures that the correct schema is used when producing or consuming messages.
-    /// </remarks>
-    public MessageTypeMapper Mapper { get; init; } = new();
-
 	/// <summary>
 	/// An optional list of <see cref="Interceptor"/>s to use.
 	/// </summary>

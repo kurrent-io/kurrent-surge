@@ -9,7 +9,7 @@ public class ResultBindTests {
     Faker Faker { get; } = new();
 
     [Test]
-    public void bind_chains_success_to_another_success() {
+    public async Task bind_chains_success_to_another_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -19,12 +19,12 @@ public class ResultBindTests {
             Kurrent.Result.Success<Position, InvalidMoveError>(new Position(1, 2)));
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBeOfType<Position>();
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsTypeOf<Position>();
     }
 
     [Test]
-    public void bind_chains_success_to_failure() {
+    public async Task bind_chains_success_to_failure() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -35,12 +35,12 @@ public class ResultBindTests {
             Kurrent.Result.Failure<Position, InvalidMoveError>(error));
 
         // Assert
-        bound.IsFailure.ShouldBeTrue();
-        bound.Error.ShouldBe(error);
+        await Assert.That(bound.IsFailure).IsTrue();
+        await Assert.That(bound.Error).IsEqualTo(error);
     }
 
     [Test]
-    public void bind_does_not_execute_on_failure() {
+    public async Task bind_does_not_execute_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Original error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -53,13 +53,13 @@ public class ResultBindTests {
         });
 
         // Assert
-        bindExecuted.ShouldBeFalse();
-        bound.IsFailure.ShouldBeTrue();
-        bound.Error.ShouldBe(error);
+        await Assert.That(bindExecuted).IsFalse();
+        await Assert.That(bound.IsFailure).IsTrue();
+        await Assert.That(bound.Error).IsEqualTo(error);
     }
 
     [Test]
-    public void bind_with_state_passes_state_to_binder() {
+    public async Task bind_with_state_passes_state_to_binder() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -70,12 +70,12 @@ public class ResultBindTests {
             Kurrent.Result.Success<int, InvalidMoveError>(pos.Row * mult), multiplier);
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBe(position.Row * multiplier);
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsEqualTo(position.Row * multiplier);
     }
 
     [Test]
-    public void bind_with_state_does_not_execute_on_failure() {
+    public async Task bind_with_state_does_not_execute_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "State error");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
@@ -89,12 +89,12 @@ public class ResultBindTests {
         }, stateValue);
 
         // Assert
-        bindExecuted.ShouldBeFalse();
-        bound.IsFailure.ShouldBeTrue();
+        await Assert.That(bindExecuted).IsFalse();
+        await Assert.That(bound.IsFailure).IsTrue();
     }
 
     [Test]
-    public async ValueTask bind_async_chain_awaits_task_then_binds() {
+    public async Task bind_async_chain_awaits_task_then_binds() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -105,12 +105,12 @@ public class ResultBindTests {
             Kurrent.Result.Success<Position, InvalidMoveError>(new Position(1, 1)));
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBeOfType<Position>();
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsTypeOf<Position>();
     }
 
     [Test]
-    public async ValueTask bind_async_executes_async_binder_on_success() {
+    public async Task bind_async_executes_async_binder_on_success() {
         // Arrange
         var position = new Position(2, 3);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -122,12 +122,12 @@ public class ResultBindTests {
         });
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBeOfType<GameId>();
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsTypeOf<GameId>();
     }
 
     [Test]
-    public async ValueTask bind_async_can_return_failure_from_async_binder() {
+    public async Task bind_async_can_return_failure_from_async_binder() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -140,12 +140,12 @@ public class ResultBindTests {
         });
 
         // Assert
-        bound.IsFailure.ShouldBeTrue();
-        bound.Error.ShouldBe(error);
+        await Assert.That(bound.IsFailure).IsTrue();
+        await Assert.That(bound.Error).IsEqualTo(error);
     }
 
     [Test]
-    public async ValueTask bind_async_does_not_execute_async_binder_on_failure() {
+    public async Task bind_async_does_not_execute_async_binder_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Original");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -159,12 +159,12 @@ public class ResultBindTests {
         });
 
         // Assert
-        bindExecuted.ShouldBeFalse();
-        bound.IsFailure.ShouldBeTrue();
+        await Assert.That(bindExecuted).IsFalse();
+        await Assert.That(bound.IsFailure).IsTrue();
     }
 
     [Test]
-    public async ValueTask bind_async_chain_with_async_binder_awaits_both() {
+    public async Task bind_async_chain_with_async_binder_awaits_both() {
         // Arrange
         var position = new Position(1, 2);
         var resultTask = ValueTask.FromResult(
@@ -177,12 +177,12 @@ public class ResultBindTests {
         });
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBe("1,2");
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsEqualTo("1,2");
     }
 
     [Test]
-    public async ValueTask bind_async_with_state_chain_passes_state() {
+    public async Task bind_async_with_state_chain_passes_state() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -194,12 +194,12 @@ public class ResultBindTests {
             Kurrent.Result.Success<string, InvalidMoveError>($"{pre}: {id.Value}"), prefix);
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldStartWith(prefix);
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).StartsWith(prefix);
     }
 
     [Test]
-    public async ValueTask bind_async_with_state_executes_async_binder() {
+    public async Task bind_async_with_state_executes_async_binder() {
         // Arrange
         var position = new Position(2, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -212,12 +212,12 @@ public class ResultBindTests {
         }, multiplier);
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBe(position.Row * multiplier);
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsEqualTo(position.Row * multiplier);
     }
 
     [Test]
-    public async ValueTask bind_async_with_state_does_not_execute_on_failure() {
+    public async Task bind_async_with_state_does_not_execute_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Failure");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
@@ -232,12 +232,12 @@ public class ResultBindTests {
         }, stateValue);
 
         // Assert
-        bindExecuted.ShouldBeFalse();
-        bound.IsFailure.ShouldBeTrue();
+        await Assert.That(bindExecuted).IsFalse();
+        await Assert.That(bound.IsFailure).IsTrue();
     }
 
     [Test]
-    public async ValueTask bind_async_with_state_chain_with_async_binder_awaits_both() {
+    public async Task bind_async_with_state_chain_with_async_binder_awaits_both() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -251,12 +251,12 @@ public class ResultBindTests {
         }, suffix);
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldEndWith(suffix);
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).EndsWith(suffix);
     }
 
     [Test]
-    public void bind_can_chain_multiple_operations() {
+    public async Task bind_can_chain_multiple_operations() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -268,12 +268,12 @@ public class ResultBindTests {
             .Bind(row => Kurrent.Result.Success<string, InvalidMoveError>(row.ToString()));
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBe("1");
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsEqualTo("1");
     }
 
     [Test]
-    public void bind_short_circuits_on_first_failure() {
+    public async Task bind_short_circuits_on_first_failure() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -289,13 +289,13 @@ public class ResultBindTests {
             });
 
         // Assert
-        secondBindExecuted.ShouldBeFalse();
-        bound.IsFailure.ShouldBeTrue();
-        bound.Error.ShouldBe(error);
+        await Assert.That(secondBindExecuted).IsFalse();
+        await Assert.That(bound.IsFailure).IsTrue();
+        await Assert.That(bound.Error).IsEqualTo(error);
     }
 
     [Test]
-    public void bind_preserves_original_failure_through_chain() {
+    public async Task bind_preserves_original_failure_through_chain() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Original");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -306,12 +306,12 @@ public class ResultBindTests {
             .Bind(pos => Kurrent.Result.Success<int, InvalidMoveError>(pos.Row));
 
         // Assert
-        bound.IsFailure.ShouldBeTrue();
-        bound.Error.ShouldBe(error);
+        await Assert.That(bound.IsFailure).IsTrue();
+        await Assert.That(bound.Error).IsEqualTo(error);
     }
 
     [Test]
-    public void bind_combined_with_map_enables_complex_pipelines() {
+    public async Task bind_combined_with_map_enables_complex_pipelines() {
         // Arrange
         var position = new Position(2, 3);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -323,12 +323,12 @@ public class ResultBindTests {
             .Map(str => $"Row: {str}");
 
         // Assert
-        pipeline.IsSuccess.ShouldBeTrue();
-        pipeline.Value.ShouldBe("Row: 2");
+        await Assert.That(pipeline.IsSuccess).IsTrue();
+        await Assert.That(pipeline.Value).IsEqualTo("Row: 2");
     }
 
     [Test]
-    public void bind_enables_conditional_logic_in_chain() {
+    public async Task bind_enables_conditional_logic_in_chain() {
         // Arrange
         var position = new Position(1, 1);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -340,12 +340,12 @@ public class ResultBindTests {
                 new InvalidMoveError(Guid.Empty, "Not center")));
 
         // Assert
-        bound.IsSuccess.ShouldBeTrue();
-        bound.Value.ShouldBe("Center");
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(bound.Value).IsEqualTo("Center");
     }
 
     [Test]
-    public void bind_with_conditional_can_fail() {
+    public async Task bind_with_conditional_can_fail() {
         // Arrange
         var position = new Position(0, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -357,12 +357,12 @@ public class ResultBindTests {
                 new InvalidMoveError(Guid.Empty, "Not center")));
 
         // Assert
-        bound.IsFailure.ShouldBeTrue();
-        bound.Error.Reason.ShouldBe("Not center");
+        await Assert.That(bound.IsFailure).IsTrue();
+        await Assert.That(bound.Error.Reason).IsEqualTo("Not center");
     }
 
     [Test]
-    public void bind_vs_map_difference_demonstration() {
+    public async Task bind_vs_map_difference_demonstration() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -373,13 +373,13 @@ public class ResultBindTests {
             Kurrent.Result.Success<Position, InvalidMoveError>(new Position(1, 2)));
 
         // Assert - Both succeed but Bind could have returned failure
-        mapped.IsSuccess.ShouldBeTrue();
-        bound.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBeEquivalentTo(bound.Value);
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(bound.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEquivalentTo(bound.Value);
     }
 
     [Test]
-    public void bind_enables_railway_oriented_programming() {
+    public async Task bind_enables_railway_oriented_programming() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -394,12 +394,12 @@ public class ResultBindTests {
             .Map(pos => $"Valid position: {pos.Row},{pos.Column}");
 
         // Assert
-        pipeline.IsSuccess.ShouldBeTrue();
-        pipeline.Value.ShouldStartWith("Valid position");
+        await Assert.That(pipeline.IsSuccess).IsTrue();
+        await Assert.That(pipeline.Value).StartsWith("Valid position");
     }
 
     [Test]
-    public async ValueTask bind_async_enables_complex_async_workflows() {
+    public async Task bind_async_enables_complex_async_workflows() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -419,12 +419,12 @@ public class ResultBindTests {
             });
 
         // Assert
-        pipeline.IsSuccess.ShouldBeTrue();
-        pipeline.Value.ShouldBe("Diagonal");
+        await Assert.That(pipeline.IsSuccess).IsTrue();
+        await Assert.That(pipeline.Value).IsEqualTo("Diagonal");
     }
 
     [Test]
-    public void bind_error_type_remains_consistent_through_chain() {
+    public async Task bind_error_type_remains_consistent_through_chain() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -435,7 +435,7 @@ public class ResultBindTests {
             .Bind(pos => Kurrent.Result.Success<int, InvalidMoveError>(pos.Row));
 
         // Assert - Error type is InvalidMoveError throughout
-        bound.IsSuccess.ShouldBeTrue();
+        await Assert.That(bound.IsSuccess).IsTrue();
         // If it were a failure, Error would be InvalidMoveError type
     }
 }

@@ -13,48 +13,46 @@ namespace Processor.WithPostgres;
 public sealed class ClubSpendingProcessor(NpgsqlDataSource dataSource) : IRecordProcessor {
     readonly ConcurrentDictionary<string, ClubSpending> _pending = new();
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            if (record.Value is not PlayerTransferred transfer)
-                continue;
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is not PlayerTransferred transfer)
+            return ValueTask.CompletedTask;
 
-            var season = GetSeasonForDate(transfer.EffectiveDate);
+        var season = GetSeasonForDate(transfer.EffectiveDate);
 
-            // Update selling club (receives money)
-            if (!transfer.FromClubId.IsUnset) {
-                var key = $"{transfer.FromClubId}:{season}";
-                _pending.AddOrUpdate(
-                    key,
-                    _ => new ClubSpending {
-                        ClubId        = transfer.FromClubId.ToString(),
-                        Season        = season,
-                        TotalReceived = transfer.Fee.Amount,
-                        PlayersOut    = 1
-                    },
-                    (_, existing) => existing with {
-                        TotalReceived = existing.TotalReceived + transfer.Fee.Amount,
-                        PlayersOut    = existing.PlayersOut + 1
-                    }
-                );
-            }
+        // Update selling club (receives money)
+        if (!transfer.FromClubId.IsUnset) {
+            var key = $"{transfer.FromClubId}:{season}";
+            _pending.AddOrUpdate(
+                key,
+                _ => new ClubSpending {
+                    ClubId        = transfer.FromClubId.ToString(),
+                    Season        = season,
+                    TotalReceived = transfer.Fee.Amount,
+                    PlayersOut    = 1
+                },
+                (_, existing) => existing with {
+                    TotalReceived = existing.TotalReceived + transfer.Fee.Amount,
+                    PlayersOut    = existing.PlayersOut + 1
+                }
+            );
+        }
 
-            // Update buying club (spends money)
-            if (!transfer.ToClubId.IsUnset) {
-                var key = $"{transfer.ToClubId}:{season}";
-                _pending.AddOrUpdate(
-                    key,
-                    _ => new ClubSpending {
-                        ClubId     = transfer.ToClubId.ToString(),
-                        Season     = season,
-                        TotalSpent = transfer.Fee.Amount,
-                        PlayersIn  = 1
-                    },
-                    (_, existing) => existing with {
-                        TotalSpent = existing.TotalSpent + transfer.Fee.Amount,
-                        PlayersIn  = existing.PlayersIn + 1
-                    }
-                );
-            }
+        // Update buying club (spends money)
+        if (!transfer.ToClubId.IsUnset) {
+            var key = $"{transfer.ToClubId}:{season}";
+            _pending.AddOrUpdate(
+                key,
+                _ => new ClubSpending {
+                    ClubId     = transfer.ToClubId.ToString(),
+                    Season     = season,
+                    TotalSpent = transfer.Fee.Amount,
+                    PlayersIn  = 1
+                },
+                (_, existing) => existing with {
+                    TotalSpent = existing.TotalSpent + transfer.Fee.Amount,
+                    PlayersIn  = existing.PlayersIn + 1
+                }
+            );
         }
 
         return ValueTask.CompletedTask;

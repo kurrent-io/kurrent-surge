@@ -15,12 +15,12 @@ public record StreamInfo {
     /// <summary>
     /// The revision of the metadata stream
     /// </summary>
-    public StreamRevision MetadataRevision { get; init; } = StreamRevision.Unset;
+    public Revision MetadataRevision { get; init; } = Revision.Unset;
 
     /// <summary>
     ///  The last stream revision of the stream.
     /// </summary>
-    public StreamRevision LastStreamRevision { get; init; } = StreamRevision.Unset;
+    public Revision LastRevision { get; init; } = Revision.Unset;
 
     /// <summary>
     /// The last position in the stream.

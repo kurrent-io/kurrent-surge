@@ -3,7 +3,6 @@ using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.Shouldly;
 using Kurrent.Testing.TUnit;
 using Serilog;
 
@@ -34,8 +33,7 @@ public class ReadTests {
             .Build();
 
         await using var messages = await Fixture.Client.Streams
-            .ReadRecords(options)
-            .ShouldNotThrowOrFailAsync();
+            .ReadRecords(options);
 
         var records = new List<Record>();
 
@@ -57,7 +55,7 @@ public class ReadTests {
             );
         }
 
-        records.Count.ShouldBe(simulation.Records.Count);
+        await Assert.That(records.Count).IsEqualTo(simulation.Records.Count);
     }
 
     [Test]
@@ -67,34 +65,33 @@ public class ReadTests {
         var now = Fixture.Time.GetUtcNow();
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .ReadStreamRecords(simulation.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        records.Count.ShouldBe(simulation.Records.Count);
+        await Assert.That(records.Count).IsEqualTo(simulation.Records.Count);
 
         for (var i = 0; i < records.Count; i++) {
             var record   = records[i];
             var iotEvent = simulation.Records[i];
 
-            record.Stream.ShouldBe(simulation.Stream);
-            record.StreamRevision.ShouldBeEquivalentTo(StreamRevision.From(i));
-            record.Position.LogPosition.ShouldBeLessThanOrEqualTo(simulation.Position);
+            await Assert.That(record.Stream).IsEqualTo(simulation.Stream);
+            await Assert.That(record.Revision).IsEquivalentTo(Revision.From(i));
+            await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(simulation.Position);
 
-            record.Schema.SchemaName.Value.ShouldNotBeEmpty();
-            record.Schema.SchemaFormat.ShouldBe(iotEvent.DataFormat);
-            record.Schema.SchemaVersionId.ShouldBe(SchemaVersionId.None);
+            await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
+            await Assert.That(record.Schema.SchemaFormat).IsEqualTo(iotEvent.DataFormat);
+            await Assert.That(record.Schema.SchemaVersionId).IsEqualTo(SchemaVersionId.None);
 
-            record.Value.ShouldBeEquivalentTo(iotEvent.Value);
-            record.ValueType.ShouldBe(iotEvent.Value.GetType());
+            await Assert.That(record.Value).IsEquivalentTo(iotEvent.Value);
+            await Assert.That(record.ValueType).IsEqualTo(iotEvent.Value.GetType());
 
-            record.Timestamp.ShouldNotBeInRange(now.DateTime, Fixture.Time.GetUtcNow().DateTime);
+            await Assert.That(record.Timestamp < now.DateTime || record.Timestamp > Fixture.Time.GetUtcNow().DateTime).IsTrue();
 
-            record.Metadata.Stringify().ShouldBeEquivalentTo(iotEvent.Metadata.Stringify());
+            await Assert.That(record.Metadata.Stringify()).IsEquivalentTo(iotEvent.Metadata.Stringify());
         }
     }
 
@@ -114,8 +111,7 @@ public class ReadTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, cancellator.Token)
-            .ShouldNotThrowOrFailAsync();
+            .ReadStreamRecords(simulation.Stream, cancellator.Token);
 
         var cancelOn = simulation.Records.Count / 2 + simulation.Records.Count % 2;
 
@@ -123,8 +119,8 @@ public class ReadTests {
             if (--cancelOn == 0 && !cancellator.IsCancellationRequested)
                 await cancellator.CancelAsync();
 
-        messages.QueuedMessages.ShouldBe(0, "Should have flushed all messages on cancellation");
-        cancellator.IsCancellationRequested.ShouldBeTrue();
+        await Assert.That(messages.QueuedMessages).IsEqualTo(0);
+        await Assert.That(cancellator.IsCancellationRequested).IsTrue();
     }
 
     [Test]
@@ -141,8 +137,7 @@ public class ReadTests {
         var simulation = await Fixture.SeedSmartHomeActivity(records, ct);
 
         await using RecordStream messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .ReadStreamRecords(simulation.Stream, ct);
 
         var cancelOn = simulation.Records.Count / 2 + simulation.Records.Count % 2;
 
@@ -155,12 +150,10 @@ public class ReadTests {
                 await Task.Delay(25); // simulate some processing time
         }
 
-        messages.QueuedMessages.ShouldBeGreaterThanOrEqualTo(
-            cancelOn, "Should not queue more than one message before cancellation"
-        );
+        await Assert.That(messages.QueuedMessages).IsGreaterThanOrEqualTo(cancelOn);
 
-        cancellator.Token.IsCancellationRequested.ShouldBeTrue();
-        cancellator.IsCancellationRequested.ShouldBeTrue();
+        await Assert.That(cancellator.Token.IsCancellationRequested).IsTrue();
+        await Assert.That(cancellator.IsCancellationRequested).IsTrue();
     }
 
     [Test]
@@ -169,12 +162,11 @@ public class ReadTests {
 
         var expectedRecord = simulation.Records.First();
 
-        await Fixture.Client.Streams
-            .ReadFirstStreamRecord(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(record => {
-                record.Value.ShouldBeEquivalentTo(expectedRecord.Value);
-                record.Id.ShouldBe(expectedRecord.RecordId);
-            });
+        var record = await Fixture.Client.Streams
+            .ReadFirstStreamRecord(simulation.Stream, ct);
+
+        await Assert.That(record.Value).IsEquivalentTo(expectedRecord.Value);
+        await Assert.That(record.Id).IsEqualTo(expectedRecord.RecordId);
     }
 
     [Test]
@@ -183,12 +175,11 @@ public class ReadTests {
 
         var expectedRecord = simulation.Records.Last();
 
-        await Fixture.Client.Streams
-            .ReadLastStreamRecord(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(record => {
-                record.Value.ShouldBeEquivalentTo(expectedRecord.Value);
-                record.Id.ShouldBe(expectedRecord.RecordId);
-            });
+        var record = await Fixture.Client.Streams
+            .ReadLastStreamRecord(simulation.Stream, ct);
+
+        await Assert.That(record.Value).IsEquivalentTo(expectedRecord.Value);
+        await Assert.That(record.Id).IsEqualTo(expectedRecord.RecordId);
     }
 
     public class NonExistingPositions : TestCaseGenerator<LogPosition> {
@@ -213,8 +204,7 @@ public class ReadTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         RecordStream messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .UnwrapAsync();
+            .ReadStreamRecords(simulation.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -233,11 +223,11 @@ public class ReadTests {
         // does not exist between records
         var brokenPosition = LogPosition.From(simulation.Position - 1);
 
-        await Fixture.Client.Streams
-            .ReadRecords(brokenPosition, ct)
-            .ShouldFailAsync(err => err
-                .Value.ShouldBeOfType<LogPositionNotFoundException>()
-                .Message.ShouldContain($"{brokenPosition}"));
+        var ex = await Assert.ThrowsAsync<LogPositionNotFoundException>(
+            async () => await Fixture.Client.Streams
+                .ReadRecords(brokenPosition, ct));
+
+        await Assert.That(ex.Message).Contains($"{brokenPosition}");
     }
 
     [Test]
@@ -247,8 +237,7 @@ public class ReadTests {
         var startFrom = 5;
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, StreamRevision.From(startFrom), ct)
-            .ShouldNotThrowOrFailAsync();
+            .ReadStreamRecords(simulation.Stream, Revision.From(startFrom), ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -257,16 +246,16 @@ public class ReadTests {
 
         var expectedRecords = simulation.Records.Skip(startFrom).ToList();
 
-        records.Count.ShouldBe(expectedRecords.Count);
+        await Assert.That(records.Count).IsEqualTo(expectedRecords.Count);
 
         for (var i = 0; i < records.Count; i++) {
             var record   = records[i];
             var expected = expectedRecords[i];
 
-            record.Stream.ShouldBe(simulation.Stream);
-            record.StreamRevision.ShouldBeEquivalentTo(StreamRevision.From(startFrom + i));
-            record.Id.ShouldBe(expected.RecordId);
-            record.Value.ShouldBeEquivalentTo(expected.Value);
+            await Assert.That(record.Stream).IsEqualTo(simulation.Stream);
+            await Assert.That(record.Revision).IsEquivalentTo(Revision.From(startFrom + i));
+            await Assert.That(record.Id).IsEqualTo(expected.RecordId);
+            await Assert.That(record.Value).IsEquivalentTo(expected.Value);
         }
     }
 
@@ -275,12 +264,11 @@ public class ReadTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Delete(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .ShouldFailAsync(err => err.Value.ShouldBeOfType<StreamDeletedException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .ReadStreamRecords(simulation.Stream, ct))
+            .Throws<StreamDeletedException>();
     }
 
     [Test]
@@ -288,20 +276,19 @@ public class ReadTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Tombstone(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
-            .ShouldFailAsync(err => err.Value.ShouldBeOfType<StreamTombstonedException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .ReadStreamRecords(simulation.Stream, ct))
+            .Throws<StreamTombstonedException>();
     }
 
     [Test]
     public async ValueTask fails_with_stream_not_found_error_when_stream_does_not_exist(CancellationToken ct) {
         var activity = HomeAutomationTestData.SimulateHomeActivity();
 
-        await Fixture.Client.Streams
-            .ReadStreamRecords(activity.Stream, ct)
-            .ShouldFailAsync(err => err.Value.ShouldBeOfType<StreamNotFoundException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .ReadStreamRecords(activity.Stream, ct))
+            .Throws<StreamNotFoundException>();
     }
 }

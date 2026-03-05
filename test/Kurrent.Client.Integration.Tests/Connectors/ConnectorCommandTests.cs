@@ -1,6 +1,5 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Connectors;
 
@@ -17,8 +16,7 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, name, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, name, settings, ct);
 	}
 
 	[Test]
@@ -28,8 +26,7 @@ public class ConnectorCommandTests {
         var configuration = KurrentClientTestFixture.NewConnectorConfiguration();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, name, configuration, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, name, configuration, ct);
 	}
 
 	[Test]
@@ -38,12 +35,10 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Delete(connectorId, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Delete(connectorId, ct);
 	}
 
 	[Test]
@@ -52,16 +47,14 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, settings, ct);
 
 		var updatedSettings = new Dictionary<string, string?>(settings) {
 			["subscription:filter:expression"] = "updated-"
 		};
 
 		await Fixture.Client.Connectors
-			.Reconfigure(connectorId, updatedSettings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Reconfigure(connectorId, updatedSettings, ct);
 	}
 
 	[Test]
@@ -70,8 +63,7 @@ public class ConnectorCommandTests {
 		var configuration = KurrentClientTestFixture.NewConnectorConfiguration();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, configuration, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, configuration, ct);
 
 		var updatedSettings = new Dictionary<string, string?>(KurrentClientTestFixture.NewConnectorSettings()) {
 			["subscription:filter:expression"] = "updated-"
@@ -79,8 +71,7 @@ public class ConnectorCommandTests {
 		var updatedConfiguration = updatedSettings.ToProtobufStruct();
 
 		await Fixture.Client.Connectors
-			.Reconfigure(connectorId, updatedConfiguration, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Reconfigure(connectorId, updatedConfiguration, ct);
 	}
 
 	[Test]
@@ -90,14 +81,12 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, name, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, name, settings, ct);
 
 		var newName = KurrentClientTestFixture.NewConnectorName();
 
 		await Fixture.Client.Connectors
-			.Rename(connectorId, newName, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Rename(connectorId, newName, ct);
 	}
 
 	[Test]
@@ -106,12 +95,10 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Reset(connectorId, logPosition: 0, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Reset(connectorId, logPosition: 0, ct);
 	}
 
 	[Test]
@@ -120,12 +107,10 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Start(connectorId, logPosition: 0, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Start(connectorId, logPosition: 0, ct);
 	}
 
 	[Test]
@@ -134,15 +119,12 @@ public class ConnectorCommandTests {
 		var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
-			.Create(connectorId, settings, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Start(connectorId, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Start(connectorId, ct);
 
 		await Fixture.Client.Connectors
-			.Stop(connectorId, ct)
-			.ShouldNotThrowOrFailAsync();
+			.Stop(connectorId, ct);
 	}
 }

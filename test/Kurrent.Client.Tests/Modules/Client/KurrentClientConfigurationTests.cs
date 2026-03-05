@@ -16,7 +16,7 @@ public class KurrentClientConfigurationTests {
     #region FromConfiguration Tests
 
     [Test]
-    public void from_configuration_loads_connection_string() {
+    public async Task from_configuration_loads_connection_string() {
         var json = """
             {
               "Kurrent": {
@@ -33,14 +33,14 @@ public class KurrentClientConfigurationTests {
             .FromConfiguration(configuration)
             .Build();
 
-        options.Endpoints.ShouldHaveSingleItem();
-        options.Endpoints[0].Host.ShouldBe("localhost");
-        options.Endpoints[0].Port.ShouldBe(2113);
-        options.Security.Transport.IsEnabled.ShouldBeFalse();
+        await Assert.That(options.Endpoints).HasSingleItem();
+        await Assert.That(options.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2113);
+        await Assert.That(options.Security.Transport.IsEnabled).IsFalse();
     }
 
     [Test]
-    public void from_configuration_loads_resilience_settings() {
+    public async Task from_configuration_loads_resilience_settings() {
         var json = """
             {
               "Kurrent": {
@@ -69,18 +69,18 @@ public class KurrentClientConfigurationTests {
             .FromConfiguration(configuration)
             .Build();
 
-        options.Resilience.Deadline.ShouldBe(TimeSpan.FromSeconds(30));
-        options.Resilience.KeepAliveInterval.ShouldBe(TimeSpan.FromMinutes(1));
-        options.Resilience.KeepAliveTimeout.ShouldBe(TimeSpan.FromSeconds(20));
-        options.Resilience.Retry.Enabled.ShouldBeTrue();
-        options.Resilience.Retry.MaxAttempts.ShouldBe(5);
-        options.Resilience.Retry.InitialBackoff.ShouldBe(TimeSpan.FromMilliseconds(500));
-        options.Resilience.Retry.MaxBackoff.ShouldBe(TimeSpan.FromSeconds(15));
-        options.Resilience.Retry.BackoffMultiplier.ShouldBe(2.0);
+        await Assert.That(options.Resilience.Deadline).IsEqualTo(TimeSpan.FromSeconds(30));
+        await Assert.That(options.Resilience.KeepAliveInterval).IsEqualTo(TimeSpan.FromMinutes(1));
+        await Assert.That(options.Resilience.KeepAliveTimeout).IsEqualTo(TimeSpan.FromSeconds(20));
+        await Assert.That(options.Resilience.Retry.Enabled).IsTrue();
+        await Assert.That(options.Resilience.Retry.MaxAttempts).IsEqualTo(5);
+        await Assert.That(options.Resilience.Retry.InitialBackoff).IsEqualTo(TimeSpan.FromMilliseconds(500));
+        await Assert.That(options.Resilience.Retry.MaxBackoff).IsEqualTo(TimeSpan.FromSeconds(15));
+        await Assert.That(options.Resilience.Retry.BackoffMultiplier).IsEqualTo(2.0);
     }
 
     [Test]
-    public void from_configuration_loads_connection_name_as_override() {
+    public async Task from_configuration_loads_connection_name_as_override() {
         var json = """
             {
               "Kurrent": {
@@ -98,11 +98,11 @@ public class KurrentClientConfigurationTests {
             .FromConfiguration(configuration)
             .Build();
 
-        options.ConnectionName.ShouldBe("my-custom-service");
+        await Assert.That(options.ConnectionName).IsEqualTo("my-custom-service");
     }
 
     [Test]
-    public void from_configuration_loads_gossip_settings() {
+    public async Task from_configuration_loads_gossip_settings() {
         var json = """
             {
               "Kurrent": {
@@ -125,14 +125,14 @@ public class KurrentClientConfigurationTests {
             .FromConfiguration(configuration)
             .Build();
 
-        options.Gossip.MaxDiscoverAttempts.ShouldBe(20);
-        options.Gossip.DiscoveryInterval.ShouldBe(TimeSpan.FromMilliseconds(500));
-        options.Gossip.Timeout.ShouldBe(TimeSpan.FromSeconds(10));
-        options.Gossip.ReadPreference.ShouldBe(NodePreference.Leader);
+        await Assert.That(options.Gossip.MaxDiscoverAttempts).IsEqualTo(20);
+        await Assert.That(options.Gossip.DiscoveryInterval).IsEqualTo(TimeSpan.FromMilliseconds(500));
+        await Assert.That(options.Gossip.Timeout).IsEqualTo(TimeSpan.FromSeconds(10));
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodePreference.Leader);
     }
 
     [Test]
-    public void from_configuration_returns_unchanged_when_section_missing() {
+    public async Task from_configuration_returns_unchanged_when_section_missing() {
         var json = """
             {
               "SomeOther": {
@@ -148,13 +148,13 @@ public class KurrentClientConfigurationTests {
             .Build();
 
         // Should have default values
-        options.Endpoints.ShouldHaveSingleItem();
-        options.Endpoints[0].Host.ShouldBe("localhost");
-        options.Endpoints[0].Port.ShouldBe(2113);
+        await Assert.That(options.Endpoints).HasSingleItem();
+        await Assert.That(options.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2113);
     }
 
     [Test]
-    public void fluent_methods_override_configuration_values() {
+    public async Task fluent_methods_override_configuration_values() {
         var json = """
             {
               "Kurrent": {
@@ -176,11 +176,11 @@ public class KurrentClientConfigurationTests {
             .Build();
 
         // Fluent override should take precedence
-        options.Resilience.Deadline.ShouldBe(TimeSpan.FromMinutes(2));
+        await Assert.That(options.Resilience.Deadline).IsEqualTo(TimeSpan.FromMinutes(2));
     }
 
     [Test]
-    public void from_configuration_with_custom_section_name() {
+    public async Task from_configuration_with_custom_section_name() {
         var json = """
             {
               "Kurrent": {
@@ -197,10 +197,10 @@ public class KurrentClientConfigurationTests {
             .FromConfiguration(configuration, "MyCustomClient")
             .Build();
 
-        options.Endpoints.ShouldHaveSingleItem();
-        options.Endpoints[0].Host.ShouldBe("custom-host");
-        options.Endpoints[0].Port.ShouldBe(2114);
-        options.Security.Transport.IsEnabled.ShouldBeTrue();
+        await Assert.That(options.Endpoints).HasSingleItem();
+        await Assert.That(options.Endpoints[0].Host).IsEqualTo("custom-host");
+        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2114);
+        await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
     }
 
     #endregion
@@ -208,7 +208,7 @@ public class KurrentClientConfigurationTests {
     #region Service Collection Extension Tests
 
     [Test]
-    public void add_kurrent_client_parameterless_uses_configuration() {
+    public async Task add_kurrent_client_parameterless_uses_configuration() {
         var json = """
             {
               "Kurrent": {
@@ -229,12 +229,12 @@ public class KurrentClientConfigurationTests {
         var provider = services.BuildServiceProvider();
         var client = provider.GetRequiredService<KurrentClient>();
 
-        client.ShouldNotBeNull();
+        await Assert.That(client).IsNotNull();
         // Client is created - if connection string was invalid, it would throw during creation
     }
 
     [Test]
-    public void add_kurrent_client_parameterless_uses_defaults_without_configuration() {
+    public async Task add_kurrent_client_parameterless_uses_defaults_without_configuration() {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddKurrentClient();
@@ -242,12 +242,12 @@ public class KurrentClientConfigurationTests {
         var provider = services.BuildServiceProvider();
         var client = provider.GetRequiredService<KurrentClient>();
 
-        client.ShouldNotBeNull();
+        await Assert.That(client).IsNotNull();
         // Client is created with defaults (localhost:2113)
     }
 
     [Test]
-    public void add_kurrent_client_builder_auto_binds_then_applies_overrides() {
+    public async Task add_kurrent_client_builder_auto_binds_then_applies_overrides() {
         var json = """
             {
               "Kurrent": {
@@ -273,12 +273,12 @@ public class KurrentClientConfigurationTests {
         var provider = services.BuildServiceProvider();
         var client = provider.GetRequiredService<KurrentClient>();
 
-        client.ShouldNotBeNull();
+        await Assert.That(client).IsNotNull();
         // The fluent override (5 minutes) should take precedence over config (30 seconds)
     }
 
     [Test]
-    public void add_kurrent_client_service_provider_overload_has_access_to_services() {
+    public async Task add_kurrent_client_service_provider_overload_has_access_to_services() {
         var json = """
             {
               "Kurrent": {
@@ -302,11 +302,11 @@ public class KurrentClientConfigurationTests {
         var provider = services.BuildServiceProvider();
         var client = provider.GetRequiredService<KurrentClient>();
 
-        client.ShouldNotBeNull();
+        await Assert.That(client).IsNotNull();
     }
 
     [Test]
-    public void add_kurrent_client_is_idempotent() {
+    public async Task add_kurrent_client_is_idempotent() {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddKurrentClient("kurrentdb://first:2113?tls=false");
@@ -316,7 +316,7 @@ public class KurrentClientConfigurationTests {
         var clients = provider.GetServices<KurrentClient>().ToList();
 
         // Only one client should be registered (first one wins with TryAddSingleton)
-        clients.Count.ShouldBe(1);
+        await Assert.That(clients.Count).IsEqualTo(1);
     }
 
     #endregion

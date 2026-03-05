@@ -1,7 +1,5 @@
-using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Contracts = KurrentDB.Connectors.Management.Contracts;
 using Queries = KurrentDB.Connectors.Management.Contracts.Queries;
 
 namespace Kurrent.Client.Connectors;
@@ -12,8 +10,8 @@ public partial class ConnectorsClient {
     /// </summary>
     /// <param name="options">Options for filtering and pagination of connectors.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result containing the list of connectors or a specific error.</returns>
-    public async ValueTask<Result<ConnectorListResult, ListConnectorsError>> List(
+    /// <returns>A <see cref="ConnectorListResult"/> containing the matching connectors.</returns>
+    public async ValueTask<ConnectorListResult> List(
         ConnectorListOptions? options = null,
         CancellationToken cancellationToken = default
     ) {
@@ -21,7 +19,7 @@ public partial class ConnectorsClient {
 
         if (options is not null) {
             foreach (var state in options.States)
-                request.State.Add((Contracts.ConnectorState)(int)state);
+                request.State.Add((KurrentDB.Connectors.Management.Contracts.ConnectorState)(int)state);
 
             foreach (var instanceType in options.InstanceTypeNames)
                 request.InstanceTypeName.Add(instanceType);
@@ -49,11 +47,8 @@ public partial class ConnectorsClient {
                 TotalSize = response.TotalSize
             };
         }
-        catch (RpcException rex) {
-            return ListConnectorsError.FromEx(rex);
-        }
         catch (Exception ex) {
-            return ListConnectorsError.FromEx(ex);
+            throw ex.ToException();
         }
     }
 
@@ -62,8 +57,8 @@ public partial class ConnectorsClient {
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to get settings for.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result containing the connector settings or a specific error.</returns>
-    public async ValueTask<Result<ConnectorSettingsResult, GetConnectorSettingsError>> GetSettings(
+    /// <returns>A <see cref="ConnectorSettingsResult"/> containing the connector settings.</returns>
+    public async ValueTask<ConnectorSettingsResult> GetSettings(
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
@@ -81,15 +76,10 @@ public partial class ConnectorsClient {
                 SettingsUpdateTime = response.SettingsUpdateTime?.ToDateTimeOffset() ?? default
             };
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => GetConnectorSettingsError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => GetConnectorSettingsError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => GetConnectorSettingsError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return GetConnectorSettingsError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 
@@ -98,8 +88,8 @@ public partial class ConnectorsClient {
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to get configuration for.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>Result containing the connector configuration or a specific error.</returns>
-    public async ValueTask<Result<ConnectorConfigurationResult, GetConnectorConfigurationError>> GetConfiguration(
+    /// <returns>A <see cref="ConnectorConfigurationResult"/> containing the connector configuration.</returns>
+    public async ValueTask<ConnectorConfigurationResult> GetConfiguration(
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
@@ -117,15 +107,10 @@ public partial class ConnectorsClient {
                 ConfigurationUpdateTime = response.ConfigurationUpdateTime?.ToDateTimeOffset() ?? default
             };
         }
-        catch (RpcException rex) {
-            return rex.StatusCode switch {
-                StatusCode.NotFound           => GetConnectorConfigurationError.FromEx(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition => GetConnectorConfigurationError.FromEx(new ConnectorDeletedException(connectorId)),
-                _                             => GetConnectorConfigurationError.FromEx(rex)
-            };
-        }
         catch (Exception ex) {
-            return GetConnectorConfigurationError.FromEx(ex);
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From);
         }
     }
 

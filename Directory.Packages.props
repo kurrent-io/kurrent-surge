@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="DotNext.Threading" Version="5.26.3" />
+    <PackageVersion Include="Eventuous.Application" Version="0.15.1" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="Google.Api.CommonProtos" Version="2.17.0" />
     <PackageVersion Include="Google.Protobuf" Version="3.33.5" />
@@ -66,7 +67,6 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageVersion Include="Serilog.Sinks.Observable" Version="3.0.0" />
     <PackageVersion Include="Serilog.Sinks.Seq" Version="9.0.0" />
-    <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
     <PackageVersion Include="TUnit" Version="0.90.45" />
     <PackageVersion Include="TUnit.Core" Version="0.90.6" />

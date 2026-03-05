@@ -137,7 +137,7 @@ try {
     //         // the append session method would just pass any cause it doesnt matter.
     //         // .ExpectingRevision(0)
     //         // .ExpectingRevision(ExpectedStreamState.Any)
-    //         // .ExpectingRevision(ExpectedStreamState.StreamExists)
+    //         // .ExpectingRevision(ExpectedStreamState.Exists)
     //         .WithRecord(PlayerRetired.Create("001"))
     //         .Build()
     // }; // this will be a builder in real code
@@ -155,7 +155,7 @@ try {
     // // // the append session method would just pass any cause it doesnt matter.
     // // // .ExpectingRevision(0)
     // // // .ExpectingRevision(ExpectedStreamState.Any)
-    // // // .ExpectingRevision(ExpectedStreamState.StreamExists)
+    // // // .ExpectingRevision(ExpectedStreamState.Exists)
     //
     // ValueTask<StreamRevision> AppendRecords(StreamName stream, IEnumerable<AppendRecord> records) =>
     //     throw new NotImplementedException();
@@ -167,7 +167,7 @@ try {
     //         // We've seen this stream before - validate compatibility
     //         var isCompatible = expectedState == tracked
     //                         || expectedState == ExpectedStreamState.Any
-    //                         || expectedState == ExpectedStreamState.StreamExists;
+    //                         || expectedState == ExpectedStreamState.Exists;
     //
     //         if (!isCompatible)
     //             throw new InvalidOperationException(

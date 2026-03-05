@@ -7,6 +7,7 @@ using Kurrent.Client.Schema.Serialization.Bytes;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Schema.Serialization.Protobuf;
 using Kurrent.Client.Streams;
+using ProtobufMessages = Kurrent.Client.Schema.Serialization.Protobuf.ProtobufMessages;
 
 namespace Kurrent.Client;
 
@@ -25,12 +26,15 @@ public class KurrentClient : IAsyncDisposable {
         var schemaManager = new SchemaManager(
 	        new RegistryClient(this),
 	        NJsonSchemaExporter.Instance,
-	        options.Mapper);
+	        options.Schema.Mapper);
+
+        if (options.Schema.Protobuf.Context is not null)
+	        ProtobufMessages.System.Configure(options.Schema.Protobuf.Context);
 
         SerializerProvider = new SchemaSerializerProvider([
 	        new BytesPassthroughSerializer(),
-	        new JsonSchemaSerializer(new() { SchemaRegistration = SchemaRegistrationOptions.AutoMap }, schemaManager),
-	        new ProtobufSchemaSerializer(new() { SchemaRegistration = SchemaRegistrationOptions.AutoMap }, schemaManager)
+	        new JsonSchemaSerializer(options.Schema.Json, schemaManager),
+	        new ProtobufSchemaSerializer(options.Schema.Protobuf, schemaManager)
         ]);
 
         Registry                = new RegistryClient(this);

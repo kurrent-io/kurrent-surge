@@ -20,7 +20,7 @@
 //         var metadata = new StreamMetadata {
 //             MaxAge         = TimeSpan.FromHours(24),
 //             MaxCount       = 1000,
-//             TruncateBefore = StreamRevision.From(42),
+//             TruncateBefore = Revision.From(42),
 //             CacheControl   = TimeSpan.FromMinutes(30)
 //         };
 //
@@ -107,7 +107,7 @@
 //         metadata.ShouldNotBeNull();
 //         metadata.MaxAge.ShouldBe(TimeSpan.FromHours(24));
 //         metadata.MaxCount.ShouldBe(1000);
-//         metadata.TruncateBefore.ShouldBe(StreamRevision.From(42));
+//         metadata.TruncateBefore.ShouldBe(Revision.From(42));
 //         metadata.CacheControl.ShouldBe(TimeSpan.FromMinutes(30));
 //     }
 //
@@ -146,14 +146,14 @@
 //         var metadata = new StreamMetadata {
 //             MaxAge         = TimeSpan.FromDays(7),
 //             MaxCount       = 5000,
-//             TruncateBefore = StreamRevision.From(100),
+//             TruncateBefore = Revision.From(100),
 //             CacheControl   = TimeSpan.FromHours(2),
 //             Acl            = new StreamAcl { ReadRoles = ["public"] }
 //         };
 //
 //         metadata.MaxAge.ShouldBe(TimeSpan.FromDays(7));
 //         metadata.MaxCount.ShouldBe(5000);
-//         metadata.TruncateBefore.ShouldBe(StreamRevision.From(100));
+//         metadata.TruncateBefore.ShouldBe(Revision.From(100));
 //         metadata.CacheControl.ShouldBe(TimeSpan.FromHours(2));
 //         metadata.Acl.ShouldNotBeNull();
 //         metadata.Acl.Value.ReadRoles.ShouldBe(["public"]);
@@ -164,7 +164,7 @@
 //         var metadata = new StreamMetadata {
 //             MaxAge         = TimeSpan.FromMinutes(1),
 //             MaxCount       = 10,
-//             TruncateBefore = StreamRevision.From(5),
+//             TruncateBefore = Revision.From(5),
 //             CacheControl   = TimeSpan.FromSeconds(30),
 //             Acl            = new StreamAcl { ReadRoles = ["test"] }
 //         };
@@ -276,7 +276,7 @@
 //         var metadata = JsonSerializer.Deserialize<StreamMetadata>(json);
 //
 //         metadata.ShouldNotBeNull();
-//         metadata.TruncateBefore.ShouldBe(StreamRevision.Max);
+//         metadata.TruncateBefore.ShouldBe(Revision.Max);
 //     }
 //
 //     [Test]
@@ -284,7 +284,7 @@
 //         var original = new StreamMetadata {
 //             MaxAge         = TimeSpan.FromHours(48),
 //             MaxCount       = 2500,
-//             TruncateBefore = StreamRevision.From(123),
+//             TruncateBefore = Revision.From(123),
 //             CacheControl   = TimeSpan.FromMinutes(45),
 //             Acl = new StreamAcl {
 //                 ReadRoles      = ["reader1", "reader2"],

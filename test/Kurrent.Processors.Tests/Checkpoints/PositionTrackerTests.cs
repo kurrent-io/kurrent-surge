@@ -8,7 +8,7 @@ public class PositionTrackerTests {
     #region . Track .
 
     [Test]
-    public void track_single_position_returns_count_of_one() {
+    public async Task track_single_position_returns_count_of_one() {
         // Arrange
         using var tracker = new PositionTracker();
         var position = TestPositions.At(100);
@@ -17,11 +17,11 @@ public class PositionTrackerTests {
         var count = tracker.Track(position);
 
         // Assert
-        count.ShouldBe(1);
+        await Assert.That(count).IsEqualTo(1);
     }
 
     [Test]
-    public void track_multiple_positions_returns_incremented_count() {
+    public async Task track_multiple_positions_returns_incremented_count() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -31,23 +31,23 @@ public class PositionTrackerTests {
         var count3 = tracker.Track(TestPositions.At(300));
 
         // Assert
-        count1.ShouldBe(1);
-        count2.ShouldBe(2);
-        count3.ShouldBe(3);
+        await Assert.That(count1).IsEqualTo(1);
+        await Assert.That(count2).IsEqualTo(2);
+        await Assert.That(count3).IsEqualTo(3);
     }
 
     [Test]
-    public void track_unset_position_throws_argument_exception() {
+    public async Task track_unset_position_throws_argument_exception() {
         // Arrange
         using var tracker = new PositionTracker();
         var unset = RecordPosition.Unset;
 
         // Act & Assert
-        Should.Throw<ArgumentException>(() => tracker.Track(unset));
+        await Assert.That(() => tracker.Track(unset)).Throws<ArgumentException>();
     }
 
     [Test]
-    public void track_position_less_than_or_equal_to_last_flushed_throws() {
+    public async Task track_position_less_than_or_equal_to_last_flushed_throws() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -56,12 +56,12 @@ public class PositionTrackerTests {
         tracker.FlushUpTo(lastTracked);
 
         // Act & Assert
-        Should.Throw<InvalidOperationException>(() => tracker.Track(TestPositions.At(150)));
-        Should.Throw<InvalidOperationException>(() => tracker.Track(TestPositions.At(200)));
+        await Assert.That(() => tracker.Track(TestPositions.At(150))).Throws<InvalidOperationException>();
+        await Assert.That(() => tracker.Track(TestPositions.At(200))).Throws<InvalidOperationException>();
     }
 
     [Test]
-    public void positions_returns_all_tracked_positions_in_order() {
+    public async Task positions_returns_all_tracked_positions_in_order() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -72,7 +72,7 @@ public class PositionTrackerTests {
         var positions = tracker.Positions;
 
         // Assert
-        positions.ShouldHavePositions(100, 200, 300);
+        await positions.ShouldHavePositions(100, 200, 300);
     }
 
     #endregion
@@ -80,7 +80,7 @@ public class PositionTrackerTests {
     #region . Flush .
 
     [Test]
-    public void flush_returns_all_tracked_positions() {
+    public async Task flush_returns_all_tracked_positions() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -91,11 +91,11 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(lastTracked);
 
         // Assert
-        flushed.ShouldHavePositions(100, 200);
+        await flushed.ShouldHavePositions(100, 200);
     }
 
     [Test]
-    public void flush_clears_tracked_positions() {
+    public async Task flush_clears_tracked_positions() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -106,11 +106,11 @@ public class PositionTrackerTests {
         tracker.FlushUpTo(lastTracked);
 
         // Assert
-        tracker.Positions.Length.ShouldBe(0);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(0);
     }
 
     [Test]
-    public void flush_updates_last_flushed_position_to_last_tracked() {
+    public async Task flush_updates_last_flushed_position_to_last_tracked() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -121,11 +121,11 @@ public class PositionTrackerTests {
         tracker.FlushUpTo(lastTracked);
 
         // Assert
-        tracker.LastFlushedPosition.LogPosition.Value.ShouldBe(200);
+        await Assert.That(tracker.LastFlushedPosition.LogPosition.Value).IsEqualTo(200);
     }
 
     [Test]
-    public void flush_on_empty_tracker_returns_empty_span() {
+    public async Task flush_on_empty_tracker_returns_empty_span() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -133,7 +133,7 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(100));
 
         // Assert
-        flushed.Length.ShouldBe(0);
+        await Assert.That(flushed.Length).IsEqualTo(0);
     }
 
     #endregion
@@ -141,7 +141,7 @@ public class PositionTrackerTests {
     #region . FlushUpTo .
 
     [Test]
-    public void flush_up_to_retains_positions_after_flush_position() {
+    public async Task flush_up_to_retains_positions_after_flush_position() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -153,11 +153,11 @@ public class PositionTrackerTests {
         tracker.FlushUpTo(TestPositions.At(200));
 
         // Assert
-        tracker.Positions.ShouldHavePositions(300, 400);
+        await tracker.Positions.ShouldHavePositions(300, 400);
     }
 
     [Test]
-    public void flush_up_to_updates_last_flushed_position() {
+    public async Task flush_up_to_updates_last_flushed_position() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -168,11 +168,11 @@ public class PositionTrackerTests {
         tracker.FlushUpTo(TestPositions.At(200));
 
         // Assert
-        tracker.LastFlushedPosition.LogPosition.Value.ShouldBe(200);
+        await Assert.That(tracker.LastFlushedPosition.LogPosition.Value).IsEqualTo(200);
     }
 
     [Test]
-    public void flush_up_to_on_empty_tracker_returns_empty_span() {
+    public async Task flush_up_to_on_empty_tracker_returns_empty_span() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -180,11 +180,11 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(100));
 
         // Assert
-        flushed.Length.ShouldBe(0);
+        await Assert.That(flushed.Length).IsEqualTo(0);
     }
 
     [Test]
-    public void flush_up_to_beyond_all_tracked_flushes_all() {
+    public async Task flush_up_to_beyond_all_tracked_flushes_all() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -195,13 +195,13 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(500));
 
         // Assert - all positions flushed, LastFlushedPosition is the last actual flushed position
-        flushed.ShouldHavePositions(100, 200, 300);
-        tracker.Positions.Length.ShouldBe(0);
-        tracker.LastFlushedPosition.LogPosition.Value.ShouldBe(300);
+        await flushed.ShouldHavePositions(100, 200, 300);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(0);
+        await Assert.That(tracker.LastFlushedPosition.LogPosition.Value).IsEqualTo(300);
     }
 
     [Test]
-    public void flush_up_to_with_exact_match_includes_that_position() {
+    public async Task flush_up_to_with_exact_match_includes_that_position() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -212,12 +212,12 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(200));
 
         // Assert
-        flushed.ShouldHavePositions(100, 200);
-        tracker.Positions.ShouldHavePositions(300);
+        await flushed.ShouldHavePositions(100, 200);
+        await tracker.Positions.ShouldHavePositions(300);
     }
 
     [Test]
-    public void flush_up_to_untracked_position_flushes_up_to_previous() {
+    public async Task flush_up_to_untracked_position_flushes_up_to_previous() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -229,12 +229,12 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(250));
 
         // Assert
-        flushed.ShouldHavePositions(100, 200);
-        tracker.Positions.ShouldHavePositions(300, 400);
+        await flushed.ShouldHavePositions(100, 200);
+        await tracker.Positions.ShouldHavePositions(300, 400);
     }
 
     [Test]
-    public void flush_up_to_position_less_than_last_flushed_returns_empty() {
+    public async Task flush_up_to_position_less_than_last_flushed_returns_empty() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -246,12 +246,12 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(150));
 
         // Assert
-        flushed.Length.ShouldBe(0);
-        tracker.LastFlushedPosition.LogPosition.Value.ShouldBe(200); // Should remain unchanged
+        await Assert.That(flushed.Length).IsEqualTo(0);
+        await Assert.That(tracker.LastFlushedPosition.LogPosition.Value).IsEqualTo(200); // Should remain unchanged
     }
 
     [Test]
-    public void consecutive_flushes_maintain_correct_state() {
+    public async Task consecutive_flushes_maintain_correct_state() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -264,20 +264,20 @@ public class PositionTrackerTests {
         var flushed1 = tracker.FlushUpTo(TestPositions.At(200));
 
         // Assert first flush
-        flushed1.ShouldHavePositions(100, 200);
+        await flushed1.ShouldHavePositions(100, 200);
 
         // Act - second flush
         var flushed2 = tracker.FlushUpTo(TestPositions.At(400));
 
         // Assert second flush
-        flushed2.ShouldHavePositions(300, 400);
+        await flushed2.ShouldHavePositions(300, 400);
 
         // Assert remaining
-        tracker.Positions.ShouldHavePositions(500);
+        await tracker.Positions.ShouldHavePositions(500);
     }
 
     [Test]
-    public void flush_up_to_with_duplicate_positions_handles_correctly() {
+    public async Task flush_up_to_with_duplicate_positions_handles_correctly() {
         // Arrange - track duplicate positions
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -289,8 +289,8 @@ public class PositionTrackerTests {
         var flushed = tracker.FlushUpTo(TestPositions.At(150));
 
         // Assert
-        flushed.ShouldHavePositions(100, 100);
-        tracker.Positions.ShouldHavePositions(200, 200);
+        await flushed.ShouldHavePositions(100, 100);
+        await tracker.Positions.ShouldHavePositions(200, 200);
     }
 
     #endregion
@@ -298,7 +298,7 @@ public class PositionTrackerTests {
     #region . Buffer Management .
 
     [Test]
-    public void buffer_grows_when_capacity_exceeded() {
+    public async Task buffer_grows_when_capacity_exceeded() {
         // Arrange - create tracker with small capacity
         using var tracker = new PositionTracker(capacity: 256);
 
@@ -307,11 +307,11 @@ public class PositionTrackerTests {
             tracker.Track(TestPositions.At((ulong)(i * 100)));
 
         // Assert
-        tracker.Positions.Length.ShouldBe(300);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(300);
     }
 
     [Test]
-    public void buffer_at_exact_minimum_capacity_works() {
+    public async Task buffer_at_exact_minimum_capacity_works() {
         // Arrange - create tracker with exact minimum capacity
         using var tracker = new PositionTracker(capacity: 256);
 
@@ -320,11 +320,11 @@ public class PositionTrackerTests {
             tracker.Track(TestPositions.At((ulong)(i * 100)));
 
         // Assert
-        tracker.Positions.Length.ShouldBe(256);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(256);
     }
 
     [Test]
-    public void buffer_compacts_before_growing_when_possible() {
+    public async Task buffer_compacts_before_growing_when_possible() {
         // Arrange - create tracker with minimum capacity
         using var tracker = new PositionTracker(capacity: 256);
 
@@ -341,7 +341,7 @@ public class PositionTrackerTests {
 
         // Assert
         var positions = tracker.Positions;
-        positions.Length.ShouldBe(192); // 64 remaining (65-128) + 128 new (129-256)
+        await Assert.That(positions.Length).IsEqualTo(192); // 64 remaining (65-128) + 128 new (129-256)
     }
 
     [Test]
@@ -356,15 +356,15 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public void operations_after_dispose_throw_object_disposed_exception() {
+    public async Task operations_after_dispose_throw_object_disposed_exception() {
         // Arrange
         var tracker = new PositionTracker();
         tracker.Dispose();
 
         // Act & Assert
-        Should.Throw<ObjectDisposedException>(() => tracker.Track(TestPositions.At(100)));
-        Should.Throw<ObjectDisposedException>(() => _ = tracker.Positions);
-        Should.Throw<ObjectDisposedException>(() => tracker.FlushUpTo(TestPositions.At(100)));
+        await Assert.That(() => tracker.Track(TestPositions.At(100))).Throws<ObjectDisposedException>();
+        await Assert.That(() => _ = tracker.Positions).Throws<ObjectDisposedException>();
+        await Assert.That(() => tracker.FlushUpTo(TestPositions.At(100))).Throws<ObjectDisposedException>();
     }
 
     #endregion
@@ -372,7 +372,7 @@ public class PositionTrackerTests {
     #region . Reset .
 
     [Test]
-    public void reset_after_partial_flush_clears_pending_positions() {
+    public async Task reset_after_partial_flush_clears_pending_positions() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -385,12 +385,12 @@ public class PositionTrackerTests {
         tracker.Reset(TestPositions.At(500));
 
         // Assert
-        tracker.Positions.Length.ShouldBe(0);
-        tracker.LastFlushedPosition.LogPosition.Value.ShouldBe(500);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(0);
+        await Assert.That(tracker.LastFlushedPosition.LogPosition.Value).IsEqualTo(500);
     }
 
     [Test]
-    public void track_after_reset_enforces_new_baseline() {
+    public async Task track_after_reset_enforces_new_baseline() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -400,16 +400,16 @@ public class PositionTrackerTests {
         tracker.Reset(TestPositions.At(500));
 
         // Act & Assert - position less than or equal to new baseline should throw
-        Should.Throw<InvalidOperationException>(() => tracker.Track(TestPositions.At(400)));
-        Should.Throw<InvalidOperationException>(() => tracker.Track(TestPositions.At(500)));
+        await Assert.That(() => tracker.Track(TestPositions.At(400))).Throws<InvalidOperationException>();
+        await Assert.That(() => tracker.Track(TestPositions.At(500))).Throws<InvalidOperationException>();
 
         // Position greater than new baseline should succeed
         var count = tracker.Track(TestPositions.At(600));
-        count.ShouldBe(1);
+        await Assert.That(count).IsEqualTo(1);
     }
 
     [Test]
-    public void reset_with_unset_position_works() {
+    public async Task reset_with_unset_position_works() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -419,11 +419,11 @@ public class PositionTrackerTests {
         tracker.Reset(RecordPosition.Unset);
 
         // Assert
-        tracker.Positions.Length.ShouldBe(0);
-        tracker.LastFlushedPosition.ShouldBe(RecordPosition.Unset);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(0);
+        await Assert.That(tracker.LastFlushedPosition).IsEqualTo(RecordPosition.Unset);
 
         // Should be able to track from the beginning
-        tracker.Track(TestPositions.At(50)).ShouldBe(1);
+        await Assert.That(tracker.Track(TestPositions.At(50))).IsEqualTo(1);
     }
 
     #endregion
@@ -431,7 +431,7 @@ public class PositionTrackerTests {
     #region . Constructor .
 
     [Test]
-    public void constructor_with_last_flushed_position_sets_initial_state() {
+    public async Task constructor_with_last_flushed_position_sets_initial_state() {
         // Arrange
         var lastFlushed = TestPositions.At(500);
 
@@ -439,31 +439,31 @@ public class PositionTrackerTests {
         using var tracker = new PositionTracker(lastFlushed);
 
         // Assert
-        tracker.LastFlushedPosition.ShouldBe(lastFlushed);
-        tracker.Positions.Length.ShouldBe(0);
+        await Assert.That(tracker.LastFlushedPosition).IsEqualTo(lastFlushed);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(0);
     }
 
     [Test]
-    public void constructor_with_last_flushed_position_enforces_baseline() {
+    public async Task constructor_with_last_flushed_position_enforces_baseline() {
         // Arrange
         var lastFlushed = TestPositions.At(500);
         using var tracker = new PositionTracker(lastFlushed);
 
         // Act & Assert - positions at or below baseline should throw
-        Should.Throw<InvalidOperationException>(() => tracker.Track(TestPositions.At(400)));
-        Should.Throw<InvalidOperationException>(() => tracker.Track(TestPositions.At(500)));
+        await Assert.That(() => tracker.Track(TestPositions.At(400))).Throws<InvalidOperationException>();
+        await Assert.That(() => tracker.Track(TestPositions.At(500))).Throws<InvalidOperationException>();
 
         // Position above baseline should succeed
-        tracker.Track(TestPositions.At(600)).ShouldBe(1);
+        await Assert.That(tracker.Track(TestPositions.At(600))).IsEqualTo(1);
     }
 
     [Test]
-    public void constructor_with_unset_position_allows_any_tracking() {
+    public async Task constructor_with_unset_position_allows_any_tracking() {
         // Arrange
         using var tracker = new PositionTracker(RecordPosition.Unset);
 
         // Act & Assert - any position should be trackable
-        tracker.Track(TestPositions.At(1)).ShouldBe(1);
+        await Assert.That(tracker.Track(TestPositions.At(1))).IsEqualTo(1);
     }
 
     #endregion
@@ -471,21 +471,21 @@ public class PositionTrackerTests {
     #region . Properties .
 
     [Test]
-    public void last_flushed_position_is_unset_initially() {
+    public async Task last_flushed_position_is_unset_initially() {
         // Arrange
         using var tracker = new PositionTracker();
 
         // Assert
-        tracker.LastFlushedPosition.ShouldBe(RecordPosition.Unset);
+        await Assert.That(tracker.LastFlushedPosition).IsEqualTo(RecordPosition.Unset);
     }
 
     [Test]
-    public void positions_is_empty_initially() {
+    public async Task positions_is_empty_initially() {
         // Arrange
         using var tracker = new PositionTracker();
 
         // Assert
-        tracker.Positions.Length.ShouldBe(0);
+        await Assert.That(tracker.Positions.Length).IsEqualTo(0);
     }
 
     #endregion
@@ -503,9 +503,9 @@ static class PositionTrackerTestExtensions {
     /// <summary>
     /// Asserts that the positions match the expected values.
     /// </summary>
-    public static void ShouldHavePositions(this RecordPosition[] positions, params ulong[] expected) {
-        positions.Length.ShouldBe(expected.Length);
+    public static async Task ShouldHavePositions(this RecordPosition[] positions, params ulong[] expected) {
+        await Assert.That(positions.Length).IsEqualTo(expected.Length);
         for (var i = 0; i < expected.Length; i++)
-            positions[i].LogPosition.Value.ShouldBe((long)expected[i]);
+            await Assert.That(positions[i].LogPosition.Value).IsEqualTo((long)expected[i]);
     }
 }

@@ -153,11 +153,11 @@ public class ProcessorWorkerLifecycleTests {
         var worker = CreateWorker(gateway, ownsClient: true, client: client);
 
         // Act
-        var ex = await Should.ThrowAsync<AggregateException>(worker.RunAsync(CancellationToken.None));
+        var ex = await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<AggregateException>();
 
         // Assert — client was still disposed despite session throwing
         A.CallTo(() => client.DisposeAsync()).MustHaveHappenedOnceExactly();
-        ex.InnerExceptions.Count.ShouldBeGreaterThanOrEqualTo(1);
+        await Assert.That(ex.InnerExceptions.Count).IsGreaterThanOrEqualTo(1);
     }
 
     [Test]
@@ -177,10 +177,10 @@ public class ProcessorWorkerLifecycleTests {
         var worker = CreateWorker(gateway, ownsClient: true, client: client);
 
         // Act
-        var ex = await Should.ThrowAsync<AggregateException>(worker.RunAsync(CancellationToken.None));
+        var ex = await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<AggregateException>();
 
         // Assert — both errors collected
-        ex.InnerExceptions.Count.ShouldBeGreaterThanOrEqualTo(2);
+        await Assert.That(ex.InnerExceptions.Count).IsGreaterThanOrEqualTo(2);
     }
 
     [Test]
@@ -199,7 +199,7 @@ public class ProcessorWorkerLifecycleTests {
         await worker.RunAsync(CancellationToken.None);
 
         // Second call throws InvalidOperationException (started guard), not double-dispose
-        await Should.ThrowAsync<InvalidOperationException>(worker.RunAsync(CancellationToken.None));
+        await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<InvalidOperationException>();
 
         // Assert — resources were only disposed once
         A.CallTo(() => session.DisposeAsync()).MustHaveHappenedOnceExactly();
@@ -225,7 +225,7 @@ public class ProcessorWorkerLifecycleTests {
         await worker.RunAsync(CancellationToken.None);
 
         // Assert
-        await Should.ThrowAsync<InvalidOperationException>(worker.RunAsync(CancellationToken.None));
+        await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<InvalidOperationException>();
     }
 
     #endregion
@@ -299,7 +299,7 @@ public class ProcessorWorkerLifecycleTests {
         await worker.RunAsync(CancellationToken.None);
 
         // Assert — OnComplete called before session disposed
-        callOrder.ShouldBe(["OnComplete", "SessionDisposed"]);
+        await Assert.That(callOrder).IsEquivalentTo(new[] { "OnComplete", "SessionDisposed" });
     }
 
     #endregion
@@ -308,7 +308,7 @@ public class ProcessorWorkerLifecycleTests {
 #region Test helpers
 
 class NoOpProcessor : IRecordProcessor {
-    public ValueTask ProcessRecords(ProcessRecordsContext context) => ValueTask.CompletedTask;
+    public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
 }
 
 /// <summary>

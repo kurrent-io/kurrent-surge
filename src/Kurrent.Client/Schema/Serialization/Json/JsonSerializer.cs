@@ -18,7 +18,7 @@ public class JsonSerializer(JsonSerializerOptions? options = null, bool useProto
 
 	public ReadOnlyMemory<byte> Serialize(object? value) {
 		var bytes = value is not IMessage protoMessage || !UseProtoFormatter
-			? System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(value, Options)
+			? System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(value, Options.GetTypeInfo(value!.GetType()))
 			: ProtobufToUtf8JsonBytes(protoMessage);
 
 		return bytes;
@@ -50,9 +50,9 @@ public class JsonSerializer(JsonSerializerOptions? options = null, bool useProto
 	public object? Deserialize(ReadOnlyMemory<byte> data, Type type) {
 		var value = !type.IsMissing()
 			? !type.IsProtoMessage() || !UseProtoFormatter
-				? System.Text.Json.JsonSerializer.Deserialize(data.Span, type, Options)
+				? System.Text.Json.JsonSerializer.Deserialize(data.Span, Options.GetTypeInfo(type))
 				: ProtoJsonParser.Parse(Encoding.UTF8.GetString(data.Span.ToArray()), type.GetProtoMessageDescriptor())
-			: System.Text.Json.JsonSerializer.Deserialize<JsonNode>(data.Span, Options);
+			: System.Text.Json.JsonSerializer.Deserialize(data.Span, Options.GetTypeInfo(typeof(JsonNode)));
 
 		return value;
 	}
@@ -60,9 +60,9 @@ public class JsonSerializer(JsonSerializerOptions? options = null, bool useProto
 	public async ValueTask<object?> Deserialize(Stream data, Type type, CancellationToken cancellationToken = default) {
 		var value = !type.IsMissing()
 			? !type.IsProtoMessage() || !UseProtoFormatter
-				? await System.Text.Json.JsonSerializer.DeserializeAsync(data, type, Options, cancellationToken).ConfigureAwait(false)
+				? await System.Text.Json.JsonSerializer.DeserializeAsync(data, Options.GetTypeInfo(type), cancellationToken).ConfigureAwait(false)
 				: ProtoJsonParser.Parse(await DeserializeToJson(data, cancellationToken).ConfigureAwait(false), type.GetProtoMessageDescriptor())
-			: await System.Text.Json.JsonSerializer.DeserializeAsync<JsonNode>(data, Options, cancellationToken).ConfigureAwait(false);
+			: await System.Text.Json.JsonSerializer.DeserializeAsync(data, Options.GetTypeInfo(typeof(JsonNode)), cancellationToken).ConfigureAwait(false);
 
 		return value;
 

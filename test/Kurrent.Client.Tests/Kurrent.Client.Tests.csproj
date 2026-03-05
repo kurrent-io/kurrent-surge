@@ -1,22 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <ProjectReference Include="..\..\examples\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+<ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
-    <Using Include="Shouldly" />
+    <Using Include="Kurrent.Testing.Assertions" />
     <Using Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Bogus" />
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Shouldly" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

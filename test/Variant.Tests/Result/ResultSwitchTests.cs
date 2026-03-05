@@ -8,7 +8,7 @@ public class ResultSwitchTests {
     Faker Faker { get; } = new();
 
     [Test]
-    public void switch_with_success_executes_success_action() {
+    public async Task switch_with_success_executes_success_action() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -21,12 +21,12 @@ public class ResultSwitchTests {
             onFailure: err => failureExecuted = true);
 
         // Assert
-        successExecuted.ShouldBeTrue();
-        failureExecuted.ShouldBeFalse();
+        await Assert.That(successExecuted).IsTrue();
+        await Assert.That(failureExecuted).IsFalse();
     }
 
     [Test]
-    public void switch_with_failure_executes_failure_action() {
+    public async Task switch_with_failure_executes_failure_action() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Test error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -39,12 +39,12 @@ public class ResultSwitchTests {
             onFailure: err => failureExecuted = true);
 
         // Assert
-        successExecuted.ShouldBeFalse();
-        failureExecuted.ShouldBeTrue();
+        await Assert.That(successExecuted).IsFalse();
+        await Assert.That(failureExecuted).IsTrue();
     }
 
     [Test]
-    public void switch_with_success_can_capture_value() {
+    public async Task switch_with_success_can_capture_value() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -56,12 +56,12 @@ public class ResultSwitchTests {
             onFailure: err => { });
 
         // Assert
-        capturedId.ShouldNotBeNull();
-        capturedId.Value.Value.ShouldBe(gameId.Value);
+        await Assert.That(capturedId).IsNotNull();
+        await Assert.That(capturedId.Value.Value).IsEqualTo(gameId.Value);
     }
 
     [Test]
-    public void switch_with_failure_can_capture_error() {
+    public async Task switch_with_failure_can_capture_error() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Capture error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -73,12 +73,12 @@ public class ResultSwitchTests {
             onFailure: err => capturedError = err);
 
         // Assert
-        capturedError.ShouldNotBeNull();
-        capturedError.Reason.ShouldBe("Capture error");
+        await Assert.That(capturedError).IsNotNull();
+        await Assert.That(capturedError.Reason).IsEqualTo("Capture error");
     }
 
     [Test]
-    public void switch_executes_only_one_branch() {
+    public async Task switch_executes_only_one_branch() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -90,11 +90,11 @@ public class ResultSwitchTests {
             onFailure: err => executionCount++);
 
         // Assert
-        executionCount.ShouldBe(1);
+        await Assert.That(executionCount).IsEqualTo(1);
     }
 
     [Test]
-    public void switch_with_state_executes_success_action_with_provided_state() {
+    public async Task switch_with_state_executes_success_action_with_provided_state() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -108,12 +108,12 @@ public class ResultSwitchTests {
             state: logPrefix);
 
         // Assert
-        capturedLog.ShouldStartWith(logPrefix);
-        capturedLog.ShouldContain(gameId.Value.ToString());
+        await Assert.That(capturedLog).StartsWith(logPrefix);
+        await Assert.That(capturedLog).Contains(gameId.Value.ToString());
     }
 
     [Test]
-    public void switch_with_state_executes_failure_action_with_provided_state() {
+    public async Task switch_with_state_executes_failure_action_with_provided_state() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "State error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -127,11 +127,11 @@ public class ResultSwitchTests {
             state: multiplier);
 
         // Assert
-        capturedValue.ShouldBe(multiplier * -1);
+        await Assert.That(capturedValue).IsEqualTo(multiplier * -1);
     }
 
     [Test]
-    public void switch_with_state_avoids_closure_allocation() {
+    public async Task switch_with_state_avoids_closure_allocation() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -145,11 +145,11 @@ public class ResultSwitchTests {
             state: stateValue);
 
         // Assert
-        capturedState.ShouldBe(stateValue);
+        await Assert.That(capturedState).IsEqualTo(stateValue);
     }
 
     [Test]
-    public void switch_with_state_executes_only_one_branch() {
+    public async Task switch_with_state_executes_only_one_branch() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Branch test");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
@@ -163,11 +163,11 @@ public class ResultSwitchTests {
             state: stateValue);
 
         // Assert
-        executionCount.ShouldBe(1);
+        await Assert.That(executionCount).IsEqualTo(1);
     }
 
     [Test]
-    public async ValueTask switch_async_with_success_executes_async_success_action() {
+    public async Task switch_async_with_success_executes_async_success_action() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -186,12 +186,12 @@ public class ResultSwitchTests {
             });
 
         // Assert
-        successExecuted.ShouldBeTrue();
-        failureExecuted.ShouldBeFalse();
+        await Assert.That(successExecuted).IsTrue();
+        await Assert.That(failureExecuted).IsFalse();
     }
 
     [Test]
-    public async ValueTask switch_async_with_failure_executes_async_failure_action() {
+    public async Task switch_async_with_failure_executes_async_failure_action() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Async error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -210,12 +210,12 @@ public class ResultSwitchTests {
             });
 
         // Assert
-        successExecuted.ShouldBeFalse();
-        failureExecuted.ShouldBeTrue();
+        await Assert.That(successExecuted).IsFalse();
+        await Assert.That(failureExecuted).IsTrue();
     }
 
     [Test]
-    public async ValueTask switch_async_can_perform_async_side_effects() {
+    public async Task switch_async_can_perform_async_side_effects() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -232,11 +232,11 @@ public class ResultSwitchTests {
             });
 
         // Assert
-        capturedId.ShouldBe(gameId.Value);
+        await Assert.That(capturedId).IsEqualTo(gameId.Value);
     }
 
     [Test]
-    public async ValueTask switch_async_with_state_executes_with_provided_state() {
+    public async Task switch_async_with_state_executes_with_provided_state() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -256,11 +256,11 @@ public class ResultSwitchTests {
             state: logPrefix);
 
         // Assert
-        capturedLog.ShouldStartWith(logPrefix);
+        await Assert.That(capturedLog).StartsWith(logPrefix);
     }
 
     [Test]
-    public async ValueTask switch_async_chain_extension_awaits_task_then_switches() {
+    public async Task switch_async_chain_extension_awaits_task_then_switches() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -276,11 +276,11 @@ public class ResultSwitchTests {
             onFailureAsync: err => ValueTask.CompletedTask);
 
         // Assert
-        successExecuted.ShouldBeTrue();
+        await Assert.That(successExecuted).IsTrue();
     }
 
     [Test]
-    public async ValueTask switch_async_chain_extension_with_async_actions_awaits_both() {
+    public async Task switch_async_chain_extension_with_async_actions_awaits_both() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
         var resultTask = ValueTask.FromResult(
@@ -298,11 +298,11 @@ public class ResultSwitchTests {
             });
 
         // Assert
-        failureExecuted.ShouldBeTrue();
+        await Assert.That(failureExecuted).IsTrue();
     }
 
     [Test]
-    public async ValueTask switch_async_chain_extension_with_state_passes_state_correctly() {
+    public async Task switch_async_chain_extension_with_state_passes_state_correctly() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -323,11 +323,11 @@ public class ResultSwitchTests {
             state: multiplier);
 
         // Assert
-        capturedValue.ShouldBe(multiplier);
+        await Assert.That(capturedValue).IsEqualTo(multiplier);
     }
 
     [Test]
-    public async ValueTask switch_async_chain_extension_with_async_state_actions_works() {
+    public async Task switch_async_chain_extension_with_async_state_actions_works() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "State async");
         var resultTask = ValueTask.FromResult(
@@ -348,12 +348,12 @@ public class ResultSwitchTests {
             state: prefix);
 
         // Assert
-        capturedLog.ShouldStartWith(prefix);
-        capturedLog.ShouldContain("State async");
+        await Assert.That(capturedLog).StartsWith(prefix);
+        await Assert.That(capturedLog).Contains("State async");
     }
 
     [Test]
-    public void switch_enables_imperative_handling() {
+    public async Task switch_enables_imperative_handling() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -365,11 +365,11 @@ public class ResultSwitchTests {
             onFailure: err => handled = true);
 
         // Assert
-        handled.ShouldBeTrue();
+        await Assert.That(handled).IsTrue();
     }
 
     [Test]
-    public void switch_useful_for_logging_both_paths() {
+    public async Task switch_useful_for_logging_both_paths() {
         // Arrange
         var position = new Position(2, 1);
         var successResult = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -387,12 +387,12 @@ public class ResultSwitchTests {
             onFailure: err => errorLog = err.Reason);
 
         // Assert
-        successLog.ShouldNotBeEmpty();
-        errorLog.ShouldNotBeEmpty();
+        await Assert.That(successLog).IsNotEmpty();
+        await Assert.That(errorLog).IsNotEmpty();
     }
 
     [Test]
-    public void switch_vs_match_difference_is_return_value() {
+    public async Task switch_vs_match_difference_is_return_value() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -408,6 +408,6 @@ public class ResultSwitchTests {
             mapError: err => "value");
 
         // Assert
-        output.ShouldBe("value");
+        await Assert.That(output).IsEqualTo("value");
     }
 }

@@ -47,7 +47,9 @@ public abstract class MetadataDecoder : IMetadataDecoder {
         // [2] = {DebugViewDictionaryItem<string, JsonValue>} [$p]=10868
         // [3] = {DebugViewDictionaryItem<string, JsonValue>} [$causedBy]=373c6630-d8fe-ff2c-16af-e286265e7e98
 
-        var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(bytes.Span)!;
+        var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(
+            bytes.Span,
+            Schema.Serialization.Json.KurrentJsonContext.Default.Options)!;
 
         return new Metadata()
             .With(SystemMetadataKeys.SchemaName, LinkSchemaName)
@@ -55,7 +57,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
             .With("$v", deserialized["$v"].ToString())
             .With("$c", deserialized["$c"].GetValue<long>())
             .With("$p", deserialized["$p"].GetValue<long>())
-            .WithIf(_ => deserialized.ContainsKey("$o"), "$o", () => StreamName.From(deserialized["$o"].ToString()))
+            .WithIf("$o", () => StreamName.From(deserialized["$o"].ToString()), deserialized.ContainsKey("$o"))
             .With("$causedBy", deserialized["$causedBy"].GetValue<Guid>());
     }
 

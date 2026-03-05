@@ -1,1 +1,1 @@
-.agents/instructions.md
+.project/project.md

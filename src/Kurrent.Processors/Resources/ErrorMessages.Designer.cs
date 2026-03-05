@@ -45,9 +45,9 @@ namespace Kurrent.Processors.Resources {
             }
         }
 
-        internal static string Worker_ProcessRecordsFailed {
+        internal static string Worker_ProcessRecordFailed {
             get {
-                return ResourceManager.GetString("Worker_ProcessRecordsFailed", resourceCulture);
+                return ResourceManager.GetString("Worker_ProcessRecordFailed", resourceCulture);
             }
         }
 

@@ -70,24 +70,3 @@ class MetadataJsonConverter : JsonConverter<Metadata> {
     public override void Write(Utf8JsonWriter writer, Metadata value, JsonSerializerOptions options) =>
         System.Text.Json.JsonSerializer.Serialize(writer, value.Dictionary, options);
 }
-
-// /// <summary>
-// /// The default metadata decoder that deserializes metadata from JSON-encoded byte arrays.
-// /// This allows for backward compatibility with previous metadata formats.
-// /// </summary>
-// [PublicAPI]
-// public sealed class DefaultMetadataDecoder : MetadataDecoder {
-//     static readonly SchemaRegistry.Serialization.Json.JsonSerializer Serializer = new();
-//
-//     protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
-//         return Serializer.Deserialize<Dictionary<string, object?>>(bytes) is { Count: > 0 } deserialized
-//             ? new(deserialized.ToDictionary(x => x.Key, static kvp => EvolveValue(kvp)))
-//             : new();
-//
-//         static object? EvolveValue(KeyValuePair<string, object?> kvp) => kvp switch {
-//             { Key: SystemMetadataKeys.SchemaDataFormat, Value: not null } => Enum.Parse<SchemaDataFormat>(kvp.Value.ToString()!, ignoreCase: true),
-//             { Key: SystemMetadataKeys.SchemaName,       Value: not null } => SchemaName.From(kvp.Value.ToString()!),
-//             _                                                             => kvp.Value?.ToString()
-//         };
-//     }
-// }

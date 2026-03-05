@@ -119,34 +119,36 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 		if (CompatibleVersions.TryGetValue(messageType, out var versions))
 			return versions[^1];
 
-		var getSchemaVersionResult = await SchemaRegistryClient
-			.GetSchemaVersion(schemaName, null, cancellationToken)
-			.ConfigureAwait(false);
+		try {
+			var version = await SchemaRegistryClient
+				.GetSchemaVersion(schemaName, null, cancellationToken)
+				.ConfigureAwait(false);
 
-		if (getSchemaVersionResult.IsSuccess) {
-			var version     = getSchemaVersionResult.Value;
 			var versionInfo = new SchemaVersionDescriptor(version.VersionId, version.VersionNumber);
 			CompatibleVersions.TryAdd(messageType, [versionInfo]);
 			return versionInfo;
 		}
+		catch (Exception) when (!cancellationToken.IsCancellationRequested) {
+			// schema version not found, proceed to create
+		}
 
 		var definition = SchemaExporter.Export(messageType, dataFormat);
 
-		var createSchemaResult = await SchemaRegistryClient
-			.CreateSchema(schemaName, definition, dataFormat, cancellationToken: cancellationToken)
-			.ConfigureAwait(false);
+		try {
+			var versionInfo = await SchemaRegistryClient
+				.CreateSchema(schemaName, definition, dataFormat, cancellationToken: cancellationToken)
+				.ConfigureAwait(false);
 
-		return await createSchemaResult.MatchAsync(
-			versionInfo => {
-				// edge case: the schema was created by another client between checking and creating
-				var added = CompatibleVersions.TryAdd(messageType, [versionInfo]);
-				return added
-					? ValueTask.FromResult(versionInfo)
-					: TryRegisterSchema(schemaName, messageType, dataFormat, cancellationToken);
-			},
 			// edge case: the schema was created by another client between checking and creating
-			_ => TryRegisterSchema(schemaName, messageType, dataFormat, cancellationToken)
-		).ConfigureAwait(false);
+			var added = CompatibleVersions.TryAdd(messageType, [versionInfo]);
+			return added
+				? versionInfo
+				: await TryRegisterSchema(schemaName, messageType, dataFormat, cancellationToken).ConfigureAwait(false);
+		}
+		catch (SchemaAlreadyExistsException) {
+			// edge case: the schema was created by another client between checking and creating
+			return await TryRegisterSchema(schemaName, messageType, dataFormat, cancellationToken).ConfigureAwait(false);
+		}
 	}
 
 	/// <summary>
@@ -164,39 +166,34 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 
 		var definition = SchemaExporter.Export(messageType, dataFormat);
 
-		var result = await SchemaRegistryClient
-			.CheckSchemaCompatibility(schemaVersionId, definition, dataFormat, cancellationToken)
-			.ConfigureAwait(false);
+		try {
+			var lastSchemaVersionId = await SchemaRegistryClient
+				.CheckSchemaCompatibility(schemaVersionId, definition, dataFormat, cancellationToken)
+				.ConfigureAwait(false);
 
-		return result.Match(
-			lastSchemaVersionId => {
-				// its impossible to update because we start by checking the cache
-				CompatibleVersions.AddOrUpdate(
-					messageType,
-					static (_, state) => [state.Version, state.LastVersion],
-					static (_, versions, state) => {
-						// just so that the last version can represent the latest one.
-						// might end up not being that useful, but it is a good idea to have it
-						// if the guids were sortable that would be even better and none of this
-						// would be needed
-						versions.Insert(versions.Count - 1, state.Version);
-						return versions;
-					},
-					(
-						LastVersion: new SchemaVersionDescriptor(lastSchemaVersionId, 0),
-						Version: new SchemaVersionDescriptor(schemaVersionId, 0)
-					)
-				);
+			// its impossible to update because we start by checking the cache
+			CompatibleVersions.AddOrUpdate(
+				messageType,
+				static (_, state) => [state.Version, state.LastVersion],
+				static (_, versions, state) => {
+					// just so that the last version can represent the latest one.
+					// might end up not being that useful, but it is a good idea to have it
+					// if the guids were sortable that would be even better and none of this
+					// would be needed
+					versions.Insert(versions.Count - 1, state.Version);
+					return versions;
+				},
+				(
+					LastVersion: new SchemaVersionDescriptor(lastSchemaVersionId, 0),
+					Version: new SchemaVersionDescriptor(schemaVersionId, 0)
+				)
+			);
 
-				return lastSchemaVersionId;
-			},
-			error => {
-				if (error.Value is SchemaIncompatibleException incompatible)
-					throw new SchemaValidationException(dataFormat, schemaVersionId, messageType, incompatible.Errors.Errors);
-
-				throw (Exception)error.Value;
-			}
-		);
+			return lastSchemaVersionId;
+		}
+		catch (SchemaIncompatibleException incompatible) {
+			throw new SchemaValidationException(dataFormat, schemaVersionId, messageType, incompatible.Errors.Errors);
+		}
 
 		// Attempts to retrieve the last schema version ID that is compatible with the provided schema version ID.
 		bool TryGetLastSchemaVersion(SchemaVersionId versionId, out SchemaVersionDescriptor lastSchemaVersion) {
@@ -226,23 +223,18 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 
 		var definition = SchemaExporter.Export(messageType, dataFormat);
 
-		var result = await SchemaRegistryClient
-			.CheckSchemaCompatibility(schemaName, definition, dataFormat, cancellationToken)
-			.ConfigureAwait(false);
+		try {
+			var schemaVersionId = await SchemaRegistryClient
+				.CheckSchemaCompatibility(schemaName, definition, dataFormat, cancellationToken)
+				.ConfigureAwait(false);
 
-		return result.Match(
-			schemaVersionId => {
-				// its impossible to update because we start by checking the cache
-				CompatibleVersions.TryAdd(messageType, [new SchemaVersionDescriptor(schemaVersionId, 0)]);
-				return schemaVersionId;
-			},
-			error => {
-				if (error.Value is SchemaIncompatibleException incompatible)
-					throw new SchemaValidationException(dataFormat, schemaName, messageType, incompatible.Errors.Errors);
-
-				throw (Exception)error.Value;
-			}
-		);
+			// its impossible to update because we start by checking the cache
+			CompatibleVersions.TryAdd(messageType, [new SchemaVersionDescriptor(schemaVersionId, 0)]);
+			return schemaVersionId;
+		}
+		catch (SchemaIncompatibleException incompatible) {
+			throw new SchemaValidationException(dataFormat, schemaName, messageType, incompatible.Errors.Errors);
+		}
 	}
 }
 

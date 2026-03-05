@@ -5,29 +5,29 @@ namespace Kurrent.Client.Tests.Legacy;
 [Category("Legacy")]
 public class UuidTests {
 	[Test]
-	public void to_guid_returns_expected_result() {
+	public async Task to_guid_returns_expected_result() {
 		var guid = Guid.NewGuid();
 		var sut  = Uuid.FromGuid(guid);
 
-		sut.ToGuid().ShouldBe(guid);
+		await Assert.That(sut.ToGuid()).IsEqualTo(guid);
 	}
 
 	[Test]
-	public void to_string_produces_expected_result() {
+	public async Task to_string_produces_expected_result() {
 		var sut = Uuid.NewUuid();
 
-		sut.ToString().ShouldBe(sut.ToGuid().ToString());
+		await Assert.That(sut.ToString()).IsEqualTo(sut.ToGuid().ToString());
 	}
 
 	[Test]
-	public void to_formatted_string_produces_expected_result() {
+	public async Task to_formatted_string_produces_expected_result() {
 		var sut = Uuid.NewUuid();
 
-		sut.ToString("n").ShouldBe(sut.ToGuid().ToString("n"));
+		await Assert.That(sut.ToString("n")).IsEqualTo(sut.ToGuid().ToString("n"));
 	}
 
 	[Test]
-	public void to_dto_returns_expected_result() {
+	public async Task to_dto_returns_expected_result() {
 		var msb = GetRandomInt64();
 		var lsb = GetRandomInt64();
 
@@ -35,27 +35,27 @@ public class UuidTests {
 
 		var result = sut.ToDto();
 
-		result.Structured.ShouldNotBeNull();
-		result.Structured.LeastSignificantBits.ShouldBe(lsb);
-		result.Structured.MostSignificantBits.ShouldBe(msb);
+		await Assert.That(result.Structured).IsNotNull();
+		await Assert.That(result.Structured.LeastSignificantBits).IsEqualTo(lsb);
+		await Assert.That(result.Structured.MostSignificantBits).IsEqualTo(msb);
 	}
 
 	[Test]
-	public void parse_returns_expected_result() {
+	public async Task parse_returns_expected_result() {
 		var guid = Guid.NewGuid();
 
 		var sut = Uuid.Parse(guid.ToString());
 
-		sut.ShouldBe(Uuid.FromGuid(guid));
+		await Assert.That(sut).IsEqualTo(Uuid.FromGuid(guid));
 	}
 
 	[Test]
-	public void from_int64_returns_expected_result() {
+	public async Task from_int64_returns_expected_result() {
 		var guid     = Guid.Parse("65678f9b-d139-4786-8305-b9166922b378");
 		var sut      = Uuid.FromInt64(7306966819824813958L, -9005588373953137800L);
 		var expected = Uuid.FromGuid(guid);
 
-		sut.ShouldBe(expected);
+		await Assert.That(sut).IsEqualTo(expected);
 	}
 
 	static long GetRandomInt64() {

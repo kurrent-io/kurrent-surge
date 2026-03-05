@@ -213,7 +213,7 @@
 //
 //         for (var i = 0; i < processor.ProcessedRecords.Count; i++) {
 //             var record = processor.ProcessedRecords[i];
-//             record.StreamRevision.ShouldBe(StreamRevision.From(i));
+//             record.Revision.ShouldBe(Revision.From(i));
 //         }
 //     }
 //

@@ -1,3 +1,5 @@
+using Kurrent.Client.Exceptions;
+
 namespace Kurrent.Client.Streams;
 
 [PublicAPI]
@@ -46,6 +48,6 @@ public readonly record struct Partition : IComparable<Partition>, IComparable {
 }
 
 public sealed class InvalidPartitionException(string message, Exception? innerException = null)
-    : Exception(message, innerException), IThrowableException<InvalidPartitionException> {
+    : KurrentException(ErrorCode.FromType<InvalidPartitionException>(), message, innerException), IThrowableException<InvalidPartitionException> {
     public static InvalidPartitionException Create(string message, Exception? innerException) => new(message, innerException);
 }

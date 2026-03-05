@@ -5,13 +5,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
-    <Using Include="Shouldly" />
     <Using Include="TUnit" />
   </ItemGroup>
 
@@ -25,7 +25,6 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,13 +32,5 @@
       <Link>certs\%(RecursiveDir)/%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Streams\CatchUpSubscriptions\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Remove="Streams\CatchUpSubscriptions\**" />
   </ItemGroup>
 </Project>

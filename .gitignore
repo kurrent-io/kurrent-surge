@@ -481,6 +481,9 @@ certs-*/
 .claude
 .junie
 .conductor
-.dev-marketplace
 settings.local.json
-.project/repomix/output/
+.project/docs/research
+.project/docs/plans/
+
+# Others
+.worktrees/

@@ -11,25 +11,66 @@ import "google/protobuf/timestamp.proto";
 
 option csharp_namespace = "KurrentDB.Protocol.V2.Streams";
 
-// Record retrieved from the database.
+/**
+ * A record in the database.
+ */
 message Record {
-  // The unique identifier of the record in the database.
+  // Unique identifier for this record.
   string record_id = 1;
 
-  // The position of the record in the database.
-  RecordPosition position = 2;
+  // Position in the global log.
+  int64 position = 2;
 
   // Schema information for interpreting the record data.
   SchemaInfo schema = 3;
 
-  // The actual data payload of the record, stored as bytes.
+  // The record payload as raw bytes.
+  // The format specified in SchemaInfo determines how to interpret these bytes.
   bytes data = 4;
 
-  // Additional information about the record.
+  // A collection of properties providing additional information about the
+  // record. Can contain user-defined or system propreties.
+  // System keys will be prefixed with "$" (e.g., "$timestamp").
+  // User-defined keys MUST NOT start with "$".
+  //
+  // Common examples:
+  //   User metadata:
+  //     - "user-id": "12345"
+  //     - "tenant": "acme-corp"
+  //     - "source": "mobile-app"
+  //
+  //   System metadata (with $ prefix):
+  //     - "$trace-id": "4bf92f3577b34da6a3ce929d0e0e4736"  // OpenTelemetry trace ID
+  //     - "$span-id": "00f067aa0ba902b7"                   // OpenTelemetry span ID
+  //     - "$timestamp": "2025-01-15T10:30:00.000Z"         // ISO 8601 timestamp
+
   map<string, google.protobuf.Value> properties = 5;
 
   // When the record was created.
-  google.protobuf.Timestamp timestamp = 6;
+  google.protobuf.Timestamp create_time = 6;
+
+  // Stream the record belongs to.
+  string stream = 7;
+
+  // Revision of the stream after this record was appended.
+  sint64 stream_revision = 8;
+
+  // Partition of the stream, if applicable.
+  sint64 stream_partition = 9;
+}
+
+message StreamInfo {
+  // Stream name.
+  string name = 1;
+
+  // Revision of the stream after this record was appended.
+  sint64 stream_revision = 2;
+
+  // Partition of the stream, if applicable.
+  sint64 stream_partition = 3;
+
+  // When the stream was created.
+  google.protobuf.Timestamp create_time = 4;
 }
 
 // Batch of records.
@@ -37,70 +78,7 @@ message Records {
   repeated Record records = 1;
 }
 
-// A position in the log, optionally enriched with stream context.
-//
-// The position is the primary identifier - it uniquely identifies a record
-// in the log. All other fields are contextual information that can be derived
-// from the record itself, but are included for convenience.
-//
-// Used for:
-// - Checkpoints: Represents processing progress (all records up to and
-//   including this position have been successfully processed)
-// - Head positions: Represents the latest/newest position in a stream
-//   or the log, used for lag calculation
-// - Start positions: Specifies where to begin processing
-//
-// Stream ID structure:
-// KurrentDB stream IDs can contain multiple parts:
-// - Category: optional prefix before `-` (e.g., "orders" in "orders-123")
-// - Entity ID: the unique identifier (e.g., "123" in "orders-123")
-// - Partition: optional suffix after `!` (e.g., "games!1" for partition 1)
-//
-// Examples:
-//
-//   1. Log position only (minimal, sufficient for unique identification)
-//      { position: 4815162342 }
-//
-//   2. Log position with stream context
-//      { position: 4815162342, stream: "orders-123", stream_revision: 99 }
-//
-//   3. Stream head position (for lag calculation)
-//      { stream: "orders-123", stream_revision: 150 }
-//
-//   4. $all head position
-//      { stream: "$all", position: 5000000000 }
-//
-//   5. Partitioned stream
-//      { position: 4815162342, stream: "games!1", stream_revision: 100 }
-//
-// Note on scavenged/archived positions:
-// If a checkpointed position no longer exists (was scavenged or archived),
-// the server automatically finds the next available position. The worker
-// does not need to handle this case.
-message RecordPosition {
-  // Global log position.
-  //
-  // The position in the $all stream. This is the primary identifier
-  // that uniquely identifies a record in the log.
-  int64 position = 1;
-
-  // The stream name (optional context).
-  //
-  // Provides stream context for the position. Can be derived from the
-  // record at position, but included for convenience.
-  //
-  // For partitioned streams, includes the partition suffix (e.g., "games!1").
-  string stream = 2;
-
-  // Position within the stream (optional context).
-  //
-  // The zero-based index of the record within the stream.
-  // Can be derived from the record at position, but included
-  // for stream-specific progress tracking and lag calculation.
-  int64 stream_revision = 3;
-}
-
-// Represents the data format of the schema.
+// Data format of a schema.
 enum SchemaFormat {
   SCHEMA_FORMAT_UNSPECIFIED = 0;
   SCHEMA_FORMAT_JSON        = 1;
@@ -109,24 +87,135 @@ enum SchemaFormat {
   SCHEMA_FORMAT_BYTES       = 4;
 }
 
-// Schema information for record validation and interpretation.
+/**
+ * Schema information for record payload interpretation and validation.
+ */
 message SchemaInfo {
-  // The format of the data payload.
-  // Determines how the bytes in Record.data should be interpreted.
+  // Format of the record data.
+  // Required for interpreting the bytes in Record.data. Determines how to parse and validate the record payload.
   SchemaFormat format = 1 [default = SCHEMA_FORMAT_UNSPECIFIED];
 
-  // The schema name (replaces the legacy "event type" concept).
-  // Identifies what kind of data this record contains.
-  //
-  // Common naming formats:
-  //   - Kebab-case: "order-placed", "customer-registered"
-  //   - URN format: "urn:kurrentdb:events:order-placed:v1"
-  //   - Dotted namespace: "Teams.Player.V1", "Orders.OrderPlaced.V2"
-  //   - Reverse domain: "com.acme.orders.placed"
+  // Schema name identifying the record type (e.g., "order-placed", "customer-registered").
   string name = 2;
 
-  // The identifier of the specific version of the schema that the record payload
-  // conforms to. This should match a registered schema version in the system.
-  // Not necessary when not enforcing schema validation.
+  // Version identifier of the schema that the record conforms to.
   string id = 3;
 }
+
+/**
+ * A specific revision of a stream.
+ *
+ * Used to represent stream positions for checkpoints, consistency checks,
+ * and head position tracking.
+ */
+message StreamRevision {
+  // Stream name.
+  string stream = 1;
+
+  // Revision within the stream.
+  sint64 revision = 2;
+}
+
+/**
+ * A position in the log, which can be specified either as a global log position
+ * or as a stream-specific revision.
+ *
+ * Used for checkpoints, head positions, and start positions in processing.
+ * The position uniquely identifies a record or a processing checkpoint.
+ */
+message RecordPosition {
+  oneof kind {
+    // Global log position (position in $all).
+    int64 log_position = 1;
+
+    // Stream-specific position.
+    StreamRevision stream_revision = 2;
+  }
+}
+
+
+//// Configuration for progress heartbeats during filtered reads.
+////
+//// Heartbeats provide progress visibility when a filter excludes records.
+//// Without heartbeats, a worker processing a filter that matches few
+//// records would have no way to know its actual position in the log.
+////
+//// Heartbeats report the current log position even when no records
+//// are delivered, allowing workers to:
+//// - Track progress through the log
+//// - Detect when caught up to the head
+//// - Confirm the connection is alive during quiet periods
+////
+//// Useful when:
+//// - Filter uses predicates that exclude most records
+//// - Low-traffic scenarios where liveness confirmation is needed
+////
+//// Less useful when:
+//// - No filter is set (every record provides position information)
+//// - Filter selects a single stream (stream head is known)
+//message HeartbeatSettings {
+//  // Send heartbeat every N milliseconds if no records sent.
+//  //
+//  // Triggers a heartbeat after this duration of silence (no records
+//  // delivered). Provides liveness confirmation during low-traffic
+//  // periods or when caught up to the head.
+//  //
+//  // Default: 10000 (10 seconds)
+//  // Range: 100-300000
+//  int64 interval_ms = 2;
+//}
+//
+//// The type of heartbeat sent by the server.
+////
+//// Heartbeats provide progress visibility and status updates during
+//// stream processing, especially important for filtered processing
+//// where records may not match.
+//enum HeartbeatType {
+//  HEARTBEAT_TYPE_UNSPECIFIED = 0;
+//
+//  // Progress update during filtered processing.
+//  //
+//  // Sent when the server has scanned records_threshold non-matching
+//  // records, or after interval_ms of silence. Indicates the server
+//  // is still working and reports current position.
+//  HEARTBEAT_TYPE_PROGRESS = 1;
+//
+//  // Worker has caught up to the head of the log.
+//  //
+//  // Sent when position reaches latest_position. The worker is now
+//  // processing in real-time.
+//  HEARTBEAT_TYPE_CAUGHT_UP = 2;
+//}
+//
+//// Heartbeat message sent by the server during stream processing.
+////
+//// Provides progress updates, caught-up/fell-behind notifications,
+//// and current log boundaries for lag calculation.
+//message Heartbeat {
+//  // The type of heartbeat.
+//  HeartbeatType type = 1;
+//
+//  // Current processing position.
+//  //
+//  // For PROGRESS: The position the server has scanned up to.
+//  // For CAUGHT_UP: Same as latest_position.
+//  // For FELL_BEHIND: The position where the worker currently is.
+//  RecordPosition position = 2;
+//
+//  // When this heartbeat was sent.
+//  google.protobuf.Timestamp timestamp = 3;
+//
+//  // Earliest available position (tail of log).
+//  //
+//  // The oldest record still available. Use to detect if checkpoints
+//  // have been scavenged: if checkpoint < earliest_position, data was lost.
+//  RecordPosition earliest_position = 4;
+//
+//  // Latest available position (head of log).
+//  //
+//  // The newest record in the log. Use for lag calculation:
+//  // lag = latest_position - position
+//  //
+//  // When type is CAUGHT_UP, position equals latest_position.
+//  RecordPosition latest_position = 5;
+//}

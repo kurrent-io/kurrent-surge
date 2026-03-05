@@ -130,20 +130,9 @@ public readonly record struct Checkpoint(
 [PublicAPI]
 public readonly partial record struct ProcessorControlMessage : IVariant<
     WorkOrder,
-    RecordBatch,
-    Checkpoint> {
-    public static readonly ProcessorControlMessage None;
-}
-
-/// <summary>
-/// Messages sent from the Processor Controller (server) to the worker.
-/// </summary>
-[PublicAPI]
-public readonly partial record struct ProcessorControlMessageV2 : IVariant<
-    WorkOrder,
     Record,
     Checkpoint> {
-    public static readonly ProcessorControlMessageV2 None;
+    public static readonly ProcessorControlMessage None;
 }
 
 
@@ -156,7 +145,7 @@ public readonly record struct Connect(ProcessorSettings Settings);
 /// <summary>
 /// Worker signals it has recovered to a consistent state and is ready to receive records.
 /// Sent in response to <see cref="WorkOrder"/>.
-/// A <see cref="RecordBatch"/> will not be sent until this message is received.
+/// A <see cref="Record"/> will not be sent until this message is received.
 /// </summary>
 /// <param name="CheckpointId">The checkpoint ID representing the recovered state.</param>
 /// <param name="Positions">Partition to record position mapping after recovery.</param>

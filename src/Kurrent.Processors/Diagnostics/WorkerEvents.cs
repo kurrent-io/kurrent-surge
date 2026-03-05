@@ -37,12 +37,11 @@ public readonly record struct WorkerProcessingEvent(
 );
 
 /// <summary>
-/// Event raised when a batch of records has been processed.
+/// Event raised when a record has been processed.
 /// </summary>
-public readonly record struct BatchProcessedEvent(
+public readonly record struct RecordProcessedEvent(
     string ProcessorId,
     string WorkerId,
-    int BatchSize,
     long TotalRecords,
     double DurationMs
 );

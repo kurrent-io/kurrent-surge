@@ -6,7 +6,7 @@ namespace Kurrent.Client.Tests.Legacy;
 [Category("Legacy")]
 public class NodeSelectorTests {
 	[Test, Retry(3)]
-	public void dead_nodes_are_not_considered() {
+	public async Task dead_nodes_are_not_considered() {
 		var allowedNodeId = Uuid.NewUuid();
 		var allowedNode   = new DnsEndPoint(allowedNodeId.ToString(), 2113);
 
@@ -31,8 +31,8 @@ public class NodeSelectorTests {
 			)
 		);
 
-		selectedNode.Host.ShouldBe(allowedNode.Host);
-		selectedNode.Port.ShouldBe(allowedNode.Port);
+		await Assert.That(selectedNode.Host).IsEqualTo(allowedNode.Host);
+		await Assert.That(selectedNode.Port).IsEqualTo(allowedNode.Port);
 	}
 
 	[Test]
@@ -40,7 +40,7 @@ public class NodeSelectorTests {
 	[Arguments(NodePreference.Follower, "follower2")]
 	[Arguments(NodePreference.ReadOnlyReplica, "readOnlyReplica")]
 	[Arguments(NodePreference.Random, "any")]
-	public void can_prefer(NodePreference nodePreference, string expectedHost) {
+	public async Task can_prefer(NodePreference nodePreference, string expectedHost) {
 		var sut = new NodeSelector(nodePreference);
 		var selectedNode = sut.SelectNode(
 			new(
@@ -56,6 +56,6 @@ public class NodeSelectorTests {
 		if (expectedHost == "any")
 			return;
 
-		selectedNode.Host.ShouldBe(expectedHost);
+		await Assert.That(selectedNode.Host).IsEqualTo(expectedHost);
 	}
 }

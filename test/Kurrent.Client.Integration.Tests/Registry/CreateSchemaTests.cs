@@ -1,7 +1,7 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Registry;
 
@@ -17,23 +17,21 @@ public class CreateSchemaTests {
 		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		var schemaVersion = await Fixture.Client.Registry
-            .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync(version => {
-                version.VersionId.ShouldBeGuid();
-                version.VersionNumber.ShouldBe(1);
-            });
+            .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
+
+		await Assert.That(schemaVersion.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(schemaVersion.VersionNumber).IsEqualTo(1);
 
         await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-        await Fixture.Client.Registry
-            .GetSchemaVersionById(schemaVersion.VersionId, ct)
-            .ShouldNotThrowOrFailAsync(version => {
-                version.VersionId.ShouldBe(schemaVersion.VersionId);
-                version.VersionNumber.ShouldBe(1);
-                version.SchemaDefinition.ShouldBe(schemaDefinition);
-                version.DataFormat.ShouldBe(SchemaDataFormat.Json);
-                version.RegisteredAt.ShouldBeGreaterThan(DateTimeOffset.MinValue);
-            });
+        var version = await Fixture.Client.Registry
+            .GetSchemaVersionById(schemaVersion.VersionId, ct);
+
+		await Assert.That(version.VersionId).IsEqualTo(schemaVersion.VersionId);
+		await Assert.That(version.VersionNumber).IsEqualTo(1);
+		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
+		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
+		await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
 	}
 
 	[Test]
@@ -42,11 +40,10 @@ public class CreateSchemaTests {
         var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await Fixture.Client.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldFailAsync(failure => failure.Case.ShouldBe(CreateSchemaError.CreateSchemaErrorCase.SchemaAlreadyExistsException));
+		await Assert.ThrowsAsync<SchemaAlreadyExistsException>(
+			async () => await Fixture.Client.Registry
+				.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct));
 	}
 }

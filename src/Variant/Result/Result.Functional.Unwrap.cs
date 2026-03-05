@@ -41,7 +41,6 @@ public static partial class FunctionalResult {
         where TError : IResultError =>
         result.UnwrapAsync();
 
-
     /// <summary>
     /// Completes the given TaskCompletionSource based on the Result.
     /// </summary>

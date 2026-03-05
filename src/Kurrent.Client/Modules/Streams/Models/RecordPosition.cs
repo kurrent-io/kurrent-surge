@@ -37,7 +37,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     public StreamName Stream { get; init; } = StreamName.None;
 
     /// <summary>
-    /// The stream revision. Use <see cref="StreamRevision.Unset"/> if not applicable.
+    /// The stream revision. Use <see cref="Revision.Unset"/> if not applicable.
     /// </summary>
     /// <remarks>
     /// A log position uniquely and unambiguously identifies a record in the system.
@@ -46,10 +46,10 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     ///
     /// In a stream will always belong to a stream revision and a log position. Nonetheless,
     /// there are scenarios where only one of these values is known or relevant. In such cases,
-    /// you can use <see cref="StreamRevision.Unset"/> or <see cref="LogPosition.Unset"/> to indicate
+    /// you can use <see cref="Revision.Unset"/> or <see cref="LogPosition.Unset"/> to indicate
     /// that the respective value is not set or not applicable.
     /// </remarks>
-    public StreamRevision StreamRevision { get; init; } = StreamRevision.Unset;
+    public Revision Revision { get; init; } = Revision.Unset;
     public Partition      Partition      { get; init; } = Partition.Any;
 
     /// <summary>
@@ -103,17 +103,17 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     /// <remarks>
     /// A record in a stream will always have both a stream revision and a log position. Nonetheless,
     /// there are scenarios where only one of these values is known or relevant. In such cases,
-    /// you can use <see cref="StreamRevision.Unset"/> or <see cref="LogPosition.Unset"/> to indicate
+    /// you can use <see cref="Revision.Unset"/> or <see cref="LogPosition.Unset"/> to indicate
     /// that the respective value is not set or not applicable.
     /// If the stream is not partitioned, use <see cref="Partition.Any"/> or omit the parameter.
     /// </remarks>
-    public static RecordPosition FromStream(StreamName stream, StreamRevision revision, LogPosition? logPosition = null, Partition? partition = null) {
+    public static RecordPosition FromStream(StreamName stream, Revision revision, LogPosition? logPosition = null, Partition? partition = null) {
         if (stream == StreamName.None)
             throw new ArgumentException("Stream cannot be None.", nameof(stream));
 
         return new RecordPosition {
             Stream         = stream,
-            StreamRevision = revision,
+            Revision = revision,
             Partition      = partition ?? Partition.Any,
             LogPosition    = logPosition ?? LogPosition.Unset
         };

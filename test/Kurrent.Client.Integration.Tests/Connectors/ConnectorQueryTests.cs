@@ -1,6 +1,5 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Connectors;
 
@@ -17,19 +16,14 @@ public class ConnectorQueryTests {
         var settings    = KurrentClientTestFixture.NewConnectorSettings();
 
         await Fixture.Client.Connectors
-            .Create(
-                connectorId, name, settings,
-                ct
-            )
-            .ShouldNotThrowOrFailAsync();
+            .Create(connectorId, name, settings, ct);
 
         var options = new ConnectorListOptions { ConnectorIds = [connectorId] };
 
-        await Fixture.Client.Connectors
-            .List(options, ct)
-            .ShouldNotThrowOrFailAsync(result => {
-                result.Items.ShouldNotBeEmpty();
-                result.Items.ShouldContain(c => c.ConnectorId == connectorId);
-            });
+        var result = await Fixture.Client.Connectors
+            .List(options, ct);
+
+        await Assert.That(result.Items).IsNotEmpty();
+        await Assert.That(result.Items).Contains(c => c.ConnectorId == connectorId);
     }
 }

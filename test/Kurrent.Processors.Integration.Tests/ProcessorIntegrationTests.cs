@@ -22,7 +22,7 @@ public class ProcessorIntegrationTests {
         // Phase 1: Process first 10 records, checkpoint, then stop
         var processor1 = new TestRecordProcessor();
 
-        processor1.OnProcessRecords = ctx => {
+        processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= recordsToProcessInPhase1)
                 ctx.StopProcessing();
 
@@ -43,9 +43,8 @@ public class ProcessorIntegrationTests {
         // Phase 2: Resume from same processor ID, should process remaining records
         var processor2 = new TestRecordProcessor();
 
-        processor2.OnProcessRecords = ctx => {
-            var lastRecord = ctx.Records[^1];
-            if (lastRecord.Position.LogPosition >= simulation.Position)
+        processor2.OnProcessRecord = ctx => {
+            if (ctx.Record.Position.LogPosition >= simulation.Position)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -73,16 +72,15 @@ public class ProcessorIntegrationTests {
     }
 
     [Test]
-    public async ValueTask processor_batches_records_correctly(CancellationToken ct) {
+    public async ValueTask processor_processes_all_records_individually(CancellationToken ct) {
         // Arrange
-        var simulation   = await Fixture.SeedSmartHomeActivity(25, ct);
-        var processor    = new TestRecordProcessor();
-        var processorId  = $"batch-maxsize-{Guid.NewGuid():N}";
-        var batchSizes   = new List<int>();
-        var maxBatchSize = 5;
+        var simulation  = await Fixture.SeedSmartHomeActivity(25, ct);
+        var processor   = new TestRecordProcessor();
+        var processorId = $"individual-records-{Guid.NewGuid():N}";
+        var recordCount = 0;
 
-        processor.OnProcessRecords = ctx => {
-            batchSizes.Add(ctx.Records.Count);
+        processor.OnProcessRecord = ctx => {
+            Interlocked.Increment(ref recordCount);
             if (processor.Records.Length >= simulation.Records.Count)
                 ctx.StopProcessing();
 
@@ -95,15 +93,10 @@ public class ProcessorIntegrationTests {
             .WithProcessorId(processorId)
             .WithFilter(RecordFilter.ByStream(simulation.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .ConfigureBatching(b => b.MaxSize(maxBatchSize).Timeout(1000))
             .RunAsync(ct);
 
-        // Assert - No batch should exceed max size
-        foreach (var size in batchSizes)
-            await Assert.That(size).IsLessThanOrEqualTo(maxBatchSize);
-
-        // Total records across all batches should equal processed
-        await Assert.That(batchSizes.Sum()).IsEqualTo(processor.Records.Length);
+        // Assert - Each record was processed individually, total count matches
+        await Assert.That(recordCount).IsEqualTo(processor.Records.Length);
     }
 
     [Test]
@@ -137,7 +130,7 @@ public class ProcessorIntegrationTests {
         var processor   = new TestRecordProcessor();
         var processorId = $"processor_stops_on_user_request-{TestContext.Current!.Id:N}";
 
-        processor.OnProcessRecords = ctx => {
+        processor.OnProcessRecord = ctx => {
             if (processor.Records.Length == simulation.Records.Count)
                 ctx.StopProcessing();
 
@@ -164,7 +157,7 @@ public class ProcessorIntegrationTests {
         var processorId = $"error-process-{Guid.NewGuid():N}";
 
         var processor = new TestRecordProcessor {
-            OnProcessRecords = _ => throw new InvalidOperationException("Process failed")
+            OnProcessRecord = _ => throw new InvalidOperationException("Process failed")
         };
 
         var worker = KurrentProcessors.Create(processor)
@@ -188,7 +181,7 @@ public class ProcessorIntegrationTests {
         var processor   = new TestRecordProcessor();
         var processorId = $"error-shutdown-{Guid.NewGuid():N}";
 
-        processor.OnProcessRecords = _ => throw new InvalidOperationException("Intentional error");
+        processor.OnProcessRecord = _ => throw new InvalidOperationException("Intentional error");
 
         // Act
         try {
@@ -215,9 +208,8 @@ public class ProcessorIntegrationTests {
         var processor   = new TestRecordProcessor();
         var processorId = $"order-{Guid.NewGuid():N}";
 
-        processor.OnProcessRecords = ctx => {
-            var lastRecord = ctx.Records[^1];
-            if (lastRecord.Position.LogPosition >= simulation.Position)
+        processor.OnProcessRecord = ctx => {
+            if (ctx.Record.Position.LogPosition >= simulation.Position)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -233,6 +225,6 @@ public class ProcessorIntegrationTests {
 
         // Assert
         for (var i = 0; i < processor.Records.Length; i++)
-            await Assert.That(processor.Records[i].StreamRevision).IsEqualTo(StreamRevision.From(i));
+            await Assert.That(processor.Records[i].Revision).IsEqualTo(Revision.From(i));
     }
 }

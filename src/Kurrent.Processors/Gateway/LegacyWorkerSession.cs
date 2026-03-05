@@ -48,17 +48,6 @@ sealed class LegacyWorkerSession : IWorkerSession {
     }
 
     public async IAsyncEnumerator<ProcessorControlMessage> GetAsyncEnumerator(CancellationToken ct = default) {
-        var messages = _channel.Reader.ReadAllAsync(ct).ReadBatched(
-            _settings.Batching.MaxSize, _settings.Batching.TimeoutTimeSpan,
-            static msg => msg.IsRecord
-                ? BatchAction<Record, ProcessorControlMessage>.Batch(msg.AsRecord)
-                : BatchAction<Record, ProcessorControlMessage>.FlushThenYield(msg.AsCheckpoint),
-            static records => RecordBatch.From(records),
-            ct
-        );
-
-        await using var enumerator = messages.GetAsyncEnumerator(ct);
-
         // Send work order assignment
         yield return CreateWorkOrder();
 
@@ -66,8 +55,12 @@ sealed class LegacyWorkerSession : IWorkerSession {
         if (!await _workerReadySignal.Task.WaitUnlessCancelledAsync(_cancellator.Token))
             yield break;
 
-        while (await enumerator.MoveNextUnlessCancelledAsync())
-            yield return enumerator.Current;
+        await foreach (var msg in _channel.Reader.ReadAllAsync(ct)) {
+            if (msg.IsRecord)
+                yield return msg.AsRecord;
+            else
+                yield return msg.AsCheckpoint;
+        }
 
 
         WorkOrder CreateWorkOrder() {
