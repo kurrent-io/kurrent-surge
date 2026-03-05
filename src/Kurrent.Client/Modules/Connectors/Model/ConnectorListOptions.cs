@@ -25,6 +25,11 @@ public record ConnectorListOptions {
     public bool IncludeSettings { get; init; }
 
     /// <summary>
+    /// Include hierarchical configuration in the response.
+    /// </summary>
+    public bool IncludeConfiguration { get; init; }
+
+    /// <summary>
     /// Include deleted connectors in the response.
     /// </summary>
     public bool ShowDeleted { get; init; }

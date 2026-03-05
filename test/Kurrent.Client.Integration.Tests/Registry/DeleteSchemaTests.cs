@@ -1,29 +1,33 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Client.Tests.Fixtures;
 
 namespace Kurrent.Client.Tests.Registry;
 
-public class DeleteSchemaTests : KurrentClientTestFixture {
-	const int TestTimeoutMs = 20_000;
+[Category("Registry")]
+[Category("Integration")]
+public class DeleteSchemaTests {
+	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task deletes_schema_throws_not_found_when_schema_does_not_exist(CancellationToken ct) {
-		var schemaName = NewSchemaName();
+	[Test]
+	public async ValueTask deletes_schema_throws_not_found_when_schema_does_not_exist(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-		await Assert.That(async () => await AutomaticClient.Registry
-			.DeleteSchema(schemaName, ct))
-			.ThrowsException();
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry.DeleteSchema(schemaName, ct));
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task deletes_existing_schema(CancellationToken ct) {
-		var schemaName       = NewSchemaName();
-		var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask deletes_existing_schema(CancellationToken ct) {
+		var schemaName       = KurrentClientTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		await AutomaticClient.Registry
-			.CreateSchema(schemaName,schemaDefinition, SchemaDataFormat.Json, ct);
+		await Fixture.Client.Registry
+			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await AutomaticClient.Registry
+		await Fixture.Client.Registry
 			.DeleteSchema(schemaName, ct);
 	}
 }

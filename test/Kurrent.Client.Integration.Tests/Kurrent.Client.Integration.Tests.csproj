@@ -25,7 +25,6 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Remove="Registry\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,13 +32,5 @@
       <Link>certs\%(RecursiveDir)/%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Registry\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Remove="Registry\**" />
   </ItemGroup>
 </Project>

@@ -1,101 +1,108 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Assertions;
+using Kurrent.Client.Tests.Fixtures;
 
 namespace Kurrent.Client.Tests.Registry;
 
-public class GetSchemaVersionTests : KurrentClientTestFixture  {
-	const int TestTimeoutMs = 20_000;
+[Category("Registry")]
+[Category("Integration")]
+public class GetSchemaVersionTests {
+	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_latest_schema_by_name(CancellationToken ct) {
-		var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask get_latest_schema_by_name(CancellationToken ct) {
+		var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-        await AutomaticClient.Registry
+        await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		var version = await AutomaticClient.Registry
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, cancellationToken: ct);
 
-		await Assert.That(version.VersionId).IsGuid();
+		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.None);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
 		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 		await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_by_name_and_version(CancellationToken ct) {
-        var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask get_schema_by_name_and_version(CancellationToken ct) {
+        var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		var schemaVersion = await AutomaticClient.Registry
+		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		var version = await AutomaticClient.Registry
-			.GetSchemaVersion(schemaName, schemaVersion.VersionNumber, cancellationToken: ct);
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Assert.That(version.VersionId).IsGuid();
+		var version = await Fixture.Client.Registry
+			.GetSchemaVersion(schemaName, schemaVersion.VersionNumber, ct);
+
+		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.None);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
 		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 		await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_by_id(CancellationToken ct) {
-		// Arrange
-		var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask get_schema_by_id(CancellationToken ct) {
+		var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		var schemaVersion = await AutomaticClient.Registry
+		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		// Act & Assert
-		var version = await AutomaticClient.Registry
-			.GetSchemaVersionById(schemaVersion.VersionId, cancellationToken: ct);
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-		await Assert.That(version.VersionId).IsGuid();
+		var version = await Fixture.Client.Registry
+			.GetSchemaVersionById(schemaVersion.VersionId, ct);
+
+		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.None);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
 		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 		await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_by_name_fails_on_unknown_name(CancellationToken ct) {
-		// Arrange
-		var nonExistentSchemaName = NewSchemaName();
+	[Test]
+	public async ValueTask get_schema_by_name_fails_on_unknown_name(CancellationToken ct) {
+		var nonExistentSchemaName = KurrentClientTestFixture.NewSchemaName();
 
-		// Act & Assert
-		await Assert.That(async () => await AutomaticClient.Registry
-			.GetSchemaVersion(nonExistentSchemaName, cancellationToken: ct))
-			.ThrowsException();
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry
+				.GetSchemaVersion(nonExistentSchemaName, cancellationToken: ct));
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_by_name_fails_on_invalid_version(CancellationToken ct) {
-		// Arrange
-		var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask get_schema_by_name_fails_on_invalid_version(CancellationToken ct) {
+		var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-        await AutomaticClient.Registry
+        await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
+
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
 		const int nonExistentVersionNumber = 999;
 
-		await Assert.That(async () => await AutomaticClient.Registry
-			.GetSchemaVersion(schemaName, nonExistentVersionNumber, ct))
-			.ThrowsException();
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry
+				.GetSchemaVersion(schemaName, nonExistentVersionNumber, ct));
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_by_id_fails_on_unknown_id(CancellationToken ct) {
+	[Test]
+	public async ValueTask get_schema_by_id_fails_on_unknown_id(CancellationToken ct) {
 		var nonExistentVersionId = SchemaVersionId.From(Guid.NewGuid());
 
-		await Assert.That(async () => await AutomaticClient.Registry
-			.GetSchemaVersionById(nonExistentVersionId, cancellationToken: ct))
-			.ThrowsException();
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry
+				.GetSchemaVersionById(nonExistentVersionId, ct));
 	}
 }

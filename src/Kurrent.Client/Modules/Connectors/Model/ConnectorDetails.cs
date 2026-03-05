@@ -1,3 +1,4 @@
+using Google.Protobuf.WellKnownTypes;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Connectors;
@@ -42,6 +43,16 @@ public record ConnectorDetails {
     public DateTimeOffset SettingsUpdateTime { get; init; }
 
     /// <summary>
+    /// Hierarchical configuration for the connector. Only populated when IncludeConfiguration is true.
+    /// </summary>
+    public Struct? Configuration { get; init; }
+
+    /// <summary>
+    /// Timestamp when the connector configuration was last updated.
+    /// </summary>
+    public DateTimeOffset ConfigurationUpdateTime { get; init; }
+
+    /// <summary>
     /// Current processing position of the connector.
     /// </summary>
     public LogPosition Position { get; init; } = LogPosition.Unset;
@@ -49,7 +60,7 @@ public record ConnectorDetails {
     /// <summary>
     /// Timestamp when the connector position was last updated.
     /// </summary>
-    public DateTimeOffset? PositionUpdateTime { get; init; }
+    public DateTimeOffset PositionUpdateTime { get; init; }
 
     /// <summary>
     /// Timestamp when the connector was created.
@@ -64,7 +75,7 @@ public record ConnectorDetails {
     /// <summary>
     /// Timestamp when the connector was deleted, if applicable.
     /// </summary>
-    public DateTimeOffset? DeleteTime { get; init; }
+    public DateTimeOffset DeleteTime { get; init; }
 
     /// <summary>
     /// Error details if the connector is in an error state.
@@ -84,5 +95,5 @@ public record ConnectorDetails {
     /// <summary>
     /// Gets a value indicating whether the connector has been deleted.
     /// </summary>
-    public bool IsDeleted => DeleteTime.HasValue;
+    public bool IsDeleted => DeleteTime != default;
 }

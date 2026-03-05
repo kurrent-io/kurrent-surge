@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package kurrentdb.protocol.registry.v2;
 
-option csharp_namespace = "KurrentDB.Protocol.V2.Registry";
+option csharp_namespace    = "KurrentDB.Protocol.Registry.V2";
+option java_package        = "io.kurrentdb.protocol.registry.v2";
+option java_multiple_files = true;
 
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
@@ -24,7 +26,7 @@ message CompatibilitySettings {
 }
 
 message DataFormatSettings {
-  bool             enforce = 1;
+  bool         enforce = 1;
   SchemaDataFormat format  = 2;
 }
 

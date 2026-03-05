@@ -1,3 +1,4 @@
+using Kurrent.Client.Connectors;
 using Kurrent.Client.Legacy;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
@@ -38,11 +39,11 @@ public class KurrentClient : IAsyncDisposable {
 
         Registry                = new RegistryClient(this);
         Streams                 = new StreamsClient(this);
+        Connectors              = new ConnectorsClient(this);
         // Admin                   = new AdminClient(this);
         // PersistentSubscriptions = new PersistentSubscriptionsClient(this);
         // Projections             = new ProjectionsClient(this);
         // Users                   = new UsersClient(this);
-        // Connectors              = new ConnectorsClient(this);
     }
 
     internal bool Shared { get; init; }
@@ -54,11 +55,11 @@ public class KurrentClient : IAsyncDisposable {
 
     public StreamsClient                 Streams                 { get; }
     public RegistryClient                Registry                { get; }
+    public ConnectorsClient              Connectors              { get; }
     // public UsersClient                   Users                   { get; }
     // public PersistentSubscriptionsClient PersistentSubscriptions { get; }
     // public AdminClient                   Admin                   { get; }
     // public ProjectionsClient             Projections             { get; }
-    // public ConnectorsClient              Connectors              { get; }
 
 	// internal async Task<ServerFeatures> ForceRefresh(CancellationToken cancellationToken = default) {
 	// 	await LegacyCallInvoker.ForceRefresh(cancellationToken).ConfigureAwait(false);
