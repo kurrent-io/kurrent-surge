@@ -312,4 +312,120 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region CTEs
+
+    [Test]
+    public async Task preserves_cte_name() {
+        var result = Normalize(_normalizer, "with schema as (select 1) select * from schema");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("with schema as (select 1) select * from schema");
+    }
+
+    [Test]
+    public async Task handles_multiple_ctes() {
+        var input  = "with a as (select 1), b as (select 2) select * from a";
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(input);
+    }
+
+    [Test]
+    public async Task checks_tables_inside_cte_body() {
+        var result = Normalize(_normalizer, "with cte as (select schema from records) select * from cte");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(
+            "with cte as (select event_type from kdb_log) select * from cte"
+        );
+    }
+
+    [Test]
+    public async Task rejects_forbidden_table_inside_cte_body() {
+        var result = Normalize(_normalizer, "with cte as (select * from kdb_internal) select * from cte");
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    #endregion
+
+    #region Lambda
+
+    [Test]
+    public async Task preserves_lambda_parameters() {
+        var result = Normalize(_normalizer, "select list_filter(l, lambda x: x > 1)");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("select list_filter(l, lambda x: x > 1)");
+    }
+
+    [Test]
+    public async Task replaces_columns_in_lambda_body() {
+        var result = Normalize(_normalizer, "select list_filter(l, lambda x: schema > 1)");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("select list_filter(l, lambda x: event_type > 1)");
+    }
+
+    #endregion
+
+    #region Dollar Parameters
+
+    [Test]
+    [Arguments("select $1")]
+    [Arguments("where $my_param = 1")]
+    public async Task preserves_dollar_parameters(string input) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(input);
+    }
+
+    #endregion
+
+    #region Parenthesis Depth
+
+    [Test]
+    public async Task handles_subquery_with_independent_state() {
+        var result = Normalize(_normalizer,
+            "from (select schema from records) as t"
+        );
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(
+            "from (select event_type from kdb_log) as t"
+        );
+    }
+
+    [Test]
+    public async Task rejects_forbidden_table_in_subquery() {
+        var result = Normalize(_normalizer, "from (select * from kdb_internal) as t");
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task rejects_excessive_nesting_depth() {
+        var input = new string('(', 33) + "select 1" + new string(')', 33);
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsFalse();
+        await Assert.That(result.Error).IsNotNull();
+    }
+
+    #endregion
+
+    #region Numeric Underscore
+
+    [Test]
+    public async Task does_not_scan_numeric_underscore_as_identifier() {
+        var result = Normalize(_normalizer, "where x = 100_000");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("where x = 100_000");
+    }
+
+    #endregion
 }

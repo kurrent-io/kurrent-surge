@@ -169,6 +169,9 @@ public sealed class QueryExpressionNormalizer {
         var w     = new ScanWriter(buffer);
         var state = ScannerState.Default;
 
+        Span<ScannerState> stateStack = stackalloc ScannerState[32];
+        var depth = 0;
+
         for (var i = 0; i < query.Length;) {
             var ch = query[i];
 
@@ -196,17 +199,41 @@ public sealed class QueryExpressionNormalizer {
                 continue;
             }
 
-            // $$...$$ or $tag$...$tag$ dollar-quoted string
+            // $$...$$ or $tag$...$tag$ dollar-quoted string, or $param reference
             if (ch == '$') {
-                // If $ is followed by a digit, it's a parameter reference — just copy
+                // If $ is followed by a digit, it's a parameter reference — copy $ and all digits
                 if (i + 1 < query.Length && char.IsDigit(query[i + 1])) {
                     w.Copy(ch);
                     i++;
+                    while (i < query.Length && char.IsDigit(query[i])) {
+                        w.Copy(query[i]);
+                        i++;
+                    }
                     continue;
                 }
-                // Check for $$ or $tag$
-                if (i + 1 < query.Length && (query[i + 1] == '$' || char.IsLetter(query[i + 1]) || query[i + 1] == '_')) {
+                // Check for $$ or $tag$ (dollar-quoted string)
+                if (i + 1 < query.Length && query[i + 1] == '$') {
                     SkipDollarQuotedString(query, ref i, ref w);
+                    continue;
+                }
+                // $ followed by identifier start: could be $tag$ string OR $param
+                if (i + 1 < query.Length && (char.IsLetter(query[i + 1]) || query[i + 1] == '_')) {
+                    // Look ahead to see if there's a closing $ (dollar-quoted string tag)
+                    var j = i + 1;
+                    while (j < query.Length && (char.IsLetterOrDigit(query[j]) || query[j] == '_'))
+                        j++;
+                    if (j < query.Length && query[j] == '$') {
+                        // This is a $tag$...$tag$ dollar-quoted string
+                        SkipDollarQuotedString(query, ref i, ref w);
+                        continue;
+                    }
+                    // No closing $ for tag — it's a $param reference, copy verbatim
+                    w.Copy(ch);
+                    i++;
+                    var paramStart = i;
+                    while (i < query.Length && IsIdentifierPart(query[i]))
+                        i++;
+                    w.CopySlice(query[paramStart..i]);
                     continue;
                 }
                 w.Copy(ch);
@@ -268,6 +295,14 @@ public sealed class QueryExpressionNormalizer {
                             case KeywordKind.As:
                                 w.CopySlice(ident);
                                 state = ScannerState.ExpectingAlias;
+                                break;
+                            case KeywordKind.With:
+                                w.CopySlice(ident);
+                                state = ScannerState.ExpectingCTE;
+                                break;
+                            case KeywordKind.Lambda:
+                                w.CopySlice(ident);
+                                state = ScannerState.AfterLambda;
                                 break;
                             case KeywordKind.None:
                                 ApplyColumnReplacement(ident, ref w);
@@ -357,6 +392,34 @@ public sealed class QueryExpressionNormalizer {
                         w.CopySlice(ident);
                         state = ScannerState.Default;
                         break;
+
+                    case ScannerState.ExpectingCTE:
+                        if (keyword == KeywordKind.Recursive) {
+                            // RECURSIVE is transparent — stay in ExpectingCTE
+                            w.CopySlice(ident);
+                        } else {
+                            // CTE name — copy verbatim, no replacement
+                            w.CopySlice(ident);
+                            state = ScannerState.AfterCTE;
+                        }
+                        break;
+
+                    case ScannerState.AfterCTE:
+                        if (keyword == KeywordKind.As) {
+                            w.CopySlice(ident);
+                            state = ScannerState.Default;
+                        } else {
+                            // Unexpected — copy verbatim, reset
+                            w.CopySlice(ident);
+                            state = ScannerState.Default;
+                        }
+                        break;
+
+                    case ScannerState.AfterLambda:
+                        // Lambda parameter name — copy verbatim, no replacement
+                        w.CopySlice(ident);
+                        // Stay in AfterLambda (multi-parameter lambda)
+                        break;
                 }
 
                 continue;
@@ -368,6 +431,14 @@ public sealed class QueryExpressionNormalizer {
                 w.Copy(':');
                 i += 2;
                 state = ScannerState.AfterCast;
+                continue;
+            }
+
+            // : in AfterLambda → end of lambda parameters, transition back to Default
+            if (ch == ':' && state == ScannerState.AfterLambda) {
+                w.Copy(':');
+                i++;
+                state = ScannerState.Default;
                 continue;
             }
 
@@ -384,6 +455,48 @@ public sealed class QueryExpressionNormalizer {
                 w.Copy(ch);
                 i++;
                 state = ScannerState.ExpectingTable;
+                continue;
+            }
+
+            // comma in AfterCTE → ExpectingCTE (multiple CTEs)
+            if (ch == ',' && state == ScannerState.AfterCTE) {
+                w.Copy(ch);
+                i++;
+                state = ScannerState.ExpectingCTE;
+                continue;
+            }
+
+            // ( push state onto stack, reset to Default
+            if (ch == '(') {
+                if (depth >= 32)
+                    return NormalizeResult.Failure("Nesting depth exceeds maximum of 32");
+                stateStack[depth] = state;
+                depth++;
+                state = ScannerState.Default;
+                w.Copy(ch);
+                i++;
+                continue;
+            }
+
+            // ) pop state from stack
+            if (ch == ')') {
+                if (depth > 0) {
+                    depth--;
+                    state = stateStack[depth];
+                }
+                w.Copy(ch);
+                i++;
+                continue;
+            }
+
+            // numeric literal with possible underscore separators (e.g. 100_000)
+            if (char.IsAsciiDigit(ch)) {
+                w.Copy(ch);
+                i++;
+                while (i < query.Length && (char.IsAsciiDigit(query[i]) || query[i] == '_')) {
+                    w.Copy(query[i]);
+                    i++;
+                }
                 continue;
             }
 
