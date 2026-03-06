@@ -54,4 +54,26 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region Skip Regions
+
+    [Test]
+    [Arguments("-- schema records\nselect 1",           "-- schema records\nselect 1")]
+    [Arguments("select /* schema */ 1",                  "select /* schema */ 1")]
+    [Arguments("select /* /* nested */ still */ 1",      "select /* /* nested */ still */ 1")]
+    [Arguments("select 'schema'",                        "select 'schema'")]
+    [Arguments("select 'it''s'",                         "select 'it''s'")]
+    [Arguments("select E'schema\\n'",                    "select E'schema\\n'")]
+    [Arguments("select e'test\\''",                      "select e'test\\''")]
+    [Arguments("select $$schema records$$",              "select $$schema records$$")]
+    [Arguments("select $tag$schema$tag$",                "select $tag$schema$tag$")]
+    [Arguments("select arr[1], list[2:3]",               "select arr[1], list[2:3]")]
+    public async Task skips_region_without_replacement(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    #endregion
 }
