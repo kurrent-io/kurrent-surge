@@ -229,6 +229,67 @@ public class QueryExpressionNormalizerTests {
 
     #endregion
 
+    #region Qualified References
+
+    [Test]
+    [Arguments("where r.revision = 1",                     "where r.event_number = 1")]
+    [Arguments("select r.schema, r.position",              "select r.event_type, r.log_position")]
+    [Arguments("where t.unknown_col = 1",                  "where t.unknown_col = 1")]
+    public async Task replaces_column_in_qualified_reference(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task replaces_table_in_schema_qualified_from() {
+        var result = Normalize(_normalizer, "from main.records");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("from main.kdb_log");
+    }
+
+    [Test]
+    public async Task rejects_forbidden_prefix_in_schema_qualified_from() {
+        var result = Normalize(_normalizer, "from main.kdb_internal");
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    #endregion
+
+    #region Double-Quoted Identifiers
+
+    [Test]
+    [Arguments("select \"schema\"",                   "select \"event_type\"")]
+    [Arguments("from \"records\"",                    "from \"kdb_log\"")]
+    [Arguments("where \"revision\" = 1",              "where \"event_number\" = 1")]
+    [Arguments("select \"unknown\"",                  "select \"unknown\"")]
+    public async Task handles_double_quoted_identifiers(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task rejects_forbidden_prefix_in_double_quoted_table() {
+        var result = Normalize(_normalizer, "from \"kdb_internal\"");
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task handles_escaped_double_quotes() {
+        var result = Normalize(_normalizer, "select \"my\"\"col\"");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("select \"my\"\"col\"");
+    }
+
+    #endregion
+
     #region Cast Operator
 
     [Test]

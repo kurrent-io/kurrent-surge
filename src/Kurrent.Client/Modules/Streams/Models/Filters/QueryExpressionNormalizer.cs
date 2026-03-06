@@ -220,6 +220,14 @@ public sealed class QueryExpressionNormalizer {
                 continue;
             }
 
+            // "double-quoted identifier"
+            if (ch == '"') {
+                var error = HandleDoubleQuotedIdentifier(query, ref i, ref w, ref state);
+                if (error is not null)
+                    return NormalizeResult.Failure(error);
+                continue;
+            }
+
             // bare identifier: scan, classify, and apply state-dependent replacement
             if (IsIdentifierStart(ch)) {
                 var start = i;
@@ -239,6 +247,15 @@ public sealed class QueryExpressionNormalizer {
                             // Copy any whitespace between identifier and colon, then the colon
                             w.CopySlice(query[i..(colonPos + 1)]);
                             i = colonPos + 1;
+                            // Next identifier gets column replacement (stay in Default)
+                            break;
+                        }
+
+                        // Dot-qualified lookahead: qualifier.column — skip qualifier, apply replacement to column
+                        if (keyword == KeywordKind.None && i < query.Length && query[i] == '.') {
+                            w.CopySlice(ident);
+                            w.Copy('.');
+                            i++; // skip the dot
                             // Next identifier gets column replacement (stay in Default)
                             break;
                         }
@@ -318,6 +335,17 @@ public sealed class QueryExpressionNormalizer {
                         }
                         break;
 
+                    case ScannerState.ExpectingQualifiedTable: {
+                        // The identifier after schema. is the real table name — prefix check + table replacement
+                        if (_forbiddenTablePrefix is not null &&
+                            ident.StartsWith(_forbiddenTablePrefix.AsSpan(), StringComparison.OrdinalIgnoreCase)) {
+                            return NormalizeResult.Failure($"Table '{ident.ToString()}' uses forbidden prefix '{_forbiddenTablePrefix}'");
+                        }
+                        ApplyTableReplacement(ident, ref w);
+                        state = ScannerState.AfterTable;
+                        break;
+                    }
+
                     case ScannerState.ExpectingAlias:
                         // The identifier after AS is an alias — copy verbatim, no replacement
                         w.CopySlice(ident);
@@ -340,6 +368,14 @@ public sealed class QueryExpressionNormalizer {
                 w.Copy(':');
                 i += 2;
                 state = ScannerState.AfterCast;
+                continue;
+            }
+
+            // dot in AfterTable → schema.table; the identifier already written was the schema name
+            if (ch == '.' && state == ScannerState.AfterTable) {
+                w.Copy('.');
+                i++;
+                state = ScannerState.ExpectingQualifiedTable;
                 continue;
             }
 
@@ -392,6 +428,118 @@ public sealed class QueryExpressionNormalizer {
 
         colonPos = -1;
         return false;
+    }
+
+    /// <summary>
+    /// Handles a double-quoted identifier at the current position.
+    /// Returns null on success, or an error message string on failure (forbidden prefix).
+    /// </summary>
+    string? HandleDoubleQuotedIdentifier(
+        ReadOnlySpan<char> query, ref int pos, ref ScanWriter w, ref ScannerState state
+    ) {
+        var start = pos;
+        pos++; // skip opening "
+
+        // Scan to closing ", handling "" escapes
+        var hasEscapes = false;
+        while (pos < query.Length) {
+            if (query[pos] == '"') {
+                pos++;
+                if (pos < query.Length && query[pos] == '"') {
+                    // "" escape — continue scanning
+                    hasEscapes = true;
+                    pos++;
+                    continue;
+                }
+                // closing "
+                break;
+            }
+            pos++;
+        }
+
+        // Content between the outer quotes (including any "" escapes)
+        var rawContent = query[(start + 1)..(pos - 1)];
+
+        // For lookup, unescape "" → " if needed
+        ReadOnlySpan<char> lookupContent;
+        string? unescaped = null;
+        if (hasEscapes) {
+            unescaped = rawContent.ToString().Replace("\"\"", "\"");
+            lookupContent = unescaped.AsSpan();
+        } else {
+            lookupContent = rawContent;
+        }
+
+        switch (state) {
+            case ScannerState.Default: {
+                // Column replacement
+#if NET9_0_OR_GREATER
+                if (_columnLookup.TryGetValue(lookupContent, out var replacement)) {
+#else
+                var key = unescaped ?? lookupContent.ToString();
+                if (_columnMap.TryGetValue(key, out var replacement)) {
+#endif
+                    w.Copy('"');
+                    w.CopySlice(replacement.AsSpan());
+                    w.Copy('"');
+                } else {
+                    // No match — copy original verbatim
+                    w.CopySlice(query[start..pos]);
+                }
+                break;
+            }
+
+            case ScannerState.ExpectingTable:
+            case ScannerState.ExpectingQualifiedTable: {
+                // Prefix check on unescaped content
+                if (_forbiddenTablePrefix is not null &&
+                    lookupContent.StartsWith(_forbiddenTablePrefix.AsSpan(), StringComparison.OrdinalIgnoreCase)) {
+                    return $"Table '{lookupContent.ToString()}' uses forbidden prefix '{_forbiddenTablePrefix}'";
+                }
+
+                // Table replacement
+#if NET9_0_OR_GREATER
+                if (_tableLookup.TryGetValue(lookupContent, out var replacement)) {
+#else
+                var key = unescaped ?? lookupContent.ToString();
+                if (_tableMap.TryGetValue(key, out var replacement)) {
+#endif
+                    w.Copy('"');
+                    w.CopySlice(replacement.AsSpan());
+                    w.Copy('"');
+                } else {
+                    // No match — copy original verbatim
+                    w.CopySlice(query[start..pos]);
+                }
+                state = ScannerState.AfterTable;
+                break;
+            }
+
+            case ScannerState.ExpectingAlias:
+                // Alias — copy verbatim
+                w.CopySlice(query[start..pos]);
+                state = ScannerState.Default;
+                break;
+
+            case ScannerState.AfterTable:
+                // Implicit alias — copy verbatim
+                w.CopySlice(query[start..pos]);
+                state = ScannerState.Default;
+                break;
+
+            case ScannerState.AfterCast:
+                // Type name — copy verbatim
+                w.CopySlice(query[start..pos]);
+                state = ScannerState.Default;
+                break;
+
+            default:
+                // Copy verbatim for any other state
+                w.CopySlice(query[start..pos]);
+                break;
+        }
+
+        return null;
     }
 
     void ApplyTableReplacement(ReadOnlySpan<char> ident, ref ScanWriter w) {
