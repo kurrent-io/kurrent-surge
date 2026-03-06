@@ -8,16 +8,4 @@ public readonly record struct SchemaVersion(
     string SchemaDefinition,
     SchemaDataFormat DataFormat,
     DateTimeOffset RegisteredAt
-) {
-    internal static SchemaVersion FromProto(KurrentDB.Protocol.V2.Registry.SchemaVersion version) {
-        ArgumentNullException.ThrowIfNull(version);
-
-        return new SchemaVersion(
-            SchemaVersionId.From(version.SchemaVersionId),
-            version.VersionNumber,
-            version.SchemaDefinition.ToStringUtf8(),
-            (SchemaDataFormat)version.DataFormat,
-            version.RegisteredAt.ToDateTimeOffset()
-        );
-    }
-}
+);

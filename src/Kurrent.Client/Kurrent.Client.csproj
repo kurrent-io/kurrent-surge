@@ -76,12 +76,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Modules\Connectors\**" />
-    <EmbeddedResource Remove="Modules\Connectors\**" />
-    <None Remove="Modules\Connectors\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="..\..\proto\kurrentdb\protocol\v0\.scratch\">
       <Link>proto\kurrentdb\protocol\v0\.scratch</Link>
     </Folder>

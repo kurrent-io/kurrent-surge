@@ -1,61 +1,68 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Client.Tests.Fixtures;
 
 namespace Kurrent.Client.Tests.Registry;
 
-public class GetSchemaTests : KurrentClientTestFixture {
-	const int TestTimeoutMs = 20_000;
+[Category("Registry")]
+[Category("Integration")]
+public class GetSchemaTests {
+	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema(CancellationToken ct) {
-        var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
-        var description      = Faker.Lorem.Sentence();
-        var tags             = new Dictionary<string, string> { [Faker.Lorem.Word()] = Faker.Lorem.Word(), [Faker.Lorem.Word()] = Faker.Lorem.Word() };
+	[Test]
+	public async ValueTask get_schema(CancellationToken ct) {
+        var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+        var description      = Fixture.Faker.Lorem.Sentence();
+        var tags             = new Dictionary<string, string> { [Fixture.Faker.Lorem.Word()] = Fixture.Faker.Lorem.Word(), [Fixture.Faker.Lorem.Word()] = Fixture.Faker.Lorem.Word() };
 
-		var schemaVersion = await AutomaticClient.Registry
+		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(
 			    schemaName, schemaDefinition, SchemaDataFormat.Json,
 			    CompatibilityMode.Backward, description, tags, ct
 		    );
 
-		var schema = await AutomaticClient.Registry
-            .GetSchema(schemaName, cancellationToken: ct);
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		var schema = await Fixture.Client.Registry
+            .GetSchema(schemaName, ct);
 
 		await Assert.That(schema.LatestSchemaVersion).IsEqualTo(schemaVersion.VersionNumber);
-		await Assert.That(schema.SchemaName.Value).IsEqualTo(schemaName);
+		await Assert.That(schema.SchemaName.Value).IsEqualTo((string)schemaName);
 		await Assert.That(schema.CreatedAt).IsGreaterThan(DateTimeOffset.MinValue);
 		await Assert.That(schema.UpdatedAt).IsGreaterThan(DateTimeOffset.MinValue);
 		await Assert.That(schema.Details.Compatibility).IsEqualTo(CompatibilityMode.Backward);
 		await Assert.That(schema.Details.Description).IsEqualTo(description);
-		await Assert.That(schema.Details.Tags).IsEqualTo(tags);
+		await Assert.That(schema.Details.Tags).IsEquivalentTo(tags);
 		await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_when_schema_does_no_exists(CancellationToken ct) {
+	[Test]
+	public async ValueTask get_schema_when_schema_does_not_exist(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-		var schemaName = NewSchemaName();
-
-		await Assert.That(async () => await AutomaticClient.Registry
-			.GetSchema(schemaName, cancellationToken: ct))
-			.ThrowsException();
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task get_schema_when_schema_deleted(CancellationToken ct) {
-		// Arrange
-		var schemaName       = NewSchemaName();
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask get_schema_when_schema_deleted(CancellationToken ct) {
+		var schemaName       = KurrentClientTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		await AutomaticClient.Registry
+		await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await AutomaticClient.Registry
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		await Fixture.Client.Registry
             .DeleteSchema(schemaName, ct);
 
-		await Assert.That(async () => await AutomaticClient.Registry
-			.GetSchema(schemaName, cancellationToken: ct))
-			.ThrowsException();
+        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
 	}
 }
