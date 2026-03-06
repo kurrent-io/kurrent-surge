@@ -95,4 +95,44 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region Table Replacement
+
+    [Test]
+    [Arguments("from records",                          "from kdb_log")]
+    [Arguments("FROM records",                          "FROM kdb_log")]
+    [Arguments("from all_events",                       "from kdb_log")]
+    [Arguments("from unknown_table",                    "from unknown_table")]
+    [Arguments("select schema from records",            "select event_type from kdb_log")]
+    [Arguments("from records where revision = 1",       "from kdb_log where event_number = 1")]
+    [Arguments("join records on x = y",                 "join kdb_log on x = y")]
+    [Arguments("left join records on x = y",            "left join kdb_log on x = y")]
+    [Arguments("left outer join records on x = y",      "left outer join kdb_log on x = y")]
+    [Arguments("from records, all_events",              "from kdb_log, kdb_log")]
+    public async Task replaces_tables_in_table_position(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("select records from t",                 "select records from t")]
+    [Arguments("where records = 1",                     "where records = 1")]
+    public async Task does_not_replace_table_names_in_column_position(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task does_not_replace_column_names_in_table_position() {
+        var result = Normalize(_normalizer, "from schema");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("from schema");
+    }
+
+    #endregion
 }

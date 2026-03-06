@@ -49,12 +49,37 @@ ref struct ScanWriter {
     public ReadOnlySpan<char> Result(Span<char> buffer) => buffer[.._written];
 }
 
+enum ScannerState {
+    Default,                // Column context
+    ExpectingTable,         // After FROM/JOIN/INTO/UPDATE/TABLE
+    AfterTable,             // After consuming a table name
+    ExpectingQualifiedTable, // After dot in table position (Task 8)
+    ExpectingAlias,         // After AS (Task 6)
+    ExpectingCTE,           // After WITH (Task 9)
+    AfterCTE,               // After CTE name (Task 9)
+    AfterLambda,            // After lambda keyword (Task 9)
+    AfterCast,              // After :: operator (Task 7)
+}
+
+enum KeywordKind {
+    None,            // Not a keyword — treat as identifier
+    TableIntroducer, // FROM, JOIN, INTO, UPDATE, TABLE, PIVOT, UNPIVOT
+    JoinModifier,    // LEFT, RIGHT, INNER, OUTER, FULL, CROSS, NATURAL, LATERAL, SEMI, ANTI, ASOF, POSITIONAL
+    ContextReset,    // SELECT, WHERE, ON, SET, ORDER, GROUP, HAVING, LIMIT, UNION, VALUES, RETURNING, QUALIFY, WINDOW, USING, OFFSET, EXCEPT, INTERSECT, FILTER, SAMPLE
+    As,              // AS (special — alias)
+    With,            // WITH (special — CTE)
+    Lambda,          // LAMBDA (special)
+    Recursive,       // RECURSIVE (transparent in CTE)
+}
+
 public sealed class QueryExpressionNormalizer {
     readonly NormalizerOptions _options;
 
     readonly FrozenDictionary<string, string> _columnMap;
+    readonly FrozenDictionary<string, string> _tableMap;
 #if NET9_0_OR_GREATER
     readonly FrozenDictionary<string, string>.AlternateLookup<ReadOnlySpan<char>> _columnLookup;
+    readonly FrozenDictionary<string, string>.AlternateLookup<ReadOnlySpan<char>> _tableLookup;
 #endif
 
     public QueryExpressionNormalizer(NormalizerOptions options) {
@@ -62,16 +87,85 @@ public sealed class QueryExpressionNormalizer {
 
         _columnMap = options.ColumnReplacements.ToFrozenDictionary(
             kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        _tableMap = options.TableReplacements.ToFrozenDictionary(
+            kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 #if NET9_0_OR_GREATER
         _columnLookup = _columnMap.GetAlternateLookup<ReadOnlySpan<char>>();
+        _tableLookup  = _tableMap.GetAlternateLookup<ReadOnlySpan<char>>();
 #endif
     }
 
     static bool IsIdentifierStart(char c) => char.IsLetter(c) || c == '_';
     static bool IsIdentifierPart(char c)  => char.IsLetter(c) || char.IsAsciiDigit(c) || c == '_';
 
+    static KeywordKind ClassifyKeyword(ReadOnlySpan<char> ident) {
+        switch (ident.Length) {
+            case 2:
+                if (MemoryExtensions.Equals(ident, "AS", StringComparison.OrdinalIgnoreCase)) return KeywordKind.As;
+                if (MemoryExtensions.Equals(ident, "ON", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                break;
+            case 3:
+                if (MemoryExtensions.Equals(ident, "SET", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                break;
+            case 4:
+                if (MemoryExtensions.Equals(ident, "FROM", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "JOIN", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "INTO", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "LEFT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "FULL", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "SEMI", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "ANTI", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "ASOF", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "WITH", StringComparison.OrdinalIgnoreCase)) return KeywordKind.With;
+                break;
+            case 5:
+                if (MemoryExtensions.Equals(ident, "TABLE", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "PIVOT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "RIGHT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "INNER", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "OUTER", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "CROSS", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "WHERE", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "ORDER", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "GROUP", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "LIMIT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "UNION", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "USING", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                break;
+            case 6:
+                if (MemoryExtensions.Equals(ident, "UPDATE", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "SELECT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "HAVING", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "VALUES", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "WINDOW", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "OFFSET", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "EXCEPT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "FILTER", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "SAMPLE", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "LAMBDA", StringComparison.OrdinalIgnoreCase)) return KeywordKind.Lambda;
+                break;
+            case 7:
+                if (MemoryExtensions.Equals(ident, "UNPIVOT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.TableIntroducer;
+                if (MemoryExtensions.Equals(ident, "NATURAL", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "LATERAL", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                if (MemoryExtensions.Equals(ident, "QUALIFY", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                break;
+            case 9:
+                if (MemoryExtensions.Equals(ident, "RETURNING", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "INTERSECT", StringComparison.OrdinalIgnoreCase)) return KeywordKind.ContextReset;
+                if (MemoryExtensions.Equals(ident, "RECURSIVE", StringComparison.OrdinalIgnoreCase)) return KeywordKind.Recursive;
+                break;
+            case 10:
+                if (MemoryExtensions.Equals(ident, "POSITIONAL", StringComparison.OrdinalIgnoreCase)) return KeywordKind.JoinModifier;
+                break;
+        }
+        return KeywordKind.None;
+    }
+
     public NormalizeResult Normalize(ReadOnlySpan<char> query, Span<char> buffer) {
-        var w = new ScanWriter(buffer);
+        var w     = new ScanWriter(buffer);
+        var state = ScannerState.Default;
 
         for (var i = 0; i < query.Length;) {
             var ch = query[i];
@@ -124,22 +218,77 @@ public sealed class QueryExpressionNormalizer {
                 continue;
             }
 
-            // bare identifier: scan and apply column replacement
+            // bare identifier: scan, classify, and apply state-dependent replacement
             if (IsIdentifierStart(ch)) {
                 var start = i;
                 i++;
                 while (i < query.Length && IsIdentifierPart(query[i]))
                     i++;
 
-                var ident = query[start..i];
-#if NET9_0_OR_GREATER
-                if (_columnLookup.TryGetValue(ident, out var replacement))
-#else
-                if (_columnMap.TryGetValue(ident.ToString(), out var replacement))
-#endif
-                    w.CopySlice(replacement.AsSpan());
-                else
-                    w.CopySlice(ident);
+                var ident   = query[start..i];
+                var keyword = ClassifyKeyword(ident);
+
+                switch (state) {
+                    case ScannerState.Default:
+                        switch (keyword) {
+                            case KeywordKind.TableIntroducer:
+                                w.CopySlice(ident);
+                                state = ScannerState.ExpectingTable;
+                                break;
+                            case KeywordKind.None:
+                                ApplyColumnReplacement(ident, ref w);
+                                break;
+                            default:
+                                w.CopySlice(ident);
+                                break;
+                        }
+                        break;
+
+                    case ScannerState.ExpectingTable:
+                        switch (keyword) {
+                            case KeywordKind.JoinModifier:
+                                w.CopySlice(ident);
+                                // stay in ExpectingTable
+                                break;
+                            default:
+                                // Any identifier (keyword or not) in table position gets table replacement
+                                ApplyTableReplacement(ident, ref w);
+                                state = ScannerState.AfterTable;
+                                break;
+                        }
+                        break;
+
+                    case ScannerState.AfterTable:
+                        switch (keyword) {
+                            case KeywordKind.TableIntroducer:
+                                w.CopySlice(ident);
+                                state = ScannerState.ExpectingTable;
+                                break;
+                            case KeywordKind.ContextReset:
+                                w.CopySlice(ident);
+                                state = ScannerState.Default;
+                                break;
+                            case KeywordKind.None:
+                                // implicit alias — copy verbatim
+                                w.CopySlice(ident);
+                                state = ScannerState.Default;
+                                break;
+                            default:
+                                w.CopySlice(ident);
+                                state = ScannerState.Default;
+                                break;
+                        }
+                        break;
+                }
+
+                continue;
+            }
+
+            // comma in AfterTable → ExpectingTable (multi-table FROM lists)
+            if (ch == ',' && state == ScannerState.AfterTable) {
+                w.Copy(ch);
+                i++;
+                state = ScannerState.ExpectingTable;
                 continue;
             }
 
@@ -149,6 +298,28 @@ public sealed class QueryExpressionNormalizer {
         }
 
         return NormalizeResult.Success(w.Result(buffer));
+    }
+
+    void ApplyColumnReplacement(ReadOnlySpan<char> ident, ref ScanWriter w) {
+#if NET9_0_OR_GREATER
+        if (_columnLookup.TryGetValue(ident, out var replacement))
+#else
+        if (_columnMap.TryGetValue(ident.ToString(), out var replacement))
+#endif
+            w.CopySlice(replacement.AsSpan());
+        else
+            w.CopySlice(ident);
+    }
+
+    void ApplyTableReplacement(ReadOnlySpan<char> ident, ref ScanWriter w) {
+#if NET9_0_OR_GREATER
+        if (_tableLookup.TryGetValue(ident, out var replacement))
+#else
+        if (_tableMap.TryGetValue(ident.ToString(), out var replacement))
+#endif
+            w.CopySlice(replacement.AsSpan());
+        else
+            w.CopySlice(ident);
     }
 
     // -- single-line comment: copy until \n or end
