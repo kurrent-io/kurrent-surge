@@ -74,6 +74,7 @@ enum KeywordKind {
 
 public sealed class QueryExpressionNormalizer {
     readonly NormalizerOptions _options;
+    readonly string?          _forbiddenTablePrefix;
 
     readonly FrozenDictionary<string, string> _columnMap;
     readonly FrozenDictionary<string, string> _tableMap;
@@ -83,7 +84,8 @@ public sealed class QueryExpressionNormalizer {
 #endif
 
     public QueryExpressionNormalizer(NormalizerOptions options) {
-        _options = options;
+        _options              = options;
+        _forbiddenTablePrefix = options.ForbiddenTablePrefix;
 
         _columnMap = options.ColumnReplacements.ToFrozenDictionary(
             kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
@@ -251,6 +253,10 @@ public sealed class QueryExpressionNormalizer {
                                 // stay in ExpectingTable
                                 break;
                             default:
+                                if (_forbiddenTablePrefix is not null &&
+                                    ident.StartsWith(_forbiddenTablePrefix.AsSpan(), StringComparison.OrdinalIgnoreCase)) {
+                                    return NormalizeResult.Failure($"Table '{ident.ToString()}' uses forbidden prefix '{_forbiddenTablePrefix}'");
+                                }
                                 // Any identifier (keyword or not) in table position gets table replacement
                                 ApplyTableReplacement(ident, ref w);
                                 state = ScannerState.AfterTable;

@@ -135,4 +135,41 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region Forbidden Prefix
+
+    [Test]
+    [Arguments("from kdb_internal")]
+    [Arguments("from KDB_INTERNAL")]
+    [Arguments("join kdb_lookup on x = y")]
+    [Arguments("left join kdb_lookup on x = y")]
+    [Arguments("from a, kdb_internal")]
+    [Arguments("insert into kdb_sink")]
+    [Arguments("update kdb_target set x = 1")]
+    public async Task rejects_table_with_forbidden_prefix(string input) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsFalse();
+        await Assert.That(result.Error).IsNotNull();
+    }
+
+    [Test]
+    [Arguments("select kdb_col from t")]
+    [Arguments("where kdb_col = 1")]
+    [Arguments("order by kdb_col")]
+    public async Task allows_forbidden_prefix_in_column_position(string input) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task allows_any_table_when_prefix_not_configured() {
+        var noPrefix = CreateNormalizer();
+        var result   = Normalize(noPrefix, "from kdb_internal");
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    #endregion
 }
