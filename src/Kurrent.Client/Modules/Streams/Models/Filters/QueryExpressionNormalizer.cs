@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 
 namespace Kurrent.Client.Streams;
@@ -51,9 +52,23 @@ ref struct ScanWriter {
 public sealed class QueryExpressionNormalizer {
     readonly NormalizerOptions _options;
 
+    readonly FrozenDictionary<string, string> _columnMap;
+#if NET9_0_OR_GREATER
+    readonly FrozenDictionary<string, string>.AlternateLookup<ReadOnlySpan<char>> _columnLookup;
+#endif
+
     public QueryExpressionNormalizer(NormalizerOptions options) {
         _options = options;
+
+        _columnMap = options.ColumnReplacements.ToFrozenDictionary(
+            kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+#if NET9_0_OR_GREATER
+        _columnLookup = _columnMap.GetAlternateLookup<ReadOnlySpan<char>>();
+#endif
     }
+
+    static bool IsIdentifierStart(char c) => char.IsLetter(c) || c == '_';
+    static bool IsIdentifierPart(char c)  => char.IsLetter(c) || char.IsAsciiDigit(c) || c == '_';
 
     public NormalizeResult Normalize(ReadOnlySpan<char> query, Span<char> buffer) {
         var w = new ScanWriter(buffer);
@@ -106,6 +121,25 @@ public sealed class QueryExpressionNormalizer {
             // [...] subscript/list
             if (ch == '[') {
                 SkipBracket(query, ref i, ref w);
+                continue;
+            }
+
+            // bare identifier: scan and apply column replacement
+            if (IsIdentifierStart(ch)) {
+                var start = i;
+                i++;
+                while (i < query.Length && IsIdentifierPart(query[i]))
+                    i++;
+
+                var ident = query[start..i];
+#if NET9_0_OR_GREATER
+                if (_columnLookup.TryGetValue(ident, out var replacement))
+#else
+                if (_columnMap.TryGetValue(ident.ToString(), out var replacement))
+#endif
+                    w.CopySlice(replacement.AsSpan());
+                else
+                    w.CopySlice(ident);
                 continue;
             }
 

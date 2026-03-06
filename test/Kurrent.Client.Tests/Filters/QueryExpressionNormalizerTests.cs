@@ -76,4 +76,23 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region Column Replacement
+
+    [Test]
+    [Arguments("select schema",                "select event_type")]
+    [Arguments("select revision",              "select event_number")]
+    [Arguments("select schema, revision",      "select event_type, event_number")]
+    [Arguments("select SCHEMA",                "select event_type")]
+    [Arguments("select unknown_col",           "select unknown_col")]
+    [Arguments("where revision = 234",         "where event_number = 234")]
+    [Arguments("select position as p",         "select log_position as p")]
+    public async Task replaces_columns_in_default_context(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    #endregion
 }
