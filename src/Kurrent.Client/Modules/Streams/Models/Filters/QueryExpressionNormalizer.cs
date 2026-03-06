@@ -237,6 +237,10 @@ public sealed class QueryExpressionNormalizer {
                                 w.CopySlice(ident);
                                 state = ScannerState.ExpectingTable;
                                 break;
+                            case KeywordKind.As:
+                                w.CopySlice(ident);
+                                state = ScannerState.ExpectingAlias;
+                                break;
                             case KeywordKind.None:
                                 ApplyColumnReplacement(ident, ref w);
                                 break;
@@ -270,6 +274,10 @@ public sealed class QueryExpressionNormalizer {
                                 w.CopySlice(ident);
                                 state = ScannerState.ExpectingTable;
                                 break;
+                            case KeywordKind.As:
+                                w.CopySlice(ident);
+                                state = ScannerState.ExpectingAlias;
+                                break;
                             case KeywordKind.ContextReset:
                                 w.CopySlice(ident);
                                 state = ScannerState.Default;
@@ -284,6 +292,12 @@ public sealed class QueryExpressionNormalizer {
                                 state = ScannerState.Default;
                                 break;
                         }
+                        break;
+
+                    case ScannerState.ExpectingAlias:
+                        // The identifier after AS is an alias — copy verbatim, no replacement
+                        w.CopySlice(ident);
+                        state = ScannerState.Default;
                         break;
                 }
 

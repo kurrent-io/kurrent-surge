@@ -136,6 +136,32 @@ public class QueryExpressionNormalizerTests {
 
     #endregion
 
+    #region Alias Preservation
+
+    [Test]
+    [Arguments("from records as r",             "from kdb_log as r")]
+    [Arguments("from records AS r",             "from kdb_log AS r")]
+    [Arguments("from records r",                "from kdb_log r")]
+    [Arguments("from records schema",           "from kdb_log schema")]
+    [Arguments("from records r where r.revision = 1",
+               "from kdb_log r where r.event_number = 1")]
+    public async Task preserves_table_aliases(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task preserves_column_alias_after_as() {
+        var result = Normalize(_normalizer, "select schema as s");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("select event_type as s");
+    }
+
+    #endregion
+
     #region Forbidden Prefix
 
     [Test]
