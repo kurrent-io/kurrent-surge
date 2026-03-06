@@ -1,0 +1,19 @@
+using Bogus;
+using Testing.Datasets.HomeAutomation.Model;
+
+namespace Testing.Datasets.HomeAutomation;
+
+public class DoorLockFaker : Faker<DoorLock> {
+    public static readonly DoorLockFaker Instance = new();
+
+    public DoorLockFaker() {
+        CustomInstantiator(f => new DoorLock {
+            Id               = $"urn:iot:doorlock:{f.Random.Guid()}",
+            FriendlyName     = $"Door Lock {f.Random.Number(1, 99)}",
+            IsBatteryPowered = false,
+            BatteryLevel     = null,
+            HasKeypad        = f.Random.Bool(0.5f),
+            HasAutoLock      = f.Random.Bool(0.4f)
+        });
+    }
+}

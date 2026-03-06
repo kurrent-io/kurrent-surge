@@ -108,7 +108,7 @@ static class HomeAutomationTestData {
 
     public static SmartHomeActivity SimulateHomeActivity(SmartHome home, int? numberOfEvents = null, long? startTime = null) {
         var events = HomeAutomationDataSet.Default
-            .Events(home, numberOfEvents ?? Random.Shared.Next(5, 15), startTime);
+            .Events(home).Take(numberOfEvents ?? Random.Shared.Next(5, 15)).ToList();
 
         var stream = $"{nameof(SmartHomeActivity)}-{home.Id}";
 

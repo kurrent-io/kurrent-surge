@@ -4,17 +4,21 @@ using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation;
 
-public class DoorStateChangedFaker : Faker<DoorStateChanged> {
-    public DoorStateChangedFaker(DoorLock device, long timestamp) {
-        var isOpen = false;
-        RuleFor(e => e.EventId, f => f.Random.Guid())
-            .RuleFor(e => e.Device, f => device.CreateDeviceInfo())
-            .RuleFor(e => e.IsOpen, f => {
-                isOpen = f.Random.Bool(0.3f);
-                return isOpen;
-            })
-            .RuleFor(e => e.LockStatus, f => isOpen ? LockStatus.Unlocked : f.PickRandom<LockStatus>())
-            .RuleFor(e => e.UserId, f => f.Internet.UserName())
-            .RuleFor(e => e.Timestamp, timestamp);
+public class DoorEventFaker(Device device, Guid roomId, long timestamp) {
+    readonly Faker _faker = new();
+
+    public IHomeAutomationEvent Generate() {
+        var info = new DeviceInfo {
+            Id           = device.Id,
+            RoomId       = roomId,
+            BatteryLevel = device.IsBatteryPowered ? device.BatteryLevel : null
+        };
+
+        return _faker.PickRandom<int>(0, 1, 2, 3) switch {
+            0 => new DoorOpened   { Device = info, UserId = _faker.Internet.UserName(), Timestamp = timestamp },
+            1 => new DoorClosed   { Device = info, UserId = _faker.Internet.UserName(), Timestamp = timestamp },
+            2 => new DoorLocked   { Device = info, UserId = _faker.Internet.UserName(), Timestamp = timestamp },
+            _ => new DoorUnlocked { Device = info, UserId = _faker.Internet.UserName(), Timestamp = timestamp }
+        };
     }
 }

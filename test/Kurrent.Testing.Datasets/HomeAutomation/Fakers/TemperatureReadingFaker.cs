@@ -5,12 +5,19 @@ using Testing.Datasets.HomeAutomation.Model;
 namespace Testing.Datasets.HomeAutomation;
 
 public class TemperatureReadingFaker : Faker<TemperatureReading> {
-    public TemperatureReadingFaker(Thermostat device, long timestamp) {
+    public TemperatureReadingFaker(Device device, Guid roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
+        var thermo = (Thermostat)device;
+        var (tempOffset, _, _) = WeatherModifiers.For(weather);
+        var info = new DeviceInfo {
+            Id           = device.Id,
+            RoomId       = roomId,
+            BatteryLevel = device.IsBatteryPowered ? device.BatteryLevel : null
+        };
+
         RuleFor(e => e.EventId, f => f.Random.Guid())
-            .RuleFor(e => e.Device, f => device.CreateDeviceInfo(
-                device.IsBatteryPowered ? f.Random.Number(5, 100) : null))
-            .RuleFor(e => e.Temperature, f => Math.Round(f.Random.Double(15.0, 35.0), 1))
-            .RuleFor(e => e.Unit, TemperatureUnit.Celsius)
+            .RuleFor(e => e.Device, _ => info)
+            .RuleFor(e => e.Temperature, f => Math.Round(f.Random.Double(thermo.MinOperatingTemp + tempOffset, thermo.MaxOperatingTemp + tempOffset), thermo.MeasurementPrecision))
+            .RuleFor(e => e.Unit, thermo.PreferredUnit)
             .RuleFor(e => e.Timestamp, timestamp);
     }
 }

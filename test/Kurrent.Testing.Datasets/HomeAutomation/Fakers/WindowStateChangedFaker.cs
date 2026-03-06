@@ -4,18 +4,29 @@ using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation;
 
-public class WindowStateChangedFaker : Faker<WindowStateChanged> {
-    public WindowStateChangedFaker(WindowSensor device, long timestamp) {
-        var isOpen = false;
-        RuleFor(e => e.EventId, f => f.Random.Guid())
-            .RuleFor(e => e.Device, f => device.CreateDeviceInfo(
-                device.IsBatteryPowered ? f.Random.Number(5, 100) : null))
-            .RuleFor(e => e.IsOpen, f => {
-                isOpen = f.Random.Bool(0.4f);
-                return isOpen;
-            })
-            .RuleFor(e => e.OpenPercentage, f => isOpen ? f.Random.Number(10, 100) : 0)
-            .RuleFor(e => e.WeatherCondition, f => f.Random.Enum<WeatherCondition>())
-            .RuleFor(e => e.Timestamp, timestamp);
+public class WindowEventFaker(Device device, Guid roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
+    readonly Faker _faker = new();
+
+    public IHomeAutomationEvent Generate() {
+        var window = (WindowSensor)device;
+        var (_, _, windowCloseFactor) = WeatherModifiers.For(weather);
+        var info = new DeviceInfo {
+            Id           = device.Id,
+            RoomId       = roomId,
+            BatteryLevel = device.IsBatteryPowered ? device.BatteryLevel : null
+        };
+
+        if (_faker.Random.Bool((float)(0.4 / windowCloseFactor))) {
+            return new WindowOpened {
+                Device         = info,
+                OpenPercentage = window.SupportsPartialOpen ? _faker.Random.Number(10, 100) : 100,
+                Timestamp      = timestamp
+            };
+        }
+
+        return new WindowClosed {
+            Device    = info,
+            Timestamp = timestamp
+        };
     }
 }

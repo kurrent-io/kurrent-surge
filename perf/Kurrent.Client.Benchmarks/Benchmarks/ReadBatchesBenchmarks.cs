@@ -25,7 +25,7 @@ public class ReadBatchesBenchmarks {
 
     [GlobalSetup]
     public void Setup() =>
-        _events = HomeAutomationDataSet.Default.Events(50_000);
+        _events = HomeAutomationDataSet.Default.Events().Take(50_000).ToList();
 
     // Fast path - sync completion (throughput benchmarks)
     IAsyncEnumerable<IHomeAutomationEvent> CreateFastSource() =>
@@ -88,7 +88,7 @@ public class ReadBatchesBenchmarks {
 //
 //     [GlobalSetup]
 //     public void Setup() =>
-//         _events = HomeAutomationDataSet.Default.Events(50_000);
+//         _events = HomeAutomationDataSet.Default.Events().Take(50_000).ToList();
 //
 //     // Slow path - async delays (timeout trigger benchmarks)
 //     async IAsyncEnumerable<IHomeAutomationEvent> CreateSlowSource() {

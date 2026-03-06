@@ -92,6 +92,8 @@ NEVER:
 
 ## COMMUNICATION
 
+The AskUserQuestion tool is your best friend. Use it whenever you have any uncertainty about requirements, constraints, or user intent. Do not guess or assume. If you are unsure about the meaning of a requirement, the rationale behind a constraint, or the user's intent, ask. Do not proceed until you have clarity.
+
 Include rationale (why) in commit messages, plan updates, code comments, and conversation. Do not just describe what changed.
 
 When flagging issues, include file path, line number, and exact change needed.

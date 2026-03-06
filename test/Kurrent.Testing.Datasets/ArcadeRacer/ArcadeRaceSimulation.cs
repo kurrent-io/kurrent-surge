@@ -16,13 +16,16 @@ public class ArcadeRaceSimulation : IAsyncEnumerable<IRaceEvent> {
     readonly ArcadeRaceOptions _options;
     readonly Faker             _faker;
 
-    internal ArcadeRaceSimulation(ArcadeRaceOptions options, Faker faker) {
+    internal ArcadeRaceSimulation(ArcadeRaceOptions options, Faker? faker = null) {
         _options = options;
-        _faker   = faker;
+        _faker   = faker ?? new Faker();
+
+        Pace = options.Pacing == TimeSpan.Zero
+            ? static _ => Task.CompletedTask
+            : ct => Task.WhenAny(Task.Delay(options.Pacing, ct));
     }
 
-    /// <summary>Delay between yielded events in streaming mode. Zero means no delay.</summary>
-    public TimeSpan Pacing { get; init; }
+    Func<CancellationToken, Task> Pace  { get; init; }
 
     /// <summary>Streams race events one at a time with optional <see cref="Pacing"/> delay between each.</summary>
     /// <param name="ct">Cancellation token checked between laps.</param>
@@ -62,36 +65,33 @@ public class ArcadeRaceSimulation : IAsyncEnumerable<IRaceEvent> {
         foreach (var e in race.Finish())
             yield return e;
     }
-
-    #region Pacing
-
-    async ValueTask Pace(CancellationToken ct) {
-        if (Pacing == TimeSpan.Zero) return;
-
-        try {
-            await Task.Delay(Pacing, ct);
-        }
-        catch (OperationCanceledException) {
-            // Cancellation is checked between laps, not here
-        }
-    }
-
-    #endregion
 }
 
 /// <summary>Fluent builder for configuring and creating an <see cref="ArcadeRaceSimulation"/>.</summary>
 public class ArcadeRaceBuilder {
-    ArcadeRaceOptions _options    = new();
-    RaceConditions    _conditions = RaceConditions.Unspecified;
-    CircuitDifficulty _difficulty = CircuitDifficulty.Medium;
-    TimeSpan          _pacing     = TimeSpan.Zero;
-    int               _carCount   = 12;
+    readonly Faker              _faker;
+    readonly ArcadeRacerDataSet _ds;
+
+    public ArcadeRaceBuilder() {
+        _faker = new Faker();
+        _ds    = _faker.ArcadeRacer();
+
+        Options = new ArcadeRaceOptions {
+            Cars       = _ds.Grid(_faker.Random.Int(8, 16)),
+            Circuit    = _ds.Circuit(_faker.PickRandom<CircuitDifficulty>()),
+            Conditions = _ds.Conditions(),
+            TotalLaps  = _faker.Random.Int(5, 20),
+            Pacing     = TimeSpan.Zero
+        };
+    }
+
+    ArcadeRaceOptions Options { get; set; }
 
     /// <summary>Sets the number of cars on the starting grid.</summary>
     /// <param name="count">Number of cars to generate (default is 12).</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithCars(int count) {
-        _carCount = count;
+        Options  = Options with { Cars = _ds.Grid(count) };
         return this;
     }
 
@@ -99,7 +99,7 @@ public class ArcadeRaceBuilder {
     /// <param name="laps">Number of laps. Zero means unlimited.</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithLaps(int laps) {
-        _options = _options with { TotalLaps = laps };
+        Options = Options with { TotalLaps = laps };
         return this;
     }
 
@@ -107,7 +107,7 @@ public class ArcadeRaceBuilder {
     /// <param name="difficulty">Difficulty level for the generated circuit.</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithDifficulty(CircuitDifficulty difficulty) {
-        _difficulty = difficulty;
+        Options = Options with { Circuit = _ds.Circuit(difficulty) };
         return this;
     }
 
@@ -116,7 +116,7 @@ public class ArcadeRaceBuilder {
     /// <param name="weather">Weather condition for the race.</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithConditions(TimeOfDay timeOfDay, Weather weather) {
-        _conditions = new RaceConditions(timeOfDay, weather);
+        Options = Options with { Conditions = new RaceConditions(timeOfDay, weather) };
         return this;
     }
 
@@ -124,31 +124,14 @@ public class ArcadeRaceBuilder {
     /// <param name="pacing">Delay duration. <see cref="TimeSpan.Zero"/> means no delay.</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithPacing(TimeSpan pacing) {
-        _pacing = pacing;
+        Options = Options with { Pacing = pacing };
         return this;
     }
 
     /// <summary>Builds the <see cref="ArcadeRaceSimulation"/> with randomized defaults for any unset options.</summary>
     /// <returns>A configured simulation ready for streaming or resolution.</returns>
     public ArcadeRaceSimulation Create() {
-        var faker = new Faker();
-        var ds    = new ArcadeRacerDataSet(faker);
-
-        var conditions = _conditions;
-
-        if (conditions.TimeOfDay == TimeOfDay.Unspecified)
-            conditions = conditions with { TimeOfDay = faker.PickRandom(TimeOfDay.Day, TimeOfDay.Night) };
-
-        if (conditions.Weather == Weather.Unspecified)
-            conditions = conditions with { Weather = faker.PickRandom(Weather.Sunny, Weather.Rainy) };
-
-        var resolved = _options with {
-            Cars       = ds.Grid(_carCount),
-            Circuit    = ds.Circuit(_difficulty),
-            Conditions = conditions
-        };
-
-        return new ArcadeRaceSimulation(resolved, faker) { Pacing = _pacing };
+        return new ArcadeRaceSimulation(Options, _faker);
     }
 }
 

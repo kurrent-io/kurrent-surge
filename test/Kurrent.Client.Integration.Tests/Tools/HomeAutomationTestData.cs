@@ -17,14 +17,15 @@ public static class HomeAutomationTestData {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(eventsPerHome);
 
         return HomeAutomationDataSet.Default
-            .Homes(homes)
+            .Homes()
+            .Take(homes)
             .Select(home => SimulateHomeActivity(home, eventsPerHome))
             .ToList();
     }
 
     public static SmartHomeActivity SimulateHomeActivity(SmartHome home, int? numberOfEvents = null, long? startTime = null) {
         var events = HomeAutomationDataSet.Default
-            .Events(home, numberOfEvents ?? Random.Shared.Next(5, 15), startTime);
+            .Events(home).Take(numberOfEvents ?? Random.Shared.Next(5, 15)).ToList();
 
         var request = events
             .Aggregate(

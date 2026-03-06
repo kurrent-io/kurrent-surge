@@ -2,7 +2,6 @@ namespace Testing.Datasets.HomeAutomation.Model;
 
 public class DeviceState {
     public required string     DeviceId         { get; init; }
-    public required DeviceType DeviceType       { get; init; }
     public required bool       IsBatteryPowered { get; init; }
 
     // Battery

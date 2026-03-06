@@ -44,10 +44,10 @@ public class ArcadeRaceState {
         .ToList();
 
     /// <summary>Applies a race event to mutate state. All domain state changes flow through this method.</summary>
-    public IRaceEvent Apply(IRaceEvent @event) {
-        Timestamp = @event.Timestamp;
+    public IRaceEvent Apply(IRaceEvent evt) {
+        Timestamp = evt.Timestamp;
 
-        switch (@event) {
+        switch (evt) {
             case RaceStarted:
                 break;
 
@@ -89,6 +89,6 @@ public class ArcadeRaceState {
                 break;
         }
 
-        return @event;
+        return evt;
     }
 }

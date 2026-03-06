@@ -45,14 +45,8 @@
 // 			StreamFilter f when f.TargetStream == StreamName.None =>
 // 				new() { Scope = Contracts.ReadFilterScope.Stream, Expression = f.Expression },
 //
-// 			SchemaFilter f =>
-// 				new() { Scope = Contracts.ReadFilterScope.Schema, Expression = f.Expression },
-//
 // 			ExpressionFilter { ServerFilter: StreamFilter sf } =>
 // 				new() { Scope = Contracts.ReadFilterScope.Stream, Expression = sf.Expression },
-//
-// 			ExpressionFilter { ServerFilter: SchemaFilter sf } =>
-// 				new() { Scope = Contracts.ReadFilterScope.Schema, Expression = sf.Expression },
 //
 // 			_ => new() { Scope = Contracts.ReadFilterScope.Unspecified, Expression = source.Expression }
 // 		};

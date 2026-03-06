@@ -13,4 +13,7 @@ record ArcadeRaceOptions {
 
     /// <summary>Number of laps. Zero means unlimited (streaming mode only).</summary>
     public int TotalLaps { get; init; }
+
+    /// <summary>Delay between yielded events in streaming mode. Zero means no delay.</summary>
+    public TimeSpan Pacing { get; init; }
 }

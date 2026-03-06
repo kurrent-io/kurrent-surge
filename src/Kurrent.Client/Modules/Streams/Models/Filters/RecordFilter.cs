@@ -22,22 +22,21 @@ public static class RecordFilter {
     }
 
     /// <summary>
-    /// Creates a filter that matches stream categories by targeting $idx-ce-* secondary index streams.
+    /// Creates a filter that targets the <c>$idx-ce-{category}</c> secondary index stream.
     /// </summary>
-    /// <param name="categories">The stream category names to match.</param>
-    public static IRecordFilter ByCategory(params string[] categories) {
-        ArgumentOutOfRangeException.ThrowIfZero(categories.Length, nameof(categories));
-        var streams = categories.Select(c => $"$idx-ce-{c}").ToArray();
-        return new StreamFilter(streams);
+    /// <param name="category">The stream category name.</param>
+    public static IRecordFilter ByCategory(string category) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(category);
+        return new StreamFilter([$"$idx-ce-{category}"]);
     }
 
     /// <summary>
-    /// Creates a filter that matches one or more schema names (event types) exactly.
+    /// Creates a filter that targets the <c>$idx-et-{schema}</c> secondary index stream.
     /// </summary>
-    /// <param name="schemas">The schema names to match.</param>
-    public static IRecordFilter BySchema(params string[] schemas) {
-        ArgumentOutOfRangeException.ThrowIfZero(schemas.Length, nameof(schemas));
-        return new SchemaFilter(schemas);
+    /// <param name="schema">The schema (event type) name.</param>
+    public static IRecordFilter BySchema(string schema) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schema);
+        return new StreamFilter([$"$idx-et-{schema}"]);
     }
 
     /// <summary>
@@ -54,14 +53,6 @@ public static class RecordFilter {
     /// <param name="pattern">The regex pattern to match stream names.</param>
     public static IRecordFilter ByStreamPattern(string pattern) =>
         new StreamFilter(new Regex(pattern, RegexOptions.Compiled));
-
-    /// <summary>
-    /// Creates a schema filter from a raw regex pattern.
-    /// Use standard regex syntax for modifiers (e.g., (?i) for case-insensitive).
-    /// </summary>
-    /// <param name="pattern">The regex pattern to match schema names.</param>
-    public static IRecordFilter BySchemaPattern(string pattern) =>
-        new SchemaFilter(new Regex(pattern, RegexOptions.Compiled));
 }
 
 /// <summary>

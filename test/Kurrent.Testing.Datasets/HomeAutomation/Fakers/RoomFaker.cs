@@ -4,11 +4,14 @@ using Testing.Datasets.HomeAutomation.Model;
 namespace Testing.Datasets.HomeAutomation;
 
 public class RoomFaker : Faker<Room> {
-    public RoomFaker() {
+    public RoomFaker(int? devicesPerRoom = null, string? homeId = null) {
         CustomInstantiator(f => {
                 var roomType = f.PickRandom<RoomType>();
                 var roomName = GenerateRoomName(f, roomType);
-                return new Room { RoomId = Guid.NewGuid(), Name = roomName, Type = roomType };
+                var nDevices = devicesPerRoom ?? f.Random.Number(3, 7);
+                var devices  = new DeviceFaker(roomType, homeId: homeId).Generate(nDevices);
+
+                return new Room { RoomId = Guid.NewGuid(), Name = roomName, Type = roomType, Devices = devices };
             }
         );
     }

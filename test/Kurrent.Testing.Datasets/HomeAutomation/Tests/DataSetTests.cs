@@ -1,5 +1,4 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Contracts.Events;
 using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation.Tests;
@@ -15,47 +14,39 @@ public class DataSetTests {
     public async Task home_has_rooms_and_devices() {
         var home = HomeAutomationDataSet.Default.Home();
         await Assert.That(home.Rooms.Count).IsGreaterThan(0);
-        await Assert.That(home.Devices.Count).IsGreaterThan(0);
+        await Assert.That(home.Devices.Count()).IsGreaterThan(0);
     }
 
     [Test]
     public async Task homes_produces_multiple() {
-        var homes = HomeAutomationDataSet.Default.Homes(3);
+        var homes = HomeAutomationDataSet.Default.Homes().Take(3).ToList();
         await Assert.That(homes.Count).IsEqualTo(3);
     }
 
     [Test]
     public async Task events_produces_requested_count() {
-        var events = HomeAutomationDataSet.Default.Events(20);
+        var events = HomeAutomationDataSet.Default.Events().Take(20).ToList();
         await Assert.That(events.Count).IsEqualTo(20);
     }
 
     [Test]
-    public async Task events_reference_valid_device_types() {
-        var home   = HomeAutomationDataSet.Default.Home();
-        var events = HomeAutomationDataSet.Default.Events(home, 10);
-
-        foreach (var evt in events)
-            await Assert.That(evt.Device.DeviceType).IsNotEqualTo(DeviceType.Unspecified);
-    }
-
-    [Test]
-    public async Task devices_match_subtype_to_device_type_enum() {
+    public async Task devices_match_subtype_to_pattern() {
         var home = HomeAutomationDataSet.Default.Home();
 
         foreach (var device in home.Devices) {
-            var matches = device switch {
-                Thermostat     => device.DeviceType == DeviceType.Thermostat,
-                SmartLight     => device.DeviceType == DeviceType.SmartLight,
-                DoorLock       => device.DeviceType == DeviceType.DoorLock,
-                MotionSensor   => device.DeviceType == DeviceType.MotionSensor,
-                SmokeDetector  => device.DeviceType == DeviceType.SmokeDetector,
-                HumiditySensor => device.DeviceType == DeviceType.HumiditySensor,
-                WindowSensor   => device.DeviceType == DeviceType.WindowSensor,
-                WaterSensor    => device.DeviceType == DeviceType.WaterSensor,
+            var matched = device switch {
+                Thermostat     => true,
+                SmartLight     => true,
+                DoorLock       => true,
+                MotionSensor   => true,
+                SmokeDetector  => true,
+                HumiditySensor => true,
+                WindowSensor   => true,
+                WaterSensor    => true,
                 _              => false
             };
-            await Assert.That(matches).IsTrue();
+
+            await Assert.That(matched).IsTrue();
         }
     }
 
@@ -71,5 +62,12 @@ public class DataSetTests {
     public async Task infinite_events_stream_produces_events() {
         var events = HomeAutomationDataSet.Default.Events().Take(50).ToList();
         await Assert.That(events.Count).IsEqualTo(50);
+    }
+
+    [Test]
+    public async Task events_for_home_produces_events() {
+        var home   = HomeAutomationDataSet.Default.Home();
+        var events = HomeAutomationDataSet.Default.Events(home).Take(10).ToList();
+        await Assert.That(events.Count).IsEqualTo(10);
     }
 }

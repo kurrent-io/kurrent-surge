@@ -1,50 +1,131 @@
-name: Create Release
+name: Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: 'Version number without v prefix (e.g., 1.0.0, 2.1.0-rc.1)'
         required: true
         type: string
+      run_tests:
+        description: 'Run tests before releasing'
+        required: false
+        type: boolean
+        default: true
+      push_to_nuget:
+        description: 'Push packages to NuGet.org'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+  NuGetAudit: false
+  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+
+  MinVerAutoIncrement: patch
+  MinVerIgnoreHeight: true
 
 jobs:
-  create-tag:
+  release:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
+      packages: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4.2.2
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
         with:
           ref: main
-
-      - name: Setup Git
-        run: |
-          git config user.name "${{ vars.ORG_GH_BOT_USERNAME }}"
-          git config user.email "${{ vars.ORG_GH_BOT_USERNAME }}@users.noreply.github.com"
+          fetch-depth: 0
 
       - name: Validate version format
         run: |
-          if ! [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: Version must follow semantic versioning (e.g., 1.0.0)"
+          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Version must follow semantic versioning (e.g., 1.0.0 or 2.1.0-rc.1)"
             exit 1
           fi
 
-      - name: Create and push tag
+      - name: Create local tag
         run: |
-          # Create the tag with v prefix
-          TAG="v${{ github.event.inputs.version }}"
+          git config user.name "${{ vars.ORG_GH_BOT_USERNAME }}"
+          git config user.email "${{ vars.ORG_GH_BOT_USERNAME }}@users.noreply.github.com"
+          git tag "v${{ inputs.version }}"
 
-          # Check if tag already exists
-          if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
-            echo "Error: Tag $TAG already exists"
-            exit 1
-          fi
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.2.0
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
 
-          # Create and push the tag
-          git tag $TAG
-          git push origin $TAG
+      - name: Restore
+        run: dotnet restore
 
-          echo "Successfully created and pushed tag $TAG"
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Run Unit Tests
+        if: inputs.run_tests
+        run: |
+          for tfm in net8.0 net9.0 net10.0; do
+            dotnet run --project test/Kurrent.Client.Tests \
+              --configuration Release --no-build --framework $tfm -- \
+              --no-progress \
+              --results-directory "./artifacts/test-results" \
+              --report-trx --report-trx-filename "unit-tests-$tfm.trx" \
+              --treenode-filter "/*/*/*/*[Category!=Integration]"
+          done
+
+      - name: Run Integration Tests
+        if: inputs.run_tests
+        run: |
+          dotnet run --project test/Kurrent.Client.Integration.Tests \
+            --configuration Release --no-build --framework net10.0 -- \
+            --no-progress \
+            --results-directory "./artifacts/test-results" \
+            --report-trx --report-trx-filename "integration-tests.trx" \
+            --treenode-filter "/*/*/*/*[Category=Integration]"
+
+      - name: Pack
+        run: dotnet pack --configuration Release --no-build -o ./artifacts/packages
+
+      - name: Push tag
+        run: git push origin "v${{ inputs.version }}"
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget add source \
+            --username ${{ github.actor }} \
+            --password ${{ secrets.GITHUB_TOKEN }} \
+            --store-password-in-clear-text \
+            --name github \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+          dotnet nuget push ./artifacts/packages/*.nupkg \
+            --skip-duplicate \
+            --source github \
+            --api-key ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to NuGet.org
+        if: inputs.push_to_nuget
+        run: |
+          dotnet nuget push ./artifacts/packages/*.nupkg \
+            --skip-duplicate \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.KURRENT_NUGET_KEY }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --generate-notes \
+            ./artifacts/packages/*.nupkg \
+            ./artifacts/packages/*.snupkg

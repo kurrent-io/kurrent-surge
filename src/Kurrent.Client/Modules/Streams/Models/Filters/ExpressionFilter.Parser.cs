@@ -133,6 +133,10 @@ public interface IFilterExpression {
 
 #region . Tokenizer .
 
+/// <summary>
+/// Token types produced by <see cref="FilterTokenizer"/>.
+/// Covers literals, comparison/logical/set operators, pattern matching, delimiters, and control tokens.
+/// </summary>
 file enum TokenType {
     // Literals
     String,
@@ -179,11 +183,22 @@ file enum TokenType {
     Error
 }
 
+/// <summary>
+/// A single lexical token produced by the tokenizer, carrying its type, raw text value,
+/// and character position in the original input for error reporting.
+/// </summary>
 file readonly record struct Token(TokenType Type, string Value, int Position) {
     public static Token EndOfInput(int position)            => new(TokenType.EndOfInput, "", position);
     public static Token Error(string message, int position) => new(TokenType.Error, message, position);
 }
 
+/// <summary>
+/// Lexer that converts a DuckDB-compatible filter expression into a flat token list.
+/// Handles single-character operators, multi-character operators (<c>&lt;&gt;</c>, <c>&lt;=</c>, <c>>=</c>, <c>!=</c>),
+/// single-quoted string literals with backslash escaping, numeric literals (including negative and decimal),
+/// and SQL-style keywords (<c>AND</c>, <c>OR</c>, <c>NOT</c>, <c>LIKE</c>, <c>ILIKE</c>, <c>IN</c>,
+/// <c>BETWEEN</c>, <c>IS</c>, <c>NULL</c>, <c>TRUE</c>, <c>FALSE</c>).
+/// </summary>
 file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
     readonly string _input = input.ToString();
 
@@ -192,6 +207,10 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
     char Current => _position < _input.Length ? _input[_position] : '\0';
     bool IsAtEnd => _position >= _input.Length;
 
+    /// <summary>
+    /// Scans the entire input and returns all tokens, terminated by an <see cref="TokenType.EndOfInput"/> token.
+    /// Stops early on <see cref="TokenType.Error"/> tokens.
+    /// </summary>
     public List<Token> Tokenize() {
         var tokens = new List<Token>();
 
@@ -287,16 +306,32 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
     Token ReadString() {
         var start = _position;
-        Advance();
+        Advance(); // skip opening quote
+        var valueStart = _position;
 
-        var value = new System.Text.StringBuilder();
+        // fast scan: look for closing quote, bail on escape char
+        while (!IsAtEnd && Current != '\'' && Current != '\\') Advance();
+
+        if (!IsAtEnd && Current == '\'') {
+            // no escapes — direct substring
+            var value = _input[valueStart.._position];
+            Advance();
+            return new Token(TokenType.String, value, start);
+        }
+
+        if (IsAtEnd) return Token.Error("Unterminated string literal", start);
+
+        // slow path: has escape sequences
+        var sb = new System.Text.StringBuilder();
+        sb.Append(_input.AsSpan(valueStart, _position - valueStart));
+
         while (!IsAtEnd && Current != '\'') {
             if (Current == '\\' && _position + 1 < _input.Length) {
                 Advance();
-                value.Append(Current);
+                sb.Append(Current);
             }
             else
-                value.Append(Current);
+                sb.Append(Current);
 
             Advance();
         }
@@ -304,7 +339,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         if (IsAtEnd) return Token.Error("Unterminated string literal", start);
 
         Advance();
-        return new Token(TokenType.String, value.ToString(), start);
+        return new Token(TokenType.String, sb.ToString(), start);
     }
 
     Token ReadNumber() {
@@ -328,21 +363,20 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         return new Token(GetKeywordType(value), value, start);
     }
 
-    static TokenType GetKeywordType(string value) =>
-        value.ToUpperInvariant() switch {
-            "AND"     => TokenType.And,
-            "OR"      => TokenType.Or,
-            "NOT"     => TokenType.Not,
-            "LIKE"    => TokenType.Like,
-            "ILIKE"   => TokenType.ILike,
-            "IN"      => TokenType.In,
-            "BETWEEN" => TokenType.Between,
-            "IS"      => TokenType.Is,
-            "NULL"    => TokenType.Null,
-            "TRUE"    => TokenType.True,
-            "FALSE"   => TokenType.False,
-            _         => TokenType.Identifier
-        };
+    static TokenType GetKeywordType(string value) {
+        if (value.Equals("AND", StringComparison.OrdinalIgnoreCase))     return TokenType.And;
+        if (value.Equals("OR", StringComparison.OrdinalIgnoreCase))      return TokenType.Or;
+        if (value.Equals("NOT", StringComparison.OrdinalIgnoreCase))     return TokenType.Not;
+        if (value.Equals("LIKE", StringComparison.OrdinalIgnoreCase))    return TokenType.Like;
+        if (value.Equals("ILIKE", StringComparison.OrdinalIgnoreCase))   return TokenType.ILike;
+        if (value.Equals("IN", StringComparison.OrdinalIgnoreCase))      return TokenType.In;
+        if (value.Equals("BETWEEN", StringComparison.OrdinalIgnoreCase)) return TokenType.Between;
+        if (value.Equals("IS", StringComparison.OrdinalIgnoreCase))      return TokenType.Is;
+        if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase))    return TokenType.Null;
+        if (value.Equals("TRUE", StringComparison.OrdinalIgnoreCase))    return TokenType.True;
+        if (value.Equals("FALSE", StringComparison.OrdinalIgnoreCase))   return TokenType.False;
+        return TokenType.Identifier;
+    }
 
     void SkipWhitespace() {
         while (!IsAtEnd && char.IsWhiteSpace(Current)) Advance();
@@ -355,32 +389,51 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
 #region . Pratt Parser .
 
+/// <summary>
+/// Internal exception thrown by the parser when it encounters an unexpected token.
+/// Caught by <see cref="ExpressionFilterParser.Parse"/> and converted to
+/// <see cref="ExpressionFilterParseError"/>.
+/// </summary>
 file sealed class ParseException(string nearToken, int position) : Exception {
     public string NearToken { get; } = nearToken;
     public int    Position  { get; } = position;
 }
 
+/// <summary>
+/// Pratt (top-down operator precedence) parser that transforms a token list into an AST
+/// of <see cref="IFilterExpression"/> nodes. Binding powers: OR (10), AND (20), NOT (60).
+/// Comparison, LIKE, IN, BETWEEN, and IS NULL are parsed as prefix property expressions.
+/// </summary>
 file sealed class PrattParser(List<Token> tokens) {
     int _current;
 
+    /// <summary>
+    /// Parses the full token stream into a single filter expression AST.
+    /// Throws <see cref="ParseException"/> if tokens remain after the expression is fully parsed.
+    /// </summary>
     public IFilterExpression Parse() {
         var result = ParseExpression(0);
 
-        if (Peek().Type != TokenType.EndOfInput) {
-            var token = Peek();
-            throw new ParseException(token.Value.Length > 0 ? token.Value : "end of input", token.Position);
-        }
+        if (Peek().Type == TokenType.EndOfInput) return result;
 
-        return result;
+        var token = Peek();
+
+        throw new ParseException(token.Value.Length > 0 ? token.Value : "end of input", token.Position);
     }
 
+    /// <summary>
+    /// Core Pratt loop. Parses prefix then consumes infix operators while their binding power
+    /// exceeds <paramref name="minBindingPower"/>.
+    /// </summary>
     IFilterExpression ParseExpression(int minBindingPower) {
         var left = ParsePrefix();
 
         while (true) {
             var token = Peek();
             var bp    = GetInfixBindingPower(token.Type);
-            if (bp <= minBindingPower) break;
+
+            if (bp <= minBindingPower)
+                break;
 
             left = ParseInfix(left, token);
         }
@@ -388,6 +441,9 @@ file sealed class PrattParser(List<Token> tokens) {
         return left;
     }
 
+    /// <summary>
+    /// Parses a prefix expression: parenthesized group, NOT, or a property-based predicate.
+    /// </summary>
     IFilterExpression ParsePrefix() {
         var token = Peek();
 
@@ -417,6 +473,9 @@ file sealed class PrattParser(List<Token> tokens) {
         }
     }
 
+    /// <summary>
+    /// Parses an infix operator (AND, OR) combining <paramref name="left"/> with the right operand.
+    /// </summary>
     IFilterExpression ParseInfix(IFilterExpression left, Token token) {
         switch (token.Type) {
             case TokenType.And:
@@ -432,6 +491,12 @@ file sealed class PrattParser(List<Token> tokens) {
         }
     }
 
+    /// <summary>
+    /// Parses a property reference followed by its operator and operand(s).
+    /// Dispatches to specialized parsers based on the operator token:
+    /// comparison, IS NULL, IN, NOT IN/LIKE/BETWEEN, LIKE, ILIKE, BETWEEN.
+    /// Intercepts <c>index</c> as a special routing column before normal dispatch.
+    /// </summary>
     IFilterExpression ParsePropertyExpression() {
         var property = ParsePropertyAccess();
 
@@ -476,12 +541,26 @@ file sealed class PrattParser(List<Token> tokens) {
         }
     }
 
+    /// <summary>
+    /// Parses <c>index = 'name'</c> into an <see cref="IndexExpression"/>.
+    /// The index column is a routing directive — it always matches client-side and is
+    /// extracted server-side to target <c>$idx-user-*</c> streams.
+    /// </summary>
     IndexExpression ParseIndexExpression() {
         Expect(TokenType.Equal, "=");
         var name = Expect(TokenType.String, "index name");
         return new IndexExpression(name.Value);
     }
 
+    /// <summary>
+    /// Parses a column reference with optional key access. Supports three forms:
+    /// <list type="bullet">
+    ///   <item>Simple identifier: <c>stream</c></item>
+    ///   <item>Bracket key access: <c>properties['region']</c></item>
+    ///   <item>Dot-path: <c>rec.properties.region</c> — all segments are joined into the name.
+    ///     Resolution splits name from key at resolve time using the column registry.</item>
+    /// </list>
+    /// </summary>
     PropertyAccess ParsePropertyAccess() {
         var     identifier = Expect(TokenType.Identifier, "identifier");
         var     name       = identifier.Value;
@@ -501,25 +580,15 @@ file sealed class PrattParser(List<Token> tokens) {
                 segments.Add(segment.Value);
             }
 
-            // find the property map segment (properties, props, metadata) to split name/key
-            var mapIndex = segments.FindIndex(s =>
-                s.Equals("properties", StringComparison.OrdinalIgnoreCase) ||
-                s.Equals("props", StringComparison.OrdinalIgnoreCase) ||
-                s.Equals("metadata", StringComparison.OrdinalIgnoreCase)
-            );
-
-            if (mapIndex >= 0 && mapIndex < segments.Count - 1) {
-                // everything up to and including the map segment is the name
-                name = string.Join(".", segments[..(mapIndex + 1)]);
-                key  = string.Join(".", segments[(mapIndex + 1)..]);
-            } else {
-                name = string.Join(".", segments);
-            }
+            name = string.Join(".", segments);
         }
 
         return new PropertyAccess(name, key);
     }
 
+    /// <summary>
+    /// Parses <c>property IS [NOT] NULL</c>.
+    /// </summary>
     IFilterExpression ParseIsExpression(PropertyAccess property) {
         Advance();
 
@@ -533,6 +602,9 @@ file sealed class PrattParser(List<Token> tokens) {
         return new IsNullExpression(property, negated);
     }
 
+    /// <summary>
+    /// Parses negated operators: <c>NOT IN</c>, <c>NOT LIKE</c>, <c>NOT ILIKE</c>, <c>NOT BETWEEN</c>.
+    /// </summary>
     IFilterExpression ParseNotPrefixedOperator(PropertyAccess property) {
         Advance();
 
@@ -559,6 +631,10 @@ file sealed class PrattParser(List<Token> tokens) {
         }
     }
 
+    /// <summary>
+    /// Parses <c>property op value</c> where op is <c>=</c>, <c>!=</c>/<c>&lt;&gt;</c>,
+    /// <c>&gt;</c>, <c>&lt;</c>, <c>&gt;=</c>, or <c>&lt;=</c>.
+    /// </summary>
     IFilterExpression ParseComparisonExpression(PropertyAccess property) {
         var opToken = Advance();
         var op = opToken.Type switch {
@@ -575,6 +651,10 @@ file sealed class PrattParser(List<Token> tokens) {
         return new ComparisonExpression(property, op, value);
     }
 
+    /// <summary>
+    /// Parses <c>property [NOT] LIKE|ILIKE 'pattern'</c>. Patterns use SQL wildcards:
+    /// <c>%</c> (any sequence) and <c>_</c> (single character).
+    /// </summary>
     IFilterExpression ParseLikeExpression(PropertyAccess property, bool caseInsensitive, bool negated) {
         var pattern = Expect(TokenType.String, "pattern string");
         return new LikeExpression(
@@ -583,6 +663,10 @@ file sealed class PrattParser(List<Token> tokens) {
         );
     }
 
+    /// <summary>
+    /// Parses <c>property [NOT] IN (value, value, ...)</c>.
+    /// At least one value is required; empty lists produce a parse error.
+    /// </summary>
     IFilterExpression ParseInExpression(PropertyAccess property, bool negated) {
         Expect(TokenType.LeftParen, "(");
 
@@ -602,6 +686,9 @@ file sealed class PrattParser(List<Token> tokens) {
         return new InExpression(property, values, negated);
     }
 
+    /// <summary>
+    /// Parses <c>property [NOT] BETWEEN lower AND upper</c> (inclusive range check).
+    /// </summary>
     IFilterExpression ParseBetweenExpression(PropertyAccess property, bool negated) {
         var lower = ParseValue();
         Expect(TokenType.And, "AND");
@@ -612,6 +699,9 @@ file sealed class PrattParser(List<Token> tokens) {
         );
     }
 
+    /// <summary>
+    /// Parses a literal value: single-quoted string, number, <c>TRUE</c>, <c>FALSE</c>, or <c>NULL</c>.
+    /// </summary>
     FilterValue ParseValue() {
         var token = Peek();
 
@@ -641,6 +731,10 @@ file sealed class PrattParser(List<Token> tokens) {
         }
     }
 
+    /// <summary>
+    /// Returns the binding power for infix operators. OR binds at 10, AND at 20.
+    /// All other tokens return 0, terminating the Pratt loop.
+    /// </summary>
     static int GetInfixBindingPower(TokenType type) =>
         type switch {
             TokenType.Or  => 10,
@@ -653,10 +747,9 @@ file sealed class PrattParser(List<Token> tokens) {
 
     Token Expect(TokenType type, string expected) {
         var token = Peek();
-        if (token.Type != type)
-            throw new ParseException(token.Value.Length > 0 ? token.Value : "end of input", token.Position);
-
-        return Advance();
+        return token.Type != type
+            ? throw new ParseException(token.Value.Length > 0 ? token.Value : "end of input", token.Position)
+            : Advance();
     }
 }
 
@@ -664,131 +757,279 @@ file sealed class PrattParser(List<Token> tokens) {
 
 #region . AST Nodes .
 
+/// <summary>
+/// Base class for typed literal values in filter expressions.
+/// </summary>
 public abstract record FilterValue {
+    /// <summary>
+    /// Returns the boxed CLR value of this literal.
+    /// </summary>
     public abstract object? GetValue();
 }
 
+/// <summary>
+/// A single-quoted string literal value.
+/// </summary>
 public sealed record StringFilterValue(string Value) : FilterValue {
+    /// <inheritdoc/>
     public override object GetValue() => Value;
 }
 
+/// <summary>
+/// A numeric literal value, stored as <see cref="decimal"/> for lossless comparison.
+/// </summary>
 sealed record NumberFilterValue(decimal Value) : FilterValue {
+    /// <inheritdoc/>
     public override object GetValue() => Value;
 }
 
+/// <summary>
+/// A boolean literal value (<c>TRUE</c> or <c>FALSE</c>).
+/// </summary>
 sealed record BooleanFilterValue(bool Value) : FilterValue {
+    /// <inheritdoc/>
     public override object GetValue() => Value;
 }
 
+/// <summary>
+/// The <c>NULL</c> literal value. Singleton via <see cref="Instance"/>.
+/// </summary>
 sealed record NullFilterValue : FilterValue {
     public static readonly NullFilterValue Instance = new();
 
+    /// <inheritdoc/>
     public override object? GetValue() => null;
 }
 
+/// <summary>
+/// A parsed column reference in a filter expression, consisting of a property name
+/// and an optional key for map-type columns (e.g., <c>properties['region']</c>).
+/// </summary>
+/// <param name="PropertyName">
+/// The column name as written in the expression. May be a canonical name, an alias,
+/// or a dot-path (e.g., <c>rec.position.stream</c>). Resolution is case-insensitive.
+/// </param>
+/// <param name="Key">
+/// Optional map key for keyed columns like <c>properties</c>/<c>metadata</c>.
+/// Populated from bracket notation (<c>props['key']</c>) or trailing dot segments
+/// (<c>rec.properties.key</c>).
+/// </param>
 public sealed record PropertyAccess(string PropertyName, string? Key = null) {
-    public object? Resolve(Record record) =>
-        PropertyName.ToLowerInvariant() switch {
-            "stream" or "stream_name"                          => record.Stream.Value,
-            "schema_name" or "schema" or "event_type"          => record.Schema.SchemaName.Value,
-            "timestamp" or "ts" or "created_at" or "created_ts"
-                                                               => record.Timestamp,
-            "position" or "pos" or "log_position"              => record.Position.LogPosition.Value,
-            "category"                                         => DeriveCategory(record.Stream.Value),
-            "stream_revision" or "revision" or "event_number"  => (long)record.Revision,
-            "record_id" or "id"                                => record.Id,
-            "properties" or "props" or "metadata" => Key is null
-                ? null
-                : record.Metadata.TryGetValue<object>(Key, out var value)
-                    ? value
-                    : null,
-            "rec.stream" or "rec.position.stream"            => record.Stream.Value,
-            "rec.category"                                   => DeriveCategory(record.Stream.Value),
-            "rec.schema.name"                                => record.Schema.SchemaName.Value,
-            "rec.revision" or "rec.position.streamrevision"  => (long)record.Revision,
-            "rec.position.logposition"                       => record.Position.LogPosition.Value,
-            "rec.timestamp"                                  => record.Timestamp,
-            "rec.id"                                         => record.Id,
-            "rec.properties" => Key is null
-                ? null
-                : record.Metadata.TryGetValue<object>(Key, out var v)
-                    ? v
-                    : null,
-            _ => PropertyName.StartsWith("field_", StringComparison.OrdinalIgnoreCase)
-                ? new PropertyAccess(PropertyName[6..], Key).Resolve(record)
-                : null
-        };
+    static readonly PropertyMap<Record> Columns = PropertyMap<Record>.Build(map =>
+        map.Register(r => r.Stream.Value,
+                "stream", "stream_name", "rec.stream", "rec.position.stream")
+           .Register(r => r.Schema.SchemaName.Value,
+                "schema", "schema_name", "event_type", "rec.schema", "rec.schema.name")
+           .Register(r => r.Stream.StreamCategory.Value,
+                "category", "rec.category")
+           .Register(r => r.Timestamp,
+                "timestamp", "ts", "created_at", "created_ts", "rec.timestamp", "rec.ts", "rec.created_at")
+           .Register(r => r.Position.LogPosition.Value,
+                "position", "pos", "log_position", "rec.position", "rec.pos", "rec.log_position")
+           .Register(r => r.Revision.Value,
+                "revision", "stream_revision", "event_number", "rec.revision", "rec.position.streamrevision")
+           .Register(r => r.Id,
+                "id", "record_id", "rec.id")
+           .RegisterKeyed(ResolveProperty,
+                "properties", "props", "metadata", "rec.properties", "rec.props", "rec.metadata")
+    );
 
-    static string DeriveCategory(string stream) {
-        var idx = stream.IndexOf('-');
-        return idx < 0 ? stream : stream[..idx];
+    /// <summary>
+    /// Extracts the value this property references from a record.
+    /// </summary>
+    public object? Resolve(Record record) => Resolve(PropertyName, Key, record);
+
+    /// <summary>
+    /// Attempts to resolve this property as a <see cref="decimal"/> without boxing.
+    /// Returns <c>false</c> if the property is not registered or is not numeric.
+    /// </summary>
+    public bool TryResolveDecimal(Record record, out decimal result) =>
+        Columns.TryGetDecimalValue(PropertyName, record, out result);
+
+    static object? Resolve(string name, string? key, Record record) {
+        var value = Columns.GetValue(name, key, record);
+        if (value is not null) return value;
+
+        // dot-path without explicit key: split right-to-left to find a registered prefix
+        if (key is null) {
+            for (var i = name.Length - 1; i >= 0; i--) {
+                if (name[i] != '.') continue;
+
+                value = Columns.GetValue(name[..i], name[(i + 1)..], record);
+                if (value is not null) return value;
+            }
+        }
+
+        // strip field_ prefix (WebUI compat) and retry
+        if (name.StartsWith("field_", StringComparison.OrdinalIgnoreCase))
+            return Resolve(name[6..], key, record);
+
+        return null;
     }
+
+    static object? ResolveProperty(Record record, string? key) =>
+        key is not null && record.Metadata.TryGetValue<object>(key, out var value)
+            ? value
+            : null;
 }
 
+/// <summary>
+/// Comparison operators supported in filter expressions.
+/// </summary>
 public enum ComparisonOperator {
+    /// <summary><c>=</c></summary>
     Equal,
+    /// <summary><c>!=</c> or <c>&lt;&gt;</c></summary>
     NotEqual,
+    /// <summary><c>&gt;</c></summary>
     GreaterThan,
+    /// <summary><c>&lt;</c></summary>
     LessThan,
+    /// <summary><c>&gt;=</c></summary>
     GreaterThanOrEqual,
+    /// <summary><c>&lt;=</c></summary>
     LessThanOrEqual
 }
 
+/// <summary>
+/// AST node for <c>property op value</c> comparisons.
+/// Uses <see cref="ValueComparer"/> for cross-type comparison (string, numeric, datetime, boolean).
+/// </summary>
 public sealed class ComparisonExpression(PropertyAccess property, ComparisonOperator op, FilterValue value) : IFilterExpression {
     public PropertyAccess     Property => property;
     public ComparisonOperator Op       => op;
     public FilterValue        Value    => value;
 
+    /// <inheritdoc/>
     public bool IsMatch(Record record) {
+        // fast path: category equality via span comparison — no substring allocation
+        if (property.PropertyName is "category" or "rec.category"
+            && value is StringFilterValue strVal
+            && op is ComparisonOperator.Equal or ComparisonOperator.NotEqual) {
+            var stream   = record.Stream.Value;
+            var idx      = stream.IndexOf('-');
+            var category = idx < 0 ? stream.AsSpan() : stream.AsSpan(0, idx);
+            var match    = category.Equals(strVal.Value, StringComparison.OrdinalIgnoreCase);
+            return op == ComparisonOperator.Equal ? match : !match;
+        }
+
+        // fast path: numeric comparison without boxing
+        if (value is NumberFilterValue numValue && property.TryResolveDecimal(record, out var numLeft)) {
+            var cmp = numLeft.CompareTo(numValue.Value);
+            return op switch {
+                ComparisonOperator.Equal              => cmp == 0,
+                ComparisonOperator.NotEqual           => cmp != 0,
+                ComparisonOperator.GreaterThan        => cmp > 0,
+                ComparisonOperator.LessThan           => cmp < 0,
+                ComparisonOperator.GreaterThanOrEqual => cmp >= 0,
+                ComparisonOperator.LessThanOrEqual    => cmp <= 0,
+                _                                     => false
+            };
+        }
+
+        // general path
         var left  = property.Resolve(record);
         var right = value.GetValue();
+
         if (left is null || right is null) return false;
 
-        var cmp = ValueComparer.Compare(left, right);
+        var cmpGeneral = ValueComparer.Compare(left, right);
+
         return op switch {
-            ComparisonOperator.Equal              => cmp == 0,
-            ComparisonOperator.NotEqual           => cmp != 0,
-            ComparisonOperator.GreaterThan        => cmp > 0,
-            ComparisonOperator.LessThan           => cmp < 0,
-            ComparisonOperator.GreaterThanOrEqual => cmp >= 0,
-            ComparisonOperator.LessThanOrEqual    => cmp <= 0,
+            ComparisonOperator.Equal              => cmpGeneral == 0,
+            ComparisonOperator.NotEqual           => cmpGeneral != 0,
+            ComparisonOperator.GreaterThan        => cmpGeneral > 0,
+            ComparisonOperator.LessThan           => cmpGeneral < 0,
+            ComparisonOperator.GreaterThanOrEqual => cmpGeneral >= 0,
+            ComparisonOperator.LessThanOrEqual    => cmpGeneral <= 0,
             _                                     => false
         };
     }
 }
 
+/// <summary>
+/// Logical AND conjunction. Short-circuits: if <paramref name="left"/> is false,
+/// <paramref name="right"/> is not evaluated.
+/// </summary>
 public sealed class AndExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
     public IFilterExpression Left  => left;
     public IFilterExpression Right => right;
 
+    /// <inheritdoc/>
     public bool IsMatch(Record record) => left.IsMatch(record) && right.IsMatch(record);
 }
 
+/// <summary>
+/// Logical OR disjunction. Short-circuits: if left is true, right is not evaluated.
+/// </summary>
 file sealed class OrExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
     public bool IsMatch(Record record) => left.IsMatch(record) || right.IsMatch(record);
 }
 
+/// <summary>
+/// Logical NOT negation.
+/// </summary>
 file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
     public bool IsMatch(Record record) => !inner.IsMatch(record);
 }
 
+/// <summary>
+/// AST node for <c>property [NOT] LIKE|ILIKE 'pattern'</c>.
+/// SQL wildcard patterns are compiled to a <see cref="Regex"/> at construction time.
+/// </summary>
 public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated) : IFilterExpression {
-    readonly Regex          _regex = PatternMatcher.ConvertLikeToRegex(pattern, caseInsensitive);
+    readonly Regex _regex = ConvertLikeToRegex(pattern, caseInsensitive);
 
     public PropertyAccess Property        => property;
     public string         Pattern         => pattern;
     public bool           CaseInsensitive => caseInsensitive;
     public bool           Negated         => negated;
 
+    /// <inheritdoc/>
     public bool IsMatch(Record record) {
         var value = property.Resolve(record);
-        if (value is null) return false;
+
+        if (value is null)
+            return false;
 
         var matches = _regex.IsMatch(value.ToString() ?? "");
+
         return negated ? !matches : matches;
+    }
+
+    public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
+        var result = new System.Text.StringBuilder(pattern.Length + 4);
+        result.Append('^');
+
+        foreach (var ch in pattern) {
+            if (ch == '%')
+                result.Append(".*");
+            else if (ch == '_')
+                result.Append('.');
+            else if (IsRegexMetaChar(ch)) {
+                result.Append('\\');
+                result.Append(ch);
+            }
+            else
+                result.Append(ch);
+        }
+
+        result.Append('$');
+
+        var options = RegexOptions.Compiled | RegexOptions.Singleline;
+        if (caseInsensitive)
+            options |= RegexOptions.IgnoreCase;
+
+        return new Regex(result.ToString(), options);
+
+        static bool IsRegexMetaChar(char ch) =>
+            ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
     }
 }
 
+/// <summary>
+/// AST node for <c>property IS [NOT] NULL</c>.
+/// </summary>
 file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFilterExpression {
     public bool IsMatch(Record record) {
         var isNull = property.Resolve(record) is null;
@@ -796,33 +1037,62 @@ file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFil
     }
 }
 
+/// <summary>
+/// AST node for <c>property [NOT] IN (value, ...)</c>. Matches if the property value
+/// equals any value in the set (or none when negated).
+/// </summary>
 public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterValue> values, bool negated) : IFilterExpression {
     public PropertyAccess             Property => property;
     public IReadOnlyList<FilterValue> Values   => values;
     public bool                       Negated  => negated;
 
+    /// <inheritdoc/>
     public bool IsMatch(Record record) {
         var propValue = property.Resolve(record);
         if (propValue is null) return false;
 
-        var found = values.Any(v => ValueComparer.Compare(propValue, v.GetValue()) == 0);
+        var found = false;
+        for (var i = 0; i < values.Count; i++) {
+            if (ValueComparer.Compare(propValue, values[i].GetValue()) == 0) {
+                found = true;
+                break;
+            }
+        }
+
         return negated ? !found : found;
     }
 }
 
+/// <summary>
+/// AST node for <c>index = 'name'</c>. This is a routing directive, not a data predicate:
+/// it always returns <c>true</c> client-side. The <see cref="ExpressionFilter.ServerExtractor"/>
+/// extracts it to target <c>$idx-user-{IndexName}</c> streams server-side.
+/// </summary>
 public sealed record IndexExpression(string IndexName) : IFilterExpression {
+    /// <inheritdoc/>
     public bool IsMatch(Record record) => true;
 }
 
+/// <summary>
+/// AST node for <c>property [NOT] BETWEEN lower AND upper</c> (inclusive range).
+/// </summary>
 file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, FilterValue upper, bool negated) : IFilterExpression {
     public bool IsMatch(Record record) {
+        // fast path: numeric range without boxing
+        if (lower is NumberFilterValue lo && upper is NumberFilterValue hi
+            && property.TryResolveDecimal(record, out var numValue)) {
+            var inRange = numValue >= lo.Value && numValue <= hi.Value;
+            return negated ? !inRange : inRange;
+        }
+
+        // general path
         var value = property.Resolve(record);
         if (value is null) return false;
 
-        var inRange = ValueComparer.Compare(value, lower.GetValue()) >= 0 &&
-                      ValueComparer.Compare(value, upper.GetValue()) <= 0;
+        var inRangeGeneral = ValueComparer.Compare(value, lower.GetValue()) >= 0 &&
+                             ValueComparer.Compare(value, upper.GetValue()) <= 0;
 
-        return negated ? !inRange : inRange;
+        return negated ? !inRangeGeneral : inRangeGeneral;
     }
 }
 
@@ -830,7 +1100,21 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
 
 #region . Utilities .
 
+/// <summary>
+/// Cross-type value comparator for filter evaluation. Comparison priority:
+/// <list type="number">
+///   <item>Null handling (null &lt; non-null)</item>
+///   <item>String comparison (case-insensitive ordinal)</item>
+///   <item>Numeric coercion to <see cref="decimal"/> (int, long, double, float, parseable strings)</item>
+///   <item>DateTime coercion (<see cref="DateTime"/>, <see cref="DateTimeOffset"/>, parseable strings)</item>
+///   <item>Boolean comparison</item>
+///   <item>Fallback: ToString comparison (case-insensitive)</item>
+/// </list>
+/// </summary>
 file static class ValueComparer {
+    /// <summary>
+    /// Compares two boxed values using type-aware coercion. Returns negative, zero, or positive.
+    /// </summary>
     public static int Compare(object? left, object? right) {
         if (left is null && right is null) return 0;
 
@@ -904,24 +1188,45 @@ file static class ValueComparer {
     }
 }
 
+/// <summary>
+/// Converts SQL LIKE/ILIKE patterns to compiled <see cref="Regex"/> instances.
+/// <c>%</c> maps to <c>.*</c>, <c>_</c> maps to <c>.</c>, all other characters are escaped.
+/// </summary>
 file static class PatternMatcher {
-    public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
-        var result = new System.Text.StringBuilder();
+    /// <summary>
+    /// Converts a SQL LIKE pattern to an anchored regex. The resulting regex is compiled
+    /// and uses <see cref="RegexOptions.Singleline"/>. Case-insensitive matching adds
+    /// <see cref="RegexOptions.IgnoreCase"/>.
+    /// </summary>
+    // public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
+    //     var result = new System.Text.StringBuilder(pattern.Length + 4);
+    //     result.Append('^');
+    //
+    //     foreach (var ch in pattern) {
+    //         if (ch == '%')
+    //             result.Append(".*");
+    //         else if (ch == '_')
+    //             result.Append('.');
+    //         else if (IsRegexMetaChar(ch)) {
+    //             result.Append('\\');
+    //             result.Append(ch);
+    //         }
+    //         else
+    //             result.Append(ch);
+    //     }
+    //
+    //     result.Append('$');
+    //
+    //     var options = RegexOptions.Compiled | RegexOptions.Singleline;
+    //     if (caseInsensitive)
+    //         options |= RegexOptions.IgnoreCase;
+    //
+    //     return new Regex(result.ToString(), options);
+    //
+    //     static bool IsRegexMetaChar(char ch) =>
+    //         ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
+    // }
 
-        foreach (var ch in pattern)
-            if (ch == '%')
-                result.Append(".*");
-            else if (ch == '_')
-                result.Append('.');
-            else
-                result.Append(Regex.Escape(ch.ToString()));
-
-        var options = RegexOptions.Compiled | RegexOptions.Singleline;
-        if (caseInsensitive)
-            options |= RegexOptions.IgnoreCase;
-
-        return new Regex($"^{result}$", options);
-    }
 }
 
 #endregion

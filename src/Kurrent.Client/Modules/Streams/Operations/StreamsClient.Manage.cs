@@ -31,8 +31,7 @@ public partial class StreamsClient {
         var metadataRecord = Record.None;
 
         try {
-            var metaStream = stream.Metastream;
-            var request    = Requests.CreateReadStreamEdgeRequest(metaStream, ReadDirection.Forwards);
+            var request    = Requests.CreateReadStreamEdgeRequest(stream.Metastream, ReadDirection.Forwards);
 
             var response = await LegacyServiceClient
                 .ReadFirstOrDefault(request, cancellationToken)
@@ -93,9 +92,9 @@ public partial class StreamsClient {
                 .ConfigureAwait(false);
 
             return details with {
-                State                = StreamState.Active,
-                LastStreamPosition   = record.Position.LogPosition,
-                LastRevision   = record.Revision,
+                State = StreamState.Active,
+                LastStreamPosition = record.Position.LogPosition,
+                LastRevision = record.Revision,
                 LastStreamAppendTime = record.Timestamp
             };
         }

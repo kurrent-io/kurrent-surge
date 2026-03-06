@@ -63,7 +63,7 @@
   <PropertyGroup Label="MinVer Settings" Condition="'$(IsPackable)' == 'true'">
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerVerbosity>diagnostic</MinVerVerbosity>
-    <MinVerDefaultPreReleasePhase>alpha</MinVerDefaultPreReleasePhase>
+    <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
     <MinVerAutoIncrement>patch</MinVerAutoIncrement>
     <MinVerIgnoreHeight>true</MinVerIgnoreHeight>
   </PropertyGroup>

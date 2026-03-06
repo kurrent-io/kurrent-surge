@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Folder Include="ArcadeRacer\Fakers\" />
+    <Folder Include="HomeAutomation\Model\Devices\" />
     <Folder Include="HomeAutomation\Tests\" />
   </ItemGroup>
 </Project>

@@ -171,39 +171,39 @@ public class ServerFilterExtractorTests {
     #region Server-Side Schema Filters
 
     [Test]
-    public async Task converts_schema_name_equality_to_exact_regex() {
+    public async Task converts_schema_name_equality_to_idx_et_regex() {
         var expr   = ParseExpression("schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo("^OrderCreated$");
-        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
     }
 
     [Test]
-    public async Task converts_schema_alias_to_exact_regex() {
+    public async Task converts_schema_alias_to_idx_et_regex() {
         var expr   = ParseExpression("schema = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo("^OrderCreated$");
-        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
     }
 
     [Test]
-    public async Task converts_schema_like_to_regex() {
+    public async Task schema_like_has_no_server_filter() {
+        // LIKE cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("schema_name LIKE 'Order%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo("^Order.*$");
-        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public async Task converts_schema_in_to_alternation_regex() {
+    public async Task schema_in_has_no_server_filter() {
+        // IN cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("schema_name IN ('OrderCreated', 'OrderUpdated')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo("^(OrderCreated|OrderUpdated)$");
-        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     #endregion
@@ -220,22 +220,21 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task extracts_category_in_to_idx_ce_streams() {
+    public async Task category_in_has_no_server_filter() {
+        // IN cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("category IN ('orders', 'payments')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.Expression).Contains("\\$idx-ce-orders");
-        await Assert.That(filter.Expression).Contains("\\$idx-ce-payments");
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
-    public async Task extracts_category_like_to_idx_ce_pattern() {
+    public async Task category_like_has_no_server_filter() {
+        // LIKE cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("category LIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.Expression).Contains("\\$idx-ce-order");
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 
     [Test]
@@ -359,7 +358,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("schema_name = 'OrderCreated' AND properties.userId = 'Users-123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
     }
 
     [Test]
@@ -584,6 +584,256 @@ public class ServerFilterExtractorTests {
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();
         await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
+    #region Schema Negated Expressions
+
+    [Test]
+    public async Task negated_schema_equality_has_no_server_filter() {
+        var expr   = ParseExpression("schema != 'OrderCreated'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task negated_schema_like_has_no_server_filter() {
+        var expr   = ParseExpression("schema_name NOT LIKE 'Order%'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task negated_schema_in_has_no_server_filter() {
+        var expr   = ParseExpression("schema NOT IN ('OrderCreated', 'OrderUpdated')");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
+    #region Category Negated Expressions
+
+    [Test]
+    public async Task negated_category_equality_has_no_server_filter() {
+        var expr   = ParseExpression("category != 'orders'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task negated_category_like_has_no_server_filter() {
+        var expr   = ParseExpression("category NOT LIKE 'order%'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task negated_category_in_has_no_server_filter() {
+        var expr   = ParseExpression("category NOT IN ('orders', 'payments')");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
+    #region ILIKE Falls Through to Client-Side
+
+    [Test]
+    public async Task schema_ilike_has_no_server_filter() {
+        // ILIKE is a pattern match — cannot target a single index stream
+        var expr   = ParseExpression("schema_name ILIKE 'order%'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task category_ilike_has_no_server_filter() {
+        // ILIKE is a pattern match — cannot target a single index stream
+        var expr   = ParseExpression("category ILIKE 'order%'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
+    #region Multiple Predicate Combination
+
+    [Test]
+    public async Task multiple_schema_like_predicates_have_no_server_filter() {
+        var expr   = ParseExpression("schema LIKE 'Order%' AND schema LIKE '%Created'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task multiple_category_like_predicates_have_no_server_filter() {
+        var expr   = ParseExpression("category LIKE 'order%' AND category LIKE '%payment%'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
+    #region IN with Non-String Values
+
+    [Test]
+    public async Task stream_in_with_numeric_values_has_no_server_filter() {
+        // IN with non-string values cannot be extracted — TryExtractStringValues rejects them
+        var expr   = ParseExpression("stream IN ('orders-1', 'orders-2') AND position > 100");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        // Stream IN still works because its values are strings
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+    }
+
+    [Test]
+    public async Task schema_in_with_mixed_types_falls_through() {
+        // If the only server-liftable predicate is IN but has non-string values, no server filter
+        var expr   = ParseExpression("position > 100");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
+    #region Priority Chain
+
+    [Test]
+    public async Task stream_wins_over_index() {
+        var expr   = ParseExpression("stream = 'orders-99' AND index = 'orders-by-country'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-99"));
+    }
+
+    [Test]
+    public async Task full_priority_chain_uses_stream() {
+        // Expression with all 4 filter types — stream wins
+        var expr   = ParseExpression("stream = 'orders-99' AND category = 'orders' AND index = 'my-index' AND schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-99"));
+    }
+
+    [Test]
+    public async Task priority_without_stream_uses_category() {
+        // No stream predicate — category wins over index and schema
+        var expr   = ParseExpression("category = 'orders' AND index = 'my-index' AND schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+    }
+
+    [Test]
+    public async Task priority_without_stream_or_category_uses_index() {
+        // No stream or category — index wins over schema
+        var expr   = ParseExpression("index = 'my-index' AND schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-my-index"));
+    }
+
+    #endregion
+
+    #region Exact Regex Assertions
+
+    [Test]
+    public async Task category_equality_produces_exact_idx_ce_regex() {
+        var expr   = ParseExpression("category = 'orders'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-ce-orders$");
+    }
+
+    [Test]
+    public async Task schema_equality_produces_exact_idx_et_regex() {
+        var expr   = ParseExpression("schema = 'OrderPlaced'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-et-OrderPlaced$");
+    }
+
+    [Test]
+    public async Task index_produces_exact_idx_user_regex() {
+        var expr   = ParseExpression("index = 'orders-by-country'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-user-orders-by-country$");
+    }
+
+    #endregion
+
+    #region NOT-Wrapped Compound Expressions
+
+    [Test]
+    public async Task not_wrapping_compound_has_no_server_filter() {
+        var expr   = ParseExpression("NOT (stream = 'orders-1' AND schema = 'OrderPlaced')");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        // NOT wrapping a compound expression is not an AND at the top level
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    [Test]
+    public async Task not_wrapping_stream_equality_has_no_server_filter() {
+        var expr   = ParseExpression("NOT (stream = 'orders-1')");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsEqualTo(RecordFilter.None);
+    }
+
+    #endregion
+
+    #region Index with Client Predicates
+
+    [Test]
+    public async Task index_combined_with_client_predicates_uses_index() {
+        var expr   = ParseExpression("index = 'my-index' AND position > 100 AND timestamp >= '2024-01-01'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-my-index"));
+    }
+
+    #endregion
+
+    #region Deeply Nested AND Flattening
+
+    [Test]
+    public async Task flattens_deeply_nested_and_chain() {
+        // 5-level AND chain — all conjuncts should be flattened and extractable predicates found
+        var expr   = ParseExpression("stream = 'orders-1' AND schema = 'OrderPlaced' AND position > 10 AND revision > 0 AND timestamp >= '2024-01-01'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-1"));
+    }
+
+    [Test]
+    public async Task flattens_nested_parenthesized_ands() {
+        // Parenthesized grouping that still produces a pure AND tree
+        var expr   = ParseExpression("(stream = 'orders-1' AND schema = 'OrderPlaced') AND (position > 10 AND revision > 0)");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-1"));
     }
 
     #endregion

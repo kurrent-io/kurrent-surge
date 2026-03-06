@@ -6,35 +6,63 @@ namespace Testing.Datasets.HomeAutomation.Tests;
 
 [Category("HomeAutomation")]
 public class SmartHomeStateTests {
-    static readonly Room TestRoom = new() { RoomId = Guid.NewGuid(), Name = "Test", Type = RoomType.LivingRoom };
-
     static SmartHomeState CreateState(params Device[] devices) {
-        var home = new SmartHome {
-            Id = "h1", Name = "Test Home", Rooms = [TestRoom],
-            Devices = [..devices], CreatedAt = DateTime.UtcNow
+        var room = new Room {
+            RoomId  = Guid.NewGuid(),
+            Name    = "Test",
+            Type    = RoomType.LivingRoom,
+            Devices = [..devices]
         };
+
+        var home = new SmartHome {
+            Id        = "h1",
+            Name      = "Test Home",
+            Rooms     = [room],
+            CreatedAt = DateTime.UtcNow
+        };
+
         var state = new SmartHomeState();
         state.Initialize(home, 1000L);
+
         return state;
     }
 
-    static Thermostat MakeThermo() => new() {
-        Id = "t1", FriendlyName = "Thermo", Room = TestRoom,
-        DeviceType = DeviceType.Thermostat, IsBatteryPowered = true
-    };
+    static Thermostat MakeThermo() =>
+        new() {
+            Id                   = "t1",
+            FriendlyName         = "Thermo",
+            IsBatteryPowered     = true,
+            BatteryLevel         = 100,
+            MinOperatingTemp     = 5,
+            MaxOperatingTemp     = 45,
+            MeasurementPrecision = 1,
+            PreferredUnit        = TemperatureUnit.Celsius
+        };
 
-    static SmartLight MakeLight() => new() {
-        Id = "l1", FriendlyName = "Light", Room = TestRoom,
-        DeviceType = DeviceType.SmartLight, IsBatteryPowered = false
-    };
+    static SmartLight MakeLight() =>
+        new() {
+            Id                     = "l1",
+            FriendlyName           = "Light",
+            IsBatteryPowered       = false,
+            BatteryLevel           = null,
+            MaxBrightness          = 100,
+            SupportsColor          = true,
+            WattsPerBrightnessUnit = 0.6
+        };
 
     #region Execute produces correct events
 
     [Test]
     public async Task execute_record_temperature_produces_temperature_reading() {
         var state = CreateState(MakeThermo());
-        var cmd   = new RecordTemperature { DeviceId = "t1", Temperature = 22.5, Unit = TemperatureUnit.Celsius };
-        var evt   = state.Execute(cmd, 2000L);
+
+        var cmd = new RecordTemperature {
+            DeviceId    = "t1",
+            Temperature = 22.5,
+            Unit        = TemperatureUnit.Celsius
+        };
+
+        var evt = state.Execute(cmd, 2000L);
 
         await Assert.That(evt).IsTypeOf<TemperatureReading>();
         var tr = (TemperatureReading)evt;
@@ -43,14 +71,20 @@ public class SmartHomeStateTests {
     }
 
     [Test]
-    public async Task execute_record_light_on_produces_light_state_changed() {
+    public async Task execute_record_light_on_produces_light_turned_on() {
         var state = CreateState(MakeLight());
-        var cmd   = new RecordLightOn { DeviceId = "l1", Brightness = 80, Color = "#FFD700" };
-        var evt   = state.Execute(cmd, 2000L);
 
-        await Assert.That(evt).IsTypeOf<LightStateChanged>();
-        var lsc = (LightStateChanged)evt;
-        await Assert.That(lsc.IsOn).IsTrue();
+        var cmd = new RecordLightStateChanged {
+            DeviceId   = "l1",
+            IsOn       = true,
+            Brightness = 80,
+            Color      = "#FFD700"
+        };
+
+        var evt = state.Execute(cmd, 2000L);
+
+        await Assert.That(evt).IsTypeOf<LightTurnedOn>();
+        var lsc = (LightTurnedOn)evt;
         await Assert.That(lsc.Brightness).IsEqualTo(80);
     }
 
@@ -61,8 +95,14 @@ public class SmartHomeStateTests {
     [Test]
     public async Task apply_temperature_reading_updates_current_temperature() {
         var state = CreateState(MakeThermo());
-        var cmd   = new RecordTemperature { DeviceId = "t1", Temperature = 25.0, Unit = TemperatureUnit.Celsius };
-        var evt   = state.Execute(cmd, 2000L);
+
+        var cmd = new RecordTemperature {
+            DeviceId    = "t1",
+            Temperature = 25.0,
+            Unit        = TemperatureUnit.Celsius
+        };
+
+        var evt = state.Execute(cmd, 2000L);
         state.Apply(evt);
 
         await Assert.That(state.Devices["t1"].CurrentTemperature).IsEqualTo(25.0);
@@ -71,7 +111,14 @@ public class SmartHomeStateTests {
     [Test]
     public async Task apply_light_on_updates_light_state() {
         var state = CreateState(MakeLight());
-        var cmd   = new RecordLightOn { DeviceId = "l1", Brightness = 70, Color = "#FFF" };
+
+        var cmd = new RecordLightStateChanged {
+            DeviceId   = "l1",
+            IsOn       = true,
+            Brightness = 70,
+            Color      = "#FFF"
+        };
+
         state.Apply(state.Execute(cmd, 2000L));
 
         await Assert.That(state.Devices["l1"].LightIsOn).IsTrue();
@@ -81,7 +128,13 @@ public class SmartHomeStateTests {
     [Test]
     public async Task apply_updates_current_time() {
         var state = CreateState(MakeThermo());
-        var cmd   = new RecordTemperature { DeviceId = "t1", Temperature = 20.0, Unit = TemperatureUnit.Celsius };
+
+        var cmd = new RecordTemperature {
+            DeviceId    = "t1",
+            Temperature = 20.0,
+            Unit        = TemperatureUnit.Celsius
+        };
+
         state.Apply(state.Execute(cmd, 5000L));
 
         await Assert.That(state.CurrentTime).IsEqualTo(5000L);
@@ -93,10 +146,15 @@ public class SmartHomeStateTests {
 
     [Test]
     public async Task battery_drains_on_battery_powered_device() {
-        var state = CreateState(MakeThermo());
+        var state   = CreateState(MakeThermo());
         var initial = state.Devices["t1"].BatteryLevel;
 
-        var cmd = new RecordTemperature { DeviceId = "t1", Temperature = 20.0, Unit = TemperatureUnit.Celsius };
+        var cmd = new RecordTemperature {
+            DeviceId    = "t1",
+            Temperature = 20.0,
+            Unit        = TemperatureUnit.Celsius
+        };
+
         state.Apply(state.Execute(cmd, 2000L));
 
         await Assert.That(state.Devices["t1"].BatteryLevel).IsLessThan(initial);
@@ -104,10 +162,16 @@ public class SmartHomeStateTests {
 
     [Test]
     public async Task battery_stable_on_mains_powered_device() {
-        var state = CreateState(MakeLight());
+        var state   = CreateState(MakeLight());
         var initial = state.Devices["l1"].BatteryLevel;
 
-        var cmd = new RecordLightOn { DeviceId = "l1", Brightness = 50, Color = "#FFF" };
+        var cmd = new RecordLightStateChanged {
+            DeviceId   = "l1",
+            IsOn       = true,
+            Brightness = 50,
+            Color      = "#FFF"
+        };
+
         state.Apply(state.Execute(cmd, 2000L));
 
         await Assert.That(state.Devices["l1"].BatteryLevel).IsEqualTo(initial);
@@ -120,7 +184,12 @@ public class SmartHomeStateTests {
     [Test]
     public async Task execute_rejects_unknown_device_id() {
         var state = CreateState(MakeThermo());
-        var cmd   = new RecordTemperature { DeviceId = "unknown", Temperature = 20.0, Unit = TemperatureUnit.Celsius };
+
+        var cmd = new RecordTemperature {
+            DeviceId    = "unknown",
+            Temperature = 20.0,
+            Unit        = TemperatureUnit.Celsius
+        };
 
         await Assert.That(() => state.Execute(cmd, 2000L)).Throws<InvalidOperationException>();
     }

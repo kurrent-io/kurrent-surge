@@ -87,9 +87,9 @@ public readonly record struct StreamName {
     public const string IndexStreamsPrefix = "$idx";
 
     StreamName(string value, StreamCategory category, Partition partition, string partitionKeyValue = "") {
-        Value        = value;
+        Value          = value;
         StreamCategory = category;
-        Partition    = partition;
+        Partition      = partition;
     }
 
     /// <summary>

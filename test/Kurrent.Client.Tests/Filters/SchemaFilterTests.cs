@@ -4,29 +4,25 @@ namespace Kurrent.Client.Tests.Filters;
 
 [Category("Filters")]
 public class SchemaFilterTests {
-    readonly RecordFaker _faker = new();
-
     [Test]
-    public async Task by_schema_matches_exact_schema_names() {
-        var filter          = RecordFilter.BySchema("OrderCreated", "PaymentReceived");
-        var matchingOrder   = _faker.With(schemaName: "OrderCreated");
-        var matchingPayment = _faker.With(schemaName: "PaymentReceived");
-        var nonMatching     = _faker.With(schemaName: "UserRegistered");
+    public async Task by_schema_targets_idx_et_stream() {
+        var filter = RecordFilter.BySchema("OrderCreated");
 
-        await Assert.That(filter.IsMatch(matchingOrder)).IsTrue();
-        await Assert.That(filter.IsMatch(matchingPayment)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
     }
 
     [Test]
-    public async Task by_schema_pattern_matches_prefix() {
-        var filter          = RecordFilter.BySchemaPattern("^Order.*$");
-        var matchingOrder   = _faker.With(schemaName: "OrderCreated");
-        var matchingPayment = _faker.With(schemaName: "OrderUpdated");
-        var nonMatching     = _faker.With(schemaName: "UserEvent");
+    public async Task by_schema_produces_exact_regex() {
+        var filter = RecordFilter.BySchema("OrderCreated");
 
-        await Assert.That(filter.IsMatch(matchingOrder)).IsTrue();
-        await Assert.That(filter.IsMatch(matchingPayment)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-et-OrderCreated$");
+    }
+
+    [Test]
+    public async Task by_schema_escapes_special_characters() {
+        var filter = RecordFilter.BySchema("Order.Created.V1");
+
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-et-Order\.Created\.V1$");
     }
 }

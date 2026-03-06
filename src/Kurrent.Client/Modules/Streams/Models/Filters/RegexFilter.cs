@@ -8,17 +8,6 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public abstract record RegexFilter : IRecordFilter {
     /// <summary>
-    /// Creates a regex filter for exact match.
-    /// </summary>
-    protected RegexFilter(string value) {
-        if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Value cannot be null or whitespace.", nameof(value));
-
-        var escaped = Regex.Escape(value);
-        Regex = new Regex($"^{escaped}$", RegexOptions.Compiled);
-    }
-
-    /// <summary>
     /// Creates a regex filter for exact multi-value match.
     /// </summary>
     protected RegexFilter(string[] values) {
@@ -38,10 +27,8 @@ public abstract record RegexFilter : IRecordFilter {
     /// Creates a regex filter from a compiled regex pattern.
     /// </summary>
     /// <param name="pattern">The compiled regex pattern.</param>
-    /// <param name="targetStream">Optional target stream for the filter.</param>
-    protected RegexFilter(Regex pattern, StreamName targetStream = default) {
-        Regex        = pattern;
-        TargetStream = targetStream == default ? StreamName.All : targetStream;
+    protected RegexFilter(Regex pattern) {
+        Regex = pattern;
     }
 
     Regex Regex { get; }

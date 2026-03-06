@@ -181,10 +181,8 @@ static class StreamsClientV1Mapper {
         static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter) {
             Contracts.ReadReq.Types.Options.Types.FilterOptions? options = filter switch {
                 StreamFilter f => new() { StreamIdentifier = new() { Regex = f.Expression } },
-                SchemaFilter f => new() { EventType        = new() { Regex = f.Expression } },
 
-                ExpressionFilter { ServerFilter: StreamFilter f } => new()  { StreamIdentifier = new() { Regex = f.Expression } },
-                ExpressionFilter { ServerFilter: SchemaFilter f } => new () { EventType        = new() { Regex = f.Expression } },
+                ExpressionFilter { ServerFilter: StreamFilter f } => new() { StreamIdentifier = new() { Regex = f.Expression } },
 
                 _ => null
             };

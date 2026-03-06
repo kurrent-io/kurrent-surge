@@ -4,18 +4,29 @@ using Testing.Datasets.HomeAutomation.Model;
 
 namespace Testing.Datasets.HomeAutomation;
 
-public class WaterLeakDetectedFaker : Faker<WaterLeakDetected> {
-    public WaterLeakDetectedFaker(WaterSensor device, long timestamp) {
-        var hasWater = false;
-        RuleFor(e => e.EventId, f => f.Random.Guid())
-            .RuleFor(e => e.Device, f => device.CreateDeviceInfo(
-                device.IsBatteryPowered ? f.Random.Number(5, 100) : null))
-            .RuleFor(e => e.HasWater, f => {
-                hasWater = f.Random.Bool(0.002f);
-                return hasWater;
-            })
-            .RuleFor(e => e.MoistureLevel, f => hasWater ? f.Random.Number(1, 100) : 0)
-            .RuleFor(e => e.AlertSent, f => hasWater && f.Random.Bool(0.9f))
-            .RuleFor(e => e.Timestamp, timestamp);
+public class WaterLeakEventFaker(Device device, Guid roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
+    readonly Faker _faker = new();
+
+    public IHomeAutomationEvent Generate() {
+        var water = (WaterSensor)device;
+        var leakProbability = weather is WeatherCondition.Rainy or WeatherCondition.Stormy ? 0.002f * 1.5f : 0.002f;
+        var info = new DeviceInfo {
+            Id           = device.Id,
+            RoomId       = roomId,
+            BatteryLevel = device.IsBatteryPowered ? device.BatteryLevel : null
+        };
+
+        if (_faker.Random.Bool(leakProbability)) {
+            return new WaterLeakDetected {
+                Device        = info,
+                MoistureLevel = _faker.Random.Number(water.MoistureThreshold, 100),
+                Timestamp     = timestamp
+            };
+        }
+
+        return new WaterLeakResolved {
+            Device    = info,
+            Timestamp = timestamp
+        };
     }
 }

@@ -4,24 +4,28 @@ using Testing.Datasets.HomeAutomation.Contracts.Events;
 namespace Testing.Datasets.HomeAutomation.Model;
 
 public class SmartHomeState {
-    readonly Dictionary<string, DeviceState> _devices = [];
-    readonly Dictionary<string, Device>      _catalog = [];
+    readonly Dictionary<string, Device>      _catalog    = [];
+    readonly Dictionary<string, Guid>        _roomLookup = [];
+    readonly Dictionary<string, DeviceState> _devices    = [];
 
-    public SmartHome                              Home        { get; private set; } = null!;
-    public long                                   CurrentTime { get; private set; }
-    public IReadOnlyDictionary<string, DeviceState> Devices   => _devices;
+    public SmartHome Home        { get; private set; } = null!;
+    public long      CurrentTime { get; private set; }
+
+    public IReadOnlyDictionary<string, DeviceState> Devices => _devices;
 
     public void Initialize(SmartHome home, long startTime) {
         Home        = home;
         CurrentTime = startTime;
 
-        foreach (var device in home.Devices) {
-            _catalog[device.Id] = device;
-            _devices[device.Id] = new DeviceState {
-                DeviceId         = device.Id,
-                DeviceType       = device.DeviceType,
-                IsBatteryPowered = device.IsBatteryPowered
-            };
+        foreach (var room in home.Rooms) {
+            foreach (var device in room.Devices) {
+                _catalog[device.Id]    = device;
+                _roomLookup[device.Id] = room.RoomId;
+                _devices[device.Id]    = new DeviceState {
+                    DeviceId         = device.Id,
+                    IsBatteryPowered = device.IsBatteryPowered
+                };
+            }
         }
     }
 
@@ -30,7 +34,12 @@ public class SmartHomeState {
             throw new InvalidOperationException($"Unknown device: {command.DeviceId}");
 
         var device = _catalog[command.DeviceId];
-        var info   = device.CreateDeviceInfo(state.IsBatteryPowered ? state.BatteryLevel : null);
+        var roomId = _roomLookup[command.DeviceId];
+        var info   = new DeviceInfo {
+            Id           = device.Id,
+            RoomId       = roomId,
+            BatteryLevel = state.IsBatteryPowered ? state.BatteryLevel : null
+        };
 
         return command switch {
             RecordTemperature cmd => new TemperatureReading {
@@ -40,12 +49,12 @@ public class SmartHomeState {
                 Timestamp   = timestamp
             },
             RecordHumidity cmd => new HumidityReading {
-                Device       = info,
-                Humidity     = cmd.Humidity,
+                Device   = info,
+                Humidity = cmd.Humidity,
                 ComfortLevel = cmd.Humidity switch {
-                    < 30  => ComfortLevel.Low,
-                    > 60  => ComfortLevel.High,
-                    _     => ComfortLevel.Optimal
+                    < 30 => ComfortLevel.Low,
+                    > 60 => ComfortLevel.High,
+                    _    => ComfortLevel.Optimal
                 },
                 Timestamp = timestamp
             },
@@ -55,92 +64,57 @@ public class SmartHomeState {
                 ZoneId     = cmd.ZoneId,
                 Timestamp  = timestamp
             },
-            RecordDoorOpen cmd => new DoorStateChanged {
-                Device     = info,
-                IsOpen     = true,
-                LockStatus = LockStatus.Unlocked,
-                UserId     = cmd.UserId,
-                Timestamp  = timestamp
+            RecordDoorStateChanged cmd => (cmd.IsOpen, cmd.LockStatus) switch {
+                (true, _)                    => new DoorOpened   { Device = info, UserId = cmd.UserId, Timestamp = timestamp },
+                (false, LockStatus.Locked)   => new DoorLocked  { Device = info, UserId = cmd.UserId, Timestamp = timestamp },
+                (false, LockStatus.Unlocked) => state.DoorIsOpen
+                    ? (IHomeAutomationEvent)new DoorClosed   { Device = info, UserId = cmd.UserId, Timestamp = timestamp }
+                    : new DoorUnlocked { Device = info, UserId = cmd.UserId, Timestamp = timestamp },
+                _                            => new DoorUnlocked { Device = info, UserId = cmd.UserId, Timestamp = timestamp }
             },
-            RecordDoorClose cmd => new DoorStateChanged {
-                Device     = info,
-                IsOpen     = false,
-                LockStatus = state.DoorLock,
-                UserId     = cmd.UserId,
-                Timestamp  = timestamp
-            },
-            RecordDoorLock cmd => new DoorStateChanged {
-                Device     = info,
-                IsOpen     = false,
-                LockStatus = LockStatus.Locked,
-                UserId     = cmd.UserId,
-                Timestamp  = timestamp
-            },
-            RecordDoorUnlock cmd => new DoorStateChanged {
-                Device     = info,
-                IsOpen     = state.DoorIsOpen,
-                LockStatus = LockStatus.Unlocked,
-                UserId     = cmd.UserId,
-                Timestamp  = timestamp
-            },
-            RecordWindowOpen cmd => new WindowStateChanged {
-                Device           = info,
-                IsOpen           = true,
-                OpenPercentage   = cmd.OpenPercentage,
-                WeatherCondition = WeatherCondition.Unspecified,
-                Timestamp        = timestamp
-            },
-            RecordWindowClose => new WindowStateChanged {
-                Device           = info,
-                IsOpen           = false,
-                OpenPercentage   = 0,
-                WeatherCondition = WeatherCondition.Unspecified,
-                Timestamp        = timestamp
-            },
-            RecordLightOn cmd => new LightStateChanged {
-                Device           = info,
-                IsOn             = true,
-                Brightness       = cmd.Brightness,
-                Color            = cmd.Color,
-                PowerConsumption = cmd.Brightness * 0.6,
-                Timestamp        = timestamp
-            },
-            RecordLightOff => new LightStateChanged {
-                Device           = info,
-                IsOn             = false,
-                Brightness       = 0,
-                Color            = "#000000",
-                PowerConsumption = 0,
-                Timestamp        = timestamp
-            },
-            RecordSmokeDetected cmd => new SmokeDetected {
-                Device      = info,
-                HasSmoke    = true,
-                SmokeLevel  = cmd.SmokeLevel,
-                AlarmStatus = AlarmStatus.Active,
-                Timestamp   = timestamp
-            },
-            RecordSmokeCleared => new SmokeDetected {
-                Device      = info,
-                HasSmoke    = false,
-                SmokeLevel  = 0,
-                AlarmStatus = AlarmStatus.Normal,
-                Timestamp   = timestamp
-            },
-            RecordWaterLeakDetected cmd => new WaterLeakDetected {
-                Device        = info,
-                HasWater      = true,
-                MoistureLevel = cmd.MoistureLevel,
-                AlertSent     = true,
-                Timestamp     = timestamp
-            },
-            RecordWaterLeakResolved => new WaterLeakDetected {
-                Device        = info,
-                HasWater      = false,
-                MoistureLevel = 0,
-                AlertSent     = false,
-                Timestamp     = timestamp
-            },
+            RecordLightStateChanged cmd => cmd.IsOn
+                ? new LightTurnedOn {
+                    Device           = info,
+                    Brightness       = cmd.Brightness,
+                    Color            = cmd.Color,
+                    PowerConsumption = cmd.Brightness * 0.6,
+                    Timestamp        = timestamp
+                }
+                : new LightTurnedOff {
+                    Device           = info,
+                    PowerConsumption = 0,
+                    Timestamp        = timestamp
+                },
+            RecordWindowStateChanged cmd => cmd.IsOpen
+                ? new WindowOpened {
+                    Device         = info,
+                    OpenPercentage = cmd.OpenPercentage,
+                    Timestamp      = timestamp
+                }
+                : (IHomeAutomationEvent)new WindowClosed {
+                    Device    = info,
+                    Timestamp = timestamp
+                },
+            RecordSmokeState cmd => cmd.HasSmoke
+                ? new SmokeAlarmTriggered {
+                    Device     = info,
+                    SmokeLevel = cmd.SmokeLevel,
+                    Timestamp  = timestamp
+                }
+                : (IHomeAutomationEvent)new SmokeAlarmCleared {
+                    Device    = info,
+                    Timestamp = timestamp
+                },
+            RecordWaterLeakState cmd => cmd.HasLeak
+                ? new WaterLeakDetected {
+                    Device        = info,
+                    MoistureLevel = cmd.MoistureLevel,
+                    Timestamp     = timestamp
+                }
+                : (IHomeAutomationEvent)new WaterLeakResolved {
+                    Device    = info,
+                    Timestamp = timestamp
+                },
             _ => throw new InvalidOperationException($"Unknown command: {command.GetType().Name}")
         };
     }
@@ -157,29 +131,68 @@ public class SmartHomeState {
             case TemperatureReading e:
                 state.CurrentTemperature = e.Temperature;
                 break;
+
             case HumidityReading e:
                 state.CurrentHumidity = e.Humidity;
                 break;
+
             case MotionDetected:
                 break;
-            case DoorStateChanged e:
-                state.DoorIsOpen = e.IsOpen;
-                state.DoorLock   = e.LockStatus;
+
+            case DoorOpened:
+                state.DoorIsOpen = true;
+                state.DoorLock   = LockStatus.Unlocked;
                 break;
-            case WindowStateChanged e:
-                state.IsWindowOpen   = e.IsOpen;
-                state.OpenPercentage = e.OpenPercentage;
+
+            case DoorClosed:
+                state.DoorIsOpen = false;
                 break;
-            case LightStateChanged e:
-                state.LightIsOn  = e.IsOn;
+
+            case DoorLocked:
+                state.DoorIsOpen = false;
+                state.DoorLock   = LockStatus.Locked;
+                break;
+
+            case DoorUnlocked:
+                state.DoorLock = LockStatus.Unlocked;
+                break;
+
+            case LightTurnedOn e:
+                state.LightIsOn  = true;
                 state.Brightness = e.Brightness;
                 state.LightColor = e.Color;
                 break;
-            case SmokeDetected e:
-                state.SmokeAlarmActive = e.HasSmoke;
+
+            case LightTurnedOff:
+                state.LightIsOn  = false;
+                state.Brightness = 0;
+                state.LightColor = "#000000";
                 break;
-            case WaterLeakDetected e:
-                state.WaterLeakDetected = e.HasWater;
+
+            case WindowOpened e:
+                state.IsWindowOpen   = true;
+                state.OpenPercentage = e.OpenPercentage;
+                break;
+
+            case WindowClosed:
+                state.IsWindowOpen   = false;
+                state.OpenPercentage = 0;
+                break;
+
+            case SmokeAlarmTriggered:
+                state.SmokeAlarmActive = true;
+                break;
+
+            case SmokeAlarmCleared:
+                state.SmokeAlarmActive = false;
+                break;
+
+            case WaterLeakDetected:
+                state.WaterLeakDetected = true;
+                break;
+
+            case WaterLeakResolved:
+                state.WaterLeakDetected = false;
                 break;
         }
     }
