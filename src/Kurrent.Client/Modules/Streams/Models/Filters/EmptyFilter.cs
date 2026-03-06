@@ -5,7 +5,7 @@ namespace Kurrent.Client.Streams;
 /// </summary>
 [PublicAPI]
 public sealed record EmptyFilter : IRecordFilter {
-    public StreamName TargetStream => StreamName.None;
+    public StreamName TargetStream => StreamName.Unset;
 
     public string Expression => string.Empty;
 

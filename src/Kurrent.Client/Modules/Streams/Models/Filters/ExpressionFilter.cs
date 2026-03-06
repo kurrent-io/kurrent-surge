@@ -41,7 +41,7 @@ public record ExpressionFilter : IRecordFilter {
         _parsedExpression = parseResult.Value;
 
         ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
-        TargetStream = ServerFilter.TargetStream != StreamName.None
+        TargetStream = ServerFilter.TargetStream != StreamName.Unset
             ? ServerFilter.TargetStream
             : StreamName.All;
     }

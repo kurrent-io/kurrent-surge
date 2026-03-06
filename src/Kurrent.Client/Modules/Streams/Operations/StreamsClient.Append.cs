@@ -12,8 +12,8 @@ public partial class StreamsClient {
             using var session = ServiceClient.AppendSession(cancellationToken: cancellationToken);
 
             await foreach (var request in requests.WithCancellation(cancellationToken).ConfigureAwait(false)) {
-                if (request.Stream == StreamName.None || request.Stream == StreamName.All)
-                    throw new ArgumentException("Stream cannot be StreamName.None or StreamName.All", nameof(request.Stream));
+                if (request.Stream == StreamName.Unset || request.Stream == StreamName.All)
+                    throw new ArgumentException("Stream cannot be StreamName.Unset or StreamName.All", nameof(request.Stream));
 
                 var records = await request.Messages
                     .Map(request.Stream, SerializerProvider, cancellationToken)

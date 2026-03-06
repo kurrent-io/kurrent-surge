@@ -8,7 +8,7 @@ public readonly record struct SessionId {
     /// <summary>
     /// Represents an unset session (e.g., worker never connected).
     /// </summary>
-    public static readonly SessionId None = new(Guid.Empty);
+    public static readonly SessionId Unset = new(Guid.Empty);
 
     SessionId(Guid value) => Value = value;
 
@@ -20,7 +20,7 @@ public readonly record struct SessionId {
     /// <summary>
     /// Indicates whether this session ID is unset.
     /// </summary>
-    public bool IsNone => this == None;
+    public bool IsUnset => this == Unset;
 
     /// <summary>
     /// Creates a <see cref="SessionId"/> from a GUID value.

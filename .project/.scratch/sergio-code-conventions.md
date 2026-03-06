@@ -272,7 +272,7 @@ Validation at method entry, not nested conditionals.
 if (position == LogPosition.Unset)
     throw new ArgumentOutOfRangeException(nameof(position));
 
-if (stream == StreamName.None || stream == StreamName.All)
+if (stream == StreamName.Unset || stream == StreamName.All)
     throw new ArgumentException("...", nameof(stream));
 ```
 

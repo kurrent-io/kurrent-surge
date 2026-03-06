@@ -39,7 +39,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
         AsyncServerStreamingCall<ReadResp>? session;
 
 
-        var sessionId = SessionId.None;
+        var sessionId = SessionId.Unset;
 
         try {
             session = StreamsClient.LegacyServiceClient.Read(request, cancellationToken: stoppingToken);

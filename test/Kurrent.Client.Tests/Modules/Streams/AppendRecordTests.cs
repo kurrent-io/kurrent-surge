@@ -96,7 +96,7 @@ public class AppendRecordTests {
         var record = new AppendRecord {
             Value      = "test-payload",
             DataFormat = SchemaDataFormat.Json,
-            Stream     = StreamName.None
+            Stream     = StreamName.Unset
         };
 
         var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
@@ -110,7 +110,7 @@ public class AppendRecordTests {
             RecordId   = Guid.Empty,
             Value      = null!,
             DataFormat = SchemaDataFormat.Unspecified,
-            Stream     = StreamName.None
+            Stream     = StreamName.Unset
         };
 
         var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
@@ -128,7 +128,7 @@ public class AppendRecordTests {
             RecordId   = Guid.Empty,
             Value      = "test-payload",
             DataFormat = SchemaDataFormat.Json,
-            Stream     = StreamName.None
+            Stream     = StreamName.Unset
         };
 
         var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());

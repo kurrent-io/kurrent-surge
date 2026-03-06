@@ -19,7 +19,9 @@ public readonly record struct StreamCategory {
     /// <summary>
     /// Represents an empty or unset category.
     /// </summary>
-    public static readonly StreamCategory None = new("");
+    public static readonly StreamCategory Unset = new("");
+
+    public bool IsUnset => this == Unset;
 
     internal StreamCategory(string value) => Value = value;
 

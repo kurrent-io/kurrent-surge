@@ -28,7 +28,7 @@ public class RegisterSchemaVersionTests {
 		var registered = await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
-		await Assert.That(registered.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(registered.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(registered.VersionNumber).IsEqualTo(2);
 	}
 

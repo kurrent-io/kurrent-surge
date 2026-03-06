@@ -15,7 +15,7 @@ namespace Kurrent.Client.Processors.Gateway.Messages;
 /// </remarks>
 [PublicAPI]
 public readonly record struct CheckpointId(string Value) {
-	public static readonly CheckpointId None = new(string.Empty);
+	public static readonly CheckpointId Unset = new(string.Empty);
 
 	/// <summary>Creates a new unique checkpoint ID.</summary>
 	public static CheckpointId New() => new(Guid.NewGuid().ToString());
@@ -32,7 +32,7 @@ public readonly record struct CheckpointId(string Value) {
         new(value.ToString());
 
     /// <summary>True if this checkpoint ID is empty or unset.</summary>
-	public bool IsEmpty => string.IsNullOrEmpty(Value);
+	public bool IsUnset => string.IsNullOrEmpty(Value);
 
 	public override string ToString() => Value;
 

@@ -17,7 +17,9 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 [method: SetsRequiredMembers]
 public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position, Revision Revision, DateTimeOffset Timestamp) {
-	public static readonly Heartbeat None = new(HeartbeatType.Unspecified, LogPosition.Unset, Revision.Unset, DateTimeOffset.MinValue);
+	public static readonly Heartbeat Unset = new(HeartbeatType.Unspecified, LogPosition.Unset, Revision.Unset, DateTimeOffset.MinValue);
+
+	public bool IsUnset => this == Unset;
 
     // temporary until I fix it...
     public RecordPosition RecordPosition =>

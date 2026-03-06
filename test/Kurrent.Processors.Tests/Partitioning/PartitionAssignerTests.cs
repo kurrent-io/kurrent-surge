@@ -298,7 +298,7 @@ public class PartitionAssignerTests {
 
         // Assert
         await Assert.That(manifest[(WorkerId)"new-worker"].Gained).IsEquivalentTo((Partition[])[0, 1, 2]);
-        await Assert.That(manifest.Transfers.Any(t => t.From.IsNone && t.To == (WorkerId)"new-worker")).IsTrue();
+        await Assert.That(manifest.Transfers.Any(t => t.From.IsUnset && t.To == (WorkerId)"new-worker")).IsTrue();
     }
 
     [Test]

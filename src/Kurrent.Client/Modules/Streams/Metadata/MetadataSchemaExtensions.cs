@@ -30,16 +30,16 @@ public static class MetadataSchemaExtensions {
         }
 
         public SchemaName GetSchemaName() =>
-            source.GetValueOrDefault(SystemMetadataKeys.SchemaName, SchemaName.None);
+            source.GetValueOrDefault(SystemMetadataKeys.SchemaName, SchemaName.Unset);
 
         public SchemaDataFormat GetSchemaFormat() =>
             source.GetValueOrDefault(SystemMetadataKeys.SchemaFormat, SchemaDataFormat.Unspecified);
 
         public SchemaVersionId GetSchemaId() =>
-            source.GetValueOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.None);
+            source.GetValueOrDefault(SystemMetadataKeys.SchemaId, SchemaVersionId.Unset);
 
         public Metadata AddSchemaNameIfMissing(SchemaName schemaName) =>
-            source.WithIf(SystemMetadataKeys.SchemaName, schemaName, source.GetSchemaName() == SchemaName.None);
+            source.WithIf(SystemMetadataKeys.SchemaName, schemaName, source.GetSchemaName() == SchemaName.Unset);
 
         public Metadata AddSchemaFormatIfMissing(SchemaDataFormat dataFormat) {
             return dataFormat != SchemaDataFormat.Unspecified

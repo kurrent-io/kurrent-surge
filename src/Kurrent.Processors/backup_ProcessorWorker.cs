@@ -83,7 +83,7 @@
 //         WorkerContext = new() {
 //             ProcessorId       = ProcessorId,
 //             WorkerId          = WorkerId,
-//             SessionId         = SessionId.None,
+//             SessionId         = SessionId.Unset,
 //             Logger            = _logger,
 //             CancellationToken = stoppingToken
 //         };

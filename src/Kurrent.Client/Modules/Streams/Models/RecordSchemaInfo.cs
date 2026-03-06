@@ -11,7 +11,7 @@ public record RecordSchemaInfo {
     /// <summary>
     /// The name of the schema for the record.
     /// </summary>
-    public SchemaName SchemaName { get; init; } = SchemaName.None;
+    public SchemaName SchemaName { get; init; } = SchemaName.Unset;
 
     /// <summary>
     /// The data format of the schema, such as JSON, Protobuf, Avro, Bytes, or Unspecified.
@@ -21,11 +21,11 @@ public record RecordSchemaInfo {
     /// <summary>
     /// The unique identifier for the version of the schema.
     /// </summary>
-    public SchemaVersionId SchemaVersionId { get; init; } = SchemaVersionId.None;
+    public SchemaVersionId SchemaVersionId { get; init; } = SchemaVersionId.Unset;
 
-    public bool HasSchemaName   => SchemaName != SchemaName.None;
+    public bool HasSchemaName   => SchemaName != SchemaName.Unset;
     public bool HasSchemaFormat => SchemaFormat != SchemaDataFormat.Unspecified;
-    public bool HasSchemaId     => SchemaVersionId != SchemaVersionId.None;
+    public bool HasSchemaId     => SchemaVersionId != SchemaVersionId.Unset;
 
     public override string ToString() => $"{SchemaName} {SchemaFormat} {SchemaVersionId}";
 }

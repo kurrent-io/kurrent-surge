@@ -100,7 +100,7 @@ public class MessageTypeMapper {
 	/// <param name="messageType">The message type to look up.</param>
 	/// <param name="schemaName">
 	/// When this method returns, contains the schema name associated with the specified message type,
-	/// or <see cref="SchemaName.None"/> if the message type is not found.
+	/// or <see cref="SchemaName.Unset"/> if the message type is not found.
 	/// </param>
 	/// <returns>
 	/// <c>true</c> if the message type was found in the type map; otherwise, <c>false</c>.
@@ -111,7 +111,7 @@ public class MessageTypeMapper {
 			return true;
 		}
 
-		schemaName = SchemaName.None;
+		schemaName = SchemaName.Unset;
 		return false;
 	}
 
@@ -143,10 +143,10 @@ public class MessageTypeMapper {
 	/// <param name="messageType">The message type to look up.</param>
 	/// <param name="throwWhenMissing">
 	/// Determines whether to throw an exception when the message type is not found.
-	/// If <c>false</c>, returns <see cref="SchemaName.None"/> instead.
+	/// If <c>false</c>, returns <see cref="SchemaName.Unset"/> instead.
 	/// </param>
 	/// <returns>
-	/// The schema name associated with the specified message type, or <see cref="SchemaName.None"/> if
+	/// The schema name associated with the specified message type, or <see cref="SchemaName.Unset"/> if
 	/// the message type is not found and <paramref name="throwWhenMissing"/> is <c>false</c>.
 	/// </returns>
 	/// <exception cref="MessageTypeMapNotFoundException">
@@ -157,7 +157,7 @@ public class MessageTypeMapper {
             ? schemaName
             : throwWhenMissing
                 ? throw new MessageTypeMapNotFoundException(messageType)
-                : SchemaName.None;
+                : SchemaName.Unset;
 
     /// <summary>
 	/// Retrieves the schema name associated with the specified message type,

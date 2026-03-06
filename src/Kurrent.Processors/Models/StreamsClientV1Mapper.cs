@@ -38,7 +38,7 @@ static class ProtocolMapping {
                 req.Options.All    = ConvertToAllOptions(options.Subscription);
                 req.Options.Filter = ConvertToFilterOptions(options.Subscription.Filter);
             }
-            else if (options.Subscription.Filter.TargetStream != StreamName.None) {
+            else if (options.Subscription.Filter.TargetStream != StreamName.Unset) {
                 req.Options.Stream   = ConvertToStreamOptions(options.Subscription);
                 req.Options.NoFilter = DefaultEmpty;
             }
@@ -74,7 +74,7 @@ static class ProtocolMapping {
         //
         //     if (subscription.Filter == RecordFilter.None)
         //         req.Options.NoFilter = DefaultEmpty;
-        //     else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
+        //     else if (subscription.Filter.TargetStream != StreamName.Unset && subscription.Filter.TargetStream != StreamName.All) {
         //         req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
         //         req.Options.NoFilter = DefaultEmpty;
         //     }
@@ -98,7 +98,7 @@ static class ProtocolMapping {
         //
         //     if (subOptions.Filter == RecordFilter.None)
         //         req.Options.NoFilter = DefaultEmpty;
-        //     else if (subOptions.Filter.TargetStream != StreamName.None && subOptions.Filter.TargetStream != StreamName.All)
+        //     else if (subOptions.Filter.TargetStream != StreamName.Unset && subOptions.Filter.TargetStream != StreamName.All)
         //         req.Options.Stream = ConvertToStreamOptions(subOptions.Filter.TargetStream, subOptions.StartPosition);
         //     else {
         //         req.Options.All    = ConvertToAllOptions(subOptions.StartPosition);
@@ -117,7 +117,7 @@ static class ProtocolMapping {
         //
         //
         //     // Determine if reading from a specific stream or $all
-        //     var isSpecificStream = subscriptionOptions.Filter.TargetStream != StreamName.None
+        //     var isSpecificStream = subscriptionOptions.Filter.TargetStream != StreamName.Unset
         //                         && subscriptionOptions.Filter.TargetStream != StreamName.All;
         //
         //     var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
@@ -242,7 +242,7 @@ static class ProtocolMapping {
                 Revision = (long)linkEvent.StreamRevision,
                 Stream   = StreamName.From(linkEvent.StreamIdentifier!),
             }
-            : Link.None;
+            : Link.Unset;
 
         var indexRevision = readEvent.HasCommitPosition
             ? Revision.From((long)readEvent.CommitPosition)

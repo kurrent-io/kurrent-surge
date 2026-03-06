@@ -32,9 +32,9 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     public LogPosition LogPosition { get; init; } = LogPosition.Unset;
 
     /// <summary>
-    /// The stream name. Use <see cref="StreamName.None"/> for log position only.
+    /// The stream name. Use <see cref="StreamName.Unset"/> for log position only.
     /// </summary>
-    public StreamName Stream { get; init; } = StreamName.None;
+    public StreamName Stream { get; init; } = StreamName.Unset;
 
     /// <summary>
     /// The stream revision. Use <see cref="Revision.Unset"/> if not applicable.
@@ -63,7 +63,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     //         ? $"{Stream}-{Partition.Value:0000}" : Stream;
 
     public override string ToString() {
-        return Stream == StreamName.None
+        return Stream == StreamName.Unset
             ? Partition == Partition.Any
                 ? $"{LogPosition}"
                 : $"[{Partition}] @{LogPosition}]"
@@ -108,7 +108,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     /// If the stream is not partitioned, use <see cref="Partition.Any"/> or omit the parameter.
     /// </remarks>
     public static RecordPosition FromStream(StreamName stream, Revision revision, LogPosition? logPosition = null, Partition? partition = null) {
-        if (stream == StreamName.None)
+        if (stream == StreamName.Unset)
             throw new ArgumentException("Stream cannot be None.", nameof(stream));
 
         return new RecordPosition {
@@ -120,7 +120,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     }
 
     // public static RecordPosition FromStream(StreamName stream, LogPosition logPosition) {
-    //     if (stream == StreamName.None)
+    //     if (stream == StreamName.Unset)
     //         throw new ArgumentException("Stream cannot be None.", nameof(stream));
     //
     //     if (logPosition == LogPosition.Unset)

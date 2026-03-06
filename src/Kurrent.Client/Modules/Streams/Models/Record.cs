@@ -36,7 +36,7 @@ public record Record {
 	/// <summary>
 	/// Represents the index link associated with the record.
 	/// </summary>
-	public Link Link { get; init; } = Link.None;
+	public Link Link { get; init; } = Link.Unset;
 
 	/// <summary>
 	/// When the record was created in the database.
@@ -56,7 +56,7 @@ public record Record {
     /// providing a way to track the order of records as they are processed in particular scenarios,
     /// such as subscriptions or projections.
     /// </remarks>
-    public SequenceId Sequence { get; init; } = SequenceId.None;
+    public SequenceId Sequence { get; init; } = SequenceId.Unset;
 
     /// <summary>
     /// Binary data representation of the record's value.
@@ -124,12 +124,14 @@ public record Record {
 }
 
 public readonly record struct Link() {
-    public static readonly Link None = new();
+    public static readonly Link Unset = new();
 
-    public SchemaName  Name     { get; init; } = SchemaName.None;
+    public bool IsUnset => this == Unset;
+
+    public SchemaName  Name     { get; init; } = SchemaName.Unset;
     public LogPosition Position { get; init; } = LogPosition.Unset;
     public Revision    Revision { get; init; } = Revision.Unset;
-    public StreamName  Stream   { get; init; } = StreamName.None;
+    public StreamName  Stream   { get; init; } = StreamName.Unset;
 }
 
 public interface IRecordDecoder {

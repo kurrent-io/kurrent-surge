@@ -28,7 +28,7 @@ public readonly record struct StreamStateViolation() {
         ActualState   = actualState;
     }
 
-    public StreamName          Stream        { get; init; } = StreamName.None;
+    public StreamName          Stream        { get; init; } = StreamName.Unset;
     public ExpectedStreamState ExpectedState { get; init; } = ExpectedStreamState.NoStream;
     public ActualStreamState   ActualState   { get; init; } = ActualStreamState.NoStream;
 

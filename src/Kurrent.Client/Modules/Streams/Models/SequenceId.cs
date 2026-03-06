@@ -5,13 +5,15 @@ namespace Kurrent.Client.Streams.Checkpoints;
 /// </summary>
 /// <remarks>
 /// <para>
-/// SequenceId has a static value <see cref="None"/> which represents a default sequence identifier with a value of 0.
+/// SequenceId has a static value <see cref="Unset"/> which represents a default sequence identifier with a value of 0.
 /// Using this as a default ensures that invalid identifiers can be distinguished from valid values.
 /// </para>
 /// </remarks>
 [PublicAPI]
 public readonly record struct SequenceId : IComparable<SequenceId>, IComparable {
-	public static readonly SequenceId None = new(0);
+	public static readonly SequenceId Unset = new(0);
+
+	public bool IsUnset => this == Unset;
 
 	SequenceId(ulong value) => Value = value;
 
@@ -60,7 +62,7 @@ public sealed class SequenceGenerator(ulong initialValue = 1) {
 // /// </summary>
 // /// <remarks>
 // /// <para>
-// /// SequenceId has a static value <see cref="None"/> which represents a default sequence identifier with a value of 0.
+// /// SequenceId has a static value <see cref="Unset"/> which represents a default sequence identifier with a value of 0.
 // /// Using this as a default ensures that invalid identifiers can be distinguished from valid values.
 // /// </para>
 // /// </remarks>

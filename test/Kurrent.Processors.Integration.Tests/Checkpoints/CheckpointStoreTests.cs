@@ -43,7 +43,7 @@ public class CheckpointStoreTests {
 		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
 		await Assert.That(checkpoint.HasCheckpoint).IsFalse();
 		await Assert.That(checkpoint.Partitions.Count).IsEqualTo(0);
-		await Assert.That(checkpoint.CheckpointId).IsEqualTo(CheckpointId.None);
+		await Assert.That(checkpoint.CheckpointId).IsEqualTo(CheckpointId.Unset);
 	}
 
 	[Test]

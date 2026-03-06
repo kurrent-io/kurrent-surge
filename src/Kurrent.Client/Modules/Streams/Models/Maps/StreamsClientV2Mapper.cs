@@ -42,7 +42,7 @@
 //
 // 	public static Contracts.ReadFilter Map(this IRecordFilter source) =>
 // 		source switch {
-// 			StreamFilter f when f.TargetStream == StreamName.None =>
+// 			StreamFilter f when f.TargetStream == StreamName.Unset =>
 // 				new() { Scope = Contracts.ReadFilterScope.Stream, Expression = f.Expression },
 //
 // 			ExpressionFilter { ServerFilter: StreamFilter sf } =>

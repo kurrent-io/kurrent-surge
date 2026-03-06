@@ -48,7 +48,7 @@ public partial class StreamsClient {
                 throw new LogPositionNotFoundException(position);
 
             // Check if the source stream has been deleted or tombstoned
-            if (record.Position.Stream != StreamName.None) {
+            if (record.Position.Stream != StreamName.Unset) {
                 var streamInfo = await GetStreamInfo(record.Position.Stream, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -92,7 +92,7 @@ public partial class StreamsClient {
     /// A cancellation token to observe while waiting for the task to complete.
     /// </param>
     public async ValueTask<Record> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding, CancellationToken cancellationToken) {
-        if (stream == StreamName.None)
+        if (stream == StreamName.Unset)
             throw new ArgumentException("Stream name cannot be None", nameof(stream));
 
         if (stream == StreamName.All)

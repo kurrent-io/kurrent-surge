@@ -68,7 +68,7 @@ public sealed class RangeStrategy : IDistributionStrategy {
 
             for (var j = 0; j < partitionCount; j++) {
                 var partition = Partition.From(currentPartition++);
-                var prevOwner = previousOwner.GetValueOrDefault(partition, WorkerId.None);
+                var prevOwner = previousOwner.GetValueOrDefault(partition, WorkerId.Unset);
 
                 if (prevOwner == workerId) {
                     kept.Add(partition);

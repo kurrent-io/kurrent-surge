@@ -47,7 +47,7 @@ class MetadataJsonConverter : JsonConverter<Metadata> {
         static object? ParseString(Utf8JsonReader reader, string propertyName) {
             if (propertyName.Equals(SystemMetadataKeys.SchemaName, StringComparison.OrdinalIgnoreCase)) {
                 var value = reader.GetString();
-                return string.IsNullOrWhiteSpace(value) ? SchemaName.None : SchemaName.From(value);
+                return string.IsNullOrWhiteSpace(value) ? SchemaName.Unset : SchemaName.From(value);
             }
 
             if (propertyName.Equals(SystemMetadataKeys.SchemaFormat, StringComparison.OrdinalIgnoreCase))
@@ -56,7 +56,7 @@ class MetadataJsonConverter : JsonConverter<Metadata> {
 
             if (propertyName.Equals(SystemMetadataKeys.SchemaId, StringComparison.OrdinalIgnoreCase))
                 return reader.TryGetGuid(out var versionId) && versionId != Guid.Empty
-                    ? SchemaVersionId.From(versionId) : SchemaVersionId.None;
+                    ? SchemaVersionId.From(versionId) : SchemaVersionId.Unset;
 
             if (reader.TryGetGuid(out var guid)) return guid;
             if (reader.TryGetDateTime(out var dateTime)) return dateTime;

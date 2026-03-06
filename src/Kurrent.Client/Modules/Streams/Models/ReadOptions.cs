@@ -71,7 +71,7 @@ public record ReadStreamOptions : ReadOptionsBase, IOptions {
     /// <summary>
     /// Name of the stream to read from.
     /// </summary>
-    public StreamName Stream { get; init; } = StreamName.None;
+    public StreamName Stream { get; init; } = StreamName.Unset;
 
     /// <summary>
     /// Starting revision within the specified stream to begin reading from.

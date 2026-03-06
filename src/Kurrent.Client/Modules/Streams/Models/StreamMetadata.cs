@@ -47,7 +47,7 @@ public record StreamMetadata {
     public bool HasCacheControl   => CacheControl.HasValue && CacheControl.Value > TimeSpan.Zero;
     public bool HasMaxCount       => MaxCount is > 0;
     public bool HasCustomMetadata => CustomMetadata is not null && CustomMetadata.RootElement.ValueKind != JsonValueKind.Undefined;
-    public bool HasAcl            => Acl is not null && Acl != StreamAcl.None;
+    public bool HasAcl            => Acl is not null && Acl != StreamAcl.Unset;
 }
 
 /// <summary>
@@ -55,7 +55,9 @@ public record StreamMetadata {
 /// </summary>
 [PublicAPI]
 public readonly record struct StreamAcl() {
-    public static readonly StreamAcl None = new();
+    public static readonly StreamAcl Unset = new();
+
+    public bool IsUnset => this == Unset;
 
     /// <summary>
     /// Roles and users permitted to read the stream

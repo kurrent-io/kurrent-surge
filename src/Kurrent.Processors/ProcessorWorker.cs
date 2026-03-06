@@ -61,7 +61,7 @@ sealed class ProcessorWorker : IProcessorWorker {
         WorkerContext = new WorkerContext {
             ProcessorId = ProcessorId,
             WorkerId    = WorkerId,
-            SessionId   = SessionId.None,
+            SessionId   = SessionId.Unset,
             Logger      = loggerFactory.CreateLogger<ProcessorWorker>()
         };
     }

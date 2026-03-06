@@ -46,7 +46,7 @@ public class MetadataDecoderTests {
 
         var sut1 = new DefaultMetadataDecoder();
 
-        var metadata1 = await sut1.Decode(bytes, new MetadataDecoderContext(StreamName.None, SchemaName.None, SchemaDataFormat.Json));
+        var metadata1 = await sut1.Decode(bytes, new MetadataDecoderContext(StreamName.Unset, SchemaName.Unset, SchemaDataFormat.Json));
 
         var myInt2  = metadata1.GetValueOrDefault<string>("int-value");
         var myDate1 = metadata1.GetValueOrDefault<DateTime>("datetime-value");

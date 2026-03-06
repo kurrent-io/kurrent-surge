@@ -13,7 +13,7 @@ public record AppendRecord {
         Value      = null!,
         DataFormat = SchemaDataFormat.Unspecified,
         Metadata   = null!,
-        Stream     = StreamName.None
+        Stream     = StreamName.Unset
     };
 
     public static AppendRecordBuilder New => new();
@@ -42,7 +42,7 @@ public record AppendRecord {
     /// <summary>
     /// The stream to which this record will be appended.
     /// </summary>
-    public StreamName Stream { get; internal init; } = StreamName.None;
+    public StreamName Stream { get; internal init; } = StreamName.Unset;
 
     /// <summary>
     /// Validates the properties of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
@@ -69,7 +69,7 @@ public record AppendRecord {
                 ValidationProblem.CreateForField(nameof(DataFormat),
                     ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
 
-        if (Stream == StreamName.None)
+        if (Stream == StreamName.Unset)
             problems.Add(
                 ValidationProblem.CreateForField(nameof(Stream), ErrorMessages.AppendRecordStreamRequired, Stream));
 

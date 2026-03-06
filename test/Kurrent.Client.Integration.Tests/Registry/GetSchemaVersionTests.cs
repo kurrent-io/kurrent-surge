@@ -24,7 +24,7 @@ public class GetSchemaVersionTests {
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, cancellationToken: ct);
 
-		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
 		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
@@ -44,7 +44,7 @@ public class GetSchemaVersionTests {
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, schemaVersion.VersionNumber, ct);
 
-		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
 		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
@@ -64,7 +64,7 @@ public class GetSchemaVersionTests {
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersionById(schemaVersion.VersionId, ct);
 
-		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
 		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);

@@ -112,7 +112,7 @@ public sealed record ProcessorCheckpoint {
     /// <summary>
     /// The checkpoint ID that triggered the last checkpoint.
     /// </summary>
-    public CheckpointId CheckpointId { get; init; } = CheckpointId.None;
+    public CheckpointId CheckpointId { get; init; } = CheckpointId.Unset;
 
     /// <summary>
     /// UTC timestamp when the checkpoint was created.

@@ -172,7 +172,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     public async ValueTask<ProcessorCheckpoint> LoadAsync(CheckpointId checkpointId, CancellationToken ct = default) {
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
-        if (checkpointId.IsEmpty)
+        if (checkpointId.IsUnset)
             return ProcessorCheckpoint.Empty;
 
         try {

@@ -35,7 +35,7 @@ public class InspectRecordTests {
             .InspectRecord(seeded.Position, ct);
 
         await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(seeded.Position);
-        await Assert.That(record.Stream).IsNotEqualTo(StreamName.None);
+        await Assert.That(record.Stream).IsNotEqualTo(StreamName.Unset);
         await Assert.That(record.IsDecoded).IsFalse();
     }
 
@@ -47,7 +47,7 @@ public class InspectRecordTests {
             .InspectRecord(LogPosition.Earliest, ct);
 
         await Assert.That(record.Position.LogPosition).IsGreaterThanOrEqualTo(0);
-        await Assert.That(record.Stream).IsNotEqualTo(StreamName.None);
+        await Assert.That(record.Stream).IsNotEqualTo(StreamName.Unset);
         await Assert.That(record.IsDecoded).IsFalse();
     }
 
@@ -61,7 +61,7 @@ public class InspectRecordTests {
             .InspectRecord(LogPosition.Latest, ct);
 
         await Assert.That(record.Position.LogPosition).IsGreaterThan(0);
-        await Assert.That(record.Stream).IsNotEqualTo(StreamName.None);
+        await Assert.That(record.Stream).IsNotEqualTo(StreamName.Unset);
         await Assert.That(record.IsDecoded).IsFalse();
     }
 

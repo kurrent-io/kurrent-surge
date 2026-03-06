@@ -22,7 +22,7 @@ public partial class StreamNotFoundException {
 [KurrentOperationError(Contracts.Errors.StreamsError.StreamAlreadyExists)]
 public partial class StreamAlreadyExistsException {
     public Revision   ActualRevision { get; private set; } = Revision.Unset;
-    public StreamName Stream         { get; private set; } = StreamName.None;
+    public StreamName Stream         { get; private set; } = StreamName.Unset;
 
     public StreamAlreadyExistsException(StreamName stream, Revision actualRevision)
         : this(Format(ErrorMessages.StreamRevisionConflictException, "", stream, ExpectedStreamState.NoStream, actualRevision)) {
@@ -51,7 +51,7 @@ public partial class StreamTombstonedException {
 public partial class StreamRevisionConflictException {
     public Revision   ExpectedRevision { get; private set; } = Revision.Unset;
     public Revision   ActualRevision   { get; private set; } = Revision.Unset;
-    public StreamName Stream           { get; private set; } = StreamName.None;
+    public StreamName Stream           { get; private set; } = StreamName.Unset;
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
         : this(Format(ErrorMessages.StreamRevisionConflictException, stream, expectedRevision, actualRevision)) {

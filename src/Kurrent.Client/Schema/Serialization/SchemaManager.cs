@@ -64,10 +64,10 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 				TypeMapper.TryMap(schemaName, messageType);
 			}
 
-			return (schemaName, SchemaVersionId.None);
+			return (schemaName, SchemaVersionId.Unset);
 		}
 		else if (TypeMapper.TryGetSchemaName(messageType, out var schemaName))
-			return (schemaName, SchemaVersionId.None);
+			return (schemaName, SchemaVersionId.Unset);
 		else
 			throw new AutoRegistrationDisabledException(policy.DataFormat, messageType);
 	}
@@ -80,13 +80,13 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
         var messageType = TypeMapper.GetOrResolveMessageType(schemaInfo.SchemaName);
 
 		if (!policy.ValidateSchemas)
-			return (messageType, SchemaVersionId.None);
+			return (messageType, SchemaVersionId.Unset);
 
 		if (schemaInfo.HasSchemaId) {
 			await EnsureSchemaCompatibility(schemaInfo.SchemaVersionId, messageType, schemaInfo.SchemaFormat, ct).ConfigureAwait(false);
 
 			// it was already set so we don't need to do anything and dont return the version id
-			return (messageType, SchemaVersionId.None);
+			return (messageType, SchemaVersionId.Unset);
 		}
 
 		// fallback behaviour for backwards compatibility
@@ -108,7 +108,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 	/// <returns>The version descriptor of the schema, including its unique ID and version number.</returns>
 	public async ValueTask<SchemaVersionDescriptor> TryRegisterSchema(SchemaName schemaName, Type messageType, SchemaDataFormat dataFormat, CancellationToken cancellationToken) {
 		ArgumentNullException.ThrowIfNull(messageType);
-		ArgumentOutOfRangeException.ThrowIfEqual(schemaName, SchemaName.None);
+		ArgumentOutOfRangeException.ThrowIfEqual(schemaName, SchemaName.Unset);
 
 		if (dataFormat == SchemaDataFormat.Unspecified)
 			throw new ArgumentOutOfRangeException(nameof(dataFormat), dataFormat, "Data format cannot be Unspecified");
@@ -204,7 +204,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 				}
 			}
 
-			lastSchemaVersion = SchemaVersionDescriptor.None;
+			lastSchemaVersion = SchemaVersionDescriptor.Unset;
 			return false;
 		}
 	}

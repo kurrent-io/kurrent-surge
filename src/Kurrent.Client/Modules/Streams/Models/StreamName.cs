@@ -12,12 +12,12 @@ public readonly record struct StreamName {
     /// <summary>
     /// Represents an uninitialized or empty stream name.
     /// </summary>
-    public static readonly StreamName None = new("", StreamCategory.None, Partition.Any);
+    public static readonly StreamName Unset = new("", StreamCategory.Unset, Partition.Any);
 
     /// <summary>
     /// A stream containing all events in the KurrentDB transaction file.
     /// </summary>
-    public static readonly StreamName All = new(AllStream, StreamCategory.None, Partition.Any);
+    public static readonly StreamName All = new(AllStream, StreamCategory.Unset, Partition.Any);
 
     /// <summary>
     /// The prefix character for system streams.
@@ -100,7 +100,7 @@ public readonly record struct StreamName {
     /// <summary>
     /// Indicates whether the stream name is unset (i.e., equals <see cref="None"/>).
     /// </summary>
-    public bool IsUnset => this == None;
+    public bool IsUnset => this == Unset;
 
     /// <summary>
     /// The category of the stream if applicable.

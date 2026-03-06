@@ -1,7 +1,9 @@
 namespace Kurrent.Client.Registry;
 
 public readonly record struct SchemaVersionId(Guid Value) {
-    public static readonly SchemaVersionId None = new(Guid.Empty);
+    public static readonly SchemaVersionId Unset = new(Guid.Empty);
+
+    public bool IsUnset => this == Unset;
 
     public Guid Value { get; } = Value;
 

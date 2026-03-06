@@ -1,7 +1,9 @@
 namespace Kurrent.Client.Registry;
 
 public readonly record struct SchemaName(string Value) {
-    public static readonly SchemaName None = new("");
+    public static readonly SchemaName Unset = new("");
+
+    public bool IsUnset => this == Unset;
 
     public string Value { get; } = Value;
 

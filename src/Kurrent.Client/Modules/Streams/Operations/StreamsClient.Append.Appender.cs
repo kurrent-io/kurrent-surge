@@ -25,7 +25,7 @@ public class StreamsAppender : IAsyncDisposable {
         if (request.Records.Length == 0)
             throw new InvalidOperationException("No records to append. Add at least one record before calling AppendAsync.");
 
-        var missingStream = request.Records.FirstOrDefault(r => r.Stream == StreamName.None);
+        var missingStream = request.Records.FirstOrDefault(r => r.Stream == StreamName.Unset);
         if (missingStream is not null)
             throw new InvalidOperationException($"Record '{missingStream.RecordId}' has no stream assigned. Set the stream on each record or use ForStream on the builder.");
 

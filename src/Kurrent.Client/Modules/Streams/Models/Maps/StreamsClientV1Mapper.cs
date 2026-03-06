@@ -152,7 +152,7 @@ static class StreamsClientV1Mapper {
         //
         //     if (subscription.Filter == RecordFilter.None)
         //         req.Options.NoFilter = DefaultEmpty;
-        //     else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
+        //     else if (subscription.Filter.TargetStream != StreamName.Unset && subscription.Filter.TargetStream != StreamName.All) {
         //         req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
         //         req.Options.NoFilter = DefaultEmpty;
         //     }
@@ -276,7 +276,7 @@ static class StreamsClientV1Mapper {
                 Revision = (long)linkEvent.StreamRevision,
                 Stream   = StreamName.From(linkEvent.StreamIdentifier!),
             }
-            : Link.None;
+            : Link.Unset;
 
         var indexRevision = readEvent.HasCommitPosition
             ? Revision.From((long)readEvent.CommitPosition)

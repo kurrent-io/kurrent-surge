@@ -40,7 +40,7 @@ public partial class StreamsClient {
             // if the meta-stream is not found, then the stream itself does not exist either
             if (response?.ContentCase is ReadResp.ContentOneofCase.Event)
                 metadataRecord = await response.Event
-                    .MapToRecordAsync(SequenceId.None, SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: false, cancellationToken)
+                    .MapToRecordAsync(SequenceId.Unset, SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: false, cancellationToken)
                     .ConfigureAwait(false);
         }
         catch (RpcException rex) when (rex.StatusCode is StatusCode.FailedPrecondition && rex.Status.Detail.Contains("is deleted")) {
@@ -88,7 +88,7 @@ public partial class StreamsClient {
                 );
 
             var record = await response.Event
-                .MapToRecordAsync(SequenceId.None, SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: true, cancellationToken)
+                .MapToRecordAsync(SequenceId.Unset, SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: true, cancellationToken)
                 .ConfigureAwait(false);
 
             return details with {

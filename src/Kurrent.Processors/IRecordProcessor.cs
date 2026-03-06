@@ -70,9 +70,9 @@ public interface IRecordProcessor {
 public record WorkerContext {
     public static readonly WorkerContext None = new WorkerContext();
 
-    public ProcessorId       ProcessorId       { get; init; } = ProcessorId.None;
-    public WorkerId          WorkerId          { get; init; } = WorkerId.None;
-    public SessionId         SessionId         { get; init; } = SessionId.None;
+    public ProcessorId       ProcessorId       { get; init; } = ProcessorId.Unset;
+    public WorkerId          WorkerId          { get; init; } = WorkerId.Unset;
+    public SessionId         SessionId         { get; init; } = SessionId.Unset;
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 

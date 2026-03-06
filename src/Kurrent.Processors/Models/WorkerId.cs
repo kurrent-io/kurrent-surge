@@ -8,7 +8,7 @@ public readonly record struct WorkerId {
     /// <summary>
     /// Represents an unset worker ID.
     /// </summary>
-    public static readonly WorkerId None = new("");
+    public static readonly WorkerId Unset = new("");
 
     WorkerId(string value) => Value = value;
 
@@ -20,7 +20,7 @@ public readonly record struct WorkerId {
     /// <summary>
     /// Indicates whether this worker ID is unset.
     /// </summary>
-    public bool IsNone => this == None;
+    public bool IsUnset => this == Unset;
 
     /// <summary>
     /// Creates a <see cref="WorkerId"/> from a string value.

@@ -19,7 +19,7 @@ public class CreateSchemaTests {
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await Assert.That(schemaVersion.VersionId).IsNotEqualTo(SchemaVersionId.None);
+		await Assert.That(schemaVersion.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(schemaVersion.VersionNumber).IsEqualTo(1);
 
         await KurrentClientTestFixture.WaitForEventualConsistency(ct);

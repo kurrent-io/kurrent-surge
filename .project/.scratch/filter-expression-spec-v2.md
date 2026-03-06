@@ -36,6 +36,14 @@ Version 2.0 extends the language with:
 5. User-defined functions
 
 ---
+FROM DB.Log
+FROM DB.IDX_CATEGORIES, DB.IDX_SCHEMAS
+FROM ORDERS
+
+
+FROM idx_main (idx_all)
+FROM idx_{indexName}
+
 
 ## Grammar
 
@@ -85,11 +93,31 @@ All keywords (`FROM`, `WHERE`, `AND`, `OR`, `NOT`, `IN`, `BETWEEN`, `LIKE`, `ILI
 Filter expressions evaluate against records with the following virtual schema.
 All names in an alias group resolve to the same underlying field.
 
+### Record Fields
+
+| #  | Concept               | Description                                                                                                                                                                                                                                                                                                                                                                                                 |
+|----|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | `Record ID`           | The unique identifier for the record, typically a GUID.                                                                                                                                                                                                                                                                                                                                                     |
+| 2  | `Stream Name`         | The name of the stream the record belongs to.                                                                                                                                                                                                                                                                                                                                                               |
+| 3  | `Category Name`       | The category derived from the stream name (text before the first `-`).                                                                                                                                                                                                                                                                                                                                      |
+| 4  | `Schema Name`         | The name of the schema associated with the record, often corresponding to the event type. This is determined at the time the record is written to the log and is immutable. Consumers can use this information to understand the structure of the record's data payload and apply appropriate deserialization logic.                                                                                        |
+| 5  | `Schema Format`       | The format of the record's data payload, such as `json`, `protobuf`, `avro`, or `bytes`. This field indicates how the `Data` field should be interpreted and deserialized. It is immutable and determined at the time the record is written to the log. Consumers can use this information to apply the correct deserialization logic when accessing the record's data.                                     |
+| 6  | `Schema ID`           | The unique identifier for the schema associated with the record. This is typically a GUID that references the schema definition used to serialize the record's data. It allows consumers to look up the schema for deserialization and validation purposes.                                                                                                                                                 |
+| 7  | `Stream Revision`     | The position of the record within its stream, starting at 1 for the first record. This reflects the order of records in the stream and is immutable once assigned. It can be used for efficient range queries and pagination within a stream.                                                                                                                                                               |
+| 8  | `Log Position`        | The global position of the record in the log, typically represented as a commit position. This is a monotonically increasing value that reflects the order of records in the log. It is immutable and can be used for efficient range queries and pagination.                                                                                                                                               |
+| 9  | `Create Timestamp`    | When the record was created in the log. This is typically the commit timestamp when the record was appended to the log. It is immutable and reflects the actual time of record creation, regardless of when it is read or indexed.                                                                                                                                                                          |
+| 10 | `Metadata/Properties` | A map of custom key-value pairs associated with the record. This can include any additional metadata that producers attach to the record, such as correlation IDs, user IDs, or other contextual information. The keys and values are both strings, and this field allows for flexible filtering based on custom attributes.                                                                                |
+| 11 | `Data`                | The raw data payload of the record. For JSON-formatted records, this field contains the JSON object. For other formats (protobuf, avro, bytes), this field may be NULL or contain a binary representation depending on the implementation.                                                                                                                                                                  |
+| 12 | `Value`               | When the data format is deserializable (JSON), this field provides direct access to a JSON payload for convenient filtering. For non-deserializable formats, this field will be NULL.                                                                                                                                                                                                                       |
+| 13 | `Is Deleted`          | If the record has been deleted, this field is true. Deleted records have had their data and properties removed, and they are marked as deleted in the log. They may still exist in the log for a period of time (depending on retention settings) but will not be returned in queries unless explicitly included. This allows for accurate historical queries while respecting deletion requests.           |
+| 14 | `Is Redacted`         | If the record has been redacted, this field is true. Redacted records have had their data and properties removed, but they still exist in the log with their metadata (stream, schema, timestamps) intact. This allows for accurate historical queries while respecting redaction requests.                                                                                                                 |
+| 15 | `Sequence Number`     | A sequential counter that increments with each record in the order they are consumed. This is not a global log position but is specific to the context of the operation (e.g., a read session). It can be used to track the order of records as they are processed, even if they come from different streams or categories. This field is planned for future implementation and is not currently available. |
+
 ### Column Reference
 
 | Canonical Name | Aliases                           | Type                | Description                                      |
 |----------------|-----------------------------------|---------------------|--------------------------------------------------|
-| `id`           | `record_id`                       | GUID                | Unique record identifier                         |
+| `record_id`    | `id`                              | GUID                | Unique record identifier                         |
 | `stream`       | -                                 | STRING              | Stream name                                      |
 | `category`     | -                                 | STRING              | Stream category (derived: text before first `-`) |
 | `schema`       | `schema_name`, `event_type`       | STRING              | Schema / event type name                         |
@@ -99,7 +127,7 @@ All names in an alias group resolve to the same underlying field.
 | `properties`   | `props`, `metadata`               | MAP(STRING, STRING) | Custom metadata key-value pairs                  |
 | `data`         | -                                 | JSON                | Record payload (JSON format only)                |
 | `format`       | `schema_format`                   | STRING              | Data format (json, protobuf, avro, bytes)        |
-| `sequence`     | `sequence_id`, `seq`              | UINT64              | Sequential counter in operation context          |
+| `sequence`*    | `sequence_id`, `seq`              | UINT64              | Sequential counter in operation context          |
 | `redacted`     | -                                 | BOOL                | Whether the record has been redacted             |
 
 Considering, having the `rec.` prefix so we can apply the same convention to the new canonical names. 
@@ -108,22 +136,24 @@ This will make it easier to distinguish between the canonical names and the alia
 
 RECORDS
 
-| #  | Canonical Name     | Filter Spec          | Aliases: WebUI SQL | Aliases: User Indexes         | Aliases: Connectors           | Aliases: DotNotation | All Aliases                                                              |
-|----|--------------------|----------------------|--------------------|-------------------------------|-------------------------------|----------------------|--------------------------------------------------------------------------|
-| 1  | `Record ID`        | `record_id`          |                    | `rec.id`                      | `rec.id`                      |                      |                                                                          |
-| 2  | `Stream Name`      | `stream`             | `stream`           | `rec.position.stream`         | `rec.position.stream`         |                      | `stream_name`, `rec.stream`, `rec.position.stream`                       |
-| 3  | `Category Name`    | `category`           | `category`         | *(derived)*                   | *(derived)*                   |                      | `rec.category`                                                           |
-| 4  | `Schema Name`      | `schema_name`        | `event_type`       | `rec.schema.name`             | `rec.schema.name`             |                      | `schema`, `event_type`, `rec.schema.name`                                |
-| 5  | `Schema ID`        | `schema_id`          |                    |                               |                               |                      | `rec.schema.id`                                                          |
-| 6  | `Stream Revision`  | `stream_revision`    | `event_number`     | `rec.position.streamRevision` | `rec.position.streamRevision` |                      | `revision`,`event_number`, `rec.position.streamRevision`, `rec.revision` |
-| 7  | `Log Position`     | `position`           | `log_position`     | `rec.position.logPosition`    | `rec.position.logPosition`    |                      | `pos`, `log_position`, `rec.position.logPosition`                        |
-| 8  | `Create Timestamp` | `timestamp`          | `created_at`       | `rec.timestamp`               | `rec.timestamp`               |                      | `ts`, `created_ts`, `created_at`, `rec.timestamp`                        |
-| 9  | `Properties`       | `properties`         | `metadata`         | `rec.properties`              | `rec.properties`              |                      | `props`, `metadata`, `rec.properties`                                    |
-| 10 | `Data`             | *`data`              |                    |                               |                               |                      | `rec.data`                                                               |
-| 11 | `Value`            | * when data is json  | `data`             | `rec.value`                   | `rec.value`                   |                      | `message`, `rec.value`                                                   |
-| 12 | `Schema Format`    | *`schema_format`     |                    | `rec.schema.format`           | `rec.schema.format`           |                      | `format`                                                                 |
-| 13 | `Sequence Number`  | *`sequence`          |                    | `rec.sequence`                | `rec.sequence`                |                      | `seq`, `rec.sequence`                                                    |
-| 14 | `Redacted`         | *`redacted`          |                    | `rec.redacted`                | `rec.redacted`                |                      | `rec.redacted`                                                           |
+| #  | Canonical Name     | Client Filter Spec  | Aliases: WebUI SQL | Aliases: User Indexes         | Aliases: Connectors           | Aliases: DotNotation | All Aliases                                                              |
+|----|--------------------|---------------------|--------------------|-------------------------------|-------------------------------|----------------------|--------------------------------------------------------------------------|
+| 1  | `Record ID`        | `record_id`         |                    | `rec.id`                      | `rec.id`                      |                      |                                                                          |
+| 2  | `Stream Name`      | `stream`            | `stream`           | `rec.position.stream`         | `rec.position.stream`         |                      | `stream_name`, `rec.stream`, `rec.position.stream`                       |
+| 3  | `Category Name`    | `category`          | `category`         | *(derived)*                   | *(derived)*                   |                      | `rec.category`                                                           |
+| 4  | `Schema Name`      | `schema_name`       | `event_type`       | `rec.schema.name`             | `rec.schema.name`             |                      | `schema`, `event_type`, `rec.schema.name`                                |
+| 5  | `Schema ID`        | `schema_id`         |                    |                               |                               |                      | `rec.schema.id`                                                          |
+| 6  | `Stream Revision`  | `stream_revision`   | `event_number`     | `rec.position.streamRevision` | `rec.position.streamRevision` |                      | `revision`,`event_number`, `rec.position.streamRevision`, `rec.revision` |
+| 7  | `Log Position`     | `position`          | `log_position`     | `rec.position.logPosition`    | `rec.position.logPosition`    |                      | `pos`, `log_position`, `rec.position.logPosition`                        |
+| 8  | `Create Timestamp` | `timestamp`         | `created_at`       | `rec.timestamp`               | `rec.timestamp`               |                      | `ts`, `created_ts`, `created_at`, `rec.timestamp`                        |
+| 9  | `Properties`       | `properties`        | `metadata`         | `rec.properties`              | `rec.properties`              |                      | `props`, `metadata`, `rec.properties`                                    |
+| 10 | `Data`             | *`data`             |                    |                               |                               |                      | `rec.data`                                                               |
+| 11 | `Value`            | * when data is json | `data`             | `rec.value`                   | `rec.value`                   |                      | `message`, `rec.value`                                                   |
+| 12 | `Schema Format`    | `schema_format`     |                    | `rec.schema.format`           | `rec.schema.format`           |                      | `format`                                                                 |
+| 13 | `Is Deleted`       | *`deleted`          |                    | `rec.redacted`                | `rec.redacted`                |                      | `rec.redacted`                                                           |
+| 14 | `Is Redacted`      | *`redacted`         |                    | `rec.redacted`                | `rec.redacted`                |                      | `rec.redacted`                                                           |
+| 15 | `Sequence Number`  | `sequence`          | -                  | `rec.sequence`                | `rec.sequence`                |                      | `seq`, `rec.sequence`                                                    |
+
 
 METADATA (about streams, not individual records)
 
@@ -147,20 +177,23 @@ METADATA (about streams, not individual records)
 
 Shows where each alias originates:
 
-| Canonical    | Client Spec v1               | WebUI SQL      | Server `rec` Object           |
-|--------------|------------------------------|----------------|-------------------------------|
-| `id`         | `record_id` (primary)        | -              | `rec.id`                      |
-| `stream`     | `stream`                     | `stream`       | `rec.position.stream`         |
-| `category`   | -                            | `category`     | *(derived)*                   |
-| `schema`     | `schema_name` (primary)      | `event_type`   | `rec.schema.name`             |
-| `revision`   | `stream_revision` (primary)  | `event_number` | `rec.position.streamRevision` |
-| `position`   | `position` (primary)         | `log_position` | `rec.position.logPosition`    |
-| `timestamp`  | `timestamp` (primary)        | `created_at`   | `rec.timestamp`               |
-| `properties` | `properties` (primary)       | `metadata`     | `rec.properties`              |
-| `data`       | *(planned)*                  | `data`         | `rec.value`                   |
-| `format`     | *(planned)*                  | -              | `rec.schema.format`           |
-| `sequence`   | *(planned as `sequence_id`)* | -              | `rec.sequence`                |
-| `redacted`   | *(planned)*                  | -              | `rec.redacted`                |
+| #  | Concept               | Secondary Indexing | User Indexes Json Object      | WebUI SQL      | Client Spec v1                        | Server `rec` Object                                              |
+|----|-----------------------|--------------------|-------------------------------|----------------|---------------------------------------|------------------------------------------------------------------|
+| 1  | `Record ID`           | -                  | `rec.id`                      | -              | `record_id` (primary)                 | `rec.id`                                                         |
+| 2  | `Stream Name`         | `stream`           | `rec.position.stream`         | `stream`       | `stream`                              | `rec.stream`                                                     |
+| 3  | `Category Name`       | `category`         | `rec.category` *(derived)*    | `category`     | -                                     | `rec.category` *(derived)*                                       |
+| 4  | `Schema Name`         | `event_type`       | `rec.schema.name`             | `event_type`   | `schema_name` (primary)               | `rec.schema.name`                                                |
+| 5  | `Schema Format`       | `schema_format`    | `rec.schema.format`           | ?              | `schema_format`                       | `rec.schema.format`                                              |
+| 6  | `Schema ID`           | `schema_id`        | `rec.schema.id`               | ?              | `schema_id`                           | `rec.schema.id`                                                  |
+| 7  | `Stream Revision`     | `event_number`     | `rec.position.streamRevision` | `event_number` | `stream_revision` (primary)           | `rec.revision`, rec.<br/><br/><br/>position.<br/>streamRevision` |
+| 8  | `Log Position`        | `log_position`     | `rec.position.logPosition`    | `log_position` | `position` (primary)                  | `rec.position` , `rec.position.logPosition`                      |
+| 9  | `Create Timestamp`    | `created`          | `rec.timestamp`               | `created_at`   | `timestamp` or `created_at` (primary) | `rec.timestamp`         <br/>                                    |
+| 10 | `Metadata/Properties` | `metadata`         | `rec.properties`              | `metadata`     | `properties` (primary)                | `rec.properties`                                                 |
+| 11 | `Data`                |                    | `rec.value`                   |                |                                       |                                                                  |
+| 12 | `Value`               | `data`             | `rec.schema.format`           | `data`         | `value`   *(planned for json)*        |                                                                  |
+| 13 | `Is Deleted`          | `is_deleted`       | `rec.redacted`                | `is_deleted`   | `deleted`     *(planned)*             | `rec.deleted`                                                    |
+| 14 | `Is Redacted`         | -                  | `rec.redacted`                | -              | *(planned)*                           | `rec.redacted`                                                   |
+| 15 | `Sequence Number`     | -                  | `rec.sequence`                | -              | `rec.sequence`                        |                                                                  | `seq`, `rec.sequence`                                                    |
 
 ### Category Derivation
 
@@ -582,9 +615,57 @@ category = 'order' AND schema = 'OrderPlaced'
 ### FROM Clause Queries
 
 ```sql
+-- All records in the log
+FROM db.records
+
+-- All categories
+SELECT DISTINCT category
+FROM db.records
+
+-- Records by category
+FROM db.records
+WHERE category = 'order'
+
+-- Records by schema (event type)
+FROM db.records
+WHERE schema = 'urn:amazon:logistics:OrderPlaced'
+
+-- User Indexes (just tables)
+FROM usr.OrdersByCountry 
+WHERE schema = 'urn:amazon:logistics:OrderPlaced'
+  AND country = 'Portugal'
+
+
+-- User Indexes (the created also exists as a column in the index so it will clash with the record created timestamp, 
+--   but it will be resolved to the index field since we are in the context of the index)
+FROM OrdersByCountry orders
+WHERE orders.created >= '2026-01-01' // when the order was created (index field)
+  AND country = 'Portugal'
+
+
+-- the sql to create the index as a table in duckdb would include the order placed schema and its justt like 
+-- creating a normal table with the fields of the index and the data field as json, and then we can query it like a normal table in duckdb, but we can also query it using the filter expression language with the from index syntax.
+
+Create table OrdersByCountry  (
+    order_id STRING,
+    country STRING,
+    created TIMESTAMP
+    record_id STRING
+)
+
+SELECT 
+    order_id, country, created, record_id
+FROM OrdersByCountry
+INNER JOIN db.records rec
+ON OrdersByCountry.record_id = rec.record_id
+WHERE rec.schema = 'urn:amazon:logistics:OrderPlaced'
+
+```
+
+```sql
 -- Category scope
-FROM category:order
-WHERE schema = 'OrderPlaced'
+FROM db.records
+WHERE schema = 'OrderPlaced' and category = 'order'
 
 -- Specific stream
 FROM stream:'order-abc123'
@@ -740,6 +821,7 @@ Complete mapping between FROM source syntax and underlying stream addressing:
 | `FROM category:{name}`                  | `StreamFilter.Prefix("$idx-ce-{name}")`         | Built-in secondary index         |
 | `FROM index:{name}`                     | `StreamFilter.Prefix("$idx-user-{name}")`       | User-defined index               |
 | `FROM index:{name}` + field `= '{val}'` | `StreamFilter.Prefix("$idx-user-{name}:{val}")` | Index field filter               |
+| `FROM records`                          | `$all`, no stream filter                        | Literal `$all` reference         |
 | `FROM all`                              | `$all`, no stream filter                        | All events in the log            |
 | `FROM log`                              | `$all`, no stream filter                        | Alias for `all`                  |
 | `FROM $all`                             | `$all`, no stream filter                        | Literal `$all` reference         |

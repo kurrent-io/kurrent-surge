@@ -15,7 +15,7 @@ public class KurrentClientReadStreamOptionsValidator : FluentOptionsValidator<Ku
             .WithSeverity(Severity.Error);
 
         RuleFor(options => options.Stream)
-            .Must(stream => stream != StreamName.None)
+            .Must(stream => stream != StreamName.Unset)
             .WithMessage("Stream name must be specified when reading from a specific stream.")
             .WithSeverity(Severity.Error);
 
@@ -46,7 +46,7 @@ public class KurrentClientReadStreamOptionsValidator : FluentOptionsValidator<Ku
                 .WithSeverity(Severity.Error);
         });
 
-        When(options => options.Filter.TargetStream != StreamName.None, () => {
+        When(options => options.Filter.TargetStream != StreamName.Unset, () => {
             RuleFor(options => options)
                 .Must(opts => opts.Filter.TargetStream == opts.Stream)
                 .WithMessage("Filter target stream does not match the specified stream to read from.")

@@ -387,7 +387,7 @@ Expected: FAIL because `rec.*` names resolve to `null`.
 Add to `PropertyAccess.Resolve` switch:
 
 ```csharp
-"rec.stream" or "rec.position.stream"            => record.Stream.Value,
+"rec.stream" or "rec.position.stream"             => record.Stream.Value,
 "rec.category"                                    => DeriveCategory(record.Stream.Value),
 "rec.schema.name"                                 => record.Schema.SchemaName.Value,
 "rec.revision" or "rec.position.streamrevision"   => (long)record.Revision,

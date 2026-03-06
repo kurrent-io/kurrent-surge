@@ -48,7 +48,7 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 				.RegisterOrValidateSchema(messageType, policy, context.CancellationToken)
 				.ConfigureAwait(false);
 
-            context.RecordSchema = result.SchemaVersionId == SchemaVersionId.None
+            context.RecordSchema = result.SchemaVersionId == SchemaVersionId.Unset
                 ? context.RecordSchema with {
                     SchemaName   = result.SchemaName,
                     SchemaFormat = DataFormat
@@ -90,7 +90,7 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 				.ConfigureAwait(false);
 
             // set the schema version id if missing
-            if(result.SchemaVersionId != SchemaVersionId.None)
+            if(result.SchemaVersionId != SchemaVersionId.Unset)
                 context.RecordSchema = context.RecordSchema with {
                     SchemaVersionId = result.SchemaVersionId
                 };

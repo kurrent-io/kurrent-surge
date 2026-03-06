@@ -84,7 +84,7 @@ public class ReadTests {
 
             await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
             await Assert.That(record.Schema.SchemaFormat).IsEqualTo(iotEvent.DataFormat);
-            await Assert.That(record.Schema.SchemaVersionId).IsEqualTo(SchemaVersionId.None);
+            await Assert.That(record.Schema.SchemaVersionId).IsEqualTo(SchemaVersionId.Unset);
 
             await Assert.That(record.Value).IsEquivalentTo(iotEvent.Value);
             await Assert.That(record.ValueType).IsEqualTo(iotEvent.Value.GetType());
