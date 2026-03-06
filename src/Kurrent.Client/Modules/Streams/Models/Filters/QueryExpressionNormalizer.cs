@@ -231,7 +231,18 @@ public sealed class QueryExpressionNormalizer {
                 var keyword = ClassifyKeyword(ident);
 
                 switch (state) {
-                    case ScannerState.Default:
+                    case ScannerState.Default: {
+                        // Colon-alias lookahead: check if this identifier is followed by `:` (not `::`)
+                        if (keyword == KeywordKind.None && PeekColonAlias(query, i, out var colonPos)) {
+                            // The identifier is an alias — copy verbatim
+                            w.CopySlice(ident);
+                            // Copy any whitespace between identifier and colon, then the colon
+                            w.CopySlice(query[i..(colonPos + 1)]);
+                            i = colonPos + 1;
+                            // Next identifier gets column replacement (stay in Default)
+                            break;
+                        }
+
                         switch (keyword) {
                             case KeywordKind.TableIntroducer:
                                 w.CopySlice(ident);
@@ -249,8 +260,20 @@ public sealed class QueryExpressionNormalizer {
                                 break;
                         }
                         break;
+                    }
 
-                    case ScannerState.ExpectingTable:
+                    case ScannerState.ExpectingTable: {
+                        // Colon-alias lookahead: check if this identifier is followed by `:` (not `::`)
+                        if (PeekColonAlias(query, i, out var colonPos)) {
+                            // The identifier is an alias — copy verbatim
+                            w.CopySlice(ident);
+                            // Copy any whitespace between identifier and colon, then the colon
+                            w.CopySlice(query[i..(colonPos + 1)]);
+                            i = colonPos + 1;
+                            // Next identifier gets table replacement (stay in ExpectingTable)
+                            break;
+                        }
+
                         switch (keyword) {
                             case KeywordKind.JoinModifier:
                                 w.CopySlice(ident);
@@ -267,6 +290,7 @@ public sealed class QueryExpressionNormalizer {
                                 break;
                         }
                         break;
+                    }
 
                     case ScannerState.AfterTable:
                         switch (keyword) {
@@ -299,8 +323,23 @@ public sealed class QueryExpressionNormalizer {
                         w.CopySlice(ident);
                         state = ScannerState.Default;
                         break;
+
+                    case ScannerState.AfterCast:
+                        // The identifier after :: is a type name — copy verbatim, no replacement
+                        w.CopySlice(ident);
+                        state = ScannerState.Default;
+                        break;
                 }
 
+                continue;
+            }
+
+            // :: cast operator
+            if (ch == ':' && i + 1 < query.Length && query[i + 1] == ':') {
+                w.Copy(':');
+                w.Copy(':');
+                i += 2;
+                state = ScannerState.AfterCast;
                 continue;
             }
 
@@ -329,6 +368,30 @@ public sealed class QueryExpressionNormalizer {
             w.CopySlice(replacement.AsSpan());
         else
             w.CopySlice(ident);
+    }
+
+    /// <summary>
+    /// Peeks ahead from <paramref name="pos"/> (just past an identifier) to see if
+    /// the next non-whitespace character is ':' NOT followed by another ':'.
+    /// Returns true and outputs the position of the ':' if found.
+    /// </summary>
+    static bool PeekColonAlias(ReadOnlySpan<char> query, int pos, out int colonPos) {
+        var j = pos;
+        while (j < query.Length && query[j] == ' ')
+            j++;
+
+        if (j < query.Length && query[j] == ':') {
+            // Rule out :: (cast operator)
+            if (j + 1 < query.Length && query[j + 1] == ':') {
+                colonPos = -1;
+                return false;
+            }
+            colonPos = j;
+            return true;
+        }
+
+        colonPos = -1;
+        return false;
     }
 
     void ApplyTableReplacement(ReadOnlySpan<char> ident, ref ScanWriter w) {

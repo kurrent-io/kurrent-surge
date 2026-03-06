@@ -198,4 +198,57 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region Colon Alias
+
+    [Test]
+    [Arguments("select s: schema",                       "select s: event_type")]
+    [Arguments("select s: schema, p: position",          "select s: event_type, p: log_position")]
+    [Arguments("select s: schema, position as p",        "select s: event_type, log_position as p")]
+    public async Task handles_colon_alias_in_select(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task handles_colon_alias_in_from() {
+        var result = Normalize(_normalizer, "from r: records");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("from r: kdb_log");
+    }
+
+    [Test]
+    public async Task rejects_forbidden_prefix_via_colon_alias_in_from() {
+        var result = Normalize(_normalizer, "from alias: kdb_internal");
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    #endregion
+
+    #region Cast Operator
+
+    [Test]
+    [Arguments("select schema::varchar",               "select event_type::varchar")]
+    [Arguments("select revision::integer",             "select event_number::integer")]
+    [Arguments("select x::schema",                     "select x::schema")]
+    public async Task preserves_type_name_after_cast(string input, string expected) {
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task does_not_confuse_cast_with_colon_alias() {
+        var result = Normalize(_normalizer, "select schema::text");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("select event_type::text");
+    }
+
+    #endregion
 }
