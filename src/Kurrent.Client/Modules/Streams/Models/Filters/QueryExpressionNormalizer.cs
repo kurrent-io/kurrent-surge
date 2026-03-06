@@ -350,6 +350,10 @@ public sealed class QueryExpressionNormalizer {
                                 w.CopySlice(ident);
                                 state = ScannerState.ExpectingTable;
                                 break;
+                            case KeywordKind.JoinModifier:
+                                w.CopySlice(ident);
+                                state = ScannerState.ExpectingTable;
+                                break;
                             case KeywordKind.As:
                                 w.CopySlice(ident);
                                 state = ScannerState.ExpectingAlias;
@@ -526,7 +530,7 @@ public sealed class QueryExpressionNormalizer {
     /// </summary>
     static bool PeekColonAlias(ReadOnlySpan<char> query, int pos, out int colonPos) {
         var j = pos;
-        while (j < query.Length && query[j] == ' ')
+        while (j < query.Length && char.IsWhiteSpace(query[j]))
             j++;
 
         if (j < query.Length && query[j] == ':') {

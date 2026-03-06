@@ -45,7 +45,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("select 1")]
     [Arguments("select a, b from t where x = 1")]
     [Arguments("")]
-    public async Task copies_input_verbatim_when_no_replacements_match(string input) {
+    public async ValueTask copies_input_verbatim_when_no_replacements_match(string input) {
         var empty  = CreateNormalizer();
         var result = Normalize(empty, input);
 
@@ -68,7 +68,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("select $$schema records$$",              "select $$schema records$$")]
     [Arguments("select $tag$schema$tag$",                "select $tag$schema$tag$")]
     [Arguments("select arr[1], list[2:3]",               "select arr[1], list[2:3]")]
-    public async Task skips_region_without_replacement(string input, string expected) {
+    public async ValueTask skips_region_without_replacement(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -87,7 +87,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("select unknown_col",           "select unknown_col")]
     [Arguments("where revision = 234",         "where event_number = 234")]
     [Arguments("select position as p",         "select log_position as p")]
-    public async Task replaces_columns_in_default_context(string input, string expected) {
+    public async ValueTask replaces_columns_in_default_context(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -109,7 +109,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("left join records on x = y",            "left join kdb_log on x = y")]
     [Arguments("left outer join records on x = y",      "left outer join kdb_log on x = y")]
     [Arguments("from records, all_events",              "from kdb_log, kdb_log")]
-    public async Task replaces_tables_in_table_position(string input, string expected) {
+    public async ValueTask replaces_tables_in_table_position(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -119,7 +119,7 @@ public class QueryExpressionNormalizerTests {
     [Test]
     [Arguments("select records from t",                 "select records from t")]
     [Arguments("where records = 1",                     "where records = 1")]
-    public async Task does_not_replace_table_names_in_column_position(string input, string expected) {
+    public async ValueTask does_not_replace_table_names_in_column_position(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -127,7 +127,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task does_not_replace_column_names_in_table_position() {
+    public async ValueTask does_not_replace_column_names_in_table_position() {
         var result = Normalize(_normalizer, "from schema");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -145,7 +145,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("from records schema",           "from kdb_log schema")]
     [Arguments("from records r where r.revision = 1",
                "from kdb_log r where r.event_number = 1")]
-    public async Task preserves_table_aliases(string input, string expected) {
+    public async ValueTask preserves_table_aliases(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -153,7 +153,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task preserves_column_alias_after_as() {
+    public async ValueTask preserves_column_alias_after_as() {
         var result = Normalize(_normalizer, "select schema as s");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -172,7 +172,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("from a, kdb_internal")]
     [Arguments("insert into kdb_sink")]
     [Arguments("update kdb_target set x = 1")]
-    public async Task rejects_table_with_forbidden_prefix(string input) {
+    public async ValueTask rejects_table_with_forbidden_prefix(string input) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsFalse();
@@ -183,14 +183,14 @@ public class QueryExpressionNormalizerTests {
     [Arguments("select kdb_col from t")]
     [Arguments("where kdb_col = 1")]
     [Arguments("order by kdb_col")]
-    public async Task allows_forbidden_prefix_in_column_position(string input) {
+    public async ValueTask allows_forbidden_prefix_in_column_position(string input) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]
-    public async Task allows_any_table_when_prefix_not_configured() {
+    public async ValueTask allows_any_table_when_prefix_not_configured() {
         var noPrefix = CreateNormalizer();
         var result   = Normalize(noPrefix, "from kdb_internal");
 
@@ -205,7 +205,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("select s: schema",                       "select s: event_type")]
     [Arguments("select s: schema, p: position",          "select s: event_type, p: log_position")]
     [Arguments("select s: schema, position as p",        "select s: event_type, log_position as p")]
-    public async Task handles_colon_alias_in_select(string input, string expected) {
+    public async ValueTask handles_colon_alias_in_select(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -213,7 +213,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task handles_colon_alias_in_from() {
+    public async ValueTask handles_colon_alias_in_from() {
         var result = Normalize(_normalizer, "from r: records");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -221,7 +221,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task rejects_forbidden_prefix_via_colon_alias_in_from() {
+    public async ValueTask rejects_forbidden_prefix_via_colon_alias_in_from() {
         var result = Normalize(_normalizer, "from alias: kdb_internal");
 
         await Assert.That(result.IsValid).IsFalse();
@@ -235,7 +235,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("where r.revision = 1",                     "where r.event_number = 1")]
     [Arguments("select r.schema, r.position",              "select r.event_type, r.log_position")]
     [Arguments("where t.unknown_col = 1",                  "where t.unknown_col = 1")]
-    public async Task replaces_column_in_qualified_reference(string input, string expected) {
+    public async ValueTask replaces_column_in_qualified_reference(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -243,7 +243,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task replaces_table_in_schema_qualified_from() {
+    public async ValueTask replaces_table_in_schema_qualified_from() {
         var result = Normalize(_normalizer, "from main.records");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -251,7 +251,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task rejects_forbidden_prefix_in_schema_qualified_from() {
+    public async ValueTask rejects_forbidden_prefix_in_schema_qualified_from() {
         var result = Normalize(_normalizer, "from main.kdb_internal");
 
         await Assert.That(result.IsValid).IsFalse();
@@ -266,7 +266,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("from \"records\"",                    "from \"kdb_log\"")]
     [Arguments("where \"revision\" = 1",              "where \"event_number\" = 1")]
     [Arguments("select \"unknown\"",                  "select \"unknown\"")]
-    public async Task handles_double_quoted_identifiers(string input, string expected) {
+    public async ValueTask handles_double_quoted_identifiers(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -274,14 +274,14 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task rejects_forbidden_prefix_in_double_quoted_table() {
+    public async ValueTask rejects_forbidden_prefix_in_double_quoted_table() {
         var result = Normalize(_normalizer, "from \"kdb_internal\"");
 
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task handles_escaped_double_quotes() {
+    public async ValueTask handles_escaped_double_quotes() {
         var result = Normalize(_normalizer, "select \"my\"\"col\"");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -296,7 +296,7 @@ public class QueryExpressionNormalizerTests {
     [Arguments("select schema::varchar",               "select event_type::varchar")]
     [Arguments("select revision::integer",             "select event_number::integer")]
     [Arguments("select x::schema",                     "select x::schema")]
-    public async Task preserves_type_name_after_cast(string input, string expected) {
+    public async ValueTask preserves_type_name_after_cast(string input, string expected) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -304,7 +304,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task does_not_confuse_cast_with_colon_alias() {
+    public async ValueTask does_not_confuse_cast_with_colon_alias() {
         var result = Normalize(_normalizer, "select schema::text");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -316,7 +316,7 @@ public class QueryExpressionNormalizerTests {
     #region CTEs
 
     [Test]
-    public async Task preserves_cte_name() {
+    public async ValueTask preserves_cte_name() {
         var result = Normalize(_normalizer, "with schema as (select 1) select * from schema");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -324,7 +324,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task handles_multiple_ctes() {
+    public async ValueTask handles_multiple_ctes() {
         var input  = "with a as (select 1), b as (select 2) select * from a";
         var result = Normalize(_normalizer, input);
 
@@ -333,7 +333,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task checks_tables_inside_cte_body() {
+    public async ValueTask checks_tables_inside_cte_body() {
         var result = Normalize(_normalizer, "with cte as (select schema from records) select * from cte");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -343,7 +343,18 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task rejects_forbidden_table_inside_cte_body() {
+    public async ValueTask handles_recursive_cte() {
+        var input  = "with recursive cte as (select schema from records) select * from cte";
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(
+            "with recursive cte as (select event_type from kdb_log) select * from cte"
+        );
+    }
+
+    [Test]
+    public async ValueTask rejects_forbidden_table_inside_cte_body() {
         var result = Normalize(_normalizer, "with cte as (select * from kdb_internal) select * from cte");
 
         await Assert.That(result.IsValid).IsFalse();
@@ -354,7 +365,7 @@ public class QueryExpressionNormalizerTests {
     #region Lambda
 
     [Test]
-    public async Task preserves_lambda_parameters() {
+    public async ValueTask preserves_lambda_parameters() {
         var result = Normalize(_normalizer, "select list_filter(l, lambda x: x > 1)");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -362,7 +373,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task replaces_columns_in_lambda_body() {
+    public async ValueTask replaces_columns_in_lambda_body() {
         var result = Normalize(_normalizer, "select list_filter(l, lambda x: schema > 1)");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -376,7 +387,7 @@ public class QueryExpressionNormalizerTests {
     [Test]
     [Arguments("select $1")]
     [Arguments("where $my_param = 1")]
-    public async Task preserves_dollar_parameters(string input) {
+    public async ValueTask preserves_dollar_parameters(string input) {
         var result = Normalize(_normalizer, input);
 
         await Assert.That(result.IsValid).IsTrue();
@@ -388,7 +399,7 @@ public class QueryExpressionNormalizerTests {
     #region Parenthesis Depth
 
     [Test]
-    public async Task handles_subquery_with_independent_state() {
+    public async ValueTask handles_subquery_with_independent_state() {
         var result = Normalize(_normalizer,
             "from (select schema from records) as t"
         );
@@ -400,14 +411,14 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task rejects_forbidden_table_in_subquery() {
+    public async ValueTask rejects_forbidden_table_in_subquery() {
         var result = Normalize(_normalizer, "from (select * from kdb_internal) as t");
 
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task rejects_excessive_nesting_depth() {
+    public async ValueTask rejects_excessive_nesting_depth() {
         var input = new string('(', 33) + "select 1" + new string(')', 33);
         var result = Normalize(_normalizer, input);
 
@@ -420,7 +431,7 @@ public class QueryExpressionNormalizerTests {
     #region Numeric Underscore
 
     [Test]
-    public async Task does_not_scan_numeric_underscore_as_identifier() {
+    public async ValueTask does_not_scan_numeric_underscore_as_identifier() {
         var result = Normalize(_normalizer, "where x = 100_000");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -432,37 +443,37 @@ public class QueryExpressionNormalizerTests {
     #region Security Bypass Prevention
 
     [Test]
-    public async Task prevents_schema_qualified_prefix_bypass() {
+    public async ValueTask prevents_schema_qualified_prefix_bypass() {
         var result = Normalize(_normalizer, "from main.kdb_internal");
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task prevents_double_quoted_prefix_bypass() {
+    public async ValueTask prevents_double_quoted_prefix_bypass() {
         var result = Normalize(_normalizer, "from \"kdb_internal\"");
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task prevents_case_prefix_bypass() {
+    public async ValueTask prevents_case_prefix_bypass() {
         var result = Normalize(_normalizer, "from KDB_INTERNAL");
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task prevents_cte_table_bypass() {
+    public async ValueTask prevents_cte_table_bypass() {
         var result = Normalize(_normalizer, "with safe as (select * from kdb_internal) select * from safe");
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task prevents_subquery_table_bypass() {
+    public async ValueTask prevents_subquery_table_bypass() {
         var result = Normalize(_normalizer, "from (select * from kdb_internal) as t");
         await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
-    public async Task prevents_replacement_bypass_via_quoting() {
+    public async ValueTask prevents_replacement_bypass_via_quoting() {
         var result = Normalize(_normalizer, "from \"records\"");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -470,7 +481,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task prevents_replacement_bypass_via_schema_qualification() {
+    public async ValueTask prevents_replacement_bypass_via_schema_qualification() {
         var result = Normalize(_normalizer, "from main.records");
 
         await Assert.That(result.IsValid).IsTrue();
@@ -478,7 +489,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task identifiers_inside_comments_are_not_scanned() {
+    public async ValueTask identifiers_inside_comments_are_not_scanned() {
         var result = Normalize(_normalizer, "-- from kdb_internal\nselect 1");
         await Assert.That(result.IsValid).IsTrue();
 
@@ -487,7 +498,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task identifiers_inside_strings_are_not_scanned() {
+    public async ValueTask identifiers_inside_strings_are_not_scanned() {
         var result = Normalize(_normalizer, "where name = 'kdb_internal'");
         await Assert.That(result.IsValid).IsTrue();
 
@@ -503,7 +514,7 @@ public class QueryExpressionNormalizerTests {
     #region End-to-End Examples
 
     [Test]
-    public async Task example_basic_replacement() {
+    public async ValueTask example_basic_replacement() {
         var result = Normalize(_normalizer,
             "select schema\nfrom records\nwhere revision = 234"
         );
@@ -515,7 +526,7 @@ public class QueryExpressionNormalizerTests {
     }
 
     [Test]
-    public async Task example_with_aliases() {
+    public async ValueTask example_with_aliases() {
         var input = "select\n    s: schema,\n    position as p\nfrom records rec\nwhere rec.revision = 234";
 
         var result = Normalize(_normalizer, input);

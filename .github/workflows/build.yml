@@ -41,31 +41,88 @@ jobs:
             9.0.x
             10.0.x
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Detect external changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            external:
+              - 'proto/**'
+            infra:
+              - 'Directory.Build.props'
+              - 'Directory.Build.targets'
+              - 'Directory.Packages.props'
+              - 'global.json'
+              - '*.slnx'
+              - 'nuget.config'
+
+      - name: Determine build scope
+        id: scope
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]] || \
+             [[ "${{ steps.changes.outputs.external }}" == "true" ]] || \
+             [[ "${{ steps.changes.outputs.infra }}" == "true" ]]; then
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=incremental" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Build scope: $(grep mode "$GITHUB_OUTPUT")"
+
       - name: Restore
         run: dotnet restore
 
       - name: Build
         run: dotnet build -c Release --no-restore
 
-      - name: Run Unit Tests
-        run: |
-          for tfm in net8.0 net9.0 net10.0; do
-            dotnet run --project test/Kurrent.Client.Tests \
-              --configuration Release --no-build --framework $tfm -- \
-              --no-progress \
-              --results-directory "./artifacts/test-results" \
-              --report-trx --report-trx-filename "unit-tests-$tfm.trx" \
-              --treenode-filter "/*/*/*/*[Category!=Integration]"
-          done
+      - name: Preview affected projects
+        if: steps.scope.outputs.mode == 'incremental'
+        run: dotnet incrementalist run --dry --verbose -c .incrementalist/incrementalist.json
 
-      - name: Run Integration Tests
-        run: |
-          dotnet run --project test/Kurrent.Client.Integration.Tests \
-            --configuration Release --no-build --framework net10.0 -- \
-            --no-progress \
-            --results-directory "./artifacts/test-results" \
-            --report-trx --report-trx-filename "integration-tests.trx" \
-            --treenode-filter "/*/*/*/*[Category=Integration]"
+      # --- Unit Tests ---
+
+      - name: Detect affected unit tests
+        if: steps.scope.outputs.mode == 'incremental'
+        run: ./scripts/ci/detect-affected.sh .incrementalist/testsOnly.json affected-unit-tests.txt
+
+      - name: Run unit tests
+        run: >-
+          ./scripts/ci/run-tests.sh affected-unit-tests.txt
+          --runner run
+          --frameworks net8.0,net9.0,net10.0
+          --no-build
+          --fallback-name "*.Tests.csproj"
+          --fallback-not-name "*.Integration.Tests.csproj"
+          --fallback-dir test
+          --extra-args "--no-progress --treenode-filter '/*/*/*/*[Category!=Integration]'"
+
+      # --- Integration Tests ---
+
+      - name: Detect affected integration tests
+        if: steps.scope.outputs.mode == 'incremental'
+        run: ./scripts/ci/detect-affected.sh .incrementalist/integrationOnly.json affected-integration-tests.txt
+
+      - name: Run integration tests
+        run: >-
+          ./scripts/ci/run-tests.sh affected-integration-tests.txt
+          --runner run
+          --frameworks net10.0
+          --no-build
+          --fallback-name "*.Integration.Tests.csproj"
+          --fallback-dir test
+          --extra-args "--no-progress --treenode-filter '/*/*/*/*[Category=Integration]'"
+
+      # --- Reporting ---
 
       - name: Test Reports
         uses: dorny/test-reporter@v2.6.0
@@ -84,6 +141,8 @@ jobs:
           path: ./artifacts/test-results
           overwrite: true
           include-hidden-files: true
+
+      # --- Package (main only) ---
 
       - name: Pack
         if: github.ref == 'refs/heads/main'
