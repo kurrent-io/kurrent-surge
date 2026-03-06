@@ -428,4 +428,103 @@ public class QueryExpressionNormalizerTests {
     }
 
     #endregion
+
+    #region Security Bypass Prevention
+
+    [Test]
+    public async Task prevents_schema_qualified_prefix_bypass() {
+        var result = Normalize(_normalizer, "from main.kdb_internal");
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task prevents_double_quoted_prefix_bypass() {
+        var result = Normalize(_normalizer, "from \"kdb_internal\"");
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task prevents_case_prefix_bypass() {
+        var result = Normalize(_normalizer, "from KDB_INTERNAL");
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task prevents_cte_table_bypass() {
+        var result = Normalize(_normalizer, "with safe as (select * from kdb_internal) select * from safe");
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task prevents_subquery_table_bypass() {
+        var result = Normalize(_normalizer, "from (select * from kdb_internal) as t");
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async Task prevents_replacement_bypass_via_quoting() {
+        var result = Normalize(_normalizer, "from \"records\"");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("from \"kdb_log\"");
+    }
+
+    [Test]
+    public async Task prevents_replacement_bypass_via_schema_qualification() {
+        var result = Normalize(_normalizer, "from main.records");
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo("from main.kdb_log");
+    }
+
+    [Test]
+    public async Task identifiers_inside_comments_are_not_scanned() {
+        var result = Normalize(_normalizer, "-- from kdb_internal\nselect 1");
+        await Assert.That(result.IsValid).IsTrue();
+
+        var result2 = Normalize(_normalizer, "/* from kdb_internal */ select 1");
+        await Assert.That(result2.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task identifiers_inside_strings_are_not_scanned() {
+        var result = Normalize(_normalizer, "where name = 'kdb_internal'");
+        await Assert.That(result.IsValid).IsTrue();
+
+        var result2 = Normalize(_normalizer, "where name = E'kdb_internal'");
+        await Assert.That(result2.IsValid).IsTrue();
+
+        var result3 = Normalize(_normalizer, "where name = $$kdb_internal$$");
+        await Assert.That(result3.IsValid).IsTrue();
+    }
+
+    #endregion
+
+    #region End-to-End Examples
+
+    [Test]
+    public async Task example_basic_replacement() {
+        var result = Normalize(_normalizer,
+            "select schema\nfrom records\nwhere revision = 234"
+        );
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(
+            "select event_type\nfrom kdb_log\nwhere event_number = 234"
+        );
+    }
+
+    [Test]
+    public async Task example_with_aliases() {
+        var input = "select\n    s: schema,\n    position as p\nfrom records rec\nwhere rec.revision = 234";
+
+        var result = Normalize(_normalizer, input);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(
+            "select\n    s: event_type,\n    log_position as p\nfrom kdb_log rec\nwhere rec.event_number = 234"
+        );
+    }
+
+    #endregion
 }
