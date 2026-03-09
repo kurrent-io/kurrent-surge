@@ -23,8 +23,8 @@ public class Utf8QueryExpressionNormalizerTests {
         ForbiddenTablePrefix = "kdb_",
     };
 
-    static readonly QueryExpressionNormalizer       CharNormalizer    = new(Options);
-    static readonly Utf8QueryExpressionNormalizer   Utf8Normalizer    = new(Options);
+    static readonly LegacyQueryExpressionNormalizer CharNormalizer = new(Options);
+    static readonly Utf8QueryExpressionNormalizer   Utf8Normalizer = new(Options);
 
     #region Parity with char normalizer
 
@@ -123,7 +123,7 @@ public class Utf8QueryExpressionNormalizerTests {
     #region Helpers
 
     static (bool IsValid, string? Value, string? Error) NormalizeChar(
-        QueryExpressionNormalizer normalizer,
+        LegacyQueryExpressionNormalizer normalizer,
         string input
     ) {
         var buffer = new char[input.Length * 2 + 1];
@@ -140,13 +140,11 @@ public class Utf8QueryExpressionNormalizerTests {
         var writer    = new BufferWriterSlim<byte>(stackalloc byte[256]);
 
         try {
-            var result = normalizer.Normalize(utf8Input, ref writer);
-
-            return (
-                result.IsValid,
-                result.IsValid ? Encoding.UTF8.GetString(writer.WrittenSpan) : null,
-                result.Error
-            );
+            normalizer.Normalize(utf8Input, ref writer);
+            return (true, Encoding.UTF8.GetString(writer.WrittenSpan), null);
+        }
+        catch (QueryNormalizationException ex) {
+            return (false, null, ex.Message);
         }
         finally {
             writer.Dispose();

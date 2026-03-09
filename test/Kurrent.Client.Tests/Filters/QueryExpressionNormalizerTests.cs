@@ -4,34 +4,34 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Client.Tests.Filters;
 
 [Category("Filters")]
-public class QueryExpressionNormalizerTests {
-    readonly QueryExpressionNormalizer _normalizer = new(new NormalizerOptions {
-        ColumnReplacements = new KeyValuePair<string, string>[] {
-            new("schema",   "event_type"),
-            new("revision", "event_number"),
-            new("position", "log_position"),
-        }.ToImmutableArray(),
-        TableReplacements = new KeyValuePair<string, string>[] {
-            new("records",    "kdb_log"),
-            new("all_events", "kdb_log"),
-        }.ToImmutableArray(),
+public class LegacyQueryExpressionNormalizerTests {
+    readonly LegacyQueryExpressionNormalizer _normalizer = new(new NormalizerOptions {
+        ColumnReplacements = new Dictionary<string, string> {
+            ["schema"]   = "event_type",
+            ["revision"] = "event_number",
+            ["position"] = "log_position",
+        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
+        TableReplacements = new Dictionary<string, string> {
+            ["records"]    = "kdb_log",
+            ["all_events"] = "kdb_log",
+        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
         ForbiddenTablePrefix = "kdb_"
     });
 
-    static QueryExpressionNormalizer CreateNormalizer(
+    static LegacyQueryExpressionNormalizer CreateNormalizer(
         IEnumerable<KeyValuePair<string, string>>? columnReplacements = null,
         IEnumerable<KeyValuePair<string, string>>? tableReplacements = null,
         string? forbiddenTablePrefix = null
     ) {
-        return new QueryExpressionNormalizer(new NormalizerOptions {
-            ColumnReplacements   = (columnReplacements ?? []).ToImmutableArray(),
-            TableReplacements    = (tableReplacements ?? []).ToImmutableArray(),
+        return new LegacyQueryExpressionNormalizer(new NormalizerOptions {
+            ColumnReplacements   = (columnReplacements ?? []).ToImmutableDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
+            TableReplacements    = (tableReplacements ?? []).ToImmutableDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
             ForbiddenTablePrefix = forbiddenTablePrefix
         });
     }
 
     static (bool IsValid, string? Value, string? Error) Normalize(
-        QueryExpressionNormalizer normalizer,
+        LegacyQueryExpressionNormalizer normalizer,
         string input
     ) {
         var buffer = new char[input.Length * 2 + 1];

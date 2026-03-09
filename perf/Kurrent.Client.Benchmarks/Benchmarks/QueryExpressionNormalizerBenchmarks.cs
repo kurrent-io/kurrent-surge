@@ -8,8 +8,8 @@ namespace Kurrent.Client.Benchmarks.Benchmarks;
 
 [MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
-public class QueryExpressionNormalizerBenchmarks {
-    QueryExpressionNormalizer _normalizer = null!;
+public class LegacyQueryExpressionNormalizerBenchmarks {
+    LegacyQueryExpressionNormalizer _normalizer = null!;
     char[] _buffer = null!;
 
     [ParamsSource(nameof(Scenarios))]
@@ -17,7 +17,7 @@ public class QueryExpressionNormalizerBenchmarks {
 
     [GlobalSetup]
     public void Setup() {
-        _normalizer = new QueryExpressionNormalizer(Scenario.Options);
+        _normalizer = new LegacyQueryExpressionNormalizer(Scenario.Options);
         _buffer     = new char[Scenario.Query.Length * 2];
     }
 
@@ -316,7 +316,7 @@ public class QueryExpressionNormalizerBenchmarks {
 [MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class Utf8QueryExpressionNormalizerBenchmarks {
-    QueryExpressionNormalizer       _charNormalizer = null!;
+    LegacyQueryExpressionNormalizer       _charNormalizer = null!;
     Utf8TranscodingNormalizer       _transcodingNormalizer = null!;
     Utf8QueryExpressionNormalizer   _utf8Normalizer = null!;
 
@@ -324,15 +324,15 @@ public class Utf8QueryExpressionNormalizerBenchmarks {
     byte[] _utf8Input  = null!;
 
     [ParamsSource(nameof(Scenarios))]
-    public QueryExpressionNormalizerBenchmarks.NormalizerScenario Scenario { get; set; } = null!;
+    public LegacyQueryExpressionNormalizerBenchmarks.NormalizerScenario Scenario { get; set; } = null!;
 
     // Reuse the same scenario definitions from the existing benchmark class
-    public static IEnumerable<QueryExpressionNormalizerBenchmarks.NormalizerScenario> Scenarios =>
-        QueryExpressionNormalizerBenchmarks.Scenarios;
+    public static IEnumerable<LegacyQueryExpressionNormalizerBenchmarks.NormalizerScenario> Scenarios =>
+        LegacyQueryExpressionNormalizerBenchmarks.Scenarios;
 
     [GlobalSetup]
     public void Setup() {
-        _charNormalizer        = new QueryExpressionNormalizer(Scenario.Options);
+        _charNormalizer        = new LegacyQueryExpressionNormalizer(Scenario.Options);
         _transcodingNormalizer = new Utf8TranscodingNormalizer(_charNormalizer);
         _utf8Normalizer        = new Utf8QueryExpressionNormalizer(Scenario.Options);
 
@@ -352,9 +352,8 @@ public class Utf8QueryExpressionNormalizerBenchmarks {
         var writer = new BufferWriterSlim<byte>(stackalloc byte[256]);
 
         try {
-            var result = _transcodingNormalizer.Normalize(_utf8Input, ref writer);
-
-            return result.IsValid;
+            _transcodingNormalizer.Normalize(_utf8Input, ref writer);
+            return true;
         }
         finally {
             writer.Dispose();
@@ -366,9 +365,8 @@ public class Utf8QueryExpressionNormalizerBenchmarks {
         var writer = new BufferWriterSlim<byte>(stackalloc byte[256]);
 
         try {
-            var result = _utf8Normalizer.Normalize(_utf8Input, ref writer);
-
-            return result.IsValid;
+            _utf8Normalizer.Normalize(_utf8Input, ref writer);
+            return true;
         }
         finally {
             writer.Dispose();
