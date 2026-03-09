@@ -1,5 +1,7 @@
 // ReSharper disable InconsistentNaming
 
+using System.Buffers;
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 
@@ -204,6 +206,35 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
     int _position;
 
+    static readonly FrozenDictionary<string, TokenType> Keywords =
+        new Dictionary<string, TokenType>(StringComparer.OrdinalIgnoreCase) {
+            ["AND"]     = TokenType.And,
+            ["OR"]      = TokenType.Or,
+            ["NOT"]     = TokenType.Not,
+            ["LIKE"]    = TokenType.Like,
+            ["ILIKE"]   = TokenType.ILike,
+            ["IN"]      = TokenType.In,
+            ["BETWEEN"] = TokenType.Between,
+            ["IS"]      = TokenType.Is,
+            ["NULL"]    = TokenType.Null,
+            ["TRUE"]    = TokenType.True,
+            ["FALSE"]   = TokenType.False,
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+#if NET9_0_OR_GREATER
+    static readonly FrozenDictionary<string, TokenType>.AlternateLookup<ReadOnlySpan<char>> KeywordLookup =
+        Keywords.GetAlternateLookup<ReadOnlySpan<char>>();
+
+    static readonly SearchValues<char> WhitespaceChars =
+        SearchValues.Create(" \t\n\r\f\v");
+
+    static readonly SearchValues<char> IdentifierChars =
+        SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+
+    static readonly SearchValues<char> DigitChars =
+        SearchValues.Create("0123456789");
+#endif
+
     char Current => _position < _input.Length ? _input[_position] : '\0';
     bool IsAtEnd => _position >= _input.Length;
 
@@ -346,40 +377,61 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         var start = _position;
         if (Current == '-') Advance();
 
+#if NET9_0_OR_GREATER
+        var remaining = _input.AsSpan(_position);
+        var idx = remaining.IndexOfAnyExcept(DigitChars);
+        _position += idx < 0 ? remaining.Length : idx;
+
+        if (!IsAtEnd && Current == '.' && _position + 1 < _input.Length && char.IsDigit(_input[_position + 1])) {
+            Advance();
+            remaining = _input.AsSpan(_position);
+            idx = remaining.IndexOfAnyExcept(DigitChars);
+            _position += idx < 0 ? remaining.Length : idx;
+        }
+#else
         while (!IsAtEnd && char.IsDigit(Current)) Advance();
 
         if (!IsAtEnd && Current == '.' && _position + 1 < _input.Length && char.IsDigit(_input[_position + 1])) {
             Advance();
             while (!IsAtEnd && char.IsDigit(Current)) Advance();
         }
+#endif
 
         return new Token(TokenType.Number, _input[start.._position], start);
     }
 
     Token ReadIdentifierOrKeyword() {
         var start = _position;
+
+#if NET9_0_OR_GREATER
+        var remaining = _input.AsSpan(_position);
+        var idx = remaining.IndexOfAnyExcept(IdentifierChars);
+        _position += idx < 0 ? remaining.Length : idx;
+
+        var span  = _input.AsSpan(start, _position - start);
+        var value = new string(span);
+
+        return KeywordLookup.TryGetValue(span, out var keywordType)
+            ? new Token(keywordType, value, start)
+            : new Token(TokenType.Identifier, value, start);
+#else
         while (!IsAtEnd && (char.IsLetterOrDigit(Current) || Current == '_')) Advance();
         var value = _input[start.._position];
         return new Token(GetKeywordType(value), value, start);
+#endif
     }
 
-    static TokenType GetKeywordType(string value) {
-        if (value.Equals("AND", StringComparison.OrdinalIgnoreCase))     return TokenType.And;
-        if (value.Equals("OR", StringComparison.OrdinalIgnoreCase))      return TokenType.Or;
-        if (value.Equals("NOT", StringComparison.OrdinalIgnoreCase))     return TokenType.Not;
-        if (value.Equals("LIKE", StringComparison.OrdinalIgnoreCase))    return TokenType.Like;
-        if (value.Equals("ILIKE", StringComparison.OrdinalIgnoreCase))   return TokenType.ILike;
-        if (value.Equals("IN", StringComparison.OrdinalIgnoreCase))      return TokenType.In;
-        if (value.Equals("BETWEEN", StringComparison.OrdinalIgnoreCase)) return TokenType.Between;
-        if (value.Equals("IS", StringComparison.OrdinalIgnoreCase))      return TokenType.Is;
-        if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase))    return TokenType.Null;
-        if (value.Equals("TRUE", StringComparison.OrdinalIgnoreCase))    return TokenType.True;
-        if (value.Equals("FALSE", StringComparison.OrdinalIgnoreCase))   return TokenType.False;
-        return TokenType.Identifier;
-    }
+    static TokenType GetKeywordType(string value) =>
+        Keywords.TryGetValue(value, out var type) ? type : TokenType.Identifier;
 
     void SkipWhitespace() {
+#if NET9_0_OR_GREATER
+        var remaining = _input.AsSpan(_position);
+        var idx = remaining.IndexOfAnyExcept(WhitespaceChars);
+        _position += idx < 0 ? remaining.Length : idx;
+#else
         while (!IsAtEnd && char.IsWhiteSpace(Current)) Advance();
+#endif
     }
 
     void Advance() => _position++;
@@ -974,11 +1026,26 @@ file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
 }
 
 /// <summary>
-/// AST node for <c>property [NOT] LIKE|ILIKE 'pattern'</c>.
-/// SQL wildcard patterns are compiled to a <see cref="Regex"/> at construction time.
+/// Classification of SQL LIKE patterns for fast-path evaluation.
+/// Simple patterns use string operations; complex patterns fall back to Regex.
 /// </summary>
-public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated) : IFilterExpression {
-    readonly Regex _regex = ConvertLikeToRegex(pattern, caseInsensitive);
+enum LikePatternKind { Exact, Prefix, Suffix, Contains, MatchAll, Complex }
+
+/// <summary>
+/// AST node for <c>property [NOT] LIKE|ILIKE 'pattern'</c>.
+/// Simple patterns (prefix%, %suffix, %contains%, exact) use string operations.
+/// Complex patterns (with <c>_</c> wildcards or multiple <c>%</c> segments) fall back to compiled Regex.
+/// </summary>
+public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated)
+    : IFilterExpression {
+    readonly LikePatternKind  _kind       = ClassifyPattern(pattern);
+    readonly string           _fixedPart  = ExtractFixedPart(pattern);
+    readonly Regex?           _regex      = ClassifyPattern(pattern) == LikePatternKind.Complex
+        ? ConvertLikeToRegex(pattern, caseInsensitive)
+        : null;
+    readonly StringComparison _comparison = caseInsensitive
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
     public PropertyAccess Property        => property;
     public string         Pattern         => pattern;
@@ -988,14 +1055,58 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
     /// <inheritdoc/>
     public bool IsMatch(Record record) {
         var value = property.Resolve(record);
+        if (value is null) return false;
 
-        if (value is null)
-            return false;
-
-        var matches = _regex.IsMatch(value.ToString() ?? "");
+        var str     = value as string ?? value.ToString() ?? "";
+        var matches = _kind switch {
+            LikePatternKind.MatchAll => true,
+            LikePatternKind.Exact    => str.Equals(_fixedPart, _comparison),
+            LikePatternKind.Prefix   => str.StartsWith(_fixedPart, _comparison),
+            LikePatternKind.Suffix   => str.EndsWith(_fixedPart, _comparison),
+            LikePatternKind.Contains => str.Contains(_fixedPart, _comparison),
+            LikePatternKind.Complex  => _regex!.IsMatch(str),
+            _                        => false
+        };
 
         return negated ? !matches : matches;
     }
+
+    static LikePatternKind ClassifyPattern(string pattern) {
+        if (pattern.Length == 0) return LikePatternKind.Exact;
+        if (pattern is "%") return LikePatternKind.MatchAll;
+
+        // _ wildcard forces complex (Regex) path
+        if (pattern.Contains('_')) return LikePatternKind.Complex;
+
+        var firstPercent = pattern.IndexOf('%');
+        if (firstPercent < 0) return LikePatternKind.Exact;
+
+        var lastPercent = pattern.LastIndexOf('%');
+
+        // Single % at end: prefix match
+        if (firstPercent == pattern.Length - 1)
+            return LikePatternKind.Prefix;
+
+        // Single % at start, no other %: suffix match
+        if (firstPercent == 0 && lastPercent == 0)
+            return LikePatternKind.Suffix;
+
+        // % at start and end only, no % in between: contains match
+        if (firstPercent == 0 && lastPercent == pattern.Length - 1
+            && pattern.AsSpan(1, pattern.Length - 2).IndexOf('%') < 0)
+            return LikePatternKind.Contains;
+
+        return LikePatternKind.Complex;
+    }
+
+    static string ExtractFixedPart(string pattern) =>
+        ClassifyPattern(pattern) switch {
+            LikePatternKind.Prefix   => pattern[..^1],
+            LikePatternKind.Suffix   => pattern[1..],
+            LikePatternKind.Contains => pattern[1..^1],
+            LikePatternKind.Exact    => pattern,
+            _                        => pattern
+        };
 
     public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
         var result = new System.Text.StringBuilder(pattern.Length + 4);
@@ -1040,8 +1151,11 @@ file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFil
 /// <summary>
 /// AST node for <c>property [NOT] IN (value, ...)</c>. Matches if the property value
 /// equals any value in the set (or none when negated).
+/// When all values are string literals, uses <see cref="FrozenSet{T}"/> for O(1) lookup.
 /// </summary>
 public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterValue> values, bool negated) : IFilterExpression {
+    readonly FrozenSet<string>? _stringSet = BuildStringSet(values);
+
     public PropertyAccess             Property => property;
     public IReadOnlyList<FilterValue> Values   => values;
     public bool                       Negated  => negated;
@@ -1051,15 +1165,35 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
         var propValue = property.Resolve(record);
         if (propValue is null) return false;
 
-        var found = false;
+        // fast path: all-string set with O(1) lookup
+        if (_stringSet is not null && propValue is string strValue) {
+            var found = _stringSet.Contains(strValue);
+            return negated ? !found : found;
+        }
+
+        // general path: linear scan with cross-type comparison
+        var foundGeneral = false;
         for (var i = 0; i < values.Count; i++) {
             if (ValueComparer.Compare(propValue, values[i].GetValue()) == 0) {
-                found = true;
+                foundGeneral = true;
                 break;
             }
         }
 
-        return negated ? !found : found;
+        return negated ? !foundGeneral : foundGeneral;
+    }
+
+    static FrozenSet<string>? BuildStringSet(IReadOnlyList<FilterValue> values) {
+        for (var i = 0; i < values.Count; i++) {
+            if (values[i] is not StringFilterValue)
+                return null;
+        }
+
+        var set = new HashSet<string>(values.Count, StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < values.Count; i++)
+            set.Add(((StringFilterValue)values[i]).Value);
+
+        return set.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 }
 
@@ -1186,47 +1320,6 @@ file static class ValueComparer {
             default: return false;
         }
     }
-}
-
-/// <summary>
-/// Converts SQL LIKE/ILIKE patterns to compiled <see cref="Regex"/> instances.
-/// <c>%</c> maps to <c>.*</c>, <c>_</c> maps to <c>.</c>, all other characters are escaped.
-/// </summary>
-file static class PatternMatcher {
-    /// <summary>
-    /// Converts a SQL LIKE pattern to an anchored regex. The resulting regex is compiled
-    /// and uses <see cref="RegexOptions.Singleline"/>. Case-insensitive matching adds
-    /// <see cref="RegexOptions.IgnoreCase"/>.
-    /// </summary>
-    // public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
-    //     var result = new System.Text.StringBuilder(pattern.Length + 4);
-    //     result.Append('^');
-    //
-    //     foreach (var ch in pattern) {
-    //         if (ch == '%')
-    //             result.Append(".*");
-    //         else if (ch == '_')
-    //             result.Append('.');
-    //         else if (IsRegexMetaChar(ch)) {
-    //             result.Append('\\');
-    //             result.Append(ch);
-    //         }
-    //         else
-    //             result.Append(ch);
-    //     }
-    //
-    //     result.Append('$');
-    //
-    //     var options = RegexOptions.Compiled | RegexOptions.Singleline;
-    //     if (caseInsensitive)
-    //         options |= RegexOptions.IgnoreCase;
-    //
-    //     return new Regex(result.ToString(), options);
-    //
-    //     static bool IsRegexMetaChar(char ch) =>
-    //         ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
-    // }
-
 }
 
 #endregion

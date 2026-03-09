@@ -5,6 +5,7 @@ namespace Kurrent.Client.Tests.Filters;
 [Category("Filters")]
 public class ExpressionFilterParserTests {
     readonly ExpressionFilterParser _parser = new();
+    readonly RecordFaker            _faker  = new();
 
     #region Comparison Operators
 
@@ -646,6 +647,75 @@ public class ExpressionFilterParserTests {
         var result = _parser.Parse("field_schema = 'OrderPlaced'");
 
         await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
+
+    #region LIKE Fast-Path Patterns
+
+    [Test]
+    public async Task like_prefix_pattern_matches() {
+        var expr   = _parser.Parse("stream LIKE 'orders-%'").Value;
+        var record = _faker.With(stream: "orders-123");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_prefix_pattern_rejects() {
+        var expr   = _parser.Parse("stream LIKE 'orders-%'").Value;
+        var record = _faker.With(stream: "users-123");
+        await Assert.That(expr.IsMatch(record)).IsFalse();
+    }
+
+    [Test]
+    public async Task like_suffix_pattern_matches() {
+        var expr   = _parser.Parse("stream LIKE '%-created'").Value;
+        var record = _faker.With(stream: "order-created");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_contains_pattern_matches() {
+        var expr   = _parser.Parse("schema LIKE '%User%'").Value;
+        var record = _faker.With(schemaName: "CreateUserV1");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_exact_pattern_matches() {
+        var expr   = _parser.Parse("stream LIKE 'orders-123'").Value;
+        var record = _faker.With(stream: "orders-123");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_exact_pattern_rejects() {
+        var expr   = _parser.Parse("stream LIKE 'orders-123'").Value;
+        var record = _faker.With(stream: "orders-456");
+        await Assert.That(expr.IsMatch(record)).IsFalse();
+    }
+
+    [Test]
+    public async Task like_matchall_pattern() {
+        var expr   = _parser.Parse("stream LIKE '%'").Value;
+        var record = _faker.With(stream: "anything-at-all");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_complex_underscore_pattern() {
+        var expr = _parser.Parse("stream LIKE 'order_123'").Value;
+        var hit  = _faker.With(stream: "orders123");
+        var miss = _faker.With(stream: "orderXX123");
+        await Assert.That(expr.IsMatch(hit)).IsTrue();
+        await Assert.That(expr.IsMatch(miss)).IsFalse();
+    }
+
+    [Test]
+    public async Task ilike_prefix_case_insensitive() {
+        var expr   = _parser.Parse("stream ILIKE 'ORDERS-%'").Value;
+        var record = _faker.With(stream: "orders-123");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
     }
 
     #endregion
