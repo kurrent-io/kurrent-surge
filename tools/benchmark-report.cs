@@ -842,6 +842,13 @@ sealed class ReportCommand : Command<ReportSettings> {
                 flex-wrap: wrap;
               }
 
+              .metric-toggle-row {
+                display: flex;
+                gap: 0.375rem;
+                margin-bottom: 1rem;
+                flex-wrap: wrap;
+              }
+
               .filter-btn {
                 background: transparent;
                 border: 1px solid var(--border);
@@ -1095,6 +1102,20 @@ sealed class ReportCommand : Command<ReportSettings> {
               return barColors[index % barColors.length];
             }
 
+            // ── Metric definitions ──────────────────────────────────────────────
+
+            const metrics = [
+              { key: "MeanNs",         label: "Mean",      format: formatNs },
+              { key: "OpsPerSec",      label: "Ops/sec",   format: formatOps },
+              { key: "ErrorNs",        label: "Error",     format: formatNs },
+              { key: "StdDevNs",       label: "StdDev",    format: formatNs },
+              { key: "P95Ns",          label: "P95",       format: formatNs },
+              { key: "AllocatedBytes", label: "Allocated", format: formatBytes },
+              { key: "Gen0",           label: "Gen0",      format: v => String(v) },
+              { key: "Gen1",           label: "Gen1",      format: v => String(v) },
+              { key: "Gen2",           label: "Gen2",      format: v => String(v) },
+            ];
+
             // ── Environment section ─────────────────────────────────────────────
 
             if (env) {
@@ -1339,7 +1360,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 }
 
                 return `
-                  <div class="bar-row" data-params="${b.Parameters || ""}">
+                  <div class="bar-row" data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}">
                     <div class="bar-label" title="${benchLabel(b)}">${benchLabel(b)}</div>
                     <div class="bar-track">
                       ${baselineBar}
@@ -1404,7 +1425,9 @@ sealed class ReportCommand : Command<ReportSettings> {
                   <div class="class-body" id="body-${sectionId}">
                     ${filterHtml}
                     <div class="chart-section">
-                      <h3>Latency</h3>
+                      <div class="metric-toggle-row" data-section="${sectionId}">
+                        ${metrics.map((m, i) => `<button class="filter-btn${i === 0 ? ' active' : ''}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
+                      </div>
                       <div class="bar-chart" id="chart-${sectionId}">${barRows}</div>
                     </div>
                     <div class="table-section">
@@ -1435,6 +1458,43 @@ sealed class ReportCommand : Command<ReportSettings> {
               classSections.insertAdjacentHTML("beforeend", sectionHtml);
             });
 
+            // ── Chart metric switching ──────────────────────────────────────────
+
+            function rebuildChart(sectionId, metricKey) {
+              const cls = sectionId.replace("section-", "");
+              const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
+              const metric = metrics.find(m => m.key === metricKey);
+              if (!metric) return;
+
+              const values = sectionBenchmarks.map(b => b[metricKey] ?? 0);
+              const maxVal = Math.max(...values, 1); // avoid division by zero
+
+              const chart = document.getElementById("chart-" + sectionId);
+              chart.querySelectorAll(".bar-row").forEach(row => {
+                const key = row.dataset.key;
+                const b = sectionBenchmarks.find(b => b.CompositeKey === key);
+                if (!b) return;
+
+                const val = b[metricKey] ?? 0;
+                const pct = (val / maxVal) * 100;
+                const fill = row.querySelector(".bar-fill");
+                const valueEl = row.querySelector(".bar-value");
+
+                if (fill) fill.style.width = pct + "%";
+                if (valueEl) valueEl.textContent = metric.format(val);
+              });
+            }
+
+            document.querySelectorAll(".metric-toggle-row .filter-btn").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const sectionId = btn.dataset.section;
+                // Update active state within this row
+                btn.closest(".metric-toggle-row").querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                rebuildChart(sectionId, btn.dataset.metric);
+              });
+            });
+
             // ── Collapsible sections ────────────────────────────────────────────
 
             function toggleSection(sectionId) {
@@ -1444,25 +1504,41 @@ sealed class ReportCommand : Command<ReportSettings> {
               toggle.classList.toggle("collapsed");
             }
 
-            // ── Parameter filters ───────────────────────────────────────────────
+            // ── Parameter filters (multi-select) ────────────────────────────────
 
-            document.querySelectorAll(".filter-btn[data-section]").forEach(btn => {
+            document.querySelectorAll(".filter-row .filter-btn[data-filter]").forEach(btn => {
               btn.addEventListener("click", () => {
+                const filterRow = btn.closest(".filter-row");
                 const sectionId = btn.dataset.section;
-                const filter = btn.dataset.filter;
+                const filter    = btn.dataset.filter;
+                const allBtn    = filterRow.querySelector('[data-filter="all"]');
+                const paramBtns = [...filterRow.querySelectorAll('.filter-btn:not([data-filter="all"])')];
 
-                // Update active state
-                btn.closest(".filter-row").querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
+                if (filter === "all") {
+                  // "All" resets: activate all, deactivate individual pills
+                  allBtn.classList.add("active");
+                  paramBtns.forEach(b => b.classList.remove("active"));
+                } else {
+                  // Toggle this pill
+                  btn.classList.toggle("active");
+                  // Deactivate "all" when any individual is toggled
+                  allBtn.classList.remove("active");
+                  // If no individual pills are active, reactivate "all"
+                  const anyActive = paramBtns.some(b => b.classList.contains("active"));
+                  if (!anyActive) allBtn.classList.add("active");
+                }
 
-                // Filter bars and rows
+                // Determine which params are visible
+                const isAll = allBtn.classList.contains("active");
+                const activeParams = new Set(
+                  paramBtns.filter(b => b.classList.contains("active")).map(b => b.dataset.filter)
+                );
+
+                // Apply filter to bars and table rows
                 const section = document.getElementById(sectionId);
                 section.querySelectorAll(".bar-row[data-params], tr[data-params]").forEach(el => {
-                  if (filter === "all" || el.dataset.params === filter) {
-                    el.style.display = "";
-                  } else {
-                    el.style.display = "none";
-                  }
+                  const show = isAll || activeParams.has(el.dataset.params);
+                  el.style.display = show ? "" : "none";
                 });
               });
             });
