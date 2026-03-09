@@ -316,9 +316,10 @@ public class LegacyQueryExpressionNormalizerBenchmarks {
 [MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class Utf8QueryExpressionNormalizerBenchmarks {
-    LegacyQueryExpressionNormalizer       _charNormalizer = null!;
-    Utf8TranscodingNormalizer       _transcodingNormalizer = null!;
-    Utf8QueryExpressionNormalizer   _utf8Normalizer = null!;
+    LegacyQueryExpressionNormalizer _legacyNormalizer      = null!;
+    QueryExpressionNormalizer       _newCharNormalizer      = null!;
+    Utf8TranscodingNormalizer       _transcodingNormalizer  = null!;
+    Utf8QueryExpressionNormalizer   _utf8Normalizer         = null!;
 
     char[] _charBuffer = null!;
     byte[] _utf8Input  = null!;
@@ -332,8 +333,9 @@ public class Utf8QueryExpressionNormalizerBenchmarks {
 
     [GlobalSetup]
     public void Setup() {
-        _charNormalizer        = new LegacyQueryExpressionNormalizer(Scenario.Options);
-        _transcodingNormalizer = new Utf8TranscodingNormalizer(_charNormalizer);
+        _legacyNormalizer      = new LegacyQueryExpressionNormalizer(Scenario.Options);
+        _newCharNormalizer     = new QueryExpressionNormalizer(Scenario.Options);
+        _transcodingNormalizer = new Utf8TranscodingNormalizer(_legacyNormalizer);
         _utf8Normalizer        = new Utf8QueryExpressionNormalizer(Scenario.Options);
 
         _charBuffer = new char[Scenario.Query.Length * 2];
@@ -341,10 +343,22 @@ public class Utf8QueryExpressionNormalizerBenchmarks {
     }
 
     [Benchmark(Baseline = true)]
-    public bool Char() {
-        var result = _charNormalizer.Normalize(Scenario.Query, _charBuffer);
-
+    public bool CharLegacy() {
+        var result = _legacyNormalizer.Normalize(Scenario.Query, _charBuffer);
         return result.IsValid;
+    }
+
+    [Benchmark]
+    public bool CharNew() {
+        var writer = new BufferWriterSlim<char>(stackalloc char[256]);
+
+        try {
+            _newCharNormalizer.Normalize(Scenario.Query, ref writer);
+            return true;
+        }
+        finally {
+            writer.Dispose();
+        }
     }
 
     [Benchmark]
