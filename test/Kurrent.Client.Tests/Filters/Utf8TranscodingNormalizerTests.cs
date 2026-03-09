@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Text;
 using DotNext.Buffers;
 using Kurrent.Client.Streams;
@@ -10,70 +9,70 @@ namespace Kurrent.Client.Tests.Filters;
 [Category("Filters")]
 [Category("QueryExpressionNormalizer")]
 public class Utf8TranscodingNormalizerTests {
-    static readonly NormalizerOptions Options = new() {
-        ColumnReplacements = new Dictionary<string, string> {
-            ["schema"]     = "event_type",
-            ["timestamp"]  = "created",
-            ["data"]       = "payload",
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
-        TableReplacements = new Dictionary<string, string> {
-            ["records"] = "kdb_log",
-            ["events"]  = "kdb_events",
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
-        ForbiddenTablePrefix = "kdb_",
-    };
-
-    static readonly LegacyQueryExpressionNormalizer CharNormalizer = new(Options);
+    static readonly LegacyQueryExpressionNormalizer CharNormalizer = new(NormalizerTestCases.Options);
     static readonly Utf8TranscodingNormalizer       Utf8Normalizer = new(CharNormalizer);
 
-    #region Parity with char normalizer
+    #region Success cases
 
     [Test]
-    [Arguments("SELECT schema FROM records")]
-    [Arguments("SELECT schema, timestamp FROM records WHERE data = 'test'")]
-    [Arguments("SELECT schema FROM records AS r WHERE r.schema > 1")]
-    [Arguments("SELECT schema FROM records LEFT JOIN events ON records.schema = events.schema")]
-    [Arguments("WITH cte AS (SELECT schema FROM records) SELECT schema FROM cte")]
-    [Arguments("SELECT schema::int FROM records")]
-    [Arguments("SELECT \"schema\" FROM \"records\"")]
-    [Arguments("SELECT schema FROM records -- comment\nWHERE timestamp > 0")]
-    [Arguments("SELECT schema FROM records /* block comment */ WHERE timestamp > 0")]
-    [Arguments("SELECT schema FROM records WHERE data = E'test\\n'")]
-    [Arguments("SELECT schema FROM records WHERE data = $$dollar quoted$$")]
-    [Arguments("SELECT schema FROM records WHERE data = $tag$dollar quoted$tag$")]
-    [Arguments("SELECT 100_000, schema FROM records")]
-    [Arguments("SELECT $1, schema FROM records")]
-    // Multi-byte UTF-8 in string literals
-    [Arguments("SELECT schema FROM records WHERE data = '\u00e9\u00e8\u00ea'")]
-    [Arguments("SELECT schema FROM records WHERE data = '\u4e16\u754c'")]
-    [Arguments("SELECT schema FROM records WHERE data = '\ud83d\ude80\ud83c\udf1f'")]
-    // Multi-byte UTF-8 in comments
-    [Arguments("SELECT schema FROM records -- \u00e9\u00e8\u00ea comment\nWHERE timestamp > 0")]
-    [Arguments("SELECT schema FROM records /* \u4e16\u754c block comment */ WHERE timestamp > 0")]
-    // Multi-byte UTF-8 in dollar-quoted strings
-    [Arguments("SELECT schema FROM records WHERE data = $$\u00e9\u00e8\u00ea$$")]
-    [Arguments("SELECT schema FROM records WHERE data = $tag$\u4e16\u754c$tag$")]
-    // Multi-byte UTF-8 in E-strings
-    [Arguments("SELECT schema FROM records WHERE data = E'\u00e9\\n\u00e8'")]
-    public async Task produces_same_output_as_char_normalizer(string input) {
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.SuccessCases))]
+    public async Task normalizes_correctly(NormalizerTestCase c) {
+        var charResult = NormalizeChar(CharNormalizer, c.Query);
+        var utf8Result = NormalizeUtf8(Utf8Normalizer, c.Query);
+
+        await Assert.That(utf8Result.IsValid).IsTrue();
+        await Assert.That(utf8Result.Value).IsEqualTo(c.Expected);
+        await Assert.That(utf8Result.Value).IsEqualTo(charResult.Value);
+    }
+
+    #endregion
+
+    #region Error cases
+
+    [Test]
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.ErrorCases))]
+    public async Task rejects_invalid_query(NormalizerTestCase c) {
+        var charResult = NormalizeChar(CharNormalizer, c.Query);
+        var utf8Result = NormalizeUtf8(Utf8Normalizer, c.Query);
+
+        await Assert.That(utf8Result.IsValid).IsFalse();
+        await Assert.That(utf8Result.IsValid).IsEqualTo(charResult.IsValid);
+    }
+
+    #endregion
+
+    #region Passthrough cases
+
+    [Test]
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.PassthroughCases))]
+    public async Task passes_through_with_empty_options(NormalizerTestCase c) {
+        var emptyLegacy    = new LegacyQueryExpressionNormalizer(new NormalizerOptions());
+        var noReplacements = new Utf8TranscodingNormalizer(emptyLegacy);
+        var result         = NormalizeUtf8(noReplacements, c.Query);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(c.Expected);
+    }
+
+    #endregion
+
+    #region Multi-byte UTF-8
+
+    [Test]
+    [Arguments("SELECT schema FROM records WHERE data = 'éèê'")]
+    [Arguments("SELECT schema FROM records WHERE data = '世界'")]
+    [Arguments("SELECT schema FROM records WHERE data = '🚀🌟'")]
+    [Arguments("SELECT schema FROM records -- éèê comment\nWHERE timestamp > 0")]
+    [Arguments("SELECT schema FROM records /* 世界 block comment */ WHERE timestamp > 0")]
+    [Arguments("SELECT schema FROM records WHERE data = $$éèê$$")]
+    [Arguments("SELECT schema FROM records WHERE data = $tag$世界$tag$")]
+    [Arguments("SELECT schema FROM records WHERE data = E'é\\nè'")]
+    public async Task handles_multi_byte_utf8(string input) {
         var charResult = NormalizeChar(CharNormalizer, input);
         var utf8Result = NormalizeUtf8(Utf8Normalizer, input);
 
         await Assert.That(utf8Result.IsValid).IsEqualTo(charResult.IsValid);
         await Assert.That(utf8Result.Value).IsEqualTo(charResult.Value);
-        await Assert.That(utf8Result.Error).IsEqualTo(charResult.Error);
-    }
-
-    #endregion
-
-    #region Forbidden prefix
-
-    [Test]
-    public async Task rejects_forbidden_table_prefix() {
-        var result = NormalizeUtf8(Utf8Normalizer, "SELECT schema FROM kdb_internal");
-
-        await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Error).IsNotNull();
     }
 
     #endregion
@@ -86,7 +85,6 @@ public class Utf8TranscodingNormalizerTests {
     ) {
         var buffer = new char[input.Length * 2 + 1];
         var result = normalizer.Normalize(input.AsSpan(), buffer.AsSpan());
-
         return (result.IsValid, result.IsValid ? result.Value.ToString() : null, result.Error);
     }
 

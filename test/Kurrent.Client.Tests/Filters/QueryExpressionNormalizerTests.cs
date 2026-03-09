@@ -1,34 +1,55 @@
-using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Tests.Filters;
 
-[Category("Filters")]
-public class LegacyQueryExpressionNormalizerTests {
-    readonly LegacyQueryExpressionNormalizer _normalizer = new(new NormalizerOptions {
-        ColumnReplacements = new Dictionary<string, string> {
-            ["schema"]   = "event_type",
-            ["revision"] = "event_number",
-            ["position"] = "log_position",
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
-        TableReplacements = new Dictionary<string, string> {
-            ["records"]    = "kdb_log",
-            ["all_events"] = "kdb_log",
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
-        ForbiddenTablePrefix = "kdb_"
-    });
+#if NET9_0_OR_GREATER
 
-    static LegacyQueryExpressionNormalizer CreateNormalizer(
-        IEnumerable<KeyValuePair<string, string>>? columnReplacements = null,
-        IEnumerable<KeyValuePair<string, string>>? tableReplacements = null,
-        string? forbiddenTablePrefix = null
-    ) {
-        return new LegacyQueryExpressionNormalizer(new NormalizerOptions {
-            ColumnReplacements   = (columnReplacements ?? []).ToImmutableDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            TableReplacements    = (tableReplacements ?? []).ToImmutableDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-            ForbiddenTablePrefix = forbiddenTablePrefix
-        });
+[Category("Filters")]
+[Category("QueryExpressionNormalizer")]
+public class LegacyQueryExpressionNormalizerTests {
+    static readonly LegacyQueryExpressionNormalizer Normalizer = new(NormalizerTestCases.Options);
+
+    #region Success cases
+
+    [Test]
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.SuccessCases))]
+    public async Task normalizes_correctly(NormalizerTestCase c) {
+        var result = Normalize(Normalizer, c.Query);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(c.Expected);
     }
+
+    #endregion
+
+    #region Error cases
+
+    [Test]
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.ErrorCases))]
+    public async Task rejects_invalid_query(NormalizerTestCase c) {
+        var result = Normalize(Normalizer, c.Query);
+
+        await Assert.That(result.IsValid).IsFalse();
+        await Assert.That(result.Error).IsNotNull();
+    }
+
+    #endregion
+
+    #region Passthrough cases
+
+    [Test]
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.PassthroughCases))]
+    public async Task passes_through_with_empty_options(NormalizerTestCase c) {
+        var empty  = new LegacyQueryExpressionNormalizer(new NormalizerOptions());
+        var result = Normalize(empty, c.Query);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(c.Expected);
+    }
+
+    #endregion
+
+    #region Helpers
 
     static (bool IsValid, string? Value, string? Error) Normalize(
         LegacyQueryExpressionNormalizer normalizer,
@@ -39,503 +60,7 @@ public class LegacyQueryExpressionNormalizerTests {
         return (result.IsValid, result.IsValid ? result.Value.ToString() : null, result.Error);
     }
 
-    #region Passthrough
-
-    [Test]
-    [Arguments("select 1")]
-    [Arguments("select a, b from t where x = 1")]
-    [Arguments("")]
-    public async ValueTask copies_input_verbatim_when_no_replacements_match(string input) {
-        var empty  = CreateNormalizer();
-        var result = Normalize(empty, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(input);
-    }
-
-    #endregion
-
-    #region Skip Regions
-
-    [Test]
-    [Arguments("-- schema records\nselect 1",           "-- schema records\nselect 1")]
-    [Arguments("select /* schema */ 1",                  "select /* schema */ 1")]
-    [Arguments("select /* /* nested */ still */ 1",      "select /* /* nested */ still */ 1")]
-    [Arguments("select 'schema'",                        "select 'schema'")]
-    [Arguments("select 'it''s'",                         "select 'it''s'")]
-    [Arguments("select E'schema\\n'",                    "select E'schema\\n'")]
-    [Arguments("select e'test\\''",                      "select e'test\\''")]
-    [Arguments("select $$schema records$$",              "select $$schema records$$")]
-    [Arguments("select $tag$schema$tag$",                "select $tag$schema$tag$")]
-    [Arguments("select arr[1], list[2:3]",               "select arr[1], list[2:3]")]
-    public async ValueTask skips_region_without_replacement(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    #endregion
-
-    #region Column Replacement
-
-    [Test]
-    [Arguments("select schema",                "select event_type")]
-    [Arguments("select revision",              "select event_number")]
-    [Arguments("select schema, revision",      "select event_type, event_number")]
-    [Arguments("select SCHEMA",                "select event_type")]
-    [Arguments("select unknown_col",           "select unknown_col")]
-    [Arguments("where revision = 234",         "where event_number = 234")]
-    [Arguments("select position as p",         "select log_position as p")]
-    public async ValueTask replaces_columns_in_default_context(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    #endregion
-
-    #region Table Replacement
-
-    [Test]
-    [Arguments("from records",                          "from kdb_log")]
-    [Arguments("FROM records",                          "FROM kdb_log")]
-    [Arguments("from all_events",                       "from kdb_log")]
-    [Arguments("from unknown_table",                    "from unknown_table")]
-    [Arguments("select schema from records",            "select event_type from kdb_log")]
-    [Arguments("from records where revision = 1",       "from kdb_log where event_number = 1")]
-    [Arguments("join records on x = y",                 "join kdb_log on x = y")]
-    [Arguments("left join records on x = y",            "left join kdb_log on x = y")]
-    [Arguments("left outer join records on x = y",      "left outer join kdb_log on x = y")]
-    [Arguments("from records, all_events",              "from kdb_log, kdb_log")]
-    public async ValueTask replaces_tables_in_table_position(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    [Arguments("select records from t",                 "select records from t")]
-    [Arguments("where records = 1",                     "where records = 1")]
-    public async ValueTask does_not_replace_table_names_in_column_position(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask does_not_replace_column_names_in_table_position() {
-        var result = Normalize(_normalizer, "from schema");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("from schema");
-    }
-
-    #endregion
-
-    #region Alias Preservation
-
-    [Test]
-    [Arguments("from records as r",             "from kdb_log as r")]
-    [Arguments("from records AS r",             "from kdb_log AS r")]
-    [Arguments("from records r",                "from kdb_log r")]
-    [Arguments("from records schema",           "from kdb_log schema")]
-    [Arguments("from records r where r.revision = 1",
-               "from kdb_log r where r.event_number = 1")]
-    public async ValueTask preserves_table_aliases(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask preserves_column_alias_after_as() {
-        var result = Normalize(_normalizer, "select schema as s");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("select event_type as s");
-    }
-
-    #endregion
-
-    #region Forbidden Prefix
-
-    [Test]
-    [Arguments("from kdb_internal")]
-    [Arguments("from KDB_INTERNAL")]
-    [Arguments("join kdb_lookup on x = y")]
-    [Arguments("left join kdb_lookup on x = y")]
-    [Arguments("from a, kdb_internal")]
-    [Arguments("insert into kdb_sink")]
-    [Arguments("update kdb_target set x = 1")]
-    public async ValueTask rejects_table_with_forbidden_prefix(string input) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Error).IsNotNull();
-    }
-
-    [Test]
-    [Arguments("select kdb_col from t")]
-    [Arguments("where kdb_col = 1")]
-    [Arguments("order by kdb_col")]
-    public async ValueTask allows_forbidden_prefix_in_column_position(string input) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask allows_any_table_when_prefix_not_configured() {
-        var noPrefix = CreateNormalizer();
-        var result   = Normalize(noPrefix, "from kdb_internal");
-
-        await Assert.That(result.IsValid).IsTrue();
-    }
-
-    #endregion
-
-    #region Colon Alias
-
-    [Test]
-    [Arguments("select s: schema",                       "select s: event_type")]
-    [Arguments("select s: schema, p: position",          "select s: event_type, p: log_position")]
-    [Arguments("select s: schema, position as p",        "select s: event_type, log_position as p")]
-    public async ValueTask handles_colon_alias_in_select(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask handles_colon_alias_in_from() {
-        var result = Normalize(_normalizer, "from r: records");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("from r: kdb_log");
-    }
-
-    [Test]
-    public async ValueTask rejects_forbidden_prefix_via_colon_alias_in_from() {
-        var result = Normalize(_normalizer, "from alias: kdb_internal");
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    #endregion
-
-    #region Qualified References
-
-    [Test]
-    [Arguments("where r.revision = 1",                     "where r.event_number = 1")]
-    [Arguments("select r.schema, r.position",              "select r.event_type, r.log_position")]
-    [Arguments("where t.unknown_col = 1",                  "where t.unknown_col = 1")]
-    public async ValueTask replaces_column_in_qualified_reference(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask replaces_table_in_schema_qualified_from() {
-        var result = Normalize(_normalizer, "from main.records");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("from main.kdb_log");
-    }
-
-    [Test]
-    public async ValueTask rejects_forbidden_prefix_in_schema_qualified_from() {
-        var result = Normalize(_normalizer, "from main.kdb_internal");
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    #endregion
-
-    #region Double-Quoted Identifiers
-
-    [Test]
-    [Arguments("select \"schema\"",                   "select \"event_type\"")]
-    [Arguments("from \"records\"",                    "from \"kdb_log\"")]
-    [Arguments("where \"revision\" = 1",              "where \"event_number\" = 1")]
-    [Arguments("select \"unknown\"",                  "select \"unknown\"")]
-    public async ValueTask handles_double_quoted_identifiers(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask rejects_forbidden_prefix_in_double_quoted_table() {
-        var result = Normalize(_normalizer, "from \"kdb_internal\"");
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask handles_escaped_double_quotes() {
-        var result = Normalize(_normalizer, "select \"my\"\"col\"");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("select \"my\"\"col\"");
-    }
-
-    #endregion
-
-    #region Cast Operator
-
-    [Test]
-    [Arguments("select schema::varchar",               "select event_type::varchar")]
-    [Arguments("select revision::integer",             "select event_number::integer")]
-    [Arguments("select x::schema",                     "select x::schema")]
-    public async ValueTask preserves_type_name_after_cast(string input, string expected) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask does_not_confuse_cast_with_colon_alias() {
-        var result = Normalize(_normalizer, "select schema::text");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("select event_type::text");
-    }
-
-    #endregion
-
-    #region CTEs
-
-    [Test]
-    public async ValueTask preserves_cte_name() {
-        var result = Normalize(_normalizer, "with schema as (select 1) select * from schema");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("with schema as (select 1) select * from schema");
-    }
-
-    [Test]
-    public async ValueTask handles_multiple_ctes() {
-        var input  = "with a as (select 1), b as (select 2) select * from a";
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(input);
-    }
-
-    [Test]
-    public async ValueTask checks_tables_inside_cte_body() {
-        var result = Normalize(_normalizer, "with cte as (select schema from records) select * from cte");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(
-            "with cte as (select event_type from kdb_log) select * from cte"
-        );
-    }
-
-    [Test]
-    public async ValueTask handles_recursive_cte() {
-        var input  = "with recursive cte as (select schema from records) select * from cte";
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(
-            "with recursive cte as (select event_type from kdb_log) select * from cte"
-        );
-    }
-
-    [Test]
-    public async ValueTask rejects_forbidden_table_inside_cte_body() {
-        var result = Normalize(_normalizer, "with cte as (select * from kdb_internal) select * from cte");
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    #endregion
-
-    #region Lambda
-
-    [Test]
-    public async ValueTask preserves_lambda_parameters() {
-        var result = Normalize(_normalizer, "select list_filter(l, lambda x: x > 1)");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("select list_filter(l, lambda x: x > 1)");
-    }
-
-    [Test]
-    public async ValueTask replaces_columns_in_lambda_body() {
-        var result = Normalize(_normalizer, "select list_filter(l, lambda x: schema > 1)");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("select list_filter(l, lambda x: event_type > 1)");
-    }
-
-    #endregion
-
-    #region Dollar Parameters
-
-    [Test]
-    [Arguments("select $1")]
-    [Arguments("where $my_param = 1")]
-    public async ValueTask preserves_dollar_parameters(string input) {
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(input);
-    }
-
-    #endregion
-
-    #region Parenthesis Depth
-
-    [Test]
-    public async ValueTask handles_subquery_with_independent_state() {
-        var result = Normalize(_normalizer,
-            "from (select schema from records) as t"
-        );
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(
-            "from (select event_type from kdb_log) as t"
-        );
-    }
-
-    [Test]
-    public async ValueTask rejects_forbidden_table_in_subquery() {
-        var result = Normalize(_normalizer, "from (select * from kdb_internal) as t");
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask rejects_excessive_nesting_depth() {
-        var input = new string('(', 33) + "select 1" + new string(')', 33);
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsFalse();
-        await Assert.That(result.Error).IsNotNull();
-    }
-
-    #endregion
-
-    #region Numeric Underscore
-
-    [Test]
-    public async ValueTask does_not_scan_numeric_underscore_as_identifier() {
-        var result = Normalize(_normalizer, "where x = 100_000");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("where x = 100_000");
-    }
-
-    #endregion
-
-    #region Security Bypass Prevention
-
-    [Test]
-    public async ValueTask prevents_schema_qualified_prefix_bypass() {
-        var result = Normalize(_normalizer, "from main.kdb_internal");
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask prevents_double_quoted_prefix_bypass() {
-        var result = Normalize(_normalizer, "from \"kdb_internal\"");
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask prevents_case_prefix_bypass() {
-        var result = Normalize(_normalizer, "from KDB_INTERNAL");
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask prevents_cte_table_bypass() {
-        var result = Normalize(_normalizer, "with safe as (select * from kdb_internal) select * from safe");
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask prevents_subquery_table_bypass() {
-        var result = Normalize(_normalizer, "from (select * from kdb_internal) as t");
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask prevents_replacement_bypass_via_quoting() {
-        var result = Normalize(_normalizer, "from \"records\"");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("from \"kdb_log\"");
-    }
-
-    [Test]
-    public async ValueTask prevents_replacement_bypass_via_schema_qualification() {
-        var result = Normalize(_normalizer, "from main.records");
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo("from main.kdb_log");
-    }
-
-    [Test]
-    public async ValueTask identifiers_inside_comments_are_not_scanned() {
-        var result = Normalize(_normalizer, "-- from kdb_internal\nselect 1");
-        await Assert.That(result.IsValid).IsTrue();
-
-        var result2 = Normalize(_normalizer, "/* from kdb_internal */ select 1");
-        await Assert.That(result2.IsValid).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask identifiers_inside_strings_are_not_scanned() {
-        var result = Normalize(_normalizer, "where name = 'kdb_internal'");
-        await Assert.That(result.IsValid).IsTrue();
-
-        var result2 = Normalize(_normalizer, "where name = E'kdb_internal'");
-        await Assert.That(result2.IsValid).IsTrue();
-
-        var result3 = Normalize(_normalizer, "where name = $$kdb_internal$$");
-        await Assert.That(result3.IsValid).IsTrue();
-    }
-
-    #endregion
-
-    #region End-to-End Examples
-
-    [Test]
-    public async ValueTask example_basic_replacement() {
-        var result = Normalize(_normalizer,
-            "select schema\nfrom records\nwhere revision = 234"
-        );
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(
-            "select event_type\nfrom kdb_log\nwhere event_number = 234"
-        );
-    }
-
-    [Test]
-    public async ValueTask example_with_aliases() {
-        var input = "select\n    s: schema,\n    position as p\nfrom records rec\nwhere rec.revision = 234";
-
-        var result = Normalize(_normalizer, input);
-
-        await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(
-            "select\n    s: event_type,\n    log_position as p\nfrom kdb_log rec\nwhere rec.event_number = 234"
-        );
-    }
-
     #endregion
 }
+
+#endif

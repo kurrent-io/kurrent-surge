@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using DotNext.Buffers;
 using Kurrent.Client.Streams;
 
@@ -9,67 +8,31 @@ namespace Kurrent.Client.Tests.Filters;
 [Category("Filters")]
 [Category("QueryExpressionNormalizer")]
 public class NewQueryExpressionNormalizerTests {
-    static readonly NormalizerOptions Options = new() {
-        ColumnReplacements = new Dictionary<string, string> {
-            ["schema"]    = "event_type",
-            ["timestamp"] = "created",
-            ["data"]      = "payload",
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
-        TableReplacements = new Dictionary<string, string> {
-            ["records"] = "kdb_log",
-            ["events"]  = "kdb_events",
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase),
-        ForbiddenTablePrefix = "kdb_"
-    };
+    static readonly LegacyQueryExpressionNormalizer LegacyNormalizer = new(NormalizerTestCases.Options);
+    static readonly QueryExpressionNormalizer       NewNormalizer    = new(NormalizerTestCases.Options);
 
-    static readonly LegacyQueryExpressionNormalizer LegacyNormalizer = new(Options);
-    static readonly QueryExpressionNormalizer       NewNormalizer    = new(Options);
-
-    #region Parity with legacy normalizer
+    #region Success cases (parity with legacy)
 
     [Test]
-    [Arguments("SELECT schema FROM records")]
-    [Arguments("SELECT schema, timestamp FROM records WHERE data = 'test'")]
-    [Arguments("SELECT schema FROM records AS r WHERE r.schema > 1")]
-    [Arguments("SELECT schema FROM records LEFT JOIN events ON records.schema = events.schema")]
-    [Arguments("WITH cte AS (SELECT schema FROM records) SELECT schema FROM cte")]
-    [Arguments("WITH RECURSIVE cte AS (SELECT schema FROM records) SELECT schema FROM cte")]
-    [Arguments("SELECT schema::int FROM records")]
-    [Arguments("SELECT \"schema\" FROM \"records\"")]
-    [Arguments("SELECT schema FROM records -- comment\nWHERE timestamp > 0")]
-    [Arguments("SELECT schema FROM records /* block comment */ WHERE timestamp > 0")]
-    [Arguments("SELECT schema FROM records WHERE data = E'test\\n'")]
-    [Arguments("SELECT schema FROM records WHERE data = $$dollar quoted$$")]
-    [Arguments("SELECT schema FROM records WHERE data = $tag$dollar quoted$tag$")]
-    [Arguments("SELECT 100_000, schema FROM records")]
-    [Arguments("SELECT $1, schema FROM records")]
-    [Arguments("SELECT schema FROM records WHERE data[1] = 'test'")]
-    [Arguments("SELECT alias: schema FROM records")]
-    [Arguments("SELECT LAMBDA x, y: x + y FROM records")]
-    [Arguments("SELECT schema FROM public.records")]
-    [Arguments("SELECT schema FROM records, events")]
-    [Arguments("WITH a AS (SELECT 1), b AS (SELECT 2) SELECT schema FROM a")]
-    [Arguments("SELECT schema FROM (SELECT schema FROM records) AS sub")]
-    public async Task produces_same_output_as_legacy_normalizer(string input) {
-        var legacyResult = NormalizeLegacy(LegacyNormalizer, input);
-        var newResult    = NormalizeNew(NewNormalizer, input);
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.SuccessCases))]
+    public async Task normalizes_correctly(NormalizerTestCase c) {
+        var legacyResult = NormalizeLegacy(LegacyNormalizer, c.Query);
+        var newResult    = NormalizeNew(NewNormalizer, c.Query);
 
-        await Assert.That(newResult.IsValid).IsEqualTo(legacyResult.IsValid);
+        await Assert.That(newResult.IsValid).IsTrue();
+        await Assert.That(newResult.Value).IsEqualTo(c.Expected);
         await Assert.That(newResult.Value).IsEqualTo(legacyResult.Value);
-        await Assert.That(newResult.Error).IsEqualTo(legacyResult.Error);
     }
 
     #endregion
 
-    #region Forbidden prefix
+    #region Error cases
 
     [Test]
-    [Arguments("SELECT schema FROM kdb_internal")]
-    [Arguments("SELECT schema FROM \"kdb_internal\"")]
-    [Arguments("SELECT schema FROM public.kdb_internal")]
-    public async Task rejects_forbidden_table_prefix(string input) {
-        var legacyResult = NormalizeLegacy(LegacyNormalizer, input);
-        var newResult    = NormalizeNew(NewNormalizer, input);
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.ErrorCases))]
+    public async Task rejects_invalid_query(NormalizerTestCase c) {
+        var legacyResult = NormalizeLegacy(LegacyNormalizer, c.Query);
+        var newResult    = NormalizeNew(NewNormalizer, c.Query);
 
         await Assert.That(newResult.IsValid).IsFalse();
         await Assert.That(newResult.IsValid).IsEqualTo(legacyResult.IsValid);
@@ -77,33 +40,16 @@ public class NewQueryExpressionNormalizerTests {
 
     #endregion
 
-    #region Nesting depth
+    #region Passthrough cases
 
     [Test]
-    public async Task rejects_excessive_nesting() {
-        var input = new string('(', 33) + "SELECT 1" + new string(')', 33);
-
-        var legacyResult = NormalizeLegacy(LegacyNormalizer, input);
-        var newResult    = NormalizeNew(NewNormalizer, input);
-
-        await Assert.That(newResult.IsValid).IsFalse();
-        await Assert.That(newResult.IsValid).IsEqualTo(legacyResult.IsValid);
-    }
-
-    #endregion
-
-    #region Passthrough (no replacements)
-
-    [Test]
-    [Arguments("SELECT 1")]
-    [Arguments("SELECT 'hello world'")]
-    [Arguments("")]
-    public async Task passes_through_when_no_replacements_match(string input) {
+    [MethodDataSource(typeof(NormalizerTestCases), nameof(NormalizerTestCases.PassthroughCases))]
+    public async Task passes_through_with_empty_options(NormalizerTestCase c) {
         var noReplacements = new QueryExpressionNormalizer(new NormalizerOptions());
-        var result         = NormalizeNew(noReplacements, input);
+        var result         = NormalizeNew(noReplacements, c.Query);
 
         await Assert.That(result.IsValid).IsTrue();
-        await Assert.That(result.Value).IsEqualTo(input);
+        await Assert.That(result.Value).IsEqualTo(c.Expected);
     }
 
     #endregion
@@ -116,7 +62,6 @@ public class NewQueryExpressionNormalizerTests {
     ) {
         var buffer = new char[input.Length * 2 + 1];
         var result = normalizer.Normalize(input.AsSpan(), buffer.AsSpan());
-
         return (result.IsValid, result.IsValid ? result.Value.ToString() : null, result.Error);
     }
 
