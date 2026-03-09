@@ -1026,21 +1026,21 @@ file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
 }
 
 /// <summary>
+/// Classification of SQL LIKE patterns for fast-path evaluation.
+/// Simple patterns use string operations; complex patterns fall back to Regex.
+/// </summary>
+enum LikePatternKind { Exact, Prefix, Suffix, Contains, MatchAll, Complex }
+
+/// <summary>
 /// AST node for <c>property [NOT] LIKE|ILIKE 'pattern'</c>.
 /// Simple patterns (prefix%, %suffix, %contains%, exact) use string operations.
 /// Complex patterns (with <c>_</c> wildcards or multiple <c>%</c> segments) fall back to compiled Regex.
 /// </summary>
 public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated)
     : IFilterExpression {
-    /// <summary>
-    /// Classification of SQL LIKE patterns for fast-path evaluation.
-    /// Simple patterns use string operations; complex patterns fall back to Regex.
-    /// </summary>
-    enum PatternKind { Exact, Prefix, Suffix, Contains, MatchAll, Complex }
-
-    readonly PatternKind      _kind       = ClassifyPattern(pattern);
+    readonly LikePatternKind  _kind       = ClassifyPattern(pattern);
     readonly string           _fixedPart  = ExtractFixedPart(pattern);
-    readonly Regex?           _regex      = ClassifyPattern(pattern) == PatternKind.Complex
+    readonly Regex?           _regex      = ClassifyPattern(pattern) == LikePatternKind.Complex
         ? ConvertLikeToRegex(pattern, caseInsensitive)
         : null;
     readonly StringComparison _comparison = caseInsensitive
@@ -1059,52 +1059,52 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
 
         var str     = value as string ?? value.ToString() ?? "";
         var matches = _kind switch {
-            PatternKind.MatchAll => true,
-            PatternKind.Exact    => str.Equals(_fixedPart, _comparison),
-            PatternKind.Prefix   => str.StartsWith(_fixedPart, _comparison),
-            PatternKind.Suffix   => str.EndsWith(_fixedPart, _comparison),
-            PatternKind.Contains => str.Contains(_fixedPart, _comparison),
-            PatternKind.Complex  => _regex!.IsMatch(str),
+            LikePatternKind.MatchAll => true,
+            LikePatternKind.Exact    => str.Equals(_fixedPart, _comparison),
+            LikePatternKind.Prefix   => str.StartsWith(_fixedPart, _comparison),
+            LikePatternKind.Suffix   => str.EndsWith(_fixedPart, _comparison),
+            LikePatternKind.Contains => str.Contains(_fixedPart, _comparison),
+            LikePatternKind.Complex  => _regex!.IsMatch(str),
             _                        => false
         };
 
         return negated ? !matches : matches;
     }
 
-    static PatternKind ClassifyPattern(string pattern) {
-        if (pattern.Length == 0) return PatternKind.Exact;
-        if (pattern is "%") return PatternKind.MatchAll;
+    static LikePatternKind ClassifyPattern(string pattern) {
+        if (pattern.Length == 0) return LikePatternKind.Exact;
+        if (pattern is "%") return LikePatternKind.MatchAll;
 
         // _ wildcard forces complex (Regex) path
-        if (pattern.Contains('_')) return PatternKind.Complex;
+        if (pattern.Contains('_')) return LikePatternKind.Complex;
 
         var firstPercent = pattern.IndexOf('%');
-        if (firstPercent < 0) return PatternKind.Exact;
+        if (firstPercent < 0) return LikePatternKind.Exact;
 
         var lastPercent = pattern.LastIndexOf('%');
 
         // Single % at end: prefix match
         if (firstPercent == pattern.Length - 1)
-            return PatternKind.Prefix;
+            return LikePatternKind.Prefix;
 
         // Single % at start, no other %: suffix match
         if (firstPercent == 0 && lastPercent == 0)
-            return PatternKind.Suffix;
+            return LikePatternKind.Suffix;
 
         // % at start and end only, no % in between: contains match
         if (firstPercent == 0 && lastPercent == pattern.Length - 1
             && pattern.AsSpan(1, pattern.Length - 2).IndexOf('%') < 0)
-            return PatternKind.Contains;
+            return LikePatternKind.Contains;
 
-        return PatternKind.Complex;
+        return LikePatternKind.Complex;
     }
 
     static string ExtractFixedPart(string pattern) =>
         ClassifyPattern(pattern) switch {
-            PatternKind.Prefix   => pattern[..^1],
-            PatternKind.Suffix   => pattern[1..],
-            PatternKind.Contains => pattern[1..^1],
-            PatternKind.Exact    => pattern,
+            LikePatternKind.Prefix   => pattern[..^1],
+            LikePatternKind.Suffix   => pattern[1..],
+            LikePatternKind.Contains => pattern[1..^1],
+            LikePatternKind.Exact    => pattern,
             _                        => pattern
         };
 
@@ -1320,47 +1320,6 @@ file static class ValueComparer {
             default: return false;
         }
     }
-}
-
-/// <summary>
-/// Converts SQL LIKE/ILIKE patterns to compiled <see cref="Regex"/> instances.
-/// <c>%</c> maps to <c>.*</c>, <c>_</c> maps to <c>.</c>, all other characters are escaped.
-/// </summary>
-file static class PatternMatcher {
-    /// <summary>
-    /// Converts a SQL LIKE pattern to an anchored regex. The resulting regex is compiled
-    /// and uses <see cref="RegexOptions.Singleline"/>. Case-insensitive matching adds
-    /// <see cref="RegexOptions.IgnoreCase"/>.
-    /// </summary>
-    // public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
-    //     var result = new System.Text.StringBuilder(pattern.Length + 4);
-    //     result.Append('^');
-    //
-    //     foreach (var ch in pattern) {
-    //         if (ch == '%')
-    //             result.Append(".*");
-    //         else if (ch == '_')
-    //             result.Append('.');
-    //         else if (IsRegexMetaChar(ch)) {
-    //             result.Append('\\');
-    //             result.Append(ch);
-    //         }
-    //         else
-    //             result.Append(ch);
-    //     }
-    //
-    //     result.Append('$');
-    //
-    //     var options = RegexOptions.Compiled | RegexOptions.Singleline;
-    //     if (caseInsensitive)
-    //         options |= RegexOptions.IgnoreCase;
-    //
-    //     return new Regex(result.ToString(), options);
-    //
-    //     static bool IsRegexMetaChar(char ch) =>
-    //         ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
-    // }
-
 }
 
 #endregion

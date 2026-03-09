@@ -96,7 +96,35 @@ public class ExpressionFilterEvalBenchmarks {
                 () => faker.With(stream: "orders-42", schemaName: "OrderShipped", position: 250)),
             new("mixed-in-btwn-like-miss",
                 "schema IN ('OrderPlaced', 'OrderShipped', 'OrderCancelled') AND position BETWEEN 100 AND 500 AND stream LIKE 'orders-%'",
-                () => faker.With(stream: "orders-42", schemaName: "UserCreated", position: 250))
+                () => faker.With(stream: "orders-42", schemaName: "UserCreated", position: 250)),
+
+            // LIKE fast-path: suffix pattern
+            new("like-suffix-hit", "stream LIKE '%-created'",
+                () => faker.With(stream: "order-created")),
+            new("like-suffix-miss", "stream LIKE '%-created'",
+                () => faker.With(stream: "order-shipped")),
+
+            // LIKE fast-path: exact pattern (no wildcards)
+            new("like-exact-hit", "stream LIKE 'orders-123'",
+                () => faker.With(stream: "orders-123")),
+            new("like-exact-miss", "stream LIKE 'orders-123'",
+                () => faker.With(stream: "orders-456")),
+
+            // LIKE fast-path: match-all
+            new("like-matchall", "stream LIKE '%'",
+                () => faker.With(stream: "anything")),
+
+            // LIKE complex: underscore wildcard (Regex fallback)
+            new("like-complex-hit", "stream LIKE 'order_-%'",
+                () => faker.With(stream: "orders-123")),
+
+            // IN with larger set (FrozenSet benefit)
+            new("in-large-hit",
+                "schema IN ('OrderCreated', 'OrderUpdated', 'OrderShipped', 'OrderCancelled', 'OrderRefunded', 'OrderArchived', 'OrderPlaced', 'OrderConfirmed')",
+                () => faker.With(schemaName: "OrderConfirmed")),
+            new("in-large-miss",
+                "schema IN ('OrderCreated', 'OrderUpdated', 'OrderShipped', 'OrderCancelled', 'OrderRefunded', 'OrderArchived', 'OrderPlaced', 'OrderConfirmed')",
+                () => faker.With(schemaName: "UserCreated"))
         ];
     }
 
