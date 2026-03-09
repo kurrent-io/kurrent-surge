@@ -1151,8 +1151,11 @@ file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFil
 /// <summary>
 /// AST node for <c>property [NOT] IN (value, ...)</c>. Matches if the property value
 /// equals any value in the set (or none when negated).
+/// When all values are string literals, uses <see cref="FrozenSet{T}"/> for O(1) lookup.
 /// </summary>
 public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterValue> values, bool negated) : IFilterExpression {
+    readonly FrozenSet<string>? _stringSet = BuildStringSet(values);
+
     public PropertyAccess             Property => property;
     public IReadOnlyList<FilterValue> Values   => values;
     public bool                       Negated  => negated;
@@ -1162,15 +1165,35 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
         var propValue = property.Resolve(record);
         if (propValue is null) return false;
 
-        var found = false;
+        // fast path: all-string set with O(1) lookup
+        if (_stringSet is not null && propValue is string strValue) {
+            var found = _stringSet.Contains(strValue);
+            return negated ? !found : found;
+        }
+
+        // general path: linear scan with cross-type comparison
+        var foundGeneral = false;
         for (var i = 0; i < values.Count; i++) {
             if (ValueComparer.Compare(propValue, values[i].GetValue()) == 0) {
-                found = true;
+                foundGeneral = true;
                 break;
             }
         }
 
-        return negated ? !found : found;
+        return negated ? !foundGeneral : foundGeneral;
+    }
+
+    static FrozenSet<string>? BuildStringSet(IReadOnlyList<FilterValue> values) {
+        for (var i = 0; i < values.Count; i++) {
+            if (values[i] is not StringFilterValue)
+                return null;
+        }
+
+        var set = new HashSet<string>(values.Count, StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < values.Count; i++)
+            set.Add(((StringFilterValue)values[i]).Value);
+
+        return set.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 }
 
