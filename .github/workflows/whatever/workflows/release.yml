@@ -1,0 +1,127 @@
+name: Release
+
+# Triggered automatically when a PR with the `ship-it` label is merged to main,
+# or manually via workflow_dispatch for a dry-run preview.
+#
+# Flow:
+#   1. semver-bump.cs   — reads conventional commits, determines bump, creates + pushes tag
+#   2. changelog.cs     — generates CHANGELOG.md (Keep a Changelog 1.1.0) with PR attribution,
+#                         writes section to /tmp/release-notes.md for GitHub Release body
+#   3. git commit       — commits CHANGELOG.md back to main [skip ci]
+#   4. nuwrap.cs        — promotes pre-release packages on GitHub Packages → NuGet.org
+#   5. gh release       — creates GitHub Release combining our changelog + GitHub contributors block
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview version bump without releasing'
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # PAT required so the changelog commit triggers CI on re-push.
+          # Falls back to GITHUB_TOKEN — changelog commit will have [skip ci].
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ── Dry run ─────────────────────────────────────────────────────────────
+      # Preview only — no tags pushed, no files written.
+
+      - name: Preview version bump (dry run)
+        if: inputs.dry_run == true
+        run: |
+          tools/semver-bump.cs \
+            --dry-run \
+            --output github-actions
+
+      # ── Real release ─────────────────────────────────────────────────────────
+
+      - name: Bump version and push tag
+        if: inputs.dry_run == false
+        id: semver
+        run: |
+          tools/semver-bump.cs \
+            --push \
+            --output github-actions
+
+      - name: Update CHANGELOG.md
+        if: inputs.dry_run == false
+        run: |
+          tools/changelog.cs \
+            --from         ${{ steps.semver.outputs.previous_tag }} \
+            --to           ${{ steps.semver.outputs.new_tag }} \
+            --version      ${{ steps.semver.outputs.new_version }} \
+            --section-file /tmp/release-notes.md
+
+          git add CHANGELOG.md
+          git commit -m "chore(release): ${{ steps.semver.outputs.new_tag }} [skip ci]"
+          git push origin main
+
+      - name: Download nuwrap config
+        if: inputs.dry_run == false
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: ci.yml
+          branch: main
+          name: nuwrap-config
+          path: .github/
+
+      - name: Promote packages with nuwrap
+        if: inputs.dry_run == false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUGET_TOKEN:  ${{ secrets.NUGET_API_KEY }}
+        run: |
+          tools/nuwrap.cs \
+            --version ${{ steps.semver.outputs.new_version }} \
+            --push https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
+            --push https://api.nuget.org/v3/index.json
+
+      - name: Create GitHub Release
+        if: inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch GitHub's auto-generated release notes — we only want the
+          # "New Contributors" block from it; our changelog covers the rest.
+          GH_NOTES=$(gh api /repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="${{ steps.semver.outputs.new_tag }}" \
+            -f previous_tag_name="${{ steps.semver.outputs.previous_tag }}" \
+            --jq '.body')
+
+          CONTRIBUTORS=$(echo "$GH_NOTES" | awk '/^## New Contributors/,0')
+
+          if [ -n "$CONTRIBUTORS" ]; then
+            printf '%s\n\n---\n\n%s\n' "$(cat /tmp/release-notes.md)" "$CONTRIBUTORS" \
+              > /tmp/release-notes-final.md
+          else
+            cp /tmp/release-notes.md /tmp/release-notes-final.md
+          fi
+
+          gh release create "${{ steps.semver.outputs.new_tag }}" \
+            --title "${{ steps.semver.outputs.new_tag }}" \
+            --notes-file /tmp/release-notes-final.md
