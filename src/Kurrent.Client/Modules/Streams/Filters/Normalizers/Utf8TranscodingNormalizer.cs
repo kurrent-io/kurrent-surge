@@ -6,10 +6,10 @@ namespace Kurrent.Client.Streams;
 
 #if NET9_0_OR_GREATER
 
-public sealed class Utf8TranscodingNormalizer(IQueryExpressionNormalizer inner) : IUtf8QueryExpressionNormalizer {
+public sealed class Utf8TranscodingNormalizer(LegacyQueryExpressionNormalizer inner) : IUtf8QueryExpressionNormalizer {
     const int StackThreshold = 4096;
 
-    public Utf8NormalizeResult Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> writer) {
+    public void Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> writer) {
         var charCount = Encoding.UTF8.GetCharCount(query);
 
         char[]? rentedInput = null;
@@ -30,15 +30,13 @@ public sealed class Utf8TranscodingNormalizer(IQueryExpressionNormalizer inner) 
                 var result = inner.Normalize(charInput, charOutput);
 
                 if (!result.IsValid)
-                    return Utf8NormalizeResult.Failure(result.Error!);
+                    throw new QueryNormalizationException(result.Error!);
 
                 var utf8Count = Encoding.UTF8.GetByteCount(result.Value);
                 var dest      = writer.GetSpan(utf8Count);
 
                 Encoding.UTF8.GetBytes(result.Value, dest);
                 writer.Advance(utf8Count);
-
-                return Utf8NormalizeResult.Success();
             }
             finally {
                 if (rentedOutput is { })
