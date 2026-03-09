@@ -1027,10 +1027,25 @@ file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
 
 /// <summary>
 /// AST node for <c>property [NOT] LIKE|ILIKE 'pattern'</c>.
-/// SQL wildcard patterns are compiled to a <see cref="Regex"/> at construction time.
+/// Simple patterns (prefix%, %suffix, %contains%, exact) use string operations.
+/// Complex patterns (with <c>_</c> wildcards or multiple <c>%</c> segments) fall back to compiled Regex.
 /// </summary>
-public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated) : IFilterExpression {
-    readonly Regex _regex = ConvertLikeToRegex(pattern, caseInsensitive);
+public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated)
+    : IFilterExpression {
+    /// <summary>
+    /// Classification of SQL LIKE patterns for fast-path evaluation.
+    /// Simple patterns use string operations; complex patterns fall back to Regex.
+    /// </summary>
+    enum PatternKind { Exact, Prefix, Suffix, Contains, MatchAll, Complex }
+
+    readonly PatternKind      _kind       = ClassifyPattern(pattern);
+    readonly string           _fixedPart  = ExtractFixedPart(pattern);
+    readonly Regex?           _regex      = ClassifyPattern(pattern) == PatternKind.Complex
+        ? ConvertLikeToRegex(pattern, caseInsensitive)
+        : null;
+    readonly StringComparison _comparison = caseInsensitive
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
     public PropertyAccess Property        => property;
     public string         Pattern         => pattern;
@@ -1040,14 +1055,58 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
     /// <inheritdoc/>
     public bool IsMatch(Record record) {
         var value = property.Resolve(record);
+        if (value is null) return false;
 
-        if (value is null)
-            return false;
-
-        var matches = _regex.IsMatch(value.ToString() ?? "");
+        var str     = value as string ?? value.ToString() ?? "";
+        var matches = _kind switch {
+            PatternKind.MatchAll => true,
+            PatternKind.Exact    => str.Equals(_fixedPart, _comparison),
+            PatternKind.Prefix   => str.StartsWith(_fixedPart, _comparison),
+            PatternKind.Suffix   => str.EndsWith(_fixedPart, _comparison),
+            PatternKind.Contains => str.Contains(_fixedPart, _comparison),
+            PatternKind.Complex  => _regex!.IsMatch(str),
+            _                        => false
+        };
 
         return negated ? !matches : matches;
     }
+
+    static PatternKind ClassifyPattern(string pattern) {
+        if (pattern.Length == 0) return PatternKind.Exact;
+        if (pattern is "%") return PatternKind.MatchAll;
+
+        // _ wildcard forces complex (Regex) path
+        if (pattern.Contains('_')) return PatternKind.Complex;
+
+        var firstPercent = pattern.IndexOf('%');
+        if (firstPercent < 0) return PatternKind.Exact;
+
+        var lastPercent = pattern.LastIndexOf('%');
+
+        // Single % at end: prefix match
+        if (firstPercent == pattern.Length - 1)
+            return PatternKind.Prefix;
+
+        // Single % at start, no other %: suffix match
+        if (firstPercent == 0 && lastPercent == 0)
+            return PatternKind.Suffix;
+
+        // % at start and end only, no % in between: contains match
+        if (firstPercent == 0 && lastPercent == pattern.Length - 1
+            && pattern.AsSpan(1, pattern.Length - 2).IndexOf('%') < 0)
+            return PatternKind.Contains;
+
+        return PatternKind.Complex;
+    }
+
+    static string ExtractFixedPart(string pattern) =>
+        ClassifyPattern(pattern) switch {
+            PatternKind.Prefix   => pattern[..^1],
+            PatternKind.Suffix   => pattern[1..],
+            PatternKind.Contains => pattern[1..^1],
+            PatternKind.Exact    => pattern,
+            _                        => pattern
+        };
 
     public static Regex ConvertLikeToRegex(string pattern, bool caseInsensitive) {
         var result = new System.Text.StringBuilder(pattern.Length + 4);
