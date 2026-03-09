@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "KurrentDB.TestHost": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true
+    }
+  }
+}

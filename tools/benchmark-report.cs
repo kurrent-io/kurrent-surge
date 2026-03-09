@@ -642,16 +642,14 @@ sealed class ReportCommand : Command<ReportSettings> {
               if (env.Configuration) items.push({ label: "Configuration", value: env.Configuration });
 
               document.getElementById("env-section").innerHTML = `
-                <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 mb-6">
-                  <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                    ${items.map(i => `
-                      <div>
-                        <span class="text-gray-400 dark:text-gray-500 text-xs uppercase tracking-wide mr-1.5">${i.label}</span>
-                        <span class="font-mono text-gray-900 dark:text-gray-100">${i.value}</span>
-                      </div>
-                    `).join("")}
-                  </div>
-                </div>
+                <dl class="rounded-lg border border-gray-200 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800/60 overflow-hidden mb-6 text-sm">
+                  ${items.map(i => `
+                    <div class="grid grid-cols-[9rem_1fr] px-4 py-2 bg-gray-50/50 dark:bg-gray-900/50">
+                      <dt class="font-medium text-gray-500 dark:text-gray-400">${i.label}</dt>
+                      <dd class="font-mono text-gray-900 dark:text-gray-100">${i.value}</dd>
+                    </div>
+                  `).join("")}
+                </dl>
               `;
             }
 
