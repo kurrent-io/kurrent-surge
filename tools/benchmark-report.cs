@@ -442,6 +442,9 @@ sealed class ReportCommand : Command<ReportSettings> {
         var envJson = data.Environment is not null
             ? JsonSerializer.Serialize(data.Environment, Ctx.BdnHostInfo)
             : "null";
+        var jobConfigJson = data.JobConfig is not null
+            ? JsonSerializer.Serialize(data.JobConfig, Ctx.JobConfig)
+            : "null";
 
         var classes = data.Benchmarks
             .Select(b => b.Type)
@@ -458,7 +461,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Benchmark Report</title>
+            <title>Kurrent.Client Benchmark Report</title>
             <style>
               :root {
                 --bg: #0d1117;
@@ -860,12 +863,71 @@ sealed class ReportCommand : Command<ReportSettings> {
                 font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
                 color: var(--text-muted);
               }
+
+              .highlights-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+                gap: 1rem;
+                margin-bottom: 2rem;
+              }
+
+              .highlight-card {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                overflow: hidden;
+              }
+
+              .highlight-card-header {
+                padding: 0.625rem 1rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border-bottom: 1px solid var(--border);
+              }
+
+              .highlight-fastest .highlight-card-header { color: var(--green); }
+              .highlight-slowest  .highlight-card-header { color: var(--red);   }
+              .highlight-memory   .highlight-card-header { color: var(--yellow); }
+
+              .highlight-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.5rem 1rem;
+                border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+                gap: 0.5rem;
+              }
+
+              .highlight-row:last-child { border-bottom: none; }
+
+              .highlight-name {
+                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+                font-size: 0.75rem;
+                color: var(--text-muted);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                min-width: 0;
+              }
+
+              .highlight-value {
+                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+                font-size: 0.8rem;
+                font-weight: 600;
+                white-space: nowrap;
+              }
+
+              .highlight-fastest .highlight-value { color: var(--green);  }
+              .highlight-slowest  .highlight-value { color: var(--red);    }
+              .highlight-memory   .highlight-value { color: var(--yellow); }
             </style>
             </head>
             <body>
 
             <header>
-              <h1>Benchmark Report
+              <h1>Kurrent.Client Benchmark Report
                 <span class="mode-badge {{(data.IsComparison ? "mode-comparison" : "mode-single")}}">
                   {{(data.IsComparison ? "comparison" : "single-run")}}
                 </span>
@@ -875,6 +937,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             <div id="env-section"></div>
             <div class="stats-row" id="stats-row"></div>
+            <div id="highlights-section"></div>
             <div class="section-nav" id="section-nav"></div>
             <div id="regression-section"></div>
             <div id="class-sections"></div>
@@ -887,6 +950,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             const benchmarks = {{benchmarkJson}};
             const comparisons = {{comparisonJson}};
             const env = {{envJson}};
+            const jobConfig = {{jobConfigJson}};
             const classes = {{classesJson}};
             const isComparison = {{(data.IsComparison ? "true" : "false")}};
             const threshold = {{threshold}};
@@ -958,6 +1022,12 @@ sealed class ReportCommand : Command<ReportSettings> {
               if (env.RuntimeVersion) items.push({ label: "Runtime", value: env.RuntimeVersion });
               if (env.Architecture) items.push({ label: "Architecture", value: env.Architecture });
               if (env.BenchmarkDotNetVersion) items.push({ label: "BenchmarkDotNet", value: env.BenchmarkDotNetVersion });
+              if (jobConfig) {
+                if (jobConfig.Toolchain) items.push({ label: "Toolchain", value: jobConfig.Toolchain });
+                if (jobConfig.WarmupCount != null) items.push({ label: "Warmup", value: jobConfig.WarmupCount + " iterations" });
+                if (jobConfig.IterationCount != null) items.push({ label: "Iterations", value: jobConfig.IterationCount + " iterations" });
+              }
+              if (env.Configuration) items.push({ label: "Configuration", value: env.Configuration });
 
               document.getElementById("env-section").innerHTML = `
                 <div class="env-grid">
@@ -1014,6 +1084,57 @@ sealed class ReportCommand : Command<ReportSettings> {
               }
 
               document.getElementById("stats-row").innerHTML = cards;
+            }
+
+            // ── Highlights section ──────────────────────────────────────────────
+
+            {
+              function top5(arr) { return arr.slice(0, 5); }
+
+              const bySpeed    = [...benchmarks].sort((a, b) => a.MeanNs - b.MeanNs);
+              const fastest5   = top5(bySpeed);
+              const slowest5   = top5([...benchmarks].sort((a, b) => b.MeanNs - a.MeanNs));
+              const memory5    = top5([...benchmarks].filter(b => b.AllocatedBytes > 0)
+                                       .sort((a, b) => b.AllocatedBytes - a.AllocatedBytes));
+
+              function highlightRows(items, valueGetter) {
+                return items.map(b => `
+                  <div class="highlight-row">
+                    <div class="highlight-name" title="${benchLabel(b)}">${benchLabel(b)}</div>
+                    <div class="highlight-value">${valueGetter(b)}</div>
+                  </div>
+                `).join("");
+              }
+
+              const fastestCard = `
+                <div class="highlight-card highlight-fastest">
+                  <div class="highlight-card-header">Top 5 Fastest</div>
+                  ${highlightRows(fastest5, b => formatNs(b.MeanNs))}
+                </div>`;
+
+              const slowestCard = `
+                <div class="highlight-card highlight-slowest">
+                  <div class="highlight-card-header">Top 5 Slowest</div>
+                  ${highlightRows(slowest5, b => formatNs(b.MeanNs))}
+                </div>`;
+
+              const memoryRows = memory5.length > 0
+                ? highlightRows(memory5, b => formatBytes(b.AllocatedBytes))
+                : `<div class="highlight-row"><div class="highlight-name" style="color:var(--green)">All benchmarks allocate zero</div></div>`;
+
+              const memoryCard = `
+                <div class="highlight-card highlight-memory">
+                  <div class="highlight-card-header">Top 5 Most Memory</div>
+                  ${memoryRows}
+                </div>`;
+
+              document.getElementById("highlights-section").innerHTML = `
+                <div class="highlights-grid">
+                  ${fastestCard}
+                  ${slowestCard}
+                  ${memoryCard}
+                </div>
+              `;
             }
 
             // ── Section navigation ──────────────────────────────────────────────
