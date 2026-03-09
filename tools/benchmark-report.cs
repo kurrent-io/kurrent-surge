@@ -477,6 +477,20 @@ sealed class ReportCommand : Command<ReportSettings> {
                 --cyan: #79c0ff;
               }
 
+              [data-theme="light"] {
+                --bg:         #ffffff;
+                --surface:    #f6f8fa;
+                --border:     #d0d7de;
+                --text:       #1f2328;
+                --text-muted: #636c76;
+                --accent:     #0969da;
+                --green:      #1a7f37;
+                --yellow:     #9a6700;
+                --red:        #d1242f;
+                --purple:     #8250df;
+                --cyan:       #0550ae;
+              }
+
               * { margin: 0; padding: 0; box-sizing: border-box; }
 
               body {
@@ -960,18 +974,39 @@ sealed class ReportCommand : Command<ReportSettings> {
               thead th[data-sort].sort-asc::after  { content: " ↑"; opacity: 1; }
               thead th[data-sort].sort-desc::after { content: " ↓"; opacity: 1; }
 
+              .theme-toggle {
+                background: transparent;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                color: var(--text-muted);
+                cursor: pointer;
+                font-size: 1rem;
+                line-height: 1;
+                padding: 0.375rem 0.625rem;
+                transition: border-color 0.15s, color 0.15s;
+                font-family: inherit;
+              }
+
+              .theme-toggle:hover {
+                border-color: var(--accent);
+                color: var(--accent);
+              }
+
               html { scroll-behavior: smooth; }
             </style>
             </head>
             <body>
 
-            <header>
-              <h1>Kurrent.Client Benchmark Report
-                <span class="mode-badge {{(data.IsComparison ? "mode-comparison" : "mode-single")}}">
-                  {{(data.IsComparison ? "comparison" : "single-run")}}
-                </span>
-              </h1>
-              <p>Generated {{timestamp}}</p>
+            <header style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <h1>Kurrent.Client Benchmark Report
+                  <span class="mode-badge {{(data.IsComparison ? "mode-comparison" : "mode-single")}}">
+                    {{(data.IsComparison ? "comparison" : "single-run")}}
+                  </span>
+                </h1>
+                <p>Generated {{timestamp}}</p>
+              </div>
+              <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light theme">&#9790;</button>
             </header>
 
             <div id="env-section"></div>
@@ -1483,6 +1518,26 @@ sealed class ReportCommand : Command<ReportSettings> {
                 setTimeout(() => target.scrollIntoView({ behavior: "smooth" }), 100);
               }
             }
+
+            // ── Theme toggle ────────────────────────────────────────────────────
+
+            (function() {
+              const root    = document.documentElement;
+              const btn     = document.getElementById("theme-toggle");
+              const stored  = localStorage.getItem("bdr-theme");
+
+              function applyTheme(theme) {
+                root.setAttribute("data-theme", theme);
+                btn.innerHTML = theme === "light" ? "&#9790;" : "&#9728;";
+                localStorage.setItem("bdr-theme", theme);
+              }
+
+              applyTheme(stored ?? "dark");
+
+              btn.addEventListener("click", () => {
+                applyTheme(root.getAttribute("data-theme") === "light" ? "dark" : "light");
+              });
+            })();
             </script>
             </body>
             </html>
