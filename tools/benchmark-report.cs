@@ -922,6 +922,45 @@ sealed class ReportCommand : Command<ReportSettings> {
               .highlight-fastest .highlight-value { color: var(--green);  }
               .highlight-slowest  .highlight-value { color: var(--red);    }
               .highlight-memory   .highlight-value { color: var(--yellow); }
+
+              .search-row {
+                margin-bottom: 1.5rem;
+              }
+
+              .search-input {
+                width: 100%;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                color: var(--text);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                font-size: 0.875rem;
+                padding: 0.625rem 1rem;
+                outline: none;
+                transition: border-color 0.15s;
+              }
+
+              .search-input::placeholder { color: var(--text-muted); }
+              .search-input:focus { border-color: var(--accent); }
+
+              thead th[data-sort] {
+                cursor: pointer;
+                user-select: none;
+                white-space: nowrap;
+              }
+
+              thead th[data-sort]:hover { color: var(--text); }
+
+              thead th[data-sort]::after {
+                content: " ↕";
+                opacity: 0.3;
+                font-size: 0.7rem;
+              }
+
+              thead th[data-sort].sort-asc::after  { content: " ↑"; opacity: 1; }
+              thead th[data-sort].sort-desc::after { content: " ↓"; opacity: 1; }
+
+              html { scroll-behavior: smooth; }
             </style>
             </head>
             <body>
@@ -938,6 +977,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             <div id="env-section"></div>
             <div class="stats-row" id="stats-row"></div>
             <div id="highlights-section"></div>
+            <div id="search-row" class="search-row"></div>
             <div class="section-nav" id="section-nav"></div>
             <div id="regression-section"></div>
             <div id="class-sections"></div>
@@ -996,6 +1036,17 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function benchLabel(b) {
               return b.Parameters ? `${b.Method}(${b.Parameters})` : b.Method;
+            }
+
+            function formatOps(ops) {
+              if (ops >= 1_000_000_000) return (ops / 1_000_000_000).toFixed(2) + " Gops/s";
+              if (ops >= 1_000_000)     return (ops / 1_000_000).toFixed(2)     + " Mops/s";
+              if (ops >= 1_000)         return (ops / 1_000).toFixed(2)         + " Kops/s";
+              return ops.toFixed(0) + " ops/s";
+            }
+
+            function formatGen(val) {
+              return val === 0 ? `<span style="color:var(--text-muted)">—</span>` : String(val);
             }
 
             // ── Color palette for bars ──────────────────────────────────────────
@@ -1144,6 +1195,31 @@ sealed class ReportCommand : Command<ReportSettings> {
               return `<a href="#section-${c}">${shortName}</a>`;
             }).join("");
 
+            // ── Global search ───────────────────────────────────────────────────
+
+            document.getElementById("search-row").innerHTML = `
+              <input class="search-input" id="global-search" type="search"
+                     placeholder="Search benchmarks..." autocomplete="off">
+            `;
+
+            document.getElementById("global-search").addEventListener("input", e => {
+              const term = e.target.value.toLowerCase().trim();
+
+              document.querySelectorAll(".class-section").forEach(section => {
+                let sectionVisible = false;
+
+                section.querySelectorAll(".bar-row[data-params], tbody tr[data-params]").forEach(el => {
+                  const labelEl = el.querySelector(".bar-label, td:first-child");
+                  const text = (labelEl?.textContent ?? "").toLowerCase();
+                  const match = !term || text.includes(term);
+                  el.style.display = match ? "" : "none";
+                  if (match) sectionVisible = true;
+                });
+
+                section.style.display = (!term || sectionVisible) ? "" : "none";
+              });
+            });
+
             // ── Regression summary (comparison mode) ────────────────────────────
 
             if (isComparison && comparisons) {
@@ -1257,17 +1333,21 @@ sealed class ReportCommand : Command<ReportSettings> {
                   <tr data-params="${b.Parameters || ""}">
                     <td>${benchLabel(b)}</td>
                     <td class="num">${formatNs(b.MeanNs)}</td>
+                    <td class="num">${formatOps(b.OpsPerSec)}</td>
                     <td class="num" style="color: var(--text-muted)">${formatNs(b.ErrorNs)}</td>
                     <td class="num" style="color: var(--text-muted)">${formatNs(b.StdDevNs)}</td>
                     <td class="num">${formatNs(b.P95Ns)}</td>
                     <td class="num">${rankBadge(b.Rank)}</td>
                     <td class="num">${allocBadge(b.AllocatedBytes)}</td>
+                    <td class="num">${formatGen(b.Gen0)}</td>
+                    <td class="num">${formatGen(b.Gen1)}</td>
+                    <td class="num">${formatGen(b.Gen2)}</td>
                     ${deltaCell}
                   </tr>
                 `;
               }).join("");
 
-              const deltaHeader = isComparison ? `<th class="num">Delta</th>` : "";
+              const deltaHeader = isComparison ? `<th class="num" data-sort="DeltaPercent">Delta</th>` : "";
 
               // Parameter filters
               let filterHtml = "";
@@ -1296,13 +1376,17 @@ sealed class ReportCommand : Command<ReportSettings> {
                       <table>
                         <thead>
                           <tr>
-                            <th>Benchmark</th>
-                            <th class="num">Mean</th>
-                            <th class="num">Error</th>
-                            <th class="num">StdDev</th>
-                            <th class="num">P95</th>
-                            <th class="num">Rank</th>
-                            <th class="num">Allocated</th>
+                            <th data-sort="Method">Benchmark</th>
+                            <th class="num" data-sort="MeanNs">Mean</th>
+                            <th class="num" data-sort="OpsPerSec">Ops/sec</th>
+                            <th class="num" data-sort="ErrorNs">Error</th>
+                            <th class="num" data-sort="StdDevNs">StdDev</th>
+                            <th class="num" data-sort="P95Ns">P95</th>
+                            <th class="num" data-sort="Rank">Rank</th>
+                            <th class="num" data-sort="AllocatedBytes">Allocated</th>
+                            <th class="num" data-sort="Gen0">Gen0</th>
+                            <th class="num" data-sort="Gen1">Gen1</th>
+                            <th class="num" data-sort="Gen2">Gen2</th>
                             ${deltaHeader}
                           </tr>
                         </thead>
@@ -1347,6 +1431,58 @@ sealed class ReportCommand : Command<ReportSettings> {
                 });
               });
             });
+
+            // ── Sortable tables ─────────────────────────────────────────────────
+
+            document.querySelectorAll("thead th[data-sort]").forEach(th => {
+              th.addEventListener("click", () => {
+                const table   = th.closest("table");
+                const tbody   = table.querySelector("tbody");
+                const key     = th.dataset.sort;
+                const isAsc   = th.classList.contains("sort-asc");
+
+                // Reset all headers in this table
+                table.querySelectorAll("thead th[data-sort]").forEach(h => {
+                  h.classList.remove("sort-asc", "sort-desc");
+                });
+
+                const dir = isAsc ? -1 : 1;
+                th.classList.add(isAsc ? "sort-desc" : "sort-asc");
+
+                // Find the section's benchmark data
+                const sectionEl  = table.closest(".class-section");
+                const cls        = sectionEl.id.replace("section-", "");
+                const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
+
+                // Sort benchmarks by the selected key
+                const sorted = [...sectionBenchmarks].sort((a, b) => {
+                  const av = a[key] ?? 0;
+                  const bv = b[key] ?? 0;
+                  return typeof av === "string"
+                    ? dir * av.localeCompare(bv)
+                    : dir * (av - bv);
+                });
+
+                // Reorder DOM rows to match sorted order
+                const rows = [...tbody.querySelectorAll("tr[data-params]")];
+                sorted.forEach(b => {
+                  const label = b.Parameters ? `${b.Method}(${b.Parameters})` : b.Method;
+                  const row = rows.find(r => {
+                    return (r.querySelector("td:first-child")?.textContent ?? "") === label;
+                  });
+                  if (row) tbody.appendChild(row);
+                });
+              });
+            });
+
+            // ── URL hash navigation ─────────────────────────────────────────────
+
+            if (location.hash) {
+              const target = document.querySelector(location.hash);
+              if (target) {
+                setTimeout(() => target.scrollIntoView({ behavior: "smooth" }), 100);
+              }
+            }
             </script>
             </body>
             </html>
