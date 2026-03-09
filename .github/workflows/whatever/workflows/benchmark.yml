@@ -1,0 +1,72 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'perf/**'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  NuGetAudit: false
+  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.2.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Run benchmarks
+        run: >-
+          dotnet run --project perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj
+          --configuration Release --no-build --framework net10.0
+          -- --artifacts ./artifacts/benchmarks
+
+      - name: Generate benchmark report
+        run: >-
+          dotnet run tools/benchmark-report.cs --
+          --input ./artifacts/benchmarks
+          --output ./artifacts/benchmarks/report.html
+          --summary-json ./artifacts/benchmarks/summary.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7.0.0
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        with:
+          name: Benchmark Results
+          path: ./artifacts/benchmarks
+          overwrite: true
