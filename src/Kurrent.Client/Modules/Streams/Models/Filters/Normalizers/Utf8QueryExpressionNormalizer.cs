@@ -1,0 +1,842 @@
+using System.Buffers;
+using System.Collections.Frozen;
+using System.Text;
+using DotNext.Buffers;
+
+namespace Kurrent.Client.Streams;
+
+#if NET10_0_OR_GREATER
+
+public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormalizer {
+    static readonly SearchValues<byte> IdentifierPartBytes =
+        SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"u8);
+
+    static readonly SearchValues<byte> NumericBytes = SearchValues.Create("0123456789_"u8);
+
+    static readonly FrozenDictionary<byte[], KeywordKind>.AlternateLookup<ReadOnlySpan<byte>> Utf8Keywords =
+        new Dictionary<byte[], KeywordKind>(AsciiCaseInsensitiveByteComparer.Instance) {
+            // TableIntroducer
+            ["FROM"u8.ToArray()]    = KeywordKind.TableIntroducer,
+            ["JOIN"u8.ToArray()]    = KeywordKind.TableIntroducer,
+            ["INTO"u8.ToArray()]    = KeywordKind.TableIntroducer,
+            ["UPDATE"u8.ToArray()]  = KeywordKind.TableIntroducer,
+            ["TABLE"u8.ToArray()]   = KeywordKind.TableIntroducer,
+            ["PIVOT"u8.ToArray()]   = KeywordKind.TableIntroducer,
+            ["UNPIVOT"u8.ToArray()] = KeywordKind.TableIntroducer,
+
+            // JoinModifier
+            ["LEFT"u8.ToArray()]       = KeywordKind.JoinModifier,
+            ["RIGHT"u8.ToArray()]      = KeywordKind.JoinModifier,
+            ["INNER"u8.ToArray()]      = KeywordKind.JoinModifier,
+            ["OUTER"u8.ToArray()]      = KeywordKind.JoinModifier,
+            ["FULL"u8.ToArray()]       = KeywordKind.JoinModifier,
+            ["CROSS"u8.ToArray()]      = KeywordKind.JoinModifier,
+            ["NATURAL"u8.ToArray()]    = KeywordKind.JoinModifier,
+            ["LATERAL"u8.ToArray()]    = KeywordKind.JoinModifier,
+            ["SEMI"u8.ToArray()]       = KeywordKind.JoinModifier,
+            ["ANTI"u8.ToArray()]       = KeywordKind.JoinModifier,
+            ["ASOF"u8.ToArray()]       = KeywordKind.JoinModifier,
+            ["POSITIONAL"u8.ToArray()] = KeywordKind.JoinModifier,
+
+            // ContextReset
+            ["SELECT"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["WHERE"u8.ToArray()]     = KeywordKind.ContextReset,
+            ["ON"u8.ToArray()]        = KeywordKind.ContextReset,
+            ["SET"u8.ToArray()]       = KeywordKind.ContextReset,
+            ["ORDER"u8.ToArray()]     = KeywordKind.ContextReset,
+            ["GROUP"u8.ToArray()]     = KeywordKind.ContextReset,
+            ["HAVING"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["LIMIT"u8.ToArray()]     = KeywordKind.ContextReset,
+            ["UNION"u8.ToArray()]     = KeywordKind.ContextReset,
+            ["VALUES"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["RETURNING"u8.ToArray()] = KeywordKind.ContextReset,
+            ["QUALIFY"u8.ToArray()]   = KeywordKind.ContextReset,
+            ["WINDOW"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["USING"u8.ToArray()]     = KeywordKind.ContextReset,
+            ["OFFSET"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["EXCEPT"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["INTERSECT"u8.ToArray()] = KeywordKind.ContextReset,
+            ["FILTER"u8.ToArray()]    = KeywordKind.ContextReset,
+            ["SAMPLE"u8.ToArray()]    = KeywordKind.ContextReset,
+
+            // Special
+            ["AS"u8.ToArray()]        = KeywordKind.As,
+            ["WITH"u8.ToArray()]      = KeywordKind.With,
+            ["LAMBDA"u8.ToArray()]    = KeywordKind.Lambda,
+            ["RECURSIVE"u8.ToArray()] = KeywordKind.Recursive,
+        }.ToFrozenDictionary(AsciiCaseInsensitiveByteComparer.Instance)
+         .GetAlternateLookup<ReadOnlySpan<byte>>();
+
+    readonly FrozenDictionary<byte[], byte[]>.AlternateLookup<ReadOnlySpan<byte>> _columnLookup;
+    readonly FrozenDictionary<byte[], byte[]>.AlternateLookup<ReadOnlySpan<byte>> _tableLookup;
+    readonly byte[]? _forbiddenTablePrefix;
+
+    public Utf8QueryExpressionNormalizer(NormalizerOptions options) {
+        _forbiddenTablePrefix = options.ForbiddenTablePrefix is { } prefix
+            ? Encoding.UTF8.GetBytes(prefix)
+            : null;
+
+        _columnLookup = options.ColumnReplacements
+            .ToFrozenDictionary(
+                x => Encoding.UTF8.GetBytes(x.Key),
+                x => Encoding.UTF8.GetBytes(x.Value),
+                AsciiCaseInsensitiveByteComparer.Instance
+            )
+            .GetAlternateLookup<ReadOnlySpan<byte>>();
+
+        _tableLookup = options.TableReplacements
+            .ToFrozenDictionary(
+                x => Encoding.UTF8.GetBytes(x.Key),
+                x => Encoding.UTF8.GetBytes(x.Value),
+                AsciiCaseInsensitiveByteComparer.Instance
+            )
+            .GetAlternateLookup<ReadOnlySpan<byte>>();
+    }
+
+    public Utf8NormalizeResult Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> w) {
+        var state = ScannerState.Default;
+
+        Span<ScannerState> stateStack = stackalloc ScannerState[32];
+        var                depth      = 0;
+
+        for (var i = 0; i < query.Length;) {
+            var ch = query[i];
+
+            // -- single-line comment
+            if (ch == (byte)'-' && i + 1 < query.Length && query[i + 1] == (byte)'-') {
+                SkipLineComment(query, ref i, ref w);
+                continue;
+            }
+
+            // /* block comment */
+            if (ch == (byte)'/' && i + 1 < query.Length && query[i + 1] == (byte)'*') {
+                SkipBlockComment(query, ref i, ref w);
+                continue;
+            }
+
+            // E'...' or e'...' escape string (must come before identifier scan)
+            if (ch is (byte)'E' or (byte)'e' && i + 1 < query.Length && query[i + 1] == (byte)'\'') {
+                SkipEscapeString(query, ref i, ref w);
+                continue;
+            }
+
+            // '...' string literal
+            if (ch == (byte)'\'') {
+                SkipStringLiteral(query, ref i, ref w);
+                continue;
+            }
+
+            // $$...$$ or $tag$...$tag$ dollar-quoted string, or $param reference
+            if (ch == (byte)'$') {
+                // If $ is followed by a digit, it's a parameter reference — copy $ and all digits
+                if (i + 1 < query.Length && query[i + 1] >= (byte)'0' && query[i + 1] <= (byte)'9') {
+                    w.Add(ch);
+                    i++;
+
+                    while (i < query.Length && query[i] >= (byte)'0' && query[i] <= (byte)'9') {
+                        w.Add(query[i]);
+                        i++;
+                    }
+
+                    continue;
+                }
+
+                // Check for $$ or $tag$ (dollar-quoted string)
+                if (i + 1 < query.Length && query[i + 1] == (byte)'$') {
+                    SkipDollarQuotedString(query, ref i, ref w);
+                    continue;
+                }
+
+                // $ followed by identifier start: could be $tag$ string OR $param
+                if (i + 1 < query.Length && (IsAsciiLetter(query[i + 1]) || query[i + 1] == (byte)'_')) {
+                    // Look ahead to see if there's a closing $ (dollar-quoted string tag)
+                    var tagRest = query[(i + 1)..];
+                    var tagEnd  = tagRest.IndexOfAnyExcept(IdentifierPartBytes);
+                    var j       = i + 1 + (tagEnd < 0 ? tagRest.Length : tagEnd);
+
+                    if (j < query.Length && query[j] == (byte)'$') {
+                        // This is a $tag$...$tag$ dollar-quoted string
+                        SkipDollarQuotedString(query, ref i, ref w);
+                        continue;
+                    }
+
+                    // No closing $ for tag — it's a $param reference, copy verbatim
+                    w.Add(ch);
+                    i++;
+                    var paramRest = query[i..];
+                    var paramEnd  = paramRest.IndexOfAnyExcept(IdentifierPartBytes);
+                    var paramLen  = paramEnd < 0 ? paramRest.Length : paramEnd;
+                    w.Write(paramRest[..paramLen]);
+                    i += paramLen;
+
+                    continue;
+                }
+
+                w.Add(ch);
+                i++;
+                continue;
+            }
+
+            // [...] subscript/list
+            if (ch == (byte)'[') {
+                SkipBracket(query, ref i, ref w);
+                continue;
+            }
+
+            // "double-quoted identifier"
+            if (ch == (byte)'"') {
+                var error = HandleDoubleQuotedIdentifier(
+                    query, ref i, ref w,
+                    ref state
+                );
+
+                if (error is { })
+                    return Utf8NormalizeResult.Failure(error);
+
+                continue;
+            }
+
+            // bare identifier: scan, classify, and apply state-dependent replacement
+            if (IsIdentifierStart(ch)) {
+                var start     = i;
+                var identRest = query[(i + 1)..];
+                var identEnd  = identRest.IndexOfAnyExcept(IdentifierPartBytes);
+
+                i += 1 + (identEnd < 0 ? identRest.Length : identEnd);
+
+                var ident   = query[start..i];
+                var keyword = ClassifyKeyword(ident);
+
+                switch (state) {
+                    case ScannerState.Default: {
+                        // Colon-alias lookahead: check if this identifier is followed by `:` (not `::`)
+                        if (keyword == KeywordKind.None && PeekColonAlias(query, i, out var colonPos)) {
+                            // The identifier is an alias — copy verbatim
+                            w.Write(ident);
+                            // Copy any whitespace between identifier and colon, then the colon
+                            w.Write(query[i..(colonPos + 1)]);
+                            i = colonPos + 1;
+
+                            // Next identifier gets column replacement (stay in Default)
+                            break;
+                        }
+
+                        // Dot-qualified lookahead: qualifier.column — skip qualifier, apply replacement to column
+                        if (keyword == KeywordKind.None && i < query.Length && query[i] == (byte)'.') {
+                            w.Write(ident);
+                            w.Add((byte)'.');
+                            i++; // skip the dot
+
+                            // Next identifier gets column replacement (stay in Default)
+                            break;
+                        }
+
+                        switch (keyword) {
+                            case KeywordKind.TableIntroducer:
+                                w.Write(ident);
+                                state = ScannerState.ExpectingTable;
+                                break;
+
+                            case KeywordKind.As:
+                                w.Write(ident);
+                                state = ScannerState.ExpectingAlias;
+                                break;
+
+                            case KeywordKind.With:
+                                w.Write(ident);
+                                state = ScannerState.ExpectingCTE;
+                                break;
+
+                            case KeywordKind.Lambda:
+                                w.Write(ident);
+                                state = ScannerState.AfterLambda;
+                                break;
+
+                            case KeywordKind.None: ApplyColumnReplacement(ident, ref w); break;
+
+                            default: w.Write(ident); break;
+                        }
+
+                        break;
+                    }
+
+                    case ScannerState.ExpectingTable: {
+                        // Colon-alias lookahead: check if this identifier is followed by `:` (not `::`)
+                        if (PeekColonAlias(query, i, out var colonPos)) {
+                            // The identifier is an alias — copy verbatim
+                            w.Write(ident);
+                            // Copy any whitespace between identifier and colon, then the colon
+                            w.Write(query[i..(colonPos + 1)]);
+                            i = colonPos + 1;
+
+                            // Next identifier gets table replacement (stay in ExpectingTable)
+                            break;
+                        }
+
+                        switch (keyword) {
+                            case KeywordKind.JoinModifier:
+                                w.Write(ident);
+                                // stay in ExpectingTable
+                                break;
+
+                            default:
+                                if (_forbiddenTablePrefix is { } &&
+                                    StartsWithIgnoreCase(ident, _forbiddenTablePrefix))
+                                    return Utf8NormalizeResult.Failure($"Table '{Encoding.UTF8.GetString(ident)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
+
+                                // Any identifier (keyword or not) in table position gets table replacement
+                                ApplyTableReplacement(ident, ref w);
+                                state = ScannerState.AfterTable;
+                                break;
+                        }
+
+                        break;
+                    }
+
+                    case ScannerState.AfterTable:
+                        switch (keyword) {
+                            case KeywordKind.TableIntroducer:
+                            case KeywordKind.JoinModifier:
+                                w.Write(ident);
+                                state = ScannerState.ExpectingTable;
+                                break;
+
+                            case KeywordKind.As:
+                                w.Write(ident);
+                                state = ScannerState.ExpectingTableAlias;
+                                break;
+
+                            default:
+                                // implicit alias, context reset, or any other keyword
+                                w.Write(ident);
+                                state = ScannerState.Default;
+                                break;
+                        }
+
+                        break;
+
+                    case ScannerState.ExpectingQualifiedTable: {
+                        // The identifier after schema. is the real table name — prefix check + table replacement
+                        if (_forbiddenTablePrefix is { } &&
+                            StartsWithIgnoreCase(ident, _forbiddenTablePrefix))
+                            return Utf8NormalizeResult.Failure($"Table '{Encoding.UTF8.GetString(ident)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
+
+                        ApplyTableReplacement(ident, ref w);
+                        state = ScannerState.AfterTable;
+
+                        break;
+                    }
+
+                    case ScannerState.ExpectingAlias:
+                    case ScannerState.AfterCast:
+                        // Alias after AS or type name after :: — copy verbatim, no replacement
+                        w.Write(ident);
+                        state = ScannerState.Default;
+                        break;
+
+                    case ScannerState.ExpectingTableAlias:
+                        // Alias after AS in table context — copy verbatim, return to table context
+                        w.Write(ident);
+                        state = ScannerState.AfterTable;
+                        break;
+
+                    case ScannerState.ExpectingCTE:
+                        if (keyword == KeywordKind.Recursive)
+                            // RECURSIVE is transparent — stay in ExpectingCTE
+                            w.Write(ident);
+                        else {
+                            // CTE name — copy verbatim, no replacement
+                            w.Write(ident);
+                            state = ScannerState.AfterCTE;
+                        }
+
+                        break;
+
+                    case ScannerState.AfterCTE:
+                        w.Write(ident);
+                        state = ScannerState.Default;
+                        break;
+
+                    case ScannerState.AfterLambda:
+                        // Lambda parameter name — copy verbatim, no replacement
+                        w.Write(ident);
+                        // Stay in AfterLambda (multi-parameter lambda)
+                        break;
+                }
+
+                continue;
+            }
+
+            // :: cast operator
+            if (ch == (byte)':' && i + 1 < query.Length && query[i + 1] == (byte)':') {
+                w.Add((byte)':');
+                w.Add((byte)':');
+                i     += 2;
+                state =  ScannerState.AfterCast;
+                continue;
+            }
+
+            // : in AfterLambda → end of lambda parameters, transition back to Default
+            if (ch == (byte)':' && state == ScannerState.AfterLambda) {
+                w.Add((byte)':');
+                i++;
+                state = ScannerState.Default;
+                continue;
+            }
+
+            // dot in AfterTable → schema.table; the identifier already written was the schema name
+            if (ch == (byte)'.' && state == ScannerState.AfterTable) {
+                w.Add((byte)'.');
+                i++;
+                state = ScannerState.ExpectingQualifiedTable;
+                continue;
+            }
+
+            // comma in AfterTable → ExpectingTable (multi-table FROM lists)
+            if (ch == (byte)',' && state == ScannerState.AfterTable) {
+                w.Add(ch);
+                i++;
+                state = ScannerState.ExpectingTable;
+                continue;
+            }
+
+            // comma in AfterCTE → ExpectingCTE (multiple CTEs)
+            if (ch == (byte)',' && state == ScannerState.AfterCTE) {
+                w.Add(ch);
+                i++;
+                state = ScannerState.ExpectingCTE;
+                continue;
+            }
+
+            // ( push state onto stack, reset to Default
+            if (ch == (byte)'(') {
+                if (depth >= 32)
+                    return Utf8NormalizeResult.Failure("Nesting depth exceeds maximum of 32");
+
+                stateStack[depth] = state;
+                depth++;
+                state = ScannerState.Default;
+                w.Add(ch);
+                i++;
+                continue;
+            }
+
+            // ) pop state from stack
+            if (ch == (byte)')') {
+                if (depth > 0) {
+                    depth--;
+                    state = stateStack[depth];
+
+                    // If the subquery was in table position, the subquery served as the table
+                    if (state == ScannerState.ExpectingTable)
+                        state = ScannerState.AfterTable;
+                }
+
+                w.Add(ch);
+                i++;
+                continue;
+            }
+
+            // numeric literal with possible underscore separators (e.g. 100_000)
+            if (ch >= (byte)'0' && ch <= (byte)'9') {
+                var numRest = query[i..];
+                var numEnd  = numRest.IndexOfAnyExcept(NumericBytes);
+                var numLen  = numEnd < 0 ? numRest.Length : numEnd;
+                w.Write(numRest[..numLen]);
+                i += numLen;
+                continue;
+            }
+
+            // default: copy byte
+            w.Add(ch);
+            i++;
+        }
+
+        return Utf8NormalizeResult.Success();
+    }
+
+    void ApplyColumnReplacement(ReadOnlySpan<byte> ident, ref BufferWriterSlim<byte> w) =>
+        w.Write(_columnLookup.TryGetValue(ident, out var replacement) ? replacement.AsSpan() : ident);
+
+    void ApplyTableReplacement(ReadOnlySpan<byte> ident, ref BufferWriterSlim<byte> w) =>
+        w.Write(_tableLookup.TryGetValue(ident, out var replacement) ? replacement.AsSpan() : ident);
+
+    static bool IsAsciiLetter(byte b) =>
+        (b >= (byte)'A' && b <= (byte)'Z') || (b >= (byte)'a' && b <= (byte)'z');
+
+    static bool IsIdentifierStart(byte b) => IsAsciiLetter(b) || b == (byte)'_';
+
+    static bool IsAsciiWhitespace(byte b) =>
+        b is (byte)' ' or (byte)'\t' or (byte)'\n' or (byte)'\r';
+
+    static KeywordKind ClassifyKeyword(ReadOnlySpan<byte> ident) =>
+        Utf8Keywords.TryGetValue(ident, out var kind) ? kind : KeywordKind.None;
+
+    static bool StartsWithIgnoreCase(ReadOnlySpan<byte> span, ReadOnlySpan<byte> prefix) {
+        if (span.Length < prefix.Length) return false;
+
+        for (var i = 0; i < prefix.Length; i++) {
+            if (AsciiCaseInsensitiveByteComparer.ToLower(span[i]) !=
+                AsciiCaseInsensitiveByteComparer.ToLower(prefix[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    static bool PeekColonAlias(ReadOnlySpan<byte> query, int pos, out int colonPos) {
+        var j = pos;
+
+        while (j < query.Length && IsAsciiWhitespace(query[j]))
+            j++;
+
+        if (j < query.Length && query[j] == (byte)':') {
+            // Rule out :: (cast operator)
+            if (j + 1 < query.Length && query[j + 1] == (byte)':') {
+                colonPos = -1;
+                return false;
+            }
+
+            colonPos = j;
+            return true;
+        }
+
+        colonPos = -1;
+        return false;
+    }
+
+    string? HandleDoubleQuotedIdentifier(ReadOnlySpan<byte> query, ref int pos, ref BufferWriterSlim<byte> w, ref ScannerState state) {
+        var start = pos;
+        pos++; // skip opening "
+
+        // Scan to closing ", handling "" escapes — vectorized via IndexOf
+        var hasEscapes = false;
+
+        while (pos < query.Length) {
+            var dqRest = query[pos..];
+            var dqHit  = dqRest.IndexOf((byte)'"');
+
+            if (dqHit < 0) {
+                pos = query.Length;
+                break;
+            }
+
+            pos += dqHit + 1;
+
+            if (pos < query.Length && query[pos] == (byte)'"') {
+                hasEscapes = true;
+                pos++;
+                continue;
+            }
+
+            break;
+        }
+
+        // Content between the outer quotes (including any "" escapes)
+        var rawContent = query[(start + 1)..(pos - 1)];
+
+        // For lookup, unescape "" → " if needed (heap alloc only on escape path, which is rare)
+        ReadOnlySpan<byte> lookupContent;
+        byte[]? unescapedArray = null;
+
+        if (hasEscapes) {
+            unescapedArray = new byte[rawContent.Length];
+            var uLen = 0;
+
+            for (var k = 0; k < rawContent.Length; k++) {
+                unescapedArray[uLen++] = rawContent[k];
+
+                if (rawContent[k] == (byte)'"' && k + 1 < rawContent.Length && rawContent[k + 1] == (byte)'"')
+                    k++; // skip second "
+            }
+
+            lookupContent = unescapedArray.AsSpan(0, uLen);
+        }
+        else
+            lookupContent = rawContent;
+
+        switch (state) {
+            case ScannerState.Default: {
+                if (_columnLookup.TryGetValue(lookupContent, out var replacement)) {
+                    w.Add((byte)'"');
+                    w.Write(replacement.AsSpan());
+                    w.Add((byte)'"');
+                }
+                else
+                    w.Write(query[start..pos]);
+
+                break;
+            }
+
+            case ScannerState.ExpectingTable:
+            case ScannerState.ExpectingQualifiedTable: {
+                if (_forbiddenTablePrefix is { } &&
+                    StartsWithIgnoreCase(lookupContent, _forbiddenTablePrefix))
+                    return $"Table '{Encoding.UTF8.GetString(lookupContent)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'";
+
+                if (_tableLookup.TryGetValue(lookupContent, out var replacement)) {
+                    w.Add((byte)'"');
+                    w.Write(replacement.AsSpan());
+                    w.Add((byte)'"');
+                }
+                else
+                    w.Write(query[start..pos]);
+
+                state = ScannerState.AfterTable;
+                break;
+            }
+
+            case ScannerState.ExpectingAlias:
+            case ScannerState.AfterTable:
+            case ScannerState.AfterCast:
+                // Alias, implicit alias, or type name — copy verbatim
+                w.Write(query[start..pos]);
+                state = ScannerState.Default;
+                break;
+
+            case ScannerState.ExpectingTableAlias:
+                // Double-quoted alias in table context — copy verbatim, return to table context
+                w.Write(query[start..pos]);
+                state = ScannerState.AfterTable;
+                break;
+
+            default: w.Write(query[start..pos]); break;
+        }
+
+        return null;
+    }
+
+    static void SkipLineComment(ReadOnlySpan<byte> q, ref int pos, ref BufferWriterSlim<byte> w) {
+        w.Add((byte)'-');
+        w.Add((byte)'-');
+        pos += 2;
+        var rest = q[pos..];
+        var nl   = rest.IndexOf((byte)'\n');
+
+        if (nl < 0) {
+            w.Write(rest);
+            pos = q.Length;
+        }
+        else {
+            w.Write(rest[..(nl + 1)]);
+            pos += nl + 1;
+        }
+    }
+
+    static void SkipBlockComment(ReadOnlySpan<byte> q, ref int pos, ref BufferWriterSlim<byte> w) {
+        w.Add((byte)'/');
+        w.Add((byte)'*');
+        pos += 2;
+        var depth = 1;
+
+        while (pos < q.Length && depth > 0) {
+            var rest = q[pos..];
+            var hit  = rest.IndexOfAny((byte)'*', (byte)'/');
+
+            if (hit < 0) {
+                w.Write(rest);
+                pos = q.Length;
+                return;
+            }
+
+            if (hit > 0) {
+                w.Write(rest[..hit]);
+                pos += hit;
+            }
+
+            if (pos + 1 < q.Length && q[pos] == (byte)'/' && q[pos + 1] == (byte)'*') {
+                w.Add((byte)'/');
+                w.Add((byte)'*');
+                pos += 2;
+                depth++;
+            }
+            else if (pos + 1 < q.Length && q[pos] == (byte)'*' && q[pos + 1] == (byte)'/') {
+                w.Add((byte)'*');
+                w.Add((byte)'/');
+                pos += 2;
+                depth--;
+            }
+            else {
+                w.Add(q[pos]);
+                pos++;
+            }
+        }
+    }
+
+    static void SkipStringLiteral(ReadOnlySpan<byte> q, ref int pos, ref BufferWriterSlim<byte> w) {
+        w.Add((byte)'\'');
+        pos++;
+
+        while (pos < q.Length) {
+            var rest = q[pos..];
+            var hit  = rest.IndexOf((byte)'\'');
+
+            if (hit < 0) {
+                w.Write(rest);
+                pos = q.Length;
+                return;
+            }
+
+            if (hit > 0) {
+                w.Write(rest[..hit]);
+                pos += hit;
+            }
+
+            w.Add((byte)'\'');
+            pos++;
+
+            // '' is escaped quote, continue
+            if (pos < q.Length && q[pos] == (byte)'\'') {
+                w.Add((byte)'\'');
+                pos++;
+                continue;
+            }
+
+            // single quote ends the string
+            return;
+        }
+    }
+
+    static void SkipEscapeString(ReadOnlySpan<byte> q, ref int pos, ref BufferWriterSlim<byte> w) {
+        w.Add(q[pos]); // E or e
+        pos++;
+        w.Add((byte)'\'');
+        pos++;
+
+        while (pos < q.Length) {
+            var rest = q[pos..];
+            var hit  = rest.IndexOfAny((byte)'\\', (byte)'\'');
+
+            if (hit < 0) {
+                w.Write(rest);
+                pos = q.Length;
+                return;
+            }
+
+            if (hit > 0) {
+                w.Write(rest[..hit]);
+                pos += hit;
+            }
+
+            if (q[pos] == (byte)'\\' && pos + 1 < q.Length) {
+                w.Add((byte)'\\');
+                pos++;
+                w.Add(q[pos]);
+                pos++;
+                continue;
+            }
+
+            if (q[pos] == (byte)'\'') {
+                w.Add((byte)'\'');
+                pos++;
+
+                if (pos < q.Length && q[pos] == (byte)'\'') {
+                    w.Add((byte)'\'');
+                    pos++;
+                    continue;
+                }
+
+                return;
+            }
+
+            w.Add(q[pos]);
+            pos++;
+        }
+    }
+
+    static void SkipDollarQuotedString(ReadOnlySpan<byte> q, ref int pos, ref BufferWriterSlim<byte> w) {
+        // Find the opening delimiter: $$ or $tag$
+        var start = pos;
+        pos++; // skip first $
+
+        // scan for tag name (alphanumeric/underscore) until next $
+        while (pos < q.Length && q[pos] != (byte)'$') {
+            var c = q[pos];
+
+            if (IsAsciiLetter(c) || (c >= (byte)'0' && c <= (byte)'9') || c == (byte)'_')
+                pos++;
+            else {
+                // not a valid dollar-quoted string tag, just copy the initial $
+                pos = start;
+                w.Add(q[pos]);
+                pos++;
+                return;
+            }
+        }
+
+        if (pos >= q.Length) {
+            // no closing $ for tag, just copy the initial $
+            pos = start;
+            w.Add(q[pos]);
+            pos++;
+            return;
+        }
+
+        pos++; // skip closing $ of delimiter
+        var delimiter = q[start..pos];
+        w.Write(delimiter);
+
+        // find closing delimiter
+        while (pos <= q.Length - delimiter.Length) {
+            var rest = q[pos..];
+            var hit  = rest.IndexOf((byte)'$');
+
+            if (hit < 0) {
+                w.Write(rest);
+                pos = q.Length;
+                return;
+            }
+
+            if (hit > 0) {
+                w.Write(rest[..hit]);
+                pos += hit;
+            }
+
+            if (pos <= q.Length - delimiter.Length &&
+                q.Slice(pos, delimiter.Length).SequenceEqual(delimiter)) {
+                w.Write(delimiter);
+                pos += delimiter.Length;
+                return;
+            }
+
+            w.Add(q[pos]);
+            pos++;
+        }
+
+        // no closing delimiter found, copy remaining
+        w.Write(q[pos..]);
+        pos = q.Length;
+    }
+
+    static void SkipBracket(ReadOnlySpan<byte> q, ref int pos, ref BufferWriterSlim<byte> w) {
+        w.Add((byte)'[');
+        pos++;
+        var depth = 1;
+
+        while (pos < q.Length && depth > 0) {
+            var rest = q[pos..];
+            var hit  = rest.IndexOfAny((byte)'[', (byte)']');
+
+            if (hit < 0) {
+                w.Write(rest);
+                pos = q.Length;
+                return;
+            }
+
+            if (hit > 0) {
+                w.Write(rest[..hit]);
+                pos += hit;
+            }
+
+            if (q[pos] == (byte)'[')
+                depth++;
+            else if (q[pos] == (byte)']')
+                depth--;
+
+            w.Add(q[pos]);
+            pos++;
+        }
+    }
+}
+
+#endif
