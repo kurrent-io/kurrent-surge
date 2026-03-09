@@ -1,5 +1,6 @@
 // ReSharper disable InconsistentNaming
 
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 
@@ -204,6 +205,26 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
     int _position;
 
+    static readonly FrozenDictionary<string, TokenType> Keywords =
+        new Dictionary<string, TokenType>(StringComparer.OrdinalIgnoreCase) {
+            ["AND"]     = TokenType.And,
+            ["OR"]      = TokenType.Or,
+            ["NOT"]     = TokenType.Not,
+            ["LIKE"]    = TokenType.Like,
+            ["ILIKE"]   = TokenType.ILike,
+            ["IN"]      = TokenType.In,
+            ["BETWEEN"] = TokenType.Between,
+            ["IS"]      = TokenType.Is,
+            ["NULL"]    = TokenType.Null,
+            ["TRUE"]    = TokenType.True,
+            ["FALSE"]   = TokenType.False,
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+#if NET9_0_OR_GREATER
+    static readonly FrozenDictionary<string, TokenType>.AlternateLookup<ReadOnlySpan<char>> KeywordLookup =
+        Keywords.GetAlternateLookup<ReadOnlySpan<char>>();
+#endif
+
     char Current => _position < _input.Length ? _input[_position] : '\0';
     bool IsAtEnd => _position >= _input.Length;
 
@@ -359,24 +380,22 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
     Token ReadIdentifierOrKeyword() {
         var start = _position;
         while (!IsAtEnd && (char.IsLetterOrDigit(Current) || Current == '_')) Advance();
+
+#if NET9_0_OR_GREATER
+        var span  = _input.AsSpan(start, _position - start);
+        var value = new string(span);
+
+        return KeywordLookup.TryGetValue(span, out var keywordType)
+            ? new Token(keywordType, value, start)
+            : new Token(TokenType.Identifier, value, start);
+#else
         var value = _input[start.._position];
         return new Token(GetKeywordType(value), value, start);
+#endif
     }
 
-    static TokenType GetKeywordType(string value) {
-        if (value.Equals("AND", StringComparison.OrdinalIgnoreCase))     return TokenType.And;
-        if (value.Equals("OR", StringComparison.OrdinalIgnoreCase))      return TokenType.Or;
-        if (value.Equals("NOT", StringComparison.OrdinalIgnoreCase))     return TokenType.Not;
-        if (value.Equals("LIKE", StringComparison.OrdinalIgnoreCase))    return TokenType.Like;
-        if (value.Equals("ILIKE", StringComparison.OrdinalIgnoreCase))   return TokenType.ILike;
-        if (value.Equals("IN", StringComparison.OrdinalIgnoreCase))      return TokenType.In;
-        if (value.Equals("BETWEEN", StringComparison.OrdinalIgnoreCase)) return TokenType.Between;
-        if (value.Equals("IS", StringComparison.OrdinalIgnoreCase))      return TokenType.Is;
-        if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase))    return TokenType.Null;
-        if (value.Equals("TRUE", StringComparison.OrdinalIgnoreCase))    return TokenType.True;
-        if (value.Equals("FALSE", StringComparison.OrdinalIgnoreCase))   return TokenType.False;
-        return TokenType.Identifier;
-    }
+    static TokenType GetKeywordType(string value) =>
+        Keywords.TryGetValue(value, out var type) ? type : TokenType.Identifier;
 
     void SkipWhitespace() {
         while (!IsAtEnd && char.IsWhiteSpace(Current)) Advance();
