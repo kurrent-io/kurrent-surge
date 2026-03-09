@@ -5,6 +5,8 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -28,13 +30,15 @@ record BdnHostInfo(
     int?    PhysicalCoreCount,
     int?    LogicalCoreCount,
     string? RuntimeVersion,
-    string? Architecture
+    string? Architecture,
+    string? Configuration
 );
 
 record BdnBenchmark(
     string?         Type,
     string?         Method,
     string?         Parameters,
+    string?         DisplayInfo,
     BdnStatistics?  Statistics,
     BdnMemory?      Memory,
     List<BdnMeasurement>? Measurements
@@ -42,6 +46,7 @@ record BdnBenchmark(
 
 record BdnStatistics(
     double  Mean,
+    double  Median,
     double  StandardDeviation,
     BdnConfidenceInterval? ConfidenceInterval,
     JsonElement? Percentiles
@@ -64,6 +69,12 @@ record BdnMeasurement(
     double  Value
 );
 
+record JobConfig(
+    string? Toolchain,
+    int?    WarmupCount,
+    int?    IterationCount
+);
+
 // ─── Report Models ───────────────────────────────────────────────────────────
 
 record BenchmarkEntry(
@@ -72,9 +83,11 @@ record BenchmarkEntry(
     string? Parameters,
     string  CompositeKey,
     double  MeanNs,
+    double  MedianNs,
     double  StdDevNs,
     double  ErrorNs,
     double  P95Ns,
+    double  OpsPerSec,
     long    AllocatedBytes,
     int     Gen0,
     int     Gen1,
@@ -91,6 +104,7 @@ record ComparisonEntry(
 
 record ReportData(
     BdnHostInfo?            Environment,
+    JobConfig?              JobConfig,
     List<BenchmarkEntry>    Benchmarks,
     List<ComparisonEntry>?  Comparisons,
     bool                    IsComparison
@@ -111,6 +125,18 @@ record RegressionDetail(
     double  BaselineMeanNs,
     double  DeltaPercent
 );
+
+// ─── JSON Source Generation ──────────────────────────────────────────────────
+
+[JsonSerializable(typeof(BdnRoot))]
+[JsonSerializable(typeof(List<BenchmarkEntry>))]
+[JsonSerializable(typeof(List<ComparisonEntry>))]
+[JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(BdnHostInfo))]
+[JsonSerializable(typeof(JobConfig))]
+[JsonSerializable(typeof(SummaryJson))]
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+partial class ReportJsonContext : JsonSerializerContext;
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -139,11 +165,11 @@ sealed class ReportSettings : CommandSettings {
 // ─── Command ─────────────────────────────────────────────────────────────────
 
 sealed class ReportCommand : Command<ReportSettings> {
-    static readonly JsonSerializerOptions JsonOpts = new() {
+    static readonly ReportJsonContext Ctx = new(new JsonSerializerOptions {
         PropertyNameCaseInsensitive = true
-    };
+    });
 
-    public override int Execute(CommandContext context, ReportSettings settings) {
+    public override int Execute(CommandContext context, ReportSettings settings, CancellationToken cancellation = default) {
         AnsiConsole.Write(new FigletText("benchmark-report").Color(Color.MediumPurple));
         AnsiConsole.MarkupLine("[grey]BenchmarkDotNet JSON → HTML dashboard[/]\n");
 
@@ -157,7 +183,7 @@ sealed class ReportCommand : Command<ReportSettings> {
         AnsiConsole.MarkupLine($"[grey]Input files:[/] [white]{inputFiles.Count}[/]");
 
         // ── Parse current results ───────────────────────────────────────────
-        var (benchmarks, hostInfo) = ParseBenchmarkFiles(inputFiles);
+        var (benchmarks, hostInfo, jobConfig) = ParseBenchmarkFiles(inputFiles);
         if (benchmarks.Count == 0) {
             AnsiConsole.MarkupLine("[red]No benchmarks found in input files[/]");
             return 1;
@@ -177,13 +203,13 @@ sealed class ReportCommand : Command<ReportSettings> {
                 return 1;
             }
 
-            (baselineBenchmarks, _) = ParseBenchmarkFiles(baselineFiles);
+            (baselineBenchmarks, _, _) = ParseBenchmarkFiles(baselineFiles);
             AnsiConsole.MarkupLine($"[grey]Baseline benchmarks:[/] [white]{baselineBenchmarks.Count}[/]");
 
             comparisons = BuildComparisons(benchmarks, baselineBenchmarks, settings.Threshold);
         }
 
-        var reportData = new ReportData(hostInfo, benchmarks, comparisons, isComparison);
+        var reportData = new ReportData(hostInfo, jobConfig, benchmarks, comparisons, isComparison);
 
         // ── Generate HTML ───────────────────────────────────────────────────
         var html = GenerateHtml(reportData, settings.Threshold);
@@ -217,7 +243,9 @@ sealed class ReportCommand : Command<ReportSettings> {
             if (summaryDir is not null && !Directory.Exists(summaryDir))
                 Directory.CreateDirectory(summaryDir);
             File.WriteAllText(settings.SummaryJson,
-                JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));
+                JsonSerializer.Serialize(summary, new ReportJsonContext(new JsonSerializerOptions {
+                    WriteIndented = true
+                }).SummaryJson));
         }
 
         // ── Console summary ─────────────────────────────────────────────────
@@ -244,18 +272,21 @@ sealed class ReportCommand : Command<ReportSettings> {
 
     // ─── JSON parsing ────────────────────────────────────────────────────────
 
-    static (List<BenchmarkEntry> Benchmarks, BdnHostInfo? HostInfo) ParseBenchmarkFiles(List<string> files) {
+    static (List<BenchmarkEntry> Benchmarks, BdnHostInfo? HostInfo, JobConfig? JobConfig) ParseBenchmarkFiles(List<string> files) {
         var benchmarks = new List<BenchmarkEntry>();
+        var rawBenchmarks = new List<BdnBenchmark>();
         BdnHostInfo? hostInfo = null;
 
         foreach (var file in files) {
             var json = File.ReadAllText(file);
-            var root = JsonSerializer.Deserialize<BdnRoot>(json, JsonOpts);
+            var root = JsonSerializer.Deserialize(json, Ctx.BdnRoot);
             if (root is null) continue;
 
             hostInfo ??= root.HostEnvironmentInfo;
 
             foreach (var b in root.Benchmarks) {
+                rawBenchmarks.Add(b);
+
                 var type   = b.Type ?? "Unknown";
                 var method = b.Method ?? "Unknown";
                 var key    = b.Parameters is not null
@@ -270,9 +301,11 @@ sealed class ReportCommand : Command<ReportSettings> {
                     Parameters:     b.Parameters,
                     CompositeKey:   key,
                     MeanNs:         b.Statistics?.Mean ?? 0,
+                    MedianNs:       b.Statistics?.Median ?? 0,
                     StdDevNs:       b.Statistics?.StandardDeviation ?? 0,
                     ErrorNs:        b.Statistics?.ConfidenceInterval?.Margin ?? 0,
                     P95Ns:          p95,
+                    OpsPerSec:      b.Statistics?.Mean > 0 ? 1e9 / b.Statistics.Mean : 0,
                     AllocatedBytes: b.Memory?.BytesAllocatedPerOperation ?? 0,
                     Gen0:           b.Memory?.Gen0Collections ?? 0,
                     Gen1:           b.Memory?.Gen1Collections ?? 0,
@@ -291,7 +324,24 @@ sealed class ReportCommand : Command<ReportSettings> {
             })
             .ToList();
 
-        return (benchmarks, hostInfo);
+        var jobConfig = ExtractJobConfig(rawBenchmarks);
+
+        return (benchmarks, hostInfo, jobConfig);
+    }
+
+    static JobConfig? ExtractJobConfig(List<BdnBenchmark> benchmarks) {
+        var displayInfo = benchmarks.FirstOrDefault(b => b.DisplayInfo is not null)?.DisplayInfo;
+        if (displayInfo is null) return null;
+
+        var toolchain      = Regex.Match(displayInfo, @"Toolchain=([^,\)]+)").Groups[1].Value.Trim();
+        var warmupMatch    = Regex.Match(displayInfo, @"WarmupCount=(\d+)");
+        var iterationMatch = Regex.Match(displayInfo, @"IterationCount=(\d+)");
+
+        return new JobConfig(
+            Toolchain:      string.IsNullOrEmpty(toolchain) ? null : toolchain,
+            WarmupCount:    warmupMatch.Success   ? int.Parse(warmupMatch.Groups[1].Value)    : null,
+            IterationCount: iterationMatch.Success ? int.Parse(iterationMatch.Groups[1].Value) : null
+        );
     }
 
     static double GetP95(JsonElement? percentiles) {
@@ -385,12 +435,12 @@ sealed class ReportCommand : Command<ReportSettings> {
         var sb = new StringBuilder();
 
         // Serialize data as JSON for client-side rendering
-        var benchmarkJson = JsonSerializer.Serialize(data.Benchmarks);
+        var benchmarkJson = JsonSerializer.Serialize(data.Benchmarks, Ctx.ListBenchmarkEntry);
         var comparisonJson = data.Comparisons is not null
-            ? JsonSerializer.Serialize(data.Comparisons)
+            ? JsonSerializer.Serialize(data.Comparisons, Ctx.ListComparisonEntry)
             : "null";
         var envJson = data.Environment is not null
-            ? JsonSerializer.Serialize(data.Environment)
+            ? JsonSerializer.Serialize(data.Environment, Ctx.BdnHostInfo)
             : "null";
 
         var classes = data.Benchmarks
@@ -399,7 +449,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             .OrderBy(t => t)
             .ToList();
 
-        var classesJson = JsonSerializer.Serialize(classes);
+        var classesJson = JsonSerializer.Serialize(classes, Ctx.ListString);
         var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC");
 
         sb.Append($$"""
