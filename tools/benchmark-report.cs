@@ -1410,7 +1410,8 @@ sealed class ReportCommand : Command<ReportSettings> {
               if (hasParams) {
                 const filterBtns = [`<button class="filter-btn active" data-filter="all" data-section="${sectionId}">all</button>`];
                 params.forEach(p => {
-                  filterBtns.push(`<button class="filter-btn" data-filter="${p}" data-section="${sectionId}">${p}</button>`);
+                  const label = p.includes("=") ? p.split("=").slice(1).join("=") : p;
+                  filterBtns.push(`<button class="filter-btn" data-filter="${p}" data-section="${sectionId}">${label}</button>`);
                 });
                 filterHtml = `<div class="filter-row">${filterBtns.join("")}</div>`;
               }
@@ -1426,7 +1427,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                     ${filterHtml}
                     <div class="chart-section">
                       <div class="metric-toggle-row" data-section="${sectionId}">
-                        ${metrics.map((m, i) => `<button class="filter-btn${i === 0 ? ' active' : ''}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
+                        ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="filter-btn${i === 0 ? ' active' : ''}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
                       </div>
                       <div class="bar-chart" id="chart-${sectionId}">${barRows}</div>
                     </div>
