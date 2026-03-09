@@ -457,575 +457,76 @@ sealed class ReportCommand : Command<ReportSettings> {
 
         sb.Append($$"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="en" class="dark">
             <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Kurrent.Client Benchmark Report</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script>
+            tailwindcss.config = {
+              darkMode: 'class',
+              theme: {
+                extend: {
+                  fontFamily: {
+                    mono: ["'SF Mono'", "'Fira Code'", "'Cascadia Code'", "monospace"],
+                  }
+                }
+              }
+            }
+            </script>
             <style>
-              :root {
-                --bg: #0d1117;
-                --surface: #161b22;
-                --border: #30363d;
-                --text: #e6edf3;
-                --text-muted: #8b949e;
-                --accent: #58a6ff;
-                --green: #3fb950;
-                --yellow: #d29922;
-                --red: #f85149;
-                --purple: #bc8cff;
-                --cyan: #79c0ff;
-              }
+              html { scroll-behavior: smooth; }
 
-              [data-theme="light"] {
-                --bg:         #ffffff;
-                --surface:    #f6f8fa;
-                --border:     #d0d7de;
-                --text:       #1f2328;
-                --text-muted: #636c76;
-                --accent:     #0969da;
-                --green:      #1a7f37;
-                --yellow:     #9a6700;
-                --red:        #d1242f;
-                --purple:     #8250df;
-                --cyan:       #0550ae;
-              }
+              .pill-active { background: #2563eb; border-color: #2563eb; color: white; }
+              .dark .pill-active { background: #60a5fa; border-color: #60a5fa; color: #030712; }
 
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                background: var(--bg);
-                color: var(--text);
-                line-height: 1.5;
-                padding: 2rem;
-                max-width: 1400px;
-                margin: 0 auto;
-              }
-
-              header {
-                margin-bottom: 2rem;
-                padding-bottom: 1.5rem;
-                border-bottom: 1px solid var(--border);
-              }
-
-              header h1 {
-                font-size: 1.5rem;
-                font-weight: 600;
-                margin-bottom: 0.25rem;
-              }
-
-              header p {
-                color: var(--text-muted);
-                font-size: 0.875rem;
-              }
-
-              .mode-badge {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                border-radius: 10px;
-                font-size: 0.75rem;
-                font-weight: 600;
-                margin-left: 0.5rem;
-              }
-
-              .mode-single { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
-              .mode-comparison { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
-
-              .env-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 0.75rem;
-                margin-bottom: 2rem;
-              }
-
-              .env-card {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 0.75rem 1rem;
-              }
-
-              .env-card .label {
-                font-size: 0.7rem;
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                margin-bottom: 0.125rem;
-              }
-
-              .env-card .value {
-                font-size: 0.85rem;
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-              }
-
-              .stats-row {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-                gap: 1rem;
-                margin-bottom: 2rem;
-              }
-
-              .stat-card {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 1rem 1.25rem;
-              }
-
-              .stat-card .label {
-                font-size: 0.75rem;
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                margin-bottom: 0.25rem;
-              }
-
-              .stat-card .value {
-                font-size: 1.5rem;
-                font-weight: 600;
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-              }
-
-              .stat-card .unit {
-                font-size: 0.875rem;
-                color: var(--text-muted);
-                font-weight: 400;
-              }
-
-              .section-nav {
-                display: flex;
-                gap: 0.5rem;
-                margin-bottom: 2rem;
-                flex-wrap: wrap;
-              }
-
-              .section-nav a {
-                background: transparent;
-                border: 1px solid var(--border);
-                color: var(--text-muted);
-                padding: 0.25rem 0.75rem;
-                border-radius: 20px;
-                font-size: 0.8rem;
-                text-decoration: none;
-                transition: all 0.15s;
-              }
-
-              .section-nav a:hover {
-                border-color: var(--accent);
-                color: var(--accent);
-              }
-
-              .class-section {
-                margin-bottom: 2.5rem;
-              }
-
-              .class-header {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                margin-bottom: 1rem;
-                cursor: pointer;
-                user-select: none;
-              }
-
-              .class-header h2 {
-                font-size: 1.125rem;
-                font-weight: 600;
-              }
-
-              .class-header .toggle {
-                color: var(--text-muted);
-                font-size: 0.75rem;
-                transition: transform 0.2s;
-              }
-
-              .class-header .toggle.collapsed { transform: rotate(-90deg); }
-
-              .class-body { overflow: hidden; }
-              .class-body.collapsed { display: none; }
-
-              .chart-section {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                padding: 1.5rem;
-                margin-bottom: 1rem;
-              }
-
-              .chart-section h3 {
-                font-size: 0.875rem;
-                font-weight: 600;
-                margin-bottom: 1rem;
-                color: var(--text-muted);
-              }
-
-              .bar-chart {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-              }
-
-              .bar-row {
-                display: grid;
-                grid-template-columns: 200px 1fr 100px;
-                align-items: center;
-                gap: 1rem;
-                height: 32px;
-              }
-
-              .bar-label {
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-                font-size: 0.75rem;
-                color: var(--text-muted);
-                text-align: right;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              }
-
-              .bar-track {
-                height: 24px;
-                background: rgba(255, 255, 255, 0.03);
-                border-radius: 4px;
-                overflow: hidden;
-                position: relative;
-              }
-
-              .bar-fill {
-                height: 100%;
-                border-radius: 4px;
-                transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                opacity: 0.8;
-              }
+              .bar-fill { transition: width 0.3s ease; }
 
               .bar-fill-baseline {
                 position: absolute;
                 top: 0;
                 height: 100%;
-                border-radius: 4px;
+                border-radius: 0.25rem;
                 opacity: 0.3;
-                border-right: 2px dashed var(--text-muted);
+                border-right: 2px dashed #9ca3af;
               }
 
-              .bar-value {
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-                font-size: 0.8rem;
-                text-align: right;
-                white-space: nowrap;
-              }
+              .collapsed-body { display: none; }
+              .collapsed-toggle { transform: rotate(-90deg); }
 
-              .table-section {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                overflow: hidden;
-                margin-bottom: 1rem;
-              }
-
-              table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 0.875rem;
-              }
-
-              thead th {
-                text-align: left;
-                padding: 0.625rem 1rem;
-                color: var(--text-muted);
-                font-weight: 500;
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                border-bottom: 1px solid var(--border);
-                background: rgba(0, 0, 0, 0.2);
-              }
-
-              thead th.num { text-align: right; }
-
-              tbody td {
-                padding: 0.625rem 1rem;
-                border-bottom: 1px solid rgba(48, 54, 61, 0.5);
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-                font-size: 0.8rem;
-              }
-
-              tbody td.num { text-align: right; }
-              tbody tr:last-child td { border-bottom: none; }
-              tbody tr:hover { background: rgba(88, 166, 255, 0.04); }
-
-              .rank-badge {
-                display: inline-block;
-                width: 22px;
-                height: 22px;
-                line-height: 22px;
-                text-align: center;
-                border-radius: 50%;
-                font-size: 0.7rem;
-                font-weight: 600;
-              }
-
-              .rank-1 { background: rgba(63, 185, 80, 0.2); color: var(--green); }
-              .rank-2 { background: rgba(88, 166, 255, 0.2); color: var(--accent); }
-              .rank-3 { background: rgba(210, 153, 34, 0.2); color: var(--yellow); }
-
-              .alloc-badge {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                border-radius: 10px;
-                font-size: 0.7rem;
-                font-weight: 600;
-              }
-
-              .alloc-zero { background: rgba(63, 185, 80, 0.15); color: var(--green); }
-              .alloc-nonzero { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
-
-              .delta-improved {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                border-radius: 10px;
-                font-size: 0.7rem;
-                font-weight: 600;
-                background: rgba(63, 185, 80, 0.15);
-                color: var(--green);
-              }
-
-              .delta-regressed {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                border-radius: 10px;
-                font-size: 0.7rem;
-                font-weight: 600;
-                background: rgba(248, 81, 73, 0.15);
-                color: var(--red);
-              }
-
-              .delta-neutral {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                border-radius: 10px;
-                font-size: 0.7rem;
-                font-weight: 600;
-                background: rgba(139, 148, 158, 0.15);
-                color: var(--text-muted);
-              }
-
-              .delta-new {
-                display: inline-block;
-                padding: 0.125rem 0.5rem;
-                border-radius: 10px;
-                font-size: 0.7rem;
-                font-weight: 600;
-                background: rgba(188, 140, 255, 0.15);
-                color: var(--purple);
-              }
-
-              .regression-section {
-                background: var(--surface);
-                border: 1px solid var(--red);
-                border-radius: 8px;
-                overflow: hidden;
-                margin-bottom: 2rem;
-              }
-
-              .regression-section h2 {
-                font-size: 1rem;
-                font-weight: 600;
-                padding: 1.25rem 1.5rem 1rem;
-                color: var(--red);
-              }
-
-              .filter-row {
-                display: flex;
-                gap: 0.5rem;
-                margin-bottom: 1.25rem;
-                flex-wrap: wrap;
-              }
-
-              .metric-toggle-row {
-                display: flex;
-                gap: 0.375rem;
-                margin-bottom: 1rem;
-                flex-wrap: wrap;
-              }
-
-              .filter-btn {
-                background: transparent;
-                border: 1px solid var(--border);
-                color: var(--text-muted);
-                padding: 0.25rem 0.75rem;
-                border-radius: 20px;
-                font-size: 0.8rem;
-                cursor: pointer;
-                transition: all 0.15s;
-                font-family: inherit;
-              }
-
-              .filter-btn:hover {
-                border-color: var(--accent);
-                color: var(--accent);
-              }
-
-              .filter-btn.active {
-                background: var(--accent);
-                border-color: var(--accent);
-                color: #0d1117;
-              }
-
-              footer {
-                text-align: center;
-                color: var(--text-muted);
-                font-size: 0.75rem;
-                padding-top: 1rem;
-                border-top: 1px solid var(--border);
-              }
-
-              footer code {
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-                color: var(--text-muted);
-              }
-
-              .highlights-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-                gap: 1rem;
-                margin-bottom: 2rem;
-              }
-
-              .highlight-card {
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                overflow: hidden;
-              }
-
-              .highlight-card-header {
-                padding: 0.625rem 1rem;
-                font-size: 0.75rem;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                border-bottom: 1px solid var(--border);
-              }
-
-              .highlight-fastest .highlight-card-header { color: var(--green); }
-              .highlight-slowest  .highlight-card-header { color: var(--red);   }
-              .highlight-memory   .highlight-card-header { color: var(--yellow); }
-
-              .highlight-row {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0.5rem 1rem;
-                border-bottom: 1px solid rgba(48, 54, 61, 0.4);
-                gap: 0.5rem;
-              }
-
-              .highlight-row:last-child { border-bottom: none; }
-
-              .highlight-name {
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-                font-size: 0.75rem;
-                color: var(--text-muted);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                min-width: 0;
-              }
-
-              .highlight-value {
-                font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-                font-size: 0.8rem;
-                font-weight: 600;
-                white-space: nowrap;
-              }
-
-              .highlight-fastest .highlight-value { color: var(--green);  }
-              .highlight-slowest  .highlight-value { color: var(--red);    }
-              .highlight-memory   .highlight-value { color: var(--yellow); }
-
-              .search-row {
-                margin-bottom: 1.5rem;
-              }
-
-              .search-input {
-                width: 100%;
-                background: var(--surface);
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                color: var(--text);
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                font-size: 0.875rem;
-                padding: 0.625rem 1rem;
-                outline: none;
-                transition: border-color 0.15s;
-              }
-
-              .search-input::placeholder { color: var(--text-muted); }
-              .search-input:focus { border-color: var(--accent); }
-
-              thead th[data-sort] {
-                cursor: pointer;
-                user-select: none;
-                white-space: nowrap;
-              }
-
-              thead th[data-sort]:hover { color: var(--text); }
-
-              thead th[data-sort]::after {
-                content: " ↕";
-                opacity: 0.3;
-                font-size: 0.7rem;
-              }
-
-              thead th[data-sort].sort-asc::after  { content: " ↑"; opacity: 1; }
-              thead th[data-sort].sort-desc::after { content: " ↓"; opacity: 1; }
-
-              .theme-toggle {
-                background: transparent;
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                color: var(--text-muted);
-                cursor: pointer;
-                font-size: 1rem;
-                line-height: 1;
-                padding: 0.375rem 0.625rem;
-                transition: border-color 0.15s, color 0.15s;
-                font-family: inherit;
-              }
-
-              .theme-toggle:hover {
-                border-color: var(--accent);
-                color: var(--accent);
-              }
-
-              html { scroll-behavior: smooth; }
+              th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+              th[data-sort]:hover { color: #6b7280; }
+              .dark th[data-sort]:hover { color: #d1d5db; }
+              th[data-sort]::after { content: " \2195"; opacity: 0.3; font-size: 0.7rem; }
+              th[data-sort].sort-asc::after { content: " \2191"; opacity: 1; }
+              th[data-sort].sort-desc::after { content: " \2193"; opacity: 1; }
             </style>
             </head>
-            <body>
+            <body class="bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 leading-relaxed p-8 max-w-[1400px] mx-auto">
 
-            <header style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <header class="flex justify-between items-start mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
               <div>
-                <h1>Kurrent.Client Benchmark Report
-                  <span class="mode-badge {{(data.IsComparison ? "mode-comparison" : "mode-single")}}">
+                <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Kurrent.Client Benchmark Report
+                  <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold ml-2 {{(data.IsComparison ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400")}}">
                     {{(data.IsComparison ? "comparison" : "single-run")}}
                   </span>
                 </h1>
-                <p>Generated {{timestamp}}</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Generated {{timestamp}}</p>
               </div>
-              <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light theme">&#9790;</button>
+              <button class="border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 cursor-pointer text-base leading-none px-2.5 py-1.5 transition-colors hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-400 dark:hover:text-blue-400" id="theme-toggle" title="Toggle theme">&#9790;</button>
             </header>
 
             <div id="env-section"></div>
-            <div class="stats-row" id="stats-row"></div>
+            <div id="stats-row"></div>
             <div id="highlights-section"></div>
-            <div id="search-row" class="search-row"></div>
-            <div class="section-nav" id="section-nav"></div>
+            <div id="search-row"></div>
+            <div class="flex flex-wrap gap-2 mb-6" id="section-nav"></div>
             <div id="regression-section"></div>
             <div id="class-sections"></div>
 
-            <footer>
-              <code>Kurrent.Client</code> &middot; Generated by benchmark-report
+            <footer class="text-center text-gray-500 dark:text-gray-400 text-xs pt-4 border-t border-gray-200 dark:border-gray-800">
+              <code class="font-mono">Kurrent.Client</code> &middot; Generated by benchmark-report
             </footer>
 
             <script>
@@ -1059,21 +560,28 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function deltaClass(classification) {
               switch (classification) {
-                case "Regressed": return "delta-regressed";
-                case "Improved":  return "delta-improved";
-                case "New":       return "delta-new";
-                default:          return "delta-neutral";
+                case "Regressed": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+                case "Improved":  return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+                case "New":       return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+                default:          return "bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400";
               }
             }
 
             function rankBadge(rank) {
-              const cls = rank <= 3 ? `rank-${rank}` : "";
-              return `<span class="rank-badge ${cls}">${rank}</span>`;
+              const colors = {
+                1: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                2: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                3: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+              };
+              const cls = colors[rank] || "";
+              return `<span class="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full text-[0.7rem] font-semibold ${cls}">${rank}</span>`;
             }
 
             function allocBadge(bytes) {
-              const cls = bytes === 0 ? "alloc-zero" : "alloc-nonzero";
-              return `<span class="alloc-badge ${cls}">${formatBytes(bytes)}</span>`;
+              const cls = bytes === 0
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+              return `<span class="inline-block px-2 py-0.5 rounded-full text-[0.7rem] font-semibold ${cls}">${formatBytes(bytes)}</span>`;
             }
 
             function benchLabel(b) {
@@ -1088,15 +596,12 @@ sealed class ReportCommand : Command<ReportSettings> {
             }
 
             function formatGen(val) {
-              return val === 0 ? `<span style="color:var(--text-muted)">—</span>` : String(val);
+              return val === 0 ? `<span class="text-gray-400 dark:text-gray-500">\u2014</span>` : String(val);
             }
 
             // ── Color palette for bars ──────────────────────────────────────────
 
-            const barColors = [
-              "var(--accent)", "var(--green)", "var(--purple)",
-              "var(--yellow)", "var(--cyan)", "var(--red)"
-            ];
+            const barColors = ["#3b82f6", "#22c55e", "#a78bfa", "#f59e0b", "#38bdf8", "#ef4444"];
 
             function barColor(index) {
               return barColors[index % barColors.length];
@@ -1137,13 +642,15 @@ sealed class ReportCommand : Command<ReportSettings> {
               if (env.Configuration) items.push({ label: "Configuration", value: env.Configuration });
 
               document.getElementById("env-section").innerHTML = `
-                <div class="env-grid">
-                  ${items.map(i => `
-                    <div class="env-card">
-                      <div class="label">${i.label}</div>
-                      <div class="value">${i.value}</div>
-                    </div>
-                  `).join("")}
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 mb-6">
+                  <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    ${items.map(i => `
+                      <div>
+                        <span class="text-gray-400 dark:text-gray-500 text-xs uppercase tracking-wide mr-1.5">${i.label}</span>
+                        <span class="font-mono text-gray-900 dark:text-gray-100">${i.value}</span>
+                      </div>
+                    `).join("")}
+                  </div>
                 </div>
               `;
             }
@@ -1157,21 +664,21 @@ sealed class ReportCommand : Command<ReportSettings> {
               const totalAlloc = benchmarks.reduce((s, b) => s + b.AllocatedBytes, 0);
 
               let cards = `
-                <div class="stat-card">
-                  <div class="label">Benchmarks</div>
-                  <div class="value">${benchmarks.length}</div>
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Benchmarks</div>
+                  <div class="text-2xl font-semibold font-mono text-gray-900 dark:text-gray-100">${benchmarks.length}</div>
                 </div>
-                <div class="stat-card">
-                  <div class="label">Fastest</div>
-                  <div class="value" style="color: var(--green)">${formatNs(fastest)}</div>
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Fastest</div>
+                  <div class="text-2xl font-semibold font-mono text-green-700 dark:text-green-400">${formatNs(fastest)}</div>
                 </div>
-                <div class="stat-card">
-                  <div class="label">Slowest</div>
-                  <div class="value" style="color: var(--yellow)">${formatNs(slowest)}</div>
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Slowest</div>
+                  <div class="text-2xl font-semibold font-mono text-amber-600 dark:text-amber-400">${formatNs(slowest)}</div>
                 </div>
-                <div class="stat-card">
-                  <div class="label">Total Allocations</div>
-                  <div class="value">${formatBytes(totalAlloc)}</div>
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4">
+                  <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total Allocations</div>
+                  <div class="text-2xl font-semibold font-mono text-gray-900 dark:text-gray-100">${formatBytes(totalAlloc)}</div>
                 </div>
               `;
 
@@ -1179,18 +686,20 @@ sealed class ReportCommand : Command<ReportSettings> {
                 const regressions = comparisons.filter(c => c.Classification === "Regressed").length;
                 const improvements = comparisons.filter(c => c.Classification === "Improved").length;
                 cards += `
-                  <div class="stat-card">
-                    <div class="label">Regressions</div>
-                    <div class="value" style="color: ${regressions > 0 ? 'var(--red)' : 'var(--green)'}">${regressions}</div>
+                  <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4">
+                    <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Regressions</div>
+                    <div class="text-2xl font-semibold font-mono ${regressions > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}">${regressions}</div>
                   </div>
-                  <div class="stat-card">
-                    <div class="label">Improvements</div>
-                    <div class="value" style="color: ${improvements > 0 ? 'var(--green)' : 'var(--text-muted)'}">${improvements}</div>
+                  <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-4">
+                    <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Improvements</div>
+                    <div class="text-2xl font-semibold font-mono ${improvements > 0 ? 'text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}">${improvements}</div>
                   </div>
                 `;
               }
 
-              document.getElementById("stats-row").innerHTML = cards;
+              document.getElementById("stats-row").innerHTML = `
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">${cards}</div>
+              `;
             }
 
             // ── Highlights section ──────────────────────────────────────────────
@@ -1204,39 +713,45 @@ sealed class ReportCommand : Command<ReportSettings> {
               const memory5    = top5([...benchmarks].filter(b => b.AllocatedBytes > 0)
                                        .sort((a, b) => b.AllocatedBytes - a.AllocatedBytes));
 
-              function highlightRows(items, valueGetter) {
+              function highlightRows(items, valueGetter, valueColor) {
                 return items.map(b => `
-                  <div class="highlight-row">
-                    <div class="highlight-name" title="${benchLabel(b)}">${benchLabel(b)}</div>
-                    <div class="highlight-value">${valueGetter(b)}</div>
+                  <div class="flex items-center justify-between px-4 py-2 gap-2">
+                    <span class="font-mono text-xs text-gray-500 dark:text-gray-400 truncate min-w-0" title="${benchLabel(b)}">${benchLabel(b)}</span>
+                    <span class="font-mono text-sm font-semibold whitespace-nowrap ${valueColor}">${valueGetter(b)}</span>
                   </div>
                 `).join("");
               }
 
               const fastestCard = `
-                <div class="highlight-card highlight-fastest">
-                  <div class="highlight-card-header">Top 5 Fastest</div>
-                  ${highlightRows(fastest5, b => formatNs(b.MeanNs))}
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide border-b border-gray-200 dark:border-gray-800 text-green-700 dark:text-green-400">Top 5 Fastest</div>
+                  <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    ${highlightRows(fastest5, b => formatNs(b.MeanNs), "text-green-700 dark:text-green-400")}
+                  </div>
                 </div>`;
 
               const slowestCard = `
-                <div class="highlight-card highlight-slowest">
-                  <div class="highlight-card-header">Top 5 Slowest</div>
-                  ${highlightRows(slowest5, b => formatNs(b.MeanNs))}
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide border-b border-gray-200 dark:border-gray-800 text-red-600 dark:text-red-400">Top 5 Slowest</div>
+                  <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    ${highlightRows(slowest5, b => formatNs(b.MeanNs), "text-red-600 dark:text-red-400")}
+                  </div>
                 </div>`;
 
               const memoryRows = memory5.length > 0
-                ? highlightRows(memory5, b => formatBytes(b.AllocatedBytes))
-                : `<div class="highlight-row"><div class="highlight-name" style="color:var(--green)">All benchmarks allocate zero</div></div>`;
+                ? highlightRows(memory5, b => formatBytes(b.AllocatedBytes), "text-amber-600 dark:text-amber-400")
+                : `<div class="flex items-center px-4 py-2"><span class="font-mono text-xs text-green-700 dark:text-green-400">All benchmarks allocate zero</span></div>`;
 
               const memoryCard = `
-                <div class="highlight-card highlight-memory">
-                  <div class="highlight-card-header">Top 5 Most Memory</div>
-                  ${memoryRows}
+                <div class="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+                  <div class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide border-b border-gray-200 dark:border-gray-800 text-amber-600 dark:text-amber-400">Top 5 Most Memory</div>
+                  <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    ${memoryRows}
+                  </div>
                 </div>`;
 
               document.getElementById("highlights-section").innerHTML = `
-                <div class="highlights-grid">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   ${fastestCard}
                   ${slowestCard}
                   ${memoryCard}
@@ -1248,13 +763,13 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             document.getElementById("section-nav").innerHTML = classes.map(c => {
               const shortName = c.split(".").pop();
-              return `<a href="#section-${c}">${shortName}</a>`;
+              return `<a class="border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 px-3 py-1 rounded-full text-xs hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors no-underline" href="#section-${c}">${shortName}</a>`;
             }).join("");
 
             // ── Global search ───────────────────────────────────────────────────
 
             document.getElementById("search-row").innerHTML = `
-              <input class="search-input" id="global-search" type="search"
+              <input class="w-full rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm px-4 py-2.5 outline-none focus:border-blue-500 dark:focus:border-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500 mb-4" id="global-search" type="search"
                      placeholder="Search benchmarks..." autocomplete="off">
             `;
 
@@ -1264,7 +779,8 @@ sealed class ReportCommand : Command<ReportSettings> {
               document.querySelectorAll(".class-section").forEach(section => {
                 let sectionVisible = false;
 
-                section.querySelectorAll(".bar-row[data-params], tbody tr[data-params]").forEach(el => {
+                section.querySelectorAll("[data-params]").forEach(el => {
+                  if (el.tagName === "TABLE" || el.tagName === "THEAD") return;
                   const labelEl = el.querySelector(".bar-label, td:first-child");
                   const text = (labelEl?.textContent ?? "").toLowerCase();
                   const match = !term || text.includes(term);
@@ -1284,24 +800,24 @@ sealed class ReportCommand : Command<ReportSettings> {
                 const rows = regressions
                   .sort((a, b) => b.DeltaPercent - a.DeltaPercent)
                   .map(c => `
-                    <tr>
-                      <td>${benchLabel(c.Current)}</td>
-                      <td class="num">${formatNs(c.Baseline?.MeanNs ?? 0)}</td>
-                      <td class="num">${formatNs(c.Current.MeanNs)}</td>
-                      <td class="num"><span class="delta-regressed">${formatDelta(c.DeltaPercent)}</span></td>
+                    <tr class="border-b border-gray-100 dark:border-gray-800/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/5">
+                      <td class="px-4 py-2.5 font-mono text-xs">${benchLabel(c.Current)}</td>
+                      <td class="px-4 py-2.5 font-mono text-xs text-right">${formatNs(c.Baseline?.MeanNs ?? 0)}</td>
+                      <td class="px-4 py-2.5 font-mono text-xs text-right">${formatNs(c.Current.MeanNs)}</td>
+                      <td class="px-4 py-2.5 font-mono text-xs text-right"><span class="inline-block px-2 py-0.5 rounded-full text-[0.7rem] font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">${formatDelta(c.DeltaPercent)}</span></td>
                     </tr>
                   `).join("");
 
                 document.getElementById("regression-section").innerHTML = `
-                  <div class="regression-section">
-                    <h2>Regressions (>${threshold}% threshold)</h2>
-                    <table>
+                  <div class="rounded-lg border border-red-300 dark:border-red-800 overflow-hidden mb-6">
+                    <h2 class="text-base font-semibold px-5 pt-4 pb-3 text-red-600 dark:text-red-400">Regressions (>${threshold}% threshold)</h2>
+                    <table class="w-full text-sm border-collapse">
                       <thead>
-                        <tr>
-                          <th>Benchmark</th>
-                          <th class="num">Baseline</th>
-                          <th class="num">Current</th>
-                          <th class="num">Delta</th>
+                        <tr class="bg-gray-100 dark:bg-black/20">
+                          <th class="text-left px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800">Benchmark</th>
+                          <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800">Baseline</th>
+                          <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800">Current</th>
+                          <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800">Delta</th>
                         </tr>
                       </thead>
                       <tbody>${rows}</tbody>
@@ -1360,13 +876,13 @@ sealed class ReportCommand : Command<ReportSettings> {
                 }
 
                 return `
-                  <div class="bar-row" data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}">
-                    <div class="bar-label" title="${benchLabel(b)}">${benchLabel(b)}</div>
-                    <div class="bar-track">
+                  <div class="grid items-center gap-4 h-8" style="grid-template-columns: 200px 1fr 100px" data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}">
+                    <div class="bar-label font-mono text-xs text-gray-500 dark:text-gray-400 text-right whitespace-nowrap overflow-hidden text-ellipsis" title="${benchLabel(b)}">${benchLabel(b)}</div>
+                    <div class="h-6 rounded bg-gray-100 dark:bg-gray-800/50 relative overflow-hidden">
                       ${baselineBar}
-                      <div class="bar-fill" style="width: ${pct}%; background: ${color};"></div>
+                      <div class="bar-fill h-full rounded opacity-80" style="width: ${pct}%; background: ${color};"></div>
                     </div>
-                    <div class="bar-value" style="color: ${color}">${formatNs(b.MeanNs)}</div>
+                    <div class="bar-value font-mono text-sm text-right whitespace-nowrap" style="color: ${color}">${formatNs(b.MeanNs)}</div>
                   </div>
                 `;
               }).join("");
@@ -1379,73 +895,73 @@ sealed class ReportCommand : Command<ReportSettings> {
                   if (comp) {
                     const cls2 = deltaClass(comp.Classification);
                     const label = comp.Classification === "New" ? "new" : formatDelta(comp.DeltaPercent);
-                    deltaCell = `<td class="num"><span class="${cls2}">${label}</span></td>`;
+                    deltaCell = `<td class="px-4 py-2.5 font-mono text-xs text-right"><span class="inline-block px-2 py-0.5 rounded-full text-[0.7rem] font-semibold ${cls2}">${label}</span></td>`;
                   } else {
-                    deltaCell = `<td class="num">—</td>`;
+                    deltaCell = `<td class="px-4 py-2.5 font-mono text-xs text-right">\u2014</td>`;
                   }
                 }
 
                 return `
-                  <tr data-params="${b.Parameters || ""}">
-                    <td>${benchLabel(b)}</td>
-                    <td class="num">${formatNs(b.MeanNs)}</td>
-                    <td class="num">${formatOps(b.OpsPerSec)}</td>
-                    <td class="num" style="color: var(--text-muted)">${formatNs(b.ErrorNs)}</td>
-                    <td class="num" style="color: var(--text-muted)">${formatNs(b.StdDevNs)}</td>
-                    <td class="num">${formatNs(b.P95Ns)}</td>
-                    <td class="num">${rankBadge(b.Rank)}</td>
-                    <td class="num">${allocBadge(b.AllocatedBytes)}</td>
-                    <td class="num">${formatGen(b.Gen0)}</td>
-                    <td class="num">${formatGen(b.Gen1)}</td>
-                    <td class="num">${formatGen(b.Gen2)}</td>
+                  <tr class="border-b border-gray-100 dark:border-gray-800/50 hover:bg-blue-50/50 dark:hover:bg-blue-900/5" data-params="${b.Parameters || ""}">
+                    <td class="px-4 py-2.5 font-mono text-xs">${benchLabel(b)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${formatNs(b.MeanNs)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${formatOps(b.OpsPerSec)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right text-gray-500 dark:text-gray-400">${formatNs(b.ErrorNs)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right text-gray-500 dark:text-gray-400">${formatNs(b.StdDevNs)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${formatNs(b.P95Ns)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${rankBadge(b.Rank)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${allocBadge(b.AllocatedBytes)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${formatGen(b.Gen0)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${formatGen(b.Gen1)}</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-right">${formatGen(b.Gen2)}</td>
                     ${deltaCell}
                   </tr>
                 `;
               }).join("");
 
-              const deltaHeader = isComparison ? `<th class="num" data-sort="DeltaPercent">Delta</th>` : "";
+              const deltaHeader = isComparison ? `<th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="DeltaPercent">Delta</th>` : "";
 
               // Parameter filters
               let filterHtml = "";
               if (hasParams) {
-                const filterBtns = [`<button class="filter-btn active" data-filter="all" data-section="${sectionId}">all</button>`];
+                const filterBtns = [`<button class="border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 px-3 py-1 rounded-full text-xs cursor-pointer transition-colors hover:border-blue-500 hover:text-blue-500 pill-active" data-filter="all" data-section="${sectionId}">all</button>`];
                 params.forEach(p => {
                   const label = p.includes("=") ? p.split("=").slice(1).join("=") : p;
-                  filterBtns.push(`<button class="filter-btn" data-filter="${p}" data-section="${sectionId}">${label}</button>`);
+                  filterBtns.push(`<button class="border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 px-3 py-1 rounded-full text-xs cursor-pointer transition-colors hover:border-blue-500 hover:text-blue-500" data-filter="${p}" data-section="${sectionId}">${label}</button>`);
                 });
-                filterHtml = `<div class="filter-row">${filterBtns.join("")}</div>`;
+                filterHtml = `<div class="flex flex-wrap gap-2 mb-4">${filterBtns.join("")}</div>`;
               }
 
               const sectionHtml = `
-                <div class="class-section" id="${sectionId}">
-                  <div class="class-header" onclick="toggleSection('${sectionId}')">
-                    <span class="toggle" id="toggle-${sectionId}">&#9660;</span>
-                    <h2>${shortName}</h2>
-                    <span style="color: var(--text-muted); font-size: 0.8rem;">${classBenchmarks.length} benchmarks</span>
+                <div class="class-section mb-8" id="${sectionId}">
+                  <div class="flex items-center gap-3 mb-3 cursor-pointer select-none" onclick="toggleSection('${sectionId}')">
+                    <span class="text-gray-400 text-xs transition-transform" id="toggle-${sectionId}">\u25bc</span>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">${shortName}</h2>
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">${classBenchmarks.length} benchmarks</span>
                   </div>
-                  <div class="class-body" id="body-${sectionId}">
+                  <div id="body-${sectionId}">
                     ${filterHtml}
-                    <div class="chart-section">
-                      <div class="metric-toggle-row" data-section="${sectionId}">
-                        ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="filter-btn${i === 0 ? ' active' : ''}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
+                    <div class="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-5 mb-3">
+                      <div class="flex flex-wrap gap-1.5 mb-4" data-section="${sectionId}">
+                        ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 px-3 py-1 rounded-full text-xs cursor-pointer transition-colors hover:border-blue-500 hover:text-blue-500${i === 0 ? ' pill-active' : ''}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
                       </div>
-                      <div class="bar-chart" id="chart-${sectionId}">${barRows}</div>
+                      <div class="flex flex-col gap-2" id="chart-${sectionId}">${barRows}</div>
                     </div>
-                    <div class="table-section">
-                      <table>
+                    <div class="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-3">
+                      <table class="w-full text-sm border-collapse">
                         <thead>
-                          <tr>
-                            <th data-sort="Method">Benchmark</th>
-                            <th class="num" data-sort="MeanNs">Mean</th>
-                            <th class="num" data-sort="OpsPerSec">Ops/sec</th>
-                            <th class="num" data-sort="ErrorNs">Error</th>
-                            <th class="num" data-sort="StdDevNs">StdDev</th>
-                            <th class="num" data-sort="P95Ns">P95</th>
-                            <th class="num" data-sort="Rank">Rank</th>
-                            <th class="num" data-sort="AllocatedBytes">Allocated</th>
-                            <th class="num" data-sort="Gen0">Gen0</th>
-                            <th class="num" data-sort="Gen1">Gen1</th>
-                            <th class="num" data-sort="Gen2">Gen2</th>
+                          <tr class="bg-gray-100 dark:bg-black/20">
+                            <th class="text-left px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="Method">Benchmark</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="MeanNs">Mean</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="OpsPerSec">Ops/sec</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="ErrorNs">Error</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="StdDevNs">StdDev</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="P95Ns">P95</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="Rank">Rank</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="AllocatedBytes">Allocated</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="Gen0">Gen0</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="Gen1">Gen1</th>
+                            <th class="text-right px-4 py-2.5 text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide border-b border-gray-200 dark:border-gray-800" data-sort="Gen2">Gen2</th>
                             ${deltaHeader}
                           </tr>
                         </thead>
@@ -1471,7 +987,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               const maxVal = Math.max(...values, 1); // avoid division by zero
 
               const chart = document.getElementById("chart-" + sectionId);
-              chart.querySelectorAll(".bar-row").forEach(row => {
+              chart.querySelectorAll("[data-key]").forEach(row => {
                 const key = row.dataset.key;
                 const b = sectionBenchmarks.find(b => b.CompositeKey === key);
                 if (!b) return;
@@ -1486,12 +1002,12 @@ sealed class ReportCommand : Command<ReportSettings> {
               });
             }
 
-            document.querySelectorAll(".metric-toggle-row .filter-btn").forEach(btn => {
+            document.querySelectorAll("[data-section] [data-metric]").forEach(btn => {
               btn.addEventListener("click", () => {
                 const sectionId = btn.dataset.section;
                 // Update active state within this row
-                btn.closest(".metric-toggle-row").querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
+                btn.closest("[data-section]").querySelectorAll("[data-metric]").forEach(b => b.classList.remove("pill-active"));
+                btn.classList.add("pill-active");
                 rebuildChart(sectionId, btn.dataset.metric);
               });
             });
@@ -1501,43 +1017,44 @@ sealed class ReportCommand : Command<ReportSettings> {
             function toggleSection(sectionId) {
               const body = document.getElementById("body-" + sectionId);
               const toggle = document.getElementById("toggle-" + sectionId);
-              body.classList.toggle("collapsed");
-              toggle.classList.toggle("collapsed");
+              body.classList.toggle("collapsed-body");
+              toggle.classList.toggle("collapsed-toggle");
             }
 
             // ── Parameter filters (multi-select) ────────────────────────────────
 
-            document.querySelectorAll(".filter-row .filter-btn[data-filter]").forEach(btn => {
+            document.querySelectorAll("[data-filter]").forEach(btn => {
               btn.addEventListener("click", () => {
-                const filterRow = btn.closest(".filter-row");
+                const filterRow = btn.parentElement;
                 const sectionId = btn.dataset.section;
                 const filter    = btn.dataset.filter;
                 const allBtn    = filterRow.querySelector('[data-filter="all"]');
-                const paramBtns = [...filterRow.querySelectorAll('.filter-btn:not([data-filter="all"])')];
+                const paramBtns = [...filterRow.querySelectorAll('[data-filter]:not([data-filter="all"])')];
 
                 if (filter === "all") {
                   // "All" resets: activate all, deactivate individual pills
-                  allBtn.classList.add("active");
-                  paramBtns.forEach(b => b.classList.remove("active"));
+                  allBtn.classList.add("pill-active");
+                  paramBtns.forEach(b => b.classList.remove("pill-active"));
                 } else {
                   // Toggle this pill
-                  btn.classList.toggle("active");
+                  btn.classList.toggle("pill-active");
                   // Deactivate "all" when any individual is toggled
-                  allBtn.classList.remove("active");
+                  allBtn.classList.remove("pill-active");
                   // If no individual pills are active, reactivate "all"
-                  const anyActive = paramBtns.some(b => b.classList.contains("active"));
-                  if (!anyActive) allBtn.classList.add("active");
+                  const anyActive = paramBtns.some(b => b.classList.contains("pill-active"));
+                  if (!anyActive) allBtn.classList.add("pill-active");
                 }
 
                 // Determine which params are visible
-                const isAll = allBtn.classList.contains("active");
+                const isAll = allBtn.classList.contains("pill-active");
                 const activeParams = new Set(
-                  paramBtns.filter(b => b.classList.contains("active")).map(b => b.dataset.filter)
+                  paramBtns.filter(b => b.classList.contains("pill-active")).map(b => b.dataset.filter)
                 );
 
                 // Apply filter to bars and table rows
                 const section = document.getElementById(sectionId);
-                section.querySelectorAll(".bar-row[data-params], tr[data-params]").forEach(el => {
+                section.querySelectorAll("[data-params]").forEach(el => {
+                  if (el.tagName === "TABLE" || el.tagName === "THEAD") return;
                   const show = isAll || activeParams.has(el.dataset.params);
                   el.style.display = show ? "" : "none";
                 });
@@ -1599,12 +1116,16 @@ sealed class ReportCommand : Command<ReportSettings> {
             // ── Theme toggle ────────────────────────────────────────────────────
 
             (function() {
-              const root    = document.documentElement;
-              const btn     = document.getElementById("theme-toggle");
-              const stored  = localStorage.getItem("bdr-theme");
+              const root   = document.documentElement;
+              const btn    = document.getElementById("theme-toggle");
+              const stored = localStorage.getItem("bdr-theme");
 
               function applyTheme(theme) {
-                root.setAttribute("data-theme", theme);
+                if (theme === "dark") {
+                  root.classList.add("dark");
+                } else {
+                  root.classList.remove("dark");
+                }
                 btn.innerHTML = theme === "light" ? "&#9790;" : "&#9728;";
                 localStorage.setItem("bdr-theme", theme);
               }
@@ -1612,7 +1133,8 @@ sealed class ReportCommand : Command<ReportSettings> {
               applyTheme(stored ?? "dark");
 
               btn.addEventListener("click", () => {
-                applyTheme(root.getAttribute("data-theme") === "light" ? "dark" : "light");
+                const isDark = root.classList.contains("dark");
+                applyTheme(isDark ? "light" : "dark");
               });
             })();
             </script>
