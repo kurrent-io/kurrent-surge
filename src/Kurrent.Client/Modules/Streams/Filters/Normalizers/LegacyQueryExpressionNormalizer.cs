@@ -26,7 +26,7 @@ namespace Kurrent.Client.Streams;
 /// <c>$N</c> parameter references) are recognized and passed through without replacement.
 /// </para>
 /// </summary>
-public sealed class QueryExpressionNormalizer : IQueryExpressionNormalizer {
+public sealed class LegacyQueryExpressionNormalizer {
     static readonly SearchValues<char> IdentifierPartChars =
         SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
 
@@ -91,7 +91,7 @@ public sealed class QueryExpressionNormalizer : IQueryExpressionNormalizer {
 
     readonly string? _forbiddenTablePrefix;
 
-    public QueryExpressionNormalizer(NormalizerOptions options) {
+    public LegacyQueryExpressionNormalizer(NormalizerOptions options) {
         _forbiddenTablePrefix = options.ForbiddenTablePrefix;
 
         _columnLookup = options.ColumnReplacements
