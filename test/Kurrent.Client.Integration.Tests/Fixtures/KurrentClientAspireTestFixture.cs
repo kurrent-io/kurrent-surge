@@ -53,8 +53,12 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
             throw new TimeoutException("KurrentDB did not become healthy within 2 minutes.", ex);
         }
 
-        ConnectionString = await _app.GetConnectionStringAsync("kurrentdb")
+        var baseConnectionString = await _app.GetConnectionStringAsync("kurrentdb")
             ?? throw new InvalidOperationException("Failed to get KurrentDB connection string.");
+
+        // Aspire's connection string lacks credentials; inject default admin credentials.
+        var uri = new Uri(baseConnectionString);
+        ConnectionString = $"{uri.Scheme}://admin:changeit@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
 
         Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
             .WithLoggerFactory(new TestkitLoggerFactory())
@@ -66,7 +70,8 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
     }
 
     public async ValueTask DisposeAsync() {
-        await Client.DisposeAsync();
+        if (Client is not null)
+            await Client.DisposeAsync();
 
         if (_app is not null) {
             await _app.StopAsync();
