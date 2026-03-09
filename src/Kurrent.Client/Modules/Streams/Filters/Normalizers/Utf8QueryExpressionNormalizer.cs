@@ -26,7 +26,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
         _tableLookup  = new Utf8ReplacementLookup(options.TableReplacements);
     }
 
-    public Utf8NormalizeResult Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> writer) {
+    public void Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> writer) {
         const int stackThreshold = 4096;
         var maxLen = query.Length * 2 + 1;
 
@@ -128,14 +128,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
 
                 // "double-quoted identifier"
                 if (ch == (byte)'"') {
-                    var error = HandleDoubleQuotedIdentifier(
-                        query, ref i, ref w,
-                        ref state
-                    );
-
-                    if (error is { })
-                        return Utf8NormalizeResult.Failure(error);
-
+                    HandleDoubleQuotedIdentifier(query, ref i, ref w, ref state);
                     continue;
                 }
 
@@ -226,7 +219,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
                                     if (_forbiddenTablePrefix is { } &&
                                         ident.Length >= _forbiddenTablePrefix.Length &&
                                         Ascii.EqualsIgnoreCase(ident[.._forbiddenTablePrefix.Length], _forbiddenTablePrefix))
-                                        return Utf8NormalizeResult.Failure($"Table '{Encoding.UTF8.GetString(ident)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
+                                        throw new QueryNormalizationException($"Table '{Encoding.UTF8.GetString(ident)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
 
                                     // Any identifier (keyword or not) in table position gets table replacement
                                     ApplyTableReplacement(ident, ref w);
@@ -264,7 +257,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
                             if (_forbiddenTablePrefix is { } &&
                                 ident.Length >= _forbiddenTablePrefix.Length &&
                                 Ascii.EqualsIgnoreCase(ident[.._forbiddenTablePrefix.Length], _forbiddenTablePrefix))
-                                return Utf8NormalizeResult.Failure($"Table '{Encoding.UTF8.GetString(ident)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
+                                throw new QueryNormalizationException($"Table '{Encoding.UTF8.GetString(ident)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
 
                             ApplyTableReplacement(ident, ref w);
                             state = ScannerState.AfterTable;
@@ -356,7 +349,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
                 // ( push state onto stack, reset to Default
                 if (ch == (byte)'(') {
                     if (depth >= 32)
-                        return Utf8NormalizeResult.Failure("Nesting depth exceeds maximum of 32");
+                        throw new QueryNormalizationException("Nesting depth exceeds maximum of 32");
 
                     stateStack[depth] = state;
                     depth++;
@@ -403,7 +396,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
             result.CopyTo(dest);
             writer.Advance(result.Length);
 
-            return Utf8NormalizeResult.Success();
+            // void — no return needed
         }
         finally {
             if (rented is not null)
@@ -519,7 +512,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
         return false;
     }
 
-    string? HandleDoubleQuotedIdentifier(ReadOnlySpan<byte> query, ref int pos, ref Utf8ScanWriter w, ref ScannerState state) {
+    void HandleDoubleQuotedIdentifier(ReadOnlySpan<byte> query, ref int pos, ref Utf8ScanWriter w, ref ScannerState state) {
         var start = pos;
         pos++; // skip opening "
 
@@ -587,7 +580,7 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
                 if (_forbiddenTablePrefix is { } &&
                     lookupContent.Length >= _forbiddenTablePrefix.Length &&
                     Ascii.EqualsIgnoreCase(lookupContent[.._forbiddenTablePrefix.Length], _forbiddenTablePrefix))
-                    return $"Table '{Encoding.UTF8.GetString(lookupContent)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'";
+                    throw new QueryNormalizationException($"Table '{Encoding.UTF8.GetString(lookupContent)}' uses forbidden prefix '{Encoding.UTF8.GetString(_forbiddenTablePrefix)}'");
 
                 if (_tableLookup.TryGetValue(lookupContent, out var replacement)) {
                     w.Add((byte)'"');
@@ -618,7 +611,6 @@ public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormaliz
             default: w.Write(query[start..pos]); break;
         }
 
-        return null;
     }
 
     static void SkipLineComment(ReadOnlySpan<byte> q, ref int pos, ref Utf8ScanWriter w) {
