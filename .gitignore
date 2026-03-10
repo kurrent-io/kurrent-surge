@@ -382,6 +382,7 @@ certs-*/
 
 # Project-specific (must be intentional)
 .agents/
+.project/docs/reference/
 .project/docs/research
 .project/docs/plans/
 .project/docs/features/
