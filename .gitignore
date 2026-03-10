@@ -354,8 +354,6 @@ AGENTS.md
 .conductor
 
 # Temp
-.agents/
-
 scratch/
 .scratch/
 .scratch
@@ -375,20 +373,21 @@ packages/
 test-results/
 .test-results/
 
+# Benchmarks
+benchmark-*.html
+
 # Certificates
 .certs-*/
 certs-*/
 
 # Project-specific (must be intentional)
+.agents/
 .project/docs/research
 .project/docs/plans/
 .project/docs/features/
 .project/docs/specs/
 .project/docs/adrs/
 .project/docs/benchmarks/
-
-# Benchmarks
-benchmark-*.html
 
 # Others
 docs/plans/
