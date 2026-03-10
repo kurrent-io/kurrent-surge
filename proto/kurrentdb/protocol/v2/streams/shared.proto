@@ -133,7 +133,6 @@ message RecordPosition {
   }
 }
 
-
 //// Configuration for progress heartbeats during filtered reads.
 ////
 //// Heartbeats provide progress visibility when a filter excludes records.

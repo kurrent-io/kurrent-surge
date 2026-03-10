@@ -215,7 +215,6 @@ enum ExpectedRevisionConstants {
   EXPECTED_REVISION_CONSTANTS_EXISTS = -4;
 }
 
-
 /**
  * Request to append records to one or more streams atomically.
  *
@@ -262,8 +261,9 @@ message ConsistencyCheck {
     // Check that a stream is at a specific revision or lifecycle state.
     StreamStateCheck stream_state = 1;
 
-    // Evaluate a server-side query predicate that must return true.
-    QueryPredicateCheck query_predicate = 2;
+    // UNIMPLEMENTED: This is a placeholder for future support of server-side query predicates.
+    // // Evaluate a server-side query predicate that must return true.
+    // QueryPredicateCheck query_predicate = 2;
   }
 
   /**
@@ -282,67 +282,68 @@ message ConsistencyCheck {
     sint64 expected_state = 2;
   }
 
-  /**
-   * A server-side query predicate evaluated before commit.
-   *
-   * If the predicate expression evaluates to false, the entire transaction is
-   * aborted. Can be used to enforce cross-stream conditions or other complex
-   * preconditions.
-   */
-  message QueryPredicateCheck {
-    // The predicate expression to evaluate.
-    string expression = 1;
-  }
+  // UNIMPLEMENTED: Placeholder for future support of server-side query predicates evaluated before commit.
+   /**
+    * A server-side query predicate evaluated before commit.
+    *
+    * If the predicate expression evaluates to false, the entire transaction is
+    * aborted. Can be used to enforce cross-stream conditions or other complex
+    * preconditions.
+    */
+   message QueryPredicateCheck {
+     // The predicate expression to evaluate.
+     string expression = 1;
+   }
 }
 
-/**
- * Stream state constants used in consistency checks and error details.
- *
- * These constants cover both directions:
- * - Input: Expected state sent by the client in consistency checks.
- * - Output: Actual state returned by the server in error details.
- *
- * Non-negative values (>= 0) represent actual stream revision numbers.
- * Negative values represent special stream states.
- *
- * Consistency checks validate writability, not just existence:
- * - A soft-deleted stream is writable (appending restores it).
- * - A tombstoned stream is never writable (permanently sealed).
- *
- * Not all values are valid in both directions:
- * - ANY (-2) and EXISTS (-4) are input-only (never returned as output).
- *
- * Pass/fail matrix (rows = input, columns = actual state):
- *
- * | Input \ Actual     | Rev M (>= 0)  | NO_STREAM | DELETED       | TOMBSTONED |
- * |--------------------|---------------|-----------|---------------|------------|
- * | Rev N (>= 0)       | pass (M = N)  | fail: -1  | pass/fail (N) | fail: -100 |
- * | NO_STREAM  (-1)    | fail: M       | pass      | pass          | fail: -100 |
- * | ANY        (-2)    | pass          | pass      | pass          | fail: -100 |
- * | EXISTS     (-4)    | pass          | fail: -1  | fail: -10     | fail: -100 |
- * | DELETED    (-10)   | fail: M       | fail: -1  | pass          | fail: -100 |
- * | TOMBSTONED (-100)  | fail: M       | fail: -1  | fail: -10     | pass       |
- */
-enum StreamStateConstants {
-  option allow_alias = true;
-  // Default protobuf enum value. Use STREAM_STATE_CONSTANTS_SINGLE_RECORD.
-  STREAM_STATE_CONSTANTS_UNSPECIFIED = 0;
-  // Revision 0: the stream has exactly one record.
-  STREAM_STATE_CONSTANTS_SINGLE_RECORD = 0;
-  // Input: stream must be writable as new (does not exist or soft-deleted).
-  // Output: stream does not exist.
-  STREAM_STATE_CONSTANTS_NO_STREAM = -1;
-  // Input only: accept any writable state (no concurrency check).
-  // Passes for all states except TOMBSTONED.
-  STREAM_STATE_CONSTANTS_ANY = -2;
-  // Input only: stream must be active (revision >= 0).
-  // Fails for NO_STREAM, DELETED, and TOMBSTONED. A scavenged stream with
-  // no remaining records still satisfies this check if it has a revision.
-  STREAM_STATE_CONSTANTS_EXISTS = -4;
-  // Input: stream must be soft-deleted. Output: stream is soft-deleted.
-  // A soft-deleted stream can be restored by appending new records.
-  STREAM_STATE_CONSTANTS_DELETED = -10;
-  // Input: stream must be tombstoned. Output: stream is tombstoned.
-  // A tombstoned stream cannot be restored or written to.
-  STREAM_STATE_CONSTANTS_TOMBSTONED = -100;
-}
+///**
+// * Stream state constants used in consistency checks and error details.
+// *
+// * These constants cover both directions:
+// * - Input: Expected state sent by the client in consistency checks.
+// * - Output: Actual state returned by the server in error details.
+// *
+// * Non-negative values (>= 0) represent actual stream revision numbers.
+// * Negative values represent special stream states.
+// *
+// * Consistency checks validate writability, not just existence:
+// * - A soft-deleted stream is writable (appending restores it).
+// * - A tombstoned stream is never writable (permanently sealed).
+// *
+// * Not all values are valid in both directions:
+// * - ANY (-2) and EXISTS (-4) are input-only (never returned as output).
+// *
+// * Pass/fail matrix (rows = input, columns = actual state):
+// *
+// * | Input \ Actual     | Rev M (>= 0)  | NO_STREAM | DELETED       | TOMBSTONED |
+// * |--------------------|---------------|-----------|---------------|------------|
+// * | Rev N (>= 0)       | pass (M = N)  | fail: -1  | pass/fail (N) | fail: -100 |
+// * | NO_STREAM  (-1)    | fail: M       | pass      | pass          | fail: -100 |
+// * | ANY        (-2)    | pass          | pass      | pass          | fail: -100 |
+// * | EXISTS     (-4)    | pass          | fail: -1  | fail: -10     | fail: -100 |
+// * | DELETED    (-10)   | fail: M       | fail: -1  | pass          | fail: -100 |
+// * | TOMBSTONED (-100)  | fail: M       | fail: -1  | fail: -10     | pass       |
+// */
+//enum StreamStateConstants {
+//  option allow_alias = true;
+//  // Default protobuf enum value. Use STREAM_STATE_CONSTANTS_SINGLE_RECORD.
+//  STREAM_STATE_CONSTANTS_UNSPECIFIED = 0;
+//  // Revision 0: the stream has exactly one record.
+//  STREAM_STATE_CONSTANTS_SINGLE_RECORD = 0;
+//  // Input: stream must be writable as new (does not exist or soft-deleted).
+//  // Output: stream does not exist.
+//  STREAM_STATE_CONSTANTS_NO_STREAM = -1;
+//  // Input only: accept any writable state (no concurrency check).
+//  // Passes for all states except TOMBSTONED.
+//  STREAM_STATE_CONSTANTS_ANY = -2;
+//  // Input only: stream must be active (revision >= 0).
+//  // Fails for NO_STREAM, DELETED, and TOMBSTONED. A scavenged stream with
+//  // no remaining records still satisfies this check if it has a revision.
+//  STREAM_STATE_CONSTANTS_EXISTS = -4;
+//  // Input: stream must be soft-deleted. Output: stream is soft-deleted.
+//  // A soft-deleted stream can be restored by appending new records.
+//  STREAM_STATE_CONSTANTS_DELETED = -10;
+//  // Input: stream must be tombstoned. Output: stream is tombstoned.
+//  // A tombstoned stream cannot be restored or written to.
+//  STREAM_STATE_CONSTANTS_TOMBSTONED = -100;
+//}
