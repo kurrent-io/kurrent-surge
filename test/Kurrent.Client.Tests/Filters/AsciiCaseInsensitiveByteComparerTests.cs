@@ -9,7 +9,7 @@ namespace Kurrent.Client.Tests.Filters;
 [Category("Filters")]
 [Category("QueryExpressionNormalizer")]
 public class AsciiCaseInsensitiveByteComparerTests {
-    static readonly AsciiCaseInsensitiveByteComparer Comparer = AsciiCaseInsensitiveByteComparer.Instance;
+    static readonly AsciiCaseInsensitiveByteComparer Comparer = new();
 
     #region Equality
 

@@ -463,7 +463,9 @@ sealed class ReportCommand : Command<ReportSettings> {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Kurrent.Client Benchmark Report</title>
             <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+            <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
             <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+            <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
             <style>
               html { scroll-behavior: smooth; }
               .bar-fill { transition: width 0.3s ease; }
@@ -478,9 +480,12 @@ sealed class ReportCommand : Command<ReportSettings> {
               .collapsed-body { display: none; }
               .collapsed-toggle { transform: rotate(-90deg); }
               th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
-              th[data-sort]::after { content: " \2195"; opacity: 0.3; font-size: 0.7rem; }
-              th[data-sort].sort-asc::after { content: " \2191"; opacity: 1; }
-              th[data-sort].sort-desc::after { content: " \2193"; opacity: 1; }
+              th[data-sort] .sort-icon { display: inline-block; width: 14px; height: 14px; vertical-align: middle; margin-left: 2px; opacity: 0.3; }
+              th[data-sort].sort-asc .sort-icon, th[data-sort].sort-desc .sort-icon { opacity: 1; }
+              td[data-heatmap] { transition: background-color 0.15s ease, color 0.15s ease; }
+              .heatmap-text td[data-heatmap] { background-color: transparent !important; }
+              tr.best-row td { font-weight: 700; }
+              table.col-hover col.hover { background: oklch(0.5 0 0 / 0.04); }
             </style>
             </head>
             <body class="bg-base-100 text-base-content leading-relaxed p-8 max-w-[1400px] mx-auto">
@@ -494,7 +499,62 @@ sealed class ReportCommand : Command<ReportSettings> {
                 </h1>
                 <p class="text-base-content/60 text-sm">Generated {{timestamp}}</p>
               </div>
-              <button class="btn btn-ghost btn-sm" id="theme-toggle" title="Toggle theme">&#9790;</button>
+              <div class="flex items-center gap-4">
+              <div class="flex items-center gap-1" title="Text size">
+                <button class="btn btn-xs btn-ghost btn-square" id="zoom-out"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                <span class="text-xs font-mono text-base-content/50 w-8 text-center" id="zoom-label">16</span>
+                <button class="btn btn-xs btn-ghost btn-square" id="zoom-in"><i data-lucide="plus" class="w-3 h-3"></i></button>
+              </div>
+              <label class="flex items-center gap-1.5 cursor-pointer text-xs" title="Heatmap mode: color cells or text">
+                <i data-lucide="thermometer" class="w-3.5 h-3.5 text-base-content/40"></i>
+                <span class="text-base-content/50 font-mono" id="heatmap-label">cells</span>
+                <input type="checkbox" class="toggle toggle-xs" id="heatmap-toggle" />
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="palette" class="w-4 h-4 text-base-content/40"></i>
+                <select class="select select-xs select-ghost w-auto font-mono" id="theme-select">
+                  <optgroup label="Dark">
+                    <option value="dark">dark</option>
+                    <option value="night">night</option>
+                    <option value="abyss">abyss</option>
+                    <option value="dim">dim</option>
+                    <option value="sunset">sunset</option>
+                    <option value="dracula">dracula</option>
+                    <option value="business">business</option>
+                    <option value="synthwave">synthwave</option>
+                    <option value="cyberpunk">cyberpunk</option>
+                    <option value="halloween">halloween</option>
+                    <option value="forest">forest</option>
+                    <option value="aqua">aqua</option>
+                    <option value="black">black</option>
+                    <option value="luxury">luxury</option>
+                    <option value="coffee">coffee</option>
+                    <option value="nord">nord</option>
+                  </optgroup>
+                  <optgroup label="Light">
+                    <option value="light">light</option>
+                    <option value="corporate">corporate</option>
+                    <option value="winter">winter</option>
+                    <option value="caramellatte">caramellatte</option>
+                    <option value="silk">silk</option>
+                    <option value="cupcake">cupcake</option>
+                    <option value="bumblebee">bumblebee</option>
+                    <option value="emerald">emerald</option>
+                    <option value="retro">retro</option>
+                    <option value="valentine">valentine</option>
+                    <option value="garden">garden</option>
+                    <option value="lofi">lofi</option>
+                    <option value="pastel">pastel</option>
+                    <option value="fantasy">fantasy</option>
+                    <option value="wireframe">wireframe</option>
+                    <option value="cmyk">cmyk</option>
+                    <option value="autumn">autumn</option>
+                    <option value="acid">acid</option>
+                    <option value="lemonade">lemonade</option>
+                  </optgroup>
+                </select>
+              </label>
+              </div>
             </header>
 
             <div id="env-section"></div>
@@ -548,17 +608,51 @@ sealed class ReportCommand : Command<ReportSettings> {
             }
 
             function rankBadge(rank) {
-              const cls = { 1: "badge-success", 2: "badge-info", 3: "badge-warning" }[rank] || "";
-              return `<span class="badge badge-xs ${cls}">${rank}</span>`;
+              const medals = { 1: ["🥇", "badge-success"], 2: ["🥈", "badge-info"], 3: ["🥉", "badge-warning"] };
+              if (medals[rank]) {
+                const [medal, cls] = medals[rank];
+                return `<span class="badge badge-xs badge-soft ${cls}">${medal} ${rank}</span>`;
+              }
+              return `<span class="badge badge-xs">${rank}</span>`;
+            }
+
+            function heatmapRatio(value, min, max) {
+              if (min === max) return -1;
+              return (max - value) / (max - min);  // 1.0 = best (lowest), 0.0 = worst (highest)
+            }
+
+            function heatmapColorFromRatio(ratio, lighten) {
+              if (ratio < 0) return "";
+              let r, g;
+              if (ratio <= 0.5) {
+                const t = ratio * 2;
+                r = 255;
+                g = Math.round(255 * Math.sqrt(t));
+              } else {
+                const t = (ratio - 0.5) * 2;
+                r = Math.round(255 * (1 - t * t));
+                g = 255;
+              }
+              r = Math.round(r + (255 - r) * lighten);
+              g = Math.round(g + (255 - g) * lighten);
+              const b = Math.round(0 + 255 * lighten);
+              return `rgb(${r}, ${g}, ${b})`;
             }
 
             function allocBadge(bytes) {
-              const cls = bytes === 0 ? "badge-success" : "badge-warning";
+              const cls = bytes === 0 ? "badge-ghost" : "badge-warning";
               return `<span class="badge badge-xs badge-soft ${cls}">${formatBytes(bytes)}</span>`;
             }
 
             function benchLabel(b) {
               return b.Parameters ? `${b.Method}(${b.Parameters})` : b.Method;
+            }
+
+            function shortLabel(b) {
+              if (b.Parameters) {
+                return b.Parameters.includes("=") ? b.Parameters.split("=").slice(1).join("=") : b.Parameters;
+              }
+              return b.Method;
             }
 
             function formatOps(ops) {
@@ -574,10 +668,10 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             // ── Color palette for bars ──────────────────────────────────────────
 
-            const barColors = ["#3b82f6", "#22c55e", "#a78bfa", "#f59e0b", "#38bdf8", "#ef4444"];
-
-            function barColor(index) {
-              return barColors[index % barColors.length];
+            function barColor(index, total) {
+              if (total <= 1) return "hsl(142, 65%, 50%)";
+              const hue = 142 - (index / (total - 1)) * 142;
+              return `hsl(${hue}, 65%, 50%)`;
             }
 
             // ── Metric definitions ──────────────────────────────────────────────
@@ -597,32 +691,43 @@ sealed class ReportCommand : Command<ReportSettings> {
             // ── Environment section ─────────────────────────────────────────────
 
             if (env) {
-              const items = [];
-              if (env.OsVersion) items.push({ label: "OS", value: env.OsVersion });
-              if (env.ProcessorName) items.push({ label: "CPU", value: env.ProcessorName });
-              if (env.LogicalCoreCount) items.push({
-                label: "Cores",
+              const machine = [];
+              const config = [];
+
+              if (env.OsVersion) machine.push({ icon: "monitor", label: "OS", value: env.OsVersion });
+              if (env.ProcessorName) machine.push({ icon: "cpu", label: "CPU", value: env.ProcessorName });
+              if (env.LogicalCoreCount) machine.push({
+                icon: "grid-2x2", label: "Cores",
                 value: `${env.PhysicalCoreCount || "?"} physical, ${env.LogicalCoreCount} logical`
               });
-              if (env.RuntimeVersion) items.push({ label: "Runtime", value: env.RuntimeVersion });
-              if (env.Architecture) items.push({ label: "Architecture", value: env.Architecture });
-              if (env.BenchmarkDotNetVersion) items.push({ label: "BenchmarkDotNet", value: env.BenchmarkDotNetVersion });
+              if (env.Architecture) machine.push({ icon: "binary", label: "Architecture", value: env.Architecture });
+
+              if (env.RuntimeVersion) config.push({ icon: "terminal", label: "Runtime", value: env.RuntimeVersion });
+              if (env.BenchmarkDotNetVersion) config.push({ icon: "gauge", label: "BenchmarkDotNet", value: env.BenchmarkDotNetVersion });
               if (jobConfig) {
-                if (jobConfig.Toolchain) items.push({ label: "Toolchain", value: jobConfig.Toolchain });
-                if (jobConfig.WarmupCount != null) items.push({ label: "Warmup", value: jobConfig.WarmupCount + " iterations" });
-                if (jobConfig.IterationCount != null) items.push({ label: "Iterations", value: jobConfig.IterationCount + " iterations" });
+                if (jobConfig.Toolchain) config.push({ icon: "wrench", label: "Toolchain", value: jobConfig.Toolchain });
+                if (jobConfig.WarmupCount != null) config.push({ icon: "flame", label: "Warmup", value: jobConfig.WarmupCount + (jobConfig.WarmupCount === 1 ? " iteration" : " iterations") });
+                if (jobConfig.IterationCount != null) config.push({ icon: "repeat", label: "Iterations", value: jobConfig.IterationCount + (jobConfig.IterationCount === 1 ? " iteration" : " iterations") });
               }
-              if (env.Configuration) items.push({ label: "Configuration", value: env.Configuration });
+              if (env.Configuration) config.push({ icon: "settings", label: "Configuration", value: env.Configuration });
+
+              function metaColumn(items) {
+                return `
+                  <div class="grid grid-cols-[1rem_auto_1fr] gap-x-3 gap-y-2 text-sm items-center">
+                    ${items.map(i => `
+                      <span class="text-base-content/40"><i data-lucide="${i.icon}" class="w-4 h-4"></i></span>
+                      <span class="font-medium text-base-content/50">${i.label}</span>
+                      <span class="font-mono text-base-content/80">${i.value}</span>
+                    `).join("")}
+                  </div>
+                `;
+              }
 
               document.getElementById("env-section").innerHTML = `
-                <dl class="rounded-lg border border-base-300 divide-y divide-base-300/60 overflow-hidden mb-6 text-sm">
-                  ${items.map(i => `
-                    <div class="grid grid-cols-[9rem_1fr] px-4 py-2 bg-base-200/50">
-                      <dt class="font-medium text-base-content/60">${i.label}</dt>
-                      <dd class="font-mono">${i.value}</dd>
-                    </div>
-                  `).join("")}
-                </dl>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  ${metaColumn(machine)}
+                  ${metaColumn(config)}
+                </div>
               `;
             }
 
@@ -688,7 +793,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               function highlightRows(items, valueGetter, valueColor) {
                 return items.map(b => `
                   <div class="flex items-center justify-between px-4 py-2 gap-2">
-                    <span class="font-mono text-xs text-base-content/60 truncate min-w-0" title="${benchLabel(b)}">${benchLabel(b)}</span>
+                    <span class="font-mono text-xs text-base-content/60 truncate min-w-0" title="${benchLabel(b)}">${shortLabel(b)}</span>
                     <span class="font-mono text-sm font-semibold whitespace-nowrap ${valueColor}">${valueGetter(b)}</span>
                   </div>
                 `).join("");
@@ -698,7 +803,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 <div class="card card-xs bg-base-200 border border-base-300">
                   <div class="card-body p-0">
                     <h3 class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-success border-b border-base-300">Top 5 Fastest</h3>
-                    <div class="divide-y divide-base-300/40">
+                    <div class="flex flex-col">
                       ${highlightRows(fastest5, b => formatNs(b.MeanNs), "text-success")}
                     </div>
                   </div>
@@ -708,7 +813,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 <div class="card card-xs bg-base-200 border border-base-300">
                   <div class="card-body p-0">
                     <h3 class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-error border-b border-base-300">Top 5 Slowest</h3>
-                    <div class="divide-y divide-base-300/40">
+                    <div class="flex flex-col">
                       ${highlightRows(slowest5, b => formatNs(b.MeanNs), "text-error")}
                     </div>
                   </div>
@@ -722,7 +827,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 <div class="card card-xs bg-base-200 border border-base-300">
                   <div class="card-body p-0">
                     <h3 class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-warning border-b border-base-300">Top 5 Most Memory</h3>
-                    <div class="divide-y divide-base-300/40">
+                    <div class="flex flex-col">
                       ${memoryRows}
                     </div>
                   </div>
@@ -839,10 +944,15 @@ sealed class ReportCommand : Command<ReportSettings> {
               const params = [...new Set(classBenchmarks.map(b => b.Parameters).filter(Boolean))];
               const hasParams = params.length > 1;
 
+              const allZeroAlloc = classBenchmarks.every(b => b.AllocatedBytes === 0);
+              const allZeroGen0 = classBenchmarks.every(b => b.Gen0 === 0);
+              const allZeroGen1 = classBenchmarks.every(b => b.Gen1 === 0);
+              const allZeroGen2 = classBenchmarks.every(b => b.Gen2 === 0);
+
               // Bar chart
               const barRows = classBenchmarks.map((b, i) => {
                 const pct = (b.MeanNs / barMax) * 100;
-                const color = barColor(i);
+                const color = barColor(i, classBenchmarks.length);
                 let baselineBar = "";
 
                 if (isComparison) {
@@ -855,15 +965,27 @@ sealed class ReportCommand : Command<ReportSettings> {
 
                 return `
                   <div class="grid items-center gap-4 h-8" style="grid-template-columns: 200px 1fr 100px" data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}">
-                    <div class="bar-label font-mono text-xs text-base-content/60 text-right whitespace-nowrap overflow-hidden text-ellipsis" title="${benchLabel(b)}">${benchLabel(b)}</div>
+                    <div class="bar-label font-mono text-xs text-base-content/60 text-right whitespace-nowrap overflow-hidden text-ellipsis" title="${benchLabel(b)}">${shortLabel(b)}</div>
                     <div class="h-6 rounded bg-base-300/50 relative overflow-hidden">
                       ${baselineBar}
                       <div class="bar-fill h-full rounded opacity-80" style="width: ${pct}%; background: ${color};"></div>
                     </div>
-                    <div class="bar-value font-mono text-sm text-right whitespace-nowrap" style="color: ${color}">${formatNs(b.MeanNs)}</div>
+                    <div class="bar-value font-mono text-sm text-right whitespace-nowrap text-base-content/70">${formatNs(b.MeanNs)}</div>
                   </div>
                 `;
               }).join("");
+
+              // Compute per-column min/max for heatmap
+              const heatCols = ["MeanNs", "ErrorNs", "StdDevNs", "P95Ns"];
+              if (!allZeroAlloc) heatCols.push("AllocatedBytes");
+              const heatRange = {};
+              heatCols.forEach(k => {
+                const vals = classBenchmarks.map(b => b[k] ?? 0).filter(v => v > 0);
+                heatRange[k] = { min: Math.min(...vals), max: Math.min(Math.max(...vals), Math.min(...vals) * 3) };
+              });
+
+              const bestMeanNs = Math.min(...classBenchmarks.map(b => b.MeanNs));
+              const maxOps = Math.max(...classBenchmarks.map(b => b.OpsPerSec));
 
               // Table rows
               const tableRows = classBenchmarks.map(b => {
@@ -879,41 +1001,75 @@ sealed class ReportCommand : Command<ReportSettings> {
                   }
                 }
 
+                const isBest = b.MeanNs === bestMeanNs;
+                const hm = (key) => {
+                  const r = heatRange[key];
+                  if (!r) return "";
+                  const v = b[key] ?? 0;
+                  if (v === 0) return "";
+                  const clamped = Math.min(v, r.max);
+                  const ratio = heatmapRatio(clamped, r.min, r.max);
+                  return ratio >= 0 ? ` data-heatmap data-heat-ratio="${ratio.toFixed(4)}"` : "";
+                };
+
+                const opsHighlight = b.OpsPerSec === maxOps ? ' style="color: oklch(0.72 0.19 142);"' : "";
+
                 return `
-                  <tr data-params="${b.Parameters || ""}">
+                  <tr data-params="${b.Parameters || ""}"${isBest ? ' class="best-row"' : ""}>
                     <td class="font-mono">${benchLabel(b)}</td>
-                    <td class="text-right font-mono">${formatNs(b.MeanNs)}</td>
-                    <td class="text-right font-mono">${formatOps(b.OpsPerSec)}</td>
-                    <td class="text-right font-mono">${formatNs(b.ErrorNs)}</td>
-                    <td class="text-right font-mono">${formatNs(b.StdDevNs)}</td>
-                    <td class="text-right font-mono">${formatNs(b.P95Ns)}</td>
+                    <td class="text-right font-mono"${hm("MeanNs")}>${formatNs(b.MeanNs)}</td>
+                    <td class="text-right font-mono"${opsHighlight}>${formatOps(b.OpsPerSec)}</td>
+                    <td class="text-right font-mono"${hm("ErrorNs")}>${formatNs(b.ErrorNs)}</td>
+                    <td class="text-right font-mono"${hm("StdDevNs")}>${formatNs(b.StdDevNs)}</td>
+                    <td class="text-right font-mono"${hm("P95Ns")}>${formatNs(b.P95Ns)}</td>
                     <td class="text-right font-mono">${rankBadge(b.Rank)}</td>
-                    <td class="text-right font-mono">${allocBadge(b.AllocatedBytes)}</td>
-                    <td class="text-right font-mono">${formatGen(b.Gen0)}</td>
-                    <td class="text-right font-mono">${formatGen(b.Gen1)}</td>
-                    <td class="text-right font-mono">${formatGen(b.Gen2)}</td>
+                    ${!allZeroAlloc ? `<td class="text-right font-mono"${hm("AllocatedBytes")}>${allocBadge(b.AllocatedBytes)}</td>` : ""}
+                    ${!allZeroGen0 ? `<td class="text-right font-mono">${formatGen(b.Gen0)}</td>` : ""}
+                    ${!allZeroGen1 ? `<td class="text-right font-mono">${formatGen(b.Gen1)}</td>` : ""}
+                    ${!allZeroGen2 ? `<td class="text-right font-mono">${formatGen(b.Gen2)}</td>` : ""}
                     ${deltaCell}
                   </tr>
                 `;
               }).join("");
 
-              const deltaHeader = isComparison ? `<th class="text-right" data-sort="DeltaPercent">Delta</th>` : "";
+              const deltaHeader = isComparison ? `<th class="text-right" data-sort="DeltaPercent">Delta <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : "";
 
               // Parameter filters
               let filterHtml = "";
               if (hasParams) {
-                const filterBtns = [`<button class="btn btn-xs btn-primary" data-filter="all" data-section="${sectionId}">all</button>`];
-                params.forEach(p => {
+                const filterItems = params.map(p => {
                   const label = p.includes("=") ? p.split("=").slice(1).join("=") : p;
-                  filterBtns.push(`<button class="btn btn-xs btn-ghost" data-filter="${p}" data-section="${sectionId}">${label}</button>`);
+                  return `<label class="label cursor-pointer justify-start gap-2 py-1">
+                    <input type="checkbox" class="toggle toggle-xs toggle-primary" data-filter="${p}" data-section="${sectionId}" checked />
+                    <span class="text-xs font-mono">${label}</span>
+                  </label>`;
                 });
-                filterHtml = `<div class="flex flex-wrap gap-2 mb-4">${filterBtns.join("")}</div>`;
+
+                filterHtml = `
+                  <div class="collapse collapse-arrow bg-base-200 border border-base-300 mb-4 rounded-lg">
+                    <input type="checkbox" class="peer" />
+                    <div class="collapse-title flex items-center gap-2 text-xs font-semibold min-h-0 py-2 px-3">
+                      <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+                      Scenarios
+                      <span class="badge badge-xs badge-primary filter-count" data-section="${sectionId}">all</span>
+                    </div>
+                    <div class="collapse-content px-3 pb-3">
+                      <label class="label cursor-pointer justify-start gap-2 py-1.5 border-b border-base-300 mb-1">
+                        <input type="checkbox" class="toggle toggle-xs toggle-primary" data-filter-all="${sectionId}" checked />
+                        <span class="text-xs font-semibold">Select all</span>
+                      </label>
+                      <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+                        ${filterItems.join("")}
+                      </div>
+                    </div>
+                  </div>
+                `;
               }
 
               const sectionHtml = `
                 <div class="class-section mb-8" id="${sectionId}">
                   <div class="flex items-center gap-3 mb-3 cursor-pointer select-none" onclick="toggleSection('${sectionId}')">
-                    <span class="text-base-content/40 text-xs transition-transform" id="toggle-${sectionId}">\u25bc</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-base-content/40 transition-transform" id="toggle-${sectionId}"></i>
                     <h2 class="text-lg font-semibold">${shortName}</h2>
                     <span class="text-base-content/40 text-xs">${classBenchmarks.length} benchmarks</span>
                   </div>
@@ -928,20 +1084,28 @@ sealed class ReportCommand : Command<ReportSettings> {
                       </div>
                     </div>
                     <div class="rounded-lg border border-base-300 overflow-x-auto mb-3">
-                      <table class="table table-xs table-zebra">
+                      <table class="table table-xs table-zebra col-hover">
+                        <colgroup>
+                          <col /><col /><col /><col /><col /><col /><col />
+                          ${!allZeroAlloc ? "<col />" : ""}
+                          ${!allZeroGen0 ? "<col />" : ""}
+                          ${!allZeroGen1 ? "<col />" : ""}
+                          ${!allZeroGen2 ? "<col />" : ""}
+                          ${isComparison ? "<col />" : ""}
+                        </colgroup>
                         <thead>
                           <tr>
-                            <th data-sort="Method">Benchmark</th>
-                            <th class="text-right" data-sort="MeanNs">Mean</th>
-                            <th class="text-right" data-sort="OpsPerSec">Ops/sec</th>
-                            <th class="text-right" data-sort="ErrorNs">Error</th>
-                            <th class="text-right" data-sort="StdDevNs">StdDev</th>
-                            <th class="text-right" data-sort="P95Ns">P95</th>
-                            <th class="text-right" data-sort="Rank">Rank</th>
-                            <th class="text-right" data-sort="AllocatedBytes">Allocated</th>
-                            <th class="text-right" data-sort="Gen0">Gen0</th>
-                            <th class="text-right" data-sort="Gen1">Gen1</th>
-                            <th class="text-right" data-sort="Gen2">Gen2</th>
+                            <th data-sort="Method">Benchmark <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="MeanNs">Mean <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="OpsPerSec">Ops/sec <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="ErrorNs">Error <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="StdDevNs">StdDev <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="P95Ns">P95 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="Rank">Rank <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            ${!allZeroAlloc ? `<th class="text-right" data-sort="AllocatedBytes">Allocated <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            ${!allZeroGen0 ? `<th class="text-right" data-sort="Gen0">Gen0 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            ${!allZeroGen1 ? `<th class="text-right" data-sort="Gen1">Gen1 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            ${!allZeroGen2 ? `<th class="text-right" data-sort="Gen2">Gen2 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
                             ${deltaHeader}
                           </tr>
                         </thead>
@@ -982,11 +1146,11 @@ sealed class ReportCommand : Command<ReportSettings> {
               });
             }
 
-            document.querySelectorAll("[data-section] [data-metric]").forEach(btn => {
+            document.querySelectorAll("[data-metric]").forEach(btn => {
               btn.addEventListener("click", () => {
                 const sectionId = btn.dataset.section;
-                // Update active state within this row
-                btn.closest("[data-section]").querySelectorAll("[data-metric]").forEach(b => {
+                const wrapper = btn.parentElement;
+                wrapper.querySelectorAll("[data-metric]").forEach(b => {
                   b.classList.remove("btn-primary");
                   b.classList.add("btn-ghost");
                 });
@@ -1007,55 +1171,46 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             // ── Parameter filters (multi-select) ────────────────────────────────
 
-            document.querySelectorAll("[data-filter]").forEach(btn => {
-              btn.addEventListener("click", () => {
-                const filterRow = btn.parentElement;
-                const sectionId = btn.dataset.section;
-                const filter    = btn.dataset.filter;
-                const allBtn    = filterRow.querySelector('[data-filter="all"]');
-                const paramBtns = [...filterRow.querySelectorAll('[data-filter]:not([data-filter="all"])')];
+            function applyFilters(sectionId) {
+              const allCb = document.querySelector(`[data-filter-all="${sectionId}"]`);
+              if (!allCb) return;
+              const checkboxes = [...document.querySelectorAll(`[data-filter][data-section="${sectionId}"]`)];
+              const section = document.getElementById(sectionId);
 
-                if (filter === "all") {
-                  // "All" resets: activate all, deactivate individual pills
-                  allBtn.classList.remove("btn-ghost");
-                  allBtn.classList.add("btn-primary");
-                  paramBtns.forEach(b => {
-                    b.classList.remove("btn-primary");
-                    b.classList.add("btn-ghost");
-                  });
-                } else {
-                  // Toggle this pill
-                  if (btn.classList.contains("btn-primary")) {
-                    btn.classList.remove("btn-primary");
-                    btn.classList.add("btn-ghost");
-                  } else {
-                    btn.classList.remove("btn-ghost");
-                    btn.classList.add("btn-primary");
-                  }
-                  // Deactivate "all" when any individual is toggled
-                  allBtn.classList.remove("btn-primary");
-                  allBtn.classList.add("btn-ghost");
-                  // If no individual pills are active, reactivate "all"
-                  const anyActive = paramBtns.some(b => b.classList.contains("btn-primary"));
-                  if (!anyActive) {
-                    allBtn.classList.remove("btn-ghost");
-                    allBtn.classList.add("btn-primary");
-                  }
+              const isAll = allCb.checked && !allCb.indeterminate;
+              const activeParams = new Set(checkboxes.filter(c => c.checked).map(c => c.dataset.filter));
+
+              const badge = document.querySelector(`.filter-count[data-section="${sectionId}"]`);
+              if (badge) badge.textContent = isAll ? "all" : `${activeParams.size}/${checkboxes.length}`;
+
+              section.querySelectorAll("[data-params]").forEach(el => {
+                if (el.tagName === "TABLE" || el.tagName === "THEAD") return;
+                el.style.display = (isAll || activeParams.has(el.dataset.params)) ? "" : "none";
+              });
+            }
+
+            document.querySelectorAll("[data-filter-all]").forEach(allCb => {
+              allCb.addEventListener("change", () => {
+                const sectionId = allCb.dataset.filterAll;
+                document.querySelectorAll(`[data-filter][data-section="${sectionId}"]`).forEach(cb => { cb.checked = allCb.checked; });
+                applyFilters(sectionId);
+              });
+            });
+
+            document.querySelectorAll("[data-filter][data-section]").forEach(cb => {
+              cb.addEventListener("change", () => {
+                const sectionId = cb.dataset.section;
+                const allCb = document.querySelector(`[data-filter-all="${sectionId}"]`);
+                const checkboxes = [...document.querySelectorAll(`[data-filter][data-section="${sectionId}"]`)];
+                const allChecked = checkboxes.every(c => c.checked);
+                const noneChecked = checkboxes.every(c => !c.checked);
+                allCb.checked = allChecked;
+                allCb.indeterminate = !allChecked && !noneChecked;
+                if (noneChecked) {
+                  allCb.checked = true;
+                  checkboxes.forEach(c => { c.checked = true; });
                 }
-
-                // Determine which params are visible
-                const isAll = allBtn.classList.contains("btn-primary");
-                const activeParams = new Set(
-                  paramBtns.filter(b => b.classList.contains("btn-primary")).map(b => b.dataset.filter)
-                );
-
-                // Apply filter to bars and table rows
-                const section = document.getElementById(sectionId);
-                section.querySelectorAll("[data-params]").forEach(el => {
-                  if (el.tagName === "TABLE" || el.tagName === "THEAD") return;
-                  const show = isAll || activeParams.has(el.dataset.params);
-                  el.style.display = show ? "" : "none";
-                });
+                applyFilters(sectionId);
               });
             });
 
@@ -1071,10 +1226,18 @@ sealed class ReportCommand : Command<ReportSettings> {
                 // Reset all headers in this table
                 table.querySelectorAll("thead th[data-sort]").forEach(h => {
                   h.classList.remove("sort-asc", "sort-desc");
+                  const icon = h.querySelector(".sort-icon");
+                  if (icon) { icon.setAttribute("data-lucide", "arrow-up-down"); }
                 });
 
                 const dir = isAsc ? -1 : 1;
-                th.classList.add(isAsc ? "sort-desc" : "sort-asc");
+                const newDir = isAsc ? "sort-desc" : "sort-asc";
+                th.classList.add(newDir);
+                const activeIcon = th.querySelector(".sort-icon");
+                if (activeIcon) {
+                  activeIcon.setAttribute("data-lucide", newDir === "sort-asc" ? "arrow-up" : "arrow-down");
+                }
+                lucide.createIcons();
 
                 // Find the section's benchmark data
                 const sectionEl  = table.closest(".class-section");
@@ -1102,6 +1265,22 @@ sealed class ReportCommand : Command<ReportSettings> {
               });
             });
 
+            // ── Column hover highlight ─────────────────────────────────────────
+
+            document.querySelectorAll("table.col-hover").forEach(table => {
+              const cols = table.querySelectorAll("colgroup col");
+              table.addEventListener("mouseover", e => {
+                const td = e.target.closest("td, th");
+                if (!td) return;
+                const idx = td.cellIndex;
+                cols.forEach(c => c.classList.remove("hover"));
+                if (cols[idx]) cols[idx].classList.add("hover");
+              });
+              table.addEventListener("mouseleave", () => {
+                cols.forEach(c => c.classList.remove("hover"));
+              });
+            });
+
             // ── URL hash navigation ─────────────────────────────────────────────
 
             if (location.hash) {
@@ -1113,24 +1292,81 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             // ── Theme toggle ────────────────────────────────────────────────────
 
+            // ── Theme + heatmap + zoom (unified) ──────────────────────────────
+
             (function() {
               const root   = document.documentElement;
-              const btn    = document.getElementById("theme-toggle");
-              const stored = localStorage.getItem("bdr-theme");
+              const select = document.getElementById("theme-select");
+              const hToggle = document.getElementById("heatmap-toggle");
+              const hLabel  = document.getElementById("heatmap-label");
+              const zoomIn  = document.getElementById("zoom-in");
+              const zoomOut = document.getElementById("zoom-out");
+              const zoomLabel = document.getElementById("zoom-label");
 
-              function applyTheme(theme) {
-                root.setAttribute("data-theme", theme);
-                btn.innerHTML = theme === "light" ? "&#9790;" : "&#9728;";
-                localStorage.setItem("bdr-theme", theme);
+              const darkThemes = new Set(["dark","night","abyss","dim","sunset","dracula","business","synthwave","cyberpunk","halloween","forest","aqua","black","luxury","coffee","nord"]);
+
+              // Theme
+              const storedTheme = localStorage.getItem("bdr-theme") || "dark";
+              const resolved = storedTheme === "light" ? "corporate" : storedTheme;
+              root.setAttribute("data-theme", resolved);
+              select.value = resolved;
+
+              select.addEventListener("change", () => {
+                root.setAttribute("data-theme", select.value);
+                localStorage.setItem("bdr-theme", select.value);
+                applyHeatmap();
+              });
+
+              // Heatmap
+              const storedHeat = localStorage.getItem("bdr-heatmap") || "cells";
+              hToggle.checked = storedHeat === "text";
+              hLabel.textContent = storedHeat === "text" ? "text" : "cells";
+
+              hToggle.addEventListener("change", () => {
+                const mode = hToggle.checked ? "text" : "cells";
+                hLabel.textContent = mode;
+                localStorage.setItem("bdr-heatmap", mode);
+                applyHeatmap();
+              });
+
+              function applyHeatmap() {
+                const isDark = darkThemes.has(root.getAttribute("data-theme"));
+                const lighten = isDark ? 0.55 : 0.25;
+                const textMode = hToggle.checked;
+                document.body.classList.toggle("heatmap-text", textMode);
+
+                document.querySelectorAll("td[data-heatmap]").forEach(td => {
+                  const ratio = parseFloat(td.dataset.heatRatio);
+                  if (isNaN(ratio)) return;
+                  const c = heatmapColorFromRatio(ratio, lighten);
+                  if (textMode) {
+                    td.style.backgroundColor = "";
+                    td.style.color = c;
+                  } else {
+                    td.style.backgroundColor = c;
+                    td.style.color = isDark ? "#1a1a2e" : "#1a1a2e";
+                  }
+                });
               }
 
-              applyTheme(stored ?? "dark");
+              applyHeatmap();
 
-              btn.addEventListener("click", () => {
-                const current = root.getAttribute("data-theme");
-                applyTheme(current === "light" ? "dark" : "light");
-              });
+              // Zoom
+              const storedZoom = parseInt(localStorage.getItem("bdr-zoom") || "16", 10);
+              let fontSize = storedZoom;
+              applyZoom();
+
+              zoomIn.addEventListener("click", () => { fontSize = Math.min(fontSize + 1, 24); applyZoom(); });
+              zoomOut.addEventListener("click", () => { fontSize = Math.max(fontSize - 1, 10); applyZoom(); });
+
+              function applyZoom() {
+                document.body.style.fontSize = fontSize + "px";
+                zoomLabel.textContent = fontSize;
+                localStorage.setItem("bdr-zoom", fontSize);
+              }
             })();
+
+            lucide.createIcons();
             </script>
             </body>
             </html>

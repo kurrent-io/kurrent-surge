@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AdditionalPackageTags>hosting kurrentdb</AdditionalPackageTags>
+    <Description>KurrentDB support for Aspire.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" />
+  </ItemGroup>
+</Project>

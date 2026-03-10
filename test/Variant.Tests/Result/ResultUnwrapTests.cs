@@ -4,6 +4,7 @@ using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
 
+[Category("Variant")]
 public class ResultUnwrapTests {
     Faker Faker { get; } = new();
 

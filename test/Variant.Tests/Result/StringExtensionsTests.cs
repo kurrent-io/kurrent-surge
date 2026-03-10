@@ -1,5 +1,6 @@
 namespace Kurrent.Variant.Tests.Result;
 
+[Category("Variant")]
 public class StringExtensionsTests {
     [Test]
     [Arguments("SomePropertyName", "some_property_name")]

@@ -15,7 +15,6 @@ namespace Kurrent.Processors.Tests;
 /// Unit tests for processor configuration, validation, and worker creation.
 /// </summary>
 [Category("Processors")]
-[Category("Configuration")]
 public class ConfigurationTests {
     #region Default Values Tests
 

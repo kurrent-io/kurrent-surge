@@ -37,6 +37,8 @@
   <Folder Name="/Shared/">
     <Project Path="test/Kurrent.Testing.Datasets/Kurrent.Testing.Datasets.csproj" />
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <Project Path="test/CommunityToolkit.Aspire.Hosting.KurrentDB/CommunityToolkit.Aspire.Hosting.KurrentDB.csproj" />
+    <Project Path="test/CommunityToolkit.Aspire.KurrentDB/CommunityToolkit.Aspire.KurrentDB.csproj" />
     <Project Path="test/Kurrent.Testing.Aspire/Kurrent.Testing.Aspire.csproj" />
   </Folder>
   <Folder Name="/Shared/Variant/">

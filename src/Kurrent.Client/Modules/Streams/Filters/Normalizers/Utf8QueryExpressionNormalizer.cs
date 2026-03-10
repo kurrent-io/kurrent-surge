@@ -1,4 +1,6 @@
 using System.Buffers;
+using System.Collections.Frozen;
+using System.IO.Hashing;
 using System.Text;
 using System.Text.Unicode;
 using DotNext.Buffers;
@@ -917,6 +919,32 @@ sealed class AsciiCaseInsensitiveByteComparer
 
     internal static byte ToLower(byte b) =>
         b is >= (byte)'A' and <= (byte)'Z' ? (byte)(b | 0x20) : b;
+}
+
+public sealed class AsciiByteComparer :
+    IEqualityComparer<byte[]>,
+    IAlternateEqualityComparer<ReadOnlySpan<byte>, byte[]>
+{
+    public bool Equals(ReadOnlySpan<byte> alternate, byte[] other) =>
+        Ascii.EqualsIgnoreCase(alternate, other);
+
+    public int GetHashCode(ReadOnlySpan<byte> alternate) {
+        Span<byte> buffer = stackalloc byte[alternate.Length];
+        Ascii.ToUpper(alternate, buffer, out _);
+        var hash = new HashCode();
+        hash.AddBytes(buffer);
+        return hash.ToHashCode();
+    }
+
+    public byte[] Create(ReadOnlySpan<byte> alternate) => alternate.ToArray();
+
+    public bool Equals(byte[]? x, byte[]? y) {
+        if (ReferenceEquals(x, y)) return true;
+        if (x is null || y is null) return false;
+        return Equals(x.AsSpan(), y);
+    }
+
+    public int GetHashCode(byte[] obj) => GetHashCode(obj.AsSpan());
 }
 
 #endif

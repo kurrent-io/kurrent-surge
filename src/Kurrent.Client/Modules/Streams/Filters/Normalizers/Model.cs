@@ -1,11 +1,16 @@
 // ReSharper disable InconsistentNaming
 
+using System.Buffers;
 using System.Collections.Immutable;
 using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;
 
 #if NET9_0_OR_GREATER
+
+public interface IUtf8QueryExpressionNormalizerV2 {
+    void Normalize(ReadOnlySpan<byte> query, IBufferWriter<byte> writer);
+}
 
 public interface IUtf8QueryExpressionNormalizer {
     void Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> writer);

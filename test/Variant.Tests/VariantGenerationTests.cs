@@ -21,6 +21,7 @@ public record MySuccess(Guid Id);
 public record MyWarning(string Text);
 
 [UsedImplicitly]
+[Category("Variant")]
 public class VariantGenerationTests {
     [Test]
     public async Task is_string_should_be_true_when_value_is_string() {

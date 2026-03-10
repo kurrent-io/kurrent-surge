@@ -3,21 +3,30 @@ changelog:
     labels:
       - ignore-for-release
   categories:
+    - title: Breaking Changes
+      labels:
+        - breaking-change
     - title: Added
       labels:
         - enhancement
     - title: Fixed
       labels:
         - bug
-    - title: Changed
+    - title: Performance
       labels:
-        - "*"
-    - title: Deprecated
+        - optimization
+    - title: Security
       labels:
-        - deprecated
-    - title: Breaking Changes
+        - security
+    - title: Dependencies
       labels:
-        - breaking
+        - dependencies
     - title: Documentation
       labels:
         - documentation
+    - title: Deprecated
+      labels:
+        - deprecated
+    - title: Changed
+      labels:
+        - "*"

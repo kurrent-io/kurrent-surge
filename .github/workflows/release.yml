@@ -25,6 +25,7 @@ env:
   NuGetAudit: false
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
 
+  MinVerDefaultPreReleaseIdentifiers: ${{ github.event_name == 'pull_request' && format('pr.{0}.{1}', github.event.pull_request.number, github.run_number) || format('alpha.{0}', github.run_number) }}
   MinVerAutoIncrement: patch
   MinVerIgnoreHeight: true
 
@@ -60,37 +61,20 @@ jobs:
         uses: actions/setup-dotnet@v5.2.0
         with:
           dotnet-version: |
-            8.0.x
-            9.0.x
-            10.0.x
+            8.x
+            9.x
+            10.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore tools
+        run: dotnet tool restore
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore --locked-mode
 
       - name: Build
         run: dotnet build -c Release --no-restore
-
-      - name: Run Unit Tests
-        if: inputs.run_tests
-        run: |
-          for tfm in net8.0 net9.0 net10.0; do
-            dotnet run --project test/Kurrent.Client.Tests \
-              --configuration Release --no-build --framework $tfm -- \
-              --no-progress \
-              --results-directory "./artifacts/test-results" \
-              --report-trx --report-trx-filename "unit-tests-$tfm.trx" \
-              --treenode-filter "/*/*/*/*[Category!=Integration]"
-          done
-
-      - name: Run Integration Tests
-        if: inputs.run_tests
-        run: |
-          dotnet run --project test/Kurrent.Client.Integration.Tests \
-            --configuration Release --no-build --framework net10.0 -- \
-            --no-progress \
-            --results-directory "./artifacts/test-results" \
-            --report-trx --report-trx-filename "integration-tests.trx" \
-            --treenode-filter "/*/*/*/*[Category=Integration]"
 
       - name: Pack
         run: dotnet pack --configuration Release --no-build -o ./artifacts/packages

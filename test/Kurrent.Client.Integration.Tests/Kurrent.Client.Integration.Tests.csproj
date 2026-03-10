@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <RootNamespace>Kurrent.Client.Tests</RootNamespace>
   </PropertyGroup>
 

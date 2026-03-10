@@ -21,8 +21,8 @@
       "mcp__plugin_microsoft-docs_microsoft-learn__*",
       "mcp__rider__*",
       "Skill(microsoft-docs:*)",
-      "Skill(dotnet-nuget-proxy:*)",
-      "Skill(dotnet-skills:*)"
+      "Skill(dotnet-skills:*)",
+      "Skill(dotnet-nuget-proxy:*)"
     ],
     "deny": [
       "Read(./**/*.key)",
@@ -55,18 +55,23 @@
     "csharp-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
+    "microsoft-docs-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "microsoftdocs/mcp"
+      }
+    },
     "dotnet-skills": {
       "source": {
         "source": "github",
         "repo": "Aaronontheweb/dotnet-skills"
       }
     },
-    "microsoft-docs-marketplace": {
+    "dotnet-nuget-proxy": {
       "source": {
         "source": "github",
-        "repo": "microsoftdocs/mcp"
+        "repo": "logiclabs/dotnet-nuget-proxy-skill"
       }
     }
-  },
-  "spinnerTipsEnabled": false
+  }
 }

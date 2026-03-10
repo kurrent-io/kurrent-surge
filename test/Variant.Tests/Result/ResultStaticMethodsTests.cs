@@ -2,6 +2,7 @@
 
 namespace Kurrent.Variant.Tests.Result;
 
+[Category("Variant")]
 public class ResultStaticMethodsTests {
     Faker Faker { get; } = new();
 

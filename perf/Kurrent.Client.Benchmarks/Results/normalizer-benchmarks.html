@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QueryExpressionNormalizer Benchmarks</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --cyan: #79c0ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  header p {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+  }
+
+  .stat-card .label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-card .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  .stat-card .unit {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .chart-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .chart-section h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .filter-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d1117;
+  }
+
+  .bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 80px;
+    align-items: center;
+    gap: 1rem;
+    height: 32px;
+  }
+
+  .bar-label {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .bar-track {
+    height: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .bar-value {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.8rem;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .table-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+
+  .table-section h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 1.25rem 1.5rem 1rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 0.625rem 1rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  thead th.num {
+    text-align: right;
+  }
+
+  tbody td {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.8rem;
+  }
+
+  tbody td.num {
+    text-align: right;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: rgba(88, 166, 255, 0.04);
+  }
+
+  .rank-badge {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .rank-1 { background: rgba(63, 185, 80, 0.2); color: var(--green); }
+  .rank-2 { background: rgba(88, 166, 255, 0.2); color: var(--accent); }
+  .rank-3 { background: rgba(210, 153, 34, 0.2); color: var(--yellow); }
+
+  .alloc-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+
+  .category-tag {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: inherit;
+    font-weight: 500;
+  }
+
+  .cat-select { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .cat-where { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+  .cat-cte-join { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+  .cat-skip-heavy { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  footer code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    color: var(--text-muted);
+  }
+
+  .query-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    max-width: 720px;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+  }
+
+  .query-tooltip.visible {
+    display: block;
+  }
+
+  .query-tooltip .tooltip-header {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .query-tooltip pre {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+  }
+
+  .query-tooltip .kw {
+    color: var(--purple);
+    font-weight: 600;
+  }
+
+  .query-tooltip .str {
+    color: var(--green);
+  }
+
+  .query-tooltip .cmt {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .bar-row, tbody tr {
+    cursor: default;
+  }
+
+  .query-len {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 0.375rem;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>QueryExpressionNormalizer Benchmark Report</h1>
+  <p>Single-pass SQL expression rewriter &mdash; .NET 10.0 | arm64 | BenchmarkDotNet | InProcess</p>
+</header>
+
+<div class="stats-row" id="stats-row"></div>
+
+<div class="chart-section">
+  <h2>Latency by Scenario</h2>
+  <div class="filter-row" id="filter-row"></div>
+  <div class="bar-chart" id="bar-chart"></div>
+</div>
+
+<div class="table-section">
+  <h2>Full Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Category</th>
+        <th class="num">Mean</th>
+        <th class="num">Error</th>
+        <th class="num">StdDev</th>
+        <th class="num">P95</th>
+        <th class="num">Rank</th>
+        <th class="num">Allocated</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<div class="query-tooltip" id="query-tooltip">
+  <div class="tooltip-header">Query Expression</div>
+  <pre id="tooltip-sql"></pre>
+  <div class="query-len" id="tooltip-len"></div>
+</div>
+
+<footer>
+  <code>Kurrent.Client</code> &middot; Generated from BenchmarkDotNet run
+</footer>
+
+<script>
+const queries = {
+  "1c1t-select":
+    `SELECT\n  schema\nFROM records`,
+  "1c1t-where":
+    `SELECT\n  schema\nFROM records\nWHERE schema = 'urn:com:example:domain:ordering:events:order-created:v2'\nAND position > 100`,
+  "1c1t-cte-join":
+    `WITH recent AS (\n  SELECT *\n  FROM records\n  WHERE position > 1000\n)\n/* latest events */\nSELECT\n  r.schema\nFROM recent r\nINNER JOIN records t ON r.stream_id = t.stream_id\nWHERE r.schema = 'urn:com:example:domain:ordering:events:order-placed:v1'`,
+  "1c1t-skip-heavy":
+    `SELECT\n  schema\nFROM records\nWHERE schema = 'urn:com:example:domain:inventory:events:stock-reservation-confirmed:v3'\nAND data = E'escaped \\'quotes\\' and \\\\backslashes\\\\ in a longer string value here'\n/* this is a block comment that contains useful information about the query\n   and spans multiple lines to exercise the SIMD block comment scanner path */\nAND category = $$long dollar-quoted content that exercises the dollar sign scanner path$$\nAND [bracketed-identifier-name] IS NOT NULL`,
+  "10c1t-select":
+    `SELECT\n  schema,\n  revision,\n  position,\n  stream_id,\n  created,\n  data,\n  metadata_val,\n  category,\n  correlation,\n  causation\nFROM records`,
+  "10c1t-where":
+    `SELECT\n  schema,\n  revision,\n  position\nFROM records\nWHERE position > 100\nAND schema = 'urn:com:example:domain:ordering:events:order-created:v2'\nAND revision < 1000`,
+  "10c1t-cte-join":
+    `WITH recent AS (\n  SELECT\n    schema,\n    revision,\n    position\n  FROM records\n  WHERE position > 1000\n)\n/* latest events */\nSELECT\n  r.schema,\n  r.revision,\n  r.position,\n  r.stream_id\nFROM recent r\nINNER JOIN records t ON r.stream_id = t.stream_id\nWHERE r.schema = 'urn:com:example:domain:ordering:events:order-placed:v1'\nAND r.category = 'urn:com:example:domain:ordering'\nAND r.correlation = 'urn:correlation:abc-def-ghi-jkl-mno-pqr'`,
+  "10c1t-skip-heavy":
+    `SELECT\n  schema,\n  revision,\n  position,\n  stream_id,\n  created,\n  data,\n  metadata_val,\n  category,\n  correlation,\n  causation\nFROM records\nWHERE schema = 'urn:com:example:domain:inventory:events:stock-reservation-confirmed:v3'\nAND data = E'escaped \\'quotes\\' and \\\\backslashes\\\\ in a longer string value here'\n/* this is a block comment that contains useful information about the query\n   and spans multiple lines to exercise the SIMD block comment scanner path */\nAND category = $$long dollar-quoted content that exercises the dollar sign scanner path$$\nAND [bracketed-identifier-name] IS NOT NULL\nAND revision > 100 AND position BETWEEN 1000 AND 5000\nAND correlation = 'urn:correlation:abc-def-ghi-jkl-mno-pqr' AND causation = 'urn:causation:xyz-uvw-rst-mno-pqr-stu'`,
+  "10c2t-select":
+    `SELECT\n  schema,\n  revision,\n  position,\n  stream_id,\n  created,\n  data,\n  metadata_val,\n  category,\n  correlation,\n  causation\nFROM records`,
+  "10c2t-where":
+    `SELECT\n  schema,\n  revision,\n  position\nFROM all_events\nWHERE position > 100\nAND schema = 'urn:com:example:domain:ordering:events:order-created:v2'\nAND revision < 1000`,
+  "10c2t-cte-join":
+    `WITH recent AS (\n  SELECT\n    schema,\n    revision,\n    position\n  FROM all_events\n  WHERE position > 1000\n)\n/* latest events */\nSELECT\n  r.schema,\n  r.revision,\n  r.position,\n  r.stream_id\nFROM recent r\nINNER JOIN records t ON r.stream_id = t.stream_id\nWHERE r.schema = 'urn:com:example:domain:ordering:events:order-placed:v1'\nAND r.category = 'urn:com:example:domain:ordering'\nAND r.correlation = 'urn:correlation:abc-def-ghi-jkl-mno-pqr'`,
+  "10c2t-skip-heavy":
+    `SELECT\n  schema,\n  revision,\n  position,\n  stream_id,\n  created,\n  data,\n  metadata_val,\n  category,\n  correlation,\n  causation\nFROM records\nWHERE schema = 'urn:com:example:domain:inventory:events:stock-reservation-confirmed:v3'\nAND data = E'escaped \\'quotes\\' and \\\\backslashes\\\\ in a longer string value here'\n/* this is a block comment that contains useful information about the query\n   and spans multiple lines to exercise the SIMD block comment scanner path */\nAND category = $$long dollar-quoted content that exercises the dollar sign scanner path$$\nAND [bracketed-identifier-name] IS NOT NULL\nAND revision > 100 AND position BETWEEN 1000 AND 5000\nAND correlation = 'urn:correlation:abc-def-ghi-jkl-mno-pqr' AND causation = 'urn:causation:xyz-uvw-rst-mno-pqr-stu'`,
+};
+
+const data = [
+  { scenario: "1c1t-select",      config: "1c1t",  category: "select",     mean: 121.5, error: 2.64,  stddev: 0.69,  p95: 122.0,  rank: 1, alloc: 0 },
+  { scenario: "1c1t-where",       config: "1c1t",  category: "where",      mean: 280.7, error: 1.43,  stddev: 0.37,  p95: 281.0,  rank: 2, alloc: 0 },
+  { scenario: "1c1t-skip-heavy",  config: "1c1t",  category: "skip-heavy", mean: 580.3, error: 5.16,  stddev: 1.34,  p95: 582.0,  rank: 4, alloc: 0 },
+  { scenario: "1c1t-cte-join",    config: "1c1t",  category: "cte-join",   mean: 745.5, error: 22.17, stddev: 5.76,  p95: 751.9,  rank: 5, alloc: 0 },
+  { scenario: "10c1t-select",     config: "10c1t", category: "select",     mean: 433.1, error: 1.71,  stddev: 0.26,  p95: 433.3,  rank: 3, alloc: 0 },
+  { scenario: "10c1t-where",      config: "10c1t", category: "where",      mean: 434.6, error: 6.27,  stddev: 1.63,  p95: 436.2,  rank: 3, alloc: 0 },
+  { scenario: "10c1t-skip-heavy", config: "10c1t", category: "skip-heavy", mean: 1419.6, error: 8.49, stddev: 2.20, p95: 1421.8, rank: 6, alloc: 0 },
+  { scenario: "10c1t-cte-join",   config: "10c1t", category: "cte-join",   mean: 1225.3, error: 13.00, stddev: 3.38, p95: 1229.2, rank: 6, alloc: 0 },
+  { scenario: "10c2t-select",     config: "10c2t", category: "select",     mean: 433.6, error: 5.02,  stddev: 0.78,  p95: 434.1,  rank: 3, alloc: 0 },
+  { scenario: "10c2t-where",      config: "10c2t", category: "where",      mean: 429.8, error: 18.59, stddev: 4.83,  p95: 435.4,  rank: 3, alloc: 0 },
+  { scenario: "10c2t-skip-heavy", config: "10c2t", category: "skip-heavy", mean: 1421.7, error: 12.45, stddev: 3.23, p95: 1425.8, rank: 6, alloc: 0 },
+  { scenario: "10c2t-cte-join",   config: "10c2t", category: "cte-join",   mean: 1221.5, error: 21.99, stddev: 3.40, p95: 1223.8, rank: 6, alloc: 0 },
+];
+
+const categoryColors = {
+  "select":     "var(--green)",
+  "where":      "var(--accent)",
+  "cte-join":   "var(--purple)",
+  "skip-heavy": "var(--yellow)",
+};
+
+const categoryClasses = {
+  "select":     "cat-select",
+  "where":      "cat-where",
+  "cte-join":   "cat-cte-join",
+  "skip-heavy": "cat-skip-heavy",
+};
+
+// SQL syntax highlighting for tooltip
+function highlightSQL(sql) {
+  const keywords = /\b(SELECT|FROM|WHERE|AND|OR|NOT|NULL|AS|WITH|INNER|JOIN|ON|BETWEEN|IS|IN|INSERT|UPDATE|DELETE|SET|ORDER|BY|GROUP|HAVING|LIMIT|UNION|EXISTS|CASE|WHEN|THEN|ELSE|END|DISTINCT|LEFT|RIGHT|OUTER|FULL|CROSS)\b/g;
+  const strings = /('(?:[^'\\]|\\.)*'|E'(?:[^'\\]|\\.)*'|\$\$[^$]*\$\$)/g;
+  const comments = /(\/\*[\s\S]*?\*\/|--.*$)/gm;
+
+  let result = sql.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  result = result.replace(comments, '<span class="cmt">$1</span>');
+  result = result.replace(strings, '<span class="str">$1</span>');
+  result = result.replace(keywords, (m) => {
+    // Don't highlight if inside a span already
+    return '<span class="kw">' + m + '</span>';
+  });
+  return result;
+}
+
+// Tooltip
+const tooltip = document.getElementById("query-tooltip");
+const tooltipSQL = document.getElementById("tooltip-sql");
+const tooltipLen = document.getElementById("tooltip-len");
+
+function showTooltip(scenario, e) {
+  const sql = queries[scenario];
+  if (!sql) return;
+  tooltipSQL.innerHTML = highlightSQL(sql);
+  tooltipLen.textContent = sql.replace(/\\n/g, '\n').length + " chars";
+  tooltip.classList.add("visible");
+  positionTooltip(e);
+}
+
+function positionTooltip(e) {
+  const pad = 16;
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+  const rect = tooltip.getBoundingClientRect();
+  if (x + rect.width > window.innerWidth - pad) x = e.clientX - rect.width - pad;
+  if (y + rect.height > window.innerHeight - pad) y = e.clientY - rect.height - pad;
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+}
+
+function hideTooltip() {
+  tooltip.classList.remove("visible");
+}
+
+// Stats
+const fastest = Math.min(...data.map(d => d.mean));
+const slowest = Math.max(...data.map(d => d.mean));
+const median = [...data.map(d => d.mean)].sort((a, b) => a - b)[Math.floor(data.length / 2)];
+
+document.getElementById("stats-row").innerHTML = `
+  <div class="stat-card">
+    <div class="label">Fastest</div>
+    <div class="value">${fastest.toFixed(1)} <span class="unit">ns</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Median</div>
+    <div class="value">${median.toFixed(1)} <span class="unit">ns</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Slowest</div>
+    <div class="value">${slowest.toFixed(1)} <span class="unit">ns</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Allocations</div>
+    <div class="value" style="color: var(--green)">0 <span class="unit">B</span></div>
+  </div>
+`;
+
+// Filters
+const configs = ["all", ...new Set(data.map(d => d.config))];
+let activeFilter = "all";
+
+function renderFilters() {
+  document.getElementById("filter-row").innerHTML = configs.map(c =>
+    `<button class="filter-btn ${c === activeFilter ? 'active' : ''}" data-config="${c}">${c}</button>`
+  ).join("");
+
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeFilter = btn.dataset.config;
+      renderFilters();
+      renderChart();
+    });
+  });
+}
+
+function renderChart() {
+  const filtered = activeFilter === "all" ? data : data.filter(d => d.config === activeFilter);
+  const sorted = [...filtered].sort((a, b) => a.mean - b.mean);
+  const maxMean = Math.max(...sorted.map(d => d.mean));
+
+  document.getElementById("bar-chart").innerHTML = sorted.map(d => {
+    const pct = (d.mean / maxMean) * 100;
+    const color = categoryColors[d.category];
+    return `
+      <div class="bar-row" data-scenario="${d.scenario}">
+        <div class="bar-label">${d.scenario}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: ${pct}%; background: ${color}; opacity: 0.8;"></div>
+        </div>
+        <div class="bar-value" style="color: ${color}">${formatNs(d.mean)}</div>
+      </div>
+    `;
+  }).join("");
+
+  document.querySelectorAll(".bar-row[data-scenario]").forEach(row => {
+    row.addEventListener("mouseenter", e => showTooltip(row.dataset.scenario, e));
+    row.addEventListener("mousemove", e => positionTooltip(e));
+    row.addEventListener("mouseleave", hideTooltip);
+  });
+}
+
+function formatNs(ns) {
+  if (ns >= 1000) return (ns / 1000).toFixed(2) + " \u00B5s";
+  return ns.toFixed(1) + " ns";
+}
+
+function renderTable() {
+  const sorted = [...data].sort((a, b) => a.mean - b.mean);
+  document.getElementById("table-body").innerHTML = sorted.map(d => {
+    const rankClass = d.rank <= 3 ? `rank-${d.rank}` : "";
+    return `
+      <tr data-scenario="${d.scenario}">
+        <td>${d.scenario}</td>
+        <td><span class="category-tag ${categoryClasses[d.category]}">${d.category}</span></td>
+        <td class="num">${formatNs(d.mean)}</td>
+        <td class="num" style="color: var(--text-muted)">${d.error.toFixed(2)} ns</td>
+        <td class="num" style="color: var(--text-muted)">${d.stddev.toFixed(2)} ns</td>
+        <td class="num">${formatNs(d.p95)}</td>
+        <td class="num"><span class="rank-badge ${rankClass}">${d.rank}</span></td>
+        <td class="num"><span class="alloc-badge">0 B</span></td>
+      </tr>
+    `;
+  }).join("");
+
+  document.querySelectorAll("tr[data-scenario]").forEach(row => {
+    row.addEventListener("mouseenter", e => showTooltip(row.dataset.scenario, e));
+    row.addEventListener("mousemove", e => positionTooltip(e));
+    row.addEventListener("mouseleave", hideTooltip);
+  });
+}
+
+renderFilters();
+renderChart();
+renderTable();
+</script>
+</body>
+</html>

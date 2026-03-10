@@ -13,7 +13,6 @@ namespace Kurrent.Processors.Tests;
 /// Tests direct Store/Load operations, concurrency, stream management, and edge cases.
 /// </summary>
 [Category("Processors")]
-[Category("Checkpoint")]
 [Category("Integration")]
 public class CheckpointStoreTests {
 	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]

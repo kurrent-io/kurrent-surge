@@ -487,3 +487,4 @@ settings.local.json
 
 # Others
 .worktrees/
+benchmark-report.html

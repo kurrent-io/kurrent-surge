@@ -5,6 +5,7 @@ using TicTacToe;
 namespace Kurrent.Variant.Tests.Result;
 
 [UsedImplicitly]
+[Category("Variant")]
 public class ResultBindTests {
     Faker Faker { get; } = new();
 

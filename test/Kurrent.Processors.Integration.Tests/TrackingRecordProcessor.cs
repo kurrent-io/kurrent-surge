@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Kurrent.Client.Streams;
-using Kurrent.Processors;
 
 namespace Kurrent.Processors.Tests;
 
