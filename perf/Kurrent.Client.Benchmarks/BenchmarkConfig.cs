@@ -7,7 +7,7 @@ using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Toolchains.InProcess.Emit;
 
-namespace Kurrent.Client.Benchmarks;
+namespace Benchmarks;
 
 public class BenchmarkConfig : ManualConfig {
     public BenchmarkConfig() {

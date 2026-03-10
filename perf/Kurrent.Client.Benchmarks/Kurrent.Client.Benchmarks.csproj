@@ -4,7 +4,7 @@
     <TargetFrameworks>net10.0</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <IsTestProject>false</IsTestProject>
-    <RootNamespace>Kurrent.Client.Benchmarks</RootNamespace>
+    <RootNamespace>Benchmarks</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,5 +17,9 @@
     <ProjectReference Include="..\..\test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Testing\Kurrent.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Benchmarks\Processors\" />
   </ItemGroup>
 </Project>

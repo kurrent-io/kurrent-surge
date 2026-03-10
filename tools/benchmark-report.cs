@@ -466,17 +466,9 @@ sealed class ReportCommand : Command<ReportSettings> {
             <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
             <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
             <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
             <style>
               html { scroll-behavior: smooth; }
-              .bar-fill { transition: width 0.3s ease; }
-              .bar-fill-baseline {
-                position: absolute;
-                top: 0;
-                height: 100%;
-                border-radius: 0.25rem;
-                opacity: 0.3;
-                border-right: 2px dashed #9ca3af;
-              }
               .collapsed-body { display: none; }
               .collapsed-toggle { transform: rotate(-90deg); }
               th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
@@ -486,88 +478,118 @@ sealed class ReportCommand : Command<ReportSettings> {
               .heatmap-text td[data-heatmap] { background-color: transparent !important; }
               tr.best-row td { font-weight: 700; }
               table.col-hover col.hover { background: oklch(0.5 0 0 / 0.04); }
+              .sticky-header { position: sticky; top: 0; z-index: 50; background-color: oklch(var(--b1)); backdrop-filter: blur(8px); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+              .fab-top { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+              .fab-top.visible { opacity: 1; pointer-events: auto; }
             </style>
             </head>
-            <body class="bg-base-100 text-base-content leading-relaxed p-8 max-w-[1400px] mx-auto">
+            <body class="bg-base-100 text-base-content leading-relaxed max-w-[1400px] mx-auto">
 
-            <header class="flex justify-between items-start mb-6 pb-5 border-b border-base-300">
-              <div>
-                <h1 class="text-xl font-semibold">Kurrent.Client Benchmark Report
-                  <span class="badge badge-soft {{(data.IsComparison ? "badge-warning" : "badge-info")}} ml-2">
+            <div class="sticky-header px-8 pt-8 pb-4 border-b border-base-300 mb-6">
+              <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-3">
+                  <h1 class="text-xl font-semibold">Kurrent.Client Benchmark Report</h1>
+                  <span class="badge badge-soft {{(data.IsComparison ? "badge-warning" : "badge-info")}}">
                     {{(data.IsComparison ? "comparison" : "single-run")}}
                   </span>
-                </h1>
-                <p class="text-base-content/60 text-sm">Generated {{timestamp}}</p>
+                  <span class="text-base-content/40 text-xs" id="generated-ts">Generated {{timestamp}}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button class="btn btn-xs btn-ghost btn-square" id="toggle-all" title="Expand/Collapse all">
+                    <i data-lucide="unfold-vertical" class="w-4 h-4" id="toggle-all-icon"></i>
+                  </button>
+                  <details class="dropdown dropdown-end">
+                    <summary class="btn btn-xs btn-ghost btn-square" title="Settings">
+                      <i data-lucide="settings" class="w-4 h-4"></i>
+                    </summary>
+                    <div class="dropdown-content bg-base-200 rounded-box z-50 w-64 shadow-lg border border-base-300 mt-2 p-3 flex flex-col gap-3">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold">Text size</span>
+                        <div class="flex items-center gap-1">
+                          <button class="btn btn-xs btn-ghost btn-square" id="zoom-out"><i data-lucide="minus" class="w-3 h-3"></i></button>
+                          <span class="text-xs font-mono text-base-content/50 w-8 text-center" id="zoom-label">16</span>
+                          <button class="btn btn-xs btn-ghost btn-square" id="zoom-in"><i data-lucide="plus" class="w-3 h-3"></i></button>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold">Heatmap</span>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                          <span class="text-base-content/50 text-xs font-mono" id="heatmap-label">cells</span>
+                          <input type="checkbox" class="toggle toggle-xs" id="heatmap-toggle" />
+                        </label>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold">Theme</span>
+                        <select class="select select-xs select-ghost w-auto font-mono" id="theme-select">
+                          <optgroup label="Dark">
+                            <option value="dark">dark</option>
+                            <option value="night">night</option>
+                            <option value="abyss">abyss</option>
+                            <option value="dim">dim</option>
+                            <option value="sunset">sunset</option>
+                            <option value="dracula">dracula</option>
+                            <option value="business">business</option>
+                            <option value="synthwave">synthwave</option>
+                            <option value="cyberpunk">cyberpunk</option>
+                            <option value="halloween">halloween</option>
+                            <option value="forest">forest</option>
+                            <option value="aqua">aqua</option>
+                            <option value="black">black</option>
+                            <option value="luxury">luxury</option>
+                            <option value="coffee">coffee</option>
+                            <option value="nord">nord</option>
+                          </optgroup>
+                          <optgroup label="Light">
+                            <option value="light">light</option>
+                            <option value="corporate">corporate</option>
+                            <option value="winter">winter</option>
+                            <option value="caramellatte">caramellatte</option>
+                            <option value="silk">silk</option>
+                            <option value="cupcake">cupcake</option>
+                            <option value="bumblebee">bumblebee</option>
+                            <option value="emerald">emerald</option>
+                            <option value="retro">retro</option>
+                            <option value="valentine">valentine</option>
+                            <option value="garden">garden</option>
+                            <option value="lofi">lofi</option>
+                            <option value="pastel">pastel</option>
+                            <option value="fantasy">fantasy</option>
+                            <option value="wireframe">wireframe</option>
+                            <option value="cmyk">cmyk</option>
+                            <option value="autumn">autumn</option>
+                            <option value="acid">acid</option>
+                            <option value="lemonade">lemonade</option>
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
+                  </details>
+                </div>
               </div>
-              <div class="flex items-center gap-4">
-              <div class="flex items-center gap-1" title="Text size">
-                <button class="btn btn-xs btn-ghost btn-square" id="zoom-out"><i data-lucide="minus" class="w-3 h-3"></i></button>
-                <span class="text-xs font-mono text-base-content/50 w-8 text-center" id="zoom-label">16</span>
-                <button class="btn btn-xs btn-ghost btn-square" id="zoom-in"><i data-lucide="plus" class="w-3 h-3"></i></button>
-              </div>
-              <label class="flex items-center gap-1.5 cursor-pointer text-xs" title="Heatmap mode: color cells or text">
-                <i data-lucide="thermometer" class="w-3.5 h-3.5 text-base-content/40"></i>
-                <span class="text-base-content/50 font-mono" id="heatmap-label">cells</span>
-                <input type="checkbox" class="toggle toggle-xs" id="heatmap-toggle" />
-              </label>
-              <label class="flex items-center gap-1.5 cursor-pointer">
-                <i data-lucide="palette" class="w-4 h-4 text-base-content/40"></i>
-                <select class="select select-xs select-ghost w-auto font-mono" id="theme-select">
-                  <optgroup label="Dark">
-                    <option value="dark">dark</option>
-                    <option value="night">night</option>
-                    <option value="abyss">abyss</option>
-                    <option value="dim">dim</option>
-                    <option value="sunset">sunset</option>
-                    <option value="dracula">dracula</option>
-                    <option value="business">business</option>
-                    <option value="synthwave">synthwave</option>
-                    <option value="cyberpunk">cyberpunk</option>
-                    <option value="halloween">halloween</option>
-                    <option value="forest">forest</option>
-                    <option value="aqua">aqua</option>
-                    <option value="black">black</option>
-                    <option value="luxury">luxury</option>
-                    <option value="coffee">coffee</option>
-                    <option value="nord">nord</option>
-                  </optgroup>
-                  <optgroup label="Light">
-                    <option value="light">light</option>
-                    <option value="corporate">corporate</option>
-                    <option value="winter">winter</option>
-                    <option value="caramellatte">caramellatte</option>
-                    <option value="silk">silk</option>
-                    <option value="cupcake">cupcake</option>
-                    <option value="bumblebee">bumblebee</option>
-                    <option value="emerald">emerald</option>
-                    <option value="retro">retro</option>
-                    <option value="valentine">valentine</option>
-                    <option value="garden">garden</option>
-                    <option value="lofi">lofi</option>
-                    <option value="pastel">pastel</option>
-                    <option value="fantasy">fantasy</option>
-                    <option value="wireframe">wireframe</option>
-                    <option value="cmyk">cmyk</option>
-                    <option value="autumn">autumn</option>
-                    <option value="acid">acid</option>
-                    <option value="lemonade">lemonade</option>
-                  </optgroup>
+              <div class="flex items-center gap-2">
+                <input class="input input-sm input-bordered flex-1" id="global-search" type="search"
+                       placeholder="Search benchmarks..." autocomplete="off">
+                <select class="select select-sm select-bordered w-auto font-mono" id="section-nav">
+                  <option value="">Jump to...</option>
                 </select>
-              </label>
               </div>
-            </header>
+            </div>
+
+            <div class="px-8">
 
             <div id="env-section"></div>
             <div id="stats-row"></div>
-            <div id="highlights-section"></div>
-            <div id="search-row"></div>
-            <div class="flex flex-wrap gap-2 mb-6" id="section-nav"></div>
             <div id="regression-section"></div>
             <div id="class-sections"></div>
 
             <footer class="text-center text-base-content/40 text-xs pt-4 border-t border-base-300">
               <code class="font-mono">Kurrent.Client</code> &middot; Generated by benchmark-report
             </footer>
+            </div><!-- /px-8 -->
+
+            <button class="fab-top btn btn-circle btn-sm btn-primary shadow-lg" id="fab-top" title="Back to top">
+              <i data-lucide="arrow-up" class="w-4 h-4"></i>
+            </button>
 
             <script>
             const benchmarks = {{benchmarkJson}};
@@ -669,9 +691,15 @@ sealed class ReportCommand : Command<ReportSettings> {
             // ── Color palette for bars ──────────────────────────────────────────
 
             function barColor(index, total) {
-              if (total <= 1) return "hsl(142, 65%, 50%)";
+              if (total <= 1) return "hsla(142, 65%, 50%, 1)";
               const hue = 142 - (index / (total - 1)) * 142;
-              return `hsl(${hue}, 65%, 50%)`;
+              return `hsla(${hue}, 65%, 50%, 1)`;
+            }
+
+            function barColorAlpha(index, total, alpha) {
+              if (total <= 1) return `hsla(142, 65%, 50%, ${alpha})`;
+              const hue = 142 - (index / (total - 1)) * 142;
+              return `hsla(${hue}, 65%, 50%, ${alpha})`;
             }
 
             // ── Metric definitions ──────────────────────────────────────────────
@@ -779,82 +807,40 @@ sealed class ReportCommand : Command<ReportSettings> {
               document.getElementById("stats-row").innerHTML = statsHtml;
             }
 
-            // ── Highlights section ──────────────────────────────────────────────
+            // ── Section navigation (in sticky header) ──────────────────────────
 
             {
-              function top5(arr) { return arr.slice(0, 5); }
-
-              const bySpeed    = [...benchmarks].sort((a, b) => a.MeanNs - b.MeanNs);
-              const fastest5   = top5(bySpeed);
-              const slowest5   = top5([...benchmarks].sort((a, b) => b.MeanNs - a.MeanNs));
-              const memory5    = top5([...benchmarks].filter(b => b.AllocatedBytes > 0)
-                                       .sort((a, b) => b.AllocatedBytes - a.AllocatedBytes));
-
-              function highlightRows(items, valueGetter, valueColor) {
-                return items.map(b => `
-                  <div class="flex items-center justify-between px-4 py-2 gap-2">
-                    <span class="font-mono text-xs text-base-content/60 truncate min-w-0" title="${benchLabel(b)}">${shortLabel(b)}</span>
-                    <span class="font-mono text-sm font-semibold whitespace-nowrap ${valueColor}">${valueGetter(b)}</span>
-                  </div>
-                `).join("");
-              }
-
-              const fastestCard = `
-                <div class="card card-xs bg-base-200 border border-base-300">
-                  <div class="card-body p-0">
-                    <h3 class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-success border-b border-base-300">Top 5 Fastest</h3>
-                    <div class="flex flex-col">
-                      ${highlightRows(fastest5, b => formatNs(b.MeanNs), "text-success")}
-                    </div>
-                  </div>
-                </div>`;
-
-              const slowestCard = `
-                <div class="card card-xs bg-base-200 border border-base-300">
-                  <div class="card-body p-0">
-                    <h3 class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-error border-b border-base-300">Top 5 Slowest</h3>
-                    <div class="flex flex-col">
-                      ${highlightRows(slowest5, b => formatNs(b.MeanNs), "text-error")}
-                    </div>
-                  </div>
-                </div>`;
-
-              const memoryRows = memory5.length > 0
-                ? highlightRows(memory5, b => formatBytes(b.AllocatedBytes), "text-warning")
-                : `<div class="flex items-center px-4 py-2"><span class="font-mono text-xs text-success">All benchmarks allocate zero</span></div>`;
-
-              const memoryCard = `
-                <div class="card card-xs bg-base-200 border border-base-300">
-                  <div class="card-body p-0">
-                    <h3 class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-warning border-b border-base-300">Top 5 Most Memory</h3>
-                    <div class="flex flex-col">
-                      ${memoryRows}
-                    </div>
-                  </div>
-                </div>`;
-
-              document.getElementById("highlights-section").innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  ${fastestCard}
-                  ${slowestCard}
-                  ${memoryCard}
-                </div>
-              `;
+              const nav = document.getElementById("section-nav");
+              classes.forEach(c => {
+                const shortName = c.split(".").pop();
+                const opt = document.createElement("option");
+                opt.value = "section-" + c;
+                opt.textContent = shortName;
+                nav.appendChild(opt);
+              });
+              nav.addEventListener("change", () => {
+                if (!nav.value) return;
+                // Collapse all sections
+                document.querySelectorAll(".class-section").forEach(s => {
+                  const body = document.getElementById("body-" + s.id);
+                  const toggle = document.getElementById("toggle-" + s.id);
+                  if (body) body.classList.add("collapsed-body");
+                  if (toggle) toggle.classList.add("collapsed-toggle");
+                });
+                // Expand the selected one
+                const el = document.getElementById(nav.value);
+                if (el) {
+                  const body = document.getElementById("body-" + nav.value);
+                  const toggle = document.getElementById("toggle-" + nav.value);
+                  if (body) body.classList.remove("collapsed-body");
+                  if (toggle) toggle.classList.remove("collapsed-toggle");
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+                nav.value = "";
+              });
             }
 
-            // ── Section navigation ──────────────────────────────────────────────
-
-            document.getElementById("section-nav").innerHTML = classes.map(c => {
-              const shortName = c.split(".").pop();
-              return `<a class="badge badge-outline badge-sm hover:badge-primary transition-colors no-underline" href="#section-${c}">${shortName}</a>`;
-            }).join("");
-
-            // ── Global search ───────────────────────────────────────────────────
-
-            document.getElementById("search-row").innerHTML = `
-              <input class="input input-bordered w-full mb-4" id="global-search" type="search"
-                     placeholder="Search benchmarks..." autocomplete="off">
-            `;
+            // ── Global search (in sticky header) ─────────────────────────────────
 
             document.getElementById("global-search").addEventListener("input", e => {
               const term = e.target.value.toLowerCase().trim();
@@ -862,10 +848,8 @@ sealed class ReportCommand : Command<ReportSettings> {
               document.querySelectorAll(".class-section").forEach(section => {
                 let sectionVisible = false;
 
-                section.querySelectorAll("[data-params]").forEach(el => {
-                  if (el.tagName === "TABLE" || el.tagName === "THEAD") return;
-                  const labelEl = el.querySelector(".bar-label, td:first-child");
-                  const text = (labelEl?.textContent ?? "").toLowerCase();
+                section.querySelectorAll("tr[data-params]").forEach(el => {
+                  const text = (el.querySelector("td:first-child")?.textContent ?? "").toLowerCase();
                   const match = !term || text.includes(term);
                   el.style.display = match ? "" : "none";
                   if (match) sectionVisible = true;
@@ -949,31 +933,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               const allZeroGen1 = classBenchmarks.every(b => b.Gen1 === 0);
               const allZeroGen2 = classBenchmarks.every(b => b.Gen2 === 0);
 
-              // Bar chart
-              const barRows = classBenchmarks.map((b, i) => {
-                const pct = (b.MeanNs / barMax) * 100;
-                const color = barColor(i, classBenchmarks.length);
-                let baselineBar = "";
-
-                if (isComparison) {
-                  const comp = compMap[b.CompositeKey];
-                  if (comp?.Baseline) {
-                    const bPct = (comp.Baseline.MeanNs / barMax) * 100;
-                    baselineBar = `<div class="bar-fill-baseline" style="width: ${bPct}%; background: ${color};"></div>`;
-                  }
-                }
-
-                return `
-                  <div class="grid items-center gap-4 h-8" style="grid-template-columns: 200px 1fr 100px" data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}">
-                    <div class="bar-label font-mono text-xs text-base-content/60 text-right whitespace-nowrap overflow-hidden text-ellipsis" title="${benchLabel(b)}">${shortLabel(b)}</div>
-                    <div class="h-6 rounded bg-base-300/50 relative overflow-hidden">
-                      ${baselineBar}
-                      <div class="bar-fill h-full rounded opacity-80" style="width: ${pct}%; background: ${color};"></div>
-                    </div>
-                    <div class="bar-value font-mono text-sm text-right whitespace-nowrap text-base-content/70">${formatNs(b.MeanNs)}</div>
-                  </div>
-                `;
-              }).join("");
+              // Chart.js data placeholder (built after DOM insert)
 
               // Compute per-column min/max for heatmap
               const heatCols = ["MeanNs", "ErrorNs", "StdDevNs", "P95Ns"];
@@ -1077,10 +1037,18 @@ sealed class ReportCommand : Command<ReportSettings> {
                     ${filterHtml}
                     <div class="card card-xs bg-base-200 border border-base-300 mb-3">
                       <div class="card-body">
-                        <div class="flex flex-wrap gap-1.5 mb-4" data-section="${sectionId}">
-                          ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="btn btn-xs ${i === 0 ? 'btn-primary' : 'btn-ghost'}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
+                        <div class="flex items-center gap-2 mb-3">
+                          <div class="flex flex-wrap gap-1.5" data-section="${sectionId}">
+                            ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="btn btn-xs ${i === 0 ? 'btn-primary' : 'btn-ghost'}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
+                          </div>
+                          <button class="btn btn-xs btn-ghost gap-1" data-log-toggle="${sectionId}" title="Toggle log scale">
+                            <i data-lucide="scaling" class="w-3.5 h-3.5"></i>
+                            <span class="text-xs font-mono" data-log-label="${sectionId}">linear</span>
+                          </button>
                         </div>
-                        <div class="flex flex-col gap-2" id="chart-${sectionId}">${barRows}</div>
+                        <div style="height: 260px; position: relative;">
+                          <canvas id="chart-${sectionId}"></canvas>
+                        </div>
                       </div>
                     </div>
                     <div class="rounded-lg border border-base-300 overflow-x-auto mb-3">
@@ -1119,33 +1087,101 @@ sealed class ReportCommand : Command<ReportSettings> {
               classSections.insertAdjacentHTML("beforeend", sectionHtml);
             });
 
-            // ── Chart metric switching ──────────────────────────────────────────
+            // ── Chart.js instances ────────────────────────────────────────────
 
-            function rebuildChart(sectionId, metricKey) {
+            const chartInstances = {};
+            const chartLogState = {};
+            const chartMetricState = {};
+
+            function getChartTextColor() {
+              return getComputedStyle(document.body).getPropertyValue("color") || "#e0e0e0";
+            }
+
+            function getChartGridColor() {
+              return "rgba(128, 128, 128, 0.15)";
+            }
+
+            function buildChart(sectionId, metricKey) {
               const cls = sectionId.replace("section-", "");
               const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
               const metric = metrics.find(m => m.key === metricKey);
               if (!metric) return;
 
+              const isLog = chartLogState[sectionId] || false;
+              chartMetricState[sectionId] = metricKey;
+
+              const labels = sectionBenchmarks.map(b => shortLabel(b));
               const values = sectionBenchmarks.map(b => b[metricKey] ?? 0);
-              const maxVal = Math.max(...values, 1); // avoid division by zero
+              const n = sectionBenchmarks.length;
+              const bgColors = sectionBenchmarks.map((_, i) => barColorAlpha(i, n, 0.8));
+              const borderColors = sectionBenchmarks.map((_, i) => barColor(i, n));
+              const textColor = getChartTextColor();
 
-              const chart = document.getElementById("chart-" + sectionId);
-              chart.querySelectorAll("[data-key]").forEach(row => {
-                const key = row.dataset.key;
-                const b = sectionBenchmarks.find(b => b.CompositeKey === key);
-                if (!b) return;
+              if (chartInstances[sectionId]) {
+                chartInstances[sectionId].destroy();
+              }
 
-                const val = b[metricKey] ?? 0;
-                const pct = (val / maxVal) * 100;
-                const fill = row.querySelector(".bar-fill");
-                const valueEl = row.querySelector(".bar-value");
+              const canvas = document.getElementById("chart-" + sectionId);
+              if (!canvas) return;
 
-                if (fill) fill.style.width = pct + "%";
-                if (valueEl) valueEl.textContent = metric.format(val);
+              chartInstances[sectionId] = new Chart(canvas, {
+                type: "bar",
+                data: {
+                  labels,
+                  datasets: [{
+                    data: values,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                    borderRadius: 3,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  animation: { duration: 300 },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        title: (ctx) => benchLabel(sectionBenchmarks[ctx[0].dataIndex]),
+                        label: (ctx) => metric.format(ctx.raw),
+                      },
+                      titleFont: { family: "monospace", size: 11 },
+                      bodyFont: { family: "monospace", size: 13, weight: "bold" },
+                    }
+                  },
+                  scales: {
+                    y: {
+                      type: isLog ? "logarithmic" : "linear",
+                      ticks: {
+                        color: textColor,
+                        font: { family: "monospace", size: 10 },
+                        callback: (v) => metric.format(v),
+                      },
+                      grid: { color: getChartGridColor() },
+                    },
+                    x: {
+                      ticks: {
+                        color: textColor,
+                        font: { family: "monospace", size: 10 },
+                        maxRotation: 45,
+                        minRotation: 0,
+                      },
+                      grid: { display: false },
+                    }
+                  }
+                }
               });
             }
 
+            // Initialize all charts
+            classes.forEach(cls => {
+              const sectionId = "section-" + cls;
+              buildChart(sectionId, "MeanNs");
+            });
+
+            // Metric pill switching
             document.querySelectorAll("[data-metric]").forEach(btn => {
               btn.addEventListener("click", () => {
                 const sectionId = btn.dataset.section;
@@ -1156,7 +1192,20 @@ sealed class ReportCommand : Command<ReportSettings> {
                 });
                 btn.classList.remove("btn-ghost");
                 btn.classList.add("btn-primary");
-                rebuildChart(sectionId, btn.dataset.metric);
+                buildChart(sectionId, btn.dataset.metric);
+              });
+            });
+
+            // Log scale toggle
+            document.querySelectorAll("[data-log-toggle]").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const sectionId = btn.dataset.logToggle;
+                chartLogState[sectionId] = !chartLogState[sectionId];
+                const label = btn.querySelector("[data-log-label]");
+                if (label) label.textContent = chartLogState[sectionId] ? "log" : "linear";
+                btn.classList.toggle("btn-primary", chartLogState[sectionId]);
+                btn.classList.toggle("btn-ghost", !chartLogState[sectionId]);
+                buildChart(sectionId, chartMetricState[sectionId] || "MeanNs");
               });
             });
 
@@ -1168,6 +1217,28 @@ sealed class ReportCommand : Command<ReportSettings> {
               body.classList.toggle("collapsed-body");
               toggle.classList.toggle("collapsed-toggle");
             }
+
+            // ── Expand/Collapse all ───────────────────────────────────────────
+
+            let allExpanded = true;
+            document.getElementById("toggle-all").addEventListener("click", () => {
+              allExpanded = !allExpanded;
+              document.querySelectorAll(".class-section").forEach(section => {
+                const id = section.id;
+                const body = document.getElementById("body-" + id);
+                const toggle = document.getElementById("toggle-" + id);
+                if (allExpanded) {
+                  body.classList.remove("collapsed-body");
+                  toggle.classList.remove("collapsed-toggle");
+                } else {
+                  body.classList.add("collapsed-body");
+                  toggle.classList.add("collapsed-toggle");
+                }
+              });
+              const icon = document.getElementById("toggle-all-icon");
+              icon.setAttribute("data-lucide", allExpanded ? "unfold-vertical" : "fold-vertical");
+              lucide.createIcons();
+            });
 
             // ── Parameter filters (multi-select) ────────────────────────────────
 
@@ -1290,8 +1361,6 @@ sealed class ReportCommand : Command<ReportSettings> {
               }
             }
 
-            // ── Theme toggle ────────────────────────────────────────────────────
-
             // ── Theme + heatmap + zoom (unified) ──────────────────────────────
 
             (function() {
@@ -1315,6 +1384,10 @@ sealed class ReportCommand : Command<ReportSettings> {
                 root.setAttribute("data-theme", select.value);
                 localStorage.setItem("bdr-theme", select.value);
                 applyHeatmap();
+                // Rebuild all charts so text/grid colors match new theme
+                Object.keys(chartInstances).forEach(sid => {
+                  buildChart(sid, chartMetricState[sid] || "MeanNs");
+                });
               });
 
               // Heatmap
@@ -1360,11 +1433,21 @@ sealed class ReportCommand : Command<ReportSettings> {
               zoomOut.addEventListener("click", () => { fontSize = Math.max(fontSize - 1, 10); applyZoom(); });
 
               function applyZoom() {
-                document.body.style.fontSize = fontSize + "px";
+                document.documentElement.style.fontSize = fontSize + "px";
                 zoomLabel.textContent = fontSize;
                 localStorage.setItem("bdr-zoom", fontSize);
               }
             })();
+
+            // ── Back-to-top FAB ───────────────────────────────────────────────
+
+            const fab = document.getElementById("fab-top");
+            window.addEventListener("scroll", () => {
+              fab.classList.toggle("visible", window.scrollY > 300);
+            }, { passive: true });
+            fab.addEventListener("click", () => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            });
 
             lucide.createIcons();
             </script>
