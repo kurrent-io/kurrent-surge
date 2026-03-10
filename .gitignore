@@ -57,7 +57,6 @@ BenchmarkDotNet.Artifacts/
 # .NET Core
 project.lock.json
 project.fragment.lock.json
-artifacts/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
@@ -359,15 +358,20 @@ AGENTS.md
 
 scratch/
 .scratch/
+.scratch
+
 worktrees/
 .worktrees/
+
 .tasks/
 tasks/
 
 artifacts/
 .artifacts/
+
 packages/
 .packages/
+
 test-results/
 .test-results/
 
@@ -384,7 +388,6 @@ certs-*/
 .project/docs/benchmarks/
 
 # Benchmarks
-BenchmarkDotNet.Artifacts/
 benchmark-*.html
 
 # Others
