@@ -5,80 +5,68 @@ namespace Kurrent.Client.Tests.Filters;
 [Category("Filters")]
 public class RecordFilterTests {
     [Test]
-    public void none_returns_empty_filter() {
+    public async Task none_returns_empty_filter() {
         var filter = RecordFilter.None;
-        filter.ShouldBeOfType<EmptyFilter>();
+        await Assert.That(filter).IsTypeOf<EmptyFilter>();
     }
 
     [Test]
-    public void by_stream_returns_stream_filter() {
+    public async Task by_stream_returns_stream_filter() {
         var filter = RecordFilter.ByStream("orders");
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
     [Test]
-    public void by_stream_sets_target_stream_for_single_stream() {
+    public async Task by_stream_sets_target_stream_for_single_stream() {
         var filter = RecordFilter.ByStream("orders");
-        var streamFilter = filter.ShouldBeOfType<StreamFilter>();
-        streamFilter.TargetStream.ShouldBe((StreamName)"orders");
+        var streamFilter = (StreamFilter)filter;
+        await Assert.That(streamFilter.TargetStream).IsEqualTo((StreamName)"orders");
     }
 
     [Test]
-    public void by_stream_does_not_set_target_stream_for_multiple_streams() {
+    public async Task by_stream_does_not_set_target_stream_for_multiple_streams() {
         var filter = RecordFilter.ByStream("orders", "payments");
-        var streamFilter = filter.ShouldBeOfType<StreamFilter>();
-        streamFilter.TargetStream.ShouldBe(StreamName.All);
+        var streamFilter = (StreamFilter)filter;
+        await Assert.That(streamFilter.TargetStream).IsEqualTo(StreamName.All);
     }
 
     [Test]
-    public void by_stream_throws_on_empty_array() {
-        Should.Throw<ArgumentOutOfRangeException>(() => RecordFilter.ByStream());
+    public async Task by_stream_throws_on_empty_array() {
+        await Assert.That(() => RecordFilter.ByStream()).ThrowsExactly<ArgumentOutOfRangeException>();
     }
 
     [Test]
-    public void by_stream_prefix_returns_stream_filter() {
-        var filter = RecordFilter.ByStreamPrefix("order", "payment");
+    public async Task by_schema_returns_stream_filter_targeting_idx_et() {
+        var filter = RecordFilter.BySchema("OrderCreated");
 
-        filter.ShouldBeOfType<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
     }
 
     [Test]
-    public void by_stream_prefix_throws_on_empty_array() {
-        Should.Throw<ArgumentException>(() => RecordFilter.ByStreamPrefix());
+    public async Task by_schema_throws_on_null_or_whitespace() {
+        await Assert.That(() => RecordFilter.BySchema("")).ThrowsExactly<ArgumentException>();
+        await Assert.That(() => RecordFilter.BySchema(" ")).ThrowsExactly<ArgumentException>();
     }
 
     [Test]
-    public void by_schema_returns_schema_filter() {
-        var filter = RecordFilter.BySchema("Order");
-        filter.ShouldBeOfType<SchemaFilter>();
+    public async Task by_category_returns_stream_filter_targeting_idx_ce() {
+        var filter = RecordFilter.ByCategory("orders");
+
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
     }
 
     [Test]
-    public void by_schema_with_multiple_schemas_returns_schema_filter() {
-        var filter = RecordFilter.BySchema("Order", "Payment");
-        filter.ShouldBeOfType<SchemaFilter>();
+    public async Task by_category_throws_on_null_or_whitespace() {
+        await Assert.That(() => RecordFilter.ByCategory("")).ThrowsExactly<ArgumentException>();
+        await Assert.That(() => RecordFilter.ByCategory(" ")).ThrowsExactly<ArgumentException>();
     }
 
     [Test]
-    public void by_schema_throws_on_empty_array() {
-        Should.Throw<ArgumentOutOfRangeException>(() => RecordFilter.BySchema());
-    }
-
-    [Test]
-    public void by_schema_prefix_returns_schema_filter() {
-        var filter = RecordFilter.BySchemaPrefix("Order", "Payment");
-        filter.ShouldBeOfType<SchemaFilter>();
-    }
-
-    [Test]
-    public void by_schema_prefix_throws_on_empty_array() {
-        Should.Throw<ArgumentException>(() => RecordFilter.BySchemaPrefix());
-    }
-
-    [Test]
-    public void by_expression_returns_expression_filter() {
+    public async Task by_expression_returns_expression_filter() {
         var filter = RecordFilter.ByExpression("stream = 'orders'");
 
-        filter.ShouldBeOfType<ExpressionFilter>();
+        await Assert.That(filter).IsTypeOf<ExpressionFilter>();
     }
 }

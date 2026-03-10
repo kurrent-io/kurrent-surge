@@ -1,6 +1,9 @@
+using Kurrent.Client;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Fluent builder for configuring a processor's hosting options.
@@ -17,7 +20,7 @@ namespace Kurrent.Client.Streams;
 /// services.AddKurrentProcessor&lt;MyProcessor&gt;(config => config
 ///     .UseClient("kurrentdb://localhost:2113")
 ///     .WithFilter("schema_name = 'OrderPlaced'")
-///     .ConfigureCheckpoint(c => c with { Interval = 10_000 })
+///     .ConfigureCheckpointing(c => c.Interval(TimeSpan.FromSeconds(10)))
 /// );
 /// </code>
 /// </example>
@@ -62,14 +65,6 @@ public sealed class KurrentProcessorHostBuilder {
     /// <exception cref="InvalidOperationException">
     /// Thrown when the processor type is not available (should not happen with normal usage).
     /// </exception>
-    /// <example>
-    /// <code>
-    /// services.AddKurrentProcessor&lt;MyProcessor&gt;(config => config
-    ///     .FromConfiguration(configuration)
-    ///     .WithWorkerId(Environment.MachineName)
-    /// );
-    /// </code>
-    /// </example>
     public KurrentProcessorHostBuilder FromConfiguration(IConfiguration configuration) {
         if (_processorTypeName is null)
             throw new InvalidOperationException("Processor type not available for configuration binding.");
@@ -112,13 +107,6 @@ public sealed class KurrentProcessorHostBuilder {
     /// string provides (e.g., resilience settings, interceptors).
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// .ConfigureClient(opts => opts with {
-    ///     Resilience = KurrentClientResilienceOptions.HighAvailability
-    /// })
-    /// </code>
-    /// </example>
     public KurrentProcessorHostBuilder ConfigureClient(Func<KurrentClientOptions, KurrentClientOptions> configure) {
         _clientConfigure = configure;
         _useOwnClient    = true;
@@ -133,13 +121,6 @@ public sealed class KurrentProcessorHostBuilder {
     /// </param>
     /// <param name="configure">Function to configure client options.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    /// <example>
-    /// <code>
-    /// .UseClient("kurrentdb://localhost:2113", opts => opts with {
-    ///     Resilience = KurrentClientResilienceOptions.HighAvailability
-    /// })
-    /// </code>
-    /// </example>
     public KurrentProcessorHostBuilder UseClient(
         string connectionString,
         Func<KurrentClientOptions, KurrentClientOptions> configure) {
@@ -167,12 +148,6 @@ public sealed class KurrentProcessorHostBuilder {
     /// This is more efficient than client-side filtering for large volumes.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// .WithFilter("schema_name IN ('OrderPlaced', 'OrderShipped')")
-    /// .WithFilter("stream_id LIKE 'customer-%' AND schema_name = 'CustomerCreated'")
-    /// </code>
-    /// </example>
     public KurrentProcessorHostBuilder WithFilter(string sqlExpression) {
         _settingsBuilder.WithFilterExpression(sqlExpression);
         return this;
@@ -198,65 +173,42 @@ public sealed class KurrentProcessorHostBuilder {
     // ═══════════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Configures checkpoint settings using a transformation function.
+    /// Configures checkpoint settings using a fluent builder.
     /// </summary>
-    /// <param name="configure">
-    /// Function to transform checkpoint settings.
-    /// Use <c>with</c> expression for immutable updates.
-    /// </param>
+    /// <param name="configure">Action to configure the checkpoint settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    /// <example>
-    /// <code>
-    /// .ConfigureCheckpoint(c => c with {
-    ///     Interval = 10_000,  // 10 seconds
-    ///     Threshold = 100     // or every 100 records
-    /// })
-    /// </code>
-    /// </example>
-    public KurrentProcessorHostBuilder ConfigureCheckpointing(Func<CheckpointSettings, CheckpointSettings> configure) {
+    public KurrentProcessorHostBuilder ConfigureCheckpointing(Action<CheckpointSettingsBuilder> configure) {
         _settingsBuilder.ConfigureCheckpointing(configure);
         return this;
     }
 
     /// <summary>
-    /// Configures batching settings using a transformation function.
+    /// Configures batching settings using a fluent builder.
     /// </summary>
-    /// <param name="configure">
-    /// Function to transform batching settings.
-    /// Use <c>with</c> expression for immutable updates.
-    /// </param>
+    /// <param name="configure">Action to configure the batching settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    /// <example>
-    /// <code>
-    /// .ConfigureBatching(b => b with {
-    ///     MaxSize = 50,
-    ///     Timeout = 1000
-    /// })
-    /// </code>
-    /// </example>
-    public KurrentProcessorHostBuilder ConfigureBatching(Func<BatchingSettings, BatchingSettings> configure) {
+    public KurrentProcessorHostBuilder ConfigureBatching(Action<BatchingSettingsBuilder> configure) {
         _settingsBuilder.ConfigureBatching(configure);
         return this;
     }
 
     /// <summary>
-    /// Configures subscription settings using a transformation function.
+    /// Configures subscription settings using a fluent builder.
     /// </summary>
-    /// <param name="configure">
-    /// Function to transform subscription settings.
-    /// Use <c>with</c> expression for immutable updates.
-    /// </param>
+    /// <param name="configure">Action to configure the subscription settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    /// <example>
-    /// <code>
-    /// .ConfigureSubscription(s => s with {
-    ///     InitialPosition = SubscriptionInitialPosition.Earliest,
-    ///     PartitionKeySelector = "data.customer_id"
-    /// })
-    /// </code>
-    /// </example>
-    public KurrentProcessorHostBuilder ConfigureSubscription(Func<SubscriptionSettings, SubscriptionSettings> configure) {
+    public KurrentProcessorHostBuilder ConfigureSubscription(Action<SubscriptionSettingsBuilder> configure) {
         _settingsBuilder.ConfigureSubscription(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures worker settings using a fluent builder.
+    /// </summary>
+    /// <param name="configure">Action to configure the worker settings builder.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    public KurrentProcessorHostBuilder ConfigureWorker(Action<WorkerSettingsBuilder> configure) {
+        _settingsBuilder.ConfigureWorker(configure);
         return this;
     }
 
@@ -305,36 +257,6 @@ public sealed class KurrentProcessorHostBuilder {
         return this;
     }
 
-    /// <summary>
-    /// Sets the buffer capacity for record buffering.
-    /// </summary>
-    /// <param name="capacity">Buffer size in records (default: 1000, max: 10000).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder WithBufferCapacity(int capacity) {
-        _settingsBuilder.WithBufferCapacity(capacity);
-        return this;
-    }
-
-    /// <summary>
-    /// Skips record deserialization for raw byte access.
-    /// </summary>
-    /// <param name="skip">True to skip decoding.</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder WithSkipDecoding(bool skip = true) {
-        _settingsBuilder.WithSkipDecoding(skip);
-        return this;
-    }
-
-    /// <summary>
-    /// Provides full control over processor settings.
-    /// </summary>
-    /// <param name="configure">Function to configure all processor settings.</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder Configure(Func<ProcessorSettings, ProcessorSettings> configure) {
-        _settingsBuilder.Configure(configure);
-        return this;
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════════
     // Build
     // ═══════════════════════════════════════════════════════════════════════════════
@@ -380,37 +302,6 @@ public sealed class KurrentProcessorHostBuilder {
     /// </remarks>
     public KurrentProcessorHostBuilder WithInitialPosition(SubscriptionInitialPosition position) {
         _settingsBuilder.WithInitialPosition(position);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures record batching for processing.
-    /// </summary>
-    /// <param name="settings">The batching configuration.</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Batching controls how records are grouped before delivery to the processor.
-    /// Smaller batches reduce latency; larger batches improve throughput.
-    /// </para>
-    /// </remarks>
-    public KurrentProcessorHostBuilder WithBatching(BatchingSettings settings) {
-        _settingsBuilder.WithBatching(settings);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures checkpoint settings for fault tolerance.
-    /// </summary>
-    /// <param name="settings">The checkpoint configuration.</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Checkpoints enable recovery from failures by periodically saving progress.
-    /// </para>
-    /// </remarks>
-    public KurrentProcessorHostBuilder WithCheckpoint(CheckpointSettings settings) {
-        _settingsBuilder.WithCheckpoint(settings);
         return this;
     }
 }

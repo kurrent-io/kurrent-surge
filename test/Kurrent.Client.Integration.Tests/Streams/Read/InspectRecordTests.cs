@@ -1,8 +1,6 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -20,14 +18,13 @@ public class InspectRecordTests {
         var lastRecord = seeded.Records.Last();
 
         var record = await Fixture.Client.Streams
-            .InspectRecord(seeded.Position, ct)
-            .ShouldNotThrowOrFailAsync();
+            .InspectRecord(seeded.Position, ct);
 
-        record.Id.ShouldBe(lastRecord.RecordId);
-        record.Stream.ShouldBe(seeded.Stream);
-        record.Position.LogPosition.ShouldBe(seeded.Position);
-        record.Data.Length.ShouldBeGreaterThan(0);
-        record.IsDecoded.ShouldBeFalse();
+        await Assert.That(record.Id).IsEqualTo(lastRecord.RecordId);
+        await Assert.That(record.Stream).IsEqualTo(seeded.Stream);
+        await Assert.That(record.Position.LogPosition).IsEqualTo(seeded.Position);
+        await Assert.That(record.Data.Length).IsGreaterThan(0);
+        await Assert.That(record.IsDecoded).IsFalse();
     }
 
     [Test]
@@ -35,12 +32,11 @@ public class InspectRecordTests {
         var seeded = await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams
-            .InspectRecord(seeded.Position, ct)
-            .ShouldNotThrowOrFailAsync();
+            .InspectRecord(seeded.Position, ct);
 
-        record.Position.LogPosition.ShouldBeLessThanOrEqualTo(seeded.Position);
-        record.Stream.ShouldNotBe(StreamName.None);
-        record.IsDecoded.ShouldBeFalse();
+        await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(seeded.Position);
+        await Assert.That(record.Stream).IsNotEqualTo(StreamName.Unset);
+        await Assert.That(record.IsDecoded).IsFalse();
     }
 
     [Test]
@@ -48,25 +44,25 @@ public class InspectRecordTests {
         await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams
-            .InspectRecord(LogPosition.Earliest, ct)
-            .ShouldNotThrowOrFailAsync();
+            .InspectRecord(LogPosition.Earliest, ct);
 
-        record.Position.LogPosition.ShouldBeGreaterThanOrEqualTo(0);
-        record.Stream.ShouldNotBe(StreamName.None);
-        record.IsDecoded.ShouldBeFalse();
+        await Assert.That(record.Position.LogPosition).IsGreaterThanOrEqualTo(0);
+        await Assert.That(record.Stream).IsNotEqualTo(StreamName.Unset);
+        await Assert.That(record.IsDecoded).IsFalse();
     }
 
     [Test]
     public async ValueTask returns_last_record_using_latest_position(CancellationToken ct) {
+        //TODO SS: Investigate, sometimes throws "Object reference not set to an instance of an object."
+
         await Fixture.SeedSmartHomeActivity(10, ct);
 
         var record = await Fixture.Client.Streams
-            .InspectRecord(LogPosition.Latest, ct)
-            .ShouldNotThrowOrFailAsync();
+            .InspectRecord(LogPosition.Latest, ct);
 
-        record.Position.LogPosition.ShouldBeGreaterThan(0);
-        record.Stream.ShouldNotBe(StreamName.None);
-        record.IsDecoded.ShouldBeFalse();
+        await Assert.That(record.Position.LogPosition).IsGreaterThan(0);
+        await Assert.That(record.Stream).IsNotEqualTo(StreamName.Unset);
+        await Assert.That(record.IsDecoded).IsFalse();
     }
 
     [Test]
@@ -74,12 +70,11 @@ public class InspectRecordTests {
         var seeded = await Fixture.SeedSmartHomeActivity(ct);
 
         var record = await Fixture.Client.Streams
-            .InspectRecord(seeded.Position, skipDecoding: true, ct)
-            .ShouldNotThrowOrFailAsync();
+            .InspectRecord(seeded.Position, skipDecoding: true, ct);
 
-        record.Data.Length.ShouldBeGreaterThan(0, "Data must still be present when decoding is skipped");
-        record.Value.ShouldBeNull("Value should not have been decoded from data");
-        record.IsDecoded.ShouldBeFalse("Record should not have been decoded");
+        await Assert.That(record.Data.Length).IsGreaterThan(0);
+        await Assert.That(record.Value).IsNull();
+        await Assert.That(record.IsDecoded).IsFalse();
     }
 
     [Test]
@@ -87,12 +82,11 @@ public class InspectRecordTests {
         var seeded = await Fixture.SeedSmartHomeActivity(ct);
 
         var record = await Fixture.Client.Streams
-            .InspectRecord(seeded.Position, skipDecoding: false, ct)
-            .ShouldNotThrowOrFailAsync();
+            .InspectRecord(seeded.Position, skipDecoding: false, ct);
 
-        record.Data.Length.ShouldBeGreaterThan(0, "Data must still be present after decoding");
-        record.Value.ShouldNotBeNull("Value should have been decoded from data");
-        record.IsDecoded.ShouldBeTrue("Record should have been decoded");
+        await Assert.That(record.Data.Length).IsGreaterThan(0);
+        await Assert.That(record.Value).IsNotNull();
+        await Assert.That(record.IsDecoded).IsTrue();
     }
 
     [Test]
@@ -100,15 +94,11 @@ public class InspectRecordTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Delete(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .InspectRecord(simulation.Position, ct)
-            .InspectAsync(record => {
-                Fixture.Logger.LogInformation("Inspected record at position {Position} from deleted stream {Stream}", record.Position, record.Stream);
-            })
-            .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamDeletedException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .InspectRecord(simulation.Position, ct))
+            .Throws<StreamDeletedException>();
     }
 
     [Test]
@@ -116,35 +106,27 @@ public class InspectRecordTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Tombstone(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .InspectRecord(simulation.Position, ct)
-            .InspectAsync(record => {
-                var pos = simulation.Position;
-                Fixture.Logger.LogInformation("Inspected record at position {Position} from tombstoned stream {Stream}", record.Position, record.Stream);
-            })
-            .ShouldFailAsync(error => error.Value.ShouldBeOfType<StreamTombstonedException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .InspectRecord(simulation.Position, ct))
+            .Throws<StreamTombstonedException>();
     }
 
     [Test]
     public async ValueTask fails_with_LogPositionNotFoundException_when_log_position_does_not_exist(CancellationToken ct) {
         var nonExistentPosition = int.MaxValue - 1000;
 
-        await Fixture.Client.Streams
-            .InspectRecord(nonExistentPosition, ct)
-            .ShouldFailAsync(error => error.Value.ShouldBeOfType<LogPositionNotFoundException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .InspectRecord(nonExistentPosition, ct))
+            .Throws<LogPositionNotFoundException>();
     }
 
     [Test]
     public async ValueTask throws_ArgumentOutOfRangeException_when_log_position_is_unset() {
         var action = async () => await Fixture.Client.Streams
-            .InspectRecord(LogPosition.Unset, CancellationToken.None)
-            .UnwrapAsync()
-            .ConfigureAwait(false);
+            .InspectRecord(LogPosition.Unset, CancellationToken.None);
 
-        await action.ShouldThrowAsync<ArgumentOutOfRangeException>();
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(action);
     }
 }

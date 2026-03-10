@@ -4,11 +4,12 @@ using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
 
+[Category("Variant")]
 public class ResultMapTests {
     Faker Faker { get; } = new();
 
     [Test]
-    public void map_transforms_success_value_to_new_type() {
+    public async Task map_transforms_success_value_to_new_type() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -17,12 +18,12 @@ public class ResultMapTests {
         var mapped = result.Map(id => id.Value.ToString());
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(gameId.Value.ToString());
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(gameId.Value.ToString());
     }
 
     [Test]
-    public void map_does_not_execute_on_failure() {
+    public async Task map_does_not_execute_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Map error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -35,13 +36,13 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapExecuted.ShouldBeFalse();
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.ShouldBe(error);
+        await Assert.That(mapExecuted).IsFalse();
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error).IsEqualTo(error);
     }
 
     [Test]
-    public void map_can_transform_to_completely_different_type() {
+    public async Task map_can_transform_to_completely_different_type() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -50,12 +51,12 @@ public class ResultMapTests {
         var mapped = result.Map(pos => new GameId(Guid.NewGuid()));
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBeOfType<GameId>();
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsTypeOf<GameId>();
     }
 
     [Test]
-    public void map_error_transforms_failure_value_to_new_error_type() {
+    public async Task map_error_transforms_failure_value_to_new_error_type() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Original");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -64,13 +65,13 @@ public class ResultMapTests {
         var mapped = result.MapError(err => new GameEndedError(err.GameId, GameStatus.Draw));
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.ShouldBeOfType<GameEndedError>();
-        mapped.Error.GameId.ShouldBe(error.GameId);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error).IsTypeOf<GameEndedError>();
+        await Assert.That(mapped.Error.GameId).IsEqualTo(error.GameId);
     }
 
     [Test]
-    public void map_error_does_not_execute_on_success() {
+    public async Task map_error_does_not_execute_on_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -83,13 +84,13 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapExecuted.ShouldBeFalse();
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(gameId);
+        await Assert.That(mapExecuted).IsFalse();
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(gameId);
     }
 
     [Test]
-    public void map_with_state_passes_state_to_mapper() {
+    public async Task map_with_state_passes_state_to_mapper() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -99,12 +100,12 @@ public class ResultMapTests {
         var mapped = result.Map((mult, pos) => pos.Row * mult, multiplier);
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(position.Row * multiplier);
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(position.Row * multiplier);
     }
 
     [Test]
-    public void map_with_state_does_not_execute_on_failure() {
+    public async Task map_with_state_does_not_execute_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "State error");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
@@ -118,12 +119,12 @@ public class ResultMapTests {
         }, stateValue);
 
         // Assert
-        mapExecuted.ShouldBeFalse();
-        mapped.IsFailure.ShouldBeTrue();
+        await Assert.That(mapExecuted).IsFalse();
+        await Assert.That(mapped.IsFailure).IsTrue();
     }
 
     [Test]
-    public void map_error_with_state_passes_state_to_mapper() {
+    public async Task map_error_with_state_passes_state_to_mapper() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -134,12 +135,12 @@ public class ResultMapTests {
             new InvalidMoveError(err.GameId, $"{pre}: {err.Reason}"), prefix);
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.Reason.ShouldStartWith(prefix);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error.Reason).StartsWith(prefix);
     }
 
     [Test]
-    public void map_error_with_state_does_not_execute_on_success() {
+    public async Task map_error_with_state_does_not_execute_on_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -153,12 +154,12 @@ public class ResultMapTests {
         }, stateValue);
 
         // Assert
-        mapExecuted.ShouldBeFalse();
-        mapped.IsSuccess.ShouldBeTrue();
+        await Assert.That(mapExecuted).IsFalse();
+        await Assert.That(mapped.IsSuccess).IsTrue();
     }
 
     [Test]
-    public async ValueTask map_async_chain_awaits_task_then_maps() {
+    public async Task map_async_chain_awaits_task_then_maps() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -168,12 +169,12 @@ public class ResultMapTests {
         var mapped = await resultTask.MapAsync(id => id.Value.ToString());
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(gameId.Value.ToString());
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(gameId.Value.ToString());
     }
 
     [Test]
-    public async ValueTask map_async_executes_async_mapper_on_success() {
+    public async Task map_async_executes_async_mapper_on_success() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -185,12 +186,12 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBeOfType<GameId>();
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsTypeOf<GameId>();
     }
 
     [Test]
-    public async ValueTask map_async_does_not_execute_async_mapper_on_failure() {
+    public async Task map_async_does_not_execute_async_mapper_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Async error");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
@@ -204,12 +205,12 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapExecuted.ShouldBeFalse();
-        mapped.IsFailure.ShouldBeTrue();
+        await Assert.That(mapExecuted).IsFalse();
+        await Assert.That(mapped.IsFailure).IsTrue();
     }
 
     [Test]
-    public async ValueTask map_async_chain_with_async_mapper_awaits_both() {
+    public async Task map_async_chain_with_async_mapper_awaits_both() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -222,12 +223,12 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(gameId.Value.ToString());
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(gameId.Value.ToString());
     }
 
     [Test]
-    public async ValueTask map_error_async_chain_awaits_task_then_maps() {
+    public async Task map_error_async_chain_awaits_task_then_maps() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
         var resultTask = ValueTask.FromResult(
@@ -238,12 +239,12 @@ public class ResultMapTests {
             new GameEndedError(err.GameId, GameStatus.Draw));
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.ShouldBeOfType<GameEndedError>();
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error).IsTypeOf<GameEndedError>();
     }
 
     [Test]
-    public async ValueTask map_error_async_executes_async_mapper_on_failure() {
+    public async Task map_error_async_executes_async_mapper_on_failure() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Async failure");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -255,13 +256,13 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.ShouldBeOfType<GameEndedError>();
-        mapped.Error.Status.ShouldBe(GameStatus.Won);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error).IsTypeOf<GameEndedError>();
+        await Assert.That(mapped.Error.Status).IsEqualTo(GameStatus.Won);
     }
 
     [Test]
-    public async ValueTask map_error_async_does_not_execute_async_mapper_on_success() {
+    public async Task map_error_async_does_not_execute_async_mapper_on_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -275,12 +276,12 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapExecuted.ShouldBeFalse();
-        mapped.IsSuccess.ShouldBeTrue();
+        await Assert.That(mapExecuted).IsFalse();
+        await Assert.That(mapped.IsSuccess).IsTrue();
     }
 
     [Test]
-    public async ValueTask map_error_async_chain_with_async_mapper_awaits_both() {
+    public async Task map_error_async_chain_with_async_mapper_awaits_both() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
         var resultTask = ValueTask.FromResult(
@@ -293,12 +294,12 @@ public class ResultMapTests {
         });
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.Status.ShouldBe(GameStatus.Won);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error.Status).IsEqualTo(GameStatus.Won);
     }
 
     [Test]
-    public async ValueTask map_async_with_state_chain_passes_state() {
+    public async Task map_async_with_state_chain_passes_state() {
         // Arrange
         var position = new Position(2, 3);
         var resultTask = ValueTask.FromResult(
@@ -309,12 +310,12 @@ public class ResultMapTests {
         var mapped = await resultTask.MapAsync((mult, pos) => pos.Row * mult, multiplier);
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(position.Row * multiplier);
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(position.Row * multiplier);
     }
 
     [Test]
-    public async ValueTask map_async_with_state_executes_async_mapper() {
+    public async Task map_async_with_state_executes_async_mapper() {
         // Arrange
         var position = new Position(1, 1);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -327,12 +328,12 @@ public class ResultMapTests {
         }, prefix);
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldStartWith(prefix);
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).StartsWith(prefix);
     }
 
     [Test]
-    public async ValueTask map_async_with_state_chain_with_async_mapper_awaits_both() {
+    public async Task map_async_with_state_chain_with_async_mapper_awaits_both() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -346,12 +347,12 @@ public class ResultMapTests {
         }, suffix);
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldEndWith(suffix);
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).EndsWith(suffix);
     }
 
     [Test]
-    public async ValueTask map_error_async_with_state_chain_passes_state() {
+    public async Task map_error_async_with_state_chain_passes_state() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
         var resultTask = ValueTask.FromResult(
@@ -363,12 +364,12 @@ public class ResultMapTests {
             new GameEndedError(err.GameId, st), status);
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.Status.ShouldBe(status);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error.Status).IsEqualTo(status);
     }
 
     [Test]
-    public async ValueTask map_error_async_with_state_executes_async_mapper() {
+    public async Task map_error_async_with_state_executes_async_mapper() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Original");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -381,12 +382,12 @@ public class ResultMapTests {
         }, prefix);
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.Reason.ShouldStartWith(prefix);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error.Reason).StartsWith(prefix);
     }
 
     [Test]
-    public async ValueTask map_error_async_with_state_chain_with_async_mapper_awaits_both() {
+    public async Task map_error_async_with_state_chain_with_async_mapper_awaits_both() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Base");
         var resultTask = ValueTask.FromResult(
@@ -400,12 +401,12 @@ public class ResultMapTests {
         }, suffix);
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.Reason.ShouldEndWith(suffix);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error.Reason).EndsWith(suffix);
     }
 
     [Test]
-    public void map_can_chain_multiple_transformations() {
+    public async Task map_can_chain_multiple_transformations() {
         // Arrange
         var position = new Position(2, 3);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -417,12 +418,12 @@ public class ResultMapTests {
             .Map(val => val.ToString());
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe("4");
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo("4");
     }
 
     [Test]
-    public void map_preserves_failure_across_chain() {
+    public async Task map_preserves_failure_across_chain() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
         var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
@@ -434,12 +435,12 @@ public class ResultMapTests {
             .Map(val => val.ToString());
 
         // Assert
-        mapped.IsFailure.ShouldBeTrue();
-        mapped.Error.ShouldBe(error);
+        await Assert.That(mapped.IsFailure).IsTrue();
+        await Assert.That(mapped.Error).IsEqualTo(error);
     }
 
     [Test]
-    public void map_error_preserves_success_across_chain() {
+    public async Task map_error_preserves_success_across_chain() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -450,12 +451,12 @@ public class ResultMapTests {
             .MapError(err => new InvalidMoveError(err.GameId, "New"));
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBe(gameId);
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsEqualTo(gameId);
     }
 
     [Test]
-    public void map_and_map_error_can_be_combined() {
+    public async Task map_and_map_error_can_be_combined() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -466,12 +467,12 @@ public class ResultMapTests {
             .MapError(err => new GameEndedError(err.GameId, GameStatus.Won));
 
         // Assert
-        mapped.IsSuccess.ShouldBeTrue();
-        mapped.Value.ShouldBeOfType<GameId>();
+        await Assert.That(mapped.IsSuccess).IsTrue();
+        await Assert.That(mapped.Value).IsTypeOf<GameId>();
     }
 
     [Test]
-    public void map_transforms_value_type_correctly() {
+    public async Task map_transforms_value_type_correctly() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -482,8 +483,8 @@ public class ResultMapTests {
         var toBool = result.Map(id => id.Value != Guid.Empty);
 
         // Assert
-        toInt.Value.ShouldBeOfType<int>();
-        toString.Value.ShouldBeOfType<string>();
-        toBool.Value.ShouldBeOfType<bool>();
+        await Assert.That(toInt.Value).IsTypeOf<int>();
+        await Assert.That(toString.Value).IsTypeOf<string>();
+        await Assert.That(toBool.Value).IsTypeOf<bool>();
     }
 }

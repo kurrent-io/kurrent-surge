@@ -4,31 +4,25 @@ namespace Kurrent.Client.Tests.Filters;
 
 [Category("Filters")]
 public class SchemaFilterTests {
-    readonly RecordFaker _faker = new();
-
     [Test]
-    public void by_schema_prefix_matches_schema_prefixes() {
-        var filter          = RecordFilter.BySchemaPrefix("Order", "Payment");
-        var matchingOrder   = _faker.With(schemaName: "OrderCreated");
-        var matchingPayment = _faker.With(schemaName: "PaymentReceived");
-        var nonMatching     = _faker.With(schemaName: "UserRegistered");
+    public async Task by_schema_targets_idx_et_stream() {
+        var filter = RecordFilter.BySchema("OrderCreated");
 
-        filter.IsMatch(matchingOrder).ShouldBeTrue("Order schema should match");
-        filter.IsMatch(matchingPayment).ShouldBeTrue("Payment schema should match");
-        filter.IsMatch(nonMatching).ShouldBeFalse("Non-matching schema should not match");
+        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
     }
 
     [Test]
-    public void by_schema_prefix_with_multiple_prefixes() {
-        var filter          = RecordFilter.BySchemaPrefix("Order", "Payment", "Refund");
-        var matchingOrder   = _faker.With(schemaName: "OrderCreated");
-        var matchingPayment = _faker.With(schemaName: "PaymentProcessed");
-        var matchingRefund  = _faker.With(schemaName: "RefundIssued");
-        var nonMatching     = _faker.With(schemaName: "UserEvent");
+    public async Task by_schema_produces_exact_regex() {
+        var filter = RecordFilter.BySchema("OrderCreated");
 
-        filter.IsMatch(matchingOrder).ShouldBeTrue("Order schema should match");
-        filter.IsMatch(matchingPayment).ShouldBeTrue("Payment schema should match");
-        filter.IsMatch(matchingRefund).ShouldBeTrue("Refund schema should match");
-        filter.IsMatch(nonMatching).ShouldBeFalse("Non-matching schema should not match");
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-et-OrderCreated$");
+    }
+
+    [Test]
+    public async Task by_schema_escapes_special_characters() {
+        var filter = RecordFilter.BySchema("Order.Created.V1");
+
+        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-et-Order\.Created\.V1$");
     }
 }

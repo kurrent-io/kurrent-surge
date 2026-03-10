@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Models;
 
 /// <summary>
 /// Represents a unique identifier for a processor group.
@@ -8,7 +8,7 @@ public readonly record struct ProcessorId {
     /// <summary>
     /// Represents an unset processor ID.
     /// </summary>
-    public static readonly ProcessorId None = new("");
+    public static readonly ProcessorId Unset = new("");
 
     ProcessorId(string value) => Value = value;
 
@@ -20,7 +20,7 @@ public readonly record struct ProcessorId {
     /// <summary>
     /// Indicates whether this processor ID is unset.
     /// </summary>
-    public bool IsNone => this == None;
+    public bool IsUnset => this == Unset;
 
     /// <summary>
     /// Creates a <see cref="ProcessorId"/> from a string value.

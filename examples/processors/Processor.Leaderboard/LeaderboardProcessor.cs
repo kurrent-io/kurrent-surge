@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.Leaderboard.Events;
 using StackExchange.Redis;
 
@@ -10,35 +10,25 @@ namespace Processor.Leaderboard;
 /// Maintains per-game leaderboards with player rankings.
 /// Demonstrates external state management with Redis.
 /// </summary>
-public sealed class LeaderboardProcessor(
-    IConnectionMultiplexer redis,
-    ILogger<LeaderboardProcessor> logger
-) : IRecordProcessor {
+public sealed class LeaderboardProcessor(IConnectionMultiplexer redis) : IRecordProcessor {
     IDatabase Db => redis.GetDatabase();
 
     long _scoresProcessed;
     long _playersRegistered;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing LeaderboardProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        return ValueTask.CompletedTask;
-    }
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        switch (context.Record.Value) {
+            case PlayerJoined player:
+                await RegisterPlayer(player, context.Logger);
+                break;
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            switch (record.Value) {
-                case PlayerJoined player:
-                    await RegisterPlayer(player);
-                    break;
-
-                case ScoreSubmitted score:
-                    await ProcessScore(score);
-                    break;
-            }
+            case ScoreSubmitted score:
+                await ProcessScore(score, context.Logger);
+                break;
         }
     }
 
-    async ValueTask RegisterPlayer(PlayerJoined player) {
+    async ValueTask RegisterPlayer(PlayerJoined player, ILogger logger) {
         _playersRegistered++;
 
         var playerData = new PlayerInfo(
@@ -60,7 +50,7 @@ public sealed class LeaderboardProcessor(
         );
     }
 
-    async ValueTask ProcessScore(ScoreSubmitted score) {
+    async ValueTask ProcessScore(ScoreSubmitted score, ILogger logger) {
         _scoresProcessed++;
 
         // Get leaderboard key for this game
@@ -112,24 +102,23 @@ public sealed class LeaderboardProcessor(
         }
     }
 
-    public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public async ValueTask OnCheckpoint(CheckpointContext context) {
         // Get stats about the main leaderboard
         var mainLeaderboard = "leaderboard:main";
         var totalPlayers = await Db.SortedSetLengthAsync(mainLeaderboard);
 
-        logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Scores: {Scores} | Players: {Players} | Leaderboard size: {Size}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+        context.Logger.LogInformation(
+            "Checkpoint {CheckpointId} | Scores: {Scores} | Players: {Players} | Leaderboard size: {Size}",
+            context.CheckpointId,
             _scoresProcessed,
             _playersRegistered,
             totalPlayers
         );
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation(
-            "Shutting down ({Reason}) | Total scores: {Scores}, Players registered: {Players}",
-            context.Reason,
+    public ValueTask OnComplete(CompleteContext context) {
+        context.Logger.LogInformation(
+            "Completed | Total scores: {Scores}, Players registered: {Players}",
             _scoresProcessed,
             _playersRegistered
         );

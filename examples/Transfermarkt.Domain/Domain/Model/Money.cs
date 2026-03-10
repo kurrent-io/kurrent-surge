@@ -10,7 +10,7 @@ public readonly record struct Money : IComparable<Money>, IComparable {
     /// </summary>
     public static readonly Money Zero = new(0, Currency.EUR);
 
-    Money(decimal amount, Currency currency) {
+    public Money(decimal amount, Currency currency) {
         Amount   = amount;
         Currency = currency;
     }
@@ -18,12 +18,12 @@ public readonly record struct Money : IComparable<Money>, IComparable {
     /// <summary>
     /// The monetary amount.
     /// </summary>
-    public decimal Amount { get; }
+    public decimal Amount { get; init; }
 
     /// <summary>
     /// The currency.
     /// </summary>
-    public Currency Currency { get; }
+    public Currency Currency { get; init; }
 
     /// <summary>
     /// Whether this represents zero money.

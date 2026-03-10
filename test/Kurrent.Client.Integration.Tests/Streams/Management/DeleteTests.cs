@@ -2,7 +2,6 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -17,41 +16,39 @@ public class DeleteTests {
     public async ValueTask deletes_existing_stream_without_specifing_revision(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
-        await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync(
-                position => position.ShouldBeGreaterThanOrEqualTo(simulation.Position));
+        var position = await Fixture.Client.Streams
+            .Delete(simulation.Stream, ct);
+
+        await Assert.That(position).IsGreaterThanOrEqualTo(simulation.Position);
     }
 
     [Test]
     public async ValueTask deletes_stream_when_expected_revision_matches(CancellationToken ct) {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
-        await Fixture.Client.Streams
-            .Delete(simulation.Stream, simulation.StreamRevision, ct)
-            .ShouldNotThrowOrFailAsync(position =>
-                position.ShouldBeGreaterThanOrEqualTo(simulation.Position));
+        var position = await Fixture.Client.Streams
+            .Delete(simulation.Stream, simulation.Revision, ct);
+
+        await Assert.That(position).IsGreaterThanOrEqualTo(simulation.Position);
     }
 
     [Test]
     public async ValueTask fails_to_delete_stream_with_revision_conflict_error_when_revision_is_not_matched(CancellationToken ct) {
         var simulation  = await Fixture.SeedSmartHomeActivity(ct);
-        var badRevision = simulation.StreamRevision + 1;
+        var badRevision = simulation.Revision + 1;
 
-        await Fixture.Client.Streams
-            .Delete(simulation.Stream, badRevision, ct)
-            .ShouldFailAsync(error =>
-                error.Value.ShouldBeOfType<StreamRevisionConflictException>());
+        await Assert.That(async () => await Fixture.Client.Streams
+            .Delete(simulation.Stream, badRevision, ct))
+            .Throws<StreamRevisionConflictException>();
     }
 
     [Test]
     public async ValueTask fails_to_delete_stream_with_not_found_error_when_stream_does_not_exist(CancellationToken ct) {
         var simulation = HomeAutomationTestData.SimulateHomeActivity();
 
-        await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(DeleteStreamError.DeleteStreamErrorCase.StreamNotFoundException));
+        await Assert.That(async () => await Fixture.Client.Streams
+            .Delete(simulation.Stream, ct))
+            .Throws<StreamNotFoundException>();
     }
 
     [Test]
@@ -59,13 +56,11 @@ public class DeleteTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Delete(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(DeleteStreamError.DeleteStreamErrorCase.StreamDeletedException));
+        await Assert.That(async () => await Fixture.Client.Streams
+            .Delete(simulation.Stream, ct))
+            .Throws<StreamDeletedException>();
     }
 
     [Test]
@@ -73,12 +68,10 @@ public class DeleteTests {
         var simulation = await Fixture.SeedSmartHomeActivity(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct)
-            .ShouldNotThrowOrFailAsync();
+            .Tombstone(simulation.Stream, ct);
 
-        await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct)
-            .ShouldFailAsync(error =>
-                error.Case.ShouldBe(DeleteStreamError.DeleteStreamErrorCase.StreamTombstonedException));
+        await Assert.That(async () => await Fixture.Client.Streams
+            .Delete(simulation.Stream, ct))
+            .Throws<StreamTombstonedException>();
     }
 }

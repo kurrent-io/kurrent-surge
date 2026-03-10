@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Microsoft.Extensions.Logging;
 using Processor.OrderEnrichment.Events;
 
@@ -10,43 +10,35 @@ namespace Processor.OrderEnrichment;
 /// Builds lookup tables from reference events and enriches orders on-the-fly.
 /// Demonstrates the classic stream-table join pattern.
 /// </summary>
-public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> logger) : IRecordProcessor {
+public sealed class OrderEnrichmentProcessor : IRecordProcessor {
     // Lookup tables (materialized from reference streams)
     readonly ConcurrentDictionary<string, CustomerInfo> _customers = new();
-    readonly ConcurrentDictionary<string, ProductInfo> _products = new();
+    readonly ConcurrentDictionary<string, ProductInfo>  _products  = new();
 
     long _ordersProcessed;
     long _ordersFullyEnriched;
     long _customerUpdates;
     long _productUpdates;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing OrderEnrichmentProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        logger.LogInformation("Building lookup tables from CustomerUpdated and ProductUpdated events");
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        switch (context.Record.Value) {
+            case CustomerUpdated customer:
+                UpdateCustomerLookup(customer, context.Logger);
+                break;
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            switch (record.Value) {
-                case CustomerUpdated customer:
-                    UpdateCustomerLookup(customer);
-                    break;
+            case ProductUpdated product:
+                UpdateProductLookup(product, context.Logger);
+                break;
 
-                case ProductUpdated product:
-                    UpdateProductLookup(product);
-                    break;
-
-                case OrderPlaced order:
-                    EnrichAndLogOrder(order);
-                    break;
-            }
+            case OrderPlaced order:
+                EnrichAndLogOrder(order, context.Logger);
+                break;
         }
 
         return ValueTask.CompletedTask;
     }
 
-    void UpdateCustomerLookup(CustomerUpdated customer) {
+    void UpdateCustomerLookup(CustomerUpdated customer, ILogger logger) {
         _customerUpdates++;
         _customers[customer.CustomerId] = new CustomerInfo(
             customer.CustomerId,
@@ -57,7 +49,7 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
         logger.LogDebug("Updated customer lookup: {CustomerId} ({Name})", customer.CustomerId, customer.Name);
     }
 
-    void UpdateProductLookup(ProductUpdated product) {
+    void UpdateProductLookup(ProductUpdated product, ILogger logger) {
         _productUpdates++;
         _products[product.ProductId] = new ProductInfo(
             product.ProductId,
@@ -68,7 +60,7 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
         logger.LogDebug("Updated product lookup: {ProductId} ({Name})", product.ProductId, product.Name);
     }
 
-    void EnrichAndLogOrder(OrderPlaced order) {
+    void EnrichAndLogOrder(OrderPlaced order, ILogger logger) {
         _ordersProcessed++;
 
         // Enrich with customer info
@@ -146,10 +138,10 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
         _          => 0m
     };
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
-        logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Orders: {Orders} ({Enriched} fully enriched) | Customers: {Customers} | Products: {Products}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+    public ValueTask OnCheckpoint(CheckpointContext context) {
+        context.Logger.LogInformation(
+            "Checkpoint {CheckpointId} | Orders: {Orders} ({Enriched} fully enriched) | Customers: {Customers} | Products: {Products}",
+            context.CheckpointId,
             _ordersProcessed,
             _ordersFullyEnriched,
             _customers.Count,
@@ -159,10 +151,9 @@ public sealed class OrderEnrichmentProcessor(ILogger<OrderEnrichmentProcessor> l
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation(
-            "Shutting down ({Reason}) | Orders: {Orders}, Customer updates: {CustUpdates}, Product updates: {ProdUpdates}",
-            context.Reason,
+    public ValueTask OnComplete(CompleteContext context) {
+        context.Logger.LogInformation(
+            "Completed | Orders: {Orders}, Customer updates: {CustUpdates}, Product updates: {ProdUpdates}",
             _ordersProcessed,
             _customerUpdates,
             _productUpdates

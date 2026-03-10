@@ -7,6 +7,7 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Processors.Options;
 using KurrentDB.Client;
 using KurrentDB.Protocol.V1;
 using Contracts = KurrentDB.Protocol.V1.Streams;
@@ -27,7 +28,7 @@ static class ProtocolMapping {
             var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
                 Subscription  = DefaultSubscriptionOptions,
                 UuidOption    = DefaultUuidOptions,
-                // ControlOption = DefaultControlOption,
+                ControlOption = DefaultControlOption,
                 ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards
             }};
 
@@ -37,7 +38,7 @@ static class ProtocolMapping {
                 req.Options.All    = ConvertToAllOptions(options.Subscription);
                 req.Options.Filter = ConvertToFilterOptions(options.Subscription.Filter);
             }
-            else if (options.Subscription.Filter.TargetStream != StreamName.None) {
+            else if (options.Subscription.Filter.TargetStream != StreamName.Unset) {
                 req.Options.Stream   = ConvertToStreamOptions(options.Subscription);
                 req.Options.NoFilter = DefaultEmpty;
             }
@@ -67,13 +68,13 @@ static class ProtocolMapping {
         //     };
         //
         //     var streamRevision = subscription.StartPosition switch {
-        //         0 => StreamRevision.Min,
-        //         _ => StreamRevision.From(subscription.StartPosition)
+        //         0 => Revision.Min,
+        //         _ => Revision.From(subscription.StartPosition)
         //     };
         //
         //     if (subscription.Filter == RecordFilter.None)
         //         req.Options.NoFilter = DefaultEmpty;
-        //     else if (subscription.Filter.TargetStream != StreamName.None && subscription.Filter.TargetStream != StreamName.All) {
+        //     else if (subscription.Filter.TargetStream != StreamName.Unset && subscription.Filter.TargetStream != StreamName.All) {
         //         req.Options.Stream   = ConvertToStreamOptions(subscription.Filter.TargetStream, streamRevision);
         //         req.Options.NoFilter = DefaultEmpty;
         //     }
@@ -97,7 +98,7 @@ static class ProtocolMapping {
         //
         //     if (subOptions.Filter == RecordFilter.None)
         //         req.Options.NoFilter = DefaultEmpty;
-        //     else if (subOptions.Filter.TargetStream != StreamName.None && subOptions.Filter.TargetStream != StreamName.All)
+        //     else if (subOptions.Filter.TargetStream != StreamName.Unset && subOptions.Filter.TargetStream != StreamName.All)
         //         req.Options.Stream = ConvertToStreamOptions(subOptions.Filter.TargetStream, subOptions.StartPosition);
         //     else {
         //         req.Options.All    = ConvertToAllOptions(subOptions.StartPosition);
@@ -116,7 +117,7 @@ static class ProtocolMapping {
         //
         //
         //     // Determine if reading from a specific stream or $all
-        //     var isSpecificStream = subscriptionOptions.Filter.TargetStream != StreamName.None
+        //     var isSpecificStream = subscriptionOptions.Filter.TargetStream != StreamName.Unset
         //                         && subscriptionOptions.Filter.TargetStream != StreamName.All;
         //
         //     var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
@@ -134,8 +135,8 @@ static class ProtocolMapping {
         //         req.Options.NoFilter = DefaultEmpty;
         //     else if (isSpecificStream) {
         //         var streamRevision = subscriptionOptions.StartPosition switch {
-        //             0 => StreamRevision.Min,
-        //             _ => StreamRevision.From(subscriptionOptions.StartPosition)
+        //             0 => Revision.Min,
+        //             _ => Revision.From(subscriptionOptions.StartPosition)
         //         };
         //
         //         req.Options.Stream   = ConvertToStreamOptions(subscriptionOptions.Filter.TargetStream, streamRevision);
@@ -176,10 +177,8 @@ static class ProtocolMapping {
         static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter) {
             Contracts.ReadReq.Types.Options.Types.FilterOptions? options = filter switch {
                 StreamFilter f => new() { StreamIdentifier = new() { Regex = f.Expression } },
-                SchemaFilter f => new() { EventType        = new() { Regex = f.Expression } },
 
-                ExpressionFilter { ServerFilter: StreamFilter f } => new()  { StreamIdentifier = new() { Regex = f.Expression } },
-                ExpressionFilter { ServerFilter: SchemaFilter f } => new () { EventType        = new() { Regex = f.Expression } },
+                ExpressionFilter { ServerFilter: StreamFilter f } => new() { StreamIdentifier = new() { Regex = f.Expression } },
 
                 _ => null
             };
@@ -187,21 +186,21 @@ static class ProtocolMapping {
             if (options is null)
                 return null;
 
-            //options.Max = ;
+            options.Max                          = uint.MaxValue; // delay as much as we can - will fix on v2
             options.CheckpointIntervalMultiplier = 1;
 
             return options;
         }
     }
 
-    public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
+    public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
         var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(BarrierId.New(), CheckpointBarrierTrigger.Interval, timestamp);
+        return new Checkpoint(CheckpointId.New(), CheckpointTrigger.Interval, timestamp);
     }
 
-    public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
+    public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
         var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
-        return new CheckpointBarrier(BarrierId.New(), CheckpointBarrierTrigger.CaughtUp, timestamp);
+        return new Checkpoint(CheckpointId.New(), CheckpointTrigger.CaughtUp, timestamp);
     }
 
     public static async ValueTask<Record> MapToRecordAsync(
@@ -218,7 +217,7 @@ static class ProtocolMapping {
         // first parse all info
         var stream    = StreamName.From(recordedEvent.StreamIdentifier);
         var recordId  = Uuid.FromDto(recordedEvent.Id).ToGuid();
-        var revision  = StreamRevision.From((long)recordedEvent.StreamRevision);
+        var revision  = Revision.From((long)recordedEvent.StreamRevision);
         var position  = LogPosition.From((long)recordedEvent.CommitPosition);
         var data      = recordedEvent.Data.Memory;
         var timestamp = Convert.ToInt64(recordedEvent.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
@@ -243,11 +242,11 @@ static class ProtocolMapping {
                 Revision = (long)linkEvent.StreamRevision,
                 Stream   = StreamName.From(linkEvent.StreamIdentifier!),
             }
-            : Link.None;
+            : Link.Unset;
 
         var indexRevision = readEvent.HasCommitPosition
-            ? StreamRevision.From((long)readEvent.CommitPosition)
-            : link.Revision == StreamRevision.Unset ? revision : link.Revision;
+            ? Revision.From((long)readEvent.CommitPosition)
+            : link.Revision == Revision.Unset ? revision : link.Revision;
 
         // create a decoder
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);

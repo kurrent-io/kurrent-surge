@@ -1,66 +1,77 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Read",
+      "AskUserQuestion",
+      "Bash",
       "Edit",
-      "Write",
-      "MultiEdit",
       "Glob",
       "Grep",
-      "LS",
-      "Bash",
+      "Read",
+      "Task",
       "WebFetch",
       "WebSearch",
-      "Task",
-      "mcp__ide__getDiagnostics",
-      "Skill(csharp-craftsman)",
-      "Skill(git-conventional-commits-expert)",
-      "Skill(microsoft-docs-expert)",
-      "Skill(repomix-expert)",
-      "Skill(resx-expert)",
-      "Skill(tunit-master)",
-      "Skill(dotnet-logging-expert)",
-      "Skill(tldr-expert)"
+      "Write",
+      "mcp__plugin_context7_context7__*",
+      "mcp__plugin_microsoft-docs_microsoft-learn__*",
+      "mcp__rider__*",
+      "Skill(microsoft-docs:*)",
+      "Skill(dotnet-skills:*)",
+      "Skill(dotnet-nuget-proxy:*)"
     ],
     "deny": [
+      "Read(./**/*.key)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*credential*)",
+      "Read(./**/*password*)",
+      "Read(./**/*secret*)",
+      "Read(./**/*token*.json)",
+      "Read(./**/launchSettings.json)",
+      "Read(./**/secrets.json)",
+      "Read(./**/secrets/**)",
       "Read(./.env)",
       "Read(./.env.*)",
-      "Read(./appsettings.Development.json)",
       "Read(./appsettings.*.Local.json)",
+      "Read(./appsettings.Development.json)",
       "Read(./secrets.json)",
-      "Read(./**/secrets.json)",
-      "Read(./**/launchSettings.json)",
-      "Read(./**/secrets/**)",
-      "Read(./**/*.pfx)",
-      "Read(./**/*.p12)",
-      "Read(./**/*secret*)",
-      "Read(./**/*password*)",
-      "Read(./**/*credential*)",
-      "Read(./**/*token*.json)"
+      "mcp__rider__execute_run_configuration",
+      "mcp__rider__get_run_configurations",
+      "mcp__rider__execute_terminal_command"
     ]
   },
-  "enableAllProjectMcpServers": false,
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-compact-reload.sh"
-          }
-        ]
-      }
-    ]
-  },
+  "enableAllProjectMcpServers": true,
   "enabledPlugins": {
     "context7@claude-plugins-official": true,
-    "csharp-lsp@claude-plugins-official": false,
     "microsoft-docs@microsoft-docs-marketplace": true,
-    "omnisharp@claude-code-lsps": true
+    "dotnet-skills@dotnet-skills": true,
+    "dotnet-nuget-proxy@dotnet-nuget-proxy": true,
+    "csharp-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "microsoft-docs-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "microsoftdocs/mcp"
+      }
+    },
+    "dotnet-skills": {
+      "source": {
+        "source": "github",
+        "repo": "Aaronontheweb/dotnet-skills"
+      }
+    },
+    "dotnet-nuget-proxy": {
+      "source": {
+        "source": "github",
+        "repo": "logiclabs/dotnet-nuget-proxy-skill"
+      }
+    }
   }
 }

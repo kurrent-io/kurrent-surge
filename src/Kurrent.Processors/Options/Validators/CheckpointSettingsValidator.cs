@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options.Validators;
 
 public class CheckpointSettingsValidator : AbstractValidator<CheckpointSettings> {
     public static readonly CheckpointSettingsValidator Instance = new();

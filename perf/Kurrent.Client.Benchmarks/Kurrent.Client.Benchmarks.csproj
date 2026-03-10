@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <RootNamespace>Benchmarks</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\..\test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
+    <ProjectReference Include="..\..\test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
+    <ProjectReference Include="..\..\test\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
+    <ProjectReference Include="..\..\test\Kurrent.Testing\Kurrent.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Benchmarks\Processors\" />
+  </ItemGroup>
+</Project>

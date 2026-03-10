@@ -1,4 +1,8 @@
-namespace Kurrent.Client.Streams;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options.Validators;
+
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Configuration settings for a processor.
@@ -29,7 +33,7 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// use a consistent identifier like <c>Environment.MachineName</c>.
     /// </para>
     /// </remarks>
-    public string WorkerId { get; init; } = Guid.NewGuid().ToString();
+    public string WorkerId { get; init; } = Guid.NewGuid().ToString("N");
 
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.
@@ -41,7 +45,7 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// Determines the upper bound for parallel processing.
     /// </para>
     /// </remarks>
-    public int MaxParallelism { get; init; } = 128;
+    internal int MaxParallelism { get; init; } = 128;
 
     /// <summary>
     /// Subscription settings (filter, partitioning, initial position).
@@ -58,42 +62,10 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// </summary>
     public CheckpointSettings Checkpoint { get; init; } = new();
 
-    // ═══════════════════════════════════════════════════════════════════════════════
-    // Client-only settings (local behavior, not sent to server)
-    // ═══════════════════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// <b>Client-only:</b> Number of records to buffer in memory.
+    /// Worker runtime settings (buffering, error handling, decoding).
     /// </summary>
-    /// <remarks>
-    /// <para><b>Default:</b> 1000 records</para>
-    /// <para><b>Importance:</b> Medium</para>
-    /// <para><b>Valid Range:</b> 1 to 10,000 records</para>
-    /// <para>
-    /// Larger buffers improve throughput but increase memory usage.
-    /// The buffer capacity should be at least as large as the batch size.
-    /// </para>
-    /// <para>
-    /// This setting only affects local client behavior and is not sent to the server.
-    /// </para>
-    /// </remarks>
-    public int BufferCapacity { get; init; } = 1000;
-
-    /// <summary>
-    /// <b>Client-only:</b> Skip record data deserialization for performance-critical scenarios.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Default:</b> false (decode records)</para>
-    /// <para><b>Importance:</b> Low</para>
-    /// <para>
-    /// When true, records are returned as raw bytes without deserialization,
-    /// reducing CPU usage for metadata-only operations or custom deserialization.
-    /// </para>
-    /// <para>
-    /// This setting only affects local client behavior and is not sent to the server.
-    /// </para>
-    /// </remarks>
-    public bool SkipDecoding { get; init; }
+    public WorkerSettings Worker { get; init; } = new();
 }
 
 /// <summary>
@@ -154,7 +126,6 @@ public record SubscriptionSettings {
     public SubscriptionInitialPosition InitialPosition { get; init; } = SubscriptionInitialPosition.Latest;
 }
 
-
 /// <summary>
 /// Configuration for record batching during processing.
 /// </summary>
@@ -191,6 +162,8 @@ public record BatchingSettings {
     /// </para>
     /// </remarks>
     public long Timeout { get; init; } = 250;
+
+    internal TimeSpan TimeoutTimeSpan => TimeSpan.FromMilliseconds(Timeout); // 00:00:00.250
 }
 
 /// <summary>
@@ -215,6 +188,8 @@ public record CheckpointSettings {
     /// </remarks>
     public long Interval { get; init; } = 30000;
 
+    internal TimeSpan IntervalTimeSpan => TimeSpan.FromMilliseconds(Interval);
+
     /// <summary>
     /// Maximum time to wait for workers to acknowledge checkpoint (milliseconds).
     /// </summary>
@@ -227,6 +202,8 @@ public record CheckpointSettings {
     /// </para>
     /// </remarks>
     public long Timeout { get; init; } = 30000;
+
+    internal TimeSpan TimeoutTimeSpan => TimeSpan.FromMilliseconds(Timeout);
 
     /// <summary>
     /// Number of completed checkpoints to retain.
@@ -294,4 +271,52 @@ public enum CheckpointFailurePolicy {
     /// <para>Use when: Data consistency is critical, prefer downtime over data loss.</para>
     /// </remarks>
     FailProcessor = 2
+}
+
+/// <summary>
+/// Configuration for worker runtime behavior.
+/// </summary>
+/// <remarks>
+/// <para>
+/// These settings control how the worker instance operates locally,
+/// independent of the processor definition. They are not sent to the server.
+/// </para>
+/// </remarks>
+[PublicAPI]
+public record WorkerSettings {
+    /// <summary>
+    /// Whether to throw an exception on processing failure or log and stop.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Default:</b> false (log and stop)</para>
+    /// <para><b>Importance:</b> Medium</para>
+    /// </remarks>
+    public bool ThrowOnFailure { get; init; }
+
+    /// <summary>
+    /// Number of records to buffer in memory.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Default:</b> 1000 records</para>
+    /// <para><b>Importance:</b> Medium</para>
+    /// <para><b>Valid Range:</b> 1 to 10,000 records</para>
+    /// <para>
+    /// Larger buffers improve throughput but increase memory usage.
+    /// The buffer capacity should be at least as large as the batch size.
+    /// </para>
+    /// </remarks>
+    public int BufferCapacity { get; init; } = 1000;
+
+    /// <summary>
+    /// Skip record data deserialization for performance-critical scenarios.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Default:</b> false (decode records)</para>
+    /// <para><b>Importance:</b> Low</para>
+    /// <para>
+    /// When true, records are returned as raw bytes without deserialization,
+    /// reducing CPU usage for metadata-only operations.
+    /// </para>
+    /// </remarks>
+    public bool SkipDecoding { get; init; }
 }

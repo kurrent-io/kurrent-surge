@@ -9,68 +9,34 @@ namespace Transfermarkt.Domain;
 /// </remarks>
 [PublicAPI]
 public sealed record PlayerRetired {
-    PlayerRetired(
-        PlayerId playerId,
-        PlayerName playerName,
-        ClubId lastClubId,
-        DateOnly retirementDate,
-        TransferId triggeringTransferId,
-        DateTimeOffset retiredAt
-    ) {
-        PlayerId             = playerId;
-        PlayerName           = playerName;
-        LastClubId           = lastClubId;
-        RetirementDate       = retirementDate;
-        TriggeringTransferId = triggeringTransferId;
-        RetiredAt            = retiredAt;
-    }
-
     /// <summary>
     /// The retiring player's identifier.
     /// </summary>
-    public PlayerId PlayerId { get; }
+    public PlayerId PlayerId { get; init; }
 
     /// <summary>
     /// The player's name.
     /// </summary>
-    public PlayerName PlayerName { get; }
+    public PlayerName PlayerName { get; init; }
 
     /// <summary>
     /// The player's last club before retirement.
     /// </summary>
-    public ClubId LastClubId { get; }
+    public ClubId LastClubId { get; init; }
 
     /// <summary>
     /// The date of retirement.
     /// </summary>
-    public DateOnly RetirementDate { get; }
+    public DateOnly RetirementDate { get; init; }
 
     /// <summary>
     /// The transfer that triggered this retirement event.
     /// </summary>
-    public TransferId TriggeringTransferId { get; }
+    public TransferId TriggeringTransferId { get; init; }
 
     /// <summary>
     /// When the retirement was recorded.
     /// </summary>
-    public DateTimeOffset RetiredAt { get; }
+    public DateTimeOffset RetiredAt { get; init; }
 
-    /// <summary>
-    /// Creates a PlayerRetired event.
-    /// </summary>
-    public static PlayerRetired Create(
-        PlayerId playerId,
-        PlayerName playerName,
-        ClubId lastClubId,
-        DateOnly retirementDate,
-        TransferId triggeringTransferId,
-        DateTimeOffset? retiredAt = null
-    ) => new(
-        playerId,
-        playerName,
-        lastClubId,
-        retirementDate,
-        triggeringTransferId,
-        retiredAt ?? DateTimeOffset.UtcNow
-    );
 }

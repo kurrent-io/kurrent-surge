@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Immutable;
 using System.Runtime.ExceptionServices;
 using System.Text.RegularExpressions;
-using Humanizer;
 using static System.StringComparison;
 
 namespace Kurrent;

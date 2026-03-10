@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Microsoft.Extensions.Logging;
 using Processor.IoTMonitoring.Events;
 
@@ -9,7 +9,7 @@ namespace Processor.IoTMonitoring;
 /// IoT sensor monitoring processor with threshold alerts and anomaly detection.
 /// Demonstrates tumbling windows and real-time alerting patterns.
 /// </summary>
-public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProcessor> logger) : IRecordProcessor {
+public sealed class TemperatureMonitorProcessor : IRecordProcessor {
     const double HighTempThreshold = 80.0;  // Celsius
     const double LowTempThreshold = 10.0;   // Celsius
     const int WindowSize = 10;               // Number of readings for rolling window
@@ -19,27 +19,15 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
     long _totalReadings;
     long _alertsRaised;
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing TemperatureMonitorProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        logger.LogInformation(
-            "Thresholds: High={High}°C, Low={Low}°C, Anomaly={Sigma}σ",
-            HighTempThreshold, LowTempThreshold, AnomalyStdDevMultiplier
-        );
-
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            if (record.Value is SensorReading reading) {
-                ProcessReading(reading);
-            }
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is SensorReading reading) {
+            ProcessReading(reading, context.Logger);
         }
 
         return ValueTask.CompletedTask;
     }
 
-    void ProcessReading(SensorReading reading) {
+    void ProcessReading(SensorReading reading, ILogger logger) {
         _totalReadings++;
 
         var state = _sensorStates.GetOrAdd(reading.SensorId, _ => new SensorState());
@@ -48,11 +36,11 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         state.AddReading(reading.Temperature);
 
         // Check threshold alerts
-        CheckThresholdAlerts(reading);
+        CheckThresholdAlerts(reading, logger);
 
         // Check for anomalies (need at least 5 readings for meaningful stats)
         if (state.ReadingCount >= 5) {
-            CheckAnomalyAlert(reading, state);
+            CheckAnomalyAlert(reading, state, logger);
         }
 
         logger.LogDebug(
@@ -64,7 +52,7 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         );
     }
 
-    void CheckThresholdAlerts(SensorReading reading) {
+    void CheckThresholdAlerts(SensorReading reading, ILogger logger) {
         if (reading.Temperature > HighTempThreshold) {
             _alertsRaised++;
             logger.LogWarning(
@@ -86,7 +74,7 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         }
     }
 
-    void CheckAnomalyAlert(SensorReading reading, SensorState state) {
+    void CheckAnomalyAlert(SensorReading reading, SensorState state, ILogger logger) {
         var deviation = Math.Abs(reading.Temperature - state.Average);
         var threshold = state.StandardDeviation * AnomalyStdDevMultiplier;
 
@@ -103,10 +91,10 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         }
     }
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
-        logger.LogInformation(
-            "Checkpoint #{CheckpointNumber} | Readings: {Readings} | Sensors: {Sensors} | Alerts: {Alerts}",
-            context.Progress.Checkpoint.TotalCheckpoints,
+    public ValueTask OnCheckpoint(CheckpointContext context) {
+        context.Logger.LogInformation(
+            "Checkpoint {CheckpointId} | Readings: {Readings} | Sensors: {Sensors} | Alerts: {Alerts}",
+            context.CheckpointId,
             _totalReadings,
             _sensorStates.Count,
             _alertsRaised
@@ -115,10 +103,9 @@ public sealed class TemperatureMonitorProcessor(ILogger<TemperatureMonitorProces
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation(
-            "Shutting down ({Reason}) | Total readings: {Readings}, Alerts raised: {Alerts}",
-            context.Reason,
+    public ValueTask OnComplete(CompleteContext context) {
+        context.Logger.LogInformation(
+            "Completed | Total readings: {Readings}, Alerts raised: {Alerts}",
             _totalReadings,
             _alertsRaised
         );

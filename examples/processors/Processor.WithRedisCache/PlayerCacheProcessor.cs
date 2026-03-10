@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using StackExchange.Redis;
 using Transfermarkt.Domain;
 
@@ -10,33 +10,25 @@ namespace Processor.WithRedisCache;
 /// Demonstrates the cache-on-write pattern for enrichment scenarios.
 /// </summary>
 public sealed class PlayerCacheProcessor(
-    IConnectionMultiplexer redis,
-    ILogger<PlayerCacheProcessor> logger
+    IConnectionMultiplexer redis
 ) : IRecordProcessor {
     static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
     IDatabase Db => redis.GetDatabase();
 
-    public ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing PlayerCacheProcessor: {ProcessorId}", context.Settings.ProcessorId);
-        return ValueTask.CompletedTask;
-    }
+    public async ValueTask ProcessRecord(ProcessRecordContext context) {
+        switch (context.Record.Value) {
+            case PlayerRegistered registered:
+                await CachePlayerInfo(registered, context.Logger);
+                break;
 
-    public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            switch (record.Value) {
-                case PlayerRegistered registered:
-                    await CachePlayerInfo(registered);
-                    break;
-
-                case PlayerTransferred transfer:
-                    await UpdatePlayerClub(transfer);
-                    break;
-            }
+            case PlayerTransferred transfer:
+                await UpdatePlayerClub(transfer, context.Logger);
+                break;
         }
     }
 
-    async ValueTask CachePlayerInfo(PlayerRegistered registered) {
+    async ValueTask CachePlayerInfo(PlayerRegistered registered, ILogger logger) {
         var playerData = new CachedPlayer {
             PlayerId    = registered.PlayerId.ToString(),
             Name        = registered.Name.ToString(),
@@ -54,7 +46,7 @@ public sealed class PlayerCacheProcessor(
         logger.LogDebug("Cached player: {PlayerId} ({Name})", registered.PlayerId, registered.Name);
     }
 
-    async ValueTask UpdatePlayerClub(PlayerTransferred transfer) {
+    async ValueTask UpdatePlayerClub(PlayerTransferred transfer, ILogger logger) {
         var key = $"player:{transfer.PlayerId}";
 
         // Try to get existing cached data
@@ -84,13 +76,13 @@ public sealed class PlayerCacheProcessor(
         logger.LogDebug("Updated player: {PlayerId} -> {Club}", transfer.PlayerId, playerData.CurrentClub ?? "retired");
     }
 
-    public ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
-        logger.LogInformation("Checkpoint #{CheckpointNumber}", context.Progress.Checkpoint.TotalCheckpoints);
+    public ValueTask OnCheckpoint(CheckpointContext context) {
+        context.Logger.LogInformation("Checkpoint {CheckpointId}", context.CheckpointId);
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation("Shutting down ({Reason})", context.Reason);
+    public ValueTask OnComplete(CompleteContext context) {
+        context.Logger.LogInformation("Completed");
         return ValueTask.CompletedTask;
     }
 

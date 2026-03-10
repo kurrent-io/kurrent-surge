@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
-using Kurrent.Client.Processors.Checkpointing;
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors;
 
 /// <summary>
-/// Tracks processing progress and computes metrics for a processor session.
+/// Tracks processing progress and computes metrics for a processing session.
 /// </summary>
 sealed class ProgressTracker {
     readonly TimeProvider   _timeProvider;
@@ -13,13 +14,12 @@ sealed class ProgressTracker {
     readonly long           _startTimestamp;
 
     long _totalRecords;
-    long _totalBatches;
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    BarrierId                _lastCheckpointBarrierId = BarrierId.Empty;
-    CheckpointBarrierTrigger _lastCheckpointTrigger   = CheckpointBarrierTrigger.Unspecified;
-    DateTimeOffset?          _lastCheckpointAt;
+    CheckpointId         _lastCheckpointId      = CheckpointId.Unset;
+    CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
+    DateTimeOffset?   _lastCheckpointAt;
 
     PartitionedPositionTracker? _partitionTracker;
 
@@ -37,38 +37,36 @@ sealed class ProgressTracker {
         _partitionTracker = tracker;
 
     /// <summary>
-    /// Tracks a batch of records being processed.
+    /// Tracks a single record being processed.
     /// </summary>
-    /// <param name="recordCount">Number of records in the batch.</param>
-    public void TrackRecords(int recordCount) {
-        _totalRecords += recordCount;
-        _totalBatches++;
+    public void TrackRecord() {
+        _totalRecords++;
     }
 
     /// <summary>
     /// Tracks a checkpoint completion.
     /// </summary>
-    /// <param name="barrier">The checkpoint barrier that completed.</param>
-    public void TrackCheckpoint(CheckpointBarrier barrier) {
+    /// <param name="checkpoint">The checkpoint that completed.</param>
+    public void TrackCheckpoint(Checkpoint checkpoint) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint  = _totalRecords;
-        _lastCheckpointBarrierId  = barrier.BarrierId;
-        _lastCheckpointTrigger    = barrier.Trigger;
-        _lastCheckpointAt         = barrier.Timestamp;
+        _lastCheckpointId  = checkpoint.CheckpointId;
+        _lastCheckpointTrigger    = checkpoint.Trigger;
+        _lastCheckpointAt         = checkpoint.Timestamp;
     }
 
     /// <summary>
     /// Computes current progress snapshot.
     /// </summary>
-    public ProcessorProgress Progress {
+    public WorkerProgress Progress {
         get {
             var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
 
+            var totalSeconds = elapsed.TotalSeconds;
+
             var throughput = new ThroughputMetrics(
                 TotalRecords:     _totalRecords,
-                TotalBatches:     _totalBatches,
-                RecordsPerSecond: elapsed.TotalSeconds > 0 ? _totalRecords / elapsed.TotalSeconds : 0,
-                AverageBatchSize: _totalBatches > 0 ? (double)_totalRecords / _totalBatches : 0,
+                RecordsPerSecond: totalSeconds > 0 ? _totalRecords / totalSeconds : 0,
                 StartedAt:        _startedAt,
                 Elapsed:          elapsed
             );
@@ -76,14 +74,14 @@ sealed class ProgressTracker {
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
                 RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
-                LastBarrierId:              _lastCheckpointBarrierId,
+                //LastCheckpointId:              _lastCheckpointId,
                 LastTrigger:                _lastCheckpointTrigger,
-                LastCompletedAt:            _lastCheckpointAt
+                LastCheckpointAt:            _lastCheckpointAt
             );
 
             var partitions = BuildPartitionProgress();
 
-            return new ProcessorProgress(throughput, checkpoint, partitions);
+            return new WorkerProgress(throughput, checkpoint, partitions);
         }
     }
 

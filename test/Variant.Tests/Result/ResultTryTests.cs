@@ -4,11 +4,12 @@ using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
 
+[Category("Variant")]
 public class ResultTryTests {
     Faker Faker { get; } = new();
 
     [Test]
-    public void try_with_successful_operation_returns_success() {
+    public async Task try_with_successful_operation_returns_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
 
@@ -19,12 +20,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(gameId);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(gameId);
     }
 
     [Test]
-    public void try_with_throwing_operation_returns_failure() {
+    public async Task try_with_throwing_operation_returns_failure() {
         // Arrange
         var exceptionMessage = Faker.Lorem.Sentence();
 
@@ -35,12 +36,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldBe(exceptionMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).IsEqualTo(exceptionMessage);
     }
 
     [Test]
-    public void try_converts_exception_to_error_type() {
+    public async Task try_converts_exception_to_error_type() {
         // Arrange
         var gameId = Faker.Random.Guid();
 
@@ -51,13 +52,13 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.ShouldBeOfType<GameEndedError>();
-        result.Error.Status.ShouldBe(GameStatus.Draw);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error).IsTypeOf<GameEndedError>();
+        await Assert.That(result.Error.Status).IsEqualTo(GameStatus.Draw);
     }
 
     [Test]
-    public void try_captures_exception_details_in_error() {
+    public async Task try_captures_exception_details_in_error() {
         // Arrange
         var exceptionMessage = Faker.Lorem.Sentence();
 
@@ -68,13 +69,13 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldContain("Caught:");
-        result.Error.Reason.ShouldContain(exceptionMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).Contains("Caught:");
+        await Assert.That(result.Error.Reason).Contains(exceptionMessage);
     }
 
     [Test]
-    public void try_with_state_executes_operation_with_provided_state() {
+    public async Task try_with_state_executes_operation_with_provided_state() {
         // Arrange
         var multiplier = Faker.Random.Int(2, 10);
         var baseValue  = Faker.Random.Int(1, 100);
@@ -87,12 +88,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(multiplier * baseValue);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(multiplier * baseValue);
     }
 
     [Test]
-    public void try_with_state_converts_exception_with_state() {
+    public async Task try_with_state_converts_exception_with_state() {
         // Arrange
         var gameId = Faker.Random.Guid();
 
@@ -104,12 +105,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.GameId.ShouldBe(gameId);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.GameId).IsEqualTo(gameId);
     }
 
     [Test]
-    public void try_with_state_avoids_closure_allocation() {
+    public async Task try_with_state_avoids_closure_allocation() {
         // Arrange
         var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
@@ -125,12 +126,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        capturedState.ShouldBe(stateValue);
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(capturedState).IsEqualTo(stateValue);
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public async ValueTask try_async_with_successful_operation_returns_success() {
+    public async Task try_async_with_successful_operation_returns_success() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
 
@@ -144,12 +145,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(gameId);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(gameId);
     }
 
     [Test]
-    public async ValueTask try_async_with_throwing_operation_returns_failure() {
+    public async Task try_async_with_throwing_operation_returns_failure() {
         // Arrange
         var exceptionMessage = Faker.Lorem.Sentence();
 
@@ -163,12 +164,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldBe(exceptionMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).IsEqualTo(exceptionMessage);
     }
 
     [Test]
-    public async ValueTask try_async_with_state_executes_with_provided_state() {
+    public async Task try_async_with_state_executes_with_provided_state() {
         // Arrange
         var multiplier = Faker.Random.Int(2, 10);
         var baseValue  = Faker.Random.Int(1, 100);
@@ -184,12 +185,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe(multiplier * baseValue);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo(multiplier * baseValue);
     }
 
     [Test]
-    public async ValueTask try_async_with_state_converts_exception_with_state() {
+    public async Task try_async_with_state_converts_exception_with_state() {
         // Arrange
         var gameId = Faker.Random.Guid();
 
@@ -204,12 +205,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.GameId.ShouldBe(gameId);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.GameId).IsEqualTo(gameId);
     }
 
     [Test]
-    public void try_with_action_returns_success_when_no_exception() {
+    public async Task try_with_action_returns_success_when_no_exception() {
         // Arrange
         var sideEffectExecuted = false;
 
@@ -220,12 +221,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        sideEffectExecuted.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(sideEffectExecuted).IsTrue();
     }
 
     [Test]
-    public void try_with_action_returns_failure_when_exception() {
+    public async Task try_with_action_returns_failure_when_exception() {
         // Arrange
         var exceptionMessage = Faker.Lorem.Sentence();
 
@@ -236,12 +237,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldBe(exceptionMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).IsEqualTo(exceptionMessage);
     }
 
     [Test]
-    public void try_with_action_and_state_executes_with_provided_state() {
+    public async Task try_with_action_and_state_executes_with_provided_state() {
         // Arrange
         var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
@@ -254,12 +255,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        capturedState.ShouldBe(stateValue);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(capturedState).IsEqualTo(stateValue);
     }
 
     [Test]
-    public void try_with_action_and_state_converts_exception_with_state() {
+    public async Task try_with_action_and_state_converts_exception_with_state() {
         // Arrange
         var gameId = Faker.Random.Guid();
 
@@ -271,12 +272,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.GameId.ShouldBe(gameId);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.GameId).IsEqualTo(gameId);
     }
 
     [Test]
-    public async ValueTask try_async_with_action_returns_success_when_no_exception() {
+    public async Task try_async_with_action_returns_success_when_no_exception() {
         // Arrange
         var sideEffectExecuted = false;
 
@@ -290,12 +291,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        sideEffectExecuted.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(sideEffectExecuted).IsTrue();
     }
 
     [Test]
-    public async ValueTask try_async_with_action_returns_failure_when_exception() {
+    public async Task try_async_with_action_returns_failure_when_exception() {
         // Arrange
         var exceptionMessage = Faker.Lorem.Sentence();
 
@@ -309,12 +310,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldBe(exceptionMessage);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).IsEqualTo(exceptionMessage);
     }
 
     [Test]
-    public async ValueTask try_async_with_action_and_state_executes_with_provided_state() {
+    public async Task try_async_with_action_and_state_executes_with_provided_state() {
         // Arrange
         var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
@@ -330,12 +331,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        capturedState.ShouldBe(stateValue);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(capturedState).IsEqualTo(stateValue);
     }
 
     [Test]
-    public async ValueTask try_async_with_action_and_state_converts_exception_with_state() {
+    public async Task try_async_with_action_and_state_converts_exception_with_state() {
         // Arrange
         var gameId = Faker.Random.Guid();
 
@@ -350,12 +351,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.GameId.ShouldBe(gameId);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.GameId).IsEqualTo(gameId);
     }
 
     [Test]
-    public void try_handles_different_exception_types() {
+    public async Task try_handles_different_exception_types() {
         // Arrange & Act
         var argumentResult = Kurrent.Result.Try(
             () => throw new ArgumentException("Argument"),
@@ -366,12 +367,12 @@ public class ResultTryTests {
             ex => new InvalidMoveError(Guid.Empty, ex.GetType().Name));
 
         // Assert
-        argumentResult.Error.Reason.ShouldBe("ArgumentException");
-        invalidOpResult.Error.Reason.ShouldBe("InvalidOperationException");
+        await Assert.That(argumentResult.Error.Reason).IsEqualTo("ArgumentException");
+        await Assert.That(invalidOpResult.Error.Reason).IsEqualTo("InvalidOperationException");
     }
 
     [Test]
-    public void try_can_wrap_unsafe_operations() {
+    public async Task try_can_wrap_unsafe_operations() {
         // Arrange
         var zero = 0;
         var operations = new List<Func<int>> {
@@ -386,15 +387,15 @@ public class ResultTryTests {
             .ToList();
 
         // Assert
-        results[0].IsSuccess.ShouldBeTrue();
-        results[0].Value.ShouldBe(5);
-        results[1].IsFailure.ShouldBeTrue();
-        results[2].IsSuccess.ShouldBeTrue();
-        results[2].Value.ShouldBe(2);
+        await Assert.That(results[0].IsSuccess).IsTrue();
+        await Assert.That(results[0].Value).IsEqualTo(5);
+        await Assert.That(results[1].IsFailure).IsTrue();
+        await Assert.That(results[2].IsSuccess).IsTrue();
+        await Assert.That(results[2].Value).IsEqualTo(2);
     }
 
     [Test]
-    public async ValueTask try_async_handles_task_cancellation() {
+    public async Task try_async_handles_task_cancellation() {
         // Arrange
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
@@ -409,12 +410,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldContain("Cancel");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).Contains("Cancel");
     }
 
     [Test]
-    public void try_with_multiple_error_types() {
+    public async Task try_with_multiple_error_types() {
         // Arrange & Act
         var gameResult = Kurrent.Result.Try(
             () => throw new InvalidOperationException("Game error"),
@@ -425,14 +426,14 @@ public class ResultTryTests {
             ex => new GameEndedError(Guid.Empty, GameStatus.Draw));
 
         // Assert
-        gameResult.IsFailure.ShouldBeTrue();
-        gameResult.Error.ShouldBeOfType<InvalidMoveError>();
-        endedResult.IsFailure.ShouldBeTrue();
-        endedResult.Error.ShouldBeOfType<GameEndedError>();
+        await Assert.That(gameResult.IsFailure).IsTrue();
+        await Assert.That(gameResult.Error).IsTypeOf<InvalidMoveError>();
+        await Assert.That(endedResult.IsFailure).IsTrue();
+        await Assert.That(endedResult.Error).IsTypeOf<GameEndedError>();
     }
 
     [Test]
-    public void try_combined_with_map_creates_safe_transformation_pipeline() {
+    public async Task try_combined_with_map_creates_safe_transformation_pipeline() {
         // Arrange
         var input = Faker.Random.Int(1, 100);
 
@@ -445,12 +446,12 @@ public class ResultTryTests {
             .Map(val => val.ToString());
 
         // Assert
-        pipeline.IsSuccess.ShouldBeTrue();
-        pipeline.Value.ShouldBe((input * 2).ToString());
+        await Assert.That(pipeline.IsSuccess).IsTrue();
+        await Assert.That(pipeline.Value).IsEqualTo((input * 2).ToString());
     }
 
     [Test]
-    public void try_combined_with_bind_enables_complex_workflows() {
+    public async Task try_combined_with_bind_enables_complex_workflows() {
         // Arrange
         var validInput = Faker.Random.Int(1, 100);
 
@@ -464,12 +465,12 @@ public class ResultTryTests {
                 : Kurrent.Result.Failure<int, SimpleError>(new SimpleError("Negative value")));
 
         // Assert
-        pipeline.IsSuccess.ShouldBeTrue();
-        pipeline.Value.ShouldBe(validInput * 2);
+        await Assert.That(pipeline.IsSuccess).IsTrue();
+        await Assert.That(pipeline.Value).IsEqualTo(validInput * 2);
     }
 
     [Test]
-    public void try_with_null_reference_exception() {
+    public async Task try_with_null_reference_exception() {
         // Arrange
         string? nullString = null;
 
@@ -479,12 +480,12 @@ public class ResultTryTests {
             ex => new SimpleError($"Null reference: {ex.GetType().Name}"));
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldContain("NullReferenceException");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).Contains("NullReferenceException");
     }
 
     [Test]
-    public void try_with_division_by_zero() {
+    public async Task try_with_division_by_zero() {
         // Arrange
         var zero = 0;
 
@@ -494,12 +495,12 @@ public class ResultTryTests {
             ex => new SimpleError($"Math error: {ex.Message}"));
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldContain("Math error");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).Contains("Math error");
     }
 
     [Test]
-    public void try_with_index_out_of_range() {
+    public async Task try_with_index_out_of_range() {
         // Arrange
         var array = new[] { 1, 2, 3 };
 
@@ -510,24 +511,24 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldContain("IndexOutOfRangeException");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).Contains("IndexOutOfRangeException");
     }
 
     [Test]
-    public void try_preserves_stack_trace_information() {
+    public async Task try_preserves_stack_trace_information() {
         // Arrange & Act
         var result = Kurrent.Result.Try(
             () => throw new InvalidOperationException("Deep error"),
             ex => new SimpleError(ex.StackTrace ?? "No stack trace"));
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldNotBeEmpty();
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).IsNotEmpty();
     }
 
     [Test]
-    public void try_with_custom_exception_factory_adds_context() {
+    public async Task try_with_custom_exception_factory_adds_context() {
         // Arrange
         var gameId      = Faker.Random.Guid();
         var contextInfo = Faker.Lorem.Sentence();
@@ -538,13 +539,13 @@ public class ResultTryTests {
             ex => new InvalidMoveError(gameId, $"{contextInfo}: {ex.Message}"));
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Reason.ShouldContain(contextInfo);
-        result.Error.GameId.ShouldBe(gameId);
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Reason).Contains(contextInfo);
+        await Assert.That(result.Error.GameId).IsEqualTo(gameId);
     }
 
     [Test]
-    public async ValueTask try_async_with_timeout_simulation() {
+    public async Task try_async_with_timeout_simulation() {
         // Arrange
         using var cts   = new CancellationTokenSource();
         const int delay = 100;
@@ -559,11 +560,11 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void try_with_nested_try_operations() {
+    public async Task try_with_nested_try_operations() {
         // Arrange
         var value = Faker.Random.Int(1, 100);
 
@@ -577,13 +578,13 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.IsSuccess.ShouldBeTrue();
-        result.Value.Value.ShouldBe(value * 2);
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value.IsSuccess).IsTrue();
+        await Assert.That(result.Value.Value).IsEqualTo(value * 2);
     }
 
     [Test]
-    public void try_with_linq_select_many_pattern() {
+    public async Task try_with_linq_select_many_pattern() {
         // Arrange
         var values = new[] { 1, 2, 3 };
 
@@ -597,14 +598,16 @@ public class ResultTryTests {
             .ToList();
 
         // Assert
-        results.ShouldAllBe(r => r.IsSuccess);
-        results[0].Value.ShouldBe(2);
-        results[1].Value.ShouldBe(4);
-        results[2].Value.ShouldBe(6);
+        await Assert.That(results[0].IsSuccess).IsTrue();
+        await Assert.That(results[0].Value).IsEqualTo(2);
+        await Assert.That(results[1].IsSuccess).IsTrue();
+        await Assert.That(results[1].Value).IsEqualTo(4);
+        await Assert.That(results[2].IsSuccess).IsTrue();
+        await Assert.That(results[2].Value).IsEqualTo(6);
     }
 
     [Test]
-    public void try_with_specific_exception_type_handling() {
+    public async Task try_with_specific_exception_type_handling() {
         // Arrange & Act
         var argumentResult = Kurrent.Result.Try(
             () => throw new ArgumentException("Bad argument"),
@@ -617,12 +620,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        argumentResult.Error.Message.ShouldStartWith("Arg:");
-        invalidOpResult.Error.Message.ShouldStartWith("Op:");
+        await Assert.That(argumentResult.Error.Message).StartsWith("Arg:");
+        await Assert.That(invalidOpResult.Error.Message).StartsWith("Op:");
     }
 
     [Test]
-    public async ValueTask try_async_handles_aggregate_exception() {
+    public async Task try_async_handles_aggregate_exception() {
         // Arrange
         var tasks = new[] {
             Task.FromException<int>(new InvalidOperationException("Error 1")),
@@ -639,12 +642,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsFailure.ShouldBeTrue();
-        result.Error.Message.ShouldContain("Exception");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.Message).Contains("Exception");
     }
 
     [Test]
-    public void try_enables_railway_oriented_error_handling() {
+    public async Task try_enables_railway_oriented_error_handling() {
         // Arrange
         var input = Faker.Random.Int(-10, 10);
 
@@ -661,17 +664,17 @@ public class ResultTryTests {
 
         // Assert
         if (input == 0) {
-            pipeline.IsFailure.ShouldBeTrue();
-            pipeline.Error.Message.ShouldContain("divide by zero");
+            await Assert.That(pipeline.IsFailure).IsTrue();
+            await Assert.That(pipeline.Error.Message).Contains("divide by zero");
         }
         else {
-            pipeline.IsSuccess.ShouldBeTrue();
-            pipeline.Value.ShouldBe(10 / input * 2);
+            await Assert.That(pipeline.IsSuccess).IsTrue();
+            await Assert.That(pipeline.Value).IsEqualTo(10 / input * 2);
         }
     }
 
     [Test]
-    public void try_with_multiple_sequential_operations() {
+    public async Task try_with_multiple_sequential_operations() {
         // Arrange
         var operations = new Func<int, int>[] {
             x => x + 1,
@@ -690,12 +693,12 @@ public class ResultTryTests {
         );
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldBe((5 + 1) * 2 - 3); // 9
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsEqualTo((5 + 1) * 2 - 3); // 9
     }
 
     [Test]
-    public async ValueTask try_async_preserves_context_across_await_boundaries() {
+    public async Task try_async_preserves_context_across_await_boundaries() {
         // Arrange
         var gameId       = Faker.Random.Guid();
         var contextValue = Faker.Random.Int(1, 100);
@@ -715,10 +718,10 @@ public class ResultTryTests {
 
         // Assert
         if (contextValue >= 50)
-            result.IsSuccess.ShouldBeTrue();
+            await Assert.That(result.IsSuccess).IsTrue();
         else {
-            result.IsFailure.ShouldBeTrue();
-            result.Error.Reason.ShouldContain($"State {contextValue}");
+            await Assert.That(result.IsFailure).IsTrue();
+            await Assert.That(result.Error.Reason).Contains($"State {contextValue}");
         }
     }
 }

@@ -3,12 +3,20 @@
 using Google.Protobuf;
 using NJsonSchema;
 
-namespace Kurrent.Client.Tests;
+namespace Kurrent.Client.Tests.Fixtures;
 
 public partial class KurrentClientTestFixture {
-	protected static string NewSchemaName() => $"test-schema-{Guid.NewGuid():N}";
+	static readonly TimeSpan EventualConsistencyDelay = TimeSpan.FromMilliseconds(200);
 
-	protected static JsonSchema NewJsonSchemaDefinition() {
+	/// <summary>
+	/// Waits for the schema registry read model to catch up after a state-changing operation.
+	/// </summary>
+	public static Task WaitForEventualConsistency(CancellationToken ct = default) =>
+		Task.Delay(EventualConsistencyDelay, ct);
+
+	public static string NewSchemaName() => $"test-schema-{Guid.NewGuid():N}";
+
+	public static JsonSchema NewJsonSchemaDefinition() {
 		return JsonSchema.FromJsonAsync(
 			"""
 			{

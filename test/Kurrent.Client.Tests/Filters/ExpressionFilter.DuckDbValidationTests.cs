@@ -55,6 +55,6 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
                 failures.Add($"{expression}: {ex.Message}");
             }
 
-        failures.ShouldBeEmpty($"DuckDB validation failures:\n{string.Join(Environment.NewLine, failures)}");
+        await Assert.That(failures).IsEmpty();
     }
 }

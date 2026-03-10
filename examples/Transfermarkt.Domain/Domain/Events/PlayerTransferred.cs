@@ -17,79 +17,55 @@ namespace Transfermarkt.Domain;
 /// </remarks>
 [PublicAPI]
 public sealed record PlayerTransferred {
-    PlayerTransferred(
-        TransferId transferId,
-        PlayerId playerId,
-        PlayerName playerName,
-        ClubId fromClubId,
-        ClubId toClubId,
-        TransferType type,
-        DateOnly effectiveDate,
-        Money fee,
-        LoanTerms loanTerms,
-        DateTimeOffset transferredAt
-    ) {
-        TransferId    = transferId;
-        PlayerId      = playerId;
-        PlayerName    = playerName;
-        FromClubId    = fromClubId;
-        ToClubId      = toClubId;
-        Type          = type;
-        EffectiveDate = effectiveDate;
-        Fee           = fee;
-        LoanTerms     = loanTerms;
-        TransferredAt = transferredAt;
-    }
-
     /// <summary>
     /// Unique identifier for this transfer.
     /// </summary>
-    public TransferId TransferId { get; }
+    public TransferId TransferId { get; init; }
 
     /// <summary>
     /// The player being transferred.
     /// </summary>
-    public PlayerId PlayerId { get; }
+    public PlayerId PlayerId { get; init; }
 
     /// <summary>
     /// The player's name at the time of transfer.
     /// </summary>
-    public PlayerName PlayerName { get; }
+    public PlayerName PlayerName { get; init; }
 
     /// <summary>
     /// The club the player is leaving. <see cref="ClubId.None"/> if entering the system.
     /// </summary>
-    public ClubId FromClubId { get; }
+    public ClubId FromClubId { get; init; }
 
     /// <summary>
     /// The club the player is joining. <see cref="ClubId.None"/> if leaving the system (retirement).
     /// </summary>
-    public ClubId ToClubId { get; }
+    public ClubId ToClubId { get; init; }
 
     /// <summary>
     /// The type of transfer.
     /// </summary>
-    public TransferType Type { get; }
+    public TransferType Type { get; init; }
 
     /// <summary>
     /// The date the transfer becomes effective.
     /// </summary>
-    public DateOnly EffectiveDate { get; }
+    public DateOnly EffectiveDate { get; init; }
 
     /// <summary>
     /// The transfer fee. <see cref="Money.Zero"/> for free transfers or loans without fee.
     /// </summary>
-    public Money Fee { get; }
+    public Money Fee { get; init; }
 
     /// <summary>
     /// Loan terms if this is a loan transfer. <see cref="LoanTerms.None"/> for non-loan transfers.
     /// </summary>
-    public LoanTerms LoanTerms { get; }
+    public LoanTerms LoanTerms { get; init; }
 
     /// <summary>
     /// When the transfer was recorded.
     /// </summary>
-    public DateTimeOffset TransferredAt { get; }
+    public DateTimeOffset TransferredAt { get; init; }
 
     /// <summary>
     /// Whether the player is entering the system (new registration).
@@ -106,30 +82,4 @@ public sealed record PlayerTransferred {
     /// </summary>
     public bool IsLoan => LoanTerms.IsSet;
 
-    /// <summary>
-    /// Creates a PlayerTransferred event.
-    /// </summary>
-    public static PlayerTransferred Create(
-        TransferId transferId,
-        PlayerId playerId,
-        PlayerName playerName,
-        ClubId fromClubId,
-        ClubId toClubId,
-        TransferType type,
-        DateOnly effectiveDate,
-        Money? fee = null,
-        LoanTerms? loanTerms = null,
-        DateTimeOffset? transferredAt = null
-    ) => new(
-        transferId,
-        playerId,
-        playerName,
-        fromClubId,
-        toClubId,
-        type,
-        effectiveDate,
-        fee ?? Money.Zero,
-        loanTerms ?? LoanTerms.None,
-        transferredAt ?? DateTimeOffset.UtcNow
-    );
 }

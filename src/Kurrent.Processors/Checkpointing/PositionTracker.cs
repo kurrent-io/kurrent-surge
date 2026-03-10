@@ -3,7 +3,7 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
 /// High-performance position tracker using ArrayPool for single-threaded partition processing.
@@ -171,7 +171,6 @@ public sealed class PositionTracker : IPositionTracker {
     }
 }
 
-
 /// <summary>
 /// Manages position tracking across multiple partitions. Not thread-safe.
 /// </summary>
@@ -189,6 +188,11 @@ public sealed class PartitionedPositionTracker : IDisposable {
             x => x.Key,
             x => new PositionTracker(lastFlushedPosition: x.Value));
     }
+
+    /// <summary>
+    /// Creates a tracker with no initial partitions.
+    /// </summary>
+    public PartitionedPositionTracker() : this(new Dictionary<Partition, RecordPosition>()) { }
 
     /// <summary>
     /// Gets the last flushed (checkpointed) position for each partition.
@@ -248,21 +252,26 @@ public sealed class PartitionedPositionTracker : IDisposable {
         return total;
     }
 
-    // /// <summary>
-    // /// Tracks a position for the specified partition.
-    // /// </summary>
-    // public int Track(Partition partition, LogPosition position) {
-    //     ObjectDisposedException.ThrowIf(_disposed, this);
-    //     return !_trackers.TryGetValue(partition, out var tracker)
-    //         ? throw new ArgumentException($"Partition {partition} is not being tracked.", nameof(partition))
-    //         : tracker.Track(position);
-    // }
-    //
-    // /// <summary>
-    // /// Tracks a position for its partition.
-    // /// </summary>
-    // public int Track(RecordPosition position) =>
-    //     Track(position.Partition, position.LogPosition);
+    /// <summary>
+    /// Tracks a position for the specified partition.
+    /// </summary>
+    public int Track(Partition partition, LogPosition position) {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return !_trackers.TryGetValue(partition, out var tracker)
+            ? throw new ArgumentException($"Partition {partition} is not being tracked.", nameof(partition))
+            : tracker.Track(RecordPosition.FromLogPosition(position, partition));
+    }
+
+    /// <summary>
+    /// Tracks a position for its partition.
+    /// </summary>
+    public int Track(RecordPosition position) =>
+        Track(position.Partition, position.LogPosition);
+
+    /// <summary>
+    /// Tracks a record's position for its partition.
+    /// </summary>
+    public int Track(Record record) => Track(record.Position);
 
     /// <summary>
     /// Prepares a flush without committing. Call <see cref="PendingPositionsFlush.Execute"/> after persistence succeeds.
@@ -367,4 +376,7 @@ public readonly struct PendingPositionsFlush {
     /// Commits the flush, removing the positions from the tracker.
     /// </summary>
     public void Execute() => _tracker.FlushUpTo(Positions);
+
+    public override string ToString() =>
+        string.Join(", ", Positions.Select(kvp => $"P{kvp.Key}={kvp.Value.LogPosition}")); // TODO SS: just use log positions if we keep partition
 }

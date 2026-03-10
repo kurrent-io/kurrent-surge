@@ -1,69 +1,350 @@
 using System.Collections.Immutable;
 using Kurrent.Client;
-using Kurrent.Client.Processors.Checkpointing;
-using Kurrent.Client.Processors.Gateway;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Processing;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Diagnostics;
+using Kurrent.Processors.Gateway;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
+using CheckpointStore = Kurrent.Processors.Checkpointing.CheckpointStore;
 
 namespace Kurrent.Processors;
 
-/// <summary>
-/// Defines the lifecycle status of a distributed processor worker.
-/// </summary>
-[PublicAPI]
-public enum ProcessorWorkerStatus {
-    /// <summary>
-    /// Fallback value for serialization and protocol compatibility.
-    /// </summary>
-    Unspecified = 0,
+sealed class ProcessorWorker : IProcessorWorker {
+    readonly ProcessorSettings          _settings;
+    readonly KurrentClient              _client;
+    readonly IProcessorGateway          _gateway;
+    readonly WorkerTelemetry            _telemetry;
+    readonly CheckpointStore            _checkpointStore;
+    readonly PartitionedPositionTracker _tracker;
+    readonly IRecordProcessor           _processor;
+    readonly bool                       _ownsClient;
+    readonly ProgressTracker            _progress;
+
+    int _disposed;
+    int _started;
+
+    WorkerContext WorkerContext;
+
+    public ProcessorWorker(
+        ProcessorSettings settings,
+        KurrentClient client,
+        IRecordProcessor processor,
+        WorkerTelemetry telemetry,
+        ILoggerFactory loggerFactory,
+        TimeProvider? time = null,
+        bool ownsClient = true,
+        IProcessorGateway? gateway = null
+    ) {
+        _client     = client;
+        _processor  = new SafeRecordProcessor(processor);
+        _telemetry  = telemetry;
+        _ownsClient = ownsClient && !client.Shared;
+
+        _settings = settings;
+
+        time ??= TimeProvider.System;
+
+        _gateway = gateway ?? new LegacyGateway(_client);
+
+        _checkpointStore = new CheckpointStore(
+            _settings.ProcessorId,
+            _settings.MaxParallelism,
+            _client.Streams,
+            time,
+            loggerFactory.CreateLogger<CheckpointStore>());
+
+        _progress = new ProgressTracker(time);
+        _tracker  = new PartitionedPositionTracker();
+
+        WorkerContext = new WorkerContext {
+            ProcessorId = ProcessorId,
+            WorkerId    = WorkerId,
+            SessionId   = SessionId.Unset,
+            Logger      = loggerFactory.CreateLogger<ProcessorWorker>()
+        };
+    }
+
+    public string            ProcessorId => _settings.ProcessorId;
+    public string            WorkerId    => _settings.WorkerId;
+    public ProcessorSettings Settings    => _settings;
 
     /// <summary>
-    /// Performing local bootstrap (DI, configuration, and environment validation).
+    /// Current lifecycle status of the processor worker.
     /// </summary>
-    Initializing = 1,
+    public ProcessorWorkerStatus Status { get; private set; } = ProcessorWorkerStatus.Starting;
 
     /// <summary>
-    /// Connecting/handshaking with the server to establish identity and request a <see cref="WorkOrder"/>.
+    /// Current progress snapshot.
     /// </summary>
-    Connecting = 2,
+    public WorkerProgress Progress => _progress.Progress;
 
-    /// <summary>
-    /// <see cref="WorkOrder"/> received.
-    /// Hydrating local state and seeking to the specified <see cref="LogPosition"/> before signaling readiness.
-    /// </summary>
-    Restoring = 3,
+    public async Task RunAsync(CancellationToken stoppingToken) {
+        if (Interlocked.Exchange(ref _started, 1) == 1)
+            throw new InvalidOperationException("This worker has already been started at least once. Create a new instance to run again.");
 
-    /// <summary>
-    /// Actively processing.
-    /// Handshake complete (<see cref="WorkerReady"/> sent) and records are being consumed.
-    /// </summary>
-    Processing = 4,
+        Status = ProcessorWorkerStatus.Starting;
 
-    /// <summary>
-    /// Graceful teardown in progress. Releasing partition leases and flushing
-    /// outbound buffers to the Relay.
-    /// </summary>
-    Disconnecting = 5,
+        _telemetry.Starting();
 
-    /// <summary>
-    /// Terminal status for a clean shutdown.
-    /// All network sessions and local resources have been released.
-    /// </summary>
-    Disconnected = 6,
+        IWorkerSession session = null!;
 
-    /// <summary>
-    /// Terminal status for an unrecoverable error.
-    /// Partitions should be considered abandoned and eligible for reassignment.
-    /// </summary>
-    Failed = 7
+        // used to cancel pump/timer before shutdown logic
+        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+
+        WorkerContext = WorkerContext with {
+            CancellationToken = stoppingToken
+        };
+
+        try {
+            session = await _gateway
+                .ConnectAsync(_settings, cancellator.Token)
+                .ConfigureAwait(false);
+
+            WorkerContext = WorkerContext with {
+                SessionId = session.SessionId
+            };
+
+            await foreach (var message in session.WithCancellation(stoppingToken).ConfigureAwait(false)) {
+                await message
+                    .SwitchAsync(
+                        msg => HandleWorkOrder(msg, session, stoppingToken),
+                        msg => HandleRecord(msg, session, stoppingToken),
+                        msg => HandleCheckpoint(msg, session, stoppingToken)
+                    )
+                    .ConfigureAwait(false);
+            }
+
+            await HandleStopped(session, cancellator).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) {
+            await HandleStopped(session, cancellator).ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            await HandleError(session, cancellator, ex).ConfigureAwait(false);
+        }
+        finally {
+            await Cleanup(session).ConfigureAwait(false);
+        }
+    }
+
+    async ValueTask HandleWorkOrder(WorkOrder workOrder, IWorkerSession session, CancellationToken ct) {
+        _telemetry.RestoringState(workOrder.Partitions.Length);
+
+        // Load checkpoint with resolved positions for all assigned partitions
+        var checkpoint = await _checkpointStore
+            .LoadLatestAsync(
+                workOrder.Partitions.ToArray(),
+                _settings.Subscription.InitialPosition,
+                ct)
+            .ConfigureAwait(false);
+
+        // Extract positions for tracker and WorkerReady
+        var positions = checkpoint.Partitions
+            .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value.Position);
+
+        _tracker.Reset(positions);
+        _progress.SetPartitionTracker(_tracker);
+
+        _telemetry.StateRestored(checkpoint.LowWatermark.LogPosition, positions.Count);
+
+        await session!
+            .SendAsync(new WorkerReady(checkpoint.CheckpointId, PartitionPositions.From(positions)))
+            .ConfigureAwait(false);
+
+        Status = ProcessorWorkerStatus.Processing;
+
+        _telemetry.Processing(session.SessionId.Value);
+    }
+
+    async ValueTask HandleRecord(Record record, IWorkerSession session, CancellationToken ct) {
+        using var scope = _telemetry.TrackRecord();
+
+        await _processor
+            .ProcessRecord(WorkerContext.ForProcessRecord(record, Progress))
+            .ConfigureAwait(false);
+
+        _tracker.Track(record);
+        _progress.TrackRecord();
+
+        scope.Complete(Progress.Throughput.TotalRecords);
+        _telemetry.RecordProcessed(Progress.Throughput.TotalRecords);
+    }
+
+    async ValueTask HandleCheckpoint(Checkpoint checkpoint, IWorkerSession session, CancellationToken ct) {
+        _telemetry.Checkpointing(checkpoint.Trigger, checkpoint.CheckpointId);
+
+        var pendingFlush = _tracker.PrepareFlush();
+
+        await _processor
+            .OnCheckpoint(WorkerContext.ForCheckpoint(checkpoint))
+            .ConfigureAwait(false);
+
+        await _checkpointStore
+            .StoreAsync(WorkerId, checkpoint.CheckpointId, pendingFlush.Positions, ct)
+            .ConfigureAwait(false);
+
+        await session
+            .SendAsync(new CheckpointComplete(checkpoint.CheckpointId, PartitionPositions.From(pendingFlush.Positions)))
+            .ConfigureAwait(false);
+
+        pendingFlush.Execute();
+        _progress.TrackCheckpoint(checkpoint);
+
+        _telemetry.CheckpointComplete(checkpoint.Trigger, checkpoint.CheckpointId, pendingFlush);
+    }
+
+    async ValueTask HandleStopped(IWorkerSession session, CancellationTokenSource cts) {
+        // Kill pump and timer immediately (idempotent if already canceled by stoppingToken)
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        var progress = Progress;
+        var throughput = progress.Throughput;
+
+        _telemetry.Stopping(
+            throughput.TotalRecords,
+            throughput.Elapsed,
+            throughput.RecordsPerSecond);
+
+        // Final checkpoint flush (best-effort)
+        // Only attempt if we reached Processing state (partitions assigned, tracker initialized)
+        if (Status == ProcessorWorkerStatus.Processing) {
+            try {
+                var pendingFlush = _tracker.PrepareFlush();
+                var checkpointId = CheckpointId.New();
+
+                _telemetry.FinalCheckpoint(pendingFlush.Positions.Count);
+
+                var checkpoint = new Checkpoint(
+                    checkpointId,
+                    CheckpointTrigger.Shutdown,
+                    DateTimeOffset.UtcNow
+                );
+
+                // CancellationToken.None — cts is cancelled, stoppingToken may be cancelled
+                await _processor
+                    .OnCheckpoint((WorkerContext with { CancellationToken = CancellationToken.None }).ForCheckpoint(checkpoint))
+                    .ConfigureAwait(false);
+
+                await _checkpointStore
+                    .StoreAsync(WorkerId, checkpointId, pendingFlush.Positions, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                pendingFlush.Execute();
+                _progress.TrackCheckpoint(checkpoint);
+            }
+            catch (Exception ex) {
+                // Best-effort: positions replay on restart (at-least-once guarantee preserved)
+                _telemetry.FinalCheckpointFailed(ex);
+            }
+        }
+
+        // Send Disconnect (best-effort, no-op in legacy)
+        try {
+            await session
+                .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.Empty))
+                .ConfigureAwait(false);
+        }
+        catch {
+            // Swallow — protocol signaling, not critical
+        }
+
+        // OnComplete callback (throws on failure, preserving current behavior)
+        try {
+            await _processor
+                .OnComplete(WorkerContext.ForComplete(Progress))
+                .ConfigureAwait(false);
+
+            Status = ProcessorWorkerStatus.Stopped;
+            _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed);
+        }
+        catch (Exception completeEx) {
+            Status = ProcessorWorkerStatus.Error;
+            _telemetry.Error(completeEx);
+            throw;
+        }
+    }
+
+    async ValueTask HandleError(IWorkerSession session, CancellationTokenSource cts, Exception ex) {
+        // Kill pump and timer immediately
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        var progress = Progress;
+        var throughput = progress.Throughput;
+
+        _telemetry.Stopping(
+            throughput.TotalRecords, throughput.Elapsed,
+            throughput.RecordsPerSecond
+        );
+
+        // OnError callback — aggregate on failure
+        try {
+            await _processor
+                .OnError(WorkerContext.ForError(progress, ex))
+                .ConfigureAwait(false);
+        }
+        catch (Exception uex) {
+            ex = new AggregateException(ex, uex).Flatten();
+        }
+
+        // Send Disconnect (best-effort, no-op in legacy)
+        try {
+            await session
+                .SendAsync(new Disconnect(DisconnectReason.Error, PartitionPositions.Empty))
+                .ConfigureAwait(false);
+        }
+        catch {
+            // Swallow — protocol signaling, not critical
+        }
+
+        Status = ProcessorWorkerStatus.Error;
+        _telemetry.Error(ex);
+        throw ex;
+    }
+
+    async ValueTask Cleanup(IWorkerSession? session) {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            return;
+
+        var errors = new List<Exception>();
+
+        try {
+            if (session is not null)
+                await session.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            errors.Add(ex);
+        }
+
+        try {
+            _tracker.Dispose();
+        }
+        catch (Exception ex) {
+            errors.Add(ex);
+        }
+
+        try {
+            if (_ownsClient)
+                await _client.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            errors.Add(ex);
+        }
+
+        if (errors.Count > 0) {
+            var aggregate = new AggregateException("One or more errors during processor cleanup", errors);
+            _telemetry.Error(aggregate);
+            throw aggregate;
+        }
+    }
 }
 
 /// <summary>
 /// Represents a running processor worker instance.
 /// </summary>
 [PublicAPI]
-public interface IProcessorWorker : IAsyncDisposable {
+public interface IProcessorWorker {
     /// <summary>
     /// Unique identifier of the processor being executed.
     /// </summary>
@@ -92,225 +373,33 @@ public interface IProcessorWorker : IAsyncDisposable {
     Task RunAsync(CancellationToken stoppingToken);
 }
 
-sealed partial class ProcessorWorker : IProcessorWorker {
-    readonly KurrentClient     _client;
-    readonly ProcessorSettings _settings;
-    readonly IProcessorGateway _gateway;
-    readonly ILogger           _logger;
-    readonly CheckpointStore   _checkpointStore;
-
-    readonly PartitionedPositionTracker _tracker;
-
-    readonly IRecordProcessor _processor;
-    readonly bool             _ownsClient;
-    readonly ProgressTracker  _progress;
-
-    readonly IStateStore _state;
-
-    IWorkerSession? _session;
-
-    public ProcessorWorker(KurrentClient client, IRecordProcessor processor, IStateStore state, ProcessorSettings settings, ILoggerFactory loggerFactory, bool ownsClient = true) {
-        _client     = client;
-        _processor  = processor;
-        _state      = state;
-        _logger     = loggerFactory.CreateLogger(processor.GetType().Name);
-        _ownsClient = ownsClient && !client.Shared;
-
-        _settings = settings;
-        Status   = ProcessorWorkerStatus.Initializing;
-
-        _gateway = new LegacyGateway(_client);
-
-        _checkpointStore = new CheckpointStore(
-            _settings.ProcessorId,
-            _settings.MaxParallelism,
-            _client.Streams,
-            TimeProvider.System,
-            loggerFactory.CreateLogger<CheckpointStore>());
-
-        _progress = new ProgressTracker(TimeProvider.System);
-        _tracker  = new PartitionedPositionTracker(ImmutableDictionary<Partition, RecordPosition>.Empty);
-
-        // _state = _client.Processors.CreateStateStore(_settings.ProcessorId, _settings.WorkerId);
-    }
-
-    public string            ProcessorId => _settings.ProcessorId;
-    public string            WorkerId    => _settings.WorkerId;
-    public ProcessorSettings Settings    => _settings;
-
-    SessionId _sessionId = SessionId.None;
-
-    public ProcessorWorkerStatus Status   { get; private set; }
+/// <summary>
+/// Defines the lifecycle status of a distributed processor worker.
+/// </summary>
+[PublicAPI]
+public enum ProcessorWorkerStatus {
+    /// <summary>
+    /// Fallback value for serialization and protocol compatibility.
+    /// </summary>
+    Unspecified = 0,
 
     /// <summary>
-    /// Current progress snapshot.
+    /// Worker is bootstrapping: connecting, restoring state, and preparing to process.
     /// </summary>
-    public ProcessorProgress Progress => _progress.Progress;
+    Starting = 1,
 
-    public async Task RunAsync(CancellationToken stoppingToken) {
-        LogInitializing(ProcessorId, WorkerId);
+    /// <summary>
+    /// Actively processing records.
+    /// </summary>
+    Processing = 2,
 
-        var ctx = new InitializationContext(_settings, _logger, stoppingToken);
-        await _processor
-            .OnInitialize(ctx)
-            .ConfigureAwait(false);
+    /// <summary>
+    /// Terminal status for a clean shutdown or cancellation.
+    /// </summary>
+    Stopped = 3,
 
-        try {
-            Status = ProcessorWorkerStatus.Connecting;
-            LogConnecting(ProcessorId, WorkerId);
-
-            _session = await _gateway
-                .ConnectAsync(_settings, stoppingToken)
-                .ConfigureAwait(false);
-
-            _sessionId = _session.SessionId;
-            LogConnected(ProcessorId, WorkerId, _session.SessionId.Value);
-
-            await foreach (var message in _session.WithCancellation(stoppingToken).ConfigureAwait(false)) {
-                await message
-                    .SwitchAsync(
-                        evt => HandleWorkOrder(evt, stoppingToken),
-                        evt => HandleRecordBatch(evt, stoppingToken),
-                        evt => HandleCheckpointBarrier(evt, stoppingToken)
-                    )
-                    .ConfigureAwait(false);
-            }
-
-            Status = ProcessorWorkerStatus.Disconnecting;
-            await HandleShutdown().ConfigureAwait(false);
-        }
-        catch (Exception ex) {
-            Status = ProcessorWorkerStatus.Disconnecting;
-            await HandleShutdown(ex).ConfigureAwait(false);
-        }
-    }
-
-    public async ValueTask DisposeAsync() {
-        _tracker.Dispose();
-
-        if (_session is not null)
-            await _session.DisposeAsync().ConfigureAwait(false);
-
-        await _gateway.DisposeAsync().ConfigureAwait(false);
-
-        if (_ownsClient)
-            await _client.DisposeAsync().ConfigureAwait(false);
-    }
-
-    async ValueTask HandleWorkOrder(WorkOrder workOrder, CancellationToken ct) {
-        Status = ProcessorWorkerStatus.Restoring;
-        LogWorkOrderReceived(ProcessorId, WorkerId, workOrder.Partitions.Length);
-
-        // Load checkpoint with resolved positions for all assigned partitions
-        var checkpoint = await _checkpointStore
-            .LoadLatestAsync(
-                workOrder.Partitions.ToArray(),
-                _settings.Subscription.InitialPosition,
-                ct)
-            .ConfigureAwait(false);
-
-        // Extract positions for tracker and WorkerReady
-        var positions = checkpoint.Partitions
-            .ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value.Position);
-
-        _tracker.Reset(positions);
-        _progress.SetPartitionTracker(_tracker);
-
-        LogStateRestored(ProcessorId, WorkerId, checkpoint.LowWatermark.LogPosition, positions.Count);
-
-        await _session!
-            .SendAsync(new WorkerReady(checkpoint.BarrierId, PartitionPositions.From(positions)))
-            .ConfigureAwait(false);
-
-        Status = ProcessorWorkerStatus.Processing;
-
-        LogProcessing(ProcessorId, WorkerId);
-    }
-
-    async ValueTask HandleRecordBatch(RecordBatch batch, CancellationToken ct) {
-        await _processor
-            .ProcessRecords(new ProcessRecordsContext(ProcessorId, WorkerId, _sessionId, batch, Progress, _state, _logger, ct))
-            .ConfigureAwait(false);
-
-        _tracker.Track(batch);
-        _progress.TrackRecords(batch.Count);
-
-        LogBatchProcessed(ProcessorId, WorkerId, batch.Count, Progress.Throughput.TotalRecords);
-    }
-
-    async ValueTask HandleCheckpointBarrier(CheckpointBarrier barrier, CancellationToken ct) {
-        LogCheckpointBarrierReceived(ProcessorId, WorkerId, barrier.Trigger, barrier.BarrierId);
-
-        var pendingFlush = _tracker.PrepareFlush();
-
-        await _checkpointStore
-            .StoreAsync(WorkerId, barrier.BarrierId, pendingFlush.Positions, ct)
-            .ConfigureAwait(false);
-
-        await _session!
-            .SendAsync(new CheckpointComplete(barrier.BarrierId, PartitionPositions.From(pendingFlush.Positions)))
-            .ConfigureAwait(false);
-
-        pendingFlush.Execute();
-        _progress.TrackCheckpoint(barrier);
-
-        LogCheckpointCompleted(ProcessorId, WorkerId, barrier.BarrierId, pendingFlush.Positions.Count);
-
-        await _processor
-            .OnCheckpointComplete(new CheckpointCompleteContext(ProcessorId, WorkerId, _sessionId, Progress, ct))
-            .ConfigureAwait(false);
-    }
-
-    async ValueTask HandleShutdown(Exception? ex = null) {
-        Status = ex is null ? ProcessorWorkerStatus.Disconnected : ProcessorWorkerStatus.Failed;
-
-        // capture final snapshot
-        var progress = Progress;
-
-        if (ex is null)
-            LogShutdownCompleted(ProcessorId, WorkerId, progress.Throughput.TotalRecords, progress.Throughput.Elapsed);
-        else
-            LogShutdownFailed(ex, ProcessorId, WorkerId);
-
-        await _processor
-            .OnShutdown(ShutdownContext.From(ProcessorId, WorkerId, _sessionId, _logger, progress, ex))
-            .ConfigureAwait(false);
-    }
-
-    #region Logging
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} initializing")]
-    partial void LogInitializing(string processorId, string workerId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} connecting")]
-    partial void LogConnecting(string processorId, string workerId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} connected (sessionId: {SessionId})")]
-    partial void LogConnected(string processorId, string workerId, Guid sessionId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} received work order ({PartitionCount} partitions), restoring state")]
-    partial void LogWorkOrderReceived(string processorId, string workerId, int partitionCount);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} restored state (startPosition: {StartPosition}, partitions: {PartitionCount})")]
-    partial void LogStateRestored(string processorId, string workerId, LogPosition startPosition, int partitionCount);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} ready and processing")]
-    partial void LogProcessing(string processorId, string workerId);
-
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Processor {ProcessorId} worker {WorkerId} processed batch ({RecordCount} records, total: {TotalRecords})")]
-    partial void LogBatchProcessed(string processorId, string workerId, int recordCount, long totalRecords);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} checkpoint barrier (trigger: {Trigger}, barrierId: {BarrierId})")]
-    partial void LogCheckpointBarrierReceived(string processorId, string workerId, CheckpointBarrierTrigger trigger, string barrierId);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} checkpoint completed (barrierId: {BarrierId}, partitions: {PartitionCount})")]
-    partial void LogCheckpointCompleted(string processorId, string workerId, string barrierId, int partitionCount);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} shutdown completed ({TotalRecords} records in {Duration})")]
-    partial void LogShutdownCompleted(string processorId, string workerId, long totalRecords, TimeSpan duration);
-
-    [LoggerMessage(Level = LogLevel.Error, Message = "Processor {ProcessorId} worker {WorkerId} shutdown with error")]
-    partial void LogShutdownFailed(Exception ex, string processorId, string workerId);
-
-    #endregion
+    /// <summary>
+    /// Terminal status for an unrecoverable error.
+    /// </summary>
+    Error = 4
 }

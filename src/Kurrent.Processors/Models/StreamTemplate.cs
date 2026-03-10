@@ -3,7 +3,7 @@
 using System.Runtime.CompilerServices;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Client.Processors;
+namespace Kurrent.Processors.Models;
 
 /// <summary>
 /// The StreamTemplate class represents a format for constructing,

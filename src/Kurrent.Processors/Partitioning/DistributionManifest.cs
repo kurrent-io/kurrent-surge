@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
 namespace Kurrent.Client.Processors.Partitioning;
 
@@ -106,7 +107,7 @@ public sealed record PartitionAssignment(
 /// <summary>
 /// Describes a transfer of partitions from one worker to another.
 /// </summary>
-/// <param name="From">The worker losing the partitions (<see cref="WorkerId.None"/> if partitions are new).</param>
+/// <param name="From">The worker losing the partitions (<see cref="WorkerId.Unset"/> if partitions are new).</param>
 /// <param name="To">The worker gaining the partitions.</param>
 /// <param name="Partitions">The partitions being transferred.</param>
 [PublicAPI]

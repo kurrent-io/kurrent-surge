@@ -19,12 +19,12 @@ public readonly record struct ClubId {
     /// </summary>
     public static readonly ClubId Unknown = new(UnknownGuid);
 
-    ClubId(Guid value) => Value = value;
+    public ClubId(Guid value) => Value = value;
 
     /// <summary>
     /// The underlying GUID value.
     /// </summary>
-    public Guid Value { get; }
+    public Guid Value { get; init; }
 
     /// <summary>
     /// Indicates whether this identifier is unset (no club).

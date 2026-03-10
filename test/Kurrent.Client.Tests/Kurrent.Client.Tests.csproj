@@ -1,46 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
-    <ProjectReference Include="..\..\src\KurrentDB.Client\KurrentDB.Client.csproj" />
-    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\examples\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+  </ItemGroup>
+
+<ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />
-    <Using Include="Shouldly" />
+    <Using Include="Kurrent.Testing.Assertions" />
     <Using Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Bogus" />
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Shouldly" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Experimental\**" />
-    <Compile Remove="Infra\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Remove="Experimental\**" />
-    <EmbeddedResource Remove="Infra\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Experimental\**" />
-    <None Remove="Infra\**" />
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Modules\Processors\" />
   </ItemGroup>
 </Project>

@@ -4,7 +4,7 @@ namespace Kurrent.Client.Tests.Options;
 
 public class KurrentClientOptionsBuilderTests {
     [Test]
-    public void get_builder_returns_the_same_options() {
+    public async Task get_builder_returns_the_same_options() {
         const string connectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=false";
 
         var validOptions = KurrentClientOptions.Parse(connectionString);
@@ -13,55 +13,56 @@ public class KurrentClientOptionsBuilderTests {
 
         var newOptions = builder.Build();
 
-        newOptions.ShouldBeEquivalentTo(validOptions);
+        await Assert.That(newOptions).IsDeepEquivalentTo(validOptions);
     }
 
     [Test]
-    public void with_resilience_performs_complete_replacement() {
+    public async Task with_resilience_performs_complete_replacement() {
         const string connectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=false";
 
         var validOptions = KurrentClientOptions.Parse(connectionString);
 
         var builder = validOptions.GetBuilder()
-            .WithResilience(KurrentClientResilienceOptions.NoResilience);
+            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience);
 
         var newOptions = builder.Build();
 
         // WithResilience performs complete replacement
-        newOptions.Resilience.ShouldBeEquivalentTo(KurrentClientResilienceOptions.NoResilience);
+        await Assert.That(newOptions.Resilience).IsDeepEquivalentTo(KurrentClientResilienceOptions.NoResilience);
 
         // Other properties should be preserved
-        newOptions.ConnectionName.ShouldBe(validOptions.ConnectionName);
-        newOptions.Endpoints.ShouldBe(validOptions.Endpoints);
-        newOptions.Security.ShouldBeEquivalentTo(validOptions.Security);
-        newOptions.Gossip.ShouldBeEquivalentTo(validOptions.Gossip);
+        await Assert.That(newOptions.ConnectionName).IsEqualTo(validOptions.ConnectionName);
+        await Assert.That(newOptions.Endpoints).IsEqualTo(validOptions.Endpoints);
+        await Assert.That(newOptions.Security).IsDeepEquivalentTo(validOptions.Security);
+        await Assert.That(newOptions.Gossip).IsDeepEquivalentTo(validOptions.Gossip);
     }
 
     [Test]
-    public void with_messages_performs_complete_replacement() {
+    public async Task with_messages_performs_complete_replacement() {
         const string connectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=false";
 
         var validOptions = KurrentClientOptions.Parse(connectionString);
 
         var builder = validOptions.GetBuilder()
-            .WithMessages(options => options.Map<StreamMetadata>("$metadata"));
+            .ConfigureSchema(schema => schema
+                .ConfigureMessages(options => options.Map<StreamMetadata>("$metadata")));
 
         var newOptions = builder.Build();
 
         // WithMessages performs complete replacement
-        newOptions.Mapper.ShouldNotBe(validOptions.Mapper);
-        newOptions.Mapper.TryGetSchemaName(typeof(StreamMetadata), out var schemaName).ShouldBeTrue();
-        schemaName.Value.ShouldBe("$metadata");
+        await Assert.That(newOptions.Schema.Mapper).IsNotEqualTo(validOptions.Schema.Mapper);
+        await Assert.That(newOptions.Schema.Mapper.TryGetSchemaName(typeof(StreamMetadata), out var schemaName)).IsTrue();
+        await Assert.That(schemaName.Value).IsEqualTo("$metadata");
 
         // Other properties should be preserved
-        newOptions.ConnectionName.ShouldBe(validOptions.ConnectionName);
-        newOptions.Endpoints.ShouldBe(validOptions.Endpoints);
-        newOptions.Security.ShouldBeEquivalentTo(validOptions.Security);
-        newOptions.Resilience.ShouldBeEquivalentTo(validOptions.Resilience);
+        await Assert.That(newOptions.ConnectionName).IsEqualTo(validOptions.ConnectionName);
+        await Assert.That(newOptions.Endpoints).IsEqualTo(validOptions.Endpoints);
+        await Assert.That(newOptions.Security).IsDeepEquivalentTo(validOptions.Security);
+        await Assert.That(newOptions.Resilience).IsDeepEquivalentTo(validOptions.Resilience);
     }
 
     [Test]
-    public void configure_resilience_preserves_unmodified_properties() {
+    public async Task configure_resilience_preserves_unmodified_properties() {
         const string connectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=false&defaultDeadline=30000";
 
         var validOptions = KurrentClientOptions.Parse(connectionString);
@@ -75,9 +76,9 @@ public class KurrentClientOptionsBuilderTests {
         var newOptions = builder.Build();
 
         // ConfigureResilience preserves other properties
-        newOptions.Resilience.Deadline.ShouldBe(originalDeadline);
-        newOptions.Resilience.Retry.Enabled.ShouldBe(false);
-        newOptions.Resilience.KeepAliveInterval.ShouldBe(validOptions.Resilience.KeepAliveInterval);
-        newOptions.Resilience.KeepAliveTimeout.ShouldBe(validOptions.Resilience.KeepAliveTimeout);
+        await Assert.That(newOptions.Resilience.Deadline).IsEqualTo(originalDeadline);
+        await Assert.That(newOptions.Resilience.Retry.Enabled).IsEqualTo(false);
+        await Assert.That(newOptions.Resilience.KeepAliveInterval).IsEqualTo(validOptions.Resilience.KeepAliveInterval);
+        await Assert.That(newOptions.Resilience.KeepAliveTimeout).IsEqualTo(validOptions.Resilience.KeepAliveTimeout);
     }
 }

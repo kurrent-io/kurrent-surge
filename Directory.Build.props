@@ -6,12 +6,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
 
     <!-- Include only en-US satellite resources to reduce package size -->
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
 
     <!-- Exclude all .DotSettings files from being included -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);**/*.DotSettings</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/*.DotSettings;packages.lock.json</DefaultItemExcludes>
 
     <!-- Warnings -->
     <!-- NETSDK1057 - You are using a preview version of .NET -->
@@ -38,20 +40,17 @@
   ================================================================
   -->
   <PropertyGroup Label="NuGet Package Metadata" Condition="'$(IsPackable)' == 'true'">
-    <Title>KurrentDB .NET Client</Title>
-    <Product>KurrentDB .NET Client</Product>
-    <Description>Teh client library for the Kurrent Platform. Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
     <Authors>Kurrent Inc.</Authors>
     <Company>Kurrent Inc.</Company>
     <Copyright>Copyright © 2011-$([System.DateTime]::Now.Year) $(Company)</Copyright>
 
     <PackageIcon>ouro.png</PackageIcon>
-    <PackageTags>kurrent kurrentdb client eventstore</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/kurrent-io/Kurrent.Client</PackageProjectUrl>
     <PackageReleaseNotes>https://kurrent.io/blog/</PackageReleaseNotes>
 
     <RepositoryUrl>https://github.com/kurrent-io/Kurrent.Client</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <!--
@@ -66,7 +65,7 @@
   <PropertyGroup Label="MinVer Settings" Condition="'$(IsPackable)' == 'true'">
     <MinVerTagPrefix>v</MinVerTagPrefix>
     <MinVerVerbosity>diagnostic</MinVerVerbosity>
-    <MinVerDefaultPreReleasePhase>alpha</MinVerDefaultPreReleasePhase>
+    <MinVerDefaultPreReleaseIdentifiers>alpha.0</MinVerDefaultPreReleaseIdentifiers>
     <MinVerAutoIncrement>patch</MinVerAutoIncrement>
     <MinVerIgnoreHeight>true</MinVerIgnoreHeight>
   </PropertyGroup>
@@ -85,6 +84,6 @@
     <PackageReference Include="MinVer" PrivateAssets="all" />
     <None Include="$(RepoRoot)\ouro.png" Pack="true" PackagePath="\" />
     <None Include="$(RepoRoot)\LICENSE.md" Pack="true" PackagePath="\" />
-    <None Include="$(RepoRoot)\README.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

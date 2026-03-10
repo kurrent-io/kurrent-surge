@@ -1,15 +1,16 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams.Processing;
-using Microsoft.Extensions.Logging;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors;
 
 /// <summary>
 /// Defines the interface for processing records from a processor.
 /// Implement this interface to receive callbacks during the processing lifecycle.
 /// <para>
-/// All methods except <see cref="ProcessRecords"/> have default implementations
+/// All methods except <see cref="ProcessRecord"/> have default implementations
 /// that do nothing, allowing you to override only the methods you need.
 /// </para>
 /// </summary>
@@ -19,195 +20,147 @@ namespace Kurrent.Client.Streams;
 /// state management, and coordination automatically.
 /// </para>
 /// </remarks>
-/// <example>
-/// <code>
-/// // Minimal implementation - only ProcessRecords is required
-/// class MinimalProcessor : IRecordProcessor {
-///     public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
-///         foreach (var record in ctx.Records)
-///             Console.WriteLine(record.Schema.Name);
-///         return ValueTask.CompletedTask;
-///     }
-/// }
-///
-/// // Full implementation with lifecycle handling
-/// class FullProcessor : IRecordProcessor {
-///     public ValueTask OnInitialize(InitializationContext ctx) {
-///         Console.WriteLine($"Starting processor: {ctx.Settings.ProcessorName}");
-///         return ValueTask.CompletedTask;
-///     }
-///
-///     public ValueTask ProcessRecords(ProcessRecordsContext ctx) {
-///         Console.WriteLine($"Processing {ctx.Records.Count} records, total: {ctx.Progress.Throughput.TotalRecords}");
-///         return ValueTask.CompletedTask;
-///     }
-///
-///     public ValueTask OnCheckpointComplete(CheckpointCompleteContext ctx) {
-///         Console.WriteLine($"Checkpoint #{ctx.Progress.Checkpoint.TotalCheckpoints} at {ctx.Progress.Checkpoint.LastPosition}");
-///         return ValueTask.CompletedTask;
-///     }
-///
-///     public ValueTask OnShutdown(ShutdownContext ctx) {
-///         if (ctx.Reason == ShutdownReason.Error)
-///             Console.WriteLine($"Error: {ctx.Error}");
-///         else
-///             Console.WriteLine($"Done: {ctx.Progress.Throughput.TotalRecords} records in {ctx.Progress.Throughput.Elapsed}");
-///         return ValueTask.CompletedTask;
-///     }
-/// }
-/// </code>
-/// </example>
 [PublicAPI]
 public interface IRecordProcessor {
     /// <summary>
-    /// Called when the processor starts, before any records are processed.
-    /// </summary>
-    /// <param name="context">
-    /// Context containing processor information, settings, and cancellation token.
-    /// </param>
-    /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
-    ValueTask OnInitialize(InitializationContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when records are available for processing.
+    /// Called when a record is available for processing.
     /// <remarks>
     /// This is the only method that must be implemented.
     /// </remarks>
     /// </summary>
     /// <param name="context">
-    /// Context containing the batch of records and cancellation token.
+    /// Context containing the record and cancellation token.
     /// </param>
-    ValueTask ProcessRecords(ProcessRecordsContext context);
+    ValueTask ProcessRecord(ProcessRecordContext context);
 
     /// <summary>
-    /// Called when a checkpoint completes successfully.
+    /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Use this to commit side effects to external systems (databases, message queues)
-    /// that should be coordinated with checkpoint completion.
-    /// </para>
-    /// <para>
-    /// Notifications are best-effort and may be skipped during failures.
-    /// Design external commits for idempotency.
-    /// </para>
-    /// </remarks>
-    /// <param name="context">
-    /// Context containing checkpoint information, metrics, and cancellation token.
-    /// </param>
-    ValueTask OnCheckpointComplete(CheckpointCompleteContext context) => ValueTask.CompletedTask;
+    ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
 
     /// <summary>
-    /// Called when processing stops, regardless of reason.
+    /// Called when the worker encounters an unrecoverable error.
     /// <remarks>
     /// <para>
-    /// This method is invoked at the end of the processing lifecycle, allowing for cleanup.
-    /// </para>
-    /// <para>
-    /// Check <see cref="ShutdownContext.Reason"/> to determine why processing stopped.
+    /// This method is invoked before the worker transitions to <see cref="ProcessorWorkerStatus.Error"/>.
+    /// Use it for error reporting, metrics, or cleanup.
     /// </para>
     /// </remarks>
     /// </summary>
     /// <param name="context">
-    /// Context containing the shutdown reason, final metrics, checkpoint state,
-    /// error (if any), and cancellation token.
+    /// Context containing the error and final progress snapshot.
     /// </param>
-    ValueTask OnShutdown(ShutdownContext context) => ValueTask.CompletedTask;
+    ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Called when the worker completes gracefully (including cancellation).
+    /// <remarks>
+    /// <para>
+    /// This method is invoked before the worker transitions to <see cref="ProcessorWorkerStatus.Stopped"/>.
+    /// Use it for final reporting or cleanup.
+    /// </para>
+    /// </remarks>
+    /// </summary>
+    /// <param name="context">
+    /// Context containing the final progress snapshot.
+    /// </param>
+    ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
+}
+
+public record WorkerContext {
+    public static readonly WorkerContext None = new WorkerContext();
+
+    public ProcessorId       ProcessorId       { get; init; } = ProcessorId.Unset;
+    public WorkerId          WorkerId          { get; init; } = WorkerId.Unset;
+    public SessionId         SessionId         { get; init; } = SessionId.Unset;
+    public ILogger           Logger            { get; init; } = NullLogger.Instance;
+    public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
+
+    public ProcessRecordContext ForProcessRecord(Record record, WorkerProgress progress) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Record            = record,
+            Progress          = progress
+        };
+
+    public CheckpointContext ForCheckpoint(Checkpoint checkpoint) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            CheckpointId      = checkpoint.CheckpointId,
+            Trigger           = checkpoint.Trigger,
+            Timestamp         = checkpoint.Timestamp
+        };
+
+    public ErrorContext ForError(WorkerProgress progress, Exception error) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Progress          = progress,
+            Error             = error
+        };
+
+    public CompleteContext ForComplete(WorkerProgress progress) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            WorkerId          = WorkerId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Progress          = progress
+        };
 }
 
 /// <summary>
-/// Context provided when a record processor is initialized (before Connect).
+/// Context provided when a record is available for processing.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Use this for setup: logging, connections, caches, configuration validation.
-/// </para>
-/// </remarks>
-/// <param name="Settings">The processor settings used for this operation.</param>
-/// <param name="CancellationToken">Token to observe for cancellation requests.</param>
 [PublicAPI]
-public record InitializationContext(
-    ProcessorSettings Settings,
-    ILogger Logger,
-    CancellationToken CancellationToken
-);
+public record ProcessRecordContext : WorkerContext {
+    public required Record         Record   { get; init; }
+    public required WorkerProgress Progress { get; init; }
 
-/// <summary>
-/// Context provided when records are available for processing.
-/// </summary>
-/// <param name="ProcessorId">The processor group identifier.</param>
-/// <param name="WorkerId">The worker instance identifier.</param>
-/// <param name="SessionId">The server-assigned session identifier.</param>
-/// <param name="Records">The batch of records to process.</param>
-/// <param name="Progress">Current processing progress and metrics.</param>
-/// <param name="CancellationToken">Token to observe for cancellation requests.</param>
-[PublicAPI]
-public record ProcessRecordsContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    RecordBatch Records,
-    ProcessorProgress Progress,
-    IStateStore State,
-    ILogger Logger,
-    CancellationToken CancellationToken
-) {
     /// <summary>
-    /// Stops processing by throwing an OperationCanceledException.
+    /// Signals that processing should stop immediately.
     /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static")]
     public void StopProcessing() => throw new OperationCanceledException("Processing stopped by user request.");
 }
 
 /// <summary>
-/// Context provided when a checkpoint completes successfully.
+/// Context provided when a checkpoint is signaled.
 /// </summary>
-/// <param name="ProcessorId">The processor group identifier.</param>
-/// <param name="WorkerId">The worker instance identifier.</param>
-/// <param name="SessionId">The server-assigned session identifier.</param>
-/// <param name="Progress">Current processing progress and metrics.</param>
-/// <param name="CancellationToken">Token to observe for cancellation requests.</param>
 [PublicAPI]
-public record CheckpointCompleteContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    ProcessorProgress Progress,
-    CancellationToken CancellationToken
-);
+public record CheckpointContext : WorkerContext {
+    public string            CheckpointId { get; init; } = string.Empty;
+    public CheckpointTrigger Trigger      { get; init; }
+    public DateTimeOffset    Timestamp    { get; init; }
+}
 
 /// <summary>
-/// Context provided when processing stops, regardless of reason.
+/// Context provided when the worker encounters an unrecoverable error.
 /// </summary>
-/// <param name="ProcessorId">The processor group identifier.</param>
-/// <param name="WorkerId">The worker instance identifier.</param>
-/// <param name="SessionId">The server-assigned session identifier, or <see cref="SessionId.None"/> if never connected.</param>
-/// <param name="Progress">Final processing progress and metrics.</param>
-/// <param name="Reason">Why processing stopped (Completed, Cancelled, Error).</param>
-/// <param name="Error">The error that caused shutdown, or null if not an error.</param>
 [PublicAPI]
-public record ShutdownContext(
-    ProcessorId ProcessorId,
-    WorkerId WorkerId,
-    SessionId SessionId,
-    ProcessorProgress Progress,
-    ILogger Logger,
-    ShutdownReason Reason,
-    ProcessError? Error
-) {
-    public static ShutdownContext From(
-        ProcessorId processorId,
-        WorkerId workerId,
-        SessionId sessionId,
-        ILogger logger,
-        ProcessorProgress progress,
-        Exception? exception = null
-    ) {
-        return exception switch {
-            null                       => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Completed, null),
-            OperationCanceledException => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Cancelled, null),
-            _                          => new(processorId, workerId, sessionId, progress, logger, ShutdownReason.Error, exception)
-        };
-    }
+public record ErrorContext : WorkerContext {
+    public required WorkerProgress Progress { get; init; }
+    public required Exception      Error    { get; init; }
+}
+
+/// <summary>
+/// Context provided when the worker completes gracefully.
+/// </summary>
+[PublicAPI]
+public record CompleteContext : WorkerContext {
+    public required WorkerProgress Progress { get; init; }
 }
 
 /// <summary>
@@ -217,7 +170,7 @@ public record ShutdownContext(
 /// <param name="Checkpoint">Checkpoint progress information.</param>
 /// <param name="Partitions">Per-partition position progress.</param>
 [PublicAPI]
-public readonly record struct ProcessorProgress(
+public readonly record struct WorkerProgress(
     ThroughputMetrics Throughput,
     CheckpointProgress Checkpoint,
     ImmutableDictionary<Partition, PartitionProgress> Partitions
@@ -262,7 +215,7 @@ public readonly record struct ProcessorProgress(
     /// <summary>
     /// Empty progress with no records processed and no checkpoints.
     /// </summary>
-    public static readonly ProcessorProgress Empty = new(
+    public static readonly WorkerProgress Empty = new(
         ThroughputMetrics.Empty,
         CheckpointProgress.Empty,
         ImmutableDictionary<Partition, PartitionProgress>.Empty
@@ -295,24 +248,20 @@ public readonly record struct PartitionProgress(
 /// Throughput and timing metrics for a processor session.
 /// </summary>
 /// <param name="TotalRecords">Total number of records processed.</param>
-/// <param name="TotalBatches">Total number of batches processed.</param>
 /// <param name="RecordsPerSecond">Average records processed per second.</param>
-/// <param name="AverageBatchSize">Average number of records per batch.</param>
 /// <param name="StartedAt">When processing started.</param>
 /// <param name="Elapsed">Total time spent processing.</param>
 [PublicAPI]
 public readonly record struct ThroughputMetrics(
     long TotalRecords,
-    long TotalBatches,
     double RecordsPerSecond,
-    double AverageBatchSize,
     DateTimeOffset StartedAt,
     TimeSpan Elapsed
 ) {
     /// <summary>
     /// Empty metrics with no records processed.
     /// </summary>
-    public static readonly ThroughputMetrics Empty = new(0, 0, 0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
+    public static readonly ThroughputMetrics Empty = new(0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
 }
 
 /// <summary>
@@ -320,45 +269,17 @@ public readonly record struct ThroughputMetrics(
 /// </summary>
 /// <param name="TotalCheckpoints">Total number of checkpoints completed.</param>
 /// <param name="RecordsSinceLastCheckpoint">Records processed since the last checkpoint.</param>
-/// <param name="LastBarrierId">Barrier ID of the last completed checkpoint.</param>
 /// <param name="LastTrigger">What triggered the last checkpoint.</param>
-/// <param name="LastCompletedAt">When the last checkpoint completed, or null if none.</param>
+/// <param name="LastCheckpointAt">When the last checkpoint completed, or null if none.</param>
 [PublicAPI]
 public readonly record struct CheckpointProgress(
     long TotalCheckpoints,
     long RecordsSinceLastCheckpoint,
-    BarrierId LastBarrierId,
-    CheckpointBarrierTrigger LastTrigger,
-    DateTimeOffset? LastCompletedAt
+    CheckpointTrigger LastTrigger,
+    DateTimeOffset? LastCheckpointAt
 ) {
     /// <summary>
     /// Empty checkpoint progress with no checkpoints completed.
     /// </summary>
-    public static readonly CheckpointProgress Empty = new(0, 0, BarrierId.Empty, CheckpointBarrierTrigger.Unspecified, null);
-}
-
-/// <summary>
-/// Why processing stopped.
-/// </summary>
-[PublicAPI]
-public enum ShutdownReason {
-    /// <summary>
-    /// Unspecified reason. For proto compatibility.
-    /// </summary>
-    Unspecified = 0,
-
-    /// <summary>
-    /// Processing completed successfully (reached end of stream if bounded).
-    /// </summary>
-    Completed = 1,
-
-    /// <summary>
-    /// Processing was cancelled either by user request or server-side timeout.
-    /// </summary>
-    Cancelled = 2,
-
-    /// <summary>
-    /// An error occurred during processing.
-    /// </summary>
-    Error = 3
+    public static readonly CheckpointProgress Empty = new(0, 0, CheckpointTrigger.Unspecified, null);
 }

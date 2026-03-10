@@ -1,11 +1,10 @@
 using Kurrent.Client;
-using Kurrent.Client.Streams;
+using Kurrent.Processors.Options;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
-using Transfermarkt.Domain;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -38,8 +37,9 @@ try {
     // Register processor as hosted service
     builder.Services.AddKurrentProcessor<TransferAnalyticsProcessor>(config => config
         .WithFilter("schema_name IN ('PlayerRegistered', 'PlayerTransferred')")
-        .ConfigureCheckpointing(c => c with { Interval = 10_000 })
-        .ConfigureBatching(b => b with { MaxSize = 50, Timeout = 1000 })
+        // .WithMaxParallelism(2)
+        .ConfigureCheckpointing(c => c.Interval(10_000))
+        .ConfigureBatching(b => b.MaxSize(50).Timeout(1000))
     );
 
     // Health checks
@@ -137,7 +137,7 @@ try {
     //         // the append session method would just pass any cause it doesnt matter.
     //         // .ExpectingRevision(0)
     //         // .ExpectingRevision(ExpectedStreamState.Any)
-    //         // .ExpectingRevision(ExpectedStreamState.StreamExists)
+    //         // .ExpectingRevision(ExpectedStreamState.Exists)
     //         .WithRecord(PlayerRetired.Create("001"))
     //         .Build()
     // }; // this will be a builder in real code
@@ -155,7 +155,7 @@ try {
     // // // the append session method would just pass any cause it doesnt matter.
     // // // .ExpectingRevision(0)
     // // // .ExpectingRevision(ExpectedStreamState.Any)
-    // // // .ExpectingRevision(ExpectedStreamState.StreamExists)
+    // // // .ExpectingRevision(ExpectedStreamState.Exists)
     //
     // ValueTask<StreamRevision> AppendRecords(StreamName stream, IEnumerable<AppendRecord> records) =>
     //     throw new NotImplementedException();
@@ -167,7 +167,7 @@ try {
     //         // We've seen this stream before - validate compatibility
     //         var isCompatible = expectedState == tracked
     //                         || expectedState == ExpectedStreamState.Any
-    //                         || expectedState == ExpectedStreamState.StreamExists;
+    //                         || expectedState == ExpectedStreamState.Exists;
     //
     //         if (!isCompatible)
     //             throw new InvalidOperationException(

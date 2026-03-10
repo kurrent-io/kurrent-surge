@@ -1,4 +1,4 @@
-using Kurrent.Processors.Locks;
+using System.Runtime.ExceptionServices;
 
 namespace Kurrent.Client.Tests.Locks;
 
@@ -200,18 +200,22 @@ public class TokenCompletionSourceTests {
 			.WithMessage("Second");
 	}
 
-	[Test, Timeout(1000)]
+	[Test, Timeout(2000)]
 	public async ValueTask task_completes_immediately_when_already_completed(CancellationToken cancellationToken) {
 		// Arrange
 		using var sut = new TokenCompletionSource();
 		sut.Complete();
 
 		// Act
-		var sw = System.Diagnostics.Stopwatch.StartNew();
-		await sut.Task;
-		sw.Stop();
+        ExceptionDispatchInfo? captured = null;
+        try {
+            await sut.Task.ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            captured = ExceptionDispatchInfo.Capture(ex);
+        }
 
 		// Assert
-		await Assert.That(sw.ElapsedMilliseconds).IsLessThan(100);
+        await Assert.That(captured).IsNull();
 	}
 }

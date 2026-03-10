@@ -1,0 +1,58 @@
+name: Check Formatting
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Get changed C# files
+        id: changed
+        run: |
+          files=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }}...HEAD -- '*.cs' | tr '\n' ' ')
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          if [ -z "$files" ]; then
+            echo "No C# files changed."
+          else
+            echo "Changed files: $files"
+          fi
+
+      # TODO: remove once confirmed that the preinstalled SDK on ubuntu-latest is sufficient
+      # - name: Setup .NET
+      #   if: steps.changed.outputs.files != ''
+      #   uses: actions/setup-dotnet@v5.2.0
+      #   with:
+      #     dotnet-version: |
+      #       8.x
+      #       9.x
+      #       10.x
+
+      - name: Verify formatting (editorconfig)
+        if: steps.changed.outputs.files != ''
+        continue-on-error: true
+        run: |
+          dotnet format --verify-no-changes --include ${{ steps.changed.outputs.files }}
+
+      - name: Verify formatting (DotSettings)
+        if: steps.changed.outputs.files != '' && vars.ENABLE_CLEANUPCODE == 'true'
+        continue-on-error: true
+        run: |
+          dotnet tool install -g JetBrains.ReSharper.GlobalTools
+          jb cleanupcode Kurrent.Client.slnx \
+            --profile="Built-in: Reformat Code" \
+            --no-build \
+            --include='${{ steps.changed.outputs.files }}'
+          changed=$(git diff --name-only)
+          if [ -n "$changed" ]; then
+            echo "$changed" | while read f; do echo "::warning file=$f::Needs reformatting (DotSettings)"; done
+          fi

@@ -1,5 +1,4 @@
 using Kurrent.Client.Streams;
-using Microsoft.Extensions.Logging;
 using Processor.OrderEnrichment;
 using Serilog;
 
@@ -12,8 +11,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-using var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog());
-var processor = new OrderEnrichmentProcessor(loggerFactory.CreateLogger<OrderEnrichmentProcessor>());
+var processor = new OrderEnrichmentProcessor();
 
 await KurrentProcessors.Create(processor)
     .WithFilterExpression("schema_name IN ('OrderPlaced', 'CustomerUpdated', 'ProductUpdated')")

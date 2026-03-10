@@ -1,8 +1,9 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
-namespace Kurrent.Client.Processors.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
 public interface ICheckpointStore {
     /// <summary>
@@ -16,16 +17,16 @@ public interface ICheckpointStore {
     ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Loads the checkpoint for this processor at the specified barrier.
+    /// Loads the checkpoint for this processor at the specified checkpoint.
     /// </summary>
-    ValueTask<ProcessorCheckpoint> LoadAsync(BarrierId barrierId, CancellationToken ct = default);
+    ValueTask<ProcessorCheckpoint> LoadAsync(CheckpointId checkpointId, CancellationToken ct = default);
 
     /// <summary>
-    /// Loads the checkpoint for this processor at the specified barrier,
+    /// Loads the checkpoint for this processor at the specified checkpoint,
     /// resolving positions for the given partitions.
     /// </summary>
     ValueTask<ProcessorCheckpoint> LoadAsync(
-        BarrierId barrierId,
+        CheckpointId checkpointId,
         Partition[] partitions,
         SubscriptionInitialPosition initialPosition,
         CancellationToken ct = default
@@ -45,7 +46,7 @@ public interface ICheckpointStore {
     /// Stores checkpoint positions for the specified partitions, merging with existing positions.
     /// </summary>
     /// <param name="workerId">The worker storing the checkpoint (for attribution).</param>
-    /// <param name="barrierId">The barrier that triggered this checkpoint.</param>
+    /// <param name="checkpointId">The checkpoint that triggered this checkpoint.</param>
     /// <param name="positions">Partition positions to checkpoint.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <exception cref="InvalidOperationException">Thrown when positions dictionary is empty.</exception>
@@ -60,7 +61,7 @@ public interface ICheckpointStore {
     /// </remarks>
     ValueTask StoreAsync(
         string workerId,
-        BarrierId barrierId,
+        CheckpointId checkpointId,
         ImmutableDictionary<Partition, RecordPosition> positions,
         CancellationToken ct = default
     );
@@ -80,7 +81,7 @@ public sealed record PartitionCheckpoint(RecordPosition Position, string WorkerI
 /// </summary>
 /// <param name="StartFrom">
 /// The log position to start the subscription from.
-/// This is the checkpoint barrier if one exists, otherwise resolved from initial position setting.
+/// This is the checkpoint checkpoint if one exists, otherwise resolved from initial position setting.
 /// </param>
 /// <param name="Partitions">
 /// Per-partition record positions for internal tracking/filtering.
@@ -109,9 +110,9 @@ public sealed record ProcessorCheckpoint {
         ImmutableDictionary<Partition, PartitionCheckpoint>.Empty;
 
     /// <summary>
-    /// The barrier ID that triggered the last checkpoint.
+    /// The checkpoint ID that triggered the last checkpoint.
     /// </summary>
-    public BarrierId BarrierId { get; init; } = BarrierId.Empty;
+    public CheckpointId CheckpointId { get; init; } = CheckpointId.Unset;
 
     /// <summary>
     /// UTC timestamp when the checkpoint was created.

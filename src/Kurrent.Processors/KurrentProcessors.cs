@@ -1,3 +1,6 @@
+using Kurrent.Processors;
+using Kurrent.Processors.Options;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -70,5 +73,32 @@ public static class KurrentProcessors {
     public static KurrentProcessorBuilder Create(IRecordProcessor processor) {
         var typeName = processor.GetType().Name;
         return new KurrentProcessorBuilder(new PassthroughRecordProcessorFactory(processor), typeName);
+    }
+
+    /// <summary>
+    /// Creates a builder using delegate callbacks to define the processor.
+    /// </summary>
+    /// <param name="configure">Action to configure the processor via <see cref="RecordProcessorBuilder"/>.</param>
+    /// <returns>A <see cref="KurrentProcessorBuilder"/> for fluent configuration.</returns>
+    /// <example>
+    /// <code>
+    /// await KurrentProcessors.Create(p => p
+    ///     .ProcessRecords(async ctx => {
+    ///         foreach (var record in ctx.Records)
+    ///             await HandleAsync(record, ctx.CancellationToken);
+    ///     })
+    ///     .OnCheckpoint(ctx => {
+    ///         ctx.Logger.LogInformation("Checkpoint {Id}", ctx.CheckpointId);
+    ///     })
+    /// )
+    /// .ConnectTo("kurrentdb://localhost:2113")
+    /// .WithProcessorId("my-processor")
+    /// .RunAsync(ct);
+    /// </code>
+    /// </example>
+    public static KurrentProcessorBuilder Create(Action<RecordProcessorBuilder> configure) {
+        var builder = new RecordProcessorBuilder();
+        configure(builder);
+        return Create(builder.Build());
     }
 }

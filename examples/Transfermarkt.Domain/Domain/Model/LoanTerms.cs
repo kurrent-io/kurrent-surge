@@ -10,7 +10,7 @@ public readonly record struct LoanTerms {
     /// </summary>
     public static readonly LoanTerms None = new(DateOnly.MinValue, Money.Zero, Money.Zero);
 
-    LoanTerms(DateOnly loanEndDate, Money buyClause, Money obligationClause) {
+    public LoanTerms(DateOnly loanEndDate, Money buyClause, Money obligationClause) {
         LoanEndDate      = loanEndDate;
         BuyClause        = buyClause;
         ObligationClause = obligationClause;
@@ -19,17 +19,17 @@ public readonly record struct LoanTerms {
     /// <summary>
     /// The date when the loan ends.
     /// </summary>
-    public DateOnly LoanEndDate { get; }
+    public DateOnly LoanEndDate { get; init; }
 
     /// <summary>
     /// Buy clause amount (option to buy). Zero if no buy clause.
     /// </summary>
-    public Money BuyClause { get; }
+    public Money BuyClause { get; init; }
 
     /// <summary>
     /// Obligation clause amount (obligation to buy if conditions are met). Zero if no obligation clause.
     /// </summary>
-    public Money ObligationClause { get; }
+    public Money ObligationClause { get; init; }
 
     /// <summary>
     /// Whether this represents actual loan terms.

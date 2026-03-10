@@ -11,50 +11,27 @@
 
 ---
 
-# Kurrent .NET Client
+# Kurrent .NET SDK
 
-[![Build](https://github.com/kurrent-io/Kurrent-Client-DotNet/actions/workflows/build.yml/badge.svg)](https://github.com/kurrent-io/Kurrent-Client-DotNet/actions/workflows/build.yml)
+[![Build](https://github.com/kurrent-io/Kurrent.Client/actions/workflows/build.yml/badge.svg)](https://github.com/kurrent-io/Kurrent.Client/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-The official .NET client for [KurrentDB](https://kurrent.io) — an event-native database engineered for modern software applications and event-driven architectures.
+The .NET SDK for the [Kurrent](https://kurrent.io) platform.
 
-## Features
+This repository contains the official .NET packages for building on Kurrent — a cloud-native event streaming platform. 
+There is no meta-package; each package is independently installable, so you pull in only what your application needs.
 
-- **Streams** — Append, read, and subscribe to event streams
-- **Record Processors** — Build stateful event processors with automatic checkpointing
-- **SQL Filter Expressions** — Filter records using familiar SQL-like syntax
-- **Automatic SerDe** — Built-in serialization for JSON and Protobuf with schema registry integration
-- **Schema Registry** — First-class schema management and validation
-- **Dependency Injection** — Native ASP.NET Core integration
-- **Observability** — Built-in OpenTelemetry support
-- **Multi-target** — Supports .NET 8.0, 9.0, and 10.0
+## Packages
 
-## Installation
+| Package                                       | What it does                                                                                                         | Install                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------|-----------------------------------------|
+| [Kurrent.Client](src/Kurrent.Client/)         | Append and read records, manage streams, work with the schema registry, and interact with connectors                 | `dotnet add package Kurrent.Client`     |
+| [Kurrent.Processors](src/Kurrent.Processors/) | Subscribe to and process records from the log with automatic checkpointing, partitioning, and exactly-once semantics | `dotnet add package Kurrent.Processors` |
 
-```shell
-dotnet add package KurrentDB.Client
-```
-
-## Connection String
-
-The client uses a URI-based connection string format:
-
-```
-kurrentdb://localhost:2113
-kurrentdb://user:password@localhost:2113?tls=true
-kurrentdb+discover://node1:2113,node2:2113,node3:2113
-```
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `tls` | Enable TLS encryption | `true` |
-| `tlsVerifyCert` | Verify TLS certificate | `true` |
-| `keepAliveInterval` | Keep-alive interval (ms) | `10000` |
-| `keepAliveTimeout` | Keep-alive timeout (ms) | `10000` |
+See each package's README for quick-start guides, code samples, and detailed feature documentation.
 
 ## Documentation
 
-- [Getting Started Guide](https://developers.kurrent.io/clients/grpc/getting-started/)
 - [API Reference](https://developers.kurrent.io/clients/grpc/)
 - [Examples](./examples)
 
@@ -70,7 +47,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ## Community
 
 - [Discord](https://discord.gg/kurrent)
-- [Discussions](https://github.com/kurrent-io/Kurrent-Client-DotNet/discussions)
+- [Discussions](https://github.com/kurrent-io/Kurrent.Client/discussions)
 
 ## License
 

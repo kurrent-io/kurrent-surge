@@ -1,10 +1,13 @@
 using System.Threading.Channels;
-using Kurrent.Client.Processors.Gateway;
+using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Processors.Partitioning;
-using static System.TimeSpan;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
+using Kurrent.Processors.Partitioning;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Gateway;
 
 /// <summary>
 /// Legacy implementation of worker session using V1 protocol.
@@ -17,6 +20,7 @@ sealed class LegacyWorkerSession : IWorkerSession {
     readonly ProcessorSettings              _settings;
     readonly TaskCompletionSource           _workerReadySignal;
 
+    int _disposed;
 
     internal LegacyWorkerSession(
         SessionId sessionId,
@@ -44,30 +48,20 @@ sealed class LegacyWorkerSession : IWorkerSession {
     }
 
     public async IAsyncEnumerator<ProcessorControlMessage> GetAsyncEnumerator(CancellationToken ct = default) {
-        var messages = _channel.Reader.ReadAllAsync(ct).ReadBatched(
-            _settings.Batching.MaxSize, FromMilliseconds(_settings.Batching.Timeout),
-            static msg => msg.IsRecord
-                ? BatchAction<Record, ProcessorControlMessage>.Batch(msg.AsRecord)
-                : BatchAction<Record, ProcessorControlMessage>.FlushThenYield(msg.AsCheckpointBarrier),
-            static records => RecordBatch.From([..records]),
-            ct
-        );
+        // Send work order assignment
+        yield return CreateWorkOrder();
 
-        try {
-            // Send work order assignment
-            yield return CreateWorkOrder();
+        // Block until worker signals ready
+        if (!await _workerReadySignal.Task.WaitUnlessCancelledAsync(_cancellator.Token))
+            yield break;
 
-            // Block until worker signals ready
-            await _workerReadySignal.Task.ConfigureAwait(false);
-
-            await foreach (var message in messages.ConfigureAwait(false))
-                yield return message;
-        }
-        finally {
-            await StopSessionAsync().ConfigureAwait(false);
+        await foreach (var msg in _channel.Reader.ReadAllAsync(ct)) {
+            if (msg.IsRecord)
+                yield return msg.AsRecord;
+            else
+                yield return msg.AsCheckpoint;
         }
 
-        yield break;
 
         WorkOrder CreateWorkOrder() {
             // Use PartitionAssigner to simulate server behavior
@@ -82,11 +76,16 @@ sealed class LegacyWorkerSession : IWorkerSession {
         }
     }
 
-    public ValueTask DisposeAsync() => StopSessionAsync();
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            return;
 
-    async ValueTask StopSessionAsync() {
-        if (_cancellator.IsCancellationRequested) return;  // Already cancelled, skip
-        await _cancellator.CancelAsync().ConfigureAwait(false);
+        // Cancel triggers cascade:
+        // pump exits → completes channel → disposes gRPC
+        await _cancellator
+            .CancelAsync()
+            .ConfigureAwait(false);
+
         _cancellator.Dispose();
     }
 }

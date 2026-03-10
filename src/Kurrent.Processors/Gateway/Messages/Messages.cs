@@ -1,45 +1,45 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Options;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Processors.Gateway.Messages;
 
 /// <summary>
-/// Unique identifier for checkpoint barriers, used to coordinate distributed checkpoints.
+/// Unique identifier for a checkpoint.
 /// </summary>
 /// <remarks>
-/// Barrier IDs are coordination tokens, not positions. Each checkpoint barrier gets a unique GUID
-/// to enable distributed checkpoint coordination across multiple workers (similar to Apache Flink).
+/// Checkpoint IDs are coordination tokens, not positions.
 /// Workers use these IDs to identify which checkpoint they're responding to.
 /// </remarks>
 [PublicAPI]
-public readonly record struct BarrierId(string Value) {
-	/// <summary>Empty barrier ID (zero-value).</summary>
-	public static readonly BarrierId Empty = new(string.Empty);
+public readonly record struct CheckpointId(string Value) {
+	public static readonly CheckpointId Unset = new(string.Empty);
 
-	/// <summary>Creates a new unique barrier ID using a GUID.</summary>
-	public static BarrierId New() => new(Guid.NewGuid().ToString());
+	/// <summary>Creates a new unique checkpoint ID.</summary>
+	public static CheckpointId New() => new(Guid.NewGuid().ToString());
 
-    public static BarrierId From(string value) {
+    public static CheckpointId From(string value) {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
-        return new BarrierId(value);
+        return new CheckpointId(value);
     }
 
-    public static BarrierId From(ulong value) =>
+    public static CheckpointId From(ulong value) =>
         new(value.ToString());
 
-    /// <summary>True if this barrier ID is empty or unset.</summary>
-	public bool IsEmpty => string.IsNullOrEmpty(Value);
+    public static CheckpointId From(long value) =>
+        new(value.ToString());
+
+    /// <summary>True if this checkpoint ID is empty or unset.</summary>
+	public bool IsUnset => string.IsNullOrEmpty(Value);
 
 	public override string ToString() => Value;
 
-	public static implicit operator string(BarrierId id) => id.Value;
-
-    public static implicit operator ulong(BarrierId id) => ulong.Parse(id.Value);
+	public static implicit operator string(CheckpointId id) => id.Value;
 }
 
-#region Inbound - Processor Control Messages
+#region Inbound - Control Messages
 
 /// <summary>
 /// Sent when partitions are assigned to this worker.
@@ -47,7 +47,6 @@ public readonly record struct BarrierId(string Value) {
 /// </summary>
 [PublicAPI]
 public readonly record struct WorkOrder(
-    // SessionId SessionId,
     ImmutableArray<Partition> Partitions
 );
 
@@ -63,7 +62,7 @@ public readonly record struct RecordBatch : IReadOnlyList<Record> {
 
     RecordBatch(ImmutableArray<Record> records) => _records = records;
 
-    public static RecordBatch From(ImmutableArray<Record> records) => new(records);
+    public static RecordBatch From(Record[] records) => records.ToImmutableArray();
 
     public int Count => _records.Length;
 
@@ -119,9 +118,9 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 /// Signals the worker to snapshot state and respond with <see cref="CheckpointComplete"/>.
 /// </summary>
 [PublicAPI]
-public readonly record struct CheckpointBarrier(
-    BarrierId BarrierId,
-    CheckpointBarrierTrigger Trigger,
+public readonly record struct Checkpoint(
+    CheckpointId CheckpointId,
+    CheckpointTrigger Trigger,
     DateTimeOffset Timestamp
 );
 
@@ -131,10 +130,11 @@ public readonly record struct CheckpointBarrier(
 [PublicAPI]
 public readonly partial record struct ProcessorControlMessage : IVariant<
     WorkOrder,
-    RecordBatch,
-    CheckpointBarrier> {
+    Record,
+    Checkpoint> {
     public static readonly ProcessorControlMessage None;
 }
+
 
 #endregion
 
@@ -145,30 +145,30 @@ public readonly record struct Connect(ProcessorSettings Settings);
 /// <summary>
 /// Worker signals it has recovered to a consistent state and is ready to receive records.
 /// Sent in response to <see cref="WorkOrder"/>.
-/// A <see cref="RecordBatch"/> will not be sent until this message is received.
+/// A <see cref="Record"/> will not be sent until this message is received.
 /// </summary>
-/// <param name="BarrierId">The barrier ID representing the recovered checkpoint.</param>
+/// <param name="CheckpointId">The checkpoint ID representing the recovered state.</param>
 /// <param name="Positions">Partition to record position mapping after recovery.</param>
 [PublicAPI]
 public readonly record struct WorkerReady(
-    BarrierId BarrierId,
+    CheckpointId CheckpointId,
     PartitionPositions Positions
 );
 
 /// <summary>
 /// Worker has completed checkpoint - positions are ready for persistence.
 /// </summary>
-/// <param name="BarrierId">The barrier ID this checkpoint responds to.</param>
+/// <param name="CheckpointId">The checkpoint ID this completion responds to.</param>
 /// <param name="Positions">Partition to record position mapping.</param>
 [PublicAPI]
 public readonly record struct CheckpointComplete(
-    BarrierId BarrierId,
+    CheckpointId CheckpointId,
     PartitionPositions Positions
 );
 
 /// <summary>
 /// Worker requests disconnect.
-/// For graceful shutdown, includes final positions so relay can persist without barrier round-trip.
+/// For graceful shutdown, includes final positions so relay can persist without checkpoint round-trip.
 /// </summary>
 /// <param name="Reason">Why the worker is disconnecting.</param>
 /// <param name="Positions">Optional: final checkpoint positions of all partitions for graceful shutdown.</param>
@@ -200,14 +200,14 @@ public readonly partial record struct WorkerMessage : IVariant<
 /// </para>
 /// </remarks>
 [PublicAPI]
-public enum CheckpointBarrierTrigger {
+public enum CheckpointTrigger {
     /// <summary>
     /// Unspecified checkpoint trigger.
     /// </summary>
     Unspecified = 0,
 
     /// <summary>
-    /// Barrier triggered on rebalancing events to ensure a consistent state across workers.
+    /// Checkpoint triggered on rebalancing events to ensure a consistent state across workers.
     /// </summary>
     Rebalance = 1,
 
@@ -257,21 +257,12 @@ public enum CheckpointBarrierTrigger {
     /// <para>Frequency: Manual (user-initiated).</para>
     /// <para>Auto-deleted: No (retained until explicitly deleted).</para>
     /// </remarks>
-    Savepoint = 5
+    Savepoint = 5,
 
-    // /// <summary>
-    // /// Server-side filter matched nothing for configured duration.
-    // /// </summary>
-    // /// <remarks>
-    // /// <para>
-    // /// Triggered when the server-side filter has not matched any records
-    // /// for the configured filter timeout period. This ensures checkpoints
-    // /// occur even when filtered streams have sparse matching records.
-    // /// </para>
-    // /// <para>Frequency: Periodic (after filter idle timeout).</para>
-    // /// <para>Auto-deleted: Yes (subject to retention count).</para>
-    // /// </remarks>
-    // FilterTimeout = 6 // could this be modeled as a heartbeat instead? it does not matter if a filter is active or not...
+    /// <summary>
+    /// Checkpoint triggered by graceful worker shutdown to persist final state.
+    /// </summary>
+    Shutdown = 6
 }
 
 /// <summary>
@@ -285,9 +276,9 @@ public enum DisconnectReason {
     Unspecified = 0,
 
     /// <summary>
-    /// Graceful shutdown (SIGTERM, application stopping).
+    /// Graceful stop (SIGTERM, cancellation, application stopping).
     /// </summary>
-    Shutdown = 1,
+    Stopped = 1,
 
     /// <summary>
     /// Worker encountered an error and must disconnect.

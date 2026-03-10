@@ -1,5 +1,6 @@
 using System.Text.Json;
-using Kurrent.Client.Streams;
+using Kurrent.Client;
+using Kurrent.Processors.Options;
 using Processor.Leaderboard;
 using Serilog;
 using StackExchange.Redis;
@@ -53,8 +54,8 @@ try {
             var playerKey = $"player:{playerId}";
             var playerData = await db.StringGetAsync(playerKey);
 
-            string displayName = playerId;
-            string country = "??";
+            var displayName = playerId;
+            var country = "??";
 
             if (playerData.HasValue) {
                 var player = JsonSerializer.Deserialize<PlayerInfo>(playerData.ToString());
@@ -94,26 +95,27 @@ try {
         // Get player info
         var playerKey = $"player:{playerId}";
         var playerData = await db.StringGetAsync(playerKey);
-        string displayName = playerId;
+        var displayName = playerId;
+
         if (playerData.HasValue) {
             var player = JsonSerializer.Deserialize<PlayerInfo>(playerData.ToString());
             displayName = player?.DisplayName ?? playerId;
         }
 
         return Results.Ok(new {
-            PlayerId = playerId,
-            DisplayName = displayName,
-            Score = (long)score.Value,
-            Rank = (rank ?? 0) + 1,
+            PlayerId     = playerId,
+            DisplayName  = displayName,
+            Score        = (long)score.Value,
+            Rank         = (rank ?? 0) + 1,
             TotalPlayers = totalPlayers,
-            Percentile = Math.Round(((double)(totalPlayers - rank - 1) / totalPlayers) * 100, 1)
+            Percentile   = Math.Round((double)(totalPlayers - rank - 1)! / totalPlayers * 100, 1)
         });
     });
 
     // Get player info
     app.MapGet("/player/{playerId}", async (string playerId, IConnectionMultiplexer redis) => {
-        var db = redis.GetDatabase();
-        var key = $"player:{playerId}";
+        var db   = redis.GetDatabase();
+        var key  = $"player:{playerId}";
         var data = await db.StringGetAsync(key);
 
         return data.HasValue

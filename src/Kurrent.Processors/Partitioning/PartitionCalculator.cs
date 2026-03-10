@@ -37,7 +37,7 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     /// <summary>
     /// Default instance using XXHash (fastest with excellent distribution).
     /// </summary>
-    public static readonly PartitionCalculator Default = new(HashGenerators.FromBytes.XXHash);
+    public static readonly PartitionCalculator XXHash = new(HashGenerators.FromBytes.XXHash);
 
     /// <summary>
     /// Instance using MurmurHash3 (industry standard used by Kafka, Flink, Cassandra).
@@ -56,7 +56,7 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     /// This ensures state locality: all records with the same key are processed by the same worker.
     /// </para>
     /// </remarks>
-    public int For(string key, int maxParallelism) {
+    public int Calculate(string key, int maxParallelism) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxParallelism, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxParallelism, 32768);
@@ -93,7 +93,7 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     /// <param name="keyBytes">The partition key as UTF-8 bytes.</param>
     /// <param name="maxParallelism">The total number of partitions (1 to 32768).</param>
     /// <returns>A partition number in the range [0, maxParallelism).</returns>
-    public int For(ReadOnlySpan<byte> keyBytes, int maxParallelism) {
+    public int Calculate(ReadOnlySpan<byte> keyBytes, int maxParallelism) {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxParallelism, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxParallelism, 32768);
 

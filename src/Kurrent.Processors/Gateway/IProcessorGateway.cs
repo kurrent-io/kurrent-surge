@@ -1,7 +1,6 @@
-using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Processing;
+using Kurrent.Processors.Options;
 
-namespace Kurrent.Client.Processors.Gateway;
+namespace Kurrent.Processors.Gateway;
 
 /// <summary>
 /// Connection factory for processor gateway implementations.
@@ -11,16 +10,7 @@ namespace Kurrent.Client.Processors.Gateway;
 /// receiving messages and sending responses.
 /// </para>
 /// </summary>
-/// <remarks>
-/// <para>
-/// <b>Implementations:</b>
-/// </para>
-/// <list type="bullet">
-///   <item><description><c>LegacyGateway</c> - V1 protocol using StreamsClient</description></item>
-///   <item><description><c>GrpcGateway</c> - V2 bidirectional protocol (future)</description></item>
-/// </list>
-/// </remarks>
-public interface IProcessorGateway : IAsyncDisposable {
+public interface IProcessorGateway {
     /// <summary>
     /// Establishes a bidirectional session with the gateway.
     /// </summary>

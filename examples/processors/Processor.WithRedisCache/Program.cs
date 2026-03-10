@@ -1,4 +1,5 @@
-using Kurrent.Client.Streams;
+using Kurrent.Client;
+using Kurrent.Processors.Options;
 using Processor.WithRedisCache;
 using Serilog;
 using StackExchange.Redis;

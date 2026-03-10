@@ -5,22 +5,28 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.Sample.HomeAutomation;
 using Serilog;
+using Testing.Datasets.HomeAutomation.Model;
 using AppendRecord = Kurrent.Client.Streams.AppendRecord;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
 public partial class KurrentClientTestFixture {
     public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(int numberOfEvents, CancellationToken cancellationToken) {
-        var request  = HomeAutomationTestData.SimulateHomeActivity(numberOfEvents);
-        var response = await Client.Streams.AppendAsync(request, cancellationToken: cancellationToken);
+        var omgRefactor  = HomeAutomationTestData.SimulateHomeActivity(numberOfEvents);
+
+        var request = new AppendRecordsRequest {
+            Records = [],
+            Checks  = [ConsistencyCheck.Stream(omgRefactor.Stream).DoesNotExist()]
+        };
+
+        var response = await Client.Streams.AppendRecords(request, cancellationToken: cancellationToken);
 
         Log.Debug(
             "Seeded SmartHomeActivity to stream {Stream} with {Count} events with revision {Revision} at position {Position}",
-            request.Stream, request.Messages.Count, response.StreamRevision, response.Position);
+            request.Checks[0].AsStreamStateCheck.Stream, request.Records.Length, response.Revisions[0].Revision, response.Position);
 
-        return new SeededSmartHomeActivity(request, response.StreamRevision, response.Position);
+        return new SeededSmartHomeActivity(omgRefactor, response.Revisions[0].Revision, response.Position);
     }
 
     public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(CancellationToken cancellationToken) =>
@@ -45,10 +51,10 @@ public partial class KurrentClientTestFixture {
     // public CallCredentials DefaultCredentials => CreateCallCredentials(default);
 }
 
-public record SeededSmartHomeActivity(SmartHomeActivity Activity, StreamRevision StreamRevision, LogPosition Position) {
+public record SeededSmartHomeActivity(SmartHomeActivity Activity, Revision Revision, LogPosition Position) {
     public SmartHome                   Home          => Activity.Home;
     public StreamName                  Stream        => Activity.Stream;
-    public ImmutableList<AppendRecord> Records       => Activity.Messages;
+    public ImmutableList<AppendRecord> Records       => Activity.Records;
     public long                        LastTimestamp => Activity.LastTimestamp;
 
     public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
@@ -57,5 +63,5 @@ public record SeededSmartHomeActivity(SmartHomeActivity Activity, StreamRevision
     public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
         Activity.WithExpectedRevision(expectedRevision);
 
-    public static implicit operator AppendStreamRequest(SeededSmartHomeActivity _) => _.Activity;
+    public static implicit operator AppendRecordsRequest(SeededSmartHomeActivity _) => _.Activity;
 }

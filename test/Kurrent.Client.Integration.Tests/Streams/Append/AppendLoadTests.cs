@@ -30,10 +30,10 @@
 //                     var request = requests[i];
 //                     var result  = success[i];
 //
-//                     var expectedRevision = StreamRevision.From(request.Messages.Count() - 1);
+//                     var expectedRevision = Revision.From(request.Messages.Count() - 1);
 //
 //                     result.Stream.ShouldBe(request.Stream);
-//                     result.StreamRevision.ShouldBe(expectedRevision);
+//                     result.Revision.ShouldBe(expectedRevision);
 //                     result.Position.ShouldBeGreaterThan(LogPosition.Earliest);
 //                 }
 //             });

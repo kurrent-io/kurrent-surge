@@ -13,10 +13,10 @@ public class AsyncEnumerableExtensionsTests {
         await foreach (var batch in source.ReadBatches(testCase.BatchSize, timeout))
             batches.Add(batch);
 
-        batches.Count.ShouldBe(testCase.ExpectedBatchSizes.Length);
+        await Assert.That(batches.Count).IsEqualTo(testCase.ExpectedBatchSizes.Length);
 
         for (var i = 0; i < batches.Count; i++)
-            batches[i].Count.ShouldBe(testCase.ExpectedBatchSizes[i]);
+            await Assert.That(batches[i].Count).IsEqualTo(testCase.ExpectedBatchSizes[i]);
     }
 
     [Test]
@@ -34,16 +34,18 @@ public class AsyncEnumerableExtensionsTests {
             batches.Add(batch);
 
         var totalItems = batches.Sum(b => b.Count);
-        totalItems.ShouldBe(testCase.ItemCount);
+        await Assert.That(totalItems).IsEqualTo(testCase.ItemCount);
 
         if (testCase.ItemDelay > testCase.Timeout) {
             // timeout triggers before batch fills: should have more batches with fewer items
-            batches.ShouldAllBe(b => b.Count <= testCase.BatchSize);
-            batches.Max(b => b.Count).ShouldBeLessThanOrEqualTo(testCase.BatchSize);
+            foreach (var batch in batches)
+                await Assert.That(batch.Count).IsLessThanOrEqualTo(testCase.BatchSize);
+
+            await Assert.That(batches.Max(b => b.Count)).IsLessThanOrEqualTo(testCase.BatchSize);
         }
         else {
             // timeout allows full batches: should have at least one full batch
-            batches.ShouldContain(b => b.Count == testCase.BatchSize);
+            await Assert.That(batches).Contains(b => b.Count == testCase.BatchSize);
         }
     }
 
@@ -55,7 +57,7 @@ public class AsyncEnumerableExtensionsTests {
         await foreach (var batch in source.ReadBatches(7, Timeout.InfiniteTimeSpan))
             allItems.AddRange(batch);
 
-        allItems.ShouldBeInOrder();
+        await Assert.That(allItems).IsInOrder();
     }
 
     [Test]
@@ -76,7 +78,7 @@ public class AsyncEnumerableExtensionsTests {
             // expected when cancelled
         }
 
-        batchCount.ShouldBeGreaterThanOrEqualTo(3);
+        await Assert.That(batchCount).IsGreaterThanOrEqualTo(3);
     }
 
     [Test]
@@ -87,7 +89,7 @@ public class AsyncEnumerableExtensionsTests {
         await foreach (var batch in source.ReadBatches(5, TimeSpan.FromSeconds(1)))
             batches.Add(batch);
 
-        batches.ShouldBeEmpty();
+        await Assert.That(batches).IsEmpty();
     }
 
     [Test]
@@ -98,8 +100,8 @@ public class AsyncEnumerableExtensionsTests {
         await foreach (var batch in source.ReadBatches(10, TimeSpan.FromSeconds(1)))
             batches.Add(batch);
 
-        batches.Count.ShouldBe(1);
-        batches[0].ShouldBe([42]);
+        await Assert.That(batches.Count).IsEqualTo(1);
+        await Assert.That(batches[0]).IsEquivalentTo(new[] { 42 });
     }
 
     static IAsyncEnumerable<int> ItemsDataSource(int count) =>

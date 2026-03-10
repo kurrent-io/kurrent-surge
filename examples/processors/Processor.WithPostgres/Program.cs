@@ -1,5 +1,5 @@
 using Dapper;
-using Kurrent.Client.Streams;
+using Kurrent.Processors.Options;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;

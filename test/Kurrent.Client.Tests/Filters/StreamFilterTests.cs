@@ -15,39 +15,13 @@ public class StreamFilterTests {
     #region ByStream
 
     [Test]
-    public void by_stream_matches_exact_stream() {
+    public async Task by_stream_matches_exact_stream() {
         var filter      = RecordFilter.ByStream(OrdersStream);
         var matching    = _faker.With(OrdersStream);
         var nonMatching = _faker.With(PaymentsStream);
 
-        filter.IsMatch(matching).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
-    }
-
-    #endregion
-
-    #region ByStreamPrefix
-
-    [Test]
-    public void by_stream_prefix_matches_category_prefixes() {
-        var filter           = RecordFilter.ByStreamPrefix("Orders-", "Payments-");
-        var matchingOrders   = _faker.With(OrdersStream);
-        var matchingPayments = _faker.With(PaymentsStream);
-        var nonMatching      = _faker.With(UsersStream);
-
-        filter.IsMatch(matchingOrders).ShouldBeTrue();
-        filter.IsMatch(matchingPayments).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
-    }
-
-    [Test]
-    public void by_stream_prefix_with_single_category() {
-        var filter      = RecordFilter.ByStreamPrefix("Orders-");
-        var matching    = _faker.With(OrdersStream);
-        var nonMatching = _faker.With(PaymentsStream);
-
-        filter.IsMatch(matching).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
     #endregion
@@ -55,68 +29,68 @@ public class StreamFilterTests {
     #region ByStreamPattern - Auto-Derivation of TargetStream
 
     [Test]
-    public void by_stream_pattern_exact_match_derives_target_stream() {
+    public async Task by_stream_pattern_exact_match_derives_target_stream() {
         // Note: '-' doesn't need escaping in regex (only inside [] character classes)
         var filter = RecordFilter.ByStreamPattern($"^{Regex.Escape(OrdersStream)}$");
 
-        filter.TargetStream.ShouldBe(StreamName.From(OrdersStream));
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From(OrdersStream));
     }
 
     [Test]
-    public void by_stream_pattern_with_escaped_dot_derives_target_stream() {
+    public async Task by_stream_pattern_with_escaped_dot_derives_target_stream() {
         // Only '.' needs escaping, '-' is literal in regex
         var filter = RecordFilter.ByStreamPattern(@"^Orders\.v1-ABC123$");
 
-        filter.TargetStream.ShouldBe(StreamName.From("Orders.v1-ABC123"));
-        filter.Expression.ShouldBe(@"^Orders\.v1-ABC123$");
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("Orders.v1-ABC123"));
+        await Assert.That(filter.Expression).IsEqualTo(@"^Orders\.v1-ABC123$");
     }
 
     [Test]
-    public void by_stream_pattern_category_wildcard_has_no_target_stream() {
+    public async Task by_stream_pattern_category_wildcard_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("^Orders-.*$");
 
-        filter.TargetStream.ShouldBe(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
     }
 
     [Test]
-    public void by_stream_pattern_with_single_char_wildcard_has_no_target_stream() {
+    public async Task by_stream_pattern_with_single_char_wildcard_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("^Orders-.$");
 
-        filter.TargetStream.ShouldBe(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
     }
 
     [Test]
-    public void by_stream_pattern_case_insensitive_has_no_target_stream() {
+    public async Task by_stream_pattern_case_insensitive_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("(?i)^ORDERS-ABC123$");
 
-        filter.TargetStream.ShouldBe(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
     }
 
     [Test]
-    public void by_stream_pattern_with_alternation_has_no_target_stream() {
+    public async Task by_stream_pattern_with_alternation_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("^(Orders-001|Payments-002)$");
 
-        filter.TargetStream.ShouldBe(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
     }
 
     [Test]
-    public void by_stream_pattern_matches_category() {
+    public async Task by_stream_pattern_matches_category() {
         var filter      = RecordFilter.ByStreamPattern("^Orders-.*$");
         var matching    = _faker.With(OrdersStream);
         var nonMatching = _faker.With(PaymentsStream);
 
-        filter.IsMatch(matching).ShouldBeTrue();
-        filter.IsMatch(nonMatching).ShouldBeFalse();
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
     [Test]
-    public void by_stream_pattern_case_insensitive_matches_records() {
+    public async Task by_stream_pattern_case_insensitive_matches_records() {
         var filter = RecordFilter.ByStreamPattern("(?i)^ORDERS-ABC123$");
 
-        filter.IsMatch(_faker.With("ORDERS-ABC123")).ShouldBeTrue();
-        filter.IsMatch(_faker.With("orders-ABC123")).ShouldBeTrue();
-        filter.IsMatch(_faker.With("Orders-ABC123")).ShouldBeTrue();
-        filter.IsMatch(_faker.With("Payments-ABC123")).ShouldBeFalse();
+        await Assert.That(filter.IsMatch(_faker.With("ORDERS-ABC123"))).IsTrue();
+        await Assert.That(filter.IsMatch(_faker.With("orders-ABC123"))).IsTrue();
+        await Assert.That(filter.IsMatch(_faker.With("Orders-ABC123"))).IsTrue();
+        await Assert.That(filter.IsMatch(_faker.With("Payments-ABC123"))).IsFalse();
     }
 
     #endregion

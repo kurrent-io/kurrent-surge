@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-
 namespace Transfermarkt.Domain;
 
 /// <summary>
@@ -35,7 +33,7 @@ public readonly record struct Position {
     /// <summary>
     /// All available positions.
     /// </summary>
-    public static readonly ImmutableArray<Position> All = [
+    public static readonly IReadOnlyList<Position> All = [
         Goalkeeper,
         Sweeper, CentreBack, LeftCentreBack, RightCentreBack, LeftBack, RightBack, LeftWingBack, RightWingBack,
         DefensiveMidfield, CentralMidfield, LeftMidfield, RightMidfield, AttackingMidfield,
@@ -44,7 +42,7 @@ public readonly record struct Position {
 
     static readonly Dictionary<string, Position> ByCode = All.ToDictionary(p => p.Code, StringComparer.OrdinalIgnoreCase);
 
-    Position(string code, string name, PositionCategory category) {
+    public Position(string code, string name, PositionCategory category) {
         Code     = code;
         Name     = name;
         Category = category;
@@ -53,17 +51,17 @@ public readonly record struct Position {
     /// <summary>
     /// Position code (e.g., "GK", "CB", "CM", "ST").
     /// </summary>
-    public string Code { get; }
+    public string Code { get; init; }
 
     /// <summary>
     /// Full position name.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; init; }
 
     /// <summary>
     /// Position category.
     /// </summary>
-    public PositionCategory Category { get; }
+    public PositionCategory Category { get; init; }
 
     /// <summary>
     /// Whether this is an unknown position.

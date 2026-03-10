@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Dapper;
-using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Npgsql;
 using Transfermarkt.Domain;
 
@@ -10,79 +10,55 @@ namespace Processor.WithPostgres;
 /// Aggregates club spending and persists to Postgres on checkpoint.
 /// Demonstrates stateful processing with database persistence.
 /// </summary>
-public sealed class ClubSpendingProcessor(
-    NpgsqlDataSource dataSource,
-    ILogger<ClubSpendingProcessor> logger
-) : IRecordProcessor {
+public sealed class ClubSpendingProcessor(NpgsqlDataSource dataSource) : IRecordProcessor {
     readonly ConcurrentDictionary<string, ClubSpending> _pending = new();
 
-    public async ValueTask OnInitialize(InitializationContext context) {
-        logger.LogInformation("Initializing ClubSpendingProcessor: {ProcessorId}", context.Settings.ProcessorId);
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is not PlayerTransferred transfer)
+            return ValueTask.CompletedTask;
 
-        // Ensure table exists
-        await using var conn = await dataSource.OpenConnectionAsync(context.CancellationToken);
-        await conn.ExecuteAsync("""
-            CREATE TABLE IF NOT EXISTS club_spending (
-                club_id TEXT NOT NULL,
-                season INT NOT NULL,
-                total_spent DECIMAL(18,2) NOT NULL DEFAULT 0,
-                total_received DECIMAL(18,2) NOT NULL DEFAULT 0,
-                players_in INT NOT NULL DEFAULT 0,
-                players_out INT NOT NULL DEFAULT 0,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                PRIMARY KEY (club_id, season)
-            )
-            """);
-    }
+        var season = GetSeasonForDate(transfer.EffectiveDate);
 
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            if (record.Value is not PlayerTransferred transfer)
-                continue;
+        // Update selling club (receives money)
+        if (!transfer.FromClubId.IsUnset) {
+            var key = $"{transfer.FromClubId}:{season}";
+            _pending.AddOrUpdate(
+                key,
+                _ => new ClubSpending {
+                    ClubId        = transfer.FromClubId.ToString(),
+                    Season        = season,
+                    TotalReceived = transfer.Fee.Amount,
+                    PlayersOut    = 1
+                },
+                (_, existing) => existing with {
+                    TotalReceived = existing.TotalReceived + transfer.Fee.Amount,
+                    PlayersOut    = existing.PlayersOut + 1
+                }
+            );
+        }
 
-            var season = GetSeasonForDate(transfer.EffectiveDate);
-
-            // Update selling club (receives money)
-            if (!transfer.FromClubId.IsUnset) {
-                var key = $"{transfer.FromClubId}:{season}";
-                _pending.AddOrUpdate(
-                    key,
-                    _ => new ClubSpending {
-                        ClubId        = transfer.FromClubId.ToString(),
-                        Season        = season,
-                        TotalReceived = transfer.Fee.Amount,
-                        PlayersOut    = 1
-                    },
-                    (_, existing) => existing with {
-                        TotalReceived = existing.TotalReceived + transfer.Fee.Amount,
-                        PlayersOut    = existing.PlayersOut + 1
-                    }
-                );
-            }
-
-            // Update buying club (spends money)
-            if (!transfer.ToClubId.IsUnset) {
-                var key = $"{transfer.ToClubId}:{season}";
-                _pending.AddOrUpdate(
-                    key,
-                    _ => new ClubSpending {
-                        ClubId     = transfer.ToClubId.ToString(),
-                        Season     = season,
-                        TotalSpent = transfer.Fee.Amount,
-                        PlayersIn  = 1
-                    },
-                    (_, existing) => existing with {
-                        TotalSpent = existing.TotalSpent + transfer.Fee.Amount,
-                        PlayersIn  = existing.PlayersIn + 1
-                    }
-                );
-            }
+        // Update buying club (spends money)
+        if (!transfer.ToClubId.IsUnset) {
+            var key = $"{transfer.ToClubId}:{season}";
+            _pending.AddOrUpdate(
+                key,
+                _ => new ClubSpending {
+                    ClubId     = transfer.ToClubId.ToString(),
+                    Season     = season,
+                    TotalSpent = transfer.Fee.Amount,
+                    PlayersIn  = 1
+                },
+                (_, existing) => existing with {
+                    TotalSpent = existing.TotalSpent + transfer.Fee.Amount,
+                    PlayersIn  = existing.PlayersIn + 1
+                }
+            );
         }
 
         return ValueTask.CompletedTask;
     }
 
-    public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+    public async ValueTask OnCheckpoint(CheckpointContext context) {
         if (_pending.IsEmpty)
             return;
 
@@ -111,9 +87,9 @@ public sealed class ClubSpendingProcessor(
             }
 
             await tx.CommitAsync(context.CancellationToken);
-            logger.LogInformation(
-                "Checkpoint #{CheckpointNumber}: flushed {RecordCount} club aggregates to Postgres",
-                context.Progress.Checkpoint.TotalCheckpoints,
+            context.Logger.LogInformation(
+                "Checkpoint {CheckpointId}: flushed {RecordCount} club aggregates to Postgres",
+                context.CheckpointId,
                 toFlush.Length
             );
         }
@@ -123,8 +99,8 @@ public sealed class ClubSpendingProcessor(
         }
     }
 
-    public ValueTask OnShutdown(ShutdownContext context) {
-        logger.LogInformation("Shutting down ({Reason}), {PendingCount} pending records", context.Reason, _pending.Count);
+    public ValueTask OnComplete(CompleteContext context) {
+        context.Logger.LogInformation("Completed, {PendingCount} pending records", _pending.Count);
         return ValueTask.CompletedTask;
     }
 

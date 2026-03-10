@@ -1,4 +1,4 @@
-using Kurrent.Client.Streams;
+using Kurrent.Processors.Options;
 using Processor.AspNetMinimal;
 using Serilog;
 
@@ -11,13 +11,9 @@ try {
 
     builder.Host.UseSerilog();
 
-    // Register shared Kurrent client
-    builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-
-    // Register processor as hosted service
-    builder.Services.AddKurrentProcessor<TransferProcessor>(config => config
-        .WithFilter("schema_name IN ('PlayerTransferred', 'PlayerRegistered')")
-    );
+    builder.Services.AddKurrentProcessor<TransferProcessor>(cfg => cfg
+        .UseClient("kurrentdb://localhost:2113")
+        .WithFilter("schema IN ('PlayerTransferred', 'PlayerRegistered')"));
 
     var app = builder.Build();
 

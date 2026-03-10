@@ -1,14 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-<!--  <PropertyGroup>-->
-<!--    <TargetFramework>net10.0</TargetFramework>-->
-<!--    <LangVersion>experimental</LangVersion>-->
-<!--    <ImplicitUsings>enable</ImplicitUsings>-->
-<!--    <Nullable>enable</Nullable>-->
-<!--  </PropertyGroup>-->
+  <PropertyGroup>
+    <PackageId>Kurrent.Processors</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent .NET Processors</Title>
+    <Product>Kurrent .NET Processors</Product>
+    <Description>An event processing framework for the Kurrent Platform. Build streaming processors with automatic checkpointing and partitioning.</Description>
+    <PackageTags>kurrent kurrentdb processors event-processing stream-processing event-sourcing</PackageTags>
+    <!-- Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>
+    <!-- Embed source generator DLLs into analyzers/dotnet/cs/ during pack -->
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KurrentDB.Client\KurrentDB.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,23 +28,78 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Client.Integration.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Processors.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Processors.Integration.Tests" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="State\Implementations\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="NodaTime" />
-    <PackageReference Include="NodaTime.Serialization.Protobuf" />
+    <PackageReference Include="HashDepot" />
+    <PackageReference Include="OpenTelemetry.Api" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Microsoft.Extensions.Logging" />
     <Using Include="Microsoft.Extensions.Logging.Abstractions" />
-    <Using Include="NodaTime" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\ErrorMessages.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!--
+    Embed internal project-reference DLLs into the NuGet package.
+
+    Only project references with PrivateAssets="all" are embedded — these are
+    internal libraries that don't ship as their own packages (e.g. Kurrent.Variant).
+
+    Project references WITHOUT PrivateAssets="all" (e.g. Kurrent.Client) are
+    declared as NuGet dependencies automatically by the SDK — not embedded.
+
+    Source generators (ReferenceOutputAssembly="false") are excluded by the
+    Condition below.
+
+    GetTargetPath is a lightweight MSBuild target that returns the output
+    assembly path without triggering a build. Passing TargetFramework ensures
+    we get the correct TFM-specific assembly.
+  -->
+  <Target Name="PackProjectDependencies">
+    <MSBuild Projects="@(ProjectReference)"
+             Condition="'%(ProjectReference.PrivateAssets)' == 'all'
+                        AND '%(ProjectReference.ReferenceOutputAssembly)' != 'false'"
+             Targets="GetTargetPath"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_PrivateProjectAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(_PrivateProjectAssembly)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Embed source-generator DLLs into analyzers/dotnet/cs/ inside the NuGet package.
+
+    Source generators are referenced with OutputItemType="Analyzer" and
+    ReferenceOutputAssembly="false", so they never appear in ReferenceCopyLocalPaths
+    and are excluded by PackProjectDependencies above. This target collects them
+    separately and places them where NuGet expects Roslyn analyzers.
+
+    TargetFramework=netstandard2.0 is passed explicitly because generator projects
+    target netstandard2.0 (required by Roslyn), not the consuming project's TFMs.
+  -->
+  <Target Name="PackSourceGenerators">
+    <MSBuild Projects="@(ProjectReference)"
+             Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer'"
+             Targets="GetTargetPath"
+             Properties="TargetFramework=netstandard2.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_SourceGeneratorAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_SourceGeneratorAssembly)"
+                              PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
 
 </Project>

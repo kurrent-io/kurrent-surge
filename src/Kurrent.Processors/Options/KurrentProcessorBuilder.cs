@@ -1,8 +1,11 @@
+using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
-using Kurrent.Processors;
+using Kurrent.Client.Streams;
+using Kurrent.Processors.Diagnostics;
+using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options;
 
 /// <summary>
 /// Fluent builder for configuring processor execution.
@@ -33,8 +36,8 @@ namespace Kurrent.Client.Streams;
 ///     .WithProcessorId("order-processor")
 ///     .WithFilter(RecordFilter.ByStream("orders"))
 ///     .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-///     .WithBatching(new BatchingSettings { MaxSize = 200, Timeout = 1000 })
-///     .WithBufferCapacity(5000)
+///     .ConfigureBatching(b => b.MaxSize(200).Timeout(TimeSpan.FromSeconds(1)))
+///     .ConfigureWorker(w => w.BufferCapacity(5000))
 ///     .RunAsync(stoppingToken);
 ///
 /// // Advanced: Get worker for runtime access
@@ -56,7 +59,7 @@ public sealed class KurrentProcessorBuilder {
                 return processorFactory.CreateProcessor();
             }
             catch (Exception ex) {
-                throw new FailedToCreateWorkerException(ex);
+                throw new KurrentWorkerException("WORKER_CREATION_FAILED", "Failed to create record processor instance.", ex);
             }
         };
 
@@ -87,13 +90,6 @@ public sealed class KurrentProcessorBuilder {
     /// This method invalidates any previously provided client instance.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// .WithClient("kurrentdb://localhost:2113", opts => opts with {
-    ///     Resilience = KurrentClientResilienceOptions.HighAvailability
-    /// })
-    /// </code>
-    /// </example>
     public KurrentProcessorBuilder WithClient(string connectionString, Func<KurrentClientOptions, KurrentClientOptions> configure) {
         GetClientOptions = () => configure(KurrentClientOptions.Parse(connectionString));
         ProvidedClient   = null;
@@ -175,18 +171,6 @@ public sealed class KurrentProcessorBuilder {
     /// Thrown when using <see cref="KurrentProcessors.Create(IRecordProcessorFactory)"/> since the
     /// processor type is not known at builder creation time.
     /// </exception>
-    /// <example>
-    /// <code>
-    /// var configuration = new ConfigurationBuilder()
-    ///     .AddJsonFile("appsettings.json")
-    ///     .Build();
-    ///
-    /// await KurrentProcessors.Create(new TransferProcessor())
-    ///     .ConnectTo("kurrentdb://localhost:2113")
-    ///     .FromConfiguration(configuration)
-    ///     .RunAsync(stoppingToken);
-    /// </code>
-    /// </example>
     public KurrentProcessorBuilder FromConfiguration(IConfiguration configuration) {
         if (_processorTypeName is null)
             throw new InvalidOperationException(
@@ -213,14 +197,6 @@ public sealed class KurrentProcessorBuilder {
     /// enabling coordinated processing across instances.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// await KurrentProcessors.Create(new MyProcessor())
-    ///     .ConnectTo("kurrentdb://localhost:2113")
-    ///     .WithProcessorId("order-processor")
-    ///     .RunAsync(stoppingToken);
-    /// </code>
-    /// </example>
     public KurrentProcessorBuilder WithProcessorId(string processorId) {
         _settingsBuilder.WithProcessorId(processorId);
         return this;
@@ -240,15 +216,6 @@ public sealed class KurrentProcessorBuilder {
     /// <b>Note:</b> Only used when <see cref="WithProcessorId"/> is also called.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// await KurrentProcessors.Create(new MyProcessor())
-    ///     .ConnectTo("kurrentdb://localhost:2113")
-    ///     .WithProcessorId("order-processor")
-    ///     .WithWorkerId(Environment.MachineName)
-    ///     .RunAsync(stoppingToken);
-    /// </code>
-    /// </example>
     public KurrentProcessorBuilder WithWorkerId(string workerId) {
         _settingsBuilder.WithWorkerId(workerId);
         return this;
@@ -280,13 +247,6 @@ public sealed class KurrentProcessorBuilder {
     /// schemas, or metadata properties.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// .WithFilter(RecordFilter.ByStream("orders"))
-    /// .WithFilter(RecordFilter.ByStreamPrefix("tenant-"))
-    /// .WithFilter(RecordFilter.BySchema("OrderPlaced"))
-    /// </code>
-    /// </example>
     public KurrentProcessorBuilder WithFilter(IRecordFilter filter) {
         _settingsBuilder.WithFilter(filter);
         return this;
@@ -303,12 +263,6 @@ public sealed class KurrentProcessorBuilder {
     /// prefer <see cref="WithFilter(IRecordFilter)"/>.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// .WithFilterExpression("stream_id LIKE 'orders-%'")
-    /// .WithFilterExpression("category = 'orders'")
-    /// </code>
-    /// </example>
     public KurrentProcessorBuilder WithFilterExpression(string filterExpression) {
         _settingsBuilder.WithFilterExpression(filterExpression);
         return this;
@@ -345,130 +299,42 @@ public sealed class KurrentProcessorBuilder {
     }
 
     /// <summary>
-    /// Configures record batching for processing.
+    /// Configures checkpoint settings using a fluent builder.
     /// </summary>
-    /// <param name="settings">The batching configuration.</param>
+    /// <param name="configure">Action to configure the checkpoint settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Batching controls how records are grouped before delivery to the processor.
-    /// Smaller batches reduce latency; larger batches improve throughput.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// .WithBatching(new BatchingSettings { MaxSize = 200, Timeout = 1000 })
-    /// </code>
-    /// </example>
-    public KurrentProcessorBuilder WithBatching(BatchingSettings settings) {
-        _settingsBuilder.WithBatching(settings);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures checkpoint settings for fault tolerance.
-    /// </summary>
-    /// <param name="settings">The checkpoint configuration.</param>
-    /// <returns>The runner instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Checkpoints enable recovery from failures by periodically saving progress.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// .WithCheckpoint(new CheckpointSettings { Interval = 60000, Threshold = 5000 })
-    /// </code>
-    /// </example>
-    public KurrentProcessorBuilder WithCheckpoint(CheckpointSettings settings) {
-        _settingsBuilder.WithCheckpoint(settings);
-        return this;
-    }
-
-    /// <summary>
-    /// Sets the buffer capacity for record buffering.
-    /// </summary>
-    /// <param name="capacity">Buffer capacity in records (default: 1000, max: 10000).</param>
-    /// <returns>The runner instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Larger buffers improve throughput but increase memory usage.
-    /// The buffer capacity should be at least as large as the batch size.
-    /// </para>
-    /// </remarks>
-    public KurrentProcessorBuilder WithBufferCapacity(int capacity) {
-        _settingsBuilder.WithBufferCapacity(capacity);
-        return this;
-    }
-
-    /// <summary>
-    /// Skips record deserialization for raw byte access.
-    /// </summary>
-    /// <param name="skip">True to skip decoding (default: true when called).</param>
-    /// <returns>The runner instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Use when processing metadata only or with custom deserialization.
-    /// Reduces CPU usage in high-throughput scenarios.
-    /// </para>
-    /// </remarks>
-    public KurrentProcessorBuilder WithSkipDecoding(bool skip = true) {
-        _settingsBuilder.WithSkipDecoding(skip);
-        return this;
-    }
-
-    /// <summary>
-    /// Provides full control over processor settings.
-    /// </summary>
-    /// <param name="configure">Function to configure processor settings.</param>
-    /// <returns>The runner instance for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Use this method for advanced processing configuration that isn't covered
-    /// by the individual property methods.
-    /// </para>
-    /// </remarks>
-    public KurrentProcessorBuilder ConfigureProcessing(Func<ProcessorSettings, ProcessorSettings> configure) {
-        _settingsBuilder.Configure(configure);
-        return this;
-    }
-
-    /// <summary>
-    /// Configures checkpoint settings using a transformation function.
-    /// </summary>
-    /// <param name="configure">
-    /// Function to transform checkpoint settings.
-    /// Use <c>with</c> expression for immutable updates.
-    /// </param>
-    /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureCheckpointing(Func<CheckpointSettings, CheckpointSettings> configure) {
+    public KurrentProcessorBuilder ConfigureCheckpointing(Action<CheckpointSettingsBuilder> configure) {
         _settingsBuilder.ConfigureCheckpointing(configure);
         return this;
     }
 
     /// <summary>
-    /// Configures batching settings using a transformation function.
+    /// Configures batching settings using a fluent builder.
     /// </summary>
-    /// <param name="configure">
-    /// Function to transform batching settings.
-    /// Use <c>with</c> expression for immutable updates.
-    /// </param>
+    /// <param name="configure">Action to configure the batching settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureBatching(Func<BatchingSettings, BatchingSettings> configure) {
+    public KurrentProcessorBuilder ConfigureBatching(Action<BatchingSettingsBuilder> configure) {
         _settingsBuilder.ConfigureBatching(configure);
         return this;
     }
 
     /// <summary>
-    /// Configures subscription settings using a transformation function.
+    /// Configures subscription settings using a fluent builder.
     /// </summary>
-    /// <param name="configure">
-    /// Function to transform subscription settings.
-    /// Use <c>with</c> expression for immutable updates.
-    /// </param>
+    /// <param name="configure">Action to configure the subscription settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureSubscription(Func<SubscriptionSettings, SubscriptionSettings> configure) {
+    public KurrentProcessorBuilder ConfigureSubscription(Action<SubscriptionSettingsBuilder> configure) {
         _settingsBuilder.ConfigureSubscription(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures worker settings using a fluent builder.
+    /// </summary>
+    /// <param name="configure">Action to configure the worker settings builder.</param>
+    /// <returns>The runner instance for method chaining.</returns>
+    public KurrentProcessorBuilder ConfigureWorker(Action<WorkerSettingsBuilder> configure) {
+        _settingsBuilder.ConfigureWorker(configure);
         return this;
     }
 
@@ -482,17 +348,6 @@ public sealed class KurrentProcessorBuilder {
     /// The returned worker must be started with <see cref="IProcessorWorker.RunAsync"/>.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// var worker = KurrentProcessors.Create(new MyProcessor())
-    ///     .ConnectTo("kurrentdb://localhost:2113")
-    ///     .WithProcessorId("order-processor")
-    ///     .Build();
-    ///
-    /// Console.WriteLine($"Status: {worker.Status}");
-    /// await worker.RunAsync(stoppingToken);
-    /// </code>
-    /// </example>
     public IProcessorWorker Build() {
         var settings = _settingsBuilder.Settings;
 
@@ -520,13 +375,17 @@ public sealed class KurrentProcessorBuilder {
         var ownsClient = ProvidedClient is null;
         var client     = ProvidedClient ?? new KurrentClient(options);
 
-        return new Kurrent.Processors.ProcessorWorker(
-            client,
-            GetProcessor(),
-            null,
+        var recordProcessor = GetProcessor();
+        var diagnostics     = new WorkerTelemetry(
+            options.LoggerFactory.CreateLogger(recordProcessor.GetType()),
+            settings.ProcessorId,
+            settings.WorkerId);
+
+        return new ProcessorWorker(
             settings,
-            options.LoggerFactory,
-            ownsClient
+            client,
+            recordProcessor,
+            diagnostics, options.LoggerFactory, TimeProvider.System, ownsClient
         );
     }
 
@@ -542,7 +401,7 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public async ValueTask RunAsync(CancellationToken stoppingToken = default) {
-        await using var worker = Build();
+        var worker = Build();
         await worker.RunAsync(stoppingToken).ConfigureAwait(false);
     }
 
@@ -565,17 +424,9 @@ public sealed class KurrentProcessorBuilder {
     /// <see cref="CancellationToken"/> instead.
     /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Minimal console application with graceful shutdown
-    /// await KurrentProcessors.Create(new MyProcessor())
-    ///     .ConnectTo("kurrentdb://localhost:2113")
-    ///     .RunWithGracefulShutdownAsync();
-    /// </code>
-    /// </example>
     public async ValueTask RunWithGracefulShutdownAsync(TimeSpan? shutdownTimeout = null) {
-        var timeout         = shutdownTimeout ?? TimeSpan.FromSeconds(30);
-        var cts             = new CancellationTokenSource();
+        var timeout          = shutdownTimeout ?? TimeSpan.FromSeconds(30);
+        var cancellator      = new CancellationTokenSource();
         var shutdownComplete = new ManualResetEventSlim(false);
 
         // Handle Ctrl+C (SIGINT)
@@ -585,7 +436,7 @@ public sealed class KurrentProcessorBuilder {
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
         try {
-            await RunAsync(cts.Token).ConfigureAwait(false);
+            await RunAsync(cancellator.Token).ConfigureAwait(false);
         }
         finally {
             Console.CancelKeyPress -= OnCancelKeyPress;
@@ -593,7 +444,7 @@ public sealed class KurrentProcessorBuilder {
 
             // Signal that shutdown is complete before disposing
             shutdownComplete.Set();
-            cts.Dispose();
+            cancellator.Dispose();
             shutdownComplete.Dispose();
         }
 
@@ -601,11 +452,11 @@ public sealed class KurrentProcessorBuilder {
 
         void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e) {
             e.Cancel = true; // Prevent immediate termination
-            try { cts.Cancel(); } catch (ObjectDisposedException) { }
+            try { cancellator.Cancel(); } catch (ObjectDisposedException) { }
         }
 
         void OnProcessExit(object? sender, EventArgs e) {
-            try { cts.Cancel(); } catch (ObjectDisposedException) { }
+            try { cancellator.Cancel(); } catch (ObjectDisposedException) { }
 
             // Block ProcessExit until shutdown completes or times out
             // This gives the processor time to complete gracefully

@@ -1,81 +1,131 @@
-using Grpc.Core;
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Client.Tests.Fixtures;
 using NJsonSchema;
 using static Kurrent.Client.Registry.CompatibilityMode;
 
 namespace Kurrent.Client.Tests.Registry;
 
-public class CheckSchemaCompatibilityTests : KurrentClientTestFixture {
-	const int TestTimeoutMs = 20_000;
+[Category("Registry")]
+[Category("Integration")]
+public class CheckSchemaCompatibilityTests {
+	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task backward_mode_incompatible_when_deleting_required_field(CancellationToken ct) {
-		var schemaName  = NewSchemaName();
+	[Test]
+	public async ValueTask check_schema_compatibility_schema_name_not_found(CancellationToken ct) {
+		var schemaName       = SchemaName.From(KurrentClientTestFixture.NewSchemaName());
+		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
 
-		var v1 = NewJsonSchemaDefinition().AddRequired("email", JsonObjectType.String);
-		var v2 = v1.Remove("email");
-
-		var schemaVersion = await AutomaticClient.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, Faker.Lorem.Sentences(), [], ct)
-			.ShouldNotThrowOrFailAsync();
-
-		await AutomaticClient.Registry
-			.CheckSchemaCompatibility(schemaVersion.VersionId, v2.ToJson(), SchemaDataFormat.Json, ct)
-			.ShouldFailAsync(failure => {
-                failure.Case.ShouldBe(CheckSchemaCompatibilityError.CheckSchemaCompatibilityErrorCase.SchemaCompatibilityErrors);
-				var errors = failure.AsSchemaCompatibilityErrors.Errors;
-				errors.ShouldContain(e => e.Kind == SchemaCompatibilityErrorKind.MissingRequiredProperty);
-				errors.ShouldContain(e => e.Details.Contains("Required property in original schema is missing in new schema"));
-				errors.ShouldContain(e => e.PropertyPath.Contains("email"));
-			});
+		await Assert.ThrowsAsync<SchemaNotFoundException>(
+			async () => await Fixture.Client.Registry
+				.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Json, ct));
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task check_schema_compatibility_fails_when_schema_not_found(CancellationToken ct) {
-        var schemaName       = SchemaName.From(NewSchemaName());
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask check_schema_compatibility_backward_all_is_incompatible(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-        await AutomaticClient.Registry
-			.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldFailAsync(failure =>
-                failure.Case.ShouldBe(CheckSchemaCompatibilityError.CheckSchemaCompatibilityErrorCase.NotFound));
+		var v1 = KurrentClientTestFixture
+			.NewJsonSchemaDefinition()
+			.AddOptional("gender", JsonObjectType.String)
+			.AddOptional("email", JsonObjectType.String);
+
+		var v2 = v1
+			.AddRequired("age", JsonObjectType.Integer)
+			.MakeRequired("email")
+			.ChangeType("gender", JsonObjectType.Integer);
+
+		await Fixture.Client.Registry
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, BackwardAll, cancellationToken: ct);
+
+		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		var ex = await Assert.ThrowsAsync<SchemaIncompatibleException>(
+			async () => await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct));
+
+		var errors = ex.Errors;
+		await Assert.That(errors.Errors.Count).IsEqualTo(3);
+		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.IncompatibleTypeChange);
+		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.NewRequiredProperty);
+		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.OptionalToRequired);
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task check_schema_compatibility_handles_fatal_errors(CancellationToken ct) {
-		var v1 = NewJsonSchemaDefinition();
+	[Test]
+	public async ValueTask check_schema_compatibility_backward_is_compatible(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-		var result = async () => await AutomaticClient.Registry
-			.CheckSchemaCompatibility(SchemaName.From("#"), v1.ToJson(), SchemaDataFormat.Json, ct);
+		var v1 = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var v2 = v1.AddOptional("address", JsonObjectType.String);
 
-		var exception = await result.ShouldThrowAsync<KurrentException>();
-		exception.ErrorCode.ShouldBe(nameof(StatusCode.InvalidArgument));
+		await Fixture.Client.Registry
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, cancellationToken: ct);
 
-		exception.ErrorData.GetRequired<List<FieldViolation>>("FieldViolations").ShouldSatisfyAllConditions(
-			vs => vs.ShouldNotBeEmpty(),
-			vs => vs.ShouldHaveSingleItem(),
-			vs => vs.ShouldContain(v => v.Field == "SchemaName"),
-			vs => vs.ShouldContain(v => v.Description == "Schema name must not be empty and can only contain alphanumeric characters, underscores, dashes, and periods")
-		);
+		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		await Fixture.Client.Registry
+			.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct);
 	}
 
-	[Test, Timeout(TestTimeoutMs)]
-	public async Task check_schema_compatibility_fails_when_data_format_not_matching(CancellationToken ct) {
-        var schemaName       = SchemaName.From(NewSchemaName());
-        var schemaDefinition = NewJsonSchemaDefinition().ToJson();
+	[Test]
+	public async ValueTask check_schema_compatibility_backward_is_incompatible(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
 
-		await AutomaticClient.Registry
-			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct)
-			.ShouldNotThrowOrFailAsync();
+		var v1 = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var v2 = v1.AddRequired("email", JsonObjectType.String);
 
-		await AutomaticClient.Registry
-			.CheckSchemaCompatibility(schemaName, schemaDefinition, SchemaDataFormat.Protobuf, ct)
-			.ShouldNotThrowAsync()
-			.ShouldFailAsync(failure => {
-                failure.Case.ShouldBe(CheckSchemaCompatibilityError.CheckSchemaCompatibilityErrorCase.SchemaCompatibilityErrors);
-				var errors = failure.AsSchemaCompatibilityErrors.Errors;
-				errors.ShouldContain(e => e.Kind == SchemaCompatibilityErrorKind.DataFormatMismatch);
-			});
+		await Fixture.Client.Registry
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, cancellationToken: ct);
+
+		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		var ex = await Assert.ThrowsAsync<SchemaIncompatibleException>(
+			async () => await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct));
+
+		var errors = ex.Errors;
+		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.NewRequiredProperty);
+	}
+
+	[Test]
+	public async ValueTask check_schema_compatibility_forward_is_compatible(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
+
+		var v1 = KurrentClientTestFixture
+			.NewJsonSchemaDefinition()
+			.AddOptional("email", JsonObjectType.String)
+			.AddOptional("phone", JsonObjectType.String);
+
+		var v2 = v1.Remove("phone");
+
+		await Fixture.Client.Registry
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, cancellationToken: ct);
+
+		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		await Fixture.Client.Registry
+			.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct);
+	}
+
+	[Test]
+	public async ValueTask check_schema_compatibility_forward_is_incompatible(CancellationToken ct) {
+		var schemaName = KurrentClientTestFixture.NewSchemaName();
+
+		var v1 = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var v2 = v1.ChangeType("id", JsonObjectType.Integer);
+
+		await Fixture.Client.Registry
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, cancellationToken: ct);
+
+		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+
+		var ex = await Assert.ThrowsAsync<SchemaIncompatibleException>(
+			async () => await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct));
+
+		var errors = ex.Errors;
+		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.IncompatibleTypeChange);
 	}
 }

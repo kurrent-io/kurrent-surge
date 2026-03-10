@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Processors.Options.Validators;
 
 public class ProcessorSettingsValidator : FluentOptionsValidator<ProcessorSettingsValidator, ProcessorSettings> {
     public ProcessorSettingsValidator() {
@@ -14,12 +14,6 @@ public class ProcessorSettingsValidator : FluentOptionsValidator<ProcessorSettin
         RuleFor(options => options.MaxParallelism)
             .InclusiveBetween(1, 32768)
             .WithMessage("MaxParallelism must be between 1 and 32768.")
-            .WithSeverity(Severity.Error);
-
-        // BufferCapacity validation (1-10000)
-        RuleFor(options => options.BufferCapacity)
-            .InclusiveBetween(1, 10000)
-            .WithMessage("BufferCapacity must be between 1 and 10000.")
             .WithSeverity(Severity.Error);
 
         // PartitionKeySelector recommended when MaxParallelism > 1
@@ -40,5 +34,8 @@ public class ProcessorSettingsValidator : FluentOptionsValidator<ProcessorSettin
 
         RuleFor(options => options.Subscription)
             .SetValidator(SubscriptionSettingsValidator.Instance);
+
+        RuleFor(options => options.Worker)
+            .SetValidator(WorkerSettingsValidator.Instance);
     }
 }

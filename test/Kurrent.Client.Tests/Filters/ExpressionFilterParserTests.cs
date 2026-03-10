@@ -5,57 +5,58 @@ namespace Kurrent.Client.Tests.Filters;
 [Category("Filters")]
 public class ExpressionFilterParserTests {
     readonly ExpressionFilterParser _parser = new();
+    readonly RecordFaker            _faker  = new();
 
     #region Comparison Operators
 
     [Test]
-    public void parses_equality_expression() {
+    public async Task parses_equality_expression() {
         var result = _parser.Parse("stream = 'orders'");
 
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldNotBeNull();
+        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.Value).IsNotNull();
     }
 
     [Test]
-    public void parses_not_equals_with_exclamation() {
+    public async Task parses_not_equals_with_exclamation() {
         var result = _parser.Parse("stream != 'test'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_not_equals_with_angle_brackets() {
+    public async Task parses_not_equals_with_angle_brackets() {
         var result = _parser.Parse("stream <> 'test'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_greater_than() {
+    public async Task parses_greater_than() {
         var result = _parser.Parse("position > 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_less_than() {
+    public async Task parses_less_than() {
         var result = _parser.Parse("position < 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_greater_than_or_equal() {
+    public async Task parses_greater_than_or_equal() {
         var result = _parser.Parse("position >= 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_less_than_or_equal() {
+    public async Task parses_less_than_or_equal() {
         var result = _parser.Parse("position <= 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -63,38 +64,38 @@ public class ExpressionFilterParserTests {
     #region Logical Operators
 
     [Test]
-    public void parses_and_expression() {
+    public async Task parses_and_expression() {
         var result = _parser.Parse("stream = 'orders' AND schema_name = 'OrderCreated'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_or_expression() {
+    public async Task parses_or_expression() {
         var result = _parser.Parse("stream = 'orders' OR stream = 'payments'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_not_expression() {
+    public async Task parses_not_expression() {
         var result = _parser.Parse("NOT (stream = 'test')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_complex_logical_expression_with_parentheses() {
+    public async Task parses_complex_logical_expression_with_parentheses() {
         var result = _parser.Parse("(stream = 'orders' OR stream = 'payments') AND properties.amount > 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_nested_logical_expressions() {
+    public async Task parses_nested_logical_expressions() {
         var result = _parser.Parse("(stream = 'a' AND schema_name = 'b') OR (stream = 'c' AND schema_name = 'd')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -102,38 +103,38 @@ public class ExpressionFilterParserTests {
     #region Pattern Matching
 
     [Test]
-    public void parses_like_expression() {
+    public async Task parses_like_expression() {
         var result = _parser.Parse("stream LIKE 'order%'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_not_like_expression() {
+    public async Task parses_not_like_expression() {
         var result = _parser.Parse("stream NOT LIKE '%test%'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_ilike_expression() {
+    public async Task parses_ilike_expression() {
         var result = _parser.Parse("schema_name ILIKE '%event%'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_not_ilike_expression() {
+    public async Task parses_not_ilike_expression() {
         var result = _parser.Parse("stream NOT ILIKE '%TEST%'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_like_with_underscore_wildcard() {
+    public async Task parses_like_with_underscore_wildcard() {
         var result = _parser.Parse("stream LIKE 'order_'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -141,17 +142,17 @@ public class ExpressionFilterParserTests {
     #region Null Checking
 
     [Test]
-    public void parses_is_null() {
+    public async Task parses_is_null() {
         var result = _parser.Parse("properties.correlationId IS NULL");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_is_not_null() {
+    public async Task parses_is_not_null() {
         var result = _parser.Parse("properties.userId IS NOT NULL");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -159,31 +160,31 @@ public class ExpressionFilterParserTests {
     #region Set Membership
 
     [Test]
-    public void parses_in_expression_with_strings() {
+    public async Task parses_in_expression_with_strings() {
         var result = _parser.Parse("stream IN ('orders', 'payments', 'refunds')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_in_expression_with_numbers() {
+    public async Task parses_in_expression_with_numbers() {
         var result = _parser.Parse("position IN (100, 200, 300)");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_not_in_expression() {
+    public async Task parses_not_in_expression() {
         var result = _parser.Parse("schema_name NOT IN ('SystemEvent', 'HeartbeatEvent')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_in_with_single_value() {
+    public async Task parses_in_with_single_value() {
         var result = _parser.Parse("stream IN ('orders')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -191,24 +192,24 @@ public class ExpressionFilterParserTests {
     #region Range Operators
 
     [Test]
-    public void parses_between_with_numbers() {
+    public async Task parses_between_with_numbers() {
         var result = _parser.Parse("position BETWEEN 100 AND 200");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_between_with_dates() {
+    public async Task parses_between_with_dates() {
         var result = _parser.Parse("timestamp BETWEEN '2024-01-01' AND '2024-12-31'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_not_between() {
+    public async Task parses_not_between() {
         var result = _parser.Parse("position NOT BETWEEN 100 AND 200");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -216,38 +217,38 @@ public class ExpressionFilterParserTests {
     #region Property Access
 
     [Test]
-    public void parses_properties_bracket_notation() {
+    public async Task parses_properties_bracket_notation() {
         var result = _parser.Parse("properties['userId'] = 'user-123'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_properties_dot_notation() {
+    public async Task parses_properties_dot_notation() {
         var result = _parser.Parse("properties.userId = 'user-123'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_props_alias_bracket_notation() {
+    public async Task parses_props_alias_bracket_notation() {
         var result = _parser.Parse("props['correlationId'] IS NOT NULL");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_props_alias_dot_notation() {
+    public async Task parses_props_alias_dot_notation() {
         var result = _parser.Parse("props.amount > 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_properties_with_special_characters_in_key() {
+    public async Task parses_properties_with_special_characters_in_key() {
         var result = _parser.Parse("properties['order.total'] > 50");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -255,66 +256,66 @@ public class ExpressionFilterParserTests {
     #region Data Types
 
     [Test]
-    public void parses_string_literals() {
+    public async Task parses_string_literals() {
         var result = _parser.Parse("stream = 'orders'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_string_with_escaped_quote() {
+    public async Task parses_string_with_escaped_quote() {
         var result = _parser.Parse("properties.name = 'O\\'Reilly'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_integer_literals() {
+    public async Task parses_integer_literals() {
         var result = _parser.Parse("position = 42");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_negative_integer_literals() {
+    public async Task parses_negative_integer_literals() {
         var result = _parser.Parse("properties.offset = -10");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_decimal_literals() {
+    public async Task parses_decimal_literals() {
         var result = _parser.Parse("properties.rate = 99.99");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_datetime_iso8601() {
+    public async Task parses_datetime_iso8601() {
         var result = _parser.Parse("timestamp = '2024-01-15T10:30:00Z'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_datetime_with_timezone() {
+    public async Task parses_datetime_with_timezone() {
         var result = _parser.Parse("timestamp >= '2024-01-01T00:00:00+02:00'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_boolean_true() {
+    public async Task parses_boolean_true() {
         var result = _parser.Parse("properties.active = true");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_boolean_false() {
+    public async Task parses_boolean_false() {
         var result = _parser.Parse("properties.deleted = false");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -322,52 +323,52 @@ public class ExpressionFilterParserTests {
     #region Case Insensitivity
 
     [Test]
-    public void parses_lowercase_and_keyword() {
+    public async Task parses_lowercase_and_keyword() {
         var result = _parser.Parse("stream = 'orders' and schema_name = 'OrderCreated'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_lowercase_or_keyword() {
+    public async Task parses_lowercase_or_keyword() {
         var result = _parser.Parse("stream = 'orders' or stream = 'payments'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_lowercase_not_keyword() {
+    public async Task parses_lowercase_not_keyword() {
         var result = _parser.Parse("not (stream = 'test')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_lowercase_is_null() {
+    public async Task parses_lowercase_is_null() {
         var result = _parser.Parse("properties.key is null");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_lowercase_in() {
+    public async Task parses_lowercase_in() {
         var result = _parser.Parse("stream in ('orders', 'payments')");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_lowercase_between() {
+    public async Task parses_lowercase_between() {
         var result = _parser.Parse("position between 100 and 200");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_mixed_case_keywords() {
+    public async Task parses_mixed_case_keywords() {
         var result = _parser.Parse("stream = 'orders' And schema_name Like '%Event'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -375,17 +376,17 @@ public class ExpressionFilterParserTests {
     #region Operator Precedence
 
     [Test]
-    public void respects_and_over_or_precedence() {
+    public async Task respects_and_over_or_precedence() {
         var result = _parser.Parse("stream = 'a' OR stream = 'b' AND schema_name = 'c'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void respects_parentheses_over_precedence() {
+    public async Task respects_parentheses_over_precedence() {
         var result = _parser.Parse("(stream = 'a' OR stream = 'b') AND schema_name = 'c'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -393,7 +394,7 @@ public class ExpressionFilterParserTests {
     #region Complex Expressions
 
     [Test]
-    public void parses_complex_business_logic_expression() {
+    public async Task parses_complex_business_logic_expression() {
         var expression = @"
             stream = 'orders' AND
             properties.amount > 100 AND
@@ -404,21 +405,21 @@ public class ExpressionFilterParserTests {
 
         var result = _parser.Parse(expression);
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_multiple_or_conditions() {
+    public async Task parses_multiple_or_conditions() {
         var result = _parser.Parse("schema_name = 'A' OR schema_name = 'B' OR schema_name = 'C'");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     [Test]
-    public void parses_deeply_nested_expression() {
+    public async Task parses_deeply_nested_expression() {
         var result = _parser.Parse("((stream = 'a' AND schema_name = 'b') OR (stream = 'c' AND schema_name = 'd')) AND position > 100");
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
     }
 
     #endregion
@@ -426,90 +427,90 @@ public class ExpressionFilterParserTests {
     #region Error Cases
 
     [Test]
-    public void returns_error_for_empty_input() {
+    public async Task returns_error_for_empty_input() {
         var result = _parser.Parse("");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_whitespace_only_input() {
+    public async Task returns_error_for_whitespace_only_input() {
         var result = _parser.Parse("   ");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_missing_value() {
+    public async Task returns_error_for_missing_value() {
         var result = _parser.Parse("stream =");
 
-        result.IsFailure.ShouldBeTrue();
-        result.Error.ErrorMessage.ShouldContain("syntax error");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.ErrorMessage).Contains("syntax error");
     }
 
     [Test]
-    public void returns_error_for_missing_property() {
+    public async Task returns_error_for_missing_property() {
         var result = _parser.Parse("= 'orders'");
 
-        result.IsFailure.ShouldBeTrue();
-        result.Error.ErrorMessage.ShouldContain("syntax error");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.ErrorMessage).Contains("syntax error");
     }
 
     [Test]
-    public void returns_error_for_unclosed_string() {
+    public async Task returns_error_for_unclosed_string() {
         var result = _parser.Parse("stream = 'orders");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_unclosed_parenthesis() {
+    public async Task returns_error_for_unclosed_parenthesis() {
         var result = _parser.Parse("(stream = 'orders'");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_missing_and_operand() {
+    public async Task returns_error_for_missing_and_operand() {
         var result = _parser.Parse("stream = 'orders' AND");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_missing_or_operand() {
+    public async Task returns_error_for_missing_or_operand() {
         var result = _parser.Parse("stream = 'orders' OR");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_invalid_operator() {
+    public async Task returns_error_for_invalid_operator() {
         var result = _parser.Parse("stream === 'orders'");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_empty_in_list() {
+    public async Task returns_error_for_empty_in_list() {
         var result = _parser.Parse("stream IN ()");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_for_missing_between_and() {
+    public async Task returns_error_for_missing_between_and() {
         var result = _parser.Parse("position BETWEEN 100 200");
 
-        result.IsFailure.ShouldBeTrue();
+        await Assert.That(result.IsFailure).IsTrue();
     }
 
     [Test]
-    public void returns_error_with_near_token_information() {
+    public async Task returns_error_with_near_token_information() {
         var result = _parser.Parse("stream = 'orders' TOTALLY 'invalid'");
 
-        result.IsFailure.ShouldBeTrue();
-        result.Error.ErrorMessage.ShouldContain("TOTALLY");
+        await Assert.That(result.IsFailure).IsTrue();
+        await Assert.That(result.Error.ErrorMessage).Contains("TOTALLY");
     }
 
     #endregion
@@ -517,11 +518,204 @@ public class ExpressionFilterParserTests {
     #region Span Input
 
     [Test]
-    public void accepts_readonly_span_input() {
+    public async Task accepts_readonly_span_input() {
         ReadOnlySpan<char> input  = "stream = 'orders'";
         var                result = _parser.Parse(input);
 
-        result.IsSuccess.ShouldBeTrue();
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
+
+    #region Multi-Segment Dot Paths
+
+    [Test]
+    public async Task parses_two_segment_dot_path() {
+        var result = _parser.Parse("rec.stream = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_three_segment_dot_path() {
+        var result = _parser.Parse("rec.schema.name = 'OrderPlaced'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_position_stream_dot_path() {
+        var result = _parser.Parse("rec.position.stream = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_position_stream_revision_dot_path() {
+        var result = _parser.Parse("rec.position.streamRevision > 5");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_position_log_position_dot_path() {
+        var result = _parser.Parse("rec.position.logPosition > 1000");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_metadata_dot_path_as_property_key() {
+        var result = _parser.Parse("metadata.region = 'us-east'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
+
+    #region Column Aliases
+
+    [Test]
+    public async Task parses_event_type_alias() {
+        var result = _parser.Parse("event_type = 'OrderPlaced'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_event_number_alias() {
+        var result = _parser.Parse("event_number > 5");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_log_position_alias() {
+        var result = _parser.Parse("log_position > 1000");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_created_at_alias() {
+        var result = _parser.Parse("created_at >= '2026-01-01'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_created_ts_alias() {
+        var result = _parser.Parse("created_ts >= '2026-01-01'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_metadata_alias() {
+        var result = _parser.Parse("metadata.region = 'us-east'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_stream_name_alias() {
+        var result = _parser.Parse("stream_name = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
+
+    #region Field Prefix Stripping
+
+    [Test]
+    public async Task parses_field_stream_alias() {
+        var result = _parser.Parse("field_stream = 'orders-99'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_field_category_alias() {
+        var result = _parser.Parse("field_category = 'orders'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    [Test]
+    public async Task parses_field_schema_alias() {
+        var result = _parser.Parse("field_schema = 'OrderPlaced'");
+
+        await Assert.That(result.IsSuccess).IsTrue();
+    }
+
+    #endregion
+
+    #region LIKE Fast-Path Patterns
+
+    [Test]
+    public async Task like_prefix_pattern_matches() {
+        var expr   = _parser.Parse("stream LIKE 'orders-%'").Value;
+        var record = _faker.With(stream: "orders-123");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_prefix_pattern_rejects() {
+        var expr   = _parser.Parse("stream LIKE 'orders-%'").Value;
+        var record = _faker.With(stream: "users-123");
+        await Assert.That(expr.IsMatch(record)).IsFalse();
+    }
+
+    [Test]
+    public async Task like_suffix_pattern_matches() {
+        var expr   = _parser.Parse("stream LIKE '%-created'").Value;
+        var record = _faker.With(stream: "order-created");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_contains_pattern_matches() {
+        var expr   = _parser.Parse("schema LIKE '%User%'").Value;
+        var record = _faker.With(schemaName: "CreateUserV1");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_exact_pattern_matches() {
+        var expr   = _parser.Parse("stream LIKE 'orders-123'").Value;
+        var record = _faker.With(stream: "orders-123");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_exact_pattern_rejects() {
+        var expr   = _parser.Parse("stream LIKE 'orders-123'").Value;
+        var record = _faker.With(stream: "orders-456");
+        await Assert.That(expr.IsMatch(record)).IsFalse();
+    }
+
+    [Test]
+    public async Task like_matchall_pattern() {
+        var expr   = _parser.Parse("stream LIKE '%'").Value;
+        var record = _faker.With(stream: "anything-at-all");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task like_complex_underscore_pattern() {
+        var expr = _parser.Parse("stream LIKE 'order_123'").Value;
+        var hit  = _faker.With(stream: "orders123");
+        var miss = _faker.With(stream: "orderXX123");
+        await Assert.That(expr.IsMatch(hit)).IsTrue();
+        await Assert.That(expr.IsMatch(miss)).IsFalse();
+    }
+
+    [Test]
+    public async Task ilike_prefix_case_insensitive() {
+        var expr   = _parser.Parse("stream ILIKE 'ORDERS-%'").Value;
+        var record = _faker.With(stream: "orders-123");
+        await Assert.That(expr.IsMatch(record)).IsTrue();
     }
 
     #endregion

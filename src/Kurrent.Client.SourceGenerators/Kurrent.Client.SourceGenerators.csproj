@@ -1,11 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- override the default multi-targeting; source generators must target netstandard2.0 only -->
+    <TargetFrameworks />
     <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <IsRoslynComponent>true</IsRoslynComponent>
-    <Nullable>enable</Nullable>
-    <RootNamespace>Kurrent.Client.SourceGenerators</RootNamespace>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <!-- This ensures the project itself is treated as an analyzer package -->
     <DevelopmentDependency>true</DevelopmentDependency>
@@ -13,11 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Humanizer.Core"/>
-
-    <!-- Roslyn API for writing C# Source Generators -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="All" />
-    <!-- Analyzers package, often included with CSharp but good to be explicit -->
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="All" />
   </ItemGroup>
 </Project>

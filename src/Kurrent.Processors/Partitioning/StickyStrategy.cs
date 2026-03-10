@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Models;
 
 namespace Kurrent.Client.Processors.Partitioning;
 
@@ -93,7 +94,7 @@ public sealed class StickyStrategy : IDistributionStrategy {
         for (var i = 0; i < maxParallelism; i++) {
             var partition = Partition.From(i);
             if (!assignedPartitions.Contains(partition))
-                orphanedPartitions.Add((partition, WorkerId.None));
+                orphanedPartitions.Add((partition, WorkerId.Unset));
         }
 
         // Distribute orphaned partitions to least-loaded workers

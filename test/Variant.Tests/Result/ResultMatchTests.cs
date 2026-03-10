@@ -4,11 +4,12 @@ using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
 
+[Category("Variant")]
 public class ResultMatchTests {
     Faker Faker { get; } = new();
 
     [Test]
-    public void match_with_success_executes_success_handler() {
+    public async Task match_with_success_executes_success_handler() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -19,12 +20,12 @@ public class ResultMatchTests {
             mapError: err => $"Error: {err.Reason}");
 
         // Assert
-        output.ShouldStartWith("Success:");
-        output.ShouldContain(gameId.Value.ToString());
+        await Assert.That(output).StartsWith("Success:");
+        await Assert.That(output).Contains(gameId.Value.ToString());
     }
 
     [Test]
-    public void match_with_failure_executes_failure_handler() {
+    public async Task match_with_failure_executes_failure_handler() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Game over");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -35,12 +36,12 @@ public class ResultMatchTests {
             mapError: err => $"Error: {err.Reason}");
 
         // Assert
-        output.ShouldStartWith("Error:");
-        output.ShouldContain("Game over");
+        await Assert.That(output).StartsWith("Error:");
+        await Assert.That(output).Contains("Game over");
     }
 
     [Test]
-    public void match_with_success_does_not_execute_failure_handler() {
+    public async Task match_with_success_does_not_execute_failure_handler() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -55,12 +56,12 @@ public class ResultMatchTests {
             });
 
         // Assert
-        output.ShouldBe("Success");
-        failureHandlerExecuted.ShouldBeFalse();
+        await Assert.That(output).IsEqualTo("Success");
+        await Assert.That(failureHandlerExecuted).IsFalse();
     }
 
     [Test]
-    public void match_with_failure_does_not_execute_success_handler() {
+    public async Task match_with_failure_does_not_execute_success_handler() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -75,12 +76,12 @@ public class ResultMatchTests {
             mapError: err => "Failure");
 
         // Assert
-        output.ShouldBe("Failure");
-        successHandlerExecuted.ShouldBeFalse();
+        await Assert.That(output).IsEqualTo("Failure");
+        await Assert.That(successHandlerExecuted).IsFalse();
     }
 
     [Test]
-    public void match_transforms_to_different_type() {
+    public async Task match_transforms_to_different_type() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -91,12 +92,12 @@ public class ResultMatchTests {
             mapError: err => -1);
 
         // Assert
-        number.ShouldNotBe(-1);
-        number.ShouldBe(gameId.Value.GetHashCode());
+        await Assert.That(number).IsNotEqualTo(-1);
+        await Assert.That(number).IsEqualTo(gameId.Value.GetHashCode());
     }
 
     [Test]
-    public void match_can_return_same_type_for_both_branches() {
+    public async Task match_can_return_same_type_for_both_branches() {
         // Arrange
         var position = new Position(1, 2);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -107,11 +108,11 @@ public class ResultMatchTests {
             mapError: err => -1);
 
         // Assert
-        coordinate.ShouldBe(1);
+        await Assert.That(coordinate).IsEqualTo(1);
     }
 
     [Test]
-    public void match_with_state_executes_success_handler_with_provided_state() {
+    public async Task match_with_state_executes_success_handler_with_provided_state() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -124,12 +125,12 @@ public class ResultMatchTests {
             state: prefix);
 
         // Assert
-        output.ShouldStartWith(prefix);
-        output.ShouldContain(gameId.Value.ToString());
+        await Assert.That(output).StartsWith(prefix);
+        await Assert.That(output).Contains(gameId.Value.ToString());
     }
 
     [Test]
-    public void match_with_state_executes_failure_handler_with_provided_state() {
+    public async Task match_with_state_executes_failure_handler_with_provided_state() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "State error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -142,11 +143,11 @@ public class ResultMatchTests {
             state: multiplier);
 
         // Assert
-        output.ShouldBe(multiplier * -1);
+        await Assert.That(output).IsEqualTo(multiplier * -1);
     }
 
     [Test]
-    public void match_with_state_avoids_closure_allocation() {
+    public async Task match_with_state_avoids_closure_allocation() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -163,12 +164,12 @@ public class ResultMatchTests {
             state: stateValue);
 
         // Assert
-        capturedState.ShouldBe(stateValue);
-        output.ShouldBe(stateValue * 2);
+        await Assert.That(capturedState).IsEqualTo(stateValue);
+        await Assert.That(output).IsEqualTo(stateValue * 2);
     }
 
     [Test]
-    public async ValueTask match_async_with_success_executes_async_success_handler() {
+    public async Task match_async_with_success_executes_async_success_handler() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -185,11 +186,11 @@ public class ResultMatchTests {
             });
 
         // Assert
-        output.ShouldStartWith("Success:");
+        await Assert.That(output).StartsWith("Success:");
     }
 
     [Test]
-    public async ValueTask match_async_with_failure_executes_async_failure_handler() {
+    public async Task match_async_with_failure_executes_async_failure_handler() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Async error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
@@ -206,12 +207,12 @@ public class ResultMatchTests {
             });
 
         // Assert
-        output.ShouldStartWith("Error:");
-        output.ShouldContain("Async error");
+        await Assert.That(output).StartsWith("Error:");
+        await Assert.That(output).Contains("Async error");
     }
 
     [Test]
-    public async ValueTask match_async_with_success_does_not_execute_failure_handler() {
+    public async Task match_async_with_success_does_not_execute_failure_handler() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -230,12 +231,12 @@ public class ResultMatchTests {
             });
 
         // Assert
-        output.ShouldBe("Success");
-        failureHandlerExecuted.ShouldBeFalse();
+        await Assert.That(output).IsEqualTo("Success");
+        await Assert.That(failureHandlerExecuted).IsFalse();
     }
 
     [Test]
-    public async ValueTask match_async_with_state_executes_handler_with_provided_state() {
+    public async Task match_async_with_state_executes_handler_with_provided_state() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -254,11 +255,11 @@ public class ResultMatchTests {
             state: prefix);
 
         // Assert
-        output.ShouldStartWith(prefix);
+        await Assert.That(output).StartsWith(prefix);
     }
 
     [Test]
-    public async ValueTask match_async_chain_extension_awaits_task_then_matches() {
+    public async Task match_async_chain_extension_awaits_task_then_matches() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -270,11 +271,11 @@ public class ResultMatchTests {
             mapError: err => $"Error: {err.Reason}");
 
         // Assert
-        output.ShouldStartWith("Success:");
+        await Assert.That(output).StartsWith("Success:");
     }
 
     [Test]
-    public async ValueTask match_async_chain_extension_with_async_handlers_awaits_both() {
+    public async Task match_async_chain_extension_with_async_handlers_awaits_both() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -292,11 +293,11 @@ public class ResultMatchTests {
             });
 
         // Assert
-        output.ShouldStartWith("Success:");
+        await Assert.That(output).StartsWith("Success:");
     }
 
     [Test]
-    public async ValueTask match_async_chain_extension_with_state_passes_state_correctly() {
+    public async Task match_async_chain_extension_with_state_passes_state_correctly() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var resultTask = ValueTask.FromResult(
@@ -310,11 +311,11 @@ public class ResultMatchTests {
             state: multiplier);
 
         // Assert
-        output.ShouldBe(multiplier * gameId.Value.GetHashCode());
+        await Assert.That(output).IsEqualTo(multiplier * gameId.Value.GetHashCode());
     }
 
     [Test]
-    public async ValueTask match_async_chain_extension_with_async_state_handlers_works() {
+    public async Task match_async_chain_extension_with_async_state_handlers_works() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "State async");
         var resultTask = ValueTask.FromResult(
@@ -334,12 +335,12 @@ public class ResultMatchTests {
             state: prefix);
 
         // Assert
-        output.ShouldStartWith(prefix);
-        output.ShouldContain("State async");
+        await Assert.That(output).StartsWith(prefix);
+        await Assert.That(output).Contains("State async");
     }
 
     [Test]
-    public void match_can_be_used_for_pattern_matching_logic() {
+    public async Task match_can_be_used_for_pattern_matching_logic() {
         // Arrange
         var position = new Position(1, 1);
         var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
@@ -350,11 +351,11 @@ public class ResultMatchTests {
             mapError: err => false);
 
         // Assert
-        isCenter.ShouldBeTrue();
+        await Assert.That(isCenter).IsTrue();
     }
 
     [Test]
-    public void match_enables_exhaustive_handling() {
+    public async Task match_enables_exhaustive_handling() {
         // Arrange
         var gameId = new GameId(Faker.Random.Guid());
         var successResult = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
@@ -370,12 +371,12 @@ public class ResultMatchTests {
             mapError: err => "handled");
 
         // Assert
-        successOutput.ShouldBe("handled");
-        failureOutput.ShouldBe("handled");
+        await Assert.That(successOutput).IsEqualTo("handled");
+        await Assert.That(failureOutput).IsEqualTo("handled");
     }
 
     [Test]
-    public async ValueTask match_async_propagates_task_result() {
+    public async Task match_async_propagates_task_result() {
         // Arrange
         var error = new InvalidMoveError(Faker.Random.Guid(), "Task error");
         var resultTask = ValueTask.FromResult(
@@ -391,7 +392,7 @@ public class ResultMatchTests {
             mapError: err => $"Error: {err.Reason}");
 
         // Assert
-        output.ShouldStartWith("Error:");
-        successHandlerExecuted.ShouldBeFalse();
+        await Assert.That(output).StartsWith("Error:");
+        await Assert.That(successHandlerExecuted).IsFalse();
     }
 }

@@ -7,7 +7,6 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Processors.Gateway;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Schema;
 using KurrentDB.Protocol.V1.Streams;
@@ -17,7 +16,10 @@ using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;
@@ -33,11 +35,15 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
         var stoppingToken = cancellator.Token;
 
         var request = ProtocolMapping.Requests.CreateSubscriptionRequest(settings);
-        var session = StreamsClient.LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
 
-        Guid subscriptionId;
+        AsyncServerStreamingCall<ReadResp>? session;
+
+
+        var sessionId = SessionId.Unset;
 
         try {
+            session = StreamsClient.LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
+
             await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
 
             // determine the actual stream state when not found (v1 protocol quirk)
@@ -45,16 +51,16 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
 
                 var info = await StreamsClient.GetStreamInfo(stream, stoppingToken)
-                    .UnwrapAsync().ConfigureAwait(false);
+                    .ConfigureAwait(false);
 
                 throw info.State switch {
-                    StreamState.Missing => new StreamNotFoundException(stream),
+                    StreamState.Missing    => new StreamNotFoundException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
                     _ => throw new InvalidOperationException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };
             }
 
-            subscriptionId = session.ResponseStream.Current?.ContentCase is Confirmation
+            sessionId = session.ResponseStream.Current?.ContentCase is Confirmation
                 ? Guid.Parse(session.ResponseStream.Current!.Confirmation.SubscriptionId)
                 : throw new InvalidOperationException("Expected subscription confirmation as the first message from the server.");
         }
@@ -98,46 +104,40 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
         // Wrap in LegacyWorkerSession which handles batching internally
         // Session owns cancel (triggers pump exit), pump owns final dispose
         return new LegacyWorkerSession(
-            SessionId.From(subscriptionId),
-            channel,
-            settings,
-            HandleWorkerMessage,
-            cancellator
+            sessionId, channel, settings,
+            HandleWorkerMessage, cancellator
         );
 
         // Starts a relay that pumps messages from the gRPC stream into a channel.
-        // Returns a channel with unbatched raw messages (single Record | CheckpointBarrier).
+        // Returns a channel with unbatched raw messages (single Record | Checkpoint).
         Channel<LegacyGatewayMessage> StartRelay(
             AsyncServerStreamingCall<ReadResp> grpcSession,
             ProcessorSettings options,
             CancellationToken stoppingToken
         ) {
-            // Channel holds unbatched raw messages (single Record | CheckpointBarrier)
+            // Channel holds unbatched raw messages (single Record | Checkpoint)
             // SingleWriter = false: pump + timer both write
             var channel = Channel.CreateBounded<LegacyGatewayMessage>(
-                new BoundedChannelOptions(options.BufferCapacity) {
+                new BoundedChannelOptions(options.Worker.BufferCapacity) {
                     FullMode     = BoundedChannelFullMode.Wait,
                     SingleReader = true,
                     SingleWriter = false
                 }
             );
 
-            // Shared state for timer to read last position
-            var lastPosition = RecordPosition.Unset;
-
             // start pumping messages
             _ = Task.Run(PumpPump, stoppingToken);
 
-            // Start interval barrier timer
-            if (options.Checkpoint.Interval > 0)
-                _ = Task.Run(BarrierTimerAsync, stoppingToken);
+            // start checkpoint timer
+            _ = Task.Run(CheckpointTimerAsync, stoppingToken);
 
             return channel;
 
             [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
             async ValueTask PumpPump() {
-                SequenceGenerator sequencer = new();
-                //var recordsSinceBarrier = 0;
+                var recordFilter = options.Subscription.Filter;
+
+                SequenceGenerator sequencer = new(); // remove this.
 
                 try {
                     // must continue from the freaking cursor because we had to try to read
@@ -150,75 +150,54 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                         LegacyGatewayMessage message;
 
                         switch (resp?.ContentCase) {
-                            case Checkpoint:
-                                message = resp.Checkpoint.MapToBarrier(sequencer.FetchNext());
-                               // recordsSinceBarrier = 0; // Reset counter on server barrier
+                            case ReadResp.ContentOneofCase.Checkpoint:
+                                message = resp.Checkpoint.MapToCheckpoint(sequencer.FetchNext());
                                 break;
 
                             case CaughtUp:
-                                message = resp.CaughtUp.MapToBarrier(sequencer.FetchNext());
-                               // recordsSinceBarrier = 0; // Reset counter on server barrier
+                                message = resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
                                 break;
 
                             case Event:
-                                // Slow path: requires async
+                                // Slow path: requires async for metadata decoding at least
                                 var record = await resp.Event.MapToRecordAsync(
                                     sequencer.FetchNext(),
                                     SerializerProvider, MetadataDecoder,
                                     SchemaRegistryPolicy.NoRequirements,
-                                    options.SkipDecoding,
+                                    options.Worker.SkipDecoding,
                                     stoppingToken
                                 ).ConfigureAwait(false);
 
-                                // Calculate partition using PartitionCalculator (simulating server behavior)
-                                // The real server would determine partition before sending to worker
-                                var partition = PartitionCalculator.Default.For(record.Stream, options.MaxParallelism);
+                                // calculate partition mimicking server behavior
+                                // next: in v2 the partition will be sent with the new record
+                                var partition = PartitionCalculator.XXHash
+                                    .Calculate(record.Stream, options.MaxParallelism);
 
-                                // Set partition on the record's FullPosition using `with` expression
+                                // set partition on the record's FullPosition using `with` expression
                                 message = record with {
                                     Position = record.Position with {
                                         Partition = Partition.From(partition)
                                     }
                                 };
 
-                                break;
+                                if (recordFilter.IsMatch(record))
+                                    break;
+                                else
+                                    continue;
 
-                            case None:
-                            case FirstStreamPosition:
-                            case LastStreamPosition:
-                            case LastAllStreamPosition:
-                            case null:
-                                continue;
-
+                            // Skip everything else
+                            // FellBehind, FirstStreamPosition, LastStreamPosition, LastAllStreamPosition, None and null
                             default:
-                                continue; // Skip confirmation or irrelevant, no allocation
+                                continue;
                         }
 
-                        // apply client-side filter if present
-                        if (message.IsRecord && !options.Subscription.Filter.IsMatch(message.AsRecord))
-                            continue;
+                        // // apply client-side filter if present
+                        // if (message.IsRecord && !recordFilter.IsMatch(message.AsRecord))
+                        //     continue;
 
-                        await channel.Writer.WriteAsync(message, stoppingToken).ConfigureAwait(false);
-
-                        // Update shared position for timer and check threshold
-                        if (message.IsRecord) {
-                            var recordPosition = message.AsRecord.Position;
-                            lastPosition = recordPosition;
-                           // recordsSinceBarrier++;
-
-                            // // Threshold barrier check
-                            // if (options.Checkpoint.Threshold > 0 &&
-                            //     recordsSinceBarrier >= options.Checkpoint.Threshold) {
-                            //
-                            //     var barrier = new CheckpointBarrier(
-                            //         recordPosition,
-                            //         CheckpointBarrierTrigger.Threshold,
-                            //         Time.GetUtcNow()
-                            //     );
-                            //     await channel.Writer.WriteAsync(barrier, stoppingToken).ConfigureAwait(false);
-                            //     recordsSinceBarrier = 0;
-                            // }
-                        }
+                        await channel.Writer
+                            .WriteAsync(message, stoppingToken)
+                            .ConfigureAwait(false);
 
                     } while (await grpcSession.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false));
 
@@ -227,6 +206,7 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                 // if we are to use the ShutdownReason.Cancelled path, we must not swallow RpcException cancellations
                 // and we must convert them to OperationCanceledExceptions
                 catch (RpcException rex) when (rex.StatusCode == StatusCode.Cancelled) {
+                    // channel.Writer.TryComplete(new OperationCanceledException(rex.Message));
                     channel.Writer.TryComplete();
                 }
                 // if we are to use the ShutdownReason.Cancelled path, we must not swallow OperationCanceledExceptions
@@ -234,30 +214,32 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
                     channel.Writer.TryComplete();
                 }
                 catch (Exception ex) {
-                    channel.Writer.TryComplete(ex);
+                    channel.Writer.TryComplete(ex.ToException());
                 }
                 finally {
                     grpcSession.Dispose();
                 }
             }
 
-            async ValueTask BarrierTimerAsync() {
+            async ValueTask CheckpointTimerAsync() {
+                var clock = new HybridLogicalClock(Time);
+
                 using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(options.Checkpoint.Interval));
 
                 try {
                     while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false)) {
-                        // Skip barrier if no records have been processed yet
-                        // This prevents empty checkpoints during startup
-                        if (lastPosition.IsUnset)
-                            continue;
 
-                        var barrier = new CheckpointBarrier(
-                            BarrierId.New(),
-                            CheckpointBarrierTrigger.Interval,
-                            Time.GetUtcNow()
+                        var now = clock.Now();
+
+                        var checkpoint = new Checkpoint(
+                            CheckpointId.From(now),
+                            CheckpointTrigger.Interval,
+                            now.DateTimeOffset // interesting right? -_-'
                         );
 
-                        await channel.Writer.WriteAsync(barrier, stoppingToken).ConfigureAwait(false);
+                        await channel.Writer
+                            .WriteAsync(checkpoint, stoppingToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException) {
@@ -274,17 +256,12 @@ public class LegacyGateway : ClientModuleBase, IProcessorGateway {
         // TODO: we should log on all these messages.
 
         return message.SwitchAsync(
-            onConnect: _ => ValueTask.CompletedTask,
-            onWorkerReady: _ => ValueTask.CompletedTask,
+            onConnect:            _ => ValueTask.CompletedTask,
+            onWorkerReady:        _ => ValueTask.CompletedTask,
             onCheckpointComplete: _ => ValueTask.CompletedTask,
-            onDisconnect: _ => ValueTask.CompletedTask
+            onDisconnect:         _ => ValueTask.CompletedTask
         );
-    }
-
-    public ValueTask DisposeAsync() {
-        // Nothing to dispose
-        return ValueTask.CompletedTask;
     }
 }
 
-readonly partial record struct LegacyGatewayMessage : IVariant<Record, CheckpointBarrier>;
+readonly partial record struct LegacyGatewayMessage : IVariant<Record, Checkpoint>;

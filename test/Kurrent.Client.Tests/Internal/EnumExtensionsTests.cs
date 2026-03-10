@@ -4,35 +4,35 @@ namespace Kurrent.Client.Tests.Internal;
 
 public class EnumExtensionsTests {
     [Test]
-    public void returns_description_when_attribute_exists() {
-        TestEnum.First.Description.ShouldBe("First Value");
-        TestEnum.Third.Description.ShouldBe("Third Value");
+    public async Task returns_description_when_attribute_exists() {
+        await Assert.That(TestEnum.First.Description).IsEqualTo("First Value");
+        await Assert.That(TestEnum.Third.Description).IsEqualTo("Third Value");
     }
 
     [Test]
-    public void returns_enum_name_when_description_attribute_missing() {
-        TestEnum.Second.Description.ShouldBe("Second");
+    public async Task returns_enum_name_when_description_attribute_missing() {
+        await Assert.That(TestEnum.Second.Description).IsEqualTo("Second");
     }
 
     [Test]
-    public void returns_cached_result_for_repeated_calls() {
+    public async Task returns_cached_result_for_repeated_calls() {
         var firstCall  = TestEnum.First.Description;
         var secondCall = TestEnum.First.Description;
 
-        firstCall.ShouldBe(secondCall);
-        firstCall.ShouldBe("First Value");
+        await Assert.That(firstCall).IsEqualTo(secondCall);
+        await Assert.That(firstCall).IsEqualTo("First Value");
     }
 
     [Test]
-    public void handles_different_enum_types_correctly() {
-        TestEnum.First.Description.ShouldBe("First Value");
-        KurrentConnectionScheme.Direct.Description.ShouldBe("kurrentdb");
+    public async Task handles_different_enum_types_correctly() {
+        await Assert.That(TestEnum.First.Description).IsEqualTo("First Value");
+        await Assert.That(KurrentConnectionScheme.Direct.Description).IsEqualTo("kurrentdb");
     }
 
     [Test]
-    public void returns_correct_descriptions_for_connection_scheme_type() {
-        KurrentConnectionScheme.Direct.Description.ShouldBe("kurrentdb");
-        KurrentConnectionScheme.Discover.Description.ShouldBe("kurrentdb+discover");
+    public async Task returns_correct_descriptions_for_connection_scheme_type() {
+        await Assert.That(KurrentConnectionScheme.Direct.Description).IsEqualTo("kurrentdb");
+        await Assert.That(KurrentConnectionScheme.Discover.Description).IsEqualTo("kurrentdb+discover");
     }
 
     // Test enums for verification

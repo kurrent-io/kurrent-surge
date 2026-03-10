@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <RootNamespace>Kurrent.Variant.Tests</RootNamespace>
+    <AssemblyName>Kurrent.Variant.Tests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Include="Bogus" />
-    <Using Include="Shouldly" />
+
     <Using Include="TUnit" />
   </ItemGroup>
 
@@ -13,7 +14,7 @@
     <PackageReference Include="Bogus" />
     <PackageReference Include="Microsoft.CodeAnalysis.Common" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="All" />
-    <PackageReference Include="Shouldly" />
+
     <PackageReference Include="TUnit" />
   </ItemGroup>
 
@@ -26,6 +27,8 @@
     <!--    <ProjectReference Include="..\..\src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />-->
 
     <ProjectReference Include="..\..\src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+
+    <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
