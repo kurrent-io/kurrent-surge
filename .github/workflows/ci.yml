@@ -41,28 +41,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache .NET SDKs
-        id: dotnet-cache
+      - name: Cache .NET SDKs and NuGet packages
+        id: cache
         uses: actions/cache@v4
         with:
-          path: ${{ runner.tool_cache }}/dotnet
-          key: dotnet-sdk-${{ runner.os }}-8-9-10
+          path: |
+            /usr/share/dotnet
+            ~/.nuget/packages
+          key: dotnet-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+          save-always: true
 
       - name: Setup .NET
-        if: steps.dotnet-cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/setup-dotnet@v5.2.0
         with:
           dotnet-version: |
             8.x
             9.x
             10.x
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
-          restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore tools
         run: dotnet tool restore

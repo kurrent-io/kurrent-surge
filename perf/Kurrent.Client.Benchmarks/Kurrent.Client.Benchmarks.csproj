@@ -5,7 +5,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>false</IsTestProject>
     <!-- https://github.com/dotnet/sdk/issues/51873 — MTP ignores IsTestProject=false -->
-    <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
     <RootNamespace>Benchmarks</RootNamespace>
   </PropertyGroup>
 
