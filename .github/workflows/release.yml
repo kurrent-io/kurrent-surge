@@ -19,10 +19,6 @@ on:
         default: false
 
 env:
-  DOTNET_NOLOGO: true
-  DOTNET_CLI_TELEMETRY_OPTOUT: true
-
-  NuGetAudit: false
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
 
   MinVerDefaultPreReleaseIdentifiers: ${{ github.event_name == 'pull_request' && format('pr.{0}.{1}', github.event.pull_request.number, github.run_number) || format('alpha.{0}', github.run_number) }}
@@ -58,20 +54,13 @@ jobs:
           git tag "v${{ inputs.version }}"
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5.2.0
+        uses: ./.github/actions/setup-dotnet
         with:
           dotnet-version: |
             8.x
             9.x
             10.x
-          cache: true
-          cache-dependency-path: '**/packages.lock.json'
-
-      - name: Restore tools
-        run: dotnet tool restore
-
-      - name: Restore
-        run: dotnet restore --locked-mode
+          locked-mode: 'true'
 
       - name: Build
         run: dotnet build -c Release --no-restore

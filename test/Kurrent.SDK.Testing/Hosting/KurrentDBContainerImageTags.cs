@@ -8,13 +8,17 @@ public static class KurrentDBContainerImageTags {
         public const string Tag   = "latest";
     }
 
-    public static class LTS {
-        public const string Image = "kurrent-lts/kurrentdb";
-        public const string Tag   = "latest";
-    }
-
-    public static class Preview {
-        public const string Image = "kurrent-preview/kurrentdb";
-        public const string Tag   = "latest";
+    public static class Staging {
+        public const string Image = "kurrent-staging/kurrentdb";
+        public const string Tag   = "ci";
     }
 }
+
+// {
+// "ci": {
+//     "tag": "ci",
+//     "image": "kurrentdb",
+//     "registry": "docker.kurrent.io/kurrent-staging",
+//     "fullname": "docker.kurrent.io/kurrent-staging/kurrentdb:ci"
+// }
+// }
