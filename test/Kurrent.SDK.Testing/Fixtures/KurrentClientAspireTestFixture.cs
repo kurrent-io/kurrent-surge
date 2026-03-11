@@ -4,6 +4,7 @@ using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
 using Kurrent.Client.Streams;
+using Kurrent.Testing;
 using Kurrent.Testing.Bogus;
 using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.DependencyInjection;

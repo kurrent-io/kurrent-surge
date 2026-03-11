@@ -5,8 +5,13 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <IsAspireHost>false</IsAspireHost>
     <NoWarn>$(NoWarn);ASPIRE002</NoWarn>
-    <!-- Aspire SDK pulls platform-specific packages (e.g. Aspire.Dashboard.Sdk.linux-x64 vs osx-x64),
-         making the lock file non-portable across dev machines and CI. -->
+    <!--
+      OS dependent packages update package.lock.json #6184
+      https://github.com/dotnet/aspire/issues/6184
+
+      Aspire SDK pulls platform-specific packages (e.g. Aspire.Dashboard.Sdk.linux-x64 vs osx-x64),
+      making the lock file non-portable across dev machines and CI.
+    -->
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
