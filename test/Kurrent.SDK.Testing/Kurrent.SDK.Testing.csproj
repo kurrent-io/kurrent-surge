@@ -5,6 +5,9 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <IsAspireHost>false</IsAspireHost>
     <NoWarn>$(NoWarn);ASPIRE002</NoWarn>
+    <!-- Aspire SDK pulls platform-specific packages (e.g. Aspire.Dashboard.Sdk.linux-x64 vs osx-x64),
+         making the lock file non-portable across dev machines and CI. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>
