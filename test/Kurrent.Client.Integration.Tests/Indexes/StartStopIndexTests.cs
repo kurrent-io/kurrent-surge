@@ -1,7 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -14,7 +13,7 @@ public class StartStopIndexTests {
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task stops_and_starts_an_index(CancellationToken ct) {
+    public async ValueTask stops_and_starts_an_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -22,50 +21,39 @@ public class StartStopIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, start: true, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, start: true, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .Stop(indexName, ct)
-            .ShouldNotThrowOrFailAsync();
+        await Fixture.Client.Indexes.Stop(indexName, ct);
 
-        await Fixture.Client.Indexes
-            .Get(indexName, ct)
-            .ShouldNotThrowOrFailAsync(index =>
-                index.State.ShouldBe(IndexState.Stopped));
+        var stopped = await Fixture.Client.Indexes.Get(indexName, ct);
+        await Assert.That(stopped.State).IsEqualTo(IndexState.Stopped);
 
-        await Fixture.Client.Indexes
-            .Start(indexName, ct)
-            .ShouldNotThrowOrFailAsync();
+        await Fixture.Client.Indexes.Start(indexName, ct);
 
-        await Fixture.Client.Indexes
-            .Get(indexName, ct)
-            .ShouldNotThrowOrFailAsync(index =>
-                index.State.ShouldBe(IndexState.Started));
+        var started = await Fixture.Client.Indexes.Get(indexName, ct);
+        await Assert.That(started.State).IsEqualTo(IndexState.Started);
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task fails_to_start_nonexistent_index(CancellationToken ct) {
+    public async ValueTask fails_to_start_nonexistent_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
-        await Fixture.Client.Indexes
-            .Start(indexName, ct)
-            .ShouldFailAsync(error =>
-                error.Value.ShouldBeOfType<NotFoundException>());
+        await Assert.That(async () => await Fixture.Client.Indexes
+            .Start(indexName, ct))
+            .Throws<NotFoundException>();
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task fails_to_stop_nonexistent_index(CancellationToken ct) {
+    public async ValueTask fails_to_stop_nonexistent_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
-        await Fixture.Client.Indexes
-            .Stop(indexName, ct)
-            .ShouldFailAsync(error =>
-                error.Value.ShouldBeOfType<NotFoundException>());
+        await Assert.That(async () => await Fixture.Client.Indexes
+            .Stop(indexName, ct))
+            .Throws<NotFoundException>();
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task creates_index_without_starting(CancellationToken ct) {
+    public async ValueTask creates_index_without_starting(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -73,12 +61,9 @@ public class StartStopIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'MetricRecorded'", fields, start: false, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'MetricRecorded'", fields, start: false, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .Get(indexName, ct)
-            .ShouldNotThrowOrFailAsync(index =>
-                index.State.ShouldBe(IndexState.Stopped));
+        var index = await Fixture.Client.Indexes.Get(indexName, ct);
+        await Assert.That(index.State).IsEqualTo(IndexState.Stopped);
     }
 }

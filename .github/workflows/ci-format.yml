@@ -1,6 +1,7 @@
-name: Check Formatting
+name: Check -- Code Format
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
 

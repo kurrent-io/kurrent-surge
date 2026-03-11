@@ -1,7 +1,8 @@
-name: Benchmarks
+name: Run Benchmarks
 
 on:
   workflow_dispatch:
+  merge_group:
   push:
     branches:
       - main
@@ -35,13 +36,8 @@ jobs:
         uses: actions/setup-dotnet@v5.2.0
         with:
           dotnet-version: 10.0.x
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
-          restore-keys: ${{ runner.os }}-nuget-
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore
         run: dotnet restore
@@ -51,16 +47,34 @@ jobs:
 
       - name: Run benchmarks
         run: >-
-          dotnet run --project perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj
-          --configuration Release --no-build --framework net10.0
-          -- --artifacts ./artifacts/benchmarks
+          dotnet run -c Release --no-build --framework net10.0 --project perf/Kurrent.Client.Benchmarks/ --
+          --artifacts ./artifacts/benchmarks
+          --exporters json github
+          --filter "*"
 
-      - name: Generate benchmark report
+      - name: Generate report
         run: >-
           dotnet run tools/benchmark-report.cs --
           --input ./artifacts/benchmarks
           --output ./artifacts/benchmarks/report.html
-          --summary-json ./artifacts/benchmarks/summary.json
+
+      - name: Write summary
+        run: |
+          echo "## Benchmark Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          for report in ./artifacts/benchmarks/results/*-report-github.md; do
+            if [ -f "$report" ]; then
+              echo "### $(basename "$report" | sed 's/-report-github.md//')" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              cat "$report" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "---" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+          echo "Download the full benchmark results from artifacts for the HTML report." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v7.0.0

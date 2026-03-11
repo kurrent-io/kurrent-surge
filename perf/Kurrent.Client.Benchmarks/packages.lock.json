@@ -238,19 +238,6 @@
           "YamlDotNet": "16.3.0"
         }
       },
-      "KurrentDB.Client": {
-        "type": "Transitive",
-        "resolved": "1.2.0",
-        "contentHash": "YANfNu9gNccpT9qDMvYseHXAKSkrKenQRf7c2iq6mIVeJVEsX0vso9lXOPpN27lDVRcA03keae/zRx9grldT3A==",
-        "dependencies": {
-          "Google.Api.CommonProtos": "2.16.0",
-          "Google.Protobuf": "3.32.1",
-          "Grpc.Net.Client": "2.67.0",
-          "Grpc.StatusProto": "2.71.0",
-          "Microsoft.Extensions.Logging": "9.0.0",
-          "OpenTelemetry.Api": "1.12.0"
-        }
-      },
       "MessagePack": {
         "type": "Transitive",
         "resolved": "2.5.192",
@@ -813,11 +800,10 @@
       "kurrent.client.integration.tests": {
         "type": "Project",
         "dependencies": {
-          "Aspire.Hosting.Testing": "[13.1.2, )",
           "FakeItEasy": "[9.0.1, )",
           "Kurrent.Client": "[1.0.0, )",
+          "Kurrent.SDK.Testing": "[1.0.0, )",
           "Kurrent.Testing": "[1.0.0, )",
-          "Kurrent.Testing.Aspire": "[1.0.0, )",
           "Kurrent.Testing.Datasets": "[1.0.0, )",
           "NodaTime.Testing": "[3.3.0, )",
           "TUnit": "[0.90.45, )"
@@ -835,6 +821,19 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.2, )",
           "TUnit": "[0.90.45, )",
           "Transfermarkt.Domain": "[1.0.0, )"
+        }
+      },
+      "kurrent.sdk.testing": {
+        "type": "Project",
+        "dependencies": {
+          "Aspire.Dashboard.Sdk.osx-arm64": "[13.1.2, )",
+          "Aspire.Hosting.AppHost": "[13.1.2, )",
+          "Aspire.Hosting.Orchestration.osx-arm64": "[13.1.2, )",
+          "Aspire.Hosting.Testing": "[13.1.2, )",
+          "Kurrent.Client": "[1.0.0, )",
+          "Kurrent.Testing": "[1.0.0, )",
+          "Kurrent.Testing.Datasets": "[1.0.0, )",
+          "TUnit": "[0.90.45, )"
         }
       },
       "kurrent.testing": {
@@ -871,15 +870,6 @@
           "Serilog.Sinks.Seq": "[9.0.0, )",
           "System.Reactive": "[6.1.0, )",
           "TUnit": "[0.90.45, )"
-        }
-      },
-      "kurrent.testing.aspire": {
-        "type": "Project",
-        "dependencies": {
-          "Aspire.Dashboard.Sdk.osx-arm64": "[13.1.2, )",
-          "Aspire.Hosting.AppHost": "[13.1.2, )",
-          "Aspire.Hosting.Orchestration.osx-arm64": "[13.1.2, )",
-          "CommunityToolkit.Aspire.Hosting.KurrentDB": "[13.1.1, )"
         }
       },
       "kurrent.testing.datasets": {
@@ -971,16 +961,6 @@
         "requested": "[35.6.5, )",
         "resolved": "35.6.5",
         "contentHash": "2FGZn+aAVHjmCgClgmGkTDBVZk0zkLvAKGaxEf5JL6b3i9JbHTE4wnuY4vHCuzlCmJdU6VZjgDfHwmYkQF8VAA=="
-      },
-      "CommunityToolkit.Aspire.Hosting.KurrentDB": {
-        "type": "CentralTransitive",
-        "requested": "[13.1.1, )",
-        "resolved": "13.1.1",
-        "contentHash": "Vbdl07NseLpqU0IhLODCCqaR7vOD9dQedb00KnWvdU+wzgsva+TsiwvCUHVqkLDgxbeQLqDZTuIPEqjtAbHPNQ==",
-        "dependencies": {
-          "Aspire.Hosting": "13.1.0",
-          "KurrentDB.Client": "1.2.0"
-        }
       },
       "DiffEngine": {
         "type": "CentralTransitive",
@@ -1313,12 +1293,6 @@
         "dependencies": {
           "NodaTime": "3.3.0"
         }
-      },
-      "OpenTelemetry.Api": {
-        "type": "CentralTransitive",
-        "requested": "[1.15.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "Xt0qldi+iE2szGrM3jAqzEMEJd48YBtqI6mge0+ArXTZg3aTpRmyhL6CKKl3bLioaFSSVbBpEbPin8u6Z46Yrw=="
       },
       "Polly": {
         "type": "CentralTransitive",

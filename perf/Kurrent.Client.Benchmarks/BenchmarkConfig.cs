@@ -23,8 +23,7 @@ public class BenchmarkConfig : ManualConfig {
             .WithIterationCount(5));
 
         AddExporter(MarkdownExporter.GitHub);
-        AddExporter(HtmlExporter.Default);
-        AddExporter(JsonExporter.Full);
+        AddExporter(JsonExporter.FullCompressed);
 
         WithSummaryStyle(SummaryStyle.Default.WithMaxParameterColumnWidth(50));
     }

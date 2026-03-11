@@ -15,7 +15,7 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
 
     static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";
 
-    public KurrentDBTestContainer(Dictionary<string, string?> settings) : base(DefaultImage) {
+    public KurrentDBTestContainer(Dictionary<string, string?> settings, string? image = null) : base(image ?? DefaultImage) {
         ActiveConfiguration = KurrentDBConfiguration.FromContext(settings).ToDictionary();
 
         IsSecure = ActiveConfiguration.TryGetValue("KURRENTDB_INSECURE", out var value) && value == "false";
@@ -31,7 +31,8 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
         }
     }
 
-    public KurrentDBTestContainer() : this(KurrentDBConfiguration.Insecure.ToDictionary()) { }
+    public KurrentDBTestContainer(string? image = null)
+        : this(KurrentDBConfiguration.Insecure.ToDictionary(), image) { }
 
     public Dictionary<string, string?> ActiveConfiguration { get; }
 
@@ -80,62 +81,6 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
     public async Task InitializeAsync() => await Start().ConfigureAwait(false);
 }
 
-
-// [PublicAPI]
-// public class KurrentDBTestContainer : TestContainer {
-//     public const int    DefaultPort     = 2113;
-//     public const string DefaultUsername = "admin";
-//     public const string DefaultPassword = "changeit";
-//
-//     static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";
-//
-//     public KurrentDBTestContainer(Dictionary<string, string?> settings) : base(DefaultImage) {
-//         ActiveConfiguration = KurrentDBConfiguration.FromContext(settings).ToDictionary();
-//
-//         IsSecure = ActiveConfiguration.TryGetValue("KURRENTDB_INSECURE", out var value) && value == "false";
-//
-//         // TODO SS: these connection strings need a cleanup
-//         if (IsSecure) {
-//             AuthenticatedConnectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=true&tlsVerifyCert=false";
-//             AnonymousConnectionString     = "kurrentdb://localhost:2113/?tls=true&tlsVerifyCert=false";
-//         }
-//         else {
-//             AuthenticatedConnectionString = "kurrentdb://admin:changeit@localhost:2113/?tls=false";
-//             AnonymousConnectionString     = "kurrentdb://localhost:2113/?tls=false";
-//         }
-//     }
-//
-//     public KurrentDBTestContainer(bool insecure = true)
-//         : this(insecure ? KurrentDBConfiguration.Insecure.ToDictionary() : KurrentDBConfiguration.Secure.ToDictionary()) { }
-//
-//     public Dictionary<string, string?> ActiveConfiguration           { get; }
-//     public string                      AuthenticatedConnectionString { get; }
-//     public string                      AnonymousConnectionString     { get; }
-//
-//     public bool IsSecure { get; }
-//
-//     protected override ContainerBuilder ConfigureContainer(ContainerBuilder builder) {
-//         var healthCheckCommand = IsSecure
-//             ? "curl -u admin:changeit --cacert /etc/kurrentdb/certs/ca/ca.crt https://localhost:2113/health/live"
-//             : "curl -o - -I http://admin:changeit@localhost:2113/health/live";
-//
-//         if (IsSecure) {
-//             var certsPath = Path.Combine(Environment.CurrentDirectory, "certs");
-//             CertificatesManager.CheckCertificates(certsPath); builder = builder.MountVolume(certsPath, "/etc/kurrentdb/certs", MountType.ReadOnly);
-//         }
-//
-//         return builder
-//             .WithPublicEndpointResolver()
-//             .WithEnvironment(ActiveConfiguration)
-//             .ExposePort(DefaultPort, DefaultPort)
-//             .KeepContainer().KeepRunning().ReuseIfExists()
-//             .WaitUntilReadyWithConstantBackoff(1_000, 60, service => {
-//                 var output = service.ExecuteCommand(healthCheckCommand);
-//                 if (!output.Success) throw new Exception(output.Error);
-//             });
-//     }
-// }
-
 public static class KurrentDBConfiguration {
     /// <summary>
     /// Default insecure configuration for KurrentDB.
@@ -153,7 +98,7 @@ public static class KurrentDBConfiguration {
         ["KURRENTDB_INSECURE"]                   = "true",
         ["KURRENTDB_USER_CERTIFICATES__ENABLED"] = "false",
 
-        ["OTEL_LOG_LEVEL"]                           = "debug",
+        ["OTEL_LOG_LEVEL"]                       = "debug",
 
         // TODO: Need License key environment variable
         // ["KURRENTDB__OPENTELEMETRY__LOGS__ENABLED"]  = "true",

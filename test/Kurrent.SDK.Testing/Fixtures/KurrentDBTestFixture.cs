@@ -1,0 +1,57 @@
+using Kurrent.Client;
+using Kurrent.Client.Streams;
+using Kurrent.SDK.Testing.Hosting;
+using Kurrent.Testing;
+using Kurrent.Testing.Bogus;
+using Kurrent.Testing.TUnit;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
+using TUnit.Core.Interfaces;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
+
+namespace Kurrent.SDK.Testing.Fixtures;
+
+public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
+    KurrentDBTestCluster? _cluster;
+
+    [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
+    public required BogusFaker Faker { get; [UsedImplicitly] init; }
+
+    public ILogger Logger => TestContext.CurrrentLogger;
+
+    public ILoggerFactory LoggerFactory => TestContext.CurrentLoggerFactory;
+
+    public FakeTimeProvider Time { get; } = new();
+
+    public KurrentClient Client { get; private set; } = null!;
+
+    public string ConnectionString { get; private set; } = string.Empty;
+
+    public string AnonymousConnectionString { get; private set; } = string.Empty;
+
+    public async ValueTask DisposeAsync() {
+        if (Client is not null)
+            await Client.DisposeAsync();
+
+        if (_cluster is not null)
+            await _cluster.DisposeAsync();
+    }
+
+    public async Task InitializeAsync() {
+        _cluster = await new KurrentDBTestClusterBuilder()
+            .AddNode()
+            .BuildAsync();
+
+        ConnectionString          = _cluster.AuthenticatedConnectionString;
+        AnonymousConnectionString = _cluster.AnonymousConnectionString;
+
+        Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
+            .WithLoggerFactory(new TestkitLoggerFactory())
+            .ConfigureSchema(schema => schema
+                                 .WithValidation(false)
+                                 .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata"))
+            )
+            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
+            .CreateClient();
+    }
+}

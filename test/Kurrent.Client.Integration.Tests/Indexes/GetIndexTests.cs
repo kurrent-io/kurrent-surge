@@ -1,7 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -14,7 +13,7 @@ public class GetIndexTests {
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task gets_existing_index(CancellationToken ct) {
+    public async ValueTask gets_existing_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -22,27 +21,23 @@ public class GetIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'ProductCreated'", fields, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'ProductCreated'", fields, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .Get(indexName, ct)
-            .ShouldNotThrowOrFailAsync(index => {
-                index.Name.ShouldBe(indexName);
-                index.Filter.ShouldBe("rec => rec.schema.name == 'ProductCreated'");
-                index.Fields.Count.ShouldBe(1);
-                index.Fields[0].Name.ShouldBe("price");
-                index.Fields[0].Type.ShouldBe(IndexFieldType.Int64);
-            });
+        var index = await Fixture.Client.Indexes.Get(indexName, ct);
+
+        await Assert.That(index.Name).IsEqualTo(indexName);
+        await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'ProductCreated'");
+        await Assert.That(index.Fields).HasCount().EqualTo(1);
+        await Assert.That(index.Fields[0].Name).IsEqualTo("price");
+        await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Int64);
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task fails_to_get_nonexistent_index(CancellationToken ct) {
+    public async ValueTask fails_to_get_nonexistent_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
-        await Fixture.Client.Indexes
-            .Get(indexName, ct)
-            .ShouldFailAsync(error =>
-                error.Value.ShouldBeOfType<NotFoundException>());
+        await Assert.That(async () => await Fixture.Client.Indexes
+            .Get(indexName, ct))
+            .Throws<NotFoundException>();
     }
 }

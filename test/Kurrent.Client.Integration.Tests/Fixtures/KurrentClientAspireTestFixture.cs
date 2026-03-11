@@ -32,8 +32,9 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
     public string ConnectionString { get; private set; } = string.Empty;
 
     public async Task InitializeAsync() {
-        var builder = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.Kurrent_Testing_Aspire>();
+        var builder =  DistributedApplicationTestingBuilder.Create([], (options, settings) => {
+
+        });
 
         _app = await builder.BuildAsync();
 

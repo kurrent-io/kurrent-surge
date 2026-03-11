@@ -1,7 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -14,7 +13,7 @@ public class CreateIndexTests {
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task creates_a_new_index(CancellationToken ct) {
+    public async ValueTask creates_a_new_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -22,12 +21,11 @@ public class CreateIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task creates_index_and_retrieves_it(CancellationToken ct) {
+    public async ValueTask creates_index_and_retrieves_it(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -35,23 +33,20 @@ public class CreateIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .Get(indexName, ct)
-            .ShouldNotThrowOrFailAsync(index => {
-                index.Name.ShouldBe(indexName);
-                index.Filter.ShouldBe("rec => rec.schema.name == 'OrderCreated'");
-                index.Fields.Count.ShouldBe(1);
-                index.Fields[0].Name.ShouldBe("amount");
-                index.Fields[0].Selector.ShouldBe("rec => rec.value.amount");
-                index.Fields[0].Type.ShouldBe(IndexFieldType.Double);
-            });
+        var index = await Fixture.Client.Indexes.Get(indexName, ct);
+
+        await Assert.That(index.Name).IsEqualTo(indexName);
+        await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'OrderCreated'");
+        await Assert.That(index.Fields).HasCount().EqualTo(1);
+        await Assert.That(index.Fields[0].Name).IsEqualTo("amount");
+        await Assert.That(index.Fields[0].Selector).IsEqualTo("rec => rec.value.amount");
+        await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Double);
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task fails_to_create_index_when_index_already_exists(CancellationToken ct) {
+    public async ValueTask fails_to_create_index_when_index_already_exists(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -59,12 +54,10 @@ public class CreateIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'SomethingElse'", fields, cancellationToken: ct)
-            .ShouldFailAsync(error =>
-                error.Value.ShouldBeOfType<AlreadyExistsException>());
+        await Assert.That(async () => await Fixture.Client.Indexes
+            .Create(indexName, "rec => rec.schema.name == 'SomethingElse'", fields, cancellationToken: ct))
+            .Throws<AlreadyExistsException>();
     }
 }

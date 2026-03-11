@@ -77,7 +77,6 @@
     <PackageVersion Include="Ductus.FluentDocker" Version="2.85.0" />
     <!--- Packages for Aspire integration testing -->
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.1.2" />
-    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.KurrentDB" Version="13.1.1" />
     <PackageVersion Include="Polly.Contrib.WaitAndRetry" Version="1.1.1" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <PackageVersion Include="FakeItEasy.Analyzer.CSharp" Version="6.1.1" />

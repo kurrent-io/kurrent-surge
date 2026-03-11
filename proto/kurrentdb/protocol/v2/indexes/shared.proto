@@ -1,30 +1,54 @@
-syntax = "proto3";
+edition = "2023";
 
 package kurrentdb.protocol.v2.indexes;
 
 option csharp_namespace = "KurrentDB.Protocol.V2.Indexes";
 
+// Supported field types for index values.
 enum IndexFieldType {
+  // Default value. This value is not used.
   INDEX_FIELD_TYPE_UNSPECIFIED = 0;
+  // String values (categorical data like country, status).
   INDEX_FIELD_TYPE_STRING = 1;
+  // Double-precision floating-point values.
   INDEX_FIELD_TYPE_DOUBLE = 2;
-//  INDEX_FIELD_TYPE_INT_16 = 3;
+  //  INDEX_FIELD_TYPE_INT_16 = 3;  // Reserved for future use.
+  // 32-bit signed integer values.
   INDEX_FIELD_TYPE_INT_32 = 4;
+  // 64-bit signed integer values.
   INDEX_FIELD_TYPE_INT_64 = 5;
-//  INDEX_FIELD_TYPE_UINT_32 = 6;
-//  INDEX_FIELD_TYPE_UINT_64 = 7;
+  //  INDEX_FIELD_TYPE_UINT_32 = 6;  // Reserved for future use.
+  //  INDEX_FIELD_TYPE_UINT_64 = 7;  // Reserved for future use.
 }
 
+// Definition of a single field within an index.
+//
+// A field combines a name, a JavaScript selector function to extract the value
+// from records, and a type for validation and querying.
 message IndexField {
+  // The field name. Must be unique within the index.
   string name = 1;
+
+  // JavaScript function to extract the field value from a record.
+  //
+  // The function receives a record object with `schema`, `value`, and metadata
+  // fields. Example: "rec => rec.value.country"
   string selector = 2;
-  reserved 3; // selector type (js, json path, surge style js)
+
+  reserved 3;  // selector type (js, json path, surge style js)
+
+  // The data type of values extracted by this field.
   IndexFieldType type = 4;
 }
 
+// Lifecycle state of an index.
 enum IndexState {
+  // Default value. This value is not used.
   INDEX_STATE_UNSPECIFIED = 0;
+  // Index is active and processing records. Available for queries.
   INDEX_STATE_STARTED = 1;
+  // Index is paused. No new records are processed, but existing data remains.
   INDEX_STATE_STOPPED = 2;
+  // Index has been deleted. Data is cleaned up.
   INDEX_STATE_DELETED = 3;
 }

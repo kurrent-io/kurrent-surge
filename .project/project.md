@@ -52,6 +52,11 @@ reused across runs.
 Observability: `cd test/Kurrent.Testing && docker compose up -d` starts Seq (logs, port 5341) and Aspire Dashboard
 (telemetry, port 18888).
 
+## Documentation
+
+`docs/` — VuePress 2 site for the SDK section of https://docs.kurrent.io/ (streams, processors, registry,
+serialization). Run locally with `./scripts/run-docs.sh` (handles Node, pnpm, and dependency setup).
+
 ## Reference
 
 Read these before working on related areas. Do not read all upfront.

@@ -315,6 +315,12 @@ sealed class ReportCommand : Command<ReportSettings> {
             }
         }
 
+        // Deduplicate by CompositeKey (last file wins)
+        benchmarks = benchmarks
+            .GroupBy(b => b.CompositeKey)
+            .Select(g => g.Last())
+            .ToList();
+
         // Compute ranks per class
         benchmarks = benchmarks
             .GroupBy(b => b.Type)
@@ -472,6 +478,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               .collapsed-body { display: none; }
               .collapsed-toggle { transform: rotate(-90deg); }
               th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+              th[data-sort] .col-icon { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 2px; opacity: 0.5; }
               th[data-sort] .sort-icon { display: inline-block; width: 14px; height: 14px; vertical-align: middle; margin-left: 2px; opacity: 0.3; }
               th[data-sort].sort-asc .sort-icon, th[data-sort].sort-desc .sort-icon { opacity: 1; }
               td[data-heatmap] { transition: background-color 0.15s ease, color 0.15s ease; }
@@ -492,6 +499,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                   <span class="badge badge-soft {{(data.IsComparison ? "badge-warning" : "badge-info")}}">
                     {{(data.IsComparison ? "comparison" : "single-run")}}
                   </span>
+                  <span class="badge badge-soft badge-ghost" id="benchmark-count-badge"></span>
                   <span class="text-base-content/40 text-xs" id="generated-ts">Generated {{timestamp}}</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -578,9 +586,45 @@ sealed class ReportCommand : Command<ReportSettings> {
             <div class="px-8">
 
             <div id="env-section"></div>
-            <div id="stats-row"></div>
+            <div id="stats-row" class="hidden"></div>
             <div id="regression-section"></div>
             <div id="class-sections"></div>
+
+            <div class="bg-base-200 border border-base-300 rounded-lg mb-6 px-4 py-3">
+              <div class="text-xs font-semibold mb-2 flex items-center gap-2">
+                <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Legends
+              </div>
+                <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs font-mono">
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-3 h-3"></i> Mean</dt>
+                  <dd>Arithmetic mean of all measurements</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="shield-alert" class="w-3 h-3"></i> Error</dt>
+                  <dd>Half of 99.9% confidence interval</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="activity" class="w-3 h-3"></i> StdDev</dt>
+                  <dd>Standard deviation of all measurements</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="percent" class="w-3 h-3"></i> P95</dt>
+                  <dd>95th percentile of all measurements</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="trophy" class="w-3 h-3"></i> Rank</dt>
+                  <dd>Relative position of the benchmark within its class (lower is better)</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="zap" class="w-3 h-3"></i> Ops/sec</dt>
+                  <dd>Operations per second (1s / Mean)</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="recycle" class="w-3 h-3"></i> Gen0</dt>
+                  <dd>GC Generation 0 collects per 1000 operations</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="recycle" class="w-3 h-3"></i> Gen1</dt>
+                  <dd>GC Generation 1 collects per 1000 operations</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="recycle" class="w-3 h-3"></i> Gen2</dt>
+                  <dd>GC Generation 2 collects per 1000 operations</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="memory-stick" class="w-3 h-3"></i> Allocated</dt>
+                  <dd>Allocated memory per single operation (managed only, inclusive, 1 KB = 1024 B)</dd>
+                  <dt class="col-span-2 border-t border-base-300 mt-1 pt-2 text-base-content/40 font-semibold text-[10px] uppercase tracking-wider">Time Units</dt>
+                  <dd class="hidden"></dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i> 1 ns</dt>
+                  <dd>1 Nanosecond (0.000000001 sec)</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i> 1 &micro;s</dt>
+                  <dd>1 Microsecond (0.000001 sec)</dd>
+                  <dt class="text-base-content/60 font-semibold flex items-center gap-1.5"><i data-lucide="clock" class="w-3 h-3"></i> 1 ms</dt>
+                  <dd>1 Millisecond (0.001 sec)</dd>
+                </dl>
+            </div>
 
             <footer class="text-center text-base-content/40 text-xs pt-4 border-t border-base-300">
               <code class="font-mono">Kurrent.Client</code> &middot; Generated by benchmark-report
@@ -630,12 +674,8 @@ sealed class ReportCommand : Command<ReportSettings> {
             }
 
             function rankBadge(rank) {
-              const medals = { 1: ["🥇", "badge-success"], 2: ["🥈", "badge-info"], 3: ["🥉", "badge-warning"] };
-              if (medals[rank]) {
-                const [medal, cls] = medals[rank];
-                return `<span class="badge badge-xs badge-soft ${cls}">${medal} ${rank}</span>`;
-              }
-              return `<span class="badge badge-xs">${rank}</span>`;
+              const cls = { 1: "badge-success", 2: "badge-info", 3: "badge-warning" }[rank] || "";
+              return `<span class="badge badge-xs ${cls ? 'badge-soft ' + cls : ''}">${rank}</span>`;
             }
 
             function heatmapRatio(value, min, max) {
@@ -645,20 +685,17 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function heatmapColorFromRatio(ratio, lighten) {
               if (ratio < 0) return "";
-              let r, g;
+              // HSL-based: ratio 0 = worst (red), 0.5 = neutral (amber), 1 = best (green)
+              // Hue: 0 (red) → 45 (amber) → 142 (green)
+              let hue;
               if (ratio <= 0.5) {
-                const t = ratio * 2;
-                r = 255;
-                g = Math.round(255 * Math.sqrt(t));
+                hue = ratio * 2 * 45;       // 0→45
               } else {
-                const t = (ratio - 0.5) * 2;
-                r = Math.round(255 * (1 - t * t));
-                g = 255;
+                hue = 45 + (ratio - 0.5) * 2 * 97;  // 45→142
               }
-              r = Math.round(r + (255 - r) * lighten);
-              g = Math.round(g + (255 - g) * lighten);
-              const b = Math.round(0 + 255 * lighten);
-              return `rgb(${r}, ${g}, ${b})`;
+              const sat = 55;  // low saturation for soft pastels
+              const light = 40 + lighten * 45;  // push toward lighter
+              return `hsl(${hue}, ${sat}%, ${light}%)`;
             }
 
             function allocBadge(bytes) {
@@ -668,6 +705,21 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function benchLabel(b) {
               return b.Parameters ? `${b.Method}(${b.Parameters})` : b.Method;
+            }
+
+            function statCardDetails(bench) {
+              const paramPairs = bench.Parameters ? bench.Parameters.split("&").map(p => {
+                const [k, ...v] = p.split("=");
+                return [k, v.join("=")];
+              }) : [];
+              const paramBadges = paramPairs.map(([k, v]) =>
+                `<span class="badge badge-soft badge-sm font-mono gap-1"><i data-lucide="settings-2" class="w-3 h-3 opacity-40"></i><span class="opacity-50">${k}=</span>${v}</span>`
+              ).join("");
+              return `
+                <div class="border-t border-base-content/10 mt-2.5 pt-2.5">
+                  <div class="text-sm font-semibold flex items-center gap-1.5"><i data-lucide="flask-conical" class="w-3.5 h-3.5 opacity-60"></i>${bench.Method}</div>
+                  ${paramBadges ? `<div class="flex flex-wrap gap-1.5 mt-2">${paramBadges}</div>` : ""}
+                </div>`;
             }
 
             function shortLabel(b) {
@@ -759,52 +811,11 @@ sealed class ReportCommand : Command<ReportSettings> {
               `;
             }
 
-            // ── Stats row ───────────────────────────────────────────────────────
+            // ── Header benchmark count ─────────────────────────────────────────
 
             {
-              const means = benchmarks.map(b => b.MeanNs);
-              const fastest = Math.min(...means);
-              const slowest = Math.max(...means);
-              const totalAlloc = benchmarks.reduce((s, b) => s + b.AllocatedBytes, 0);
-
-              let statsHtml = `
-                <div class="stats stats-horizontal bg-base-200 border border-base-300 w-full mb-6 overflow-x-auto">
-                  <div class="stat">
-                    <div class="stat-title">Benchmarks</div>
-                    <div class="stat-value text-lg">${benchmarks.length}</div>
-                  </div>
-                  <div class="stat">
-                    <div class="stat-title">Fastest</div>
-                    <div class="stat-value text-lg text-success">${formatNs(fastest)}</div>
-                  </div>
-                  <div class="stat">
-                    <div class="stat-title">Slowest</div>
-                    <div class="stat-value text-lg text-warning">${formatNs(slowest)}</div>
-                  </div>
-                  <div class="stat">
-                    <div class="stat-title">Total Allocations</div>
-                    <div class="stat-value text-lg">${formatBytes(totalAlloc)}</div>
-                  </div>
-              `;
-
-              if (isComparison && comparisons) {
-                const regressions = comparisons.filter(c => c.Classification === "Regressed").length;
-                const improvements = comparisons.filter(c => c.Classification === "Improved").length;
-                statsHtml += `
-                  <div class="stat">
-                    <div class="stat-title">Regressions</div>
-                    <div class="stat-value text-lg ${regressions > 0 ? 'text-error' : 'text-success'}">${regressions}</div>
-                  </div>
-                  <div class="stat">
-                    <div class="stat-title">Improvements</div>
-                    <div class="stat-value text-lg ${improvements > 0 ? 'text-success' : 'text-base-content/60'}">${improvements}</div>
-                  </div>
-                `;
-              }
-
-              statsHtml += `</div>`;
-
-              document.getElementById("stats-row").innerHTML = statsHtml;
+              const badge = document.getElementById("benchmark-count-badge");
+              if (badge) badge.textContent = `${benchmarks.length} benchmarks`;
             }
 
             // ── Section navigation (in sticky header) ──────────────────────────
@@ -818,6 +829,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 opt.textContent = shortName;
                 nav.appendChild(opt);
               });
+              if (classes.length <= 1) nav.classList.add("hidden");
               nav.addEventListener("change", () => {
                 if (!nav.value) return;
                 // Collapse all sections
@@ -878,7 +890,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 document.getElementById("regression-section").innerHTML = `
                   <div class="rounded-lg border border-error/50 overflow-hidden mb-6">
                     <h2 class="text-base font-semibold px-5 pt-4 pb-3 text-error">Regressions (>${threshold}% threshold)</h2>
-                    <table class="table table-xs">
+                    <table class="table table-sm">
                       <thead>
                         <tr>
                           <th>Benchmark</th>
@@ -926,7 +938,10 @@ sealed class ReportCommand : Command<ReportSettings> {
 
               // Collect unique parameters for filters
               const params = [...new Set(classBenchmarks.map(b => b.Parameters).filter(Boolean))];
-              const hasParams = params.length > 1;
+
+              // Every parameter key becomes its own column
+              const allParamKeys = getParamKeys(classBenchmarks);
+              const extraParamKeys = allParamKeys;
 
               const allZeroAlloc = classBenchmarks.every(b => b.AllocatedBytes === 0);
               const allZeroGen0 = classBenchmarks.every(b => b.Gen0 === 0);
@@ -938,13 +953,20 @@ sealed class ReportCommand : Command<ReportSettings> {
               // Compute per-column min/max for heatmap
               const heatCols = ["MeanNs", "ErrorNs", "StdDevNs", "P95Ns"];
               if (!allZeroAlloc) heatCols.push("AllocatedBytes");
+              heatCols.push("OpsPerSec");
+              // Columns where higher = better (heatmap ratio inverted)
+              const invertedHeatCols = new Set(["OpsPerSec"]);
               const heatRange = {};
               heatCols.forEach(k => {
                 const vals = classBenchmarks.map(b => b[k] ?? 0).filter(v => v > 0);
                 heatRange[k] = { min: Math.min(...vals), max: Math.min(Math.max(...vals), Math.min(...vals) * 3) };
               });
 
-              const bestMeanNs = Math.min(...classBenchmarks.map(b => b.MeanNs));
+              const fastestBench = classBenchmarks.reduce((a, b) => a.MeanNs <= b.MeanNs ? a : b);
+              const slowestBench = classBenchmarks.reduce((a, b) => a.MeanNs >= b.MeanNs ? a : b);
+              const heaviestBench = classBenchmarks.reduce((a, b) => a.AllocatedBytes >= b.AllocatedBytes ? a : b);
+              const bestMeanNs = fastestBench.MeanNs;
+              const worstMeanNs = slowestBench.MeanNs;
               const maxOps = Math.max(...classBenchmarks.map(b => b.OpsPerSec));
 
               // Table rows
@@ -968,21 +990,28 @@ sealed class ReportCommand : Command<ReportSettings> {
                   const v = b[key] ?? 0;
                   if (v === 0) return "";
                   const clamped = Math.min(v, r.max);
-                  const ratio = heatmapRatio(clamped, r.min, r.max);
+                  let ratio = heatmapRatio(clamped, r.min, r.max);
+                  if (invertedHeatCols.has(key)) ratio = 1.0 - ratio;
                   return ratio >= 0 ? ` data-heatmap data-heat-ratio="${ratio.toFixed(4)}"` : "";
                 };
 
-                const opsHighlight = b.OpsPerSec === maxOps ? ' style="color: oklch(0.72 0.19 142);"' : "";
+                const bParams = parseParams(b.Parameters);
+                const benchName = b.Method;
+                const extraParamCells = extraParamKeys.map(k => {
+                  const v = bParams[k] || "\u2014";
+                  return `<td class="text-right font-mono" data-col="param-${k}">${v}</td>`;
+                }).join("");
 
                 return `
-                  <tr data-params="${b.Parameters || ""}"${isBest ? ' class="best-row"' : ""}>
-                    <td class="font-mono">${benchLabel(b)}</td>
+                  <tr data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}"${isBest ? ' class="best-row"' : ""}>
+                    <td class="font-mono">${benchName}</td>
+                    ${extraParamCells}
                     <td class="text-right font-mono"${hm("MeanNs")}>${formatNs(b.MeanNs)}</td>
-                    <td class="text-right font-mono"${opsHighlight}>${formatOps(b.OpsPerSec)}</td>
+                    <td class="text-right font-mono"${hm("OpsPerSec")}>${formatOps(b.OpsPerSec)}</td>
                     <td class="text-right font-mono"${hm("ErrorNs")}>${formatNs(b.ErrorNs)}</td>
                     <td class="text-right font-mono"${hm("StdDevNs")}>${formatNs(b.StdDevNs)}</td>
                     <td class="text-right font-mono"${hm("P95Ns")}>${formatNs(b.P95Ns)}</td>
-                    <td class="text-right font-mono">${rankBadge(b.Rank)}</td>
+                    <td class="text-right font-mono" data-col="rank">${rankBadge(b.Rank)}</td>
                     ${!allZeroAlloc ? `<td class="text-right font-mono"${hm("AllocatedBytes")}>${allocBadge(b.AllocatedBytes)}</td>` : ""}
                     ${!allZeroGen0 ? `<td class="text-right font-mono">${formatGen(b.Gen0)}</td>` : ""}
                     ${!allZeroGen1 ? `<td class="text-right font-mono">${formatGen(b.Gen1)}</td>` : ""}
@@ -994,37 +1023,12 @@ sealed class ReportCommand : Command<ReportSettings> {
 
               const deltaHeader = isComparison ? `<th class="text-right" data-sort="DeltaPercent">Delta <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : "";
 
-              // Parameter filters
-              let filterHtml = "";
-              if (hasParams) {
-                const filterItems = params.map(p => {
-                  const label = p.includes("=") ? p.split("=").slice(1).join("=") : p;
-                  return `<label class="label cursor-pointer justify-start gap-2 py-1">
-                    <input type="checkbox" class="toggle toggle-xs toggle-primary" data-filter="${p}" data-section="${sectionId}" checked />
-                    <span class="text-xs font-mono">${label}</span>
-                  </label>`;
-                });
+              // Parameter filters grouped by method
 
-                filterHtml = `
-                  <div class="collapse collapse-arrow bg-base-200 border border-base-300 mb-4 rounded-lg">
-                    <input type="checkbox" class="peer" />
-                    <div class="collapse-title flex items-center gap-2 text-xs font-semibold min-h-0 py-2 px-3">
-                      <i data-lucide="filter" class="w-3.5 h-3.5"></i>
-                      Scenarios
-                      <span class="badge badge-xs badge-primary filter-count" data-section="${sectionId}">all</span>
-                    </div>
-                    <div class="collapse-content px-3 pb-3">
-                      <label class="label cursor-pointer justify-start gap-2 py-1.5 border-b border-base-300 mb-1">
-                        <input type="checkbox" class="toggle toggle-xs toggle-primary" data-filter-all="${sectionId}" checked />
-                        <span class="text-xs font-semibold">Select all</span>
-                      </label>
-                      <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
-                        ${filterItems.join("")}
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }
+              const CHART_CAP = 20;
+              const TABLE_CAP = 15;
+              const chartCapped = classBenchmarks.length > CHART_CAP;
+              const tableCapped = classBenchmarks.length > TABLE_CAP;
 
               const sectionHtml = `
                 <div class="class-section mb-8" id="${sectionId}">
@@ -1034,27 +1038,28 @@ sealed class ReportCommand : Command<ReportSettings> {
                     <span class="text-base-content/40 text-xs">${classBenchmarks.length} benchmarks</span>
                   </div>
                   <div id="body-${sectionId}">
-                    ${filterHtml}
-                    <div class="card card-xs bg-base-200 border border-base-300 mb-3">
-                      <div class="card-body">
-                        <div class="flex items-center gap-2 mb-3">
-                          <div class="flex flex-wrap gap-1.5" data-section="${sectionId}">
-                            ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="btn btn-xs ${i === 0 ? 'btn-primary' : 'btn-ghost'}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
-                          </div>
-                          <button class="btn btn-xs btn-ghost gap-1" data-log-toggle="${sectionId}" title="Toggle log scale">
-                            <i data-lucide="scaling" class="w-3.5 h-3.5"></i>
-                            <span class="text-xs font-mono" data-log-label="${sectionId}">linear</span>
-                          </button>
-                        </div>
-                        <div style="height: 260px; position: relative;">
-                          <canvas id="chart-${sectionId}"></canvas>
-                        </div>
+                    <div class="grid grid-cols-3 gap-3 mb-3">
+                      <div class="bg-base-200 border border-base-300 rounded-lg p-4">
+                        <div class="text-xs text-base-content/50 flex items-center gap-1 font-medium"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Fastest</div>
+                        <div class="text-xl font-bold text-success mt-1">${formatNs(bestMeanNs)}</div>
+                        ${statCardDetails(fastestBench)}
+                      </div>
+                      <div class="bg-base-200 border border-base-300 rounded-lg p-4">
+                        <div class="text-xs text-base-content/50 flex items-center gap-1 font-medium"><i data-lucide="snail" class="w-3.5 h-3.5"></i> Slowest</div>
+                        <div class="text-xl font-bold text-warning mt-1">${formatNs(worstMeanNs)}</div>
+                        ${statCardDetails(slowestBench)}
+                      </div>
+                      <div class="bg-base-200 border border-base-300 rounded-lg p-4">
+                        <div class="text-xs text-base-content/50 flex items-center gap-1 font-medium"><i data-lucide="memory-stick" class="w-3.5 h-3.5"></i> Peak Alloc</div>
+                        <div class="text-xl font-bold ${heaviestBench.AllocatedBytes > 0 ? 'text-error' : 'text-base-content/30'} mt-1">${formatBytes(heaviestBench.AllocatedBytes)}</div>
+                        ${heaviestBench.AllocatedBytes > 0 ? statCardDetails(heaviestBench) : '<div class="text-xs text-base-content/30 mt-3">No allocations detected</div>'}
                       </div>
                     </div>
-                    <div class="rounded-lg border border-base-300 overflow-x-auto mb-3">
-                      <table class="table table-xs table-zebra col-hover">
+                    <div class="flex items-center gap-2 mb-2" id="groupby-${sectionId}"></div>
+                    <div class="rounded-lg border border-base-300 overflow-x-auto mb-3" id="tablewrap-${sectionId}">
+                      <table class="table table-sm table-zebra col-hover" id="datatable-${sectionId}">
                         <colgroup>
-                          <col /><col /><col /><col /><col /><col /><col />
+                          <col />${extraParamKeys.map(() => "<col />").join("")}<col /><col /><col /><col /><col /><col />
                           ${!allZeroAlloc ? "<col />" : ""}
                           ${!allZeroGen0 ? "<col />" : ""}
                           ${!allZeroGen1 ? "<col />" : ""}
@@ -1063,28 +1068,283 @@ sealed class ReportCommand : Command<ReportSettings> {
                         </colgroup>
                         <thead>
                           <tr>
-                            <th data-sort="Method">Benchmark <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="MeanNs">Mean <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="OpsPerSec">Ops/sec <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="ErrorNs">Error <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="StdDevNs">StdDev <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="P95Ns">P95 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="Rank">Rank <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            ${!allZeroAlloc ? `<th class="text-right" data-sort="AllocatedBytes">Allocated <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${!allZeroGen0 ? `<th class="text-right" data-sort="Gen0">Gen0 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${!allZeroGen1 ? `<th class="text-right" data-sort="Gen1">Gen1 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${!allZeroGen2 ? `<th class="text-right" data-sort="Gen2">Gen2 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            <th data-sort="Method"><i data-lucide="flask-conical" class="col-icon"></i> Benchmark <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            ${extraParamKeys.map(k => `<th class="text-right" data-sort="Param_${k}"><i data-lucide="settings-2" class="col-icon"></i> ${k} <i data-lucide="arrow-up-down" class="sort-icon"></i></th>`).join("")}
+                            <th class="text-right" data-sort="MeanNs"><i data-lucide="bar-chart-2" class="col-icon"></i> Mean <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="OpsPerSec"><i data-lucide="zap" class="col-icon"></i> Ops/sec <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="ErrorNs"><i data-lucide="shield-alert" class="col-icon"></i> Error <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="StdDevNs"><i data-lucide="activity" class="col-icon"></i> StdDev <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="P95Ns"><i data-lucide="percent" class="col-icon"></i> P95 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            <th class="text-right" data-sort="Rank"><i data-lucide="trophy" class="col-icon"></i> Rank <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
+                            ${!allZeroAlloc ? `<th class="text-right" data-sort="AllocatedBytes"><i data-lucide="memory-stick" class="col-icon"></i> Allocated <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            ${!allZeroGen0 ? `<th class="text-right" data-sort="Gen0"><i data-lucide="recycle" class="col-icon"></i> Gen0 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            ${!allZeroGen1 ? `<th class="text-right" data-sort="Gen1"><i data-lucide="recycle" class="col-icon"></i> Gen1 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
+                            ${!allZeroGen2 ? `<th class="text-right" data-sort="Gen2"><i data-lucide="recycle" class="col-icon"></i> Gen2 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
                             ${deltaHeader}
                           </tr>
                         </thead>
                         <tbody id="table-${sectionId}">${tableRows}</tbody>
                       </table>
+                      ${tableCapped ? `
+                      <div class="flex justify-center py-2 border-t border-base-300" id="table-cap-${sectionId}">
+                        <button class="btn btn-xs btn-ghost gap-1" data-table-expand="${sectionId}">
+                          <span>Showing ${TABLE_CAP} of ${classBenchmarks.length}</span>
+                          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                        </button>
+                      </div>` : ""}
                     </div>
+                    <div class="hidden flex flex-col gap-2 mb-3" id="grouped-${sectionId}"></div>
+                    <details class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-lg mb-3" id="chartdetails-${sectionId}">
+                      <summary class="collapse-title text-sm font-semibold min-h-0 py-2.5 px-4 flex items-center gap-2">
+                        <i data-lucide="bar-chart-horizontal" class="w-4 h-4"></i> Chart
+                      </summary>
+                      <div class="collapse-content p-0!">
+                        <div class="p-4">
+                          <div class="flex items-center gap-2 mb-3">
+                            <div class="flex flex-wrap gap-1.5" data-section="${sectionId}">
+                              ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="btn btn-xs ${i === 0 ? 'btn-primary' : 'btn-ghost'}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
+                            </div>
+                            <button class="btn btn-xs btn-ghost gap-1" data-log-toggle="${sectionId}" title="Toggle log scale">
+                              <i data-lucide="scaling" class="w-3.5 h-3.5"></i>
+                              <span class="text-xs font-mono" data-log-label="${sectionId}">linear</span>
+                            </button>
+                            ${chartCapped ? `<button class="btn btn-xs btn-ghost gap-1" data-chart-expand="${sectionId}" title="Show all benchmarks in chart">
+                              <i data-lucide="unfold-horizontal" class="w-3.5 h-3.5"></i>
+                              <span class="text-xs">Show all</span>
+                            </button>` : ""}
+                          </div>
+                          <div id="chartwrap-${sectionId}" style="height: 260px; position: relative; overflow-y: auto;">
+                            <div id="chartinner-${sectionId}" style="height: 100%; position: relative;">
+                              <canvas id="chart-${sectionId}"></canvas>
+                            </div>
+                          </div>
+                          ${chartCapped ? `<div class="text-xs text-base-content/40 mt-1 text-center" id="chartcap-label-${sectionId}">Showing top ${CHART_CAP} of ${classBenchmarks.length}</div>` : ""}
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 </div>
               `;
 
               classSections.insertAdjacentHTML("beforeend", sectionHtml);
+
+              // Apply initial table row cap
+              if (tableCapped) {
+                const tbody = document.getElementById("table-" + sectionId);
+                const rows = tbody.querySelectorAll("tr[data-key]");
+                rows.forEach((r, i) => { if (i >= TABLE_CAP) r.classList.add("hidden"); });
+              }
+            });
+
+            // ── Table row cap expand/collapse ─────────────────────────────────
+
+            const tableExpandState = {};
+
+            document.querySelectorAll("[data-table-expand]").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const sectionId = btn.dataset.tableExpand;
+                const expanded = tableExpandState[sectionId] = !tableExpandState[sectionId];
+                const tbody = document.getElementById("table-" + sectionId);
+                const rows = tbody.querySelectorAll("tr[data-key]");
+                const TABLE_CAP = 15;
+
+                rows.forEach((r, i) => {
+                  if (i >= TABLE_CAP) r.classList.toggle("hidden", !expanded);
+                });
+
+                const total = rows.length;
+                const label = btn.querySelector("span");
+                const icon = btn.querySelector("[data-lucide]");
+                if (expanded) {
+                  label.textContent = "Collapse";
+                  if (icon) icon.setAttribute("data-lucide", "chevron-up");
+                } else {
+                  label.textContent = `Showing ${TABLE_CAP} of ${total}`;
+                  if (icon) icon.setAttribute("data-lucide", "chevron-down");
+                }
+                lucide.createIcons();
+              });
+            });
+
+            // ── Group by controls ──────────────────────────────────────────────
+
+            function parseParams(paramStr) {
+              if (!paramStr) return {};
+              const obj = {};
+              paramStr.split("&").forEach(kv => {
+                const [k, ...rest] = kv.split("=");
+                if (k) obj[k.trim()] = rest.join("=").trim();
+              });
+              return obj;
+            }
+
+            function getParamKeys(sectionBenchmarks) {
+              const keys = new Set();
+              sectionBenchmarks.forEach(b => {
+                Object.keys(parseParams(b.Parameters)).forEach(k => keys.add(k));
+              });
+              return [...keys];
+            }
+
+            // Build group-by dropdowns for each section
+            classes.forEach(cls => {
+              const sectionId = "section-" + cls;
+              const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
+              const paramKeys = getParamKeys(sectionBenchmarks);
+              const container = document.getElementById("groupby-" + sectionId);
+              if (!container || paramKeys.length === 0) return;
+
+              // Add "Method" as a grouping option alongside param keys
+              const options = ["none", "Method", ...paramKeys];
+
+              container.innerHTML = `
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-base-content/40"></i>
+                <span class="text-xs text-base-content/50">Group by</span>
+                <select class="select select-xs select-bordered font-mono" data-groupby="${sectionId}">
+                  ${options.map(o => `<option value="${o}">${o}</option>`).join("")}
+                </select>
+              `;
+            });
+
+            function applyGroupBy(sectionId, groupKey) {
+              const tableWrap = document.getElementById("tablewrap-" + sectionId);
+              const groupedWrap = document.getElementById("grouped-" + sectionId);
+              if (!tableWrap || !groupedWrap) return;
+
+              const table = document.getElementById("datatable-" + sectionId);
+              const cls = sectionId.replace("section-", "");
+              const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
+
+              if (groupKey === "none") {
+                tableWrap.classList.remove("hidden");
+                groupedWrap.classList.add("hidden");
+                groupedWrap.innerHTML = "";
+                // Reset chart to show all section benchmarks
+                const metricKey = chartMetricState[sectionId] || "MeanNs";
+                buildChart(sectionId, metricKey);
+                return;
+              }
+
+              // Group benchmarks by key
+              const groups = new Map();
+              sectionBenchmarks.forEach(b => {
+                let val;
+                if (groupKey === "Method") val = b.Method;
+                else val = parseParams(b.Parameters)[groupKey] || "\u2014";
+                if (!groups.has(val)) groups.set(val, []);
+                groups.get(val).push(b);
+              });
+
+              // Clone thead and colgroup from the original table
+              const theadHtml = table.querySelector("thead").outerHTML;
+              const colgroupHtml = table.querySelector("colgroup").outerHTML;
+
+              // Build a map of CompositeKey -> row outerHTML from original table
+              // Clone and strip "hidden" class (added by table row cap) so grouped rows are visible
+              const rowMap = new Map();
+              table.querySelectorAll("tbody tr[data-key]").forEach(r => {
+                const clone = r.cloneNode(true);
+                clone.classList.remove("hidden");
+                rowMap.set(r.dataset.key, clone.outerHTML);
+              });
+
+              // Build collapsible group cards with top 3 + worst 1 preview
+              const GROUP_PREVIEW = 3;
+              let html = "";
+              groups.forEach((groupBenchmarks, groupVal) => {
+                // Sort by MeanNs ascending (fastest first)
+                const sorted = [...groupBenchmarks].sort((a, b) => a.MeanNs - b.MeanNs);
+                const needsCap = sorted.length > GROUP_PREVIEW + 1;
+                let previewKeys, hiddenKeys;
+                if (needsCap) {
+                  const top = sorted.slice(0, GROUP_PREVIEW);
+                  const worst = sorted[sorted.length - 1];
+                  const topSet = new Set(top.map(b => b.CompositeKey));
+                  if (!topSet.has(worst.CompositeKey)) {
+                    previewKeys = [...top.map(b => b.CompositeKey), worst.CompositeKey];
+                  } else {
+                    previewKeys = top.map(b => b.CompositeKey);
+                  }
+                  const previewSet = new Set(previewKeys);
+                  hiddenKeys = sorted.filter(b => !previewSet.has(b.CompositeKey)).map(b => b.CompositeKey);
+                } else {
+                  previewKeys = sorted.map(b => b.CompositeKey);
+                  hiddenKeys = [];
+                }
+
+                const groupRankIcons = { 0: "🥇", 1: "🥈", 2: "🥉" };
+                const worstKey = needsCap ? sorted[sorted.length - 1].CompositeKey : null;
+                const previewRowsHtml = previewKeys.map((k, i) => {
+                  let row = rowMap.get(k) || "";
+                  let icon = groupRankIcons[i] || "";
+                  if (k === worstKey && !groupRankIcons[i]) icon = "🐢";
+                  if (icon) {
+                    const title = icon === "🐢" ? "Slowest in group" : `#${i+1} fastest in group`;
+                    const badge = ` <span title="${title}">${icon}</span>`;
+                    row = row.replace(/(<td[^>]*data-col="rank"[^>]*>)(.*?)(<\/td>)/, `$1$2${badge}$3`);
+                  }
+                  return row;
+                }).join("");
+                const hiddenRowsHtml = hiddenKeys.map(k => {
+                  const r = rowMap.get(k) || "";
+                  return r.replace("<tr ", '<tr class="group-hidden-row hidden" ');
+                }).join("");
+                const expandBtn = needsCap
+                  ? `<button class="btn btn-xs btn-ghost gap-1 group-expand-btn ml-auto" data-group-total="${sorted.length}">
+                       <i data-lucide="chevrons-down" class="w-3 h-3"></i>
+                       Show all ${sorted.length}
+                     </button>`
+                  : "";
+
+                html += `
+                  <details class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-lg" data-group-val="${groupVal.replace(/"/g, '&quot;')}">
+                    <summary class="collapse-title flex items-center gap-2 text-sm font-semibold min-h-0 py-2.5 px-4">
+                      ${groupVal}
+                      <span class="badge badge-xs badge-primary">${groupBenchmarks.length}</span>
+                      ${expandBtn}
+                    </summary>
+                    <div class="collapse-content p-0!">
+                      <div class="overflow-x-auto">
+                        <table class="table table-sm table-zebra">
+                          ${colgroupHtml}
+                          ${theadHtml}
+                          <tbody>${previewRowsHtml}${hiddenRowsHtml}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </details>`;
+              });
+
+              tableWrap.classList.add("hidden");
+              groupedWrap.classList.remove("hidden");
+              groupedWrap.innerHTML = html;
+
+              applyHeatmap();
+              lucide.createIcons();
+
+              // Rebuild chart when a group is opened/closed
+              groupedWrap.querySelectorAll("details[data-group-val] > summary").forEach(summary => {
+                summary.addEventListener("click", () => {
+                  const d = summary.closest("details");
+                  const metricKey = chartMetricState[sectionId] || "MeanNs";
+                  // After click, open state will toggle — use setTimeout to read the new state
+                  setTimeout(() => {
+                    if (d.open) {
+                      const groupBenchmarks = groups.get(d.dataset.groupVal) || [];
+                      buildChart(sectionId, metricKey, groupBenchmarks);
+                    } else {
+                      buildChart(sectionId, metricKey, sectionBenchmarks);
+                    }
+                  }, 0);
+                });
+              });
+            }
+
+            document.querySelectorAll("[data-groupby]").forEach(sel => {
+              sel.addEventListener("change", () => {
+                applyGroupBy(sel.dataset.groupby, sel.value);
+                lucide.createIcons();
+              });
             });
 
             // ── Chart.js instances ────────────────────────────────────────────
@@ -1101,14 +1361,52 @@ sealed class ReportCommand : Command<ReportSettings> {
               return "rgba(128, 128, 128, 0.15)";
             }
 
-            function buildChart(sectionId, metricKey) {
+            const CHART_CAP = 20;
+            const chartExpandState = {};
+
+            function buildChart(sectionId, metricKey, filterBenchmarks) {
               const cls = sectionId.replace("section-", "");
-              const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
+              const allSectionBenchmarks = filterBenchmarks || benchmarks.filter(b => b.Type === cls);
               const metric = metrics.find(m => m.key === metricKey);
               if (!metric) return;
 
               const isLog = chartLogState[sectionId] || false;
               chartMetricState[sectionId] = metricKey;
+
+              const expanded = chartExpandState[sectionId] || false;
+              const needsCap = allSectionBenchmarks.length > CHART_CAP;
+
+              // Sort by metric to show top N, use ascending for time metrics, descending for ops
+              let sorted = [...allSectionBenchmarks];
+              if (metricKey === "OpsPerSec") {
+                sorted.sort((a, b) => (b[metricKey] ?? 0) - (a[metricKey] ?? 0));
+              } else {
+                sorted.sort((a, b) => (a[metricKey] ?? 0) - (b[metricKey] ?? 0));
+              }
+              const sectionBenchmarks = (needsCap && !expanded) ? sorted.slice(0, CHART_CAP) : sorted;
+
+              // Resize chart container height based on bar count
+              const wrapEl = document.getElementById("chartwrap-" + sectionId);
+              const innerEl = document.getElementById("chartinner-" + sectionId);
+              const barHeight = 28;
+              const chartH = Math.max(200, sectionBenchmarks.length * barHeight);
+              if (wrapEl) wrapEl.style.height = chartH + "px";
+              if (innerEl) {
+                innerEl.style.minWidth = "";
+                innerEl.style.height = "100%";
+              }
+
+              // Update cap label
+              const capLabel = document.getElementById("chartcap-label-" + sectionId);
+              if (capLabel) {
+                if (!needsCap) {
+                  capLabel.classList.add("hidden");
+                } else if (expanded) {
+                  capLabel.textContent = `Showing all ${allSectionBenchmarks.length} (sorted by ${metric.label})`;
+                } else {
+                  capLabel.textContent = `Showing top ${CHART_CAP} of ${allSectionBenchmarks.length} by ${metric.label}`;
+                }
+              }
 
               const labels = sectionBenchmarks.map(b => shortLabel(b));
               const values = sectionBenchmarks.map(b => b[metricKey] ?? 0);
@@ -1137,6 +1435,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                   }]
                 },
                 options: {
+                  indexAxis: "y",
                   responsive: true,
                   maintainAspectRatio: false,
                   animation: { duration: 300 },
@@ -1152,7 +1451,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                     }
                   },
                   scales: {
-                    y: {
+                    x: {
                       type: isLog ? "logarithmic" : "linear",
                       ticks: {
                         color: textColor,
@@ -1161,12 +1460,10 @@ sealed class ReportCommand : Command<ReportSettings> {
                       },
                       grid: { color: getChartGridColor() },
                     },
-                    x: {
+                    y: {
                       ticks: {
                         color: textColor,
                         font: { family: "monospace", size: 10 },
-                        maxRotation: 45,
-                        minRotation: 0,
                       },
                       grid: { display: false },
                     }
@@ -1209,6 +1506,20 @@ sealed class ReportCommand : Command<ReportSettings> {
               });
             });
 
+            // Chart expand toggle
+            document.querySelectorAll("[data-chart-expand]").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const sectionId = btn.dataset.chartExpand;
+                chartExpandState[sectionId] = !chartExpandState[sectionId];
+                const expanded = chartExpandState[sectionId];
+                const label = btn.querySelector("span");
+                if (label) label.textContent = expanded ? "Top 20" : "Show all";
+                btn.classList.toggle("btn-primary", expanded);
+                btn.classList.toggle("btn-ghost", !expanded);
+                buildChart(sectionId, chartMetricState[sectionId] || "MeanNs");
+              });
+            });
+
             // ── Collapsible sections ────────────────────────────────────────────
 
             function toggleSection(sectionId) {
@@ -1240,100 +1551,87 @@ sealed class ReportCommand : Command<ReportSettings> {
               lucide.createIcons();
             });
 
-            // ── Parameter filters (multi-select) ────────────────────────────────
+            // ── Sortable tables (delegated for dynamic sub-tables) ──────────────
 
-            function applyFilters(sectionId) {
-              const allCb = document.querySelector(`[data-filter-all="${sectionId}"]`);
-              if (!allCb) return;
-              const checkboxes = [...document.querySelectorAll(`[data-filter][data-section="${sectionId}"]`)];
-              const section = document.getElementById(sectionId);
+            document.addEventListener("click", (e) => {
+              const th = e.target.closest("th[data-sort]");
+              if (!th) return;
 
-              const isAll = allCb.checked && !allCb.indeterminate;
-              const activeParams = new Set(checkboxes.filter(c => c.checked).map(c => c.dataset.filter));
+              const table = th.closest("table");
+              const tbody = table.querySelector("tbody");
+              const key   = th.dataset.sort;
+              const isAsc = th.classList.contains("sort-asc");
 
-              const badge = document.querySelector(`.filter-count[data-section="${sectionId}"]`);
-              if (badge) badge.textContent = isAll ? "all" : `${activeParams.size}/${checkboxes.length}`;
-
-              section.querySelectorAll("[data-params]").forEach(el => {
-                if (el.tagName === "TABLE" || el.tagName === "THEAD") return;
-                el.style.display = (isAll || activeParams.has(el.dataset.params)) ? "" : "none";
+              // Reset all headers in this table
+              table.querySelectorAll("thead th[data-sort]").forEach(h => {
+                h.classList.remove("sort-asc", "sort-desc");
+                const icon = h.querySelector(".sort-icon");
+                if (icon) { icon.setAttribute("data-lucide", "arrow-up-down"); }
               });
-            }
 
-            document.querySelectorAll("[data-filter-all]").forEach(allCb => {
-              allCb.addEventListener("change", () => {
-                const sectionId = allCb.dataset.filterAll;
-                document.querySelectorAll(`[data-filter][data-section="${sectionId}"]`).forEach(cb => { cb.checked = allCb.checked; });
-                applyFilters(sectionId);
+              const dir = isAsc ? -1 : 1;
+              const newDir = isAsc ? "sort-desc" : "sort-asc";
+              th.classList.add(newDir);
+              const activeIcon = th.querySelector(".sort-icon");
+              if (activeIcon) {
+                activeIcon.setAttribute("data-lucide", newDir === "sort-asc" ? "arrow-up" : "arrow-down");
+              }
+              lucide.createIcons();
+
+              // Build a benchmark lookup by CompositeKey
+              const benchByKey = new Map();
+              benchmarks.forEach(b => {
+                if (!benchByKey.has(b.CompositeKey)) benchByKey.set(b.CompositeKey, b);
               });
+
+              // Pair every DOM row with its sort value (handles duplicates)
+              const rows = [...tbody.querySelectorAll("tr[data-key]")];
+              const sortable = rows.map(row => {
+                const b = benchByKey.get(row.dataset.key);
+                let value = 0;
+                if (b) {
+                  if (key.startsWith("Param_")) {
+                    const pKey = key.slice(6);
+                    const pVal = parseParams(b.Parameters)[pKey] || "";
+                    value = isNaN(Number(pVal)) ? pVal : Number(pVal);
+                  } else {
+                    value = b[key] ?? 0;
+                  }
+                }
+                return { row, value };
+              });
+
+              sortable.sort((a, b) => {
+                return typeof a.value === "string"
+                  ? dir * a.value.localeCompare(b.value)
+                  : dir * (a.value - b.value);
+              });
+
+              // Reorder all DOM rows
+              sortable.forEach(({ row }) => tbody.appendChild(row));
             });
 
-            document.querySelectorAll("[data-filter][data-section]").forEach(cb => {
-              cb.addEventListener("change", () => {
-                const sectionId = cb.dataset.section;
-                const allCb = document.querySelector(`[data-filter-all="${sectionId}"]`);
-                const checkboxes = [...document.querySelectorAll(`[data-filter][data-section="${sectionId}"]`)];
-                const allChecked = checkboxes.every(c => c.checked);
-                const noneChecked = checkboxes.every(c => !c.checked);
-                allCb.checked = allChecked;
-                allCb.indeterminate = !allChecked && !noneChecked;
-                if (noneChecked) {
-                  allCb.checked = true;
-                  checkboxes.forEach(c => { c.checked = true; });
-                }
-                applyFilters(sectionId);
-              });
-            });
-
-            // ── Sortable tables ─────────────────────────────────────────────────
-
-            document.querySelectorAll("thead th[data-sort]").forEach(th => {
-              th.addEventListener("click", () => {
-                const table   = th.closest("table");
-                const tbody   = table.querySelector("tbody");
-                const key     = th.dataset.sort;
-                const isAsc   = th.classList.contains("sort-asc");
-
-                // Reset all headers in this table
-                table.querySelectorAll("thead th[data-sort]").forEach(h => {
-                  h.classList.remove("sort-asc", "sort-desc");
-                  const icon = h.querySelector(".sort-icon");
-                  if (icon) { icon.setAttribute("data-lucide", "arrow-up-down"); }
-                });
-
-                const dir = isAsc ? -1 : 1;
-                const newDir = isAsc ? "sort-desc" : "sort-asc";
-                th.classList.add(newDir);
-                const activeIcon = th.querySelector(".sort-icon");
-                if (activeIcon) {
-                  activeIcon.setAttribute("data-lucide", newDir === "sort-asc" ? "arrow-up" : "arrow-down");
-                }
+            // ── Group expand/collapse (delegated) ────────────────────────────
+            document.addEventListener("click", (e) => {
+              const btn = e.target.closest(".group-expand-btn");
+              if (!btn) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const details = btn.closest("details");
+              const tbody = details?.querySelector("tbody");
+              if (!tbody) return;
+              const hidden = tbody.querySelectorAll(".group-hidden-row.hidden");
+              const total = btn.dataset.groupTotal;
+              if (hidden.length > 0) {
+                hidden.forEach(r => r.classList.remove("hidden"));
+                btn.innerHTML = '<i data-lucide="chevrons-up" class="w-3 h-3"></i> Top only';
                 lucide.createIcons();
-
-                // Find the section's benchmark data
-                const sectionEl  = table.closest(".class-section");
-                const cls        = sectionEl.id.replace("section-", "");
-                const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
-
-                // Sort benchmarks by the selected key
-                const sorted = [...sectionBenchmarks].sort((a, b) => {
-                  const av = a[key] ?? 0;
-                  const bv = b[key] ?? 0;
-                  return typeof av === "string"
-                    ? dir * av.localeCompare(bv)
-                    : dir * (av - bv);
-                });
-
-                // Reorder DOM rows to match sorted order
-                const rows = [...tbody.querySelectorAll("tr[data-params]")];
-                sorted.forEach(b => {
-                  const label = b.Parameters ? `${b.Method}(${b.Parameters})` : b.Method;
-                  const row = rows.find(r => {
-                    return (r.querySelector("td:first-child")?.textContent ?? "") === label;
-                  });
-                  if (row) tbody.appendChild(row);
-                });
-              });
+                applyHeatmap();
+              } else {
+                tbody.querySelectorAll(".group-hidden-row").forEach(r => r.classList.add("hidden"));
+                btn.innerHTML = `<i data-lucide="chevrons-down" class="w-3 h-3"></i> Show all ${total}`;
+                lucide.createIcons();
+              }
             });
 
             // ── Column hover highlight ─────────────────────────────────────────
@@ -1404,7 +1702,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
               function applyHeatmap() {
                 const isDark = darkThemes.has(root.getAttribute("data-theme"));
-                const lighten = isDark ? 0.55 : 0.25;
+                const lighten = isDark ? 0.65 : 0.4;
                 const textMode = hToggle.checked;
                 document.body.classList.toggle("heatmap-text", textMode);
 

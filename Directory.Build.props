@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>preview</LangVersion>
-<!--    <EnablePreviewFeatures>true</EnablePreviewFeatures>-->
+    <!--    <EnablePreviewFeatures>true</EnablePreviewFeatures>-->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>

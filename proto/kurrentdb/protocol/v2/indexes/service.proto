@@ -1,4 +1,4 @@
-syntax = "proto3";
+edition = "2023";
 
 package kurrentdb.protocol.v2.indexes;
 
@@ -8,47 +8,70 @@ import "google/api/annotations.proto";
 import "kurrentdb/protocol/v2/indexes/commands.proto";
 import "kurrentdb/protocol/v2/indexes/queries.proto";
 
+// Service for managing user-defined indexes in KurrentDB.
+//
+// Indexes enable efficient filtering and querying of records based on their
+// content. Each index consists of a filter (JavaScript function determining
+// which records to include) and one or more fields (to extract values for
+// indexing).
+//
+// Indexes are accessed via stream prefixes like `$idx-user-<index-name>` and
+// can be filtered by specific field values.
 service IndexesService {
+  // Create a new index.
   //
-  // Write-side Services
-  //
+  // The index will process existing and incoming records based on the provided
+  // filter and field definitions. If `start` is unspecified or true, the index
+  // begins processing immediately.
   rpc Create(CreateIndexRequest) returns (CreateIndexResponse) {
     option (google.api.http) = {
       post: "/v2/indexes/{name}",
       body: "*"
     };
-  };
+  }
 
+  // Start an index.
+  //
+  // Transitions the index from STOPPED to STARTED state. The index resumes
+  // processing new records and becomes available for queries. If the index is
+  // still catching up to the event log, queries may return INDEXES_ERROR_INDEXES_NOT_READY.
   rpc Start(StartIndexRequest) returns (StartIndexResponse) {
     option (google.api.http) = {
-      post: "/v2/indexes/{name}/start",
+      post: "/v2/indexes/{name}/start"
     };
   }
 
+  // Stop an index.
+  //
+  // Transitions the index from STARTED to STOPPED state. The index will not
+  // process new records, but existing indexed data remains accessible for queries.
   rpc Stop(StopIndexRequest) returns (StopIndexResponse) {
     option (google.api.http) = {
-      post: "/v2/indexes/{name}/stop",
+      post: "/v2/indexes/{name}/stop"
     };
   }
 
+  // Delete an index.
+  //
+  // Permanently removes the index and cleans up all associated data. This
+  // operation cannot be undone.
   rpc Delete(DeleteIndexRequest) returns (DeleteIndexResponse) {
     option (google.api.http) = {
       delete: "/v2/indexes/{name}"
     };
   }
 
-  //
-  // Read-side Services
-  //
+  // List all indexes in the cluster.
   rpc List(ListIndexesRequest) returns (ListIndexesResponse) {
     option (google.api.http) = {
-      get: "/v2/indexes",
+      get: "/v2/indexes"
     };
   }
 
+  // Retrieve a specific index by name.
   rpc Get(GetIndexRequest) returns (GetIndexResponse) {
     option (google.api.http) = {
-      get: "/v2/indexes/{name}",
+      get: "/v2/indexes/{name}"
     };
   }
 }

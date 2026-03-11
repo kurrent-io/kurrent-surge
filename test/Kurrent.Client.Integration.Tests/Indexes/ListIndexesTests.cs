@@ -1,6 +1,5 @@
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -13,7 +12,7 @@ public class ListIndexesTests {
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task lists_indexes(CancellationToken ct) {
+    public async ValueTask lists_indexes(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -21,13 +20,10 @@ public class ListIndexesTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'InvoiceCreated'", fields, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'InvoiceCreated'", fields, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .List(ct)
-            .ShouldNotThrowOrFailAsync(indexes => {
-                indexes.ShouldContain(i => i.Name == indexName);
-            });
+        var indexes = await Fixture.Client.Indexes.List(ct);
+
+        await Assert.That(indexes).Contains(i => i.Name == indexName);
     }
 }

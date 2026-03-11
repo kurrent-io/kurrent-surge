@@ -1,6 +1,6 @@
 namespace Kurrent.Client;
 
-public static class SystemConstants {
+static class SystemConstants {
     // public static class SystemEventSchemaNames {
     //     public static readonly SchemaName StreamDeleted   = "$streamDeleted";
     //     public static readonly SchemaName StatsCollection = "$statsCollected";

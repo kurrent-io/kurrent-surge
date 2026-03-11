@@ -3,7 +3,7 @@
 using Google.Protobuf;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using static KurrentDB.Protocol.V2.Registry.CheckSchemaCompatibilityResponse;
+
 using static KurrentDB.Protocol.V2.Registry.SchemaRegistryService;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
@@ -250,7 +250,7 @@ public class RegistryClient : ClientModuleBase {
                 .CheckSchemaCompatibilityAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            if (response.ResultCase is ResultOneofCase.Success)
+            if (response.ResultCase is Contracts.CheckSchemaCompatibilityResponse.ResultOneofCase.Success)
                 return SchemaVersionId.From(response.Success.SchemaVersionId);
 
             throw new SchemaIncompatibleException(SchemaCompatibilityErrors.FromProto(response.Failure.Errors));

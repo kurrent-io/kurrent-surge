@@ -1,4 +1,5 @@
 using Kurrent.Client.Exceptions;
+
 using static KurrentDB.Protocol.V2.Indexes.IndexesService;
 using Contracts = KurrentDB.Protocol.V2.Indexes;
 
@@ -24,7 +25,7 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{Success, CreateIndexError}"/> indicating the outcome of the index creation.
     /// </returns>
-    public async ValueTask<Result<Success, CreateIndexError>> Create(
+    public async ValueTask Create(
         string name,
         string filter,
         IEnumerable<IndexField> fields,
@@ -44,11 +45,9 @@ public class IndexesClient : ClientModuleBase {
             _ = await ServiceClient
                 .CreateAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-
-            return Results.Success;
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<CreateIndexError>();
+            throw ex.ToException((status, info) => ex);
         }
     }
 
@@ -62,7 +61,7 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{Success, StartIndexError}"/> indicating the outcome of the operation.
     /// </returns>
-    public async ValueTask<Result<Success, StartIndexError>> Start(
+    public async ValueTask Start(
         string name,
         CancellationToken cancellationToken = default
     ) {
@@ -72,11 +71,9 @@ public class IndexesClient : ClientModuleBase {
             _ = await ServiceClient
                 .StartAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-
-            return Results.Success;
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<StartIndexError>();
+            throw ex.ToException((status, info) => ex);
         }
     }
 
@@ -90,7 +87,7 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{Success, StopIndexError}"/> indicating the outcome of the operation.
     /// </returns>
-    public async ValueTask<Result<Success, StopIndexError>> Stop(
+    public async ValueTask Stop(
         string name,
         CancellationToken cancellationToken = default
     ) {
@@ -100,11 +97,9 @@ public class IndexesClient : ClientModuleBase {
             _ = await ServiceClient
                 .StopAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-
-            return Results.Success;
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<StopIndexError>();
+            throw ex.ToException((status, info) => ex);
         }
     }
 
@@ -118,7 +113,7 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{Success, DeleteIndexError}"/> indicating the outcome of the operation.
     /// </returns>
-    public async ValueTask<Result<Success, DeleteIndexError>> Delete(
+    public async ValueTask Delete(
         string name,
         CancellationToken cancellationToken = default
     ) {
@@ -128,11 +123,9 @@ public class IndexesClient : ClientModuleBase {
             _ = await ServiceClient
                 .DeleteAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-
-            return Results.Success;
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<DeleteIndexError>();
+            throw ex.ToException((status, info) => ex);
         }
     }
 
@@ -145,7 +138,7 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{IReadOnlyList, ListIndexesError}"/> containing the list of indexes or an error.
     /// </returns>
-    public async ValueTask<Result<IReadOnlyList<Index>, ListIndexesError>> List(
+    public async ValueTask<IReadOnlyList<Index>> List(
         CancellationToken cancellationToken = default
     ) {
         var request = new Contracts.ListIndexesRequest();
@@ -158,7 +151,7 @@ public class IndexesClient : ClientModuleBase {
             return response.Indexes.Select(Index.FromProto).ToList();
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<ListIndexesError>();
+            throw ex.ToException((status, info) => ex);
         }
     }
 
@@ -172,7 +165,7 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{Index, GetIndexError}"/> containing the index details or an error.
     /// </returns>
-    public async ValueTask<Result<Index, GetIndexError>> Get(
+    public async ValueTask<Index> Get(
         string name,
         CancellationToken cancellationToken = default
     ) {
@@ -186,7 +179,7 @@ public class IndexesClient : ClientModuleBase {
             return Index.FromProto(response.Index);
         }
         catch (Exception ex) {
-            return ex.ToExceptionalErrorResult<GetIndexError>();
+            throw ex.ToException((status, info) => ex);
         }
     }
 }

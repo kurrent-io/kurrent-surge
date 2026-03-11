@@ -1,7 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testing.Shouldly;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -14,7 +13,7 @@ public class DeleteIndexTests {
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task deletes_existing_index(CancellationToken ct) {
+    public async ValueTask deletes_existing_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
         var fields = new[] {
@@ -22,21 +21,17 @@ public class DeleteIndexTests {
         };
 
         await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct)
-            .ShouldNotThrowOrFailAsync();
+            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
 
-        await Fixture.Client.Indexes
-            .Delete(indexName, ct)
-            .ShouldNotThrowOrFailAsync();
+        await Fixture.Client.Indexes.Delete(indexName, ct);
     }
 
     [Test, Timeout(TestTimeoutMs)]
-    public async Task fails_to_delete_nonexistent_index(CancellationToken ct) {
+    public async ValueTask fails_to_delete_nonexistent_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
-        await Fixture.Client.Indexes
-            .Delete(indexName, ct)
-            .ShouldFailAsync(error =>
-                error.Value.ShouldBeOfType<NotFoundException>());
+        await Assert.That(async () => await Fixture.Client.Indexes
+            .Delete(indexName, ct))
+            .Throws<NotFoundException>();
     }
 }

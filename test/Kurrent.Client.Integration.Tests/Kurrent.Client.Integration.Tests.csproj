@@ -23,8 +23,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <PackageReference Include="Aspire.Hosting.Testing" />
-    <ProjectReference Include="..\Kurrent.Testing.Aspire\Kurrent.Testing.Aspire.csproj" />
+    <ProjectReference Include="..\Kurrent.SDK.Testing\Kurrent.SDK.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

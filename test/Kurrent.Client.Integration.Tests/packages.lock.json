@@ -2,43 +2,6 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
-      "Aspire.Hosting.Testing": {
-        "type": "Direct",
-        "requested": "[13.1.2, )",
-        "resolved": "13.1.2",
-        "contentHash": "wl+KAFyoq9tH84ZXWG3b+NZPpFH7lrSSIphYAZMDCD+HWT1TByK9YJl/5PhX50CcP+rgrGrJhA7Nhrf1MO1lKQ==",
-        "dependencies": {
-          "AspNetCore.HealthChecks.Uris": "9.0.0",
-          "Aspire.Hosting": "13.1.2",
-          "Aspire.Hosting.AppHost": "13.1.2",
-          "Google.Protobuf": "3.33.0",
-          "Grpc.AspNetCore": "2.71.0",
-          "Grpc.Net.ClientFactory": "2.71.0",
-          "Grpc.Tools": "2.72.0",
-          "Humanizer.Core": "2.14.1",
-          "JsonPatch.Net": "3.3.0",
-          "KubernetesClient": "18.0.5",
-          "Microsoft.Extensions.Configuration.Abstractions": "10.0.1",
-          "Microsoft.Extensions.Configuration.Binder": "10.0.1",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.1",
-          "Microsoft.Extensions.DependencyInjection.AutoActivation": "10.1.0",
-          "Microsoft.Extensions.Diagnostics.HealthChecks": "10.0.1",
-          "Microsoft.Extensions.FileSystemGlobbing": "10.0.1",
-          "Microsoft.Extensions.Hosting": "10.0.1",
-          "Microsoft.Extensions.Hosting.Abstractions": "10.0.1",
-          "Microsoft.Extensions.Http": "10.0.1",
-          "Microsoft.Extensions.Http.Resilience": "10.1.0",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.1",
-          "Microsoft.Extensions.Options": "10.0.1",
-          "Microsoft.Extensions.Primitives": "10.0.1",
-          "Newtonsoft.Json": "13.0.4",
-          "Polly.Core": "8.6.4",
-          "Polly.Extensions": "8.6.4",
-          "Semver": "3.0.0",
-          "StreamJsonRpc": "2.22.23",
-          "System.IO.Hashing": "9.0.10"
-        }
-      },
       "FakeItEasy": {
         "type": "Direct",
         "requested": "[9.0.1, )",
@@ -260,19 +223,6 @@
         "dependencies": {
           "Fractions": "7.3.0",
           "YamlDotNet": "16.3.0"
-        }
-      },
-      "KurrentDB.Client": {
-        "type": "Transitive",
-        "resolved": "1.2.0",
-        "contentHash": "YANfNu9gNccpT9qDMvYseHXAKSkrKenQRf7c2iq6mIVeJVEsX0vso9lXOPpN27lDVRcA03keae/zRx9grldT3A==",
-        "dependencies": {
-          "Google.Api.CommonProtos": "2.16.0",
-          "Google.Protobuf": "3.32.1",
-          "Grpc.Net.Client": "2.67.0",
-          "Grpc.StatusProto": "2.71.0",
-          "Microsoft.Extensions.Logging": "9.0.0",
-          "OpenTelemetry.Api": "1.12.0"
         }
       },
       "MessagePack": {
@@ -778,6 +728,19 @@
           "System.Linq.Async": "[7.0.0, )"
         }
       },
+      "kurrent.sdk.testing": {
+        "type": "Project",
+        "dependencies": {
+          "Aspire.Dashboard.Sdk.osx-arm64": "[13.1.2, )",
+          "Aspire.Hosting.AppHost": "[13.1.2, )",
+          "Aspire.Hosting.Orchestration.osx-arm64": "[13.1.2, )",
+          "Aspire.Hosting.Testing": "[13.1.2, )",
+          "Kurrent.Client": "[1.0.0, )",
+          "Kurrent.Testing": "[1.0.0, )",
+          "Kurrent.Testing.Datasets": "[1.0.0, )",
+          "TUnit": "[0.90.45, )"
+        }
+      },
       "kurrent.testing": {
         "type": "Project",
         "dependencies": {
@@ -812,15 +775,6 @@
           "Serilog.Sinks.Seq": "[9.0.0, )",
           "System.Reactive": "[6.1.0, )",
           "TUnit": "[0.90.45, )"
-        }
-      },
-      "kurrent.testing.aspire": {
-        "type": "Project",
-        "dependencies": {
-          "Aspire.Dashboard.Sdk.osx-arm64": "[13.1.2, )",
-          "Aspire.Hosting.AppHost": "[13.1.2, )",
-          "Aspire.Hosting.Orchestration.osx-arm64": "[13.1.2, )",
-          "CommunityToolkit.Aspire.Hosting.KurrentDB": "[13.1.1, )"
         }
       },
       "kurrent.testing.datasets": {
@@ -867,21 +821,48 @@
           "System.IO.Hashing": "9.0.10"
         }
       },
+      "Aspire.Hosting.Testing": {
+        "type": "CentralTransitive",
+        "requested": "[13.1.2, )",
+        "resolved": "13.1.2",
+        "contentHash": "wl+KAFyoq9tH84ZXWG3b+NZPpFH7lrSSIphYAZMDCD+HWT1TByK9YJl/5PhX50CcP+rgrGrJhA7Nhrf1MO1lKQ==",
+        "dependencies": {
+          "AspNetCore.HealthChecks.Uris": "9.0.0",
+          "Aspire.Hosting": "13.1.2",
+          "Aspire.Hosting.AppHost": "13.1.2",
+          "Google.Protobuf": "3.33.0",
+          "Grpc.AspNetCore": "2.71.0",
+          "Grpc.Net.ClientFactory": "2.71.0",
+          "Grpc.Tools": "2.72.0",
+          "Humanizer.Core": "2.14.1",
+          "JsonPatch.Net": "3.3.0",
+          "KubernetesClient": "18.0.5",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.1",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.1",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.1",
+          "Microsoft.Extensions.DependencyInjection.AutoActivation": "10.1.0",
+          "Microsoft.Extensions.Diagnostics.HealthChecks": "10.0.1",
+          "Microsoft.Extensions.FileSystemGlobbing": "10.0.1",
+          "Microsoft.Extensions.Hosting": "10.0.1",
+          "Microsoft.Extensions.Hosting.Abstractions": "10.0.1",
+          "Microsoft.Extensions.Http": "10.0.1",
+          "Microsoft.Extensions.Http.Resilience": "10.1.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.1",
+          "Microsoft.Extensions.Options": "10.0.1",
+          "Microsoft.Extensions.Primitives": "10.0.1",
+          "Newtonsoft.Json": "13.0.4",
+          "Polly.Core": "8.6.4",
+          "Polly.Extensions": "8.6.4",
+          "Semver": "3.0.0",
+          "StreamJsonRpc": "2.22.23",
+          "System.IO.Hashing": "9.0.10"
+        }
+      },
       "Bogus": {
         "type": "CentralTransitive",
         "requested": "[35.6.5, )",
         "resolved": "35.6.5",
         "contentHash": "2FGZn+aAVHjmCgClgmGkTDBVZk0zkLvAKGaxEf5JL6b3i9JbHTE4wnuY4vHCuzlCmJdU6VZjgDfHwmYkQF8VAA=="
-      },
-      "CommunityToolkit.Aspire.Hosting.KurrentDB": {
-        "type": "CentralTransitive",
-        "requested": "[13.1.1, )",
-        "resolved": "13.1.1",
-        "contentHash": "Vbdl07NseLpqU0IhLODCCqaR7vOD9dQedb00KnWvdU+wzgsva+TsiwvCUHVqkLDgxbeQLqDZTuIPEqjtAbHPNQ==",
-        "dependencies": {
-          "Aspire.Hosting": "13.1.0",
-          "KurrentDB.Client": "1.2.0"
-        }
       },
       "DiffEngine": {
         "type": "CentralTransitive",
@@ -1162,12 +1143,6 @@
         "dependencies": {
           "NodaTime": "[3.0.0, 4.0.0)"
         }
-      },
-      "OpenTelemetry.Api": {
-        "type": "CentralTransitive",
-        "requested": "[1.15.0, )",
-        "resolved": "1.12.0",
-        "contentHash": "Xt0qldi+iE2szGrM3jAqzEMEJd48YBtqI6mge0+ArXTZg3aTpRmyhL6CKKl3bLioaFSSVbBpEbPin8u6Z46Yrw=="
       },
       "Polly": {
         "type": "CentralTransitive",
