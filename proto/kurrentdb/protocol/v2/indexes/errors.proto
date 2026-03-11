@@ -1,4 +1,4 @@
-edition = "2023";
+syntax = "proto3";
 
 package kurrentdb.protocol.v2.indexes.errors;
 
@@ -49,5 +49,5 @@ message IndexAlreadyExistsErrorDetails {
 
 message IndexesNotReadyErrorDetails {
   int64 current_position = 1;
-  int64 target_position  = 2;
+  int64 target_position = 2;
 }

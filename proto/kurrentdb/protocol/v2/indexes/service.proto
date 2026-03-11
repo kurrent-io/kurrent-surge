@@ -1,4 +1,4 @@
-edition = "2023";
+syntax = "proto3";
 
 package kurrentdb.protocol.v2.indexes;
 
@@ -9,6 +9,9 @@ import "kurrentdb/protocol/v2/indexes/commands.proto";
 import "kurrentdb/protocol/v2/indexes/queries.proto";
 
 service IndexesService {
+  //
+  // Write-side Services
+  //
   rpc Create(CreateIndexRequest) returns (CreateIndexResponse) {
     option (google.api.http) = {
       post: "/v2/indexes/{name}",
@@ -34,6 +37,9 @@ service IndexesService {
     };
   }
 
+  //
+  // Read-side Services
+  //
   rpc List(ListIndexesRequest) returns (ListIndexesResponse) {
     option (google.api.http) = {
       get: "/v2/indexes",

@@ -1,3 +1,4 @@
+using Kurrent.Client.Indexes;
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Legacy;
 using Kurrent.Client.Registry;
@@ -39,6 +40,7 @@ public class KurrentClient : IAsyncDisposable {
 
         Registry                = new RegistryClient(this);
         Streams                 = new StreamsClient(this);
+        Indexes                 = new IndexesClient(this);
         Connectors              = new ConnectorsClient(this);
         // Admin                   = new AdminClient(this);
         // PersistentSubscriptions = new PersistentSubscriptionsClient(this);
@@ -55,6 +57,7 @@ public class KurrentClient : IAsyncDisposable {
 
     public StreamsClient                 Streams                 { get; }
     public RegistryClient                Registry                { get; }
+    public IndexesClient                 Indexes                 { get; }
     public ConnectorsClient              Connectors              { get; }
     // public UsersClient                   Users                   { get; }
     // public PersistentSubscriptionsClient PersistentSubscriptions { get; }
