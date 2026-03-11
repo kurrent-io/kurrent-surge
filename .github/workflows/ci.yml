@@ -8,6 +8,12 @@ on:
   push:
     branches: [main]
 
+# Cancel in-progress runs when a new commit is pushed to the same branch/PR.
+# Merge queue runs are unaffected — each gets a unique ref (gh-readonly-queue/...).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
