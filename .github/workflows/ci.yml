@@ -31,6 +31,7 @@ jobs:
 
     permissions:
       contents: read
+      issues: read
       packages: write
       checks: write
       pull-requests: write
@@ -83,7 +84,7 @@ jobs:
           -- --disable-logo --adaptive-metrics --report-trx --fail-fast --treenode-filter "/*/*/*/*[Category=Integration]"
 
       - name: Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action/linux@v2
         if: ${{ !cancelled() }}
         with:
           files: '**/artifacts/test-results/*.trx'

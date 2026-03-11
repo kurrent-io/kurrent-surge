@@ -1,5 +1,6 @@
 // ReSharper disable UnusedParameter.Local
 
+using Kurrent.Testing.Assertions;
 using TicTacToe;
 
 namespace Kurrent.Variant.Tests.Result;
@@ -434,69 +435,69 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_executes_action_and_returns_same_instance_when_called_on_success_result() {
         // Arrange
-        GameStarted successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        bool actionExecuted = false;
+        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var actionExecuted = false;
 
         // Act
-        Result<GameStarted, InvalidMoveError> returnedResult = originalResult.Inspect(_ => actionExecuted = true);
+        var returnedResult = originalResult.Inspect(_ => actionExecuted = true);
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
+        await Assert.That(returnedResult).IsDeepEquivalentTo(originalResult);
     }
 
     [Test]
     public async Task inspect_does_not_execute_action_and_returns_same_instance_when_called_on_error_result() {
         // Arrange
-        InvalidMoveError errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        bool actionExecuted = false;
+        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var actionExecuted = false;
 
         // Act
-        Result<GameStarted, InvalidMoveError> returnedResult = originalResult.Inspect(_ => actionExecuted = true);
+        var returnedResult = originalResult.Inspect(_ => actionExecuted = true);
 
         // Assert
         await Assert.That(actionExecuted).IsFalse();
-        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
+        await Assert.That(returnedResult).IsDeepEquivalentTo(originalResult);
     }
 
     [Test]
     public async Task inspect_error_executes_action_and_returns_same_instance_when_called_on_error_result() {
         // Arrange
-        InvalidMoveError errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        bool actionExecuted = false;
+        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var actionExecuted = false;
 
         // Act
-        Result<GameStarted, InvalidMoveError> returnedResult = originalResult.InspectError(_ => actionExecuted = true);
+        var returnedResult = originalResult.InspectError(_ => actionExecuted = true);
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
+        await Assert.That(returnedResult).IsDeepEquivalentTo(originalResult);
     }
 
     [Test]
     public async Task inspect_error_does_not_execute_action_and_returns_same_instance_when_called_on_success_result() {
         // Arrange
-        GameStarted successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        bool actionExecuted = false;
+        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var actionExecuted = false;
 
         // Act
-        Result<GameStarted, InvalidMoveError> returnedResult = originalResult.InspectError(_ => actionExecuted = true);
+        var returnedResult = originalResult.InspectError(_ => actionExecuted = true);
 
         // Assert
         await Assert.That(actionExecuted).IsFalse();
-        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
+        await Assert.That(returnedResult).IsDeepEquivalentTo(originalResult);
     }
 
     [Test]
     public async Task inspect_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        GameStarted successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        string contextState = "Audit trail";
+        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var contextState = "Audit trail";
         string? capturedState = null;
 
         // Act
@@ -509,9 +510,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        InvalidMoveError errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        string contextState = "Error context";
+        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var contextState = "Error context";
         string? capturedState = null;
 
         // Act
@@ -524,45 +525,45 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_executes_action_with_value_task() {
         // Arrange
-        GameStarted successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        bool actionExecuted = false;
+        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var actionExecuted = false;
 
         // Act
-        Result<GameStarted, InvalidMoveError> returnedResult = await originalResult.InspectAsync(async _ => {
+        var returnedResult = await originalResult.InspectAsync(async _ => {
             await Task.Delay(1);
             actionExecuted = true;
         });
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
+        await Assert.That(returnedResult).IsDeepEquivalentTo(originalResult);
     }
 
     [Test]
     public async Task inspect_error_async_executes_action_with_value_task() {
         // Arrange
-        InvalidMoveError errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        bool actionExecuted = false;
+        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var actionExecuted = false;
 
         // Act
-        Result<GameStarted, InvalidMoveError> returnedResult = await originalResult.InspectErrorAsync(async _ => {
+        var returnedResult = await originalResult.InspectErrorAsync(async _ => {
             await Task.Delay(1);
             actionExecuted = true;
         });
 
         // Assert
         await Assert.That(actionExecuted).IsTrue();
-        await Assert.That(returnedResult).IsEquivalentTo(originalResult);
+        await Assert.That(returnedResult).IsDeepEquivalentTo(originalResult);
     }
 
     [Test]
     public async Task inspect_async_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        GameStarted successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        string contextState = "Async audit trail";
+        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var contextState = "Async audit trail";
         string? capturedState = null;
 
         // Act
@@ -578,9 +579,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        InvalidMoveError errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        Result<GameStarted, InvalidMoveError> originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        string contextState = "Async error context";
+        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var contextState = "Async error context";
         string? capturedState = null;
 
         // Act
