@@ -1,0 +1,111 @@
+name: NuGet Publish
+description: >
+  Packs .NET projects and pushes NuGet packages to one or more feeds.
+  Supports GitHub Packages and NuGet.org as destinations.
+
+  Packing runs first (unless disabled), then packages are pushed to each
+  destination declared in push-to. Credentials are read from environment
+  variables — the action never receives secrets as inputs.
+
+  Environment variables:
+    GITHUB_TOKEN  — Required when push-to includes "github". Automatically
+                    available in GitHub Actions workflows.
+    NUGET_API_KEY — Required when push-to includes "nuget". Must be set
+                    explicitly by the caller.
+
+  Destinations (push-to, required):
+    github — GitHub Packages (https://nuget.pkg.github.com/{owner}/index.json)
+    nuget  — NuGet.org (https://api.nuget.org/v3/index.json)
+
+  Usage:
+    # Pack and push to GitHub Packages
+    - uses: ./.github/actions/dotnet-nuget
+      with:
+        version: ${{ env.VERSION }}
+        push-to: github
+
+    # Pack and push to both GitHub Packages and NuGet.org
+    - uses: ./.github/actions/dotnet-nuget
+      with:
+        version: ${{ env.VERSION }}
+        push-to: github nuget
+      env:
+        NUGET_API_KEY: ${{ secrets.NUGET_KEY }}
+
+    # Push pre-built packages only (skip pack)
+    - uses: ./.github/actions/dotnet-nuget
+      with:
+        pack: false
+        push-to: github
+
+inputs:
+  push-to:
+    description: >
+      Destinations to push packages to. Space-separated, YAML list, or
+      comma-separated. Supported values: github, nuget.
+    required: true
+  version:
+    description: >
+      Package version passed as -p:Version to dotnet pack.
+      Required when pack is true. Ignored when pack is false.
+    required: false
+    default: ''
+  pack:
+    description: Run dotnet pack before pushing. Set to false for push-only.
+    required: false
+    default: 'true'
+  output:
+    description: Output directory for .nupkg files.
+    required: false
+    default: ./.artifacts/packages
+  pack-args:
+    description: >
+      Arguments passed to dotnet pack. Defaults to --no-build (assumes a
+      prior build step). Override to control build behavior or add flags.
+    required: false
+    default: '--no-build'
+
+outputs:
+  packages-path:
+    description: Path to the directory containing the packed .nupkg files.
+    value: ${{ inputs.output }}
+
+runs:
+  using: composite
+  steps:
+    - name: Pack
+      if: inputs.pack == 'true'
+      shell: bash
+      run: >-
+        dotnet pack
+        -o ${{ inputs.output }}
+        -p:Version=${{ inputs.version }}
+        ${{ inputs.pack-args }}
+
+    # Registers a temporary GitHub Packages source with actor credentials,
+    # then pushes all .nupkg files. --skip-duplicate avoids failures when
+    # re-running a workflow that already published a version.
+    - name: Push to GitHub Packages
+      if: contains(inputs.push-to, 'github')
+      shell: bash
+      run: |
+        dotnet nuget add source \
+          --username ${{ github.actor }} \
+          --password "$GITHUB_TOKEN" \
+          --store-password-in-clear-text \
+          --name github \
+          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+        dotnet nuget push ${{ inputs.output }}/*.nupkg \
+          --skip-duplicate \
+          --source github \
+          --api-key "$GITHUB_TOKEN"
+
+    - name: Push to NuGet.org
+      if: contains(inputs.push-to, 'nuget')
+      shell: bash
+      run: |
+        dotnet nuget push ${{ inputs.output }}/*.nupkg \
+          --skip-duplicate \
+          --source https://api.nuget.org/v3/index.json \
+          --api-key "$NUGET_API_KEY"

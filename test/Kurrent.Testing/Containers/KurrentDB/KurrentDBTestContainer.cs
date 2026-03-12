@@ -13,7 +13,8 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
     public const string DefaultUsername = "admin";
     public const string DefaultPassword = "changeit";
 
-    static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";
+    // static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";
+    static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:ci";
 
     public KurrentDBTestContainer(Dictionary<string, string?> settings, string? image = null) : base(image ?? DefaultImage) {
         ActiveConfiguration = KurrentDBConfiguration.FromContext(settings).ToDictionary();
@@ -31,8 +32,11 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
         }
     }
 
-    public KurrentDBTestContainer(string? image = null)
+    public KurrentDBTestContainer(string image)
         : this(KurrentDBConfiguration.Insecure.ToDictionary(), image) { }
+
+    public KurrentDBTestContainer()
+        : this(KurrentDBConfiguration.Insecure.ToDictionary()) { }
 
     public Dictionary<string, string?> ActiveConfiguration { get; }
 

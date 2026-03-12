@@ -104,5 +104,8 @@
 *.slnx     text
 *.csproj   text
 
+# dotnet-script tools — keep executable across clones
+tools/*.cs text eol=lf diff=csharp
+
 # Apply override to all files in the directory
 *.md linguist-detectable

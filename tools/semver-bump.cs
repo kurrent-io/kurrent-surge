@@ -1,4 +1,4 @@
-#!/usr/bin/env dotnet-run
+#!/usr/bin/env dotnet
 #:package Spectre.Console@0.*
 #:package Spectre.Console.Cli@0.*
 
@@ -135,7 +135,6 @@ sealed class SemverBumpCommand : Command<SemverBumpSettings> {
         var result = new BumpResult(lastTag, previousVersion, bumpType, nextVersion, nextTag, commits);
 
         // ── Generate changelog (Keep a Changelog 1.1.0) ──────────────────────
-        var repoUrl = settings.RepoUrl ?? Git.GetRepoUrl();
         var section = GenerateReleaseSection(result);
 
         // ── Emit output ───────────────────────────────────────────────────────
@@ -151,6 +150,7 @@ sealed class SemverBumpCommand : Command<SemverBumpSettings> {
         }
 
         // ── Write CHANGELOG.md ────────────────────────────────────────────────
+        var repoUrl       = settings.RepoUrl ?? Git.GetRepoUrl();
         var changelogPath = Path.Combine(Directory.GetCurrentDirectory(), "CHANGELOG.md");
         UpdateChangelogFile(changelogPath, result, section, repoUrl);
         if (mode == OutputMode.Text)
@@ -245,53 +245,22 @@ sealed class SemverBumpCommand : Command<SemverBumpSettings> {
         var security = fixed_.Where(c => c.Scope is "security" or "auth").ToList();
         fixed_       = fixed_.Except(security).ToList();
 
-        if (breaking.Count > 0) {
-            sb.AppendLine("### ⚠ Breaking Changes");
+        void Section(string heading, List<ConventionalCommit> commits, Func<ConventionalCommit, string>? subject = null) {
+            if (commits.Count == 0) return;
+            subject ??= c => c.Subject;
+            sb.AppendLine($"### {heading}");
             sb.AppendLine();
-            foreach (var c in breaking)
-                sb.AppendLine(FormatEntry(c, c.BreakingNote ?? c.Subject));
-            sb.AppendLine();
-        }
-
-        if (added.Count > 0) {
-            sb.AppendLine("### Added");
-            sb.AppendLine();
-            foreach (var c in added)
-                sb.AppendLine(FormatEntry(c, c.Subject));
+            foreach (var c in commits)
+                sb.AppendLine(FormatEntry(c, subject(c)));
             sb.AppendLine();
         }
 
-        if (changed.Count > 0) {
-            sb.AppendLine("### Changed");
-            sb.AppendLine();
-            foreach (var c in changed)
-                sb.AppendLine(FormatEntry(c, c.Subject));
-            sb.AppendLine();
-        }
-
-        if (removed.Count > 0) {
-            sb.AppendLine("### Removed");
-            sb.AppendLine();
-            foreach (var c in removed)
-                sb.AppendLine(FormatEntry(c, c.Subject));
-            sb.AppendLine();
-        }
-
-        if (fixed_.Count > 0) {
-            sb.AppendLine("### Fixed");
-            sb.AppendLine();
-            foreach (var c in fixed_)
-                sb.AppendLine(FormatEntry(c, c.Subject));
-            sb.AppendLine();
-        }
-
-        if (security.Count > 0) {
-            sb.AppendLine("### Security");
-            sb.AppendLine();
-            foreach (var c in security)
-                sb.AppendLine(FormatEntry(c, c.Subject));
-            sb.AppendLine();
-        }
+        Section("⚠ Breaking Changes", breaking, c => c.BreakingNote ?? c.Subject);
+        Section("Added",              added);
+        Section("Changed",            changed);
+        Section("Removed",            removed);
+        Section("Fixed",              fixed_);
+        Section("Security",           security);
 
         return sb.ToString().TrimEnd();
     }
@@ -415,8 +384,13 @@ sealed class SemverBumpCommand : Command<SemverBumpSettings> {
             if (string.IsNullOrWhiteSpace(line)) continue;
             // Reference link lines look like: [tag]: https://...
             if (line.StartsWith('[') && line.Contains("]: http")) continue;
-            // First non-link, non-blank line from the bottom — links start after this
-            return content.LastIndexOf('\n' + lines[i + 1 < lines.Length ? i + 1 : i]);
+            // First non-link, non-blank line from the bottom — links start after this.
+            // Compute the character offset by summing preceding line lengths.
+            if (i + 1 >= lines.Length) return -1;
+            var offset = 0;
+            for (int j = 0; j <= i; j++)
+                offset += lines[j].Length + 1; // +1 for the '\n'
+            return offset;
         }
         return -1;
     }
@@ -548,8 +522,10 @@ static class Git {
         };
 
         using var proc = System.Diagnostics.Process.Start(psi)!;
-        var stdout = proc.StandardOutput.ReadToEnd().Trim();
-        var stderr = proc.StandardError.ReadToEnd().Trim();
+        // Read both streams concurrently to avoid deadlock when a pipe buffer fills
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+        var stdout     = proc.StandardOutput.ReadToEnd().Trim();
+        var stderr     = stderrTask.GetAwaiter().GetResult().Trim();
         proc.WaitForExit();
         return (stdout, stderr, proc.ExitCode);
     }

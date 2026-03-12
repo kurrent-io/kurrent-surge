@@ -6,14 +6,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
 
     <!-- Include only en-US satellite resources to reduce package size -->
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
 
     <!-- Exclude all .DotSettings files from being included -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);**/*.DotSettings;packages.lock.json</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/*.DotSettings</DefaultItemExcludes>
 
     <!-- Warnings -->
     <!-- NETSDK1057 - You are using a preview version of .NET -->

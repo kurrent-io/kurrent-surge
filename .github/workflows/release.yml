@@ -22,7 +22,6 @@ env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
 
   MinVerDefaultPreReleaseIdentifiers: ${{ github.event_name == 'pull_request' && format('pr.{0}.{1}', github.event.pull_request.number, github.run_number) || format('alpha.{0}', github.run_number) }}
-  MinVerAutoIncrement: patch
   MinVerIgnoreHeight: true
 
 jobs:
@@ -47,50 +46,37 @@ jobs:
             exit 1
           fi
 
-      - name: Create local tag
+      - name: Tag version
         run: |
           git config user.name "${{ vars.ORG_GH_BOT_USERNAME }}"
           git config user.email "${{ vars.ORG_GH_BOT_USERNAME }}@users.noreply.github.com"
           git tag "v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
 
       - name: Setup .NET
-        uses: ./.github/actions/setup-dotnet
+        uses: ./.github/actions/dotnet-setup
         env:
           DOTNET_INSTALL_VERSIONS: |
             8.x
             9.x
             10.x
 
+      - name: Version
+        run: |
+          version=$(minver --tag-prefix v)
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "### Version: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build
         run: dotnet build -c Release --no-restore
 
-      - name: Pack
-        run: dotnet pack --configuration Release --no-build -o ./artifacts/packages
-
-      - name: Push tag
-        run: git push origin "v${{ inputs.version }}"
-
-      - name: Push to GitHub Packages
-        run: |
-          dotnet nuget add source \
-            --username ${{ github.actor }} \
-            --password ${{ secrets.GITHUB_TOKEN }} \
-            --store-password-in-clear-text \
-            --name github \
-            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-
-          dotnet nuget push ./artifacts/packages/*.nupkg \
-            --skip-duplicate \
-            --source github \
-            --api-key ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push to NuGet.org
-        if: inputs.push_to_nuget
-        run: |
-          dotnet nuget push ./artifacts/packages/*.nupkg \
-            --skip-duplicate \
-            --source https://api.nuget.org/v3/index.json \
-            --api-key ${{ secrets.KURRENT_NUGET_KEY }}
+      - name: Publish packages
+        uses: ./.github/actions/dotnet-nuget
+        with:
+          version: ${{ env.VERSION }}
+          push-to: github ${{ inputs.push_to_nuget && 'nuget' || '' }}
+        env:
+          NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
 
       - name: Create GitHub Release
         env:
