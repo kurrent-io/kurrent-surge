@@ -26,7 +26,11 @@ runs:
       run: |
         echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
         echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
-        echo "DOTNET_INSTALL_VERSIONS=${DOTNET_INSTALL_VERSIONS:-10.x}" >> $GITHUB_ENV
+        {
+          echo "DOTNET_INSTALL_VERSIONS<<EOF"
+          echo "${DOTNET_INSTALL_VERSIONS:-10.x}"
+          echo "EOF"
+        } >> $GITHUB_ENV
         echo "DOTNET_RESTORE_LOCKED=${DOTNET_RESTORE_LOCKED:-false}" >> $GITHUB_ENV
         echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
