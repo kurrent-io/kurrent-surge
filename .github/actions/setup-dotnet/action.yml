@@ -2,35 +2,47 @@ name: Setup .NET with cache
 description: Cache .NET SDK and NuGet packages, setup SDKs, and restore packages
 
 inputs:
-  dotnet-version:
-    description: .NET SDK versions to install
-    required: true
-  locked-mode:
-    description: Use --locked-mode for dotnet restore
-    required: false
-    default: 'false'
   cache-key:
     description: Override the default cache key
     required: false
     default: ''
 
+outputs:
+  cache-hit:
+    description: Whether the cache was restored
+    value: ${{ steps.cache.outputs.cache-hit }}
+  dotnet-install-dir:
+    description: .NET SDK installation directory
+    value: ${{ env.DOTNET_INSTALL_DIR }}
+  nuget-packages-dir:
+    description: NuGet global packages directory
+    value: ${{ env.NUGET_PACKAGES }}
+
 runs:
   using: composite
   steps:
+    - name: Set .NET environment
+      shell: bash
+      run: |
+        echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+        echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+        echo "DOTNET_INSTALL_VERSIONS=${DOTNET_INSTALL_VERSIONS:-10.x}" >> $GITHUB_ENV
+        echo "DOTNET_RESTORE_LOCKED=${DOTNET_RESTORE_LOCKED:-false}" >> $GITHUB_ENV
+        echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
     - name: Cache .NET SDKs and NuGet packages
       id: cache
       uses: actions/cache@v5
       with:
         path: |
-          /usr/share/dotnet
-          ~/.nuget/packages
+          ${{ env.DOTNET_INSTALL_DIR }}
+          ${{ env.NUGET_PACKAGES }}
         key: ${{ inputs.cache-key || format('dotnet-{0}', runner.os) }}
 
     - name: Setup .NET
-      if: steps.cache.outputs.cache-hit != 'true'
       uses: actions/setup-dotnet@v5.2.0
       with:
-        dotnet-version: ${{ inputs.dotnet-version }}
+        dotnet-version: ${{ env.DOTNET_INSTALL_VERSIONS }}
 
     - name: Restore tools
       shell: bash
@@ -38,4 +50,4 @@ runs:
 
     - name: Restore packages
       shell: bash
-      run: dotnet restore ${{ inputs.locked-mode == 'true' && '--locked-mode' || '' }}
+      run: dotnet restore ${{ env.DOTNET_RESTORE_LOCKED == 'true' && '--locked-mode' || '' }}

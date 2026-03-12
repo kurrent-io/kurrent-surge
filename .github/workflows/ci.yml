@@ -40,12 +40,11 @@ jobs:
 
       - name: Setup .NET
         uses: ./.github/actions/setup-dotnet
-        with:
-          dotnet-version: |
+        env:
+          DOTNET_INSTALL_VERSIONS: |
             8.x
             9.x
             10.x
-          locked-mode: 'true'
 
       - name: Build
         run: dotnet build -c Release --no-restore
