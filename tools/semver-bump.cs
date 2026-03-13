@@ -284,12 +284,10 @@ namespace Output {
     sealed class JsonResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
         : BaseResultWriter(stderr, stdout) {
         protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
-            var json = JsonSerializer.Serialize(new {
-                version = $"{result.NextVersion}",
-                tag     = $"{result.NextVersion.ToGitTag()}",
-                bump    = $"{result.Bump}"
-            });
-            Stdout.WriteLine(json);
+            var version = JsonEncodedText.Encode($"{result.NextVersion}");
+            var tag     = JsonEncodedText.Encode($"{result.NextVersion.ToGitTag()}");
+            var bump    = JsonEncodedText.Encode($"{result.Bump}");
+            Stdout.WriteLine($$"""{"version":"{{version}}","tag":"{{tag}}","bump":"{{bump}}"}""");
             return Task.CompletedTask;
         }
     }
@@ -425,12 +423,12 @@ namespace Git {
                     Subject = subject,
                     Body = body,
                     Hash = commit.Sha,
-                    Author = new GitCommitter(commit.Commit.Author.Name, commit.Commit.Author.Email),
-                    Commiter = new GitCommitter(commit.Commit.Committer.Name, commit.Commit.Committer.Email),
-                    Label = commit.Commit.Label,
-                    Stats = new GitCommitStats(commit.Stats.Additions, commit.Stats.Deletions, commit.Stats.Total),
-                    Timestamp = commit.Commit.Author.Date,
-                    Url = commit.Commit.Url,
+                    Author = commit.Commit.Author is { } a ? new GitCommitter(a.Name, a.Email) : GitCommitter.Unspecified,
+                    Commiter = commit.Commit.Committer is { } c ? new GitCommitter(c.Name, c.Email) : GitCommitter.Unspecified,
+                    Label = commit.Commit.Label ?? "",
+                    Stats = commit.Stats is { } s ? new GitCommitStats(s.Additions, s.Deletions, s.Total) : GitCommitStats.Unspecified,
+                    Timestamp = commit.Commit.Author?.Date ?? DateTimeOffset.MinValue,
+                    Url = commit.Commit.Url ?? "",
                     Conventional = ConventionalCommit.Parse(subject)
                 };
             }
@@ -579,7 +577,8 @@ namespace Git {
             var lastTag = await GetLastTagAsync(ct);
             var commits = await GetCommits(lastTag, GitTag.Unspecified, ct).ToArrayAsync(ct);
 
-            return new PreReleaseContext(lastTag, SemVer.Parse(lastTag), commits);
+            var lastVersion = lastTag != GitTag.Unspecified ? SemVer.Parse(lastTag) : SemVer.Unspecified;
+            return new PreReleaseContext(lastTag, lastVersion, commits);
         }
     }
 }
