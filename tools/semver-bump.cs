@@ -570,13 +570,13 @@ namespace Git {
             Ref   = "HEAD"
         };
 
-        static readonly Regex CommitPattern = GitTagRegex();
+        static readonly Regex TagPattern = GitTagRegex();
 
         public static GitTag From(string value) {
             if (value.Equals(Head, StringComparison.OrdinalIgnoreCase))
                 return Head;
 
-            if (!CommitPattern.IsMatch(value))
+            if (!TagPattern.IsMatch(value))
                 throw new ArgumentException($"Invalid git tag name: '{value}' does not conform to git-check-ref-format rules.");
 
             return new GitTag {
@@ -602,8 +602,8 @@ namespace Git {
         public override string ToString() => $"Stats: +{Additions} -{Deletions} ={Total}";
     }
 
-    public readonly record struct GitCommiter(string Name, string Email) {
-        public static readonly GitCommiter Unspecified = new();
+    public readonly record struct GitCommitter(string Name, string Email) {
+        public static readonly GitCommitter Unspecified = new();
 
         public override string ToString() => $"{Name} <{Email}>";
     }
@@ -613,8 +613,8 @@ namespace Git {
         public string         Subject    { get; private init; } = "";
         public string         Body       { get; private init; } = "";
         public string         Hash       { get; private init; } = "";
-        public GitCommiter    Author     { get; private init; } = GitCommiter.Unspecified;
-        public GitCommiter    Commiter   { get; private init; } = GitCommiter.Unspecified;
+        public GitCommitter    Author     { get; private init; } = GitCommitter.Unspecified;
+        public GitCommitter    Commiter   { get; private init; } = GitCommitter.Unspecified;
         public string         Label      { get; private init; } = "";
         public GitCommitStats Stats      { get; private init; } = GitCommitStats.Unspecified;
         public DateTimeOffset Timestamp  { get; private init; } = DateTimeOffset.MinValue;
@@ -640,8 +640,8 @@ namespace Git {
                     Subject = subject,
                     Body = body,
                     Hash = commit.Sha,
-                    Author = new GitCommiter(commit.Commit.Author.Name, commit.Commit.Author.Email),
-                    Commiter = new GitCommiter(commit.Commit.Committer.Name, commit.Commit.Committer.Email),
+                    Author = new GitCommitter(commit.Commit.Author.Name, commit.Commit.Author.Email),
+                    Commiter = new GitCommitter(commit.Commit.Committer.Name, commit.Commit.Committer.Email),
                     Label = commit.Commit.Label,
                     Stats = new GitCommitStats(commit.Stats.Additions, commit.Stats.Deletions, commit.Stats.Total),
                     Timestamp = commit.Commit.Author.Date,
