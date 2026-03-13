@@ -8,10 +8,11 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Git;
 using Octokit;
+using Output;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using GitTag = Git.GitTag;
@@ -137,14 +138,7 @@ abstract class SharedSettings : CommandSettings {
 
 sealed class CheckSettings : SharedSettings { }
 
-sealed class BumpSettings : SharedSettings {
-    [CommandOption("--changelog"), Description("Generate changelog section and write CHANGELOG.md")]
-    public bool Changelog { get; init; }
-
-    [CommandOption("--repo-url"),
-     Description("Repository URL for changelog compare links (auto-detected from git remote)")]
-    public string? RepoUrl { get; init; }
-}
+sealed class BumpSettings : SharedSettings { }
 
 #endregion
 
@@ -154,16 +148,15 @@ sealed class CheckCommand : AsyncCommand<CheckSettings> {
     public override async Task<int> ExecuteAsync(
         CommandContext context, CheckSettings settings, CancellationToken ct
     ) {
-        var console  = StderrConsole.Create(settings.NoProgress);
+        var stderr = StderrConsole.Create(settings.NoProgress);
+        var stdout = StdoutConsole.Create();
+        var git    = new OctokitGitRepository();
 
-        var git  = new OctokitGitRepository();
-
-        var ctx = await git.GetPreReleaseContext(ct);
-
+        var ctx    = await git.GetPreReleaseContext(ct);
         var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
 
-        ResultWriter.WriteSummaryPanel(result, console);
-        await ResultWriter.WriteAsync(result, settings.Output, null, ct);
+        var writer = ResultWriterFactory.Create(settings.Output, stderr, stdout);
+        await writer.WriteAsync(result, ct);
 
         return 0;
     }
@@ -173,62 +166,33 @@ sealed class BumpCommand : AsyncCommand<BumpSettings> {
     public override async Task<int> ExecuteAsync(
         CommandContext context, BumpSettings settings, CancellationToken ct
     ) {
-        var console  = StderrConsole.Create(settings.NoProgress);
+        var stderr = StderrConsole.Create(settings.NoProgress);
+        var stdout = StdoutConsole.Create();
+        IGitRepository git = new OctokitGitRepository();
 
-        IGitRepository git  = new OctokitGitRepository();
-
-        var ctx = await git.GetPreReleaseContext(ct);
-
+        var ctx    = await git.GetPreReleaseContext(ct);
         var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
 
-
-
-        // Create and push tag
-
         var nextTag = result.NextVersion.ToGitTag();
-
-        console.MarkupLine($"\n[mediumpurple]Creating tag[/] [white]{Markup.Escape(nextTag)}[/]");
+        stderr.MarkupLine($"\n[mediumpurple]Creating tag[/] [white]{Markup.Escape(nextTag)}[/]");
 
         try {
+            var hash = Environment.GetEnvironmentVariable("GITHUB_SHA")
+                ?? (await git.GetHeadCommit(ct))?.Hash;
 
-            var hash = Environment.GetEnvironmentVariable("GITHUB_SHA");
-
-            if (hash == null) {
-                var headCommit = await git.GetHeadCommit(ct);
-
-                if (headCommit is null) {
-                    // or maybe there is no head commit yet?
-                    console.MarkupLine("[red]Failed to retrieve HEAD commit for tagging[/]");
-                    return 1;
-                }
-
-                hash = headCommit.Hash;
+            if (hash is null) {
+                stderr.MarkupLine("[red]Failed to retrieve HEAD commit for tagging[/]");
+                return 1;
             }
 
             await git.CreateTagAsync(nextTag, hash, ct);
         } catch (Exception ex) {
-            console.MarkupLine($"[red]Failed to create tag: {Markup.Escape(ex.Message)}[/]");
+            stderr.MarkupLine($"[red]Failed to create tag: {Markup.Escape(ex.Message)}[/]");
             return 1;
         }
 
-        // Generate changelog if requested
-        string? changelogSection = null;
-
-        if (settings.Changelog) {
-            changelogSection = ChangelogWriter.GenerateReleaseSection(result);
-
-            var changelogPath = Path.Combine(Directory.GetCurrentDirectory(), "CHANGELOG.md");
-
-            await ChangelogWriter.UpdateFileAsync(
-                changelogPath, result, changelogSection,
-                git.Url, ct
-            );
-
-            console.MarkupLine("[grey]Updated[/] [white]CHANGELOG.md[/]");
-        }
-
-        ResultWriter.WriteSummaryPanel(result, console);
-        await ResultWriter.WriteAsync(result, settings.Output, changelogSection, ct);
+        var writer = ResultWriterFactory.Create(settings.Output, stderr, stdout);
+        await writer.WriteAsync(result, ct);
 
         return 0;
     }
@@ -236,324 +200,145 @@ sealed class BumpCommand : AsyncCommand<BumpSettings> {
 
 #endregion
 
-#region Stderr Console
+#region Output
 
-static class StderrConsole {
-    public static IAnsiConsole Create(bool suppress) =>
-        AnsiConsole.Create(
-            new AnsiConsoleSettings { Out = new AnsiConsoleOutput(suppress ? TextWriter.Null : Console.Error) }
-        );
-}
-
-#endregion
-
-#region Result Writer
-
-static class ResultWriter {
-
-
-    public static async Task WriteAsync(
-        SemVerBumpResult result, OutputFormat? format, string? changelog, CancellationToken ct = default
-    ) {
-        switch (format) {
-            case OutputFormat.Kv: WriteKeyValue(result); break;
-
-            case OutputFormat.Json: WriteJson(result); break;
-
-            case OutputFormat.GitHub: await WriteGitHubAsync(result, changelog, ct); break;
-
-            default: Console.WriteLine(result.NextVersion); break; // WHAT THE ACTUAL FUCK IS THIS?!? CONSOLE WRITE?!?!
-        }
+namespace Output {
+    static class StderrConsole {
+        public static IAnsiConsole Create(bool suppress) =>
+            AnsiConsole.Create(
+                new AnsiConsoleSettings {
+                    Out = new AnsiConsoleOutput(suppress ? TextWriter.Null : Console.Error)
+                }
+            );
     }
 
-    public static void WriteSummaryPanel(SemVerBumpResult result, IAnsiConsole console) {
-        var bumpColor = result.Bump switch {
-            BumpType.Major => "red",
-            BumpType.Minor => "yellow",
-            _              => "green"
-        };
-
-        console.WriteLine();
-
-        var grid = new Grid().AddColumn().AddColumn();
-        grid.AddRow("[grey]Bump[/]", $"[{bumpColor} bold]{result.Bump}[/]");
-        grid.AddRow("[grey]Previous tag[/]", $"[white]{result.FromVersion.ToGitTag() ?? "none"}[/]");
-        grid.AddRow("[grey]New tag[/]", $"[white]{result.NextTag}[/]");
-        grid.AddRow("[grey]Commits[/]", $"[white]{result.Commits.Count}[/]");
-
-        console.Write(
-            new Panel(grid)
-                .Header("[mediumpurple] Version [/]")
-                .Border(BoxBorder.Rounded)
-                .BorderColor(Color.MediumPurple)
-        );
-
-        console.WriteLine();
+    static class StdoutConsole {
+        public static IAnsiConsole Create() =>
+            AnsiConsole.Create(
+                new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Out) }
+            );
     }
 
-    static void WriteKeyValue(SemVerBumpResult result) {
-        Console.WriteLine($"version={result.NextVersion}"); // WHAT THE ACTUAL FUCK IS THIS?!? CONSOLE WRITE?!?!
-        Console.WriteLine($"tag={result.NextTag}");         // WHAT THE ACTUAL FUCK IS THIS?!? CONSOLE WRITE?!?!
-        Console.WriteLine($"bump={result.BumpLabel}");      // WHAT THE ACTUAL FUCK IS THIS?!? CONSOLE WRITE?!?!
+    interface IResultWriter {
+        Task WriteAsync(SemVerBumpResult result, CancellationToken ct);
     }
 
-    static void WriteJson(SemVerBumpResult result) {
-        var version = Escape(result.NextVersion);
-        var tag     = Escape(result.NextTag);
-        var bump    = Escape(result.BumpLabel);
-        Console.WriteLine($"{{\"version\":\"{version}\",\"tag\":\"{tag}\",\"bump\":\"{bump}\"}}");// WHAT THE ACTUAL FUCK IS THIS?!? CONSOLE WRITE?!?!
-    }
+    abstract class BaseResultWriter(IAnsiConsole stderr, IAnsiConsole stdout) : IResultWriter {
+        protected IAnsiConsole Stderr => stderr;
+        protected IAnsiConsole Stdout => stdout;
 
-    static string Escape(string value) => value.Replace("\\", @"\\").Replace("\"", "\\\"");
-
-    static async Task WriteGitHubAsync(SemVerBumpResult result, string? changelog, CancellationToken ct = default) {
-        var outputFile  = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
-        var summaryFile = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
-
-        var sb = new StringBuilder();
-        sb.AppendLine($"version={result.NextVersion}");
-        sb.AppendLine($"tag={result.NextTag}");
-        sb.AppendLine($"bump={result.BumpLabel}");
-
-        if (changelog is { }) {
-            var delimiter = $"SEMVER_BUMP_{Guid.NewGuid():N}";
-            sb.AppendLine($"changelog<<{delimiter}");
-            sb.AppendLine(changelog);
-            sb.AppendLine(delimiter);
+        public async Task WriteAsync(SemVerBumpResult result, CancellationToken ct) {
+            WriteSummaryPanel(result);
+            await WriteFormatAsync(result, ct);
         }
 
-        var outputContent = sb.ToString();
+        protected abstract Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct);
 
-        if (outputFile is { })
-            await File.AppendAllTextAsync(outputFile, outputContent, ct);
-        else
-            Console.Write(outputContent);
-
-        if (summaryFile is { }) {
-            var summarySb = new StringBuilder();
-            summarySb.AppendLine("| | |");
-            summarySb.AppendLine("|---|---|");
-            summarySb.AppendLine($"| Bump | `{result.BumpLabel}` |");
-            summarySb.AppendLine($"| Previous tag | `{result.PreviousTag ?? "none"}` |");
-            summarySb.AppendLine($"| New tag | `{result.NextTag}` |");
-
-            if (changelog is { }) {
-                summarySb.AppendLine();
-                summarySb.AppendLine("### Changelog");
-                summarySb.AppendLine();
-                summarySb.AppendLine(changelog);
-            }
-
-            await File.AppendAllTextAsync(summaryFile, summarySb.ToString(), ct);
-        }
-    }
-}
-
-#endregion
-
-#region Changelog Writer
-
-static class ChangelogWriter {
-    public static string GenerateReleaseSection(SemVerBumpResult result) {
-        var sb   = new StringBuilder();
-        var date = DateTime.UtcNow.ToString("yyyy-MM-dd");
-
-        sb.AppendLine($"## [{result.NextVersion}] - {date}");
-        sb.AppendLine();
-
-        var sections = result.Commits
-            .GroupBy(GetSectionKey)
-            .Where(g => g.Any())
-            .OrderBy(g => GetSectionOrder(g.Key));
-
-        foreach (var group in sections) {
-            var heading = GetSectionHeading(group.Key);
-            var subjectFunc = (Func<ConventionalCommit, string>)(c => c.Description);
-
-            Section(heading, group.ToList(), subjectFunc);
-        }
-
-        return sb.ToString().TrimEnd();
-
-        string GetSectionKey(ConventionalCommit c) {
-            if (c.IsBreaking) return "Breaking Changes";
-            if (c.Type == "feat") return "Added";
-            if (c.Type is "perf" or "refactor") return "Changed";
-            if (c.Type == "revert") return "Removed";
-            if (c is { Type: "fix", Scope: "security" or "auth" }) return "Security";
-            if (c.Type == "fix") return "Fixed";
-            return "Other"; // fallback, though shouldn't happen with conventional commits
-        }
-
-        int GetSectionOrder(string key) =>
-            key switch {
-                "Breaking Changes" => 0,
-                "Added"            => 1,
-                "Changed"          => 2,
-                "Removed"          => 3,
-                "Fixed"            => 4,
-                "Security"         => 5,
-                _                  => 6
+        void WriteSummaryPanel(SemVerBumpResult result) {
+            var bumpColor = result.Bump switch {
+                BumpType.Major => "red",
+                BumpType.Minor => "yellow",
+                _              => "green"
             };
 
-        string GetSectionHeading(string key) => key;
+            Stderr.WriteLine();
 
-        void Section(
-            string                            heading,
-            List<ConventionalCommit>          commits,
-            Func<ConventionalCommit, string>? subject = null
-        ) {
-            if (commits.Count == 0)
-                return;
+            var grid = new Grid().AddColumn().AddColumn();
+            grid.AddRow("[grey]Bump[/]", $"[{bumpColor} bold]{result.Bump}[/]");
+            grid.AddRow("[grey]Previous version[/]",
+                result.FromVersion != SemVer.Unspecified
+                    ? $"[white]{result.FromVersion}[/]"
+                    : "[grey]none[/]");
+            grid.AddRow("[grey]New version[/]", $"[white]{result.NextVersion}[/]");
+            grid.AddRow("[grey]Commits[/]", $"[white]{result.Commits.Length}[/]");
 
-            subject ??= c => c.Description;
-            sb.AppendLine($"### {heading}");
-            sb.AppendLine();
+            Stderr.Write(
+                new Panel(grid)
+                    .Header("[mediumpurple] Version [/]")
+                    .Border(BoxBorder.Rounded)
+                    .BorderColor(Color.MediumPurple)
+            );
 
-            foreach (var c in commits)
-                sb.AppendLine(FormatEntry(c, subject(c)));
-
-            sb.AppendLine();
+            Stderr.WriteLine();
         }
     }
 
-    static string FormatEntry(ConventionalCommit c, string subject) {
-        var scope = c.Scope is { } ? $"**{c.Scope}:** " : "";
-
-        return $"- {scope}{subject}";
+    sealed class DefaultResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
+        : BaseResultWriter(stderr, stdout) {
+        protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
+            Stdout.WriteLine($"{result.NextVersion}");
+            return Task.CompletedTask;
+        }
     }
 
-    public static async Task UpdateFileAsync(
-        string path, SemVerBumpResult result, string section, string? repoUrl, CancellationToken ct = default
-    ) {
-        const string header = """
-            # Changelog
+    sealed class KvResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
+        : BaseResultWriter(stderr, stdout) {
+        protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
+            Stdout.WriteLine($"version={result.NextVersion}");
+            Stdout.WriteLine($"tag={result.NextVersion.ToGitTag()}");
+            Stdout.WriteLine($"bump={result.Bump}");
+            return Task.CompletedTask;
+        }
+    }
 
-            All notable changes to this project will be documented in this file.
+    sealed class JsonResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
+        : BaseResultWriter(stderr, stdout) {
+        protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
+            var json = JsonSerializer.Serialize(new {
+                version = $"{result.NextVersion}",
+                tag     = $"{result.NextVersion.ToGitTag()}",
+                bump    = $"{result.Bump}"
+            });
+            Stdout.WriteLine(json);
+            return Task.CompletedTask;
+        }
+    }
 
-            The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-            and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-            """;
+    sealed class GitHubResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
+        : BaseResultWriter(stderr, stdout) {
+        protected override async Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
+            var outputFile  = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
+            var summaryFile = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
 
-        var existingBody  = "";
-        var existingLinks = "";
-        var fileExists    = File.Exists(path);
+            var previousVersion = result.FromVersion != SemVer.Unspecified
+                ? $"{result.FromVersion}"
+                : "none";
 
-        if (fileExists) {
-            var content = await File.ReadAllTextAsync(path, ct);
+            var output = $"""
+                version={result.NextVersion}
+                tag={result.NextVersion.ToGitTag()}
+                bump={result.Bump}
 
-            var linksSectionIndex = FindLinksSectionStart(content);
+                """;
 
-            if (linksSectionIndex >= 0) {
-                existingLinks = content[linksSectionIndex..].Trim();
-                content       = content[..linksSectionIndex];
+            if (outputFile is not null)
+                await File.AppendAllTextAsync(outputFile, output, ct);
+            else
+                Stdout.Write(output);
+
+            if (summaryFile is not null) {
+                var summary = $"""
+                    | | |
+                    |---|---|
+                    | Bump | `{result.Bump}` |
+                    | Previous version | `{previousVersion}` |
+                    | New version | `{result.NextVersion}` |
+
+                    """;
+
+                await File.AppendAllTextAsync(summaryFile, summary, ct);
             }
-
-            var firstVersion = content.IndexOf("\n## ", StringComparison.Ordinal);
-
-            existingBody = firstVersion >= 0
-                ? content[(firstVersion + 1)..].Trim()
-                : "";
         }
-
-        var newLinks = BuildReferenceLinks(existingLinks, result, repoUrl);
-
-        var sb = new StringBuilder();
-        sb.AppendLine(header);
-        sb.AppendLine();
-        sb.AppendLine("## [Unreleased]");
-        sb.AppendLine();
-        sb.AppendLine(section);
-        sb.AppendLine();
-
-        if (!string.IsNullOrWhiteSpace(existingBody)) {
-            var bodyWithoutUnreleased = RemoveUnreleasedHeader(existingBody);
-
-            if (!string.IsNullOrWhiteSpace(bodyWithoutUnreleased)) {
-                sb.AppendLine(bodyWithoutUnreleased);
-                sb.AppendLine();
-            }
-        }
-
-        sb.AppendLine(newLinks);
-
-        await File.WriteAllTextAsync(path, sb.ToString().TrimEnd() + "\n", ct);
     }
 
-    static string BuildReferenceLinks(string existingLinks, SemVerBumpResult result, string? repoUrl) {
-        if (repoUrl is null)
-            return existingLinks;
-
-        var repo = repoUrl.TrimEnd('/');
-
-        var lines = existingLinks
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Where(l => l.TrimStart().StartsWith('['))
-            .Where(l => !l.StartsWith("[Unreleased]", StringComparison.OrdinalIgnoreCase)
-                     && !l.StartsWith($"[{result.NextVersion}]", StringComparison.OrdinalIgnoreCase)
-            )
-            .ToList();
-
-        var sb = new StringBuilder();
-        sb.AppendLine($"[Unreleased]: {repo}/compare/{result.NextTag}...HEAD");
-
-        if (result.PreviousTag is { })
-            sb.AppendLine($"[{result.NextVersion}]: {repo}/compare/{result.PreviousTag}...{result.NextTag}");
-        else
-            sb.AppendLine($"[{result.NextVersion}]: {repo}/releases/tag/{result.NextTag}");
-
-        foreach (var line in lines)
-            sb.AppendLine(line);
-
-        return sb.ToString().TrimEnd();
-    }
-
-    static int FindLinksSectionStart(string content) {
-        var lines = content.Split('\n');
-
-        for (var i = lines.Length - 1; i >= 0; i--) {
-            var line = lines[i].TrimStart();
-
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
-
-            if (line.StartsWith('[') && line.Contains("]: http"))
-                continue;
-
-            if (i + 1 >= lines.Length)
-                return -1;
-
-            var offset = 0;
-
-            for (var j = 0; j <= i; j++)
-                offset += lines[j].Length + 1;
-
-            return offset;
-        }
-
-        return -1;
-    }
-
-    static string RemoveUnreleasedHeader(string body) {
-        var lines  = body.Split('\n').ToList();
-        var result = new List<string>();
-        var skip   = false;
-
-        foreach (var line in lines) {
-            if (line.TrimStart().StartsWith("## [Unreleased]", StringComparison.OrdinalIgnoreCase)) {
-                skip = true;
-
-                continue;
-            }
-
-            if (skip && line.TrimStart().StartsWith("## [") && !line.Contains("Unreleased"))
-                skip = false;
-
-            if (!skip)
-                result.Add(line);
-        }
-
-        return string.Join('\n', result).Trim();
+    static class ResultWriterFactory {
+        public static IResultWriter Create(OutputFormat? format, IAnsiConsole stderr, IAnsiConsole stdout) =>
+            format switch {
+                OutputFormat.Kv     => new KvResultWriter(stderr, stdout),
+                OutputFormat.Json   => new JsonResultWriter(stderr, stdout),
+                OutputFormat.GitHub => new GitHubResultWriter(stderr, stdout),
+                _                   => new DefaultResultWriter(stderr, stdout)
+            };
     }
 }
 
