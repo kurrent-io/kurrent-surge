@@ -75,6 +75,11 @@ record JobConfig(
     int?    IterationCount
 );
 
+record MeasurementData(
+    double[] Values,
+    JsonElement? Percentiles
+);
+
 // ─── Report Models ───────────────────────────────────────────────────────────
 
 record BenchmarkEntry(
@@ -135,6 +140,7 @@ record RegressionDetail(
 [JsonSerializable(typeof(BdnHostInfo))]
 [JsonSerializable(typeof(JobConfig))]
 [JsonSerializable(typeof(SummaryJson))]
+[JsonSerializable(typeof(Dictionary<string, MeasurementData>))]
 [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
 partial class ReportJsonContext : JsonSerializerContext;
 
@@ -183,7 +189,7 @@ sealed class ReportCommand : Command<ReportSettings> {
         AnsiConsole.MarkupLine($"[grey]Input files:[/] [white]{inputFiles.Count}[/]");
 
         // ── Parse current results ───────────────────────────────────────────
-        var (benchmarks, hostInfo, jobConfig) = ParseBenchmarkFiles(inputFiles);
+        var (benchmarks, hostInfo, jobConfig, measurementMap) = ParseBenchmarkFiles(inputFiles);
         if (benchmarks.Count == 0) {
             AnsiConsole.MarkupLine("[red]No benchmarks found in input files[/]");
             return 1;
@@ -203,7 +209,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 return 1;
             }
 
-            (baselineBenchmarks, _, _) = ParseBenchmarkFiles(baselineFiles);
+            (baselineBenchmarks, _, _, _) = ParseBenchmarkFiles(baselineFiles);
             AnsiConsole.MarkupLine($"[grey]Baseline benchmarks:[/] [white]{baselineBenchmarks.Count}[/]");
 
             comparisons = BuildComparisons(benchmarks, baselineBenchmarks, settings.Threshold);
@@ -212,7 +218,7 @@ sealed class ReportCommand : Command<ReportSettings> {
         var reportData = new ReportData(hostInfo, jobConfig, benchmarks, comparisons, isComparison);
 
         // ── Generate HTML ───────────────────────────────────────────────────
-        var html = GenerateHtml(reportData, settings.Threshold);
+        var html = GenerateHtml(reportData, measurementMap, settings.Threshold);
         var outputDir = Path.GetDirectoryName(Path.GetFullPath(settings.Output));
         if (outputDir is not null && !Directory.Exists(outputDir))
             Directory.CreateDirectory(outputDir);
@@ -272,7 +278,8 @@ sealed class ReportCommand : Command<ReportSettings> {
 
     // ─── JSON parsing ────────────────────────────────────────────────────────
 
-    static (List<BenchmarkEntry> Benchmarks, BdnHostInfo? HostInfo, JobConfig? JobConfig) ParseBenchmarkFiles(List<string> files) {
+    static (List<BenchmarkEntry> Benchmarks, BdnHostInfo? HostInfo, JobConfig? JobConfig, Dictionary<string, MeasurementData> MeasurementMap)
+        ParseBenchmarkFiles(List<string> files) {
         var benchmarks = new List<BenchmarkEntry>();
         var rawBenchmarks = new List<BdnBenchmark>();
         BdnHostInfo? hostInfo = null;
@@ -315,6 +322,23 @@ sealed class ReportCommand : Command<ReportSettings> {
             }
         }
 
+        // Build measurement map from raw benchmarks
+        var measurementMap = new Dictionary<string, MeasurementData>();
+        foreach (var b in rawBenchmarks) {
+            var type   = b.Type ?? "Unknown";
+            var method = b.Method ?? "Unknown";
+            var key    = b.Parameters is not null
+                ? $"{type}.{method}|{b.Parameters}"
+                : $"{type}.{method}";
+
+            var values = b.Measurements?
+                .Where(m => m.IterationMode == "Workload" && m.IterationStage == "Actual")
+                .Select(m => m.Value)
+                .ToArray() ?? [];
+
+            measurementMap[key] = new MeasurementData(values, b.Statistics?.Percentiles);
+        }
+
         // Deduplicate by CompositeKey (last file wins)
         benchmarks = benchmarks
             .GroupBy(b => b.CompositeKey)
@@ -332,7 +356,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
         var jobConfig = ExtractJobConfig(rawBenchmarks);
 
-        return (benchmarks, hostInfo, jobConfig);
+        return (benchmarks, hostInfo, jobConfig, measurementMap);
     }
 
     static JobConfig? ExtractJobConfig(List<BdnBenchmark> benchmarks) {
@@ -437,7 +461,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
     // ─── HTML generation ─────────────────────────────────────────────────────
 
-    static string GenerateHtml(ReportData data, double threshold) {
+    static string GenerateHtml(ReportData data, Dictionary<string, MeasurementData> measurementMap, double threshold) {
         var sb = new StringBuilder();
 
         // Serialize data as JSON for client-side rendering
@@ -459,6 +483,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             .ToList();
 
         var classesJson = JsonSerializer.Serialize(classes, Ctx.ListString);
+        var measurementsJson = JsonSerializer.Serialize(measurementMap, Ctx.DictionaryStringMeasurementData);
         var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC");
 
         sb.Append($$"""
