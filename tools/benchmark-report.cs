@@ -1,6 +1,7 @@
-#!/usr/bin/env dotnet-run
+#!/usr/bin/env dotnet
 #:package Spectre.Console@0.*
 #:package Spectre.Console.Cli@0.*
+#:property ToolCommandName=benchmark-report
 
 using System.ComponentModel;
 using System.Text;
@@ -57,10 +58,10 @@ record BdnConfidenceInterval(
 );
 
 record BdnMemory(
-    long BytesAllocatedPerOperation,
-    int  Gen0Collections,
-    int  Gen1Collections,
-    int  Gen2Collections
+    long? BytesAllocatedPerOperation,
+    int   Gen0Collections,
+    int   Gen1Collections,
+    int   Gen2Collections
 );
 
 record BdnMeasurement(
