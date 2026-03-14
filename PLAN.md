@@ -8,18 +8,14 @@ A `$compression` metadata entry signals the algorithm so consumers decompress tr
 
 ## Compression Algorithms
 
-Three packages, each one self-contained:
-
-| Package | Algorithm | Dependency |
+| Algorithm | Location | Dependency |
 |---|---|---|
-| `Kurrent.Client.Compression.Zstd` | Zstandard | `ZstdSharp.Port` (managed, no native binaries) |
-| `Kurrent.Client.Compression.Gzip` | GZip | `System.IO.Compression` (built-in) |
-| `Kurrent.Client.Compression.Brotli` | Brotli | `System.IO.Compression.Brotli` (built-in) |
+| GZip | Built into `Kurrent.Client` | `System.IO.Compression` (runtime, zero deps) |
+| Brotli | Built into `Kurrent.Client` | `System.IO.Compression` (runtime, zero deps) |
+| Zstandard | Separate `Kurrent.Client.Compression.Zstd` package | `ZstdSharp.Port` (external NuGet) |
 
-Why these three:
-- **Zstd** — best speed/ratio trade-off, widely used for event payloads
-- **GZip** — universal, zero external deps
-- **Brotli** — highest ratio of the built-ins, zero external deps
+GZip and Brotli use only BCL types — no reason to force extra packages on users. Only Zstd
+requires an external dependency (`ZstdSharp.Port`), so it ships as a separate extension package.
 
 ## Architecture
 
@@ -112,26 +108,23 @@ if (record.Metadata.TryGetValue(SystemMetadataKeys.Compression, out var compress
   fluent extension method from each extension package)
 - Null by default — no compression unless user opts in
 
-### Extension packages
+### Built-in compressors (in `Kurrent.Client`)
 
-Each package is a single project under `src/`:
+GZip and Brotli ship inside the client — zero extra packages needed:
 
-**`Kurrent.Client.Compression.Zstd/`**
+- `GzipMessageCompressor : IMessageCompressor` (CompressionType = `"gzip"`)
+- `BrotliMessageCompressor : IMessageCompressor` (CompressionType = `"br"`)
+- Fluent methods: `builder.UseGzipCompression()`, `builder.UseBrotliCompression()`
+
+### Extension package: Zstd
+
+Separate NuGet package under `src/Kurrent.Client.Compression.Zstd/`:
+
 - References `Kurrent.Client` + `ZstdSharp.Port`
 - `ZstdMessageCompressor : IMessageCompressor` (CompressionType = `"zstd"`)
 - Extension method: `builder.UseZstdCompression(CompressionLevel? level = null)`
 
-**`Kurrent.Client.Compression.Gzip/`**
-- References `Kurrent.Client` only
-- `GzipMessageCompressor : IMessageCompressor` (CompressionType = `"gzip"`)
-- Extension method: `builder.UseGzipCompression(CompressionLevel? level = null)`
-
-**`Kurrent.Client.Compression.Brotli/`**
-- References `Kurrent.Client` only
-- `BrotliMessageCompressor : IMessageCompressor` (CompressionType = `"br"`)
-- Extension method: `builder.UseBrotliCompression(CompressionLevel? level = null)`
-
-Each extension method:
+Each fluent method:
 1. Creates the compressor instance
 2. Registers it in the `MessageCompressionProvider` as both the write compressor and a read-side
    decompressor
@@ -166,15 +159,11 @@ var client = KurrentClient.New
 | 1 | `src/Kurrent.Client/Schema/Compression/IMessageCompressor.cs` | Core interface |
 | 2 | `src/Kurrent.Client/Schema/Compression/IMessageCompressionProvider.cs` | Provider interface |
 | 3 | `src/Kurrent.Client/Schema/Compression/MessageCompressionProvider.cs` | Default implementation |
-| 4 | `src/Kurrent.Client.Compression.Zstd/Kurrent.Client.Compression.Zstd.csproj` | Zstd package project |
-| 5 | `src/Kurrent.Client.Compression.Zstd/ZstdMessageCompressor.cs` | Zstd compressor |
-| 6 | `src/Kurrent.Client.Compression.Zstd/KurrentClientBuilderExtensions.cs` | Zstd fluent API |
-| 7 | `src/Kurrent.Client.Compression.Gzip/Kurrent.Client.Compression.Gzip.csproj` | Gzip package project |
-| 8 | `src/Kurrent.Client.Compression.Gzip/GzipMessageCompressor.cs` | Gzip compressor |
-| 9 | `src/Kurrent.Client.Compression.Gzip/KurrentClientBuilderExtensions.cs` | Gzip fluent API |
-| 10 | `src/Kurrent.Client.Compression.Brotli/Kurrent.Client.Compression.Brotli.csproj` | Brotli package project |
-| 11 | `src/Kurrent.Client.Compression.Brotli/BrotliMessageCompressor.cs` | Brotli compressor |
-| 12 | `src/Kurrent.Client.Compression.Brotli/KurrentClientBuilderExtensions.cs` | Brotli fluent API |
+| 4 | `src/Kurrent.Client/Schema/Compression/GzipMessageCompressor.cs` | GZip (built-in) |
+| 5 | `src/Kurrent.Client/Schema/Compression/BrotliMessageCompressor.cs` | Brotli (built-in) |
+| 6 | `src/Kurrent.Client.Compression.Zstd/Kurrent.Client.Compression.Zstd.csproj` | Zstd package project |
+| 7 | `src/Kurrent.Client.Compression.Zstd/ZstdMessageCompressor.cs` | Zstd compressor |
+| 8 | `src/Kurrent.Client.Compression.Zstd/KurrentClientBuilderExtensions.cs` | Zstd fluent API |
 
 ### Modified files
 
@@ -185,17 +174,16 @@ var client = KurrentClient.New
 | 3 | `StreamsClientV2Mapper` (Append.Mappers.cs) | Compress after serialize (legacy path) |
 | 4 | `Record.cs` (RecordDecoder) | Decompress before deserialize |
 | 5 | Client option plumbing files | Thread `IMessageCompressionProvider` through |
-| 6 | `Kurrent.Client.slnx` | Add new projects |
+| 6 | `Kurrent.Client.slnx` | Add Zstd project |
 | 7 | `Directory.Packages.props` | Add `ZstdSharp.Port` version |
 
 ## Implementation Order
 
 1. Core abstractions in `Kurrent.Client` (`IMessageCompressor`, provider, `$compression` key)
-2. Write path integration (mapper changes)
-3. Read path integration (decoder changes)
-4. Client options plumbing
-5. Gzip extension package (no deps — fastest to verify end-to-end)
-6. Brotli extension package
-7. Zstd extension package
-8. Solution file and package management updates
-9. Build verification
+2. Built-in compressors: GZip + Brotli (in `Kurrent.Client`)
+3. Write path integration (mapper changes)
+4. Read path integration (decoder changes)
+5. Client options plumbing
+6. Zstd extension package (separate project + csproj)
+7. Solution file and package management updates
+8. Build verification
