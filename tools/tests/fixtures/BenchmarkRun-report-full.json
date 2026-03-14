@@ -1,0 +1,244 @@
+{
+  "Title": "Kurrent.Client Benchmark Suite",
+  "HostEnvironmentInfo": {
+    "BenchmarkDotNetVersion": "0.14.0",
+    "OsVersion": "macOS Sequoia 15.3.1",
+    "ProcessorName": "Apple M3 Pro",
+    "PhysicalProcessorCount": 1,
+    "PhysicalCoreCount": 11,
+    "LogicalCoreCount": 11,
+    "RuntimeVersion": ".NET 8.0.12",
+    "Architecture": "Arm64",
+    "Configuration": "Release"
+  },
+  "Benchmarks": [
+    {
+      "Type": "ReadStreamBenchmarks",
+      "Method": "ReadForward",
+      "Parameters": null,
+      "DisplayInfo": "ReadStreamBenchmarks.ReadForward: Job-JRMFKS(Toolchain=InProcessNoEmitToolchain, WarmupCount=3, IterationCount=5)",
+      "Statistics": {
+        "Mean": 42318.47,
+        "Median": 41985.12,
+        "StandardDeviation": 1823.65,
+        "ConfidenceInterval": {
+          "Margin": 2264.30
+        },
+        "Percentiles": {
+          "P50": 41985.12,
+          "P67": 42801.33,
+          "P80": 43500.00,
+          "P90": 44800.55,
+          "P95": 45210.80,
+          "P100": 46990.10
+        }
+      },
+      "Memory": {
+        "BytesAllocatedPerOperation": 2048,
+        "Gen0Collections": 0,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0
+      },
+      "Measurements": [
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 41200.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 42100.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 41985.12 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 43900.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 42407.24 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 58000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 50000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 44000.00 }
+      ]
+    },
+    {
+      "Type": "ReadStreamBenchmarks",
+      "Method": "ReadBackward",
+      "Parameters": null,
+      "DisplayInfo": "ReadStreamBenchmarks.ReadBackward: Job-JRMFKS(Toolchain=InProcessNoEmitToolchain, WarmupCount=3, IterationCount=5)",
+      "Statistics": {
+        "Mean": 44760.15,
+        "Median": 44500.00,
+        "StandardDeviation": 2105.80,
+        "ConfidenceInterval": {
+          "Margin": 2612.45
+        },
+        "Percentiles": {
+          "P50": 44500.00,
+          "P67": 45100.00,
+          "P80": 46200.00,
+          "P90": 47800.00,
+          "P95": 48550.30,
+          "P100": 50100.00
+        }
+      },
+      "Memory": {
+        "BytesAllocatedPerOperation": 2112,
+        "Gen0Collections": 0,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0
+      },
+      "Measurements": [
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 43000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 44500.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 45200.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 46100.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 44800.75 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 62000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 55000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 47000.00 }
+      ]
+    },
+    {
+      "Type": "ReadStreamBenchmarks",
+      "Method": "ReadAllForward",
+      "Parameters": null,
+      "DisplayInfo": "ReadStreamBenchmarks.ReadAllForward: Job-JRMFKS(Toolchain=InProcessNoEmitToolchain, WarmupCount=3, IterationCount=5)",
+      "Statistics": {
+        "Mean": 318542.90,
+        "Median": 315000.00,
+        "StandardDeviation": 12400.55,
+        "ConfidenceInterval": {
+          "Margin": 15390.20
+        },
+        "Percentiles": {
+          "P50": 315000.00,
+          "P67": 320000.00,
+          "P80": 328000.00,
+          "P90": 335000.00,
+          "P95": 342000.00,
+          "P100": 360000.00
+        }
+      },
+      "Memory": {
+        "BytesAllocatedPerOperation": 24576,
+        "Gen0Collections": 1,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0
+      },
+      "Measurements": [
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 305000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 315000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 320000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 335000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 317171.50 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 420000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 380000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 340000.00 }
+      ]
+    },
+    {
+      "Type": "AppendStreamBenchmarks",
+      "Method": "AppendSingleEvent",
+      "Parameters": null,
+      "DisplayInfo": "AppendStreamBenchmarks.AppendSingleEvent: Job-JRMFKS(Toolchain=InProcessNoEmitToolchain, WarmupCount=3, IterationCount=5)",
+      "Statistics": {
+        "Mean": 85432.10,
+        "Median": 84900.00,
+        "StandardDeviation": 3210.75,
+        "ConfidenceInterval": {
+          "Margin": 3984.65
+        },
+        "Percentiles": {
+          "P50": 84900.00,
+          "P67": 86100.00,
+          "P80": 88200.00,
+          "P90": 90000.00,
+          "P95": 91800.00,
+          "P100": 95000.00
+        }
+      },
+      "Memory": {
+        "BytesAllocatedPerOperation": 4096,
+        "Gen0Collections": 0,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0
+      },
+      "Measurements": [
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 82000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 84900.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 86000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 89200.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 85060.50 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 120000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 100000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 88000.00 }
+      ]
+    },
+    {
+      "Type": "AppendStreamBenchmarks",
+      "Method": "AppendBatch",
+      "Parameters": "BatchSize=10",
+      "DisplayInfo": "AppendStreamBenchmarks.AppendBatch(BatchSize=10): Job-JRMFKS(Toolchain=InProcessNoEmitToolchain, WarmupCount=3, IterationCount=5)",
+      "Statistics": {
+        "Mean": 215880.45,
+        "Median": 213000.00,
+        "StandardDeviation": 8925.30,
+        "ConfidenceInterval": {
+          "Margin": 11080.20
+        },
+        "Percentiles": {
+          "P50": 213000.00,
+          "P67": 217000.00,
+          "P80": 223000.00,
+          "P90": 228000.00,
+          "P95": 233000.00,
+          "P100": 245000.00
+        }
+      },
+      "Memory": {
+        "BytesAllocatedPerOperation": 12288,
+        "Gen0Collections": 0,
+        "Gen1Collections": 0,
+        "Gen2Collections": 0
+      },
+      "Measurements": [
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 206000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 213000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 218000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 225000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 217402.25 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 310000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 270000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 230000.00 }
+      ]
+    },
+    {
+      "Type": "AppendStreamBenchmarks",
+      "Method": "AppendBatch",
+      "Parameters": "BatchSize=100",
+      "DisplayInfo": "AppendStreamBenchmarks.AppendBatch(BatchSize=100): Job-JRMFKS(Toolchain=InProcessNoEmitToolchain, WarmupCount=3, IterationCount=5)",
+      "Statistics": {
+        "Mean": 1854320.80,
+        "Median": 1830000.00,
+        "StandardDeviation": 72450.60,
+        "ConfidenceInterval": {
+          "Margin": 89935.20
+        },
+        "Percentiles": {
+          "P50": 1830000.00,
+          "P67": 1870000.00,
+          "P80": 1920000.00,
+          "P90": 1970000.00,
+          "P95": 2010000.00,
+          "P100": 2150000.00
+        }
+      },
+      "Memory": {
+        "BytesAllocatedPerOperation": 98304,
+        "Gen0Collections": 2,
+        "Gen1Collections": 1,
+        "Gen2Collections": 0
+      },
+      "Measurements": [
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 1780000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 1830000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 1900000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 1960000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Actual", "Value": 1803161.60 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 2800000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 2400000.00 },
+        { "IterationMode": "Workload", "IterationStage": "Warmup", "Value": 2000000.00 }
+      ]
+    }
+  ]
+}
