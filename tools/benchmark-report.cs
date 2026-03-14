@@ -1475,15 +1475,17 @@ sealed class ReportCommand : Command<ReportSettings> {
             </footer>
 
             <script>
+            // ── Data (injected by C# template) ──────────────────────────────────
             const benchmarks = {{benchmarkJson}};
             const comparisons = {{comparisonJson}};
             const env = {{envJson}};
             const jobConfig = {{jobConfigJson}};
             const classes = {{classesJson}};
+            const measurements = {{measurementsJson}};
             const isComparison = {{(data.IsComparison ? "true" : "false")}};
             const threshold = {{threshold}};
 
-            // ── Formatting ──────────────────────────────────────────────────────
+            // ── Formatting Functions ─────────────────────────────────────────────
 
             function formatNs(ns) {
               if (ns >= 1_000_000) return (ns / 1_000_000).toFixed(2) + " ms";
@@ -1498,67 +1500,34 @@ sealed class ReportCommand : Command<ReportSettings> {
               return bytes + " B";
             }
 
+            function formatOps(ops) {
+              if (ops >= 1_000_000_000) return (ops / 1_000_000_000).toFixed(2) + " Gops/s";
+              if (ops >= 1_000_000)     return (ops / 1_000_000).toFixed(2)     + " Mops/s";
+              if (ops >= 1_000)         return (ops / 1_000).toFixed(2)         + " Kops/s";
+              return ops.toFixed(0) + " ops/s";
+            }
+
             function formatDelta(pct) {
               const sign = pct > 0 ? "+" : "";
               return sign + pct.toFixed(1) + "%";
             }
 
-            function deltaClass(classification) {
-              switch (classification) {
-                case "Regressed": return "badge-error";
-                case "Improved":  return "badge-success";
-                case "New":       return "badge-secondary";
-                default:          return "badge-ghost";
-              }
+            function allocBadge(bytes) {
+              let cls;
+              if (bytes === 0)          cls = "alloc-zero";
+              else if (bytes < 1024)    cls = "alloc-low";
+              else if (bytes < 65536)   cls = "alloc-mid";
+              else                      cls = "alloc-high";
+              return '<span class="alloc-badge ' + cls + '">' + formatBytes(bytes) + '</span>';
             }
 
             function rankBadge(rank) {
-              const cls = { 1: "badge-success", 2: "badge-info", 3: "badge-warning" }[rank] || "";
-              return `<span class="badge badge-xs ${cls ? 'badge-soft ' + cls : ''}">${rank}</span>`;
-            }
-
-            function heatmapRatio(value, min, max) {
-              if (min === max) return -1;
-              return (max - value) / (max - min);  // 1.0 = best (lowest), 0.0 = worst (highest)
-            }
-
-            function heatmapColorFromRatio(ratio, lighten) {
-              if (ratio < 0) return "";
-              // HSL-based: ratio 0 = worst (red), 0.5 = neutral (amber), 1 = best (green)
-              // Hue: 0 (red) → 45 (amber) → 142 (green)
-              let hue;
-              if (ratio <= 0.5) {
-                hue = ratio * 2 * 45;       // 0→45
-              } else {
-                hue = 45 + (ratio - 0.5) * 2 * 97;  // 45→142
-              }
-              const sat = 55;  // low saturation for soft pastels
-              const light = 40 + lighten * 45;  // push toward lighter
-              return `hsl(${hue}, ${sat}%, ${light}%)`;
-            }
-
-            function allocBadge(bytes) {
-              const cls = bytes === 0 ? "badge-ghost" : "badge-warning";
-              return `<span class="badge badge-xs badge-soft ${cls}">${formatBytes(bytes)}</span>`;
+              const cls = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "rank-n";
+              return '<span class="rank ' + cls + '">' + rank + '</span>';
             }
 
             function benchLabel(b) {
-              return b.Parameters ? `${b.Method}(${b.Parameters})` : b.Method;
-            }
-
-            function statCardDetails(bench) {
-              const paramPairs = bench.Parameters ? bench.Parameters.split("&").map(p => {
-                const [k, ...v] = p.split("=");
-                return [k, v.join("=")];
-              }) : [];
-              const paramBadges = paramPairs.map(([k, v]) =>
-                `<span class="badge badge-soft badge-sm font-mono gap-1"><i data-lucide="settings-2" class="w-3 h-3 opacity-40"></i><span class="opacity-50">${k}=</span>${v}</span>`
-              ).join("");
-              return `
-                <div class="border-t border-base-content/10 mt-2.5 pt-2.5">
-                  <div class="text-sm font-semibold flex items-center gap-1.5"><i data-lucide="flask-conical" class="w-3.5 h-3.5 opacity-60"></i>${bench.Method}</div>
-                  ${paramBadges ? `<div class="flex flex-wrap gap-1.5 mt-2">${paramBadges}</div>` : ""}
-                </div>`;
+              return b.Parameters ? b.Method + "(" + b.Parameters + ")" : b.Method;
             }
 
             function shortLabel(b) {
@@ -1568,450 +1537,38 @@ sealed class ReportCommand : Command<ReportSettings> {
               return b.Method;
             }
 
-            function formatOps(ops) {
-              if (ops >= 1_000_000_000) return (ops / 1_000_000_000).toFixed(2) + " Gops/s";
-              if (ops >= 1_000_000)     return (ops / 1_000_000).toFixed(2)     + " Mops/s";
-              if (ops >= 1_000)         return (ops / 1_000).toFixed(2)         + " Kops/s";
-              return ops.toFixed(0) + " ops/s";
-            }
-
-            function formatGen(val) {
-              return val === 0 ? `<span class="text-base-content/40">\u2014</span>` : String(val);
-            }
-
-            // ── Color palette for bars ──────────────────────────────────────────
-
             function barColor(index, total) {
+              if (total <= 1) return "var(--accent-green)";
+              const ratio = index / (total - 1);
+              if (ratio < 0.33) return "var(--accent-green)";
+              if (ratio < 0.66) return "var(--accent-blue)";
+              if (ratio < 0.85) return "var(--accent-amber)";
+              return "var(--accent-red)";
+            }
+
+            function barColorRaw(index, total) {
               if (total <= 1) return "hsla(142, 65%, 50%, 1)";
               const hue = 142 - (index / (total - 1)) * 142;
-              return `hsla(${hue}, 65%, 50%, 1)`;
+              return "hsla(" + hue + ", 65%, 50%, 1)";
             }
 
             function barColorAlpha(index, total, alpha) {
-              if (total <= 1) return `hsla(142, 65%, 50%, ${alpha})`;
+              if (total <= 1) return "hsla(142, 65%, 50%, " + alpha + ")";
               const hue = 142 - (index / (total - 1)) * 142;
-              return `hsla(${hue}, 65%, 50%, ${alpha})`;
+              return "hsla(" + hue + ", 65%, 50%, " + alpha + ")";
             }
 
-            // ── Metric definitions ──────────────────────────────────────────────
-
-            const metrics = [
-              { key: "MeanNs",         label: "Mean",      format: formatNs },
-              { key: "OpsPerSec",      label: "Ops/sec",   format: formatOps },
-              { key: "ErrorNs",        label: "Error",     format: formatNs },
-              { key: "StdDevNs",       label: "StdDev",    format: formatNs },
-              { key: "P95Ns",          label: "P95",       format: formatNs },
-              { key: "AllocatedBytes", label: "Allocated", format: formatBytes },
-              { key: "Gen0",           label: "Gen0",      format: v => String(v) },
-              { key: "Gen1",           label: "Gen1",      format: v => String(v) },
-              { key: "Gen2",           label: "Gen2",      format: v => String(v) },
-            ];
-
-            // ── Environment section ─────────────────────────────────────────────
-
-            if (env) {
-              const machine = [];
-              const config = [];
-
-              if (env.OsVersion) machine.push({ icon: "monitor", label: "OS", value: env.OsVersion });
-              if (env.ProcessorName) machine.push({ icon: "cpu", label: "CPU", value: env.ProcessorName });
-              if (env.LogicalCoreCount) machine.push({
-                icon: "grid-2x2", label: "Cores",
-                value: `${env.PhysicalCoreCount || "?"} physical, ${env.LogicalCoreCount} logical`
-              });
-              if (env.Architecture) machine.push({ icon: "binary", label: "Architecture", value: env.Architecture });
-
-              if (env.RuntimeVersion) config.push({ icon: "terminal", label: "Runtime", value: env.RuntimeVersion });
-              if (env.BenchmarkDotNetVersion) config.push({ icon: "gauge", label: "BenchmarkDotNet", value: env.BenchmarkDotNetVersion });
-              if (jobConfig) {
-                if (jobConfig.Toolchain) config.push({ icon: "wrench", label: "Toolchain", value: jobConfig.Toolchain });
-                if (jobConfig.WarmupCount != null) config.push({ icon: "flame", label: "Warmup", value: jobConfig.WarmupCount + (jobConfig.WarmupCount === 1 ? " iteration" : " iterations") });
-                if (jobConfig.IterationCount != null) config.push({ icon: "repeat", label: "Iterations", value: jobConfig.IterationCount + (jobConfig.IterationCount === 1 ? " iteration" : " iterations") });
-              }
-              if (env.Configuration) config.push({ icon: "settings", label: "Configuration", value: env.Configuration });
-
-              function metaColumn(items) {
-                return `
-                  <div class="grid grid-cols-[1rem_auto_1fr] gap-x-3 gap-y-2 text-sm items-center">
-                    ${items.map(i => `
-                      <span class="text-base-content/40"><i data-lucide="${i.icon}" class="w-4 h-4"></i></span>
-                      <span class="font-medium text-base-content/50">${i.label}</span>
-                      <span class="font-mono text-base-content/80">${i.value}</span>
-                    `).join("")}
-                  </div>
-                `;
-              }
-
-              document.getElementById("env-section").innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  ${metaColumn(machine)}
-                  ${metaColumn(config)}
-                </div>
-              `;
+            function formatGen(val) {
+              return val === 0 ? '<span style="color:var(--text-muted)">\u2014</span>' : String(val);
             }
-
-            // ── Header benchmark count ─────────────────────────────────────────
-
-            {
-              const badge = document.getElementById("benchmark-count-badge");
-              if (badge) badge.textContent = `${benchmarks.length} benchmarks`;
-            }
-
-            // ── Section navigation (in sticky header) ──────────────────────────
-
-            {
-              const nav = document.getElementById("section-nav");
-              classes.forEach(c => {
-                const shortName = c.split(".").pop();
-                const opt = document.createElement("option");
-                opt.value = "section-" + c;
-                opt.textContent = shortName;
-                nav.appendChild(opt);
-              });
-              if (classes.length <= 1) nav.classList.add("hidden");
-              nav.addEventListener("change", () => {
-                if (!nav.value) return;
-                // Collapse all sections
-                document.querySelectorAll(".class-section").forEach(s => {
-                  const body = document.getElementById("body-" + s.id);
-                  const toggle = document.getElementById("toggle-" + s.id);
-                  if (body) body.classList.add("collapsed-body");
-                  if (toggle) toggle.classList.add("collapsed-toggle");
-                });
-                // Expand the selected one
-                const el = document.getElementById(nav.value);
-                if (el) {
-                  const body = document.getElementById("body-" + nav.value);
-                  const toggle = document.getElementById("toggle-" + nav.value);
-                  if (body) body.classList.remove("collapsed-body");
-                  if (toggle) toggle.classList.remove("collapsed-toggle");
-                  el.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-                nav.value = "";
-              });
-            }
-
-            // ── Global search (in sticky header) ─────────────────────────────────
-
-            document.getElementById("global-search").addEventListener("input", e => {
-              const term = e.target.value.toLowerCase().trim();
-
-              document.querySelectorAll(".class-section").forEach(section => {
-                let sectionVisible = false;
-
-                section.querySelectorAll("tr[data-params]").forEach(el => {
-                  const text = (el.querySelector("td:first-child")?.textContent ?? "").toLowerCase();
-                  const match = !term || text.includes(term);
-                  el.style.display = match ? "" : "none";
-                  if (match) sectionVisible = true;
-                });
-
-                section.style.display = (!term || sectionVisible) ? "" : "none";
-              });
-            });
-
-            // ── Regression summary (comparison mode) ────────────────────────────
-
-            if (isComparison && comparisons) {
-              const regressions = comparisons.filter(c => c.Classification === "Regressed");
-              if (regressions.length > 0) {
-                const rows = regressions
-                  .sort((a, b) => b.DeltaPercent - a.DeltaPercent)
-                  .map(c => `
-                    <tr>
-                      <td class="font-mono">${benchLabel(c.Current)}</td>
-                      <td class="text-right font-mono">${formatNs(c.Baseline?.MeanNs ?? 0)}</td>
-                      <td class="text-right font-mono">${formatNs(c.Current.MeanNs)}</td>
-                      <td class="text-right font-mono"><span class="badge badge-xs badge-soft badge-error">${formatDelta(c.DeltaPercent)}</span></td>
-                    </tr>
-                  `).join("");
-
-                document.getElementById("regression-section").innerHTML = `
-                  <div class="rounded-lg border border-error/50 overflow-hidden mb-6">
-                    <h2 class="text-base font-semibold px-5 pt-4 pb-3 text-error">Regressions (>${threshold}% threshold)</h2>
-                    <table class="table table-sm">
-                      <thead>
-                        <tr>
-                          <th>Benchmark</th>
-                          <th class="text-right">Baseline</th>
-                          <th class="text-right">Current</th>
-                          <th class="text-right">Delta</th>
-                        </tr>
-                      </thead>
-                      <tbody>${rows}</tbody>
-                    </table>
-                  </div>
-                `;
-              }
-            }
-
-            // ── Per-class sections ──────────────────────────────────────────────
-
-            const classSections = document.getElementById("class-sections");
-
-            classes.forEach((cls, classIndex) => {
-              const classBenchmarks = benchmarks
-                .filter(b => b.Type === cls)
-                .sort((a, b) => a.MeanNs - b.MeanNs);
-
-              if (classBenchmarks.length === 0) return;
-
-              const shortName = cls.split(".").pop();
-              const sectionId = `section-${cls}`;
-              const maxMean = Math.max(...classBenchmarks.map(b => b.MeanNs));
-
-              // Build comparison lookup
-              const compMap = {};
-              if (isComparison && comparisons) {
-                comparisons.forEach(c => { compMap[c.Current.CompositeKey] = c; });
-              }
-
-              // Find max for bar scaling (include baseline if present)
-              let barMax = maxMean;
-              if (isComparison) {
-                classBenchmarks.forEach(b => {
-                  const comp = compMap[b.CompositeKey];
-                  if (comp?.Baseline) barMax = Math.max(barMax, comp.Baseline.MeanNs);
-                });
-              }
-
-              // Collect unique parameters for filters
-              const params = [...new Set(classBenchmarks.map(b => b.Parameters).filter(Boolean))];
-
-              // Every parameter key becomes its own column
-              const allParamKeys = getParamKeys(classBenchmarks);
-              const extraParamKeys = allParamKeys;
-
-              const allZeroAlloc = classBenchmarks.every(b => b.AllocatedBytes === 0);
-              const allZeroGen0 = classBenchmarks.every(b => b.Gen0 === 0);
-              const allZeroGen1 = classBenchmarks.every(b => b.Gen1 === 0);
-              const allZeroGen2 = classBenchmarks.every(b => b.Gen2 === 0);
-
-              // Chart.js data placeholder (built after DOM insert)
-
-              // Compute per-column min/max for heatmap
-              const heatCols = ["MeanNs", "ErrorNs", "StdDevNs", "P95Ns"];
-              if (!allZeroAlloc) heatCols.push("AllocatedBytes");
-              heatCols.push("OpsPerSec");
-              // Columns where higher = better (heatmap ratio inverted)
-              const invertedHeatCols = new Set(["OpsPerSec"]);
-              const heatRange = {};
-              heatCols.forEach(k => {
-                const vals = classBenchmarks.map(b => b[k] ?? 0).filter(v => v > 0);
-                heatRange[k] = { min: Math.min(...vals), max: Math.min(Math.max(...vals), Math.min(...vals) * 3) };
-              });
-
-              const fastestBench = classBenchmarks.reduce((a, b) => a.MeanNs <= b.MeanNs ? a : b);
-              const slowestBench = classBenchmarks.reduce((a, b) => a.MeanNs >= b.MeanNs ? a : b);
-              const heaviestBench = classBenchmarks.reduce((a, b) => a.AllocatedBytes >= b.AllocatedBytes ? a : b);
-              const bestMeanNs = fastestBench.MeanNs;
-              const worstMeanNs = slowestBench.MeanNs;
-              const maxOps = Math.max(...classBenchmarks.map(b => b.OpsPerSec));
-
-              // Table rows
-              const tableRows = classBenchmarks.map(b => {
-                let deltaCell = "";
-                if (isComparison) {
-                  const comp = compMap[b.CompositeKey];
-                  if (comp) {
-                    const cls2 = deltaClass(comp.Classification);
-                    const label = comp.Classification === "New" ? "new" : formatDelta(comp.DeltaPercent);
-                    deltaCell = `<td class="text-right font-mono"><span class="badge badge-xs badge-soft ${cls2}">${label}</span></td>`;
-                  } else {
-                    deltaCell = `<td class="text-right font-mono">\u2014</td>`;
-                  }
-                }
-
-                const isBest = b.MeanNs === bestMeanNs;
-                const hm = (key) => {
-                  const r = heatRange[key];
-                  if (!r) return "";
-                  const v = b[key] ?? 0;
-                  if (v === 0) return "";
-                  const clamped = Math.min(v, r.max);
-                  let ratio = heatmapRatio(clamped, r.min, r.max);
-                  if (invertedHeatCols.has(key)) ratio = 1.0 - ratio;
-                  return ratio >= 0 ? ` data-heatmap data-heat-ratio="${ratio.toFixed(4)}"` : "";
-                };
-
-                const bParams = parseParams(b.Parameters);
-                const benchName = b.Method;
-                const extraParamCells = extraParamKeys.map(k => {
-                  const v = bParams[k] || "\u2014";
-                  return `<td class="text-right font-mono" data-col="param-${k}">${v}</td>`;
-                }).join("");
-
-                return `
-                  <tr data-params="${b.Parameters || ""}" data-key="${b.CompositeKey}"${isBest ? ' class="best-row"' : ""}>
-                    <td class="font-mono">${benchName}</td>
-                    ${extraParamCells}
-                    <td class="text-right font-mono"${hm("MeanNs")}>${formatNs(b.MeanNs)}</td>
-                    <td class="text-right font-mono"${hm("OpsPerSec")}>${formatOps(b.OpsPerSec)}</td>
-                    <td class="text-right font-mono"${hm("ErrorNs")}>${formatNs(b.ErrorNs)}</td>
-                    <td class="text-right font-mono"${hm("StdDevNs")}>${formatNs(b.StdDevNs)}</td>
-                    <td class="text-right font-mono"${hm("P95Ns")}>${formatNs(b.P95Ns)}</td>
-                    <td class="text-right font-mono" data-col="rank">${rankBadge(b.Rank)}</td>
-                    ${!allZeroAlloc ? `<td class="text-right font-mono"${hm("AllocatedBytes")}>${allocBadge(b.AllocatedBytes)}</td>` : ""}
-                    ${!allZeroGen0 ? `<td class="text-right font-mono">${formatGen(b.Gen0)}</td>` : ""}
-                    ${!allZeroGen1 ? `<td class="text-right font-mono">${formatGen(b.Gen1)}</td>` : ""}
-                    ${!allZeroGen2 ? `<td class="text-right font-mono">${formatGen(b.Gen2)}</td>` : ""}
-                    ${deltaCell}
-                  </tr>
-                `;
-              }).join("");
-
-              const deltaHeader = isComparison ? `<th class="text-right" data-sort="DeltaPercent">Delta <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : "";
-
-              // Parameter filters grouped by method
-
-              const CHART_CAP = 20;
-              const TABLE_CAP = 15;
-              const chartCapped = classBenchmarks.length > CHART_CAP;
-              const tableCapped = classBenchmarks.length > TABLE_CAP;
-
-              const sectionHtml = `
-                <div class="class-section mb-8" id="${sectionId}">
-                  <div class="flex items-center gap-3 mb-3 cursor-pointer select-none" onclick="toggleSection('${sectionId}')">
-                    <i data-lucide="chevron-down" class="w-4 h-4 text-base-content/40 transition-transform" id="toggle-${sectionId}"></i>
-                    <h2 class="text-lg font-semibold">${shortName}</h2>
-                    <span class="text-base-content/40 text-xs">${classBenchmarks.length} benchmarks</span>
-                  </div>
-                  <div id="body-${sectionId}">
-                    <div class="grid grid-cols-3 gap-3 mb-3">
-                      <div class="bg-base-200 border border-base-300 rounded-lg p-4">
-                        <div class="text-xs text-base-content/50 flex items-center gap-1 font-medium"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Fastest</div>
-                        <div class="text-xl font-bold text-success mt-1">${formatNs(bestMeanNs)}</div>
-                        ${statCardDetails(fastestBench)}
-                      </div>
-                      <div class="bg-base-200 border border-base-300 rounded-lg p-4">
-                        <div class="text-xs text-base-content/50 flex items-center gap-1 font-medium"><i data-lucide="snail" class="w-3.5 h-3.5"></i> Slowest</div>
-                        <div class="text-xl font-bold text-warning mt-1">${formatNs(worstMeanNs)}</div>
-                        ${statCardDetails(slowestBench)}
-                      </div>
-                      <div class="bg-base-200 border border-base-300 rounded-lg p-4">
-                        <div class="text-xs text-base-content/50 flex items-center gap-1 font-medium"><i data-lucide="memory-stick" class="w-3.5 h-3.5"></i> Peak Alloc</div>
-                        <div class="text-xl font-bold ${heaviestBench.AllocatedBytes > 0 ? 'text-error' : 'text-base-content/30'} mt-1">${formatBytes(heaviestBench.AllocatedBytes)}</div>
-                        ${heaviestBench.AllocatedBytes > 0 ? statCardDetails(heaviestBench) : '<div class="text-xs text-base-content/30 mt-3">No allocations detected</div>'}
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-2 mb-2" id="groupby-${sectionId}"></div>
-                    <div class="rounded-lg border border-base-300 overflow-x-auto mb-3" id="tablewrap-${sectionId}">
-                      <table class="table table-sm table-zebra col-hover" id="datatable-${sectionId}">
-                        <colgroup>
-                          <col />${extraParamKeys.map(() => "<col />").join("")}<col /><col /><col /><col /><col /><col />
-                          ${!allZeroAlloc ? "<col />" : ""}
-                          ${!allZeroGen0 ? "<col />" : ""}
-                          ${!allZeroGen1 ? "<col />" : ""}
-                          ${!allZeroGen2 ? "<col />" : ""}
-                          ${isComparison ? "<col />" : ""}
-                        </colgroup>
-                        <thead>
-                          <tr>
-                            <th data-sort="Method"><i data-lucide="flask-conical" class="col-icon"></i> Benchmark <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            ${extraParamKeys.map(k => `<th class="text-right" data-sort="Param_${k}"><i data-lucide="settings-2" class="col-icon"></i> ${k} <i data-lucide="arrow-up-down" class="sort-icon"></i></th>`).join("")}
-                            <th class="text-right" data-sort="MeanNs"><i data-lucide="bar-chart-2" class="col-icon"></i> Mean <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="OpsPerSec"><i data-lucide="zap" class="col-icon"></i> Ops/sec <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="ErrorNs"><i data-lucide="shield-alert" class="col-icon"></i> Error <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="StdDevNs"><i data-lucide="activity" class="col-icon"></i> StdDev <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="P95Ns"><i data-lucide="percent" class="col-icon"></i> P95 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            <th class="text-right" data-sort="Rank"><i data-lucide="trophy" class="col-icon"></i> Rank <i data-lucide="arrow-up-down" class="sort-icon"></i></th>
-                            ${!allZeroAlloc ? `<th class="text-right" data-sort="AllocatedBytes"><i data-lucide="memory-stick" class="col-icon"></i> Allocated <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${!allZeroGen0 ? `<th class="text-right" data-sort="Gen0"><i data-lucide="recycle" class="col-icon"></i> Gen0 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${!allZeroGen1 ? `<th class="text-right" data-sort="Gen1"><i data-lucide="recycle" class="col-icon"></i> Gen1 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${!allZeroGen2 ? `<th class="text-right" data-sort="Gen2"><i data-lucide="recycle" class="col-icon"></i> Gen2 <i data-lucide="arrow-up-down" class="sort-icon"></i></th>` : ""}
-                            ${deltaHeader}
-                          </tr>
-                        </thead>
-                        <tbody id="table-${sectionId}">${tableRows}</tbody>
-                      </table>
-                      ${tableCapped ? `
-                      <div class="flex justify-center py-2 border-t border-base-300" id="table-cap-${sectionId}">
-                        <button class="btn btn-xs btn-ghost gap-1" data-table-expand="${sectionId}">
-                          <span>Showing ${TABLE_CAP} of ${classBenchmarks.length}</span>
-                          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
-                        </button>
-                      </div>` : ""}
-                    </div>
-                    <div class="hidden flex flex-col gap-2 mb-3" id="grouped-${sectionId}"></div>
-                    <details class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-lg mb-3" id="chartdetails-${sectionId}">
-                      <summary class="collapse-title text-sm font-semibold min-h-0 py-2.5 px-4 flex items-center gap-2">
-                        <i data-lucide="bar-chart-horizontal" class="w-4 h-4"></i> Chart
-                      </summary>
-                      <div class="collapse-content p-0!">
-                        <div class="p-4">
-                          <div class="flex items-center gap-2 mb-3">
-                            <div class="flex flex-wrap gap-1.5" data-section="${sectionId}">
-                              ${metrics.filter(m => classBenchmarks.some(b => (b[m.key] ?? 0) !== 0)).map((m, i) => `<button class="btn btn-xs ${i === 0 ? 'btn-primary' : 'btn-ghost'}" data-metric="${m.key}" data-section="${sectionId}">${m.label}</button>`).join("")}
-                            </div>
-                            <button class="btn btn-xs btn-ghost gap-1" data-log-toggle="${sectionId}" title="Toggle log scale">
-                              <i data-lucide="scaling" class="w-3.5 h-3.5"></i>
-                              <span class="text-xs font-mono" data-log-label="${sectionId}">linear</span>
-                            </button>
-                            ${chartCapped ? `<button class="btn btn-xs btn-ghost gap-1" data-chart-expand="${sectionId}" title="Show all benchmarks in chart">
-                              <i data-lucide="unfold-horizontal" class="w-3.5 h-3.5"></i>
-                              <span class="text-xs">Show all</span>
-                            </button>` : ""}
-                          </div>
-                          <div id="chartwrap-${sectionId}" style="height: 260px; position: relative; overflow-y: auto;">
-                            <div id="chartinner-${sectionId}" style="height: 100%; position: relative;">
-                              <canvas id="chart-${sectionId}"></canvas>
-                            </div>
-                          </div>
-                          ${chartCapped ? `<div class="text-xs text-base-content/40 mt-1 text-center" id="chartcap-label-${sectionId}">Showing top ${CHART_CAP} of ${classBenchmarks.length}</div>` : ""}
-                        </div>
-                      </div>
-                    </details>
-                  </div>
-                </div>
-              `;
-
-              classSections.insertAdjacentHTML("beforeend", sectionHtml);
-
-              // Apply initial table row cap
-              if (tableCapped) {
-                const tbody = document.getElementById("table-" + sectionId);
-                const rows = tbody.querySelectorAll("tr[data-key]");
-                rows.forEach((r, i) => { if (i >= TABLE_CAP) r.classList.add("hidden"); });
-              }
-            });
-
-            // ── Table row cap expand/collapse ─────────────────────────────────
-
-            const tableExpandState = {};
-
-            document.querySelectorAll("[data-table-expand]").forEach(btn => {
-              btn.addEventListener("click", () => {
-                const sectionId = btn.dataset.tableExpand;
-                const expanded = tableExpandState[sectionId] = !tableExpandState[sectionId];
-                const tbody = document.getElementById("table-" + sectionId);
-                const rows = tbody.querySelectorAll("tr[data-key]");
-                const TABLE_CAP = 15;
-
-                rows.forEach((r, i) => {
-                  if (i >= TABLE_CAP) r.classList.toggle("hidden", !expanded);
-                });
-
-                const total = rows.length;
-                const label = btn.querySelector("span");
-                const icon = btn.querySelector("[data-lucide]");
-                if (expanded) {
-                  label.textContent = "Collapse";
-                  if (icon) icon.setAttribute("data-lucide", "chevron-up");
-                } else {
-                  label.textContent = `Showing ${TABLE_CAP} of ${total}`;
-                  if (icon) icon.setAttribute("data-lucide", "chevron-down");
-                }
-                lucide.createIcons();
-              });
-            });
-
-            // ── Group by controls ──────────────────────────────────────────────
 
             function parseParams(paramStr) {
               if (!paramStr) return {};
               const obj = {};
-              paramStr.split("&").forEach(kv => {
-                const [k, ...rest] = kv.split("=");
+              paramStr.split("&").forEach(function(kv) {
+                const parts = kv.split("=");
+                const k = parts[0];
+                const rest = parts.slice(1);
                 if (k) obj[k.trim()] = rest.join("=").trim();
               });
               return obj;
@@ -2019,252 +1576,708 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function getParamKeys(sectionBenchmarks) {
               const keys = new Set();
-              sectionBenchmarks.forEach(b => {
-                Object.keys(parseParams(b.Parameters)).forEach(k => keys.add(k));
+              sectionBenchmarks.forEach(function(b) {
+                Object.keys(parseParams(b.Parameters)).forEach(function(k) { keys.add(k); });
               });
               return [...keys];
             }
 
-            // Build group-by dropdowns for each section
-            classes.forEach(cls => {
-              const sectionId = "section-" + cls;
-              const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
-              const paramKeys = getParamKeys(sectionBenchmarks);
-              const container = document.getElementById("groupby-" + sectionId);
-              if (!container || paramKeys.length === 0) return;
+            function getMeasurementKey(b) {
+              return b.Parameters ? b.Type + "." + b.Method + "|" + b.Parameters : b.Type + "." + b.Method;
+            }
 
-              // Add "Method" as a grouping option alongside param keys
-              const options = ["none", "Method", ...paramKeys];
+            // ── Metric Definitions ───────────────────────────────────────────────
 
-              container.innerHTML = `
-                <i data-lucide="layers" class="w-3.5 h-3.5 text-base-content/40"></i>
-                <span class="text-xs text-base-content/50">Group by</span>
-                <select class="select select-xs select-bordered font-mono" data-groupby="${sectionId}">
-                  ${options.map(o => `<option value="${o}">${o}</option>`).join("")}
-                </select>
-              `;
+            const metrics = [
+              { key: "MeanNs",         label: "Mean",      format: formatNs },
+              { key: "OpsPerSec",      label: "Ops/s",     format: formatOps },
+              { key: "P95Ns",          label: "P95",       format: formatNs },
+              { key: "AllocatedBytes", label: "Alloc",     format: formatBytes },
+            ];
+
+            const allMetrics = [
+              { key: "MeanNs",         label: "Mean",      format: formatNs },
+              { key: "OpsPerSec",      label: "Ops/s",     format: formatOps },
+              { key: "ErrorNs",        label: "Error",     format: formatNs },
+              { key: "StdDevNs",       label: "StdDev",    format: formatNs },
+              { key: "P95Ns",          label: "P95",       format: formatNs },
+              { key: "AllocatedBytes", label: "Allocated", format: formatBytes },
+              { key: "Gen0",           label: "Gen0",      format: function(v) { return String(v); } },
+              { key: "Gen1",           label: "Gen1",      format: function(v) { return String(v); } },
+              { key: "Gen2",           label: "Gen2",      format: function(v) { return String(v); } },
+            ];
+
+            // ── Sparkline Histogram Builder ──────────────────────────────────────
+
+            function buildSparkline(values) {
+              if (!values || values.length < 2) return "";
+              const BINS = 9;
+              const MAX_H = 16;
+              const min = Math.min.apply(null, values);
+              const max = Math.max.apply(null, values);
+              if (min === max) {
+                // All values identical: single centered bar
+                return '<span class="sparkline">' + Array(BINS).fill(0).map(function(_, i) {
+                  return '<span class="bar" style="height:' + (i === 4 ? MAX_H : 1) + 'px"></span>';
+                }).join("") + '</span>';
+              }
+              const binSize = (max - min) / BINS;
+              const bins = new Array(BINS).fill(0);
+              values.forEach(function(v) {
+                let idx = Math.floor((v - min) / binSize);
+                if (idx >= BINS) idx = BINS - 1;
+                bins[idx]++;
+              });
+              const maxBin = Math.max.apply(null, bins);
+              return '<span class="sparkline">' + bins.map(function(count) {
+                const h = count === 0 ? 0 : Math.max(1, Math.round((count / maxBin) * MAX_H));
+                return '<span class="bar" style="height:' + h + 'px"></span>';
+              }).join("") + '</span>';
+            }
+
+            // ── Distribution Plot Builder ────────────────────────────────────────
+
+            function buildDistPlot(sectionBenchmarks) {
+              if (!measurements || sectionBenchmarks.length === 0) return "";
+
+              // Gather all p50 values to determine the global scale
+              var allMin = Infinity, allMax = -Infinity;
+              var plotData = [];
+              sectionBenchmarks.forEach(function(b, idx) {
+                var m = measurements[getMeasurementKey(b)];
+                if (!m || !m.Percentiles) return;
+                var p = m.Percentiles;
+                // BDN percentiles: P0, P25, P50, P67, P80, P85, P90, P95, P100
+                var p0  = p.P0  != null ? p.P0  : b.MeanNs;
+                var p25 = p.P25 != null ? p.P25 : b.MeanNs;
+                var p50 = p.P50 != null ? p.P50 : b.MedianNs;
+                var p75 = p.P75 != null ? p.P75 : b.MeanNs;
+                var p100= p.P100!= null ? p.P100: b.MeanNs;
+                allMin = Math.min(allMin, p0);
+                allMax = Math.max(allMax, p100);
+                plotData.push({ b: b, idx: idx, p0: p0, p25: p25, p50: p50, p75: p75, p100: p100 });
+              });
+
+              if (plotData.length === 0 || allMin === allMax) return "";
+
+              var range = allMax - allMin;
+              var pct = function(v) { return ((v - allMin) / range * 100).toFixed(2); };
+
+              var rows = plotData.map(function(d) {
+                var n = sectionBenchmarks.length;
+                var color = barColorRaw(d.idx, n);
+                return '<div class="dist-row">' +
+                  '<div class="dist-label" title="' + benchLabel(d.b) + '">' + shortLabel(d.b) + '</div>' +
+                  '<div class="dist-box">' +
+                    '<div class="dist-whisker" style="left:' + pct(d.p0) + '%;width:' + (pct(d.p100) - pct(d.p0)).toFixed(2) + '%;background:' + color + ';opacity:0.3"></div>' +
+                    '<div class="dist-box-rect" style="left:' + pct(d.p25) + '%;width:' + (pct(d.p75) - pct(d.p25)).toFixed(2) + '%;background:' + color + '"></div>' +
+                    '<div class="dist-median" style="left:' + pct(d.p50) + '%;background:' + color + '"></div>' +
+                  '</div>' +
+                  '<div class="dist-value">' + formatNs(d.p50) + '</div>' +
+                '</div>';
+              });
+
+              return '<div class="chart-card"><div class="chart-header"><div class="chart-title">' +
+                '<i data-lucide="box-select" style="width:14px;height:14px"></i> Distribution</div></div>' +
+                '<div class="dist-plot">' + rows.join("") + '</div></div>';
+            }
+
+            // ── Environment Panel Renderer (Task 6) ─────────────────────────────
+
+            function renderEnvPanel() {
+              if (!env) return;
+              var el = document.getElementById("env-section");
+              if (!el) return;
+
+              var machineItems = [];
+              if (env.OsVersion) machineItems.push({ label: "OS", value: env.OsVersion });
+              if (env.ProcessorName) machineItems.push({ label: "CPU", value: env.ProcessorName });
+              if (env.LogicalCoreCount) machineItems.push({
+                label: "Cores",
+                value: (env.PhysicalCoreCount || "?") + " physical, " + env.LogicalCoreCount + " logical"
+              });
+              if (env.Architecture) machineItems.push({ label: "Arch", value: env.Architecture });
+
+              var configItems = [];
+              if (env.RuntimeVersion) configItems.push({ label: "Runtime", value: env.RuntimeVersion });
+              if (env.BenchmarkDotNetVersion) configItems.push({ label: "BDN Version", value: env.BenchmarkDotNetVersion });
+              if (jobConfig) {
+                if (jobConfig.Toolchain) configItems.push({ label: "Toolchain", value: jobConfig.Toolchain });
+                if (jobConfig.WarmupCount != null) configItems.push({
+                  label: "Warmup", value: jobConfig.WarmupCount + (jobConfig.WarmupCount === 1 ? " iteration" : " iterations")
+                });
+                if (jobConfig.IterationCount != null) configItems.push({
+                  label: "Iterations", value: jobConfig.IterationCount + (jobConfig.IterationCount === 1 ? " iteration" : " iterations")
+                });
+              }
+              if (env.Configuration) configItems.push({ label: "Configuration", value: env.Configuration });
+
+              function gridHtml(items) {
+                return '<div class="env-grid">' +
+                  items.map(function(i) {
+                    return '<span class="label">' + i.label + '</span><span class="value">' + i.value + '</span>';
+                  }).join("") + '</div>';
+              }
+
+              el.innerHTML =
+                '<div class="env-card">' +
+                  '<div class="env-card-title"><i data-lucide="server" style="width:14px;height:14px"></i> Machine</div>' +
+                  gridHtml(machineItems) +
+                '</div>' +
+                '<div class="env-card">' +
+                  '<div class="env-card-title"><i data-lucide="flask-conical" style="width:14px;height:14px"></i> Configuration</div>' +
+                  gridHtml(configItems) +
+                '</div>';
+            }
+
+            // ── Bento Stat Cards Renderer (Task 7) ──────────────────────────────
+
+            function renderBentoStats() {
+              if (!benchmarks || benchmarks.length === 0) return;
+              var el = document.getElementById("bento-stats");
+              if (!el) return;
+
+              var fastest = benchmarks.reduce(function(a, b) { return a.MeanNs <= b.MeanNs ? a : b; });
+              var slowest = benchmarks.reduce(function(a, b) { return a.MeanNs >= b.MeanNs ? a : b; });
+              var peakAlloc = benchmarks.reduce(function(a, b) { return a.AllocatedBytes >= b.AllocatedBytes ? a : b; });
+              var topOps = benchmarks.reduce(function(a, b) { return a.OpsPerSec >= b.OpsPerSec ? a : b; });
+
+              function card(icon, label, value, color, detail) {
+                return '<div class="bento-card">' +
+                  '<div class="bento-label"><i data-lucide="' + icon + '" style="width:14px;height:14px"></i> ' + label + '</div>' +
+                  '<div class="bento-value ' + color + '">' + value + '</div>' +
+                  '<div class="bento-detail">' + detail + '</div>' +
+                '</div>';
+              }
+
+              el.innerHTML =
+                card("zap", "Fastest", formatNs(fastest.MeanNs), "green", benchLabel(fastest)) +
+                card("snail", "Slowest", formatNs(slowest.MeanNs), "red", benchLabel(slowest)) +
+                card("memory-stick", "Peak Alloc", formatBytes(peakAlloc.AllocatedBytes), "amber", benchLabel(peakAlloc)) +
+                card("activity", "Throughput", formatOps(topOps.OpsPerSec), "blue", benchLabel(topOps));
+            }
+
+            // ── Regression Summary Renderer (Task 9) ────────────────────────────
+
+            function renderRegressionSummary() {
+              if (!isComparison || !comparisons) return;
+              var regressions = comparisons.filter(function(c) { return c.Classification === "Regressed"; });
+              if (regressions.length === 0) return;
+
+              var el = document.getElementById("regression-section");
+              if (!el) return;
+
+              regressions.sort(function(a, b) { return b.DeltaPercent - a.DeltaPercent; });
+
+              var rows = regressions.map(function(c) {
+                return '<tr>' +
+                  '<td class="method-name">' + benchLabel(c.Current) + '</td>' +
+                  '<td style="text-align:right">' + formatNs(c.Baseline ? c.Baseline.MeanNs : 0) + '</td>' +
+                  '<td style="text-align:right">' + formatNs(c.Current.MeanNs) + '</td>' +
+                  '<td style="text-align:right"><span class="alloc-badge alloc-high">' + formatDelta(c.DeltaPercent) + '</span></td>' +
+                '</tr>';
+              }).join("");
+
+              el.style.display = "";
+              el.innerHTML =
+                '<div class="table-wrap" style="border-color:var(--accent-red);margin-bottom:20px">' +
+                  '<div style="padding:14px 18px;font-weight:700;color:var(--accent-red);display:flex;align-items:center;gap:8px">' +
+                    '<i data-lucide="alert-triangle" style="width:16px;height:16px"></i> ' +
+                    'Regressions (>' + threshold + '% threshold) &mdash; ' + regressions.length + ' found' +
+                  '</div>' +
+                  '<table><thead><tr>' +
+                    '<th style="text-align:left">Benchmark</th>' +
+                    '<th style="text-align:right">Baseline</th>' +
+                    '<th style="text-align:right">Current</th>' +
+                    '<th style="text-align:right">Delta</th>' +
+                  '</tr></thead><tbody>' + rows + '</tbody></table>' +
+                '</div>';
+            }
+
+            // ── Per-Class Section Generator (Task 8) ────────────────────────────
+
+            var pageState = {};
+            var chartInstances = {};
+            var chartLogState = {};
+            var chartMetricState = {};
+
+            function renderClassSection(className) {
+              var classBenchmarks = benchmarks
+                .filter(function(b) { return b.Type === className; })
+                .sort(function(a, b) { return a.MeanNs - b.MeanNs; });
+
+              if (classBenchmarks.length === 0) return;
+
+              var shortName = className.split(".").pop();
+              var sectionId = "section-" + className;
+              var container = document.getElementById("class-sections");
+
+              // Detect zero columns
+              var anyAlloc = classBenchmarks.some(function(b) { return b.AllocatedBytes !== 0; });
+              var anyGen0 = classBenchmarks.some(function(b) { return b.Gen0 !== 0; });
+              var anyGen1 = classBenchmarks.some(function(b) { return b.Gen1 !== 0; });
+              var anyGen2 = classBenchmarks.some(function(b) { return b.Gen2 !== 0; });
+
+              var bestMean = classBenchmarks[0].MeanNs;
+              var worstMean = classBenchmarks[classBenchmarks.length - 1].MeanNs;
+
+              // Build comparison lookup
+              var compMap = {};
+              if (isComparison && comparisons) {
+                comparisons.forEach(function(c) { compMap[c.Current.CompositeKey] = c; });
+              }
+
+              // Measurement count helper
+              function measCount(b) {
+                var m = measurements ? measurements[getMeasurementKey(b)] : null;
+                return m && m.Values ? m.Values.length : 0;
+              }
+
+              // Sparkline helper
+              function sparkFor(b) {
+                var m = measurements ? measurements[getMeasurementKey(b)] : null;
+                return m && m.Values ? buildSparkline(m.Values) : "";
+              }
+
+              // Table header
+              var thHtml = '<tr>' +
+                '<th data-sort="Method" style="text-align:left"><span class="th-inner"><i data-lucide="flask-conical" class="col-icon"></i>Method<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th data-sort="count" class="text-right"><span class="th-inner"><i data-lucide="hash" class="col-icon"></i>Count<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th data-sort="MeanNs" class="text-right"><span class="th-inner"><i data-lucide="bar-chart-2" class="col-icon"></i>Mean<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th data-sort="OpsPerSec" class="text-right"><span class="th-inner"><i data-lucide="zap" class="col-icon"></i>Ops/s<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th class="text-center"><span class="th-inner"><i data-lucide="bar-chart" class="col-icon"></i>Dist.</span></th>' +
+                '<th data-sort="ErrorNs" class="text-right"><span class="th-inner"><i data-lucide="shield-alert" class="col-icon"></i>Error<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th data-sort="StdDevNs" class="text-right"><span class="th-inner"><i data-lucide="activity" class="col-icon"></i>StdDev<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th data-sort="P95Ns" class="text-right"><span class="th-inner"><i data-lucide="percent" class="col-icon"></i>P95<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                '<th data-sort="AllocatedBytes" class="text-right"><span class="th-inner"><i data-lucide="memory-stick" class="col-icon"></i>Alloc<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                (anyGen0 ? '<th data-sort="Gen0" class="text-right"><span class="th-inner">Gen0<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
+                (anyGen1 ? '<th data-sort="Gen1" class="text-right"><span class="th-inner">Gen1<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
+                (anyGen2 ? '<th data-sort="Gen2" class="text-right"><span class="th-inner">Gen2<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
+                '<th data-sort="Rank" class="text-center"><span class="th-inner"><i data-lucide="trophy" class="col-icon"></i>Rank<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
+                (isComparison ? '<th data-sort="DeltaPercent" class="text-right"><span class="th-inner">Delta<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
+                (isComparison ? '<th class="text-center"><span class="th-inner">Class.</span></th>' : '') +
+              '</tr>';
+
+              // Table rows
+              var rowsHtml = classBenchmarks.map(function(b) {
+                var meanClass = b.MeanNs === bestMean ? " value-best" : (b.MeanNs === worstMean && classBenchmarks.length > 1 ? " value-worst" : "");
+                var paramSub = b.Parameters ? '<div style="font-size:11px;color:var(--text-muted);margin-top:1px">' + b.Parameters + '</div>' : '';
+
+                // Comparison cells
+                var deltaCell = "";
+                var classCell = "";
+                if (isComparison) {
+                  var comp = compMap[b.CompositeKey];
+                  if (comp) {
+                    var dcls = comp.Classification === "Regressed" ? "alloc-high" :
+                               comp.Classification === "Improved" ? "alloc-low" :
+                               comp.Classification === "New" ? "alloc-mid" : "alloc-zero";
+                    var dlabel = comp.Classification === "New" ? "new" : formatDelta(comp.DeltaPercent);
+                    deltaCell = '<td style="text-align:right"><span class="alloc-badge ' + dcls + '">' + dlabel + '</span></td>';
+                    classCell = '<td style="text-align:center;font-size:11px;color:var(--text-muted)">' + comp.Classification + '</td>';
+                  } else {
+                    deltaCell = '<td style="text-align:right;color:var(--text-muted)">\u2014</td>';
+                    classCell = '<td></td>';
+                  }
+                }
+
+                return '<tr data-key="' + b.CompositeKey + '" data-method="' + b.Method + (b.Parameters ? " " + b.Parameters : "") + '">' +
+                  '<td><span class="method-name">' + b.Method + '</span>' + paramSub + '</td>' +
+                  '<td style="text-align:right;color:var(--text-muted)">' + measCount(b) + '</td>' +
+                  '<td style="text-align:right" class="' + meanClass.trim() + '">' + formatNs(b.MeanNs) + '</td>' +
+                  '<td style="text-align:right">' + formatOps(b.OpsPerSec) + '</td>' +
+                  '<td style="text-align:center">' + sparkFor(b) + '</td>' +
+                  '<td style="text-align:right">' + formatNs(b.ErrorNs) + '</td>' +
+                  '<td style="text-align:right">' + formatNs(b.StdDevNs) + '</td>' +
+                  '<td style="text-align:right">' + formatNs(b.P95Ns) + '</td>' +
+                  '<td style="text-align:right">' + allocBadge(b.AllocatedBytes) + '</td>' +
+                  (anyGen0 ? '<td style="text-align:right">' + formatGen(b.Gen0) + '</td>' : '') +
+                  (anyGen1 ? '<td style="text-align:right">' + formatGen(b.Gen1) + '</td>' : '') +
+                  (anyGen2 ? '<td style="text-align:right">' + formatGen(b.Gen2) + '</td>' : '') +
+                  '<td style="text-align:center">' + rankBadge(b.Rank) + '</td>' +
+                  deltaCell + classCell +
+                '</tr>';
+              }).join("");
+
+              // Distribution plot
+              var distHtml = buildDistPlot(classBenchmarks);
+
+              // Build section HTML
+              var html =
+                '<div class="class-section" id="' + sectionId + '" style="margin-bottom:32px">' +
+                  '<div class="section-header" onclick="toggleSection(\'' + sectionId + '\')">' +
+                    '<span class="status-dot"></span>' +
+                    '<i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--text-muted);transition:transform 0.25s" id="chevron-' + sectionId + '"></i>' +
+                    '<h2>' + shortName + '</h2>' +
+                    '<span class="section-count">' + classBenchmarks.length + ' benchmarks</span>' +
+                  '</div>' +
+                  '<div class="section-body" id="body-' + sectionId + '">' +
+                    '<div class="table-wrap">' +
+                      '<table id="table-' + sectionId + '"><thead>' + thHtml + '</thead><tbody>' + rowsHtml + '</tbody></table>' +
+                    '</div>' +
+                    '<div class="table-pagination" id="pagination-' + sectionId + '"></div>' +
+                    '<div class="charts-disclosure collapsed" id="charts-' + sectionId + '">' +
+                      '<div class="charts-toggle" onclick="toggleCharts(\'' + sectionId + '\')">' +
+                        '<i data-lucide="chevron-down" class="chevron-icon" style="width:14px;height:14px;color:var(--text-muted)"></i>' +
+                        '<span style="font-size:13px;font-weight:600">Charts</span>' +
+                      '</div>' +
+                      '<div class="charts-body">' +
+                        '<div class="charts-grid">' +
+                          '<div class="chart-card">' +
+                            '<div class="chart-header">' +
+                              '<div class="chart-title"><i data-lucide="bar-chart-horizontal" style="width:14px;height:14px"></i> Comparison</div>' +
+                              '<div style="display:flex;align-items:center;gap:8px">' +
+                                '<div class="metric-pills" id="pills-' + sectionId + '">' +
+                                  metrics.map(function(m, i) {
+                                    return '<span class="metric-pill' + (i === 0 ? ' active' : '') + '" data-metric="' + m.key + '" data-section="' + sectionId + '">' + m.label + '</span>';
+                                  }).join("") +
+                                '</div>' +
+                                '<span class="metric-pill" data-log-toggle="' + sectionId + '" title="Toggle log scale" style="font-size:11px">linear</span>' +
+                              '</div>' +
+                            '</div>' +
+                            '<div class="chart-container" id="chartwrap-' + sectionId + '">' +
+                              '<canvas id="chart-' + sectionId + '"></canvas>' +
+                            '</div>' +
+                          '</div>' +
+                          distHtml +
+                        '</div>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+
+              container.insertAdjacentHTML("beforeend", html);
+
+              // Initialize pagination
+              pageState[sectionId] = { page: 0, size: 10 };
+              paginate(sectionId);
+
+              // Build initial chart
+              buildBarChart(sectionId, "MeanNs");
+            }
+
+            // ── Table Sorting (Task 10) ──────────────────────────────────────────
+
+            document.addEventListener("click", function(e) {
+              var th = e.target.closest("th[data-sort]");
+              if (!th) return;
+
+              var table = th.closest("table");
+              var tbody = table.querySelector("tbody");
+              var key = th.dataset.sort;
+              var isAsc = th.classList.contains("sort-asc");
+
+              // Reset all headers in this table
+              table.querySelectorAll("thead th[data-sort]").forEach(function(h) {
+                h.classList.remove("sort-asc", "sort-desc");
+                var icon = h.querySelector(".sort-icon");
+                if (icon) icon.setAttribute("data-lucide", "arrow-up");
+              });
+
+              var dir = isAsc ? -1 : 1;
+              var newDir = isAsc ? "sort-desc" : "sort-asc";
+              th.classList.add(newDir);
+              var activeIcon = th.querySelector(".sort-icon");
+              if (activeIcon) {
+                activeIcon.setAttribute("data-lucide", newDir === "sort-asc" ? "arrow-up" : "arrow-down");
+              }
+
+              // Build benchmark lookup
+              var benchByKey = {};
+              benchmarks.forEach(function(b) { if (!benchByKey[b.CompositeKey]) benchByKey[b.CompositeKey] = b; });
+
+              // Sort rows
+              var rows = Array.from(tbody.querySelectorAll("tr[data-key]"));
+              rows.sort(function(ra, rb) {
+                var ba = benchByKey[ra.dataset.key];
+                var bb = benchByKey[rb.dataset.key];
+                var va = 0, vb = 0;
+
+                if (key === "count") {
+                  var ma = measurements ? measurements[getMeasurementKey(ba)] : null;
+                  var mb = measurements ? measurements[getMeasurementKey(bb)] : null;
+                  va = ma && ma.Values ? ma.Values.length : 0;
+                  vb = mb && mb.Values ? mb.Values.length : 0;
+                } else if (key === "DeltaPercent") {
+                  var ca = compMap[ba.CompositeKey];
+                  var cb = compMap[bb.CompositeKey];
+                  va = ca ? ca.DeltaPercent : 0;
+                  vb = cb ? cb.DeltaPercent : 0;
+                } else if (ba && bb) {
+                  va = ba[key] != null ? ba[key] : (key === "Method" ? ba.Method : 0);
+                  vb = bb[key] != null ? bb[key] : (key === "Method" ? bb.Method : 0);
+                }
+
+                if (typeof va === "string") return dir * va.localeCompare(vb);
+                return dir * (va - vb);
+              });
+
+              rows.forEach(function(row) { tbody.appendChild(row); });
+
+              // Re-paginate the section
+              var sectionEl = th.closest(".class-section");
+              if (sectionEl) {
+                var sid = sectionEl.id;
+                if (pageState[sid]) {
+                  pageState[sid].page = 0;
+                  paginate(sid);
+                }
+              }
+
+              lucide.createIcons();
             });
 
-            function applyGroupBy(sectionId, groupKey) {
-              const tableWrap = document.getElementById("tablewrap-" + sectionId);
-              const groupedWrap = document.getElementById("grouped-" + sectionId);
-              if (!tableWrap || !groupedWrap) return;
+            // Comparison map for sorting delta columns
+            var compMap = {};
+            if (isComparison && comparisons) {
+              comparisons.forEach(function(c) { compMap[c.Current.CompositeKey] = c; });
+            }
 
-              const table = document.getElementById("datatable-" + sectionId);
-              const cls = sectionId.replace("section-", "");
-              const sectionBenchmarks = benchmarks.filter(b => b.Type === cls);
+            // ── Pagination (Task 11) ─────────────────────────────────────────────
 
-              if (groupKey === "none") {
-                tableWrap.classList.remove("hidden");
-                groupedWrap.classList.add("hidden");
-                groupedWrap.innerHTML = "";
-                // Reset chart to show all section benchmarks
-                const metricKey = chartMetricState[sectionId] || "MeanNs";
-                buildChart(sectionId, metricKey);
+            function paginate(sectionId) {
+              var state = pageState[sectionId];
+              if (!state) return;
+
+              var table = document.getElementById("table-" + sectionId);
+              if (!table) return;
+              var allRows = Array.from(table.querySelectorAll("tbody tr[data-key]"));
+
+              // Filter by search if active
+              var visibleRows = allRows.filter(function(r) { return r.dataset.searchHidden !== "true"; });
+              var total = visibleRows.length;
+              var size = state.size;
+              var totalPages = Math.max(1, Math.ceil(total / size));
+              if (state.page >= totalPages) state.page = totalPages - 1;
+              if (state.page < 0) state.page = 0;
+              var start = state.page * size;
+              var end = Math.min(start + size, total);
+
+              // Hide/show rows
+              allRows.forEach(function(r) { r.style.display = "none"; });
+              visibleRows.forEach(function(r, i) {
+                r.style.display = (i >= start && i < end) ? "" : "none";
+              });
+
+              // Build pagination controls
+              var pag = document.getElementById("pagination-" + sectionId);
+              if (!pag) return;
+
+              if (total <= size) {
+                pag.innerHTML = '<span class="page-info">' + total + ' benchmarks</span>';
                 return;
               }
 
-              // Group benchmarks by key
-              const groups = new Map();
-              sectionBenchmarks.forEach(b => {
-                let val;
-                if (groupKey === "Method") val = b.Method;
-                else val = parseParams(b.Parameters)[groupKey] || "\u2014";
-                if (!groups.has(val)) groups.set(val, []);
-                groups.get(val).push(b);
-              });
-
-              // Clone thead and colgroup from the original table
-              const theadHtml = table.querySelector("thead").outerHTML;
-              const colgroupHtml = table.querySelector("colgroup").outerHTML;
-
-              // Build a map of CompositeKey -> row outerHTML from original table
-              // Clone and strip "hidden" class (added by table row cap) so grouped rows are visible
-              const rowMap = new Map();
-              table.querySelectorAll("tbody tr[data-key]").forEach(r => {
-                const clone = r.cloneNode(true);
-                clone.classList.remove("hidden");
-                rowMap.set(r.dataset.key, clone.outerHTML);
-              });
-
-              // Build collapsible group cards with top 3 + worst 1 preview
-              const GROUP_PREVIEW = 3;
-              let html = "";
-              groups.forEach((groupBenchmarks, groupVal) => {
-                // Sort by MeanNs ascending (fastest first)
-                const sorted = [...groupBenchmarks].sort((a, b) => a.MeanNs - b.MeanNs);
-                const needsCap = sorted.length > GROUP_PREVIEW + 1;
-                let previewKeys, hiddenKeys;
-                if (needsCap) {
-                  const top = sorted.slice(0, GROUP_PREVIEW);
-                  const worst = sorted[sorted.length - 1];
-                  const topSet = new Set(top.map(b => b.CompositeKey));
-                  if (!topSet.has(worst.CompositeKey)) {
-                    previewKeys = [...top.map(b => b.CompositeKey), worst.CompositeKey];
-                  } else {
-                    previewKeys = top.map(b => b.CompositeKey);
-                  }
-                  const previewSet = new Set(previewKeys);
-                  hiddenKeys = sorted.filter(b => !previewSet.has(b.CompositeKey)).map(b => b.CompositeKey);
-                } else {
-                  previewKeys = sorted.map(b => b.CompositeKey);
-                  hiddenKeys = [];
+              var btns = '';
+              // Prev
+              btns += '<span class="page-btn' + (state.page === 0 ? ' disabled' : '') + '" data-page="prev">&laquo;</span>';
+              // Page numbers
+              for (var p = 0; p < totalPages; p++) {
+                if (totalPages > 7 && p > 1 && p < totalPages - 2 && Math.abs(p - state.page) > 1) {
+                  if (p === 2 || p === totalPages - 3) btns += '<span class="page-btn disabled">&hellip;</span>';
+                  continue;
                 }
+                btns += '<span class="page-btn' + (p === state.page ? ' active' : '') + '" data-page="' + p + '">' + (p + 1) + '</span>';
+              }
+              // Next
+              btns += '<span class="page-btn' + (state.page === totalPages - 1 ? ' disabled' : '') + '" data-page="next">&raquo;</span>';
 
-                const groupRankIcons = { 0: "🥇", 1: "🥈", 2: "🥉" };
-                const worstKey = needsCap ? sorted[sorted.length - 1].CompositeKey : null;
-                const previewRowsHtml = previewKeys.map((k, i) => {
-                  let row = rowMap.get(k) || "";
-                  let icon = groupRankIcons[i] || "";
-                  if (k === worstKey && !groupRankIcons[i]) icon = "🐢";
-                  if (icon) {
-                    const title = icon === "🐢" ? "Slowest in group" : `#${i+1} fastest in group`;
-                    const badge = ` <span title="${title}">${icon}</span>`;
-                    row = row.replace(/(<td[^>]*data-col="rank"[^>]*>)(.*?)(<\/td>)/, `$1$2${badge}$3`);
-                  }
-                  return row;
-                }).join("");
-                const hiddenRowsHtml = hiddenKeys.map(k => {
-                  const r = rowMap.get(k) || "";
-                  return r.replace("<tr ", '<tr class="group-hidden-row hidden" ');
-                }).join("");
-                const expandBtn = needsCap
-                  ? `<button class="btn btn-xs btn-ghost gap-1 group-expand-btn ml-auto" data-group-total="${sorted.length}">
-                       <i data-lucide="chevrons-down" class="w-3 h-3"></i>
-                       Show all ${sorted.length}
-                     </button>`
-                  : "";
+              // Page size selector
+              var sizeOpts = [10, 25, 50, 100].map(function(s) {
+                return '<option value="' + s + '"' + (s === size ? ' selected' : '') + '>' + s + '/page</option>';
+              }).join("");
 
-                html += `
-                  <details class="collapse collapse-arrow bg-base-200 border border-base-300 rounded-lg" data-group-val="${groupVal.replace(/"/g, '&quot;')}">
-                    <summary class="collapse-title flex items-center gap-2 text-sm font-semibold min-h-0 py-2.5 px-4">
-                      ${groupVal}
-                      <span class="badge badge-xs badge-primary">${groupBenchmarks.length}</span>
-                      ${expandBtn}
-                    </summary>
-                    <div class="collapse-content p-0!">
-                      <div class="overflow-x-auto">
-                        <table class="table table-sm table-zebra">
-                          ${colgroupHtml}
-                          ${theadHtml}
-                          <tbody>${previewRowsHtml}${hiddenRowsHtml}</tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </details>`;
+              pag.innerHTML =
+                '<span class="page-info">' + (start + 1) + '\u2013' + end + ' of ' + total + ' benchmarks</span>' +
+                '<div class="page-controls">' + btns +
+                  '<select class="page-size-select" data-section="' + sectionId + '">' + sizeOpts + '</select>' +
+                '</div>';
+
+              // Bind page button clicks
+              pag.querySelectorAll(".page-btn:not(.disabled)").forEach(function(btn) {
+                btn.addEventListener("click", function() {
+                  var v = btn.dataset.page;
+                  if (v === "prev") state.page = Math.max(0, state.page - 1);
+                  else if (v === "next") state.page = Math.min(totalPages - 1, state.page + 1);
+                  else state.page = parseInt(v, 10);
+                  paginate(sectionId);
+                });
               });
 
-              tableWrap.classList.add("hidden");
-              groupedWrap.classList.remove("hidden");
-              groupedWrap.innerHTML = html;
-
-              applyHeatmap();
-              lucide.createIcons();
-
-              // Rebuild chart when a group is opened/closed
-              groupedWrap.querySelectorAll("details[data-group-val] > summary").forEach(summary => {
-                summary.addEventListener("click", () => {
-                  const d = summary.closest("details");
-                  const metricKey = chartMetricState[sectionId] || "MeanNs";
-                  // After click, open state will toggle — use setTimeout to read the new state
-                  setTimeout(() => {
-                    if (d.open) {
-                      const groupBenchmarks = groups.get(d.dataset.groupVal) || [];
-                      buildChart(sectionId, metricKey, groupBenchmarks);
-                    } else {
-                      buildChart(sectionId, metricKey, sectionBenchmarks);
-                    }
-                  }, 0);
+              // Bind page size change
+              var sizeSelect = pag.querySelector(".page-size-select");
+              if (sizeSelect) {
+                sizeSelect.addEventListener("change", function() {
+                  state.size = parseInt(sizeSelect.value, 10);
+                  state.page = 0;
+                  paginate(sectionId);
                 });
+              }
+            }
+
+            // ── Search, Jump-to, Keyboard Navigation (Task 12) ──────────────────
+
+            function filterSearch(query) {
+              var term = (query || "").toLowerCase().trim();
+
+              document.querySelectorAll(".class-section").forEach(function(section) {
+                var sectionVisible = false;
+                var sectionId = section.id;
+
+                section.querySelectorAll("tr[data-key]").forEach(function(row) {
+                  var text = (row.dataset.method || "").toLowerCase();
+                  var match = !term || text.indexOf(term) >= 0;
+                  row.dataset.searchHidden = match ? "false" : "true";
+                  if (match) sectionVisible = true;
+                });
+
+                section.style.display = (!term || sectionVisible) ? "" : "none";
+
+                // Re-paginate
+                if (pageState[sectionId]) {
+                  pageState[sectionId].page = 0;
+                  paginate(sectionId);
+                }
               });
             }
 
-            document.querySelectorAll("[data-groupby]").forEach(sel => {
-              sel.addEventListener("change", () => {
-                applyGroupBy(sel.dataset.groupby, sel.value);
-                lucide.createIcons();
+            function jumpToSection(value) {
+              if (!value) return;
+              var el = document.getElementById(value);
+              if (el) {
+                // Expand if collapsed
+                var body = document.getElementById("body-" + value);
+                if (body && body.style.display === "none") {
+                  toggleSection(value);
+                }
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+              // Reset select
+              var sel = document.getElementById("jump-select");
+              if (sel) sel.value = "";
+            }
+
+            // Keyboard navigation
+            var activeRowIndex = -1;
+            document.addEventListener("keydown", function(e) {
+              // Don't intercept when typing in an input
+              if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "TEXTAREA") {
+                if (e.key === "Escape") {
+                  e.target.blur();
+                  e.preventDefault();
+                }
+                return;
+              }
+
+              var allRows = Array.from(document.querySelectorAll("tr[data-key]")).filter(function(r) {
+                return r.style.display !== "none" && r.dataset.searchHidden !== "true";
               });
+
+              if (e.key === "/") {
+                e.preventDefault();
+                var search = document.getElementById("global-search");
+                if (search) search.focus();
+                return;
+              }
+
+              if (e.key === "j" || e.key === "k") {
+                e.preventDefault();
+                // Remove old active
+                document.querySelectorAll("tr.active").forEach(function(r) { r.classList.remove("active"); });
+
+                if (e.key === "j") activeRowIndex = Math.min(activeRowIndex + 1, allRows.length - 1);
+                else activeRowIndex = Math.max(activeRowIndex - 1, 0);
+
+                if (allRows[activeRowIndex]) {
+                  allRows[activeRowIndex].classList.add("active");
+                  allRows[activeRowIndex].scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }
+                return;
+              }
+
+              if (e.key === "Enter") {
+                e.preventDefault();
+                // Expand the section of the active row
+                var row = allRows[activeRowIndex];
+                if (row) {
+                  var section = row.closest(".class-section");
+                  if (section) {
+                    var charts = document.getElementById("charts-" + section.id);
+                    if (charts && charts.classList.contains("collapsed")) {
+                      toggleCharts(section.id);
+                    }
+                  }
+                }
+                return;
+              }
+
+              if (e.key === "Escape") {
+                // Collapse all chart disclosures
+                document.querySelectorAll(".charts-disclosure:not(.collapsed)").forEach(function(d) {
+                  var sid = d.id.replace("charts-", "");
+                  toggleCharts(sid);
+                });
+                // Clear active row
+                document.querySelectorAll("tr.active").forEach(function(r) { r.classList.remove("active"); });
+                activeRowIndex = -1;
+              }
             });
 
-            // ── Chart.js instances ────────────────────────────────────────────
-
-            const chartInstances = {};
-            const chartLogState = {};
-            const chartMetricState = {};
+            // ── Chart.js Bar Charts (Task 13) ────────────────────────────────────
 
             function getChartTextColor() {
-              return getComputedStyle(document.body).getPropertyValue("color") || "#e0e0e0";
+              return getComputedStyle(document.documentElement).getPropertyValue("--text-secondary").trim() || "#8494a7";
             }
 
             function getChartGridColor() {
-              return "rgba(128, 128, 128, 0.15)";
+              return "rgba(128, 128, 128, 0.12)";
             }
 
-            const CHART_CAP = 20;
-            const chartExpandState = {};
-
-            function buildChart(sectionId, metricKey, filterBenchmarks) {
-              const cls = sectionId.replace("section-", "");
-              const allSectionBenchmarks = filterBenchmarks || benchmarks.filter(b => b.Type === cls);
-              const metric = metrics.find(m => m.key === metricKey);
+            function buildBarChart(sectionId, metricKey) {
+              var cls = sectionId.replace("section-", "");
+              var sectionBenchmarks = benchmarks.filter(function(b) { return b.Type === cls; });
+              var metric = allMetrics.find(function(m) { return m.key === metricKey; });
               if (!metric) return;
 
-              const isLog = chartLogState[sectionId] || false;
+              var isLog = chartLogState[sectionId] || false;
               chartMetricState[sectionId] = metricKey;
 
-              const expanded = chartExpandState[sectionId] || false;
-              const needsCap = allSectionBenchmarks.length > CHART_CAP;
-
-              // Sort by metric to show top N, use ascending for time metrics, descending for ops
-              let sorted = [...allSectionBenchmarks];
+              // Sort by metric
+              var sorted = sectionBenchmarks.slice();
               if (metricKey === "OpsPerSec") {
-                sorted.sort((a, b) => (b[metricKey] ?? 0) - (a[metricKey] ?? 0));
+                sorted.sort(function(a, b) { return (b[metricKey] || 0) - (a[metricKey] || 0); });
               } else {
-                sorted.sort((a, b) => (a[metricKey] ?? 0) - (b[metricKey] ?? 0));
-              }
-              const sectionBenchmarks = (needsCap && !expanded) ? sorted.slice(0, CHART_CAP) : sorted;
-
-              // Resize chart container height based on bar count
-              const wrapEl = document.getElementById("chartwrap-" + sectionId);
-              const innerEl = document.getElementById("chartinner-" + sectionId);
-              const barHeight = 28;
-              const chartH = Math.max(200, sectionBenchmarks.length * barHeight);
-              if (wrapEl) wrapEl.style.height = chartH + "px";
-              if (innerEl) {
-                innerEl.style.minWidth = "";
-                innerEl.style.height = "100%";
+                sorted.sort(function(a, b) { return (a[metricKey] || 0) - (b[metricKey] || 0); });
               }
 
-              // Update cap label
-              const capLabel = document.getElementById("chartcap-label-" + sectionId);
-              if (capLabel) {
-                if (!needsCap) {
-                  capLabel.classList.add("hidden");
-                } else if (expanded) {
-                  capLabel.textContent = `Showing all ${allSectionBenchmarks.length} (sorted by ${metric.label})`;
-                } else {
-                  capLabel.textContent = `Showing top ${CHART_CAP} of ${allSectionBenchmarks.length} by ${metric.label}`;
-                }
-              }
+              // Cap at 20 for readability
+              var capped = sorted.length > 20 ? sorted.slice(0, 20) : sorted;
 
-              const labels = sectionBenchmarks.map(b => shortLabel(b));
-              const values = sectionBenchmarks.map(b => b[metricKey] ?? 0);
-              const n = sectionBenchmarks.length;
-              const bgColors = sectionBenchmarks.map((_, i) => barColorAlpha(i, n, 0.8));
-              const borderColors = sectionBenchmarks.map((_, i) => barColor(i, n));
-              const textColor = getChartTextColor();
+              var labels = capped.map(function(b) { return shortLabel(b); });
+              var values = capped.map(function(b) { return b[metricKey] || 0; });
+              var n = capped.length;
+              var bgColors = capped.map(function(_, i) { return barColorAlpha(i, n, 0.8); });
+              var borderColors = capped.map(function(_, i) { return barColorRaw(i, n); });
+              var textColor = getChartTextColor();
+
+              // Resize container
+              var wrapEl = document.getElementById("chartwrap-" + sectionId);
+              if (wrapEl) {
+                var barH = 28;
+                wrapEl.style.height = Math.max(200, capped.length * barH) + "px";
+              }
 
               if (chartInstances[sectionId]) {
                 chartInstances[sectionId].destroy();
               }
 
-              const canvas = document.getElementById("chart-" + sectionId);
+              var canvas = document.getElementById("chart-" + sectionId);
               if (!canvas) return;
 
               chartInstances[sectionId] = new Chart(canvas, {
                 type: "bar",
                 data: {
-                  labels,
+                  labels: labels,
                   datasets: [{
                     data: values,
                     backgroundColor: bgColors,
@@ -2277,16 +2290,16 @@ sealed class ReportCommand : Command<ReportSettings> {
                   indexAxis: "y",
                   responsive: true,
                   maintainAspectRatio: false,
-                  animation: { duration: 300 },
+                  animation: { duration: 600, easing: "easeOutQuart" },
                   plugins: {
                     legend: { display: false },
                     tooltip: {
                       callbacks: {
-                        title: (ctx) => benchLabel(sectionBenchmarks[ctx[0].dataIndex]),
-                        label: (ctx) => metric.format(ctx.raw),
+                        title: function(ctx) { return benchLabel(capped[ctx[0].dataIndex]); },
+                        label: function(ctx) { return metric.format(ctx.raw); }
                       },
                       titleFont: { family: "monospace", size: 11 },
-                      bodyFont: { family: "monospace", size: 13, weight: "bold" },
+                      bodyFont: { family: "monospace", size: 13, weight: "bold" }
                     }
                   },
                   scales: {
@@ -2295,297 +2308,160 @@ sealed class ReportCommand : Command<ReportSettings> {
                       ticks: {
                         color: textColor,
                         font: { family: "monospace", size: 10 },
-                        callback: (v) => metric.format(v),
+                        callback: function(v) { return metric.format(v); }
                       },
-                      grid: { color: getChartGridColor() },
+                      grid: { color: getChartGridColor() }
                     },
                     y: {
                       ticks: {
                         color: textColor,
-                        font: { family: "monospace", size: 10 },
+                        font: { family: "monospace", size: 10 }
                       },
-                      grid: { display: false },
+                      grid: { display: false }
                     }
                   }
                 }
               });
             }
 
-            // Initialize all charts
-            classes.forEach(cls => {
-              const sectionId = "section-" + cls;
-              buildChart(sectionId, "MeanNs");
+            // Metric pill switching (delegated)
+            document.addEventListener("click", function(e) {
+              var pill = e.target.closest(".metric-pill[data-metric]");
+              if (!pill) return;
+              var sectionId = pill.dataset.section;
+              var parent = pill.closest(".metric-pills");
+              if (parent) {
+                parent.querySelectorAll(".metric-pill").forEach(function(p) { p.classList.remove("active"); });
+              }
+              pill.classList.add("active");
+              buildBarChart(sectionId, pill.dataset.metric);
             });
 
-            // Metric pill switching
-            document.querySelectorAll("[data-metric]").forEach(btn => {
-              btn.addEventListener("click", () => {
-                const sectionId = btn.dataset.section;
-                const wrapper = btn.parentElement;
-                wrapper.querySelectorAll("[data-metric]").forEach(b => {
-                  b.classList.remove("btn-primary");
-                  b.classList.add("btn-ghost");
-                });
-                btn.classList.remove("btn-ghost");
-                btn.classList.add("btn-primary");
-                buildChart(sectionId, btn.dataset.metric);
-              });
+            // Log scale toggle (delegated)
+            document.addEventListener("click", function(e) {
+              var toggle = e.target.closest("[data-log-toggle]");
+              if (!toggle) return;
+              var sectionId = toggle.dataset.logToggle;
+              chartLogState[sectionId] = !chartLogState[sectionId];
+              toggle.textContent = chartLogState[sectionId] ? "log" : "linear";
+              toggle.classList.toggle("active", chartLogState[sectionId]);
+              buildBarChart(sectionId, chartMetricState[sectionId] || "MeanNs");
             });
 
-            // Log scale toggle
-            document.querySelectorAll("[data-log-toggle]").forEach(btn => {
-              btn.addEventListener("click", () => {
-                const sectionId = btn.dataset.logToggle;
-                chartLogState[sectionId] = !chartLogState[sectionId];
-                const label = btn.querySelector("[data-log-label]");
-                if (label) label.textContent = chartLogState[sectionId] ? "log" : "linear";
-                btn.classList.toggle("btn-primary", chartLogState[sectionId]);
-                btn.classList.toggle("btn-ghost", !chartLogState[sectionId]);
-                buildChart(sectionId, chartMetricState[sectionId] || "MeanNs");
-              });
-            });
+            // ── Legends Renderer (Task 14) ───────────────────────────────────────
 
-            // Chart expand toggle
-            document.querySelectorAll("[data-chart-expand]").forEach(btn => {
-              btn.addEventListener("click", () => {
-                const sectionId = btn.dataset.chartExpand;
-                chartExpandState[sectionId] = !chartExpandState[sectionId];
-                const expanded = chartExpandState[sectionId];
-                const label = btn.querySelector("span");
-                if (label) label.textContent = expanded ? "Top 20" : "Show all";
-                btn.classList.toggle("btn-primary", expanded);
-                btn.classList.toggle("btn-ghost", !expanded);
-                buildChart(sectionId, chartMetricState[sectionId] || "MeanNs");
-              });
-            });
+            function renderLegends() {
+              var el = document.getElementById("legends-section");
+              if (!el) return;
 
-            // ── Collapsible sections ────────────────────────────────────────────
-
-            function toggleSection(sectionId) {
-              const body = document.getElementById("body-" + sectionId);
-              const toggle = document.getElementById("toggle-" + sectionId);
-              body.classList.toggle("collapsed-body");
-              toggle.classList.toggle("collapsed-toggle");
+              el.innerHTML =
+                '<div class="env-card-title" style="margin-bottom:10px"><i data-lucide="info" style="width:14px;height:14px"></i> Legend</div>' +
+                '<div class="env-grid" style="grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px">' +
+                  '<span class="label">Mean</span><span class="value">Arithmetic mean of all iterations</span>' +
+                  '<span class="label">Error</span><span class="value">Half of 99.9% confidence interval</span>' +
+                  '<span class="label">StdDev</span><span class="value">Standard deviation of all iterations</span>' +
+                  '<span class="label">P95</span><span class="value">95th percentile: worst 5% of iterations were slower</span>' +
+                  '<span class="label">Rank</span><span class="value">Relative position within the benchmark class (1 = fastest)</span>' +
+                  '<span class="label">Alloc</span><span class="value">Allocated memory per single operation (managed only)</span>' +
+                  '<span class="label">1 ns</span><span class="value">1 Nanosecond (0.000000001 sec)</span>' +
+                  '<span class="label">1 \u00B5s</span><span class="value">1 Microsecond (0.000001 sec)</span>' +
+                  '<span class="label">1 ms</span><span class="value">1 Millisecond (0.001 sec)</span>' +
+                '</div>';
             }
 
-            // ── Expand/Collapse all ───────────────────────────────────────────
+            // ── Theme Toggle (Task 14) ───────────────────────────────────────────
 
-            let allExpanded = true;
-            document.getElementById("toggle-all").addEventListener("click", () => {
-              allExpanded = !allExpanded;
-              document.querySelectorAll(".class-section").forEach(section => {
-                const id = section.id;
-                const body = document.getElementById("body-" + id);
-                const toggle = document.getElementById("toggle-" + id);
-                if (allExpanded) {
-                  body.classList.remove("collapsed-body");
-                  toggle.classList.remove("collapsed-toggle");
-                } else {
-                  body.classList.add("collapsed-body");
-                  toggle.classList.add("collapsed-toggle");
-                }
+            function toggleTheme() {
+              var root = document.documentElement;
+              var current = root.getAttribute("data-theme");
+              var next = current === "light" ? "dark" : "light";
+              root.setAttribute("data-theme", next);
+              localStorage.setItem("bdr-theme", next);
+              // Rebuild charts so colors update
+              Object.keys(chartInstances).forEach(function(sid) {
+                buildBarChart(sid, chartMetricState[sid] || "MeanNs");
               });
-              const icon = document.getElementById("toggle-all-icon");
-              icon.setAttribute("data-lucide", allExpanded ? "unfold-vertical" : "fold-vertical");
-              lucide.createIcons();
-            });
-
-            // ── Sortable tables (delegated for dynamic sub-tables) ──────────────
-
-            document.addEventListener("click", (e) => {
-              const th = e.target.closest("th[data-sort]");
-              if (!th) return;
-
-              const table = th.closest("table");
-              const tbody = table.querySelector("tbody");
-              const key   = th.dataset.sort;
-              const isAsc = th.classList.contains("sort-asc");
-
-              // Reset all headers in this table
-              table.querySelectorAll("thead th[data-sort]").forEach(h => {
-                h.classList.remove("sort-asc", "sort-desc");
-                const icon = h.querySelector(".sort-icon");
-                if (icon) { icon.setAttribute("data-lucide", "arrow-up-down"); }
-              });
-
-              const dir = isAsc ? -1 : 1;
-              const newDir = isAsc ? "sort-desc" : "sort-asc";
-              th.classList.add(newDir);
-              const activeIcon = th.querySelector(".sort-icon");
-              if (activeIcon) {
-                activeIcon.setAttribute("data-lucide", newDir === "sort-asc" ? "arrow-up" : "arrow-down");
-              }
-              lucide.createIcons();
-
-              // Build a benchmark lookup by CompositeKey
-              const benchByKey = new Map();
-              benchmarks.forEach(b => {
-                if (!benchByKey.has(b.CompositeKey)) benchByKey.set(b.CompositeKey, b);
-              });
-
-              // Pair every DOM row with its sort value (handles duplicates)
-              const rows = [...tbody.querySelectorAll("tr[data-key]")];
-              const sortable = rows.map(row => {
-                const b = benchByKey.get(row.dataset.key);
-                let value = 0;
-                if (b) {
-                  if (key.startsWith("Param_")) {
-                    const pKey = key.slice(6);
-                    const pVal = parseParams(b.Parameters)[pKey] || "";
-                    value = isNaN(Number(pVal)) ? pVal : Number(pVal);
-                  } else {
-                    value = b[key] ?? 0;
-                  }
-                }
-                return { row, value };
-              });
-
-              sortable.sort((a, b) => {
-                return typeof a.value === "string"
-                  ? dir * a.value.localeCompare(b.value)
-                  : dir * (a.value - b.value);
-              });
-
-              // Reorder all DOM rows
-              sortable.forEach(({ row }) => tbody.appendChild(row));
-            });
-
-            // ── Group expand/collapse (delegated) ────────────────────────────
-            document.addEventListener("click", (e) => {
-              const btn = e.target.closest(".group-expand-btn");
-              if (!btn) return;
-              e.preventDefault();
-              e.stopPropagation();
-              const details = btn.closest("details");
-              const tbody = details?.querySelector("tbody");
-              if (!tbody) return;
-              const hidden = tbody.querySelectorAll(".group-hidden-row.hidden");
-              const total = btn.dataset.groupTotal;
-              if (hidden.length > 0) {
-                hidden.forEach(r => r.classList.remove("hidden"));
-                btn.innerHTML = '<i data-lucide="chevrons-up" class="w-3 h-3"></i> Top only';
-                lucide.createIcons();
-                applyHeatmap();
-              } else {
-                tbody.querySelectorAll(".group-hidden-row").forEach(r => r.classList.add("hidden"));
-                btn.innerHTML = `<i data-lucide="chevrons-down" class="w-3 h-3"></i> Show all ${total}`;
-                lucide.createIcons();
-              }
-            });
-
-            // ── Column hover highlight ─────────────────────────────────────────
-
-            document.querySelectorAll("table.col-hover").forEach(table => {
-              const cols = table.querySelectorAll("colgroup col");
-              table.addEventListener("mouseover", e => {
-                const td = e.target.closest("td, th");
-                if (!td) return;
-                const idx = td.cellIndex;
-                cols.forEach(c => c.classList.remove("hover"));
-                if (cols[idx]) cols[idx].classList.add("hover");
-              });
-              table.addEventListener("mouseleave", () => {
-                cols.forEach(c => c.classList.remove("hover"));
-              });
-            });
-
-            // ── URL hash navigation ─────────────────────────────────────────────
-
-            if (location.hash) {
-              const target = document.querySelector(location.hash);
-              if (target) {
-                setTimeout(() => target.scrollIntoView({ behavior: "smooth" }), 100);
-              }
             }
 
-            // ── Theme + heatmap + zoom (unified) ──────────────────────────────
-
+            // Apply stored theme on load
             (function() {
-              const root   = document.documentElement;
-              const select = document.getElementById("theme-select");
-              const hToggle = document.getElementById("heatmap-toggle");
-              const hLabel  = document.getElementById("heatmap-label");
-              const zoomIn  = document.getElementById("zoom-in");
-              const zoomOut = document.getElementById("zoom-out");
-              const zoomLabel = document.getElementById("zoom-label");
-
-              const darkThemes = new Set(["dark","night","abyss","dim","sunset","dracula","business","synthwave","cyberpunk","halloween","forest","aqua","black","luxury","coffee","nord"]);
-
-              // Theme
-              const storedTheme = localStorage.getItem("bdr-theme") || "dark";
-              const resolved = storedTheme === "light" ? "corporate" : storedTheme;
-              root.setAttribute("data-theme", resolved);
-              select.value = resolved;
-
-              select.addEventListener("change", () => {
-                root.setAttribute("data-theme", select.value);
-                localStorage.setItem("bdr-theme", select.value);
-                applyHeatmap();
-                // Rebuild all charts so text/grid colors match new theme
-                Object.keys(chartInstances).forEach(sid => {
-                  buildChart(sid, chartMetricState[sid] || "MeanNs");
-                });
-              });
-
-              // Heatmap
-              const storedHeat = localStorage.getItem("bdr-heatmap") || "cells";
-              hToggle.checked = storedHeat === "text";
-              hLabel.textContent = storedHeat === "text" ? "text" : "cells";
-
-              hToggle.addEventListener("change", () => {
-                const mode = hToggle.checked ? "text" : "cells";
-                hLabel.textContent = mode;
-                localStorage.setItem("bdr-heatmap", mode);
-                applyHeatmap();
-              });
-
-              function applyHeatmap() {
-                const isDark = darkThemes.has(root.getAttribute("data-theme"));
-                const lighten = isDark ? 0.65 : 0.4;
-                const textMode = hToggle.checked;
-                document.body.classList.toggle("heatmap-text", textMode);
-
-                document.querySelectorAll("td[data-heatmap]").forEach(td => {
-                  const ratio = parseFloat(td.dataset.heatRatio);
-                  if (isNaN(ratio)) return;
-                  const c = heatmapColorFromRatio(ratio, lighten);
-                  if (textMode) {
-                    td.style.backgroundColor = "";
-                    td.style.color = c;
-                  } else {
-                    td.style.backgroundColor = c;
-                    td.style.color = isDark ? "#1a1a2e" : "#1a1a2e";
-                  }
-                });
-              }
-
-              applyHeatmap();
-
-              // Zoom
-              const storedZoom = parseInt(localStorage.getItem("bdr-zoom") || "16", 10);
-              let fontSize = storedZoom;
-              applyZoom();
-
-              zoomIn.addEventListener("click", () => { fontSize = Math.min(fontSize + 1, 24); applyZoom(); });
-              zoomOut.addEventListener("click", () => { fontSize = Math.max(fontSize - 1, 10); applyZoom(); });
-
-              function applyZoom() {
-                document.documentElement.style.fontSize = fontSize + "px";
-                zoomLabel.textContent = fontSize;
-                localStorage.setItem("bdr-zoom", fontSize);
-              }
+              var stored = localStorage.getItem("bdr-theme");
+              if (stored) document.documentElement.setAttribute("data-theme", stored);
             })();
 
-            // ── Back-to-top FAB ───────────────────────────────────────────────
+            // ── Section Toggle Functions ──────────────────────────────────────────
 
-            const fab = document.getElementById("fab-top");
-            window.addEventListener("scroll", () => {
-              fab.classList.toggle("visible", window.scrollY > 300);
-            }, { passive: true });
-            fab.addEventListener("click", () => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            });
+            function toggleSection(sectionId) {
+              var body = document.getElementById("body-" + sectionId);
+              var chevron = document.getElementById("chevron-" + sectionId);
+              if (!body) return;
+              var collapsed = body.style.display === "none";
+              body.style.display = collapsed ? "" : "none";
+              if (chevron) chevron.style.transform = collapsed ? "" : "rotate(-90deg)";
+            }
 
+            var allExpanded = true;
+            function toggleAllSections() {
+              allExpanded = !allExpanded;
+              document.querySelectorAll(".class-section").forEach(function(section) {
+                var body = document.getElementById("body-" + section.id);
+                var chevron = document.getElementById("chevron-" + section.id);
+                if (body) body.style.display = allExpanded ? "" : "none";
+                if (chevron) chevron.style.transform = allExpanded ? "" : "rotate(-90deg)";
+              });
+              // Update toggle icon
+              var toggleBtn = document.getElementById("toggle-all");
+              if (toggleBtn) {
+                var icon = toggleBtn.querySelector("[data-lucide]");
+                if (icon) {
+                  icon.setAttribute("data-lucide", allExpanded ? "unfold-vertical" : "fold-vertical");
+                  lucide.createIcons();
+                }
+              }
+            }
+
+            function toggleCharts(sectionId) {
+              var disc = document.getElementById("charts-" + sectionId);
+              if (!disc) return;
+              disc.classList.toggle("collapsed");
+              // Build chart on first open
+              if (!disc.classList.contains("collapsed") && !chartInstances[sectionId]) {
+                buildBarChart(sectionId, "MeanNs");
+              }
+            }
+
+            // ── Initialization ───────────────────────────────────────────────────
+
+            renderEnvPanel();
+            renderBentoStats();
+            if (isComparison) renderRegressionSummary();
+            classes.forEach(function(cls) { renderClassSection(cls); });
+            renderLegends();
+
+            // Badge count
+            document.getElementById("benchmark-count-badge").textContent = benchmarks.length + " benchmarks";
+
+            // Populate jump-to select
+            (function() {
+              var jumpSelect = document.getElementById("jump-select");
+              if (!jumpSelect) return;
+              classes.forEach(function(cls) {
+                var opt = document.createElement("option");
+                opt.value = "section-" + cls;
+                opt.textContent = cls.split(".").pop();
+                jumpSelect.appendChild(opt);
+              });
+            })();
+
+            // Hash navigation
+            if (location.hash) {
+              var target = document.querySelector(location.hash);
+              if (target) {
+                setTimeout(function() { target.scrollIntoView({ behavior: "smooth" }); }, 100);
+              }
+            }
+
+            // Initialize Lucide icons
             lucide.createIcons();
             </script>
             </body>
