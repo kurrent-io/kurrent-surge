@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "minver-cli": {
+      "version": "7.0.0",
+      "commands": [
+        "minver"
+      ],
+      "rollForward": false
+    },
+    "semver-bump": {
+      "version": "1.0.0",
+      "commands": [
+        "semver-bump"
+      ],
+      "rollForward": false
+    },
+    "benchmark-report": {
+      "version": "1.0.0",
+      "commands": [
+        "benchmark-report"
+      ],
+      "rollForward": false
+    }
+  }
+}
