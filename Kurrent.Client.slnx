@@ -8,14 +8,14 @@
   <Folder Name="/Client/">
     <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
     <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
-  </Folder>
-  <Folder Name="/Client/Examples/" />
-  <Folder Name="/Client/Tests/">
     <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
     <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
   </Folder>
+  <Folder Name="/Client/Examples/" />
   <Folder Name="/Processors/">
     <Project Path="src/Kurrent.Processors/Kurrent.Processors.csproj" />
+    <Project Path="test\Kurrent.Processors.Integration.Tests\Kurrent.Processors.Integration.Tests.csproj" />
+    <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
   </Folder>
   <Folder Name="/Processors/Examples/">
     <Project Path="examples/processors/Processor.AspNetMinimal/Processor.AspNetMinimal.csproj" />
@@ -29,10 +29,6 @@
     <Project Path="examples/processors/Processor.WithRedisCache/Processor.WithRedisCache.csproj" />
     <Project Path="examples/processors/Processor.WordCount/Processor.WordCount.csproj" />
     <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
-  </Folder>
-  <Folder Name="/Processors/Tests/">
-    <Project Path="test\Kurrent.Processors.Integration.Tests\Kurrent.Processors.Integration.Tests.csproj" />
-    <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="test/Kurrent.Testing.Datasets/Kurrent.Testing.Datasets.csproj" />

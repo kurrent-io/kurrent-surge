@@ -449,7 +449,7 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-### AI Agents ###
+### AI Agents & Skills ###
 # every commit of these must be intentional (git add -f)
 
 # Claude Code
@@ -508,6 +508,9 @@ AGENTS.md
 .qodo/
 .pr_agent.toml
 
+# Superpowers
+.superpowers/
+
 ### Temp folders ###
 scratch/
 .scratch/
@@ -527,6 +530,9 @@ packages/
 
 test-results/
 .test-results/
+
+wip/
+.wip/
 
 ### Project-specific ###
 # every commit of these must be intentional (git add -f)

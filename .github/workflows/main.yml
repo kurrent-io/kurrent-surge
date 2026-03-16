@@ -1,0 +1,76 @@
+name: Main
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: main-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+  IS_DIRECT_PUSH: ${{ github.event.head_commit.committer.username != 'web-flow' }}
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: read
+      packages: write
+      checks: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET & Restore
+        uses: ./.github/actions/dotnet-setup
+        env:
+          DOTNET_INSTALL_VERSIONS: 8.x 9.x 10.x 11.x
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      # Tests only run on direct push — merged PRs were already validated by CI
+      - name: Unit tests
+        if: env.IS_DIRECT_PUSH == 'true'
+        run: >-
+          dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
+          --results-directory ./artifacts/test-results
+          -- --treenode-filter "/*/*/*/*[Category!=Integration]"
+          --disable-logo --adaptive-metrics --report-trx --coverage
+
+      - name: Integration tests
+        if: env.IS_DIRECT_PUSH == 'true'
+        run: >-
+          dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
+          --results-directory ./artifacts/test-results
+          -- --treenode-filter "/*/*/*/*[Category=Integration]"
+          --disable-logo --adaptive-metrics --report-trx --coverage --fail-fast
+
+      - name: Version
+        id: version
+        uses: ./.github/actions/bumpcraft
+
+      - name: Publish preview packages
+        uses: ./.github/actions/dotnet-nuget
+        with:
+          version: ${{ steps.version.outputs.version }}
+          push-to: github nuget
+        env:
+          NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        with:
+          name: artifacts
+          path: ./artifacts
+          overwrite: true
+          include-hidden-files: true

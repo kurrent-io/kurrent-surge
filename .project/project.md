@@ -27,22 +27,23 @@ developers install only what they need.
 ## Testing
 
 ```sh
-# test all (TUnit requires dotnet run, NOT dotnet test)
-dotnet run --project test/Kurrent.Client.Tests/ \
-  --disable-logo --no-ansi --no-progress --fail-fast \
-  --adaptive-metrics --output Detailed --log-level Trace \
-  --framework net8.0
+# test all (TUnit flags go after -- separator)
+dotnet test test/Kurrent.Client.Tests/ \
+  --framework net8.0 \
+  -- --disable-logo --fail-fast --adaptive-metrics \
+  --output Detailed --log-level Trace
 
 # test single class
-dotnet run --project test/Kurrent.Client.Tests/ \
-  --disable-logo --no-ansi --no-progress --fail-fast \
-  --adaptive-metrics --output Detailed --log-level Trace \
+dotnet test test/Kurrent.Client.Tests/ \
   --framework net8.0 \
+  -- --disable-logo --fail-fast --adaptive-metrics \
+  --output Detailed --log-level Trace \
   --treenode-filter "/*/*/ReadTests/*"
 
 # test by category
-dotnet run --project test/Kurrent.Client.Tests/ \
-  ... \
+dotnet test test/Kurrent.Client.Tests/ \
+  --framework net8.0 \
+  -- --disable-logo --fail-fast --adaptive-metrics \
   --treenode-filter "/*/*/*/*[Category=Streams]"
 ```
 
@@ -51,6 +52,29 @@ reused across runs.
 
 Observability: `cd test/Kurrent.Testing && docker compose up -d` starts Seq (logs, port 5341) and Aspire Dashboard
 (telemetry, port 18888).
+
+## Tools
+
+`tools/` contains .NET 10 file-based apps (single `.cs` files with `#:` directives). Tools with a `ToolCommandName`
+property are registered as local tools in `.config/dotnet-tools.json`.
+
+After cloning, restore once with `dotnet tool restore`.
+
+### Running tools
+
+| Method              | Example                                    | Notes                          |
+|---------------------|--------------------------------------------|--------------------------------|
+| Local tool          | `dotnet semver-bump check`                 | Requires `dotnet tool restore` |
+| dnx                 | `dnx semver-bump check`                    | No install needed              |
+| Script              | `dotnet run tools/semver-bump.cs -- check` | Runs from source directly      |
+
+### Available tools
+
+| Script               | Command            | Description                                    |
+|----------------------|--------------------|------------------------------------------------|
+| `semver-bump.cs`     | `semver-bump`      | Compute next version from conventional commits |
+| `benchmark-report.cs`| `benchmark-report` | Generate HTML report from BenchmarkDotNet JSON |
+| `nuwrap.cs`          | `nuwrap`           | NuGet package wrapper utility                  |
 
 ## Documentation
 

@@ -1,0 +1,260 @@
+name: Bumpcraft
+description: >
+  Computes a semver package version from git tags and a configuration file.
+  Supports two modes: pre-release (CI builds) and release (stable builds).
+  Sets the version as step outputs and writes a summary to the job log.
+
+  Configuration can be passed as action inputs or read from .github/version.yml.
+  Inputs take priority over the config file. Supported keys:
+
+    auto-increment:      Which part to bump: major, minor, or patch
+    minimum-major-minor: Minimum version floor (e.g., "1.0")
+    pre-release:         Format template or preset for push events
+    pull-request:        Format template or preset for PR events
+
+  Values can be a preset (@name) or a custom template using variables.
+
+  Presets (expand based on which key they are assigned to):
+
+    Preset       pre-release:                      pull-request:
+    @simple      preview.{run}                     pr.{pr}.{run}
+    @traceable   preview.{run}.{sha}               pr.{pr}.{run}.{sha}
+    @dated       preview.{date}.{run}              pr.{pr}.{date}.{run}
+    @detailed    preview.{date}.{run}.{sha}        pr.{pr}.{date}.{run}.{sha}
+
+  Template variables:
+    {run}     - Workflow run number (monotonically increasing)
+    {date}    - UTC date as YYddd (2-digit year + day-of-year, e.g., 26075)
+    {sha}     - Short commit SHA (7 chars)
+    {pr}      - Pull request number
+    {commits} - Number of commits in the PR
+    {attempt} - Workflow run attempt (increments on re-runs)
+
+  Examples:
+    pre-release: @simple                  -> 1.0.0-preview.42
+    pull-request: @traceable              -> 1.0.0-pr.7.42.abc1234
+    pre-release: preview.{date}.{run}     -> 1.0.0-preview.26075.42
+
+inputs:
+  mode:
+    description: >
+      Version computation mode.
+        pre-release: uses MinVer + templates for CI builds (default).
+        release: computes a stable version for publishing.
+    required: false
+    default: pre-release
+  version:
+    description: >
+      Explicit version override (release mode only, e.g., "1.2.3").
+      When set, skips semver-bump and uses this value directly.
+    required: false
+    default: ''
+  config:
+    description: Path to the version configuration file.
+    required: false
+    default: .github/version.yml
+  auto-increment:
+    description: 'Which semver component to bump beyond a tag: major, minor, or patch. Overrides config file.'
+    required: false
+    default: ''
+  minimum-major-minor:
+    description: 'Version floor as major.minor (e.g., "1.0"). Overrides config file.'
+    required: false
+    default: ''
+  pre-release:
+    description: 'Pre-release format preset or template for push events. Overrides config file.'
+    required: false
+    default: ''
+  pull-request:
+    description: 'Pre-release format preset or template for PR events. Overrides config file.'
+    required: false
+    default: ''
+
+outputs:
+  version:
+    description: Full semver version string (e.g., 1.2.3-preview.42 or 1.2.3)
+    value: ${{ steps.compute.outputs.version }}
+  major:
+    description: Major version number
+    value: ${{ steps.compute.outputs.major }}
+  minor:
+    description: Minor version number
+    value: ${{ steps.compute.outputs.minor }}
+  patch:
+    description: Patch version number
+    value: ${{ steps.compute.outputs.patch }}
+  pre-release:
+    description: Pre-release identifiers (empty for stable releases)
+    value: ${{ steps.compute.outputs.pre-release }}
+  is-pre-release:
+    description: Whether this is a pre-release version (true/false)
+    value: ${{ steps.compute.outputs.is-pre-release }}
+  base:
+    description: Base version without pre-release (e.g., 1.2.3)
+    value: ${{ steps.compute.outputs.base }}
+  tag:
+    description: Git tag for this version (e.g., v1.2.3)
+    value: ${{ steps.compute.outputs.tag }}
+  bump:
+    description: What drove the version bump — Major, Minor, or Patch (release mode only)
+    value: ${{ steps.compute.outputs.bump }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute version
+      id: compute
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        INPUT_VERSION: ${{ inputs.version }}
+        EVENT_NAME: ${{ github.event_name }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_COMMITS: ${{ github.event.pull_request.commits }}
+        PR_SHA: ${{ github.event.pull_request.head.sha }}
+        RUN_NUMBER: ${{ github.run_number }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+        INPUT_AUTO_INCREMENT: ${{ inputs.auto-increment }}
+        INPUT_MIN_MAJOR_MINOR: ${{ inputs.minimum-major-minor }}
+        INPUT_PRE_RELEASE: ${{ inputs.pre-release }}
+        INPUT_PULL_REQUEST: ${{ inputs.pull-request }}
+      run: |
+        config="${{ inputs.config }}"
+        if [[ ! -f "$config" ]]; then
+          config="$GITHUB_ACTION_PATH/version.yml"
+        fi
+
+        read_config() {
+          if [[ -f "$config" ]]; then
+            grep "^${1}:" "$config" 2>/dev/null | sed 's/^[^:]*: *//' | tr -d '"'"'" || echo ""
+          fi
+        }
+
+        parse_semver() {
+          local v="$1"
+          base="${v%%-*}"
+          major="${base%%.*}"
+          rest="${base#*.}"
+          minor="${rest%%.*}"
+          patch="${rest#*.}"
+
+          if [[ "$v" == *-* ]]; then
+            pre_release_out="${v#*-}"
+            is_pre_release="true"
+          else
+            pre_release_out=""
+            is_pre_release="false"
+          fi
+        }
+
+        validate_semver() {
+          if [[ ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid semver version: $1"
+            exit 1
+          fi
+        }
+
+        if [[ "$MODE" == "release" ]]; then
+          bump=""
+
+          if [[ -n "$INPUT_VERSION" ]]; then
+            validate_semver "$INPUT_VERSION"
+            version="$INPUT_VERSION"
+
+          elif [[ "$REF_TYPE" == "tag" ]]; then
+            version="${REF_NAME#v}"
+            validate_semver "$version"
+
+          else
+            # Ensure semver-bump is available
+            if ! command -v semver-bump &>/dev/null; then
+              dotnet tool restore --no-progress -v q 2>/dev/null
+            fi
+
+            # Compute from conventional commits via semver-bump
+            result=$(semver-bump check --output json --no-progress 2>/dev/null)
+            version=$(echo "$result" | jq -r '.version')
+            bump=$(echo "$result" | jq -r '.bump')
+          fi
+
+          tag="v$version"
+          parse_semver "$version"
+
+          echo "### Release: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+
+        else
+          # Pre-release mode — uses MinVer + config templates
+          # Priority: inputs > config file > built-in defaults
+          auto_increment="${INPUT_AUTO_INCREMENT:-$(read_config auto-increment)}"
+          minimum_major_minor="${INPUT_MIN_MAJOR_MINOR:-$(read_config minimum-major-minor)}"
+          pre_release_tpl="${INPUT_PRE_RELEASE:-$(read_config pre-release)}"
+          pull_request_tpl="${INPUT_PULL_REQUEST:-$(read_config pull-request)}"
+
+          # Resolve presets (@name -> template)
+          resolve_preset() {
+            local preset="$1" context="$2"
+            case "$context:$preset" in
+              pre-release:@simple)     echo "preview.{run}" ;;
+              pre-release:@traceable)  echo "preview.{run}.{sha}" ;;
+              pre-release:@dated)      echo "preview.{date}.{run}" ;;
+              pre-release:@detailed)   echo "preview.{date}.{run}.{sha}" ;;
+              pull-request:@simple)    echo "pr.{pr}.{run}" ;;
+              pull-request:@traceable) echo "pr.{pr}.{run}.{sha}" ;;
+              pull-request:@dated)     echo "pr.{pr}.{date}.{run}" ;;
+              pull-request:@detailed)  echo "pr.{pr}.{date}.{run}.{sha}" ;;
+              *) echo "$preset" ;;
+            esac
+          }
+
+          [[ "$pre_release_tpl" == @* ]]  && pre_release_tpl=$(resolve_preset "$pre_release_tpl" "pre-release")
+          [[ "$pull_request_tpl" == @* ]] && pull_request_tpl=$(resolve_preset "$pull_request_tpl" "pull-request")
+
+          # Resolve template variables
+          short_sha="${PR_SHA:0:7}"
+          date_stamp=$(date -u +"%y%j")
+          resolve_template() {
+            echo "$1" \
+              | sed "s/{run}/$RUN_NUMBER/g" \
+              | sed "s/{date}/$date_stamp/g" \
+              | sed "s/{sha}/$short_sha/g" \
+              | sed "s/{pr}/$PR_NUMBER/g" \
+              | sed "s/{commits}/$PR_COMMITS/g" \
+              | sed "s/{attempt}/$RUN_ATTEMPT/g"
+          }
+
+          # Build pre-release identifiers from template
+          if [[ "$EVENT_NAME" == "pull_request" && -n "$PR_NUMBER" && -n "$pull_request_tpl" ]]; then
+            pre_release=$(resolve_template "$pull_request_tpl")
+          elif [[ -n "$pre_release_tpl" ]]; then
+            pre_release=$(resolve_template "$pre_release_tpl")
+          fi
+
+          # Build minver args
+          args=(--tag-prefix v)
+          [[ -n "$auto_increment" ]]     && args+=(--auto-increment "$auto_increment")
+          [[ -n "$minimum_major_minor" ]] && args+=(--minimum-major-minor "$minimum_major_minor")
+          if [[ -n "$pre_release" ]]; then
+            args+=(--default-pre-release-identifiers "$pre_release")
+            args+=(--ignore-height)
+          fi
+
+          version=$(minver "${args[@]}")
+          tag="v${version%%-*}"
+          bump=""
+          parse_semver "$version"
+
+          echo "### Version: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        # Step outputs
+        echo "version=$version"          >> "$GITHUB_OUTPUT"
+        echo "major=$major"              >> "$GITHUB_OUTPUT"
+        echo "minor=$minor"              >> "$GITHUB_OUTPUT"
+        echo "patch=$patch"              >> "$GITHUB_OUTPUT"
+        echo "pre-release=$pre_release_out" >> "$GITHUB_OUTPUT"
+        echo "is-pre-release=$is_pre_release" >> "$GITHUB_OUTPUT"
+        echo "base=$base"                >> "$GITHUB_OUTPUT"
+        echo "tag=$tag"                  >> "$GITHUB_OUTPUT"
+        echo "bump=$bump"                >> "$GITHUB_OUTPUT"

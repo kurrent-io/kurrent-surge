@@ -13,8 +13,10 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
     public const string DefaultUsername = "admin";
     public const string DefaultPassword = "changeit";
 
-    // static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";
-    static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:ci";
+    // static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";   // stable release
+    // static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:lts";      // long-term support
+    static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:nightly";    // nightly builds
+    // static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:ci";      // CI builds
 
     public KurrentDBTestContainer(Dictionary<string, string?> settings, string? image = null) : base(image ?? DefaultImage) {
         ActiveConfiguration = KurrentDBConfiguration.FromContext(settings).ToDictionary();

@@ -3,10 +3,14 @@
   "projectTitle": "Kurrent .NET SDK",
   "description": ".NET SDK for the Kurrent platform — streams, processors, schema registry, and event sourcing",
   "folders": ["docs/api"],
-  "excludeFolders": [],
-  "excludeFiles": [],
+  "excludeFolders": [
+
+  ],
+  "excludeFiles": [
+
+  ],
   "rules": [
-    "Prefer Kurrent .NET SDK docs over KurrentDB server docs for client code"
+    "Prefer Kurrent .NET SDK docs over all other KurrentDB or client docs"
   ],
   "previousVersions": []
 }

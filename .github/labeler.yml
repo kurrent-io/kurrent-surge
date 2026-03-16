@@ -1,0 +1,75 @@
+client:
+  - changed-files:
+    - any-glob-to-any-file:
+      - src/Kurrent.Client/**
+      - src/Kurrent.Client.SourceGenerators/**
+      - test/Kurrent.Client.Tests/**
+      - test/Kurrent.Client.Integration.Tests/**
+
+processors:
+  - changed-files:
+    - any-glob-to-any-file:
+      - src/Kurrent.Processors/**
+      - test/Kurrent.Processors.Tests/**
+      - test/Kurrent.Processors.Integration.Tests/**
+
+contracts:
+  - changed-files:
+      - any-glob-to-any-file: proto/**
+
+cli:
+  - changed-files:
+    - any-glob-to-any-file: src/Kurrent.Cli/**
+
+benchmarks:
+  - changed-files:
+      - any-glob-to-any-file: perf/**
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: docs/**
+    - any-glob-to-any-file: README.md
+    - any-glob-to-any-file: CONTRIBUTING.md
+    - any-glob-to-any-file: LICENSE.md
+    - any-glob-to-any-file: context7.json
+
+test:
+  - changed-files:
+    - any-glob-to-any-file: test/**
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - .github/workflows/**
+      - .github/actions/**
+      - release.yml
+      - labeler.yml
+      - dependabot.yml
+      - scripts/**
+      - .devcontainer/**
+      - .github/copilot-instructions.md
+      - .github/git-commit-instructions.md
+      - .config/**
+
+tooling:
+  - changed-files:
+    - any-glob-to-any-file: tools/**
+
+examples:
+  - changed-files:
+    - any-glob-to-any-file: examples/**
+
+agents:
+  - changed-files:
+    - any-glob-to-any-file:
+      - .claude/**
+      - .agents/**
+      - .project/**
+      - CLAUDE.md
+      - AGENTS.md
+      - mcp.json
+      - .github/copilot-instructions.md
+      - .github/git-commit-instructions.md
+      - .qodo/**
+      - pr_agent.toml
+      - .junie/**

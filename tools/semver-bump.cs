@@ -1,43 +1,114 @@
 #!/usr/bin/env dotnet
 #:package Spectre.Console@0.*
-#:package Spectre.Console.Cli@0.*
+#:package System.CommandLine@2.*
 #:package Octokit@13.*
 #:property ToolCommandName=semver-bump
 
 // ReSharper disable ClassNeverInstantiated.Global
 
-using System.ComponentModel;
+using System.CommandLine;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Git;
 using Octokit;
-using Output;
 using Spectre.Console;
-using Spectre.Console.Cli;
 using GitTag = Git.GitTag;
+
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 
-var app = new CommandApp();
+Option<string> tokenOption = new("--token") {
+    Description = "GitHub token (defaults to GITHUB_TOKEN env var)",
+    DefaultValueFactory = _ => Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "",
+    Recursive = true
+};
 
-app.Configure(c => {
-        c.SetApplicationName("semver-bump");
+Option<string> repoOption = new("--repo") {
+    Description = "GitHub repository as owner/name (defaults to GITHUB_REPOSITORY env var)",
+    DefaultValueFactory = _ => Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") ?? "",
+    Recursive = true
+};
 
-        c.AddCommand<CheckCommand>("check")
-            .WithDescription("Compute the next version from conventional commits");
+Option<OutputFormat> outputOption = new("--output") {
+    Description = "Output format: envvars, json, or github",
+    DefaultValueFactory = _ => OutputFormat.EnvVars,
+    Recursive = true
+};
 
-        c.AddCommand<BumpCommand>("bump")
-            .WithDescription("Compute, tag, and push the next version");
+Option<bool> noProgressOption = new("--no-progress") {
+    Description = "Suppress progress output to stderr",
+    Recursive = true
+};
+
+var root = new RootCommand("semver-bump") {
+    tokenOption, repoOption, outputOption, noProgressOption
+};
+
+var checkCommand = new Command("check", "Compute the next version from conventional commits");
+
+checkCommand.SetAction(async (parseResult, ct) => {
+    var stderr = SpectreConsole.CreateStderr(parseResult.GetValue(noProgressOption));
+    var stdout = SpectreConsole.CreateStdout();
+
+    IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
+
+    var ctx    = await git.GetPreReleaseContext(ct);
+    var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
+
+    await ResultWriter
+        .Create(parseResult.GetValue(outputOption), stderr, stdout)
+        .WriteAsync(result, ct);
+
+    return 0;
+});
+
+var bumpCommand = new Command("bump", "Compute the next version and tag it in git");
+
+bumpCommand.SetAction(async (parseResult, ct) => {
+    var stderr = SpectreConsole.CreateStderr(parseResult.GetValue(noProgressOption));
+    var stdout = SpectreConsole.CreateStdout();
+
+    IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
+
+    var ctx    = await git.GetPreReleaseContext(ct);
+    var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
+
+    var nextTag = result.NextVersion.ToGitTag();
+    stderr.MarkupLine($"\n[mediumpurple]Creating tag[/] [white]{Markup.Escape(nextTag)}[/]");
+
+    try {
+        var hash = Environment.GetEnvironmentVariable("GITHUB_SHA")
+            ?? (await git.GetHeadCommit(ct))?.Hash;
+
+        if (hash is null) {
+            stderr.MarkupLine("[red]Failed to retrieve HEAD commit for tagging[/]");
+            return 1;
+        }
+
+        await git.CreateTagAsync(nextTag, hash, ct);
+    } catch (Exception ex) {
+        stderr.MarkupLine($"[red]Failed to create tag: {Markup.Escape(ex.Message)}[/]");
+        return 1;
     }
-);
 
-return await app.RunAsync(args);
+    await ResultWriter
+        .Create(parseResult.GetValue(outputOption), stderr, stdout)
+        .WriteAsync(result, ct);
+
+    return 0;
+});
+
+root.Subcommands.Add(checkCommand);
+root.Subcommands.Add(bumpCommand);
+
+return await root.Parse(args).InvokeAsync();
 
 #region Models
 
 public enum BumpType { Major = 1, Minor = 2, Patch = 3 }
 
-public enum OutputFormat { Kv, Json, GitHub }
+public enum OutputFormat { Json, GitHub, EnvVars }
 
 public partial record SemVer {
     public static readonly SemVer Unspecified = new() {
@@ -67,7 +138,6 @@ public partial record SemVer {
             PreRelease    = match.Groups["prerelease"].Success ? match.Groups["prerelease"].Value : "",
             BuildMetadata = match.Groups["buildmetadata"].Success ? match.Groups["buildmetadata"].Value : ""
         };
-
     }
 
     public (SemVer Version, BumpType BumpType) Bump(params GitCommit[] commits) => Bump(this, commits);
@@ -119,82 +189,8 @@ public record SemVerBumpResult {
             FromVersion = version,
             Commits     = commits,
             Bump        = bumpType,
-            NextVersion     = nextVersion
+            NextVersion = nextVersion
         };
-    }
-}
-
-#endregion
-
-#region Settings
-
-abstract class SharedSettings : CommandSettings {
-    [CommandOption("--output"), Description("Output format: kv, json, or github")]
-    public OutputFormat? Output { get; init; }
-
-    [CommandOption("--no-progress"), Description("Suppress progress output on stderr")]
-    public bool NoProgress { get; init; }
-}
-
-sealed class CheckSettings : SharedSettings { }
-
-sealed class BumpSettings : SharedSettings { }
-
-#endregion
-
-#region Commands
-
-sealed class CheckCommand : AsyncCommand<CheckSettings> {
-    public override async Task<int> ExecuteAsync(
-        CommandContext context, CheckSettings settings, CancellationToken ct
-    ) {
-        var stderr = StderrConsole.Create(settings.NoProgress);
-        var stdout = StdoutConsole.Create();
-        var git    = new OctokitGitRepository();
-
-        var ctx    = await git.GetPreReleaseContext(ct);
-        var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
-
-        var writer = ResultWriterFactory.Create(settings.Output, stderr, stdout);
-        await writer.WriteAsync(result, ct);
-
-        return 0;
-    }
-}
-
-sealed class BumpCommand : AsyncCommand<BumpSettings> {
-    public override async Task<int> ExecuteAsync(
-        CommandContext context, BumpSettings settings, CancellationToken ct
-    ) {
-        var stderr = StderrConsole.Create(settings.NoProgress);
-        var stdout = StdoutConsole.Create();
-        IGitRepository git = new OctokitGitRepository();
-
-        var ctx    = await git.GetPreReleaseContext(ct);
-        var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
-
-        var nextTag = result.NextVersion.ToGitTag();
-        stderr.MarkupLine($"\n[mediumpurple]Creating tag[/] [white]{Markup.Escape(nextTag)}[/]");
-
-        try {
-            var hash = Environment.GetEnvironmentVariable("GITHUB_SHA")
-                ?? (await git.GetHeadCommit(ct))?.Hash;
-
-            if (hash is null) {
-                stderr.MarkupLine("[red]Failed to retrieve HEAD commit for tagging[/]");
-                return 1;
-            }
-
-            await git.CreateTagAsync(nextTag, hash, ct);
-        } catch (Exception ex) {
-            stderr.MarkupLine($"[red]Failed to create tag: {Markup.Escape(ex.Message)}[/]");
-            return 1;
-        }
-
-        var writer = ResultWriterFactory.Create(settings.Output, stderr, stdout);
-        await writer.WriteAsync(result, ct);
-
-        return 0;
     }
 }
 
@@ -202,147 +198,140 @@ sealed class BumpCommand : AsyncCommand<BumpSettings> {
 
 #region Output
 
-namespace Output {
-    static class StderrConsole {
-        public static IAnsiConsole Create(bool suppress) =>
-            AnsiConsole.Create(
-                new AnsiConsoleSettings {
-                    Out = new AnsiConsoleOutput(suppress ? TextWriter.Null : Console.Error)
-                }
-            );
+static class SpectreConsole {
+    public static IAnsiConsole CreateStderr(bool suppress = false) =>
+        AnsiConsole.Create(
+            new AnsiConsoleSettings { Out = new AnsiConsoleOutput(suppress ? TextWriter.Null : Console.Error) }
+        );
+
+    public static IAnsiConsole CreateStdout() =>
+        AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Out) });
+}
+
+interface IResultWriter {
+    ValueTask WriteAsync(SemVerBumpResult result, CancellationToken ct);
+}
+
+record BumpResult(string Version, string Tag, string Bump);
+
+abstract partial record ResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : IResultWriter {
+    public async ValueTask WriteAsync(SemVerBumpResult result, CancellationToken ct) {
+        WriteSummaryPanel(result);
+        await WriteResultAsync(result, ct);
     }
 
-    static class StdoutConsole {
-        public static IAnsiConsole Create() =>
-            AnsiConsole.Create(
-                new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Out) }
-            );
-    }
+    protected abstract ValueTask WriteResultAsync(SemVerBumpResult result, CancellationToken ct);
 
-    interface IResultWriter {
-        Task WriteAsync(SemVerBumpResult result, CancellationToken ct);
-    }
+    void WriteSummaryPanel(SemVerBumpResult result) {
+        var bumpColor = result.Bump switch {
+            BumpType.Major => "red",
+            BumpType.Minor => "yellow",
+            _              => "green"
+        };
 
-    abstract class BaseResultWriter(IAnsiConsole stderr, IAnsiConsole stdout) : IResultWriter {
-        protected IAnsiConsole Stderr => stderr;
-        protected IAnsiConsole Stdout => stdout;
+        Stderr.WriteLine();
 
-        public async Task WriteAsync(SemVerBumpResult result, CancellationToken ct) {
-            WriteSummaryPanel(result);
-            await WriteFormatAsync(result, ct);
-        }
+        var grid = new Grid().AddColumn().AddColumn();
+        grid.AddRow("[grey]Bump[/]", $"[{bumpColor} bold]{result.Bump}[/]");
+        grid.AddRow("[grey]Previous version[/]",
+            result.FromVersion != SemVer.Unspecified
+                ? $"[white]{result.FromVersion}[/]"
+                : "[grey]none[/]");
+        grid.AddRow("[grey]New version[/]", $"[white]{result.NextVersion}[/]");
+        grid.AddRow("[grey]Commits[/]", $"[white]{result.Commits.Length}[/]");
 
-        protected abstract Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct);
+        Stderr.Write(
+            new Panel(grid)
+                .Header("[mediumpurple] Version [/]")
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.MediumPurple)
+        );
 
-        void WriteSummaryPanel(SemVerBumpResult result) {
-            var bumpColor = result.Bump switch {
-                BumpType.Major => "red",
-                BumpType.Minor => "yellow",
-                _              => "green"
-            };
-
-            Stderr.WriteLine();
-
-            var grid = new Grid().AddColumn().AddColumn();
-            grid.AddRow("[grey]Bump[/]", $"[{bumpColor} bold]{result.Bump}[/]");
-            grid.AddRow("[grey]Previous version[/]",
-                result.FromVersion != SemVer.Unspecified
-                    ? $"[white]{result.FromVersion}[/]"
-                    : "[grey]none[/]");
-            grid.AddRow("[grey]New version[/]", $"[white]{result.NextVersion}[/]");
-            grid.AddRow("[grey]Commits[/]", $"[white]{result.Commits.Length}[/]");
-
-            Stderr.Write(
-                new Panel(grid)
-                    .Header("[mediumpurple] Version [/]")
-                    .Border(BoxBorder.Rounded)
-                    .BorderColor(Color.MediumPurple)
-            );
-
-            Stderr.WriteLine();
-        }
-    }
-
-    sealed class DefaultResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
-        : BaseResultWriter(stderr, stdout) {
-        protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
-            Stdout.WriteLine($"{result.NextVersion}");
-            return Task.CompletedTask;
-        }
-    }
-
-    sealed class KvResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
-        : BaseResultWriter(stderr, stdout) {
-        protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
-            Stdout.WriteLine($"version={result.NextVersion}");
-            Stdout.WriteLine($"tag={result.NextVersion.ToGitTag()}");
-            Stdout.WriteLine($"bump={result.Bump}");
-            return Task.CompletedTask;
-        }
-    }
-
-    sealed class JsonResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
-        : BaseResultWriter(stderr, stdout) {
-        protected override Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
-            var version = JsonEncodedText.Encode($"{result.NextVersion}");
-            var tag     = JsonEncodedText.Encode($"{result.NextVersion.ToGitTag()}");
-            var bump    = JsonEncodedText.Encode($"{result.Bump}");
-            Stdout.WriteLine($$"""{"version":"{{version}}","tag":"{{tag}}","bump":"{{bump}}"}""");
-            return Task.CompletedTask;
-        }
-    }
-
-    sealed class GitHubResultWriter(IAnsiConsole stderr, IAnsiConsole stdout)
-        : BaseResultWriter(stderr, stdout) {
-        protected override async Task WriteFormatAsync(SemVerBumpResult result, CancellationToken ct) {
-            var outputFile  = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
-            var summaryFile = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
-
-            var previousVersion = result.FromVersion != SemVer.Unspecified
-                ? $"{result.FromVersion}"
-                : "none";
-
-            var output = $"""
-                version={result.NextVersion}
-                tag={result.NextVersion.ToGitTag()}
-                bump={result.Bump}
-
-                """;
-
-            if (outputFile is not null)
-                await File.AppendAllTextAsync(outputFile, output, ct);
-            else
-                Stdout.Write(output);
-
-            if (summaryFile is not null) {
-                var summary = $"""
-                    | | |
-                    |---|---|
-                    | Bump | `{result.Bump}` |
-                    | Previous version | `{previousVersion}` |
-                    | New version | `{result.NextVersion}` |
-
-                    """;
-
-                await File.AppendAllTextAsync(summaryFile, summary, ct);
-            }
-        }
-    }
-
-    static class ResultWriterFactory {
-        public static IResultWriter Create(OutputFormat? format, IAnsiConsole stderr, IAnsiConsole stdout) =>
-            format switch {
-                OutputFormat.Kv     => new KvResultWriter(stderr, stdout),
-                OutputFormat.Json   => new JsonResultWriter(stderr, stdout),
-                OutputFormat.GitHub => new GitHubResultWriter(stderr, stdout),
-                _                   => new DefaultResultWriter(stderr, stdout)
-            };
+        Stderr.WriteLine();
     }
 }
 
-#endregion
+sealed record EnvVarsResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : ResultWriter(Stderr, Stdout) {
+    protected override ValueTask WriteResultAsync(SemVerBumpResult result, CancellationToken ct) {
+        Environment.SetEnvironmentVariable("BUMP_VERSION", result.NextVersion.ToString());
+        Environment.SetEnvironmentVariable("BUMP_TAG", result.NextVersion.ToGitTag());
+        Environment.SetEnvironmentVariable("BUMP_TYPE", result.Bump.ToString());
+        return ValueTask.CompletedTask;
+    }
+}
 
-#region Git
+sealed record JsonResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : ResultWriter(Stderr, Stdout) {
+    protected override ValueTask WriteResultAsync(SemVerBumpResult result, CancellationToken ct) {
+        var output = new BumpResult(result.NextVersion.ToString(), result.NextVersion.ToGitTag(), result.Bump.ToString());
+        Stdout.WriteLine(JsonSerializer.Serialize(output, BumpResultJsonContext.Default.BumpResult));
+        return ValueTask.CompletedTask;
+    }
+}
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(BumpResult))]
+partial class BumpResultJsonContext : JsonSerializerContext;
+
+sealed record GitHubResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : ResultWriter(Stderr, Stdout) {
+    protected override async ValueTask WriteResultAsync(SemVerBumpResult result, CancellationToken ct) {
+        var envFile     = Environment.GetEnvironmentVariable("GITHUB_ENV");
+        var outputFile  = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
+        var summaryFile = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
+
+        if (string.IsNullOrWhiteSpace(envFile) || string.IsNullOrWhiteSpace(outputFile) || string.IsNullOrWhiteSpace(summaryFile)) {
+            Stderr.MarkupLine("[red bold]Error:[/] [red]GITHUB_ENV and GITHUB_OUTPUT must be set. Are you running inside GitHub Actions?[/]");
+            return;
+        }
+
+        var envVars = $"""
+            BUMP_VERSION={result.NextVersion}
+            BUMP_TAG={result.NextVersion.ToGitTag()}
+            BUMP_TYPE={result.Bump}
+
+            """;
+
+        var outputs = $"""
+            version={result.NextVersion}
+            tag={result.NextVersion.ToGitTag()}
+            bump={result.Bump}
+
+            """;
+
+        await File.AppendAllTextAsync(envFile, envVars, ct);
+        await File.AppendAllTextAsync(outputFile, outputs, ct);
+
+        var previousVersion = result.FromVersion != SemVer.Unspecified
+            ? $"{result.FromVersion}"
+            : "none";
+
+        var summary = $"""
+            ## Version Bump
+
+            |                  |                                 |
+            |------------------|---------------------------------|
+            | Bump             | {result.Bump}                   |
+            | Previous version | {previousVersion}               |
+            | New version      | {result.NextVersion}            |
+            | Tag              | {result.NextVersion.ToGitTag()} |
+            | Commits          | {result.Commits.Length}         |
+
+            """;
+
+        await File.AppendAllTextAsync(summaryFile, summary, ct);
+    }
+}
+
+abstract partial record ResultWriter {
+    public static IResultWriter Create(OutputFormat format, IAnsiConsole stderr, IAnsiConsole stdout) =>
+        format switch {
+            OutputFormat.Json   => new JsonResultWriter(stderr, stdout),
+            OutputFormat.GitHub => new GitHubResultWriter(stderr, stdout),
+            _                   => new EnvVarsResultWriter(stderr, stdout)
+        };
+}
+
+
+#endregion
 
 namespace Git {
     public readonly partial record struct GitTag {
@@ -368,8 +357,11 @@ namespace Git {
             };
         }
 
+        [JsonPropertyName("tag")]
         public string Value { get; private init; }
-        public string Ref   { get; private init; }
+
+        [JsonIgnore]
+        public string Ref { get; private init; }
 
         public override string ToString() => Value;
 
@@ -392,16 +384,16 @@ namespace Git {
     }
 
     public record GitCommit {
-        public string         Message    { get; private init; } = "";
-        public string         Subject    { get; private init; } = "";
-        public string         Body       { get; private init; } = "";
-        public string         Hash       { get; private init; } = "";
-        public GitCommitter    Author     { get; private init; } = GitCommitter.Unspecified;
-        public GitCommitter    Commiter   { get; private init; } = GitCommitter.Unspecified;
-        public string         Label      { get; private init; } = "";
-        public GitCommitStats Stats      { get; private init; } = GitCommitStats.Unspecified;
-        public DateTimeOffset Timestamp  { get; private init; } = DateTimeOffset.MinValue;
-        public string         Url        { get; private init; } = "";
+        public string         Message   { get; private init; } = "";
+        public string         Subject   { get; private init; } = "";
+        public string         Body      { get; private init; } = "";
+        public string         Hash      { get; private init; } = "";
+        public GitCommitter   Author    { get; private init; } = GitCommitter.Unspecified;
+        public GitCommitter   Commiter  { get; private init; } = GitCommitter.Unspecified;
+        public string         Label     { get; private init; } = "";
+        public GitCommitStats Stats     { get; private init; } = GitCommitStats.Unspecified;
+        public DateTimeOffset Timestamp { get; private init; } = DateTimeOffset.MinValue;
+        public string         Url       { get; private init; } = "";
 
         public ConventionalCommit Conventional { get; private init; } = ConventionalCommit.Unspecified;
 
@@ -478,10 +470,9 @@ namespace Git {
         private static partial Regex CommitRegex();
     }
 
-
     public record PreReleaseContext(GitTag LastTag, SemVer LastVersion, GitCommit[] Commits);
 
-    interface IGitRepository {
+    interface IGitClient {
         string Url { get; }
 
         Task CreateTagAsync(GitTag tag, string hash, CancellationToken ct);
@@ -496,14 +487,14 @@ namespace Git {
     }
 
     // TODO SS: why not use repository id instead of owner/repo?
-    sealed class OctokitGitRepository : IGitRepository {
+    sealed class GitClient : IGitClient {
         public string Url { get; }
 
         readonly GitHubClient _client;
         readonly string       _owner;
         readonly string       _repo;
 
-        public OctokitGitRepository(string token, string repository) {
+        public GitClient(string token, string repository) {
             ArgumentException.ThrowIfNullOrWhiteSpace(token);
             ArgumentException.ThrowIfNullOrWhiteSpace(repository);
 
@@ -516,10 +507,6 @@ namespace Git {
 
             _client = new GitHubClient(new ProductHeaderValue("semver-bump")) { Credentials = new Credentials(token) };
         }
-
-        public OctokitGitRepository() : this(
-            Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? "",
-            Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") ?? "") { }
 
         public async Task CreateTagAsync(GitTag tag, string hash, CancellationToken ct) {
             ArgumentException.ThrowIfNullOrWhiteSpace(tag.Value, nameof(tag));
@@ -582,6 +569,3 @@ namespace Git {
         }
     }
 }
-
-
-#endregion

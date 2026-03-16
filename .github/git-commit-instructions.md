@@ -88,7 +88,7 @@ fix(client.connectors): corrected timeout on status polling
 refactor(client.legacy): extracted shared retry logic
 feat(processors): added dead-letter queue for failed records
 fix(processors): corrected offset drift on partition rebalance
-test(testing): added fluent assertions for stream position
+test(testing): added new read test for empty stream
 perf(client.schema): reduced allocations in type mapper lookup
 docs(client.registry): documented schema evolution rules
 deps(variant): bumped source generator dependencies

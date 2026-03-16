@@ -1,28 +1,24 @@
 name: Release
 
 on:
+  push:
+    tags: ['v*']
+
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number without v prefix (e.g., 1.0.0, 2.1.0-rc.1)'
-        required: true
-        type: string
-      run_tests:
-        description: 'Run tests before releasing'
+        description: 'Override version (e.g., 1.0.0). Leave empty to compute from conventional commits.'
         required: false
-        type: boolean
-        default: true
-      push_to_nuget:
-        description: 'Push packages to NuGet.org'
+        type: string
+        default: ''
+      dry_run:
+        description: 'Compute version and build without tagging or publishing'
         required: false
         type: boolean
         default: false
 
 env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-
-  MinVerDefaultPreReleaseIdentifiers: ${{ github.event_name == 'pull_request' && format('pr.{0}.{1}', github.event.pull_request.number, github.run_number) || format('alpha.{0}', github.run_number) }}
-  MinVerIgnoreHeight: true
 
 jobs:
   release:
@@ -34,56 +30,50 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 0
-
-      - name: Validate version format
-        run: |
-          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Version must follow semantic versioning (e.g., 1.0.0 or 2.1.0-rc.1)"
-            exit 1
-          fi
-
-      - name: Tag version
-        run: |
-          git config user.name "${{ vars.ORG_GH_BOT_USERNAME }}"
-          git config user.email "${{ vars.ORG_GH_BOT_USERNAME }}@users.noreply.github.com"
-          git tag "v${{ inputs.version }}"
-          git push origin "v${{ inputs.version }}"
 
       - name: Setup .NET
         uses: ./.github/actions/dotnet-setup
         env:
-          DOTNET_INSTALL_VERSIONS: |
-            8.x
-            9.x
-            10.x
+          DOTNET_INSTALL_VERSIONS: 8.x 9.x 10.x 11.x
 
       - name: Version
+        id: version
+        uses: ./.github/actions/bumpcraft
+        with:
+          mode: release
+          version: ${{ inputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag
+        if: github.ref_type != 'tag' && !inputs.dry_run
         run: |
-          version=$(minver --tag-prefix v)
-          echo "VERSION=$version" >> "$GITHUB_ENV"
-          echo "### Version: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Build
         run: dotnet build -c Release --no-restore
 
       - name: Publish packages
+        if: ${{ !inputs.dry_run }}
         uses: ./.github/actions/dotnet-nuget
         with:
-          version: ${{ env.VERSION }}
-          push-to: github ${{ inputs.push_to_nuget && 'nuget' || '' }}
+          version: ${{ steps.version.outputs.version }}
+          push-to: github nuget
         env:
           NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
 
       - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ inputs.version }}" \
-            --title "v${{ inputs.version }}" \
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ steps.version.outputs.tag }}" \
             --generate-notes \
             ./artifacts/packages/*.nupkg \
             ./artifacts/packages/*.snupkg

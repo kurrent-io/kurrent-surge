@@ -4,9 +4,11 @@
 
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using CliWrap;
 using CliWrap.Buffered;
+using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 [NotInParallel]
 public class SemVerBumpTests {
@@ -32,29 +34,12 @@ public class SemVerBumpTests {
     }
 
     [Test]
-    public async Task check_default_output_returns_bare_version() {
+    public async Task check_default_sets_env_vars() {
         // act
         var result = await Execute("check", "--no-progress");
-        var stdout = result.StandardOutput.Trim();
 
         // assert
         await Assert.That(result.ExitCode).IsEqualTo(0);
-        await Assert.That(stdout).IsNotEmpty();
-        await Assert.That(Regex.IsMatch(stdout, @"^\d+\.\d+\.\d+$"))
-            .IsTrue()
-            .Because($"Expected bare version, got: {stdout}");
-    }
-
-    [Test]
-    public async Task check_kv_output_contains_expected_keys() {
-        // act
-        var result = await Execute("check", "--output", "kv", "--no-progress");
-
-        // assert
-        await Assert.That(result.ExitCode).IsEqualTo(0);
-        await Assert.That(result.StandardOutput).Contains("version=");
-        await Assert.That(result.StandardOutput).Contains("tag=");
-        await Assert.That(result.StandardOutput).Contains("bump=");
     }
 
     [Test]
@@ -71,24 +56,64 @@ public class SemVerBumpTests {
     }
 
     [Test]
-    public async Task check_github_output_contains_expected_keys() {
+    public async Task check_github_output_writes_to_env_files() {
+        // arrange
+        var envFile     = Path.GetTempFileName();
+        var outputFile  = Path.GetTempFileName();
+        var summaryFile = Path.GetTempFileName();
+        var envOverrides = new Dictionary<string, string> {
+            ["GITHUB_ENV"]          = envFile,
+            ["GITHUB_OUTPUT"]       = outputFile,
+            ["GITHUB_STEP_SUMMARY"] = summaryFile
+        };
+
+        try {
+            // act
+            var result = await Execute(Token, Repository, ["check", "--output", "github", "--no-progress"], envOverrides);
+            var envContent     = await File.ReadAllTextAsync(envFile);
+            var outputContent  = await File.ReadAllTextAsync(outputFile);
+            var summaryContent = await File.ReadAllTextAsync(summaryFile);
+
+            // assert
+            await Assert.That(result.ExitCode).IsEqualTo(0);
+
+            await Assert.That(envContent).Contains("BUMP_VERSION=");
+            await Assert.That(envContent).Contains("BUMP_TAG=");
+            await Assert.That(envContent).Contains("BUMP_TYPE=");
+
+            await Assert.That(outputContent).Contains("version=");
+            await Assert.That(outputContent).Contains("tag=");
+            await Assert.That(outputContent).Contains("bump=");
+
+            await Assert.That(summaryContent).Contains("## Version Bump");
+        } finally {
+            File.Delete(envFile);
+            File.Delete(outputFile);
+            File.Delete(summaryFile);
+        }
+    }
+
+    [Test]
+    public async Task check_github_fails_without_env_files() {
+        // arrange
+        var envOverrides = new Dictionary<string, string> {
+            ["GITHUB_ENV"]          = "",
+            ["GITHUB_OUTPUT"]       = "",
+            ["GITHUB_STEP_SUMMARY"] = ""
+        };
+
         // act
-        var result = await Execute("check", "--output", "github", "--no-progress");
+        var result = await Execute(Token, Repository, ["check", "--output", "github"], envOverrides);
 
         // assert
         await Assert.That(result.ExitCode).IsEqualTo(0);
-        await Assert.That(result.StandardOutput).Contains("version=");
-        await Assert.That(result.StandardOutput).Contains("tag=");
-        await Assert.That(result.StandardOutput).Contains("bump=");
+        await Assert.That(result.StandardError).Contains("GITHUB_ENV");
     }
 
     [Test]
     public async Task check_fails_with_missing_token() {
-        // arrange
-        var envOverrides = new Dictionary<string, string> { ["GITHUB_TOKEN"] = "" };
-
         // act
-        var result = await Execute(new[] { "check" }, envOverrides);
+        var result = await Execute("", Repository, ["check"]);
 
         // assert
         await Assert.That(result.ExitCode).IsNotEqualTo(0);
@@ -96,34 +121,52 @@ public class SemVerBumpTests {
 
     [Test]
     public async Task check_fails_with_missing_repository() {
-        // arrange
-        var envOverrides = new Dictionary<string, string> { ["GITHUB_REPOSITORY"] = "" };
-
         // act
-        var result = await Execute(new[] { "check" }, envOverrides);
+        var result = await Execute(Token, "", ["check"]);
+
+        // assert
+        await Assert.That(result.ExitCode).IsNotEqualTo(0);
+    }
+
+    [Test]
+    public async Task bump_fails_with_missing_token() {
+        // act
+        var result = await Execute("", Repository, ["bump"]);
+
+        // assert
+        await Assert.That(result.ExitCode).IsNotEqualTo(0);
+    }
+
+    [Test]
+    public async Task bump_fails_with_missing_repository() {
+        // act
+        var result = await Execute(Token, "", ["bump"]);
 
         // assert
         await Assert.That(result.ExitCode).IsNotEqualTo(0);
     }
 
     static Task<BufferedCommandResult> Execute(params string[] args) =>
-        Execute(args, null);
+        Execute(Token, Repository, args);
 
-    static async Task<BufferedCommandResult> Execute(string[] args, Dictionary<string, string>? envOverrides) {
+    static async Task<BufferedCommandResult> Execute(
+        string token, string repo, string[] args, Dictionary<string, string>? envOverrides = null
+    ) {
         var cmd = Cli.Wrap("dotnet")
             .WithArguments(a => {
                 a.Add("run");
                 a.Add(ToolPath);
                 a.Add("--");
+                a.Add("--token"); a.Add(token);
+                a.Add("--repo"); a.Add(repo);
                 foreach (var arg in args) a.Add(arg);
             })
             .WithEnvironmentVariables(e => {
-                e.Set("GITHUB_TOKEN", Token);
-                e.Set("GITHUB_REPOSITORY", Repository);
-                if (envOverrides is not null) {
-                    foreach (var (key, value) in envOverrides)
-                        e.Set(key, value);
-                }
+                if (envOverrides is null)
+                    return;
+
+                foreach (var (key, value) in envOverrides)
+                    e.Set(key, value);
             })
             .WithValidation(CommandResultValidation.None);
 

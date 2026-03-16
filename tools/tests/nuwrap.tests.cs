@@ -81,11 +81,11 @@ public class NuWrapTests {
         try {
             Directory.CreateDirectory(tmpDir);
             var configPath = Path.Combine(tmpDir, "nuwrap.yml");
-            File.WriteAllText(configPath, "version: \"2.0.0\"\nforce: true\n");
+            await File.WriteAllTextAsync(configPath, "version: \"2.0.0\"\nforce: true\n");
 
             // Package at 3.0.0-preview.1 would normally reject 2.0.0 as a downgrade,
             // but force=true from the config file bypasses the check.
-            CreateFixtureNupkg("Config.Test", "3.0.0-preview.1", tmpDir);
+            await CreateFixtureNupkg("Config.Test", "3.0.0-preview.1", tmpDir);
 
             var result = await Execute(
                 "--no-progress",
@@ -107,9 +107,9 @@ public class NuWrapTests {
         try {
             Directory.CreateDirectory(tmpDir);
             var configPath = Path.Combine(tmpDir, "nuwrap.yml");
-            File.WriteAllText(configPath, "version: \"2.0.0\"\nforce: true\n");
+            await File.WriteAllTextAsync(configPath, "version: \"2.0.0\"\nforce: true\n");
 
-            CreateFixtureNupkg("Override.Test", "1.0.0-preview.1", tmpDir);
+            await CreateFixtureNupkg("Override.Test", "1.0.0-preview.1", tmpDir);
 
             // config file has version=2.0.0, but CLI overrides to 3.0.0
             var result = await Execute(
@@ -135,7 +135,7 @@ public class NuWrapTests {
         var sourceDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try {
-            CreateFixtureNupkg("My.Package", "1.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("My.Package", "1.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--target-version", "2.0.0",
@@ -156,7 +156,7 @@ public class NuWrapTests {
         var sourceDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try {
-            CreateFixtureNupkg("My.Package", "1.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("My.Package", "1.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--target-version", "2.0.0-rc.1",
@@ -180,7 +180,7 @@ public class NuWrapTests {
         var outputDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try {
-            CreateFixtureNupkg("Stamp.Test", "1.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("Stamp.Test", "1.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--no-progress",
@@ -196,10 +196,10 @@ public class NuWrapTests {
             await Assert.That(Path.GetFileName(stamped[0])).Contains("2.0.0");
 
             // Verify nuspec inside the stamped nupkg has the new version
-            using var zip = ZipFile.OpenRead(stamped[0]);
+            await using var zip = await ZipFile.OpenReadAsync(stamped[0]);
             var nuspecEntry = zip.Entries.First(e => e.FullName.EndsWith(".nuspec"));
-            using var stream = nuspecEntry.Open();
-            var doc     = System.Xml.Linq.XDocument.Load(stream);
+            await using var stream = await nuspecEntry.OpenAsync();
+            var doc     = await System.Xml.Linq.XDocument.LoadAsync(stream, System.Xml.Linq.LoadOptions.None, default);
             var ns      = doc.Root!.GetDefaultNamespace();
             var version = doc.Root.Element(ns + "metadata")!.Element(ns + "version")!.Value;
             await Assert.That(version).IsEqualTo("2.0.0");
@@ -216,8 +216,8 @@ public class NuWrapTests {
 
         try {
             // Sibling.A depends on Sibling.B — both are in the same batch
-            CreateFixtureNupkg("Sibling.A", "1.0.0-preview.1", sourceDir, dep: ("Sibling.B", "1.0.0-preview.1"));
-            CreateFixtureNupkg("Sibling.B", "1.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("Sibling.A", "1.0.0-preview.1", sourceDir, dep: ("Sibling.B", "1.0.0-preview.1"));
+            await CreateFixtureNupkg("Sibling.B", "1.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--no-progress",
@@ -231,10 +231,10 @@ public class NuWrapTests {
             var stampedA = Directory.GetFiles(outputDir, "Sibling.A.2.0.0.nupkg").FirstOrDefault();
             await Assert.That(stampedA).IsNotNull();
 
-            using var zip = ZipFile.OpenRead(stampedA!);
+            await using var zip = await ZipFile.OpenReadAsync(stampedA!);
             var nuspecEntry = zip.Entries.First(e => e.FullName.EndsWith(".nuspec"));
-            using var stream = nuspecEntry.Open();
-            var doc = System.Xml.Linq.XDocument.Load(stream);
+            await using var stream = await nuspecEntry.OpenAsync();
+            var doc = await System.Xml.Linq.XDocument.LoadAsync(stream, System.Xml.Linq.LoadOptions.None, default);
             var ns  = doc.Root!.GetDefaultNamespace();
             var depVersion = doc.Root
                 .Element(ns + "metadata")!
@@ -260,7 +260,7 @@ public class NuWrapTests {
         var pushDir   = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try {
-            CreateFixtureNupkg("Push.Test", "1.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("Push.Test", "1.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--no-progress",
@@ -293,7 +293,7 @@ public class NuWrapTests {
 
         try {
             // Package is at 3.0.0-preview.1; stamping with 2.0.0 is a downgrade
-            CreateFixtureNupkg("Downgrade.Test", "3.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("Downgrade.Test", "3.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--target-version", "2.0.0",
@@ -316,7 +316,7 @@ public class NuWrapTests {
 
         try {
             // Package is at 3.0.0-preview.1; --force bypasses the downgrade check
-            CreateFixtureNupkg("Force.Test", "3.0.0-preview.1", sourceDir);
+            await CreateFixtureNupkg("Force.Test", "3.0.0-preview.1", sourceDir);
 
             var result = await Execute(
                 "--no-progress",
@@ -337,7 +337,7 @@ public class NuWrapTests {
 
     #region Helpers
 
-    static FileInfo CreateFixtureNupkg(
+    static async Task<FileInfo> CreateFixtureNupkg(
         string id, string version, string directory,
         (string id, string version)? dep = null
     ) {
@@ -366,8 +366,8 @@ public class NuWrapTests {
         var outPath = Path.Combine(directory, $"{id}.{version}.nupkg");
         try {
             Directory.CreateDirectory(tmpDir);
-            File.WriteAllText(Path.Combine(tmpDir, $"{id}.nuspec"), nuspec);
-            ZipFile.CreateFromDirectory(tmpDir, outPath);
+            await File.WriteAllTextAsync(Path.Combine(tmpDir, $"{id}.nuspec"), nuspec);
+            await ZipFile.CreateFromDirectoryAsync(tmpDir, outPath);
         } finally {
             if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, recursive: true);
         }

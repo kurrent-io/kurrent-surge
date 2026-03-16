@@ -101,6 +101,15 @@ runs:
           --source github \
           --api-key "$GITHUB_TOKEN"
 
+    - name: Validate NuGet.org credentials
+      if: contains(inputs.push-to, 'nuget')
+      shell: bash
+      run: |
+        if [[ -z "$NUGET_API_KEY" ]]; then
+          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set it via env: NUGET_API_KEY: \${{ secrets.YOUR_KEY }}"
+          exit 1
+        fi
+
     - name: Push to NuGet.org
       if: contains(inputs.push-to, 'nuget')
       shell: bash

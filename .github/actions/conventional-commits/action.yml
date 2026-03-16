@@ -1,0 +1,173 @@
+name: Conventional Commits
+description: >
+  Validates PR titles against conventional commits and auto-labels PRs based
+  on the commit type and scope. The PR title becomes the commit message on
+  main (squash merge), so enforcing it here ensures every commit conforms.
+
+  Breaking changes (! in title) always get a "breaking-change" label.
+
+  Examples:
+
+    # Minimal; validates title, labels by type only
+    - uses: ./.github/actions/pr-conventional-commits
+
+    # With scope labels (list format; scope name = label name)
+    - uses: ./.github/actions/pr-conventional-commits
+      with:
+        scope-labels: client processors
+
+    # With scope labels (JSON format; scope maps to custom label)
+    - uses: ./.github/actions/pr-conventional-commits
+      with:
+        scope-labels: '{"grpc": "networking", "streaming": "client"}'
+
+    # Override type-to-label mapping
+    - uses: ./.github/actions/pr-conventional-commits
+      with:
+        type-labels: '{"feat": "feature", "fix": "bug"}'
+
+    # Disallow scopes entirely
+    - uses: ./.github/actions/pr-conventional-commits
+      with:
+        allow-scopes: false
+
+  Labels applied for different PR titles (using default type-labels
+  and scope-labels: client processors):
+
+    "feat(client): add streaming"        -> enhancement, client
+    "fix(processors): offset bug"        -> bug, processors
+    "docs: update README"                -> documentation
+    "feat(client)!: remove legacy API"   -> enhancement, client, breaking-change
+    "chore(deps): bump grpc"             -> (no labels; chore and deps not both mapped)
+    "refactor: simplify internals"       -> (no labels; refactor not in default map)
+
+  Inputs:
+
+    type-labels (JSON object, has sensible defaults):
+      Maps conventional commit types to GitHub labels. Default mapping:
+      feat=enhancement, fix=bug, docs=documentation, perf=optimization,
+      deps=dependencies, security=security, refactor=refactor, test=test.
+      Types not in the map get no label. Override with a JSON object to
+      customize.
+
+    scope-labels (list or JSON object, default empty):
+      Determines which PR scopes get a GitHub label.
+
+      List format; the scope name is used as the label.
+      All of these are equivalent:
+        scope-labels: client processors
+        scope-labels: client, processors
+        scope-labels: |
+          client
+          processors
+        scope-labels: |
+          - client
+          - processors
+
+      JSON format; maps scopes to custom label names:
+        scope-labels: '{"grpc": "networking", "streaming": "client"}'
+
+    allow-scopes (boolean, default true):
+      When false, any PR with a scope is rejected. Useful for repos
+      that enforce a flat commit style without scopes.
+
+inputs:
+  type-labels:
+    description: >
+      JSON object mapping conventional commit types to GitHub labels.
+      Types not listed here get no label.
+    required: false
+    default: >
+      {
+        "feat": "enhancement",
+        "fix": "bug",
+        "docs": "documentation",
+        "perf": "optimization",
+        "security": "security",
+        "test": "test"
+      }
+  scope-labels:
+    description: >
+      Scopes that get a GitHub label. Pass a list (space, comma, or
+      newline-separated; YAML list markers accepted) to use the scope
+      name as the label, or a JSON object to map scopes to custom
+      label names. Default is empty (no scope labels).
+    required: false
+    default: ''
+  allow-scopes:
+    description: >
+      Allow scopes in PR titles. When false, any PR with a scope is
+      rejected (e.g. "feat: ok" passes, "feat(client): ..." fails).
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Validate title
+      id: pr-title
+      uses: amannn/action-semantic-pull-request@v6
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      with:
+        types: |
+          feat
+          fix
+          docs
+          chore
+          refactor
+          perf
+          test
+          build
+          ci
+          deps
+          infra
+          security
+          style
+          revert
+        disallowScopes: |
+          ${{ inputs.allow-scopes == 'true' && '.*[A-Z].*' || '.*' }}
+        subjectPattern: ^(?![A-Z]).+(?<!\.)$
+        subjectPatternError: |
+          The subject "{subject}" in "{title}" must start with a
+          lowercase character and not end with a period.
+
+    - name: Auto-label
+      if: steps.pr-title.outputs.type != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TYPE_LABELS: ${{ inputs.type-labels }}
+        SCOPE_LABELS: ${{ inputs.scope-labels }}
+      run: |
+        type="${{ steps.pr-title.outputs.type }}"
+        labels=""
+
+        label=$(echo "$TYPE_LABELS" | jq -r --arg t "$type" '.[$t] // empty')
+        if [[ -n "$label" ]]; then
+          labels="$label"
+        fi
+
+        scope="${{ steps.pr-title.outputs.scope }}"
+        if [[ -n "$scope" && -n "$SCOPE_LABELS" ]]; then
+          trimmed=$(echo "$SCOPE_LABELS" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n,' ' ' | xargs)
+          if [[ "$trimmed" == \{* ]]; then
+            label=$(echo "$SCOPE_LABELS" | jq -r --arg s "$scope" '.[$s] // empty')
+          else
+            for s in $trimmed; do
+              [[ "$scope" == "$s" ]] && label="$scope" && break
+            done
+          fi
+          if [[ -n "$label" ]]; then
+            labels="${labels:+$labels,}$label"
+          fi
+        fi
+
+        title="${{ github.event.pull_request.title }}"
+        if [[ "$title" == *"!"* ]]; then
+          labels="${labels:+$labels,}breaking-change"
+        fi
+
+        if [ -n "$labels" ]; then
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "$labels"
+        fi

@@ -1,0 +1,10 @@
+# =============================================================================
+# DO NOT EDIT — this is the action's built-in fallback configuration.
+# To customize, copy this file to .github/version.yml in your repository.
+# See actions/bumpcraft/README.md for full documentation.
+# =============================================================================
+
+auto-increment: patch
+minimum-major-minor: 1.0
+pre-release: @simple
+pull-request: @traceable
