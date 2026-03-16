@@ -1,14 +1,16 @@
-#!/usr/bin/env dotnet-run
+#!/usr/bin/env dotnet
 #:package Spectre.Console@0.*
-#:package Spectre.Console.Cli@0.*
+#:package System.CommandLine@2.*
 #:package NuGet.Versioning@6.*
 #:package NuGet.Protocol@6.*
 #:package Microsoft.Extensions.Configuration@9.*
 #:package Microsoft.Extensions.Configuration.Json@9.*
 #:package Microsoft.Extensions.Configuration.Binder@9.*
+#:package Microsoft.Extensions.Configuration.EnvironmentVariables@9.*
 #:package NetEscapades.Configuration.Yaml@0.*
+#:property ToolCommandName=nuwrap
 
-using System.ComponentModel;
+using System.CommandLine;
 using System.IO.Compression;
 using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
@@ -18,102 +20,115 @@ using NuGet.Protocol;
 using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
-var app = new CommandApp<NuWrapCommand>();
-app.Configure(c => c.SetApplicationName("nuwrap"));
-return app.Run(args);
+#region CLI
 
-// --- Models ---
+Option<string?> configOption = new("--config") {
+    Description = "Explicit config file path (yml or json)"
+};
 
-record SourceConfig(string Url);
-record PushTarget(string Url);
+Option<string[]> sourceOption = new("--source") {
+    Description = "NuGet feed URL or local path to read packages from (repeatable)",
+    AllowMultipleArgumentsPerToken = true
+};
+sourceOption.Arity = ArgumentArity.ZeroOrMore;
 
-record NuWrapConfig {
-    public List<SourceConfig> Sources  { get; init; } = [];
-    public List<string>       Packages { get; init; } = [];
-    public List<PushTarget>   Push     { get; init; } = [];
-    public string?            Version  { get; init; }
-    public string?            WorkDir  { get; init; }
-    public bool               Force    { get; init; }
-    public bool               DryRun   { get; init; }
-}
+Option<string[]> packageOption = new("--package") {
+    Description = "Package ID to download from remote source (repeatable)",
+    AllowMultipleArgumentsPerToken = true
+};
+packageOption.Arity = ArgumentArity.ZeroOrMore;
 
-record StampResult(string PackageName, string? OldVersion, string NewVersion, bool Success, string? Error);
+Option<string?> targetVersionOption = new("--target-version") {
+    Description = "Target version to stamp (e.g. 1.2.3 or 1.2.3-rc.1)"
+};
 
-// --- Settings ---
+Option<string[]> pushOption = new("--push") {
+    Description = "Push target: feed URL or local path (repeatable)",
+    AllowMultipleArgumentsPerToken = true
+};
+pushOption.Arity = ArgumentArity.ZeroOrMore;
 
-sealed class NuWrapSettings : CommandSettings {
-    [CommandOption("--config")]
-    [Description("Explicit config file path (yml or json)")]
-    public string? Config { get; init; }
+Option<bool> forceOption = new("--force") {
+    Description = "Skip all validation checks"
+};
 
-    [CommandOption("--source")]
-    [Description("NuGet feed URL or local path to read packages from (repeatable)")]
-    public string[]? Sources { get; init; }
+Option<string?> workDirOption = new("--work-dir") {
+    Description = "Working directory for unzip/rezip operations (default: system temp, never cleaned up)"
+};
 
-    [CommandOption("--package")]
-    [Description("Package ID to download from remote source (repeatable)")]
-    public string[]? Packages { get; init; }
+Option<bool> dryRunOption = new("--dry-run") {
+    Description = "Validate and preview without side effects"
+};
 
-    [CommandOption("--version")]
-    [Description("Target version to stamp (e.g. 1.2.3 or 1.2.3-rc.1)")]
-    public string? Version { get; init; }
+Option<string?> outputOption = new("--output") {
+    Description = "Directory for stamped packages (default: system temp)"
+};
 
-    [CommandOption("--push")]
-    [Description("Push target: feed URL or local path (repeatable)")]
-    public string[]? Push { get; init; }
+Option<bool> noProgressOption = new("--no-progress") {
+    Description = "Suppress progress output to stderr"
+};
 
-    [CommandOption("--force")]
-    [Description("Skip all validation checks")]
-    public bool Force { get; init; }
+var root = new RootCommand("nuwrap — stamp and promote NuGet packages without rebuilding") {
+    configOption, sourceOption, packageOption, targetVersionOption, pushOption,
+    forceOption, workDirOption, dryRunOption, outputOption, noProgressOption
+};
 
-    [CommandOption("--work-dir")]
-    [Description("Working directory for unzip/rezip operations (default: system temp, never cleaned up)")]
-    public string? WorkDir { get; init; }
+root.SetAction(async (parseResult, ct) => {
+    var stderr = SpectreConsole.CreateStderr(parseResult.GetValue(noProgressOption));
 
-    [CommandOption("--dry-run")]
-    [Description("Validate and preview without side effects")]
-    public bool DryRun { get; init; }
-}
+    PrintBanner(stderr);
 
-// --- Command ---
+    var config = LoadConfig(
+        configPath: parseResult.GetValue(configOption),
+        sources:    parseResult.GetValue(sourceOption) ?? [],
+        packages:   parseResult.GetValue(packageOption) ?? [],
+        version:    parseResult.GetValue(targetVersionOption),
+        push:       parseResult.GetValue(pushOption) ?? [],
+        force:      parseResult.GetValue(forceOption),
+        workDir:    parseResult.GetValue(workDirOption),
+        dryRun:     parseResult.GetValue(dryRunOption),
+        output:     parseResult.GetValue(outputOption),
+        stderr:     stderr
+    );
 
-sealed class NuWrapCommand : AsyncCommand<NuWrapSettings> {
-    public override async Task<int> ExecuteAsync(CommandContext context, NuWrapSettings settings) {
-        PrintBanner();
+    PrintConfig(config, stderr);
 
-        var config = LoadConfig(settings);
-        PrintConfig(config);
+    if (!ValidateConfig(config, stderr)) return 1;
 
-        if (!ValidateConfig(config)) return 1;
+    NuGetVersion.TryParse(config.Version!, out var targetVersion);
 
-        NuGetVersion.TryParse(config.Version!, out var targetVersion);
+    if (targetVersion!.IsPrerelease)
+        stderr.MarkupLine($"[yellow]⚠️  '{config.Version}' is a pre-release. Continuing.[/]\n");
 
-        if (targetVersion!.IsPrerelease)
-            AnsiConsole.MarkupLine($"[yellow]⚠️  '{config.Version}' is a pre-release. Continuing.[/]\n");
-
-        if (config.DryRun) {
-            AnsiConsole.MarkupLine("[yellow]⚠️  Dry run — no packages will be downloaded, stamped, or pushed[/]\n");
-            return await RunDryRun(config, targetVersion);
-        }
-
-        return await RunPromotion(config, targetVersion);
+    if (config.DryRun) {
+        stderr.MarkupLine("[yellow]⚠️  Dry run — no packages will be downloaded, stamped, or pushed[/]\n");
+        return await RunDryRun(config, targetVersion, stderr);
     }
+
+    return await RunPromotion(config, targetVersion, stderr);
+});
+
+return await root.Parse(args).InvokeAsync();
+
+#endregion
+
+// NOTE: All static local functions must precede type declarations (records/classes)
+// to satisfy the C# top-level programs ordering requirement (CS8803).
+
+#region Banner & Config display
+
+static void PrintBanner(IAnsiConsole stderr) {
+    stderr.Write(new FigletText("nuwrap").Color(Color.MediumPurple));
+    stderr.MarkupLine("[grey]stamp and promote NuGet packages without rebuilding[/]\n");
 }
 
-// --- Banner & Config display ---
-
-static void PrintBanner() {
-    AnsiConsole.Write(new FigletText("nuwrap").Color(Color.MediumPurple));
-    AnsiConsole.MarkupLine("[grey]stamp and promote NuGet packages without rebuilding[/]\n");
-}
-
-static void PrintConfig(NuWrapConfig config) {
+static void PrintConfig(NuWrapConfig config, IAnsiConsole stderr) {
     var grid = new Grid().AddColumn().AddColumn();
 
     grid.AddRow("[grey]Version[/]",  $"[white]{config.Version ?? "[red]not set[/]"}[/]");
     grid.AddRow("[grey]Work dir[/]",  config.WorkDir is not null ? $"[white]{config.WorkDir}[/]" : "[grey]system temp[/]");
+    grid.AddRow("[grey]Output[/]",   $"[white]{config.Output}[/]");
     grid.AddRow("[grey]Force[/]",    config.Force   ? "[red]true[/]"    : "[grey]false[/]");
     grid.AddRow("[grey]Dry run[/]",  config.DryRun  ? "[yellow]true[/]" : "[grey]false[/]");
     grid.AddRow("[grey]Sources[/]",  config.Sources.Count > 0
@@ -131,40 +146,49 @@ static void PrintConfig(NuWrapConfig config) {
         .Border(BoxBorder.Rounded)
         .BorderColor(Color.MediumPurple);
 
-    AnsiConsole.Write(panel);
-    AnsiConsole.WriteLine();
+    stderr.Write(panel);
+    stderr.WriteLine();
 }
 
-// --- Working directory ---
+#endregion
 
-static string ResolveWorkDir(NuWrapConfig config) =>
-    config.WorkDir ?? Path.Combine(Path.GetTempPath(), $"nuwrap-{Path.GetRandomFileName()}");
+#region Config loading
 
-// --- Config loading ---
-
-static NuWrapConfig LoadConfig(NuWrapSettings settings) {
-    var configPath = settings.Config ?? DiscoverConfigFile();
+static NuWrapConfig LoadConfig(
+    string?      configPath,
+    string[]     sources,
+    string[]     packages,
+    string?      version,
+    string[]     push,
+    bool         force,
+    string?      workDir,
+    bool         dryRun,
+    string?      output,
+    IAnsiConsole stderr
+) {
+    var resolvedPath = configPath ?? DiscoverConfigFile();
 
     var builder = new ConfigurationBuilder();
-    if (configPath is not null) {
-        if (configPath.EndsWith(".yml") || configPath.EndsWith(".yaml"))
-            builder.AddYamlFile(configPath, optional: false);
+    if (resolvedPath is not null) {
+        if (resolvedPath.EndsWith(".yml") || resolvedPath.EndsWith(".yaml"))
+            builder.AddYamlFile(resolvedPath, optional: false);
         else
-            builder.AddJsonFile(configPath, optional: false);
-        AnsiConsole.MarkupLine($"[grey]Config loaded from:[/] {configPath}\n");
+            builder.AddJsonFile(resolvedPath, optional: false);
+        stderr.MarkupLine($"[grey]Config loaded from:[/] {resolvedPath}\n");
     }
 
     builder.AddEnvironmentVariables("NUWRAP_");
     var fileConfig = builder.Build().Get<NuWrapConfig>() ?? new NuWrapConfig();
 
     return fileConfig with {
-        Version  = settings.Version ?? fileConfig.Version,
-        WorkDir  = settings.WorkDir ?? fileConfig.WorkDir,
-        Force    = settings.Force   || fileConfig.Force,
-        DryRun   = settings.DryRun  || fileConfig.DryRun,
-        Sources  = MergeList(fileConfig.Sources, settings.Sources?.Select(u => new SourceConfig(u))),
-        Packages = MergeStrings(fileConfig.Packages, settings.Packages),
-        Push     = MergeList(fileConfig.Push, settings.Push?.Select(u => new PushTarget(u))),
+        Version  = version  ?? fileConfig.Version,
+        WorkDir  = workDir  ?? fileConfig.WorkDir,
+        Output   = output   ?? fileConfig.Output ?? Path.Combine(Path.GetTempPath(), $"nuwrap-{Path.GetRandomFileName()}"),
+        Force    = force    || fileConfig.Force,
+        DryRun   = dryRun   || fileConfig.DryRun,
+        Sources  = MergeList(fileConfig.Sources, sources.Length  > 0 ? sources.Select(u  => new SourceConfig(u)) : null),
+        Packages = MergeStrings(fileConfig.Packages, packages.Length > 0 ? packages : null),
+        Push     = MergeList(fileConfig.Push, push.Length > 0 ? push.Select(u => new PushTarget(u)) : null),
     };
 }
 
@@ -195,30 +219,34 @@ static List<string> MergeStrings(List<string> existing, string[]? additions) {
     return [.. merged];
 }
 
-// --- Validation ---
+#endregion
 
-static bool ValidateConfig(NuWrapConfig config) {
+#region Validation
+
+static bool ValidateConfig(NuWrapConfig config, IAnsiConsole stderr) {
     var valid = true;
 
     if (string.IsNullOrWhiteSpace(config.Version)) {
-        AnsiConsole.MarkupLine("[red]❌ --version is required[/]");
+        stderr.MarkupLine("[red]❌ --target-version is required[/]");
         valid = false;
     } else if (!NuGetVersion.TryParse(config.Version, out _)) {
-        AnsiConsole.MarkupLine($"[red]❌ Invalid version: '{config.Version}'[/]");
+        stderr.MarkupLine($"[red]❌ Invalid version: '{config.Version}'[/]");
         valid = false;
     }
 
     if (config.Sources.Count == 0 && config.Push.Count == 0) {
-        AnsiConsole.MarkupLine("[red]❌ Provide at least one --source or --push target[/]");
+        stderr.MarkupLine("[red]❌ Provide at least one --source or --push target[/]");
         valid = false;
     }
 
     return valid;
 }
 
-// --- Auth resolution ---
+#endregion
 
-static (string? Token, bool IsApiKey) ResolveAuth(string url) {
+#region Auth resolution
+
+static (string? Token, bool IsApiKey) ResolveAuth(string url, IAnsiConsole stderr) {
     if (url.Contains("nuget.pkg.github.com"))
         return (Environment.GetEnvironmentVariable("GITHUB_TOKEN"), false);
     if (url.Contains("api.nuget.org"))
@@ -228,21 +256,23 @@ static (string? Token, bool IsApiKey) ResolveAuth(string url) {
 
     var fallback = Environment.GetEnvironmentVariable("NUWRAP_TOKEN");
     if (fallback is null)
-        AnsiConsole.MarkupLine($"[yellow]⚠️  No token found for {url} — attempting unauthenticated[/]");
+        stderr.MarkupLine($"[yellow]⚠️  No token found for {url} — attempting unauthenticated[/]");
     return (fallback, false);
 }
 
-static SourceRepository BuildRepository(string url) {
-    var (token, _) = ResolveAuth(url);
+static SourceRepository BuildRepository(string url, IAnsiConsole stderr) {
+    var (token, _) = ResolveAuth(url, stderr);
     var source = new PackageSource(url);
     if (token is not null)
         source.Credentials = new PackageSourceCredential(url, "nuwrap", token, true, null);
     return Repository.Factory.GetCoreV3(source);
 }
 
-// --- Source partitioning ---
+#endregion
 
-static (List<SourceConfig> feeds, List<FileInfo> files) PartitionSources(NuWrapConfig config) {
+#region Source partitioning
+
+static (List<SourceConfig> feeds, List<FileInfo> files) PartitionSources(NuWrapConfig config, IAnsiConsole stderr) {
     // If no sources provided, fall back to push targets as implicit sources in order
     var sources = config.Sources.Count > 0
         ? config.Sources
@@ -251,14 +281,14 @@ static (List<SourceConfig> feeds, List<FileInfo> files) PartitionSources(NuWrapC
     var feeds = sources.Where(s => !IsLocalPath(s.Url)).ToList();
     var files = new List<FileInfo>();
     foreach (var s in sources.Where(s => IsLocalPath(s.Url)))
-        files.AddRange(ResolveLocalFiles(s.Url));
+        files.AddRange(ResolveLocalFiles(s.Url, stderr));
     return (feeds, files);
 }
 
-static List<FileInfo> ResolveLocalFiles(string path) {
+static List<FileInfo> ResolveLocalFiles(string path, IAnsiConsole stderr) {
     if (File.Exists(path) && path.EndsWith(".nupkg")) return [new FileInfo(path)];
     if (Directory.Exists(path)) return [.. new DirectoryInfo(path).GetFiles("*.nupkg")];
-    AnsiConsole.MarkupLine($"[yellow]⚠️  Source not found: {path}[/]");
+    stderr.MarkupLine($"[yellow]⚠️  Source not found: {path}[/]");
     return [];
 }
 
@@ -266,9 +296,9 @@ static bool IsLocalPath(string url) =>
     !url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
     !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-// --- Package resolution ---
+#endregion
 
-record ResolvedPackage(string Id, NuGetVersion? PinnedVersion);
+#region Package resolution
 
 static ResolvedPackage ParsePackageEntry(string entry) {
     var parts = entry.Split('@', 2);
@@ -277,7 +307,9 @@ static ResolvedPackage ParsePackageEntry(string entry) {
     return new(entry.Trim(), null);
 }
 
-// --- NuGet operations ---
+#endregion
+
+#region NuGet operations
 
 static async Task<(NuGetVersion Version, string DownloadPath)?> DownloadLatestPreRelease(
     string packageId, SourceRepository repository, string tempDir) {
@@ -310,9 +342,9 @@ static async Task<(NuGetVersion Version, string DownloadPath)?> DownloadLatestPr
     } catch { return null; }
 }
 
-static async Task PushToFeed(string url, IEnumerable<FileInfo> packages) {
-    var (token, isApiKey) = ResolveAuth(url);
-    var repository = BuildRepository(url);
+static async Task PushToFeed(string url, IEnumerable<FileInfo> packages, IAnsiConsole stderr) {
+    var (token, isApiKey) = ResolveAuth(url, stderr);
+    var repository = BuildRepository(url, stderr);
     var updateResource = await repository.GetResourceAsync<PackageUpdateResource>();
 
     foreach (var pkg in packages) {
@@ -321,14 +353,16 @@ static async Task PushToFeed(string url, IEnumerable<FileInfo> packages) {
                 [pkg.FullName], null, 30, false,
                 _ => isApiKey ? token : null,
                 _ => null, false, false, null, NullLogger.Instance);
-            AnsiConsole.MarkupLine($"  [green]✅[/] {Markup.Escape(pkg.Name)}");
+            stderr.MarkupLine($"  [green]✅[/] {Markup.Escape(pkg.Name)}");
         } catch (Exception ex) {
-            AnsiConsole.MarkupLine($"  [red]❌ {Markup.Escape(pkg.Name)}: {Markup.Escape(ex.Message)}[/]");
+            stderr.MarkupLine($"  [red]❌ {Markup.Escape(pkg.Name)}: {Markup.Escape(ex.Message)}[/]");
         }
     }
 }
 
-// --- Nuspec manipulation ---
+#endregion
+
+#region Nuspec manipulation
 
 static XDocument? LoadNuspec(ZipArchive zip) {
     var entry = zip.Entries.FirstOrDefault(e =>
@@ -348,7 +382,9 @@ static void StampNuspec(XDocument doc, XNamespace ns, string version, HashSet<st
         .ForEach(d => d.SetAttributeValue("version", version));
 }
 
-// --- Stamping ---
+#endregion
+
+#region Stamping
 
 static async Task<StampResult> StampPackage(
     FileInfo pkg, string version, NuGetVersion targetVersion,
@@ -369,7 +405,7 @@ static async Task<StampResult> StampPackage(
         var ns  = doc.Root!.GetDefaultNamespace();
         var metadata = doc.Root.Element(ns + "metadata")!;
 
-        var packageId        = metadata.Element(ns + "id")!.Value;
+        var packageId         = metadata.Element(ns + "id")!.Value;
         var currentVersionStr = metadata.Element(ns + "version")?.Value ?? "unknown";
 
         if (!force) {
@@ -403,11 +439,13 @@ static string? ResolvePackageId(FileInfo nupkg) {
     } catch { return null; }
 }
 
-// --- Promotion run ---
+#endregion
 
-static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVersion) {
-    var (remoteFeeds, localFiles) = PartitionSources(config);
-    var output = new DirectoryInfo(config.Output);
+#region Promotion run
+
+static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVersion, IAnsiConsole stderr) {
+    var (remoteFeeds, localFiles) = PartitionSources(config, stderr);
+    var output = new DirectoryInfo(config.Output!);
     output.Create();
 
     var allFiles = new List<FileInfo>(localFiles);
@@ -417,13 +455,13 @@ static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVers
     Directory.CreateDirectory(downloadTemp);
 
     foreach (var feed in remoteFeeds) {
-        var repository = BuildRepository(feed.Url);
+        var repository = BuildRepository(feed.Url, stderr);
         foreach (var packageId in config.Packages) {
             var downloaded = await DownloadLatestPreRelease(packageId, repository, downloadTemp);
             if (downloaded is not null)
                 allFiles.Add(new FileInfo(downloaded.Value.DownloadPath));
             else
-                AnsiConsole.MarkupLine($"[red]❌ '{packageId}' not found on {feed.Url}[/]");
+                stderr.MarkupLine($"[red]❌ '{packageId}' not found on {feed.Url}[/]");
         }
     }
 
@@ -435,7 +473,7 @@ static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVers
 
     var results = new List<StampResult>();
 
-    await AnsiConsole.Progress()
+    await stderr.Progress()
         .AutoClear(false)
         .Columns(new TaskDescriptionColumn(), new ProgressBarColumn(), new SpinnerColumn())
         .StartAsync(async ctx => {
@@ -450,18 +488,18 @@ static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVers
 
     if (Directory.Exists(downloadTemp)) Directory.Delete(downloadTemp, recursive: true);
 
-    PrintSummary(results, output);
+    PrintSummary(results, output, stderr);
 
     if (results.All(r => r.Success) && config.Push.Count > 0) {
         var stamped = output.GetFiles("*.nupkg");
         foreach (var push in config.Push) {
-            AnsiConsole.MarkupLine($"\n[mediumPurple]Pushing to[/] [grey]{push.Url}[/]");
+            stderr.MarkupLine($"\n[mediumPurple]Pushing to[/] [grey]{push.Url}[/]");
             if (IsLocalPath(push.Url)) {
                 var dir = Directory.CreateDirectory(push.Url);
                 foreach (var pkg in stamped)
                     File.Copy(pkg.FullName, Path.Combine(dir.FullName, pkg.Name), overwrite: true);
             } else {
-                await PushToFeed(push.Url, stamped);
+                await PushToFeed(push.Url, stamped, stderr);
             }
         }
     }
@@ -469,10 +507,12 @@ static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVers
     return results.Any(r => !r.Success) ? 1 : 0;
 }
 
-// --- Dry run ---
+#endregion
 
-static async Task<int> RunDryRun(NuWrapConfig config, NuGetVersion targetVersion) {
-    var (remoteFeeds, localFiles) = PartitionSources(config);
+#region Dry run
+
+static async Task<int> RunDryRun(NuWrapConfig config, NuGetVersion targetVersion, IAnsiConsole stderr) {
+    var (remoteFeeds, localFiles) = PartitionSources(config, stderr);
     var results = new List<StampResult>();
 
     var resolvedPackages = config.Packages.Select(ParsePackageEntry).ToList();
@@ -481,7 +521,7 @@ static async Task<int> RunDryRun(NuWrapConfig config, NuGetVersion targetVersion
         bool found = false;
         foreach (var feed in remoteFeeds) {
             try {
-                var repository = BuildRepository(feed.Url);
+                var repository = BuildRepository(feed.Url, stderr);
                 NuGetVersion? version = package.PinnedVersion;
 
                 if (version is null) {
@@ -519,7 +559,7 @@ static async Task<int> RunDryRun(NuWrapConfig config, NuGetVersion targetVersion
             var doc = LoadNuspec(zip);
             var ns  = doc?.Root?.GetDefaultNamespace() ?? XNamespace.None;
             var metadata = doc?.Root?.Element(ns + "metadata");
-            var packageId = metadata?.Element(ns + "id")?.Value ?? file.Name;
+            var packageId  = metadata?.Element(ns + "id")?.Value ?? file.Name;
             var currentStr = metadata?.Element(ns + "version")?.Value ?? "unknown";
             NuGetVersion.TryParse(currentStr, out var current);
             var valid = config.Force || current is null || targetVersion > current;
@@ -530,44 +570,46 @@ static async Task<int> RunDryRun(NuWrapConfig config, NuGetVersion targetVersion
         }
     }
 
-    PrintDryRunPlan(results, config);
+    PrintDryRunPlan(results, config, stderr);
     return results.Any(r => !r.Success) ? 1 : 0;
 }
 
-static void PrintDryRunPlan(List<StampResult> results, NuWrapConfig config) {
-    AnsiConsole.Write(new Rule("[mediumPurple]Promotion Plan[/]").RuleStyle("grey"));
-    AnsiConsole.WriteLine();
+static void PrintDryRunPlan(List<StampResult> results, NuWrapConfig config, IAnsiConsole stderr) {
+    stderr.Write(new Rule("[mediumPurple]Promotion Plan[/]").RuleStyle("grey"));
+    stderr.WriteLine();
 
     var table = BuildResultsTable(results);
-    AnsiConsole.Write(table);
+    stderr.Write(table);
 
     if (config.Push.Count > 0) {
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[bold]Push targets:[/]");
+        stderr.WriteLine();
+        stderr.MarkupLine("[bold]Push targets:[/]");
         foreach (var push in config.Push)
-            AnsiConsole.MarkupLine($"  [grey]→[/] {Markup.Escape(push.Url)}");
+            stderr.MarkupLine($"  [grey]→[/] {Markup.Escape(push.Url)}");
     }
 
-    AnsiConsole.WriteLine();
-    AnsiConsole.MarkupLine(results.All(r => r.Success)
+    stderr.WriteLine();
+    stderr.MarkupLine(results.All(r => r.Success)
         ? "[green]✅ All packages ready for promotion[/]"
         : "[red]❌ Some packages have issues — resolve before releasing[/]");
 }
 
-// --- Summary ---
+#endregion
 
-static void PrintSummary(List<StampResult> results, DirectoryInfo output) {
-    AnsiConsole.WriteLine();
-    AnsiConsole.Write(BuildResultsTable(results));
-    AnsiConsole.WriteLine();
+#region Summary
+
+static void PrintSummary(List<StampResult> results, DirectoryInfo output, IAnsiConsole stderr) {
+    stderr.WriteLine();
+    stderr.Write(BuildResultsTable(results));
+    stderr.WriteLine();
 
     var succeeded = results.Count(r => r.Success);
     var failed    = results.Count(r => !r.Success);
 
     if (failed == 0)
-        AnsiConsole.MarkupLine($"[green]✅ {succeeded} package(s) stamped → {Markup.Escape(output.FullName)}[/]");
+        stderr.MarkupLine($"[green]✅ {succeeded} package(s) stamped → {Markup.Escape(output.FullName)}[/]");
     else
-        AnsiConsole.MarkupLine($"[yellow]⚠️  {succeeded} succeeded,[/] [red]{failed} failed[/]");
+        stderr.MarkupLine($"[yellow]⚠️  {succeeded} succeeded,[/] [red]{failed} failed[/]");
 }
 
 static Table BuildResultsTable(List<StampResult> results) =>
@@ -588,3 +630,40 @@ static Table BuildResultsTable(List<StampResult> results) =>
                 status);
             return table;
         });
+
+#endregion
+
+// Type declarations follow all local functions (required ordering for top-level programs)
+
+#region Models
+
+record SourceConfig(string Url);
+record PushTarget(string Url);
+
+record NuWrapConfig {
+    public List<SourceConfig> Sources  { get; set; } = [];
+    public List<string>       Packages { get; set; } = [];
+    public List<PushTarget>   Push     { get; set; } = [];
+    public string?            Version  { get; set; }
+    public string?            WorkDir  { get; set; }
+    public string?            Output   { get; set; }
+    public bool               Force    { get; set; }
+    public bool               DryRun   { get; set; }
+}
+
+record StampResult(string PackageName, string? OldVersion, string NewVersion, bool Success, string? Error);
+
+record ResolvedPackage(string Id, NuGetVersion? PinnedVersion);
+
+#endregion
+
+#region SpectreConsole
+
+static class SpectreConsole {
+    public static IAnsiConsole CreateStderr(bool suppress = false) =>
+        AnsiConsole.Create(
+            new AnsiConsoleSettings { Out = new AnsiConsoleOutput(suppress ? TextWriter.Null : Console.Error) }
+        );
+}
+
+#endregion
