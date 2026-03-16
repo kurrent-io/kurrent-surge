@@ -16,10 +16,6 @@ public class NuWrapTests {
         Path.Combine(GetSourceDir(), "..", "nuwrap.cs")
     );
 
-    static readonly string FixturesDir = Path.GetFullPath(
-        Path.Combine(GetSourceDir(), "fixtures")
-    );
-
     static string GetSourceDir([CallerFilePath] string path = "") => Path.GetDirectoryName(path)!;
 
     [Before(Class)]
@@ -80,48 +76,53 @@ public class NuWrapTests {
 
     [Test]
     public async Task config_file_loads_version_and_force() {
-        var configPath = Path.Combine(FixturesDir, "nuwrap-test.yml");
-        var sourceDir  = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var tmpDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try {
-            // nuwrap-test.yml: version=2.0.0, force=true
+            Directory.CreateDirectory(tmpDir);
+            var configPath = Path.Combine(tmpDir, "nuwrap.yml");
+            File.WriteAllText(configPath, "version: \"2.0.0\"\nforce: true\n");
+
             // Package at 3.0.0-preview.1 would normally reject 2.0.0 as a downgrade,
             // but force=true from the config file bypasses the check.
-            CreateFixtureNupkg("Config.Test", "3.0.0-preview.1", sourceDir);
+            CreateFixtureNupkg("Config.Test", "3.0.0-preview.1", tmpDir);
 
             var result = await Execute(
                 "--no-progress",
                 "--config", configPath,
                 "--dry-run",
-                "--source", sourceDir
+                "--source", tmpDir
             );
 
             await Assert.That(result.ExitCode).IsEqualTo(0);
         } finally {
-            if (Directory.Exists(sourceDir)) Directory.Delete(sourceDir, recursive: true);
+            if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, recursive: true);
         }
     }
 
     [Test]
     public async Task cli_target_version_overrides_config_file() {
-        var configPath = Path.Combine(FixturesDir, "nuwrap-test.yml");
-        var sourceDir  = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var tmpDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
         try {
-            CreateFixtureNupkg("Override.Test", "1.0.0-preview.1", sourceDir);
+            Directory.CreateDirectory(tmpDir);
+            var configPath = Path.Combine(tmpDir, "nuwrap.yml");
+            File.WriteAllText(configPath, "version: \"2.0.0\"\nforce: true\n");
+
+            CreateFixtureNupkg("Override.Test", "1.0.0-preview.1", tmpDir);
 
             // config file has version=2.0.0, but CLI overrides to 3.0.0
             var result = await Execute(
                 "--config", configPath,
                 "--dry-run",
                 "--target-version", "3.0.0",
-                "--source", sourceDir
+                "--source", tmpDir
             );
 
             await Assert.That(result.ExitCode).IsEqualTo(0);
             await Assert.That(result.StandardError).Contains("3.0.0");
         } finally {
-            if (Directory.Exists(sourceDir)) Directory.Delete(sourceDir, recursive: true);
+            if (Directory.Exists(tmpDir)) Directory.Delete(tmpDir, recursive: true);
         }
     }
 

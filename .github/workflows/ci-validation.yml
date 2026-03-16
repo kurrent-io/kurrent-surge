@@ -1,0 +1,20 @@
+name: CI -- PR Title
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, edited, ready_for_review]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Validate and Label
+        uses: ./.github/actions/conventional-commits
