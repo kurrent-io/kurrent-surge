@@ -5,11 +5,9 @@ public class KurrentDBResource(string name, bool secure = false)
     internal const string HttpEndpointName = "http";
     internal const int    DefaultHttpPort  = 2113;
 
-    EndpointReference? _primaryEndpoint;
-
     public bool Secure { get; internal set; } = secure;
 
-    public EndpointReference PrimaryEndpoint => _primaryEndpoint ??= new EndpointReference(this, HttpEndpointName);
+    public EndpointReference PrimaryEndpoint => field ??= new EndpointReference(this, HttpEndpointName);
 
     public EndpointReferenceExpression Host => PrimaryEndpoint.Property(EndpointProperty.Host);
 

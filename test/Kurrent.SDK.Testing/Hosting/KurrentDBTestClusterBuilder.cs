@@ -17,7 +17,6 @@ public sealed class KurrentDBTestClusterBuilder {
 
     public KurrentDBTestClusterBuilder AddNode(string? name = null) {
         _nodes.Add(new KurrentDBNodeOptions { ResourceName = name ?? $"kurrentdb{(_nodes.Count == 0 ? "" : $"-{_nodes.Count}")}" });
-
         return this;
     }
 
@@ -25,18 +24,16 @@ public sealed class KurrentDBTestClusterBuilder {
         var options = new KurrentDBNodeOptions();
         configure(options);
         _nodes.Add(options);
-
         return this;
     }
 
     public KurrentDBTestClusterBuilder UseExistingInstance(string connectionString) {
         _existingConnectionString = connectionString;
-
         return this;
     }
 
     public async Task<KurrentDBTestCluster> BuildAsync(CancellationToken ct = default) {
-        if (_existingConnectionString is not null)
+        if (_existingConnectionString is { })
             return BuildFromExistingInstance();
 
         if (_nodes.Count == 0)

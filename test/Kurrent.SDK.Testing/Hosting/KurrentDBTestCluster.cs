@@ -1,15 +1,16 @@
 namespace Kurrent.SDK.Testing.Hosting;
 
 public sealed class KurrentDBTestCluster : IAsyncDisposable {
-    const    string                     DefaultUsername = "admin";
-    const    string                     DefaultPassword = "changeit";
+    const string DefaultUsername = "admin";
+    const string DefaultPassword = "changeit";
+
     readonly Dictionary<string, string> _anonymousConnectionStrings;
 
     readonly DistributedApplication     _app;
     readonly Dictionary<string, string> _connectionStrings;
 
     internal KurrentDBTestCluster(
-        DistributedApplication app,
+        DistributedApplication     app,
         Dictionary<string, string> connectionStrings,
         Dictionary<string, string> anonymousConnectionStrings
     ) {
@@ -18,6 +19,7 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
         _anonymousConnectionStrings = anonymousConnectionStrings;
 
         var defaultName = connectionStrings.Keys.First();
+
         AuthenticatedConnectionString = connectionStrings[defaultName];
         AnonymousConnectionString     = anonymousConnectionStrings[defaultName];
     }
@@ -39,7 +41,9 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
     public string GetAnonymousConnectionString(string resourceName) =>
         _anonymousConnectionStrings.TryGetValue(resourceName, out var cs)
             ? cs
-            : throw new InvalidOperationException($"No anonymous connection string found for resource '{resourceName}'.");
+            : throw new InvalidOperationException(
+                $"No anonymous connection string found for resource '{resourceName}'."
+            );
 
     internal static string InjectCredentials(string baseConnectionString) {
         var uri = new Uri(baseConnectionString);

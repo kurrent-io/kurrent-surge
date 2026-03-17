@@ -15,43 +15,31 @@ public static class KurrentDBBuilderExtensions {
         string image = KurrentDBContainerImageTags.Latest.Image,
         string tag = KurrentDBContainerImageTags.Latest.Tag
     ) {
-        ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
         var resource = new KurrentDBResource(name);
 
         string? connectionString = null;
 
-        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(
-            resource,
-            async (@event, cancellationToken) => {
-                connectionString = await resource.ConnectionStringExpression
-                                       .GetValueAsync(cancellationToken)
-                                       .ConfigureAwait(false)
-                                ?? throw new DistributedApplicationException(
-                                       $"ConnectionStringAvailableEvent was published for the '{resource.Name}' resource but the connection string was null."
-                                   );
-            }
-        );
+        builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(resource, callback: async (_, ct) => {
+            connectionString = await resource.ConnectionStringExpression.GetValueAsync(ct).ConfigureAwait(false);
+            if (connectionString is null)
+                throw new DistributedApplicationException(
+                    $"ConnectionStringAvailableEvent was published for the '{resource.Name}' "
+                  + $"resource but the connection string was null.");
+        });
 
         var healthCheckKey = $"{name}_check";
 
         builder.Services.AddHealthChecks()
-            .Add(
-                new HealthCheckRegistration(
-                    healthCheckKey,
-                    sp => new KurrentDBHealthCheck(connectionString!),
-                    default,
-                    default,
-                    default
-                )
-            );
+            .Add(new HealthCheckRegistration(healthCheckKey, _ => new KurrentDBHealthCheck(connectionString!), null, null, null));
 
         return builder
             .AddResource(resource)
             .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
             .WithImage(image, tag)
-            .WithImageRegistry(KurrentDBContainerImageTags.Registry)
+            //.WithImageRegistry(KurrentDBContainerImageTags.Registry)
             .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Insecure))
             .WithHealthCheck(healthCheckKey);
     }

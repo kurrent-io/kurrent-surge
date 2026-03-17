@@ -3,8 +3,13 @@ namespace Kurrent.SDK.Testing.Hosting;
 public static class KurrentDBContainerImageTags {
     public const string Registry = "docker.kurrent.io";
 
-    public const string Latest  = $"{Registry}/kurrent-latest/kurrentdb:latest";
-    public const string LTS     = $"{Registry}/kurrent-latest/kurrentdb:lts";
-    public const string Nightly = $"{Registry}/kurrent-staging/kurrentdb:nightly";
-    public const string CI      = $"{Registry}/kurrent-staging/kurrentdb:ci";
+    public static class Latest {
+        public const string Image = $"{Registry}/kurrent-latest/kurrentdb";
+        public const string Tag   = "latest";
+    }
+
+    public static class Nightly {
+        public const string Image = $"{Registry}/kurrent-staging/kurrentdb";
+        public const string Tag   = "nightly";
+    }
 }

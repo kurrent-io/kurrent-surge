@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace Kurrent.SDK.Testing.Hosting;
 
 public class KurrentDBHealthCheck(string connectionString) : IHealthCheck {
-    static readonly HttpClient Http = CreateHttpClient();
+    static readonly HttpClient Http = CreateHttpClient(); //TODO: fix the slop
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -19,10 +19,7 @@ public class KurrentDBHealthCheck(string connectionString) : IHealthCheck {
 
             return response.IsSuccessStatusCode
                 ? HealthCheckResult.Healthy()
-                : new HealthCheckResult(
-                    context.Registration.FailureStatus,
-                    $"KurrentDB health check returned {response.StatusCode}."
-                );
+                : new HealthCheckResult(context.Registration.FailureStatus, $"KurrentDB health check returned {response.StatusCode}.");
         }
         catch (Exception ex) {
             return new HealthCheckResult(context.Registration.FailureStatus, exception: ex);
