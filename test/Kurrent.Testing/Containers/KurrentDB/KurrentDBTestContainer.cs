@@ -1,7 +1,6 @@
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Model.Builders;
 using Kurrent.Testing.Containers.FluentDocker;
-using Microsoft.Extensions.Configuration;
 using TUnit.Core.Interfaces;
 using static System.StringComparer;
 
