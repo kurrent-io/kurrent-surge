@@ -3,6 +3,8 @@ using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
 using Kurrent.Testing.Configuration;
+using Kurrent.Testing.Testkit;
+using Microsoft.Extensions.Configuration;
 using Serilog;
 
 using static System.StringComparison;
@@ -15,29 +17,49 @@ public abstract class TestContainer {
 
     static TestContainer() => Ductus.FluentDocker.Services.Logging.Enabled();
 
+    /// <summary>
+    /// Represents an abstract base class for managing and interacting with test containers,
+    /// including initialization, configuration, and lifecycle management.
+    /// </summary>
+    /// <param name="defaultImage">
+    /// The default Docker image to use for the container.
+    /// </param>
+    /// <param name="serviceName">
+    /// An optional service name for the container, used for configuration and logging.
+    /// If not provided, it will be derived from the class name.
+    /// </param>
     protected TestContainer(string defaultImage, string? serviceName = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(defaultImage);
 
         ServiceName = GetServiceName(serviceName ?? GetType().Name);
 
-        Logger = Log
-            .ForContext(Serilog.Core.Constants.SourceContextPropertyName, GetType().Name)
-            .ForContext(nameof(ServiceName), ServiceName);
+        try {
+            Logger = Log
+                .ForContext(Serilog.Core.Constants.SourceContextPropertyName, GetType().Name)
+                .ForContext(nameof(ServiceName), ServiceName);
 
-        Image   = TestkitExecutionContext.Configuration.Value($"TestContainers:{ServiceName}:Image", defaultImage);
-        Enabled = TestkitExecutionContext.Configuration.Value($"TestContainers:{ServiceName}:Enabled", true);
+            var settings = new TestContainerSettings { Image = defaultImage };
 
-        Logger.Information(
-            "Container inititalized. Enabled: {Enabled} Image: {Image}", Enabled, Image);
+            TestkitExecutionContext.Configuration
+                .Bind($"TestContainers:{ServiceName}", settings);
+
+            Image   = settings.Image;
+            Enabled = settings.Enabled;
+
+            Logger.Information("Container settings loaded: {@Settings}", settings);
+
+            // Logger.Information("Container initialized. Enabled: {Enabled} Image: {Image}", Enabled, Image);
+        } catch (Exception ex) {
+            throw new FluentDockerException($"Failed to initialize container {ServiceName} container", ex);
+        }
 
         return;
 
-        static string GetServiceName(string serviceName) {
-            return serviceName
+        static string GetServiceName(string serviceName) =>
+            serviceName
                 .Replace("TestContainer", "", OrdinalIgnoreCase)
                 .Replace("Container", "", OrdinalIgnoreCase)
                 .Trim();
-        }
     }
 
     public string ServiceName { get; }
@@ -147,4 +169,20 @@ public abstract class TestContainer {
 
     protected virtual ValueTask OnStarted() => ValueTask.CompletedTask;
     protected virtual ValueTask OnStopped() => ValueTask.CompletedTask;
+}
+
+/// <summary>
+/// Represents settings for configuring and controlling test containers.
+/// </summary>
+public record TestContainerSettings {
+    /// <summary>
+    /// The Docker image to use for the container. This should be a valid image name that can be pulled from a Docker registry.
+    /// </summary>
+    public string Image { get; init; } = "";
+
+    /// <summary>
+    /// Indicates whether the container should be enabled and started during testing.
+    /// If set to false, the container will not be started.
+    /// </summary>
+    public bool Enabled { get; init; }
 }

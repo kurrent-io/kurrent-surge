@@ -1,0 +1,77 @@
+services:
+  seq:
+    image: datalust/seq:latest
+    pull_policy: always
+    container_name: seq
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=True
+    volumes:
+      - seq-data:/data
+    ports:
+      - "5341:80"
+    networks:
+      - kurrentdb-net
+
+  dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    pull_policy: always
+    container_name: dashboard
+    restart: unless-stopped
+    environment:
+      - ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
+      - ASPIRE_ALLOW_UNSECURED_TRANSPORT=true
+    ports:
+      - "18888:18888" # Dashboard UI
+      - "4317:18889"  # OpenTelemetry Protocol (OTLP) data ingestion
+    networks:
+      - kurrentdb-net
+
+#  kurrentdb:
+#    image: docker.kurrent.io/kurrent-latest/kurrentdb:latest
+#    container_name: kurrentdb
+#    environment:
+#      - KURRENTDB_CLUSTER_SIZE=1
+#      - KURRENTDB_RUN_PROJECTIONS=All
+#      - KURRENTDB_START_STANDARD_PROJECTIONS=true
+#      - KURRENTDB_NODE_PORT=2113
+#      - KURRENTDB_INSECURE=true
+#      - KURRENTDB_ENABLE_ATOM_PUB_OVER_HTTP=true
+#
+#      - KURRENTDB_TELEMETRY_OPTOUT=true
+#      - KURRENTDB_ALLOW_UNKNOWN_OPTIONS=false
+#      - KURRENTDB_MEM_DB=false
+#      - KURRENTDB_DISABLE_LOG_FILE=true
+#      - KURRENTDB_LOG_LEVEL=Verbose
+#      - KURRENTDB_USER_CERTIFICATES__ENABLED=false
+#
+#      - KURRENTDB_LICENSING__LICENSE_KEY=09A845-6BA7E5-07964C-51AFD4-CAE184-V3
+#
+#      - KURRENTDB__OPENTELEMETRY__LOGS__ENABLED=true
+#      - KURRENTDB__OPENTELEMETRY__OTLP__ENDPOINT=http://dashboard:18889
+#      - OTEL_LOG_LEVEL=debug
+#
+#    ports:
+#      - "2113:2113"
+#    networks:
+#      - kurrentdb-net
+#
+#    volumes:
+#      - type: volume
+#        source: kurrentdb-volume-data
+#        target: /var/lib/kurrentdb
+#      - type: volume
+#        source: kurrentdb-volume-logs
+#        target: /var/log/kurrentdb
+
+volumes:
+  seq-data:
+    name: seq-data
+#  kurrentdb-volume-data:
+#  kurrentdb-volume-logs:
+
+networks:
+  kurrentdb-net:
+    name: kurrentdb-net
+    driver: bridge

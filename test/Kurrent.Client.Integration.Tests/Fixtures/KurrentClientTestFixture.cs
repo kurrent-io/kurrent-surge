@@ -3,6 +3,7 @@
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Containers.KurrentDB;
+using Kurrent.Testing.Testkit;
 using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -22,7 +23,7 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
     /// <summary>
     /// The logger used for logging in tests.
     /// </summary>
-    public ILogger Logger => TestContext.CurrrentLogger;
+    public ILogger Logger => TestContext.CurrentLogger;
 
     /// <summary>
     /// The logger factory used for creating loggers in tests.
@@ -37,10 +38,12 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
     /// <summary>
     /// The Kurrent client used for testing.
     /// </summary>
-    public KurrentClient Client { get; private set; } = null!;
+    public KurrentClient Client => LazyClient.Value;
+
+    Lazy<KurrentClient> LazyClient { get; set; }
 
     public Task InitializeAsync() {
-       var lazyClient = new Lazy<KurrentClient>(() => {
+        LazyClient = new Lazy<KurrentClient>(() => {
             var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
                 .WithLoggerFactory(new TestkitLoggerFactory())
                 .ConfigureSchema(schema => schema
@@ -51,11 +54,18 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
             return builder.CreateClient();
         });
 
-        Client = lazyClient.Value;
+        if(!KurrentDB.Enabled) {
+            Logger.LogWarning(
+                "KurrentDB container is disabled. Expecting localhost:2113 to be available. Connection string: {ConnectionString}",
+                KurrentDB.AuthenticatedConnectionString);
+        }
 
         return Task.CompletedTask;
     }
 
-    public async ValueTask DisposeAsync() =>
-        await Client.DisposeAsync().ConfigureAwait(false);
+    public async ValueTask DisposeAsync() {
+        if (LazyClient.IsValueCreated) {
+            await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
+        }
+    }
 }

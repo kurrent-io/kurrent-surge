@@ -6,6 +6,7 @@ using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Containers.KurrentDB;
+using Kurrent.Testing.Testkit;
 using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -29,7 +30,7 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     /// <summary>
     /// The logger used for logging in tests.
     /// </summary>
-    public ILogger Logger => TestContext.CurrrentLogger;
+    public ILogger Logger => TestContext.CurrentLogger;
 
     /// <summary>
     /// The logger factory used for creating loggers in tests.

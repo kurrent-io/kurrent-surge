@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Logging;
 
@@ -10,9 +12,8 @@ public static class TestContextLoggingExtensions {
     extension(TestContext? ctx) {
         public Serilog.ILogger AddLogging(TestLogger testLogger) {
             // Check if logger already exists (idempotent operation)
-            if (ctx.TryExtractItem<ILoggerFactory>(LoggerFactoryKey, out _)) {
+            if (ctx.ContainsItem<ILoggerFactory>(LoggerFactoryKey))
                 return testLogger;
-            }
 
             // Create and inject new logger factory
             ILoggerFactory factory = new SerilogLoggerFactory(testLogger, dispose: true);
@@ -23,13 +24,13 @@ public static class TestContextLoggingExtensions {
     }
 
     extension(TestContext) {
-        public static bool TryGetLoggerFactory(out ILoggerFactory factory) =>
+        public static bool TryGetLoggerFactory([MaybeNullWhen(false)] out ILoggerFactory factory) =>
             TestContext.Current.TryExtractItem(LoggerFactoryKey, out factory);
 
         public static ILoggerFactory CurrentLoggerFactory =>
-            TestContext.Current.ExtractItem<ILoggerFactory>(LoggerFactoryKey);
+            TestContext.Current.ExtractRequiredItem<ILoggerFactory>(LoggerFactoryKey);
 
-        public static ILogger CurrrentLogger =>
-            TestContext.Current.ExtractItem<ILogger>(LoggerKey);
+        public static ILogger CurrentLogger =>
+            TestContext.Current.ExtractRequiredItem<ILogger>(LoggerKey);
     }
 }

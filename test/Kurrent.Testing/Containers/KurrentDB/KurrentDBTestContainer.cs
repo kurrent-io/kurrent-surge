@@ -1,6 +1,8 @@
 using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Model.Builders;
 using Kurrent.Testing.Containers.FluentDocker;
+using Kurrent.Testing.Testkit;
+using Microsoft.Extensions.Configuration;
 using TUnit.Core.Interfaces;
 using static System.StringComparer;
 
@@ -12,10 +14,8 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
     public const string DefaultUsername = "admin";
     public const string DefaultPassword = "changeit";
 
-    // static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";   // stable release
-    // static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:lts";      // long-term support
-    static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:nightly";    // nightly builds
-    // static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:ci";      // CI builds
+    static string DefaultImage => "docker.kurrent.io/kurrent-latest/kurrentdb:latest";   // stable release
+    //static string DefaultImage => "docker.kurrent.io/kurrent-staging/kurrentdb:nightly";    // nightly builds (can use ci tag)
 
     public KurrentDBTestContainer(Dictionary<string, string?> settings, string? image = null) : base(image ?? DefaultImage) {
         ActiveConfiguration = KurrentDBConfiguration.FromContext(settings).ToDictionary();
@@ -41,9 +41,20 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
 
     public Dictionary<string, string?> ActiveConfiguration { get; }
 
+    /// <summary>
+    /// Secure connection string for authenticating with a KurrentDB container.
+    /// Includes credentials and connection parameters for enabling TLS and disabling certificate verification.
+    /// </summary>
     public string AuthenticatedConnectionString { get; }
-    public string AnonymousConnectionString     { get; }
 
+    /// <summary>
+    /// Insecure connection string for connecting to a KurrentDB container without authentication.
+    /// </summary>
+    public string AnonymousConnectionString { get; }
+
+    /// <summary>
+    /// Indicates whether KurrentDB is configured with secure settings.
+    /// </summary>
     public bool IsSecure { get; }
 
     protected override ContainerBuilder ConfigureContainer(ContainerBuilder builder) {
@@ -78,8 +89,8 @@ public class KurrentDBTestContainer : TestContainer, IAsyncInitializer, IAsyncDi
             foreach (var file in certificateFiles)
                 if (!File.Exists(file))
                     throw new InvalidOperationException(
-                        $"Could not locate the certificates file {file} needed to run KurrentDB. Please run the 'gencert' tool at the root of the repository."
-                    );
+                        $"Could not locate the certificates file {file} needed to run KurrentDB. "
+                      + $"Please run the 'gencert' tool at the root of the repository.");
         }
     }
 
@@ -91,33 +102,20 @@ public static class KurrentDBConfiguration {
     /// Default insecure configuration for KurrentDB.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string?> Insecure = new Dictionary<string, string?> {
-        ["KURRENTDB_TELEMETRY_OPTOUT"]           = "true",
-        ["KURRENTDB_ALLOW_UNKNOWN_OPTIONS"]      = "true",
-        ["KURRENTDB_MEM_DB"]                     = "false",
-        ["KURRENTDB_DISABLE_LOG_FILE"]           = "true",
-        ["KURRENTDB_LOG_LEVEL"]                  = "Debug",
-        ["KURRENTDB_ENABLE_ATOM_PUB_OVER_HTTP"]  = "true",
-        ["KURRENTDB_RUN_PROJECTIONS"]            = "All",
-        ["KURRENTDB_START_STANDARD_PROJECTIONS"] = "true",
-        ["KURRENTDB_NODE_PORT"]                  = "2113",
-        ["KURRENTDB_INSECURE"]                   = "true",
-        ["KURRENTDB_USER_CERTIFICATES__ENABLED"] = "false",
-
-        ["OTEL_LOG_LEVEL"]                       = "debug",
-
-        // TODO: Need License key environment variable
-        // ["KURRENTDB__OPENTELEMETRY__LOGS__ENABLED"]  = "true",
-        // ["KURRENTDB__OPENTELEMETRY__OTLP__ENDPOINT"] = "http://localhost:4317",
-
-        // ["KURRENTDB__OPENTELEMETRY__LOGS__ENABLED"]  = "true",
-        // ["KURRENTDB__OPENTELEMETRY__OTLP__ENDPOINT"] = "http://host.docker.internal:4317",
-        // ["OPENTELEMETRY__LOGS__ENABLED"]             = "true",
-        // ["OPENTELEMETRY__OTLP__ENDPOINT"]            = "http://host.docker.internal:4317",
-        // ["KURRENTDB_OPENTELEMETRY__LOGS__ENABLED"]   = "true",
-        // ["KURRENTDB_OPENTELEMETRY__OTLP__ENDPOINT"]  = "http://host.docker.internal:4317",
-        // ["KURRENTDB_OPENTELEMETRY__OTLP__ENDPOINT"] = "http://localhost:4317",
-        // ["KURRENTDB_OPENTELEMETRY__OTLP__ENDPOINT"] = "http://host.docker.internal:4317",
-
+        ["KURRENTDB_TELEMETRY_OPTOUT"]               = "true",
+        ["KURRENTDB_ALLOW_UNKNOWN_OPTIONS"]          = "true",
+        ["KURRENTDB_MEM_DB"]                         = "false",
+        ["KURRENTDB_DISABLE_LOG_FILE"]               = "true",
+        ["KURRENTDB_LOG_LEVEL"]                      = "Debug",
+        ["KURRENTDB_ENABLE_ATOM_PUB_OVER_HTTP"]      = "true",
+        ["KURRENTDB_RUN_PROJECTIONS"]                = "All",
+        ["KURRENTDB_START_STANDARD_PROJECTIONS"]     = "true",
+        ["KURRENTDB_NODE_PORT"]                      = "2113",
+        ["KURRENTDB_INSECURE"]                       = "true",
+        ["KURRENTDB_USER_CERTIFICATES__ENABLED"]     = "false",
+        ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = "http://host.docker.internal:4317", // or 18889?
+        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "true",
+        // ["OTEL_LOG_LEVEL"]                           = "debug"
     };
 
     /// <summary>

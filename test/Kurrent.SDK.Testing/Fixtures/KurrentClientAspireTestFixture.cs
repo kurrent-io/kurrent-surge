@@ -6,6 +6,7 @@ using Aspire.Hosting.Testing;
 using Kurrent.Client.Streams;
 using Kurrent.Testing;
 using Kurrent.Testing.Bogus;
+using Kurrent.Testing.Testkit;
 using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,7 +23,7 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    public ILogger Logger => TestContext.CurrrentLogger;
+    public ILogger Logger => TestContext.CurrentLogger;
 
     public ILoggerFactory LoggerFactory => TestContext.CurrentLoggerFactory;
 

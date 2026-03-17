@@ -6,13 +6,14 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Exceptions;
+using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;
-
+using TUnit.Core.Logging;
 using static Serilog.Core.Constants;
 
 using ILogger = Serilog.ILogger;
 
-namespace Kurrent.Testing;
+namespace Kurrent.Testing.Testkit;
 
 public static class TestkitExecutionContext {
     static LoggerConfiguration DefaultLoggerConfig => new LoggerConfiguration()
@@ -53,12 +54,9 @@ public static class TestkitExecutionContext {
             .ReadFrom.Configuration(Configuration)
             .Enrich.WithProperty("TestUid", Guid.Empty)
             .Enrich.WithProperty("AppDomainId", AppDomain.CurrentDomain.Id)
-            .WriteTo.OpenTelemetry()
+            .WriteTo.OpenTelemetry(o => o.BatchingOptions.BufferingTimeLimit = TimeSpan.FromMilliseconds(100))
             .WriteTo.Observers(o => o.Subscribe(LogEvents.OnNext))
-            .WriteTo.Console(
-                //theme: Console.IsOutputRedirected ? ConsoleTheme.None : AnsiConsoleTheme.Code,
-                theme: ConsoleTheme.None,
-                outputTemplate: ConsoleOutputTemplate)
+            .WriteTo.Console(theme: ConsoleTheme.None, outputTemplate: ConsoleOutputTemplate)
             .CreateLogger();
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) => {
@@ -69,6 +67,14 @@ public static class TestkitExecutionContext {
 
         Log.Debug("Testkit context initialized");
     }
+
+    [Before(TestDiscovery)]
+    public static void BeforeTestDiscovery() {
+        Logger = new SerilogLoggerFactory(Log.Logger).CreateLogger(null!);
+        TUnitLoggerFactory.AddSink<SerilogTUnitLogSink>();
+    }
+
+    public static Microsoft.Extensions.Logging.ILogger Logger { get; private set; }
 
     /// <summary>
     /// An observable subject that emits all log events.
@@ -88,7 +94,7 @@ public static class TestkitExecutionContext {
             .ReadFrom.Configuration(Configuration)
             .Enrich.WithProperty("TestUid", testUid)
             .Enrich.WithProperty("AppDomainId", AppDomain.CurrentDomain.Id)
-            .WriteTo.OpenTelemetry()
+            .WriteTo.OpenTelemetry(o => o.BatchingOptions.BufferingTimeLimit = TimeSpan.FromMilliseconds(100))
             .WriteTo.Console(
                 // theme: Console.IsOutputRedirected ? ConsoleTheme.None : AnsiConsoleTheme.Code,
                 theme: ConsoleTheme.None,
@@ -100,12 +106,16 @@ public static class TestkitExecutionContext {
 
 public sealed class TestLogger : ILogger, IAsyncDisposable {
     public TestLogger(Guid testUid, LoggerConfiguration configuration, Subject<LogEvent> logEvents) {
-        Logger  = configuration.CreateLogger();
+        Logger = configuration.CreateLogger();
 
         var prop = new LogEventProperty("TestUid", new ScalarValue(testUid));
 
+        // LogsSubscription = logEvents
+        //     .Where(_ => TestContext.Current?.Id == testUid)
+        //     .Subscribe(logEvent => logEvent.AddOrUpdateProperty(prop));
+
         LogsSubscription = logEvents
-            .Where(_ => TestContext.Current?.Id == testUid)
+            .Where(_ => TestContext.Current?.Id == testUid.ToString())
             .Subscribe(logEvent => logEvent.AddOrUpdateProperty(prop));
     }
 
@@ -116,7 +126,7 @@ public sealed class TestLogger : ILogger, IAsyncDisposable {
 
     public async ValueTask DisposeAsync() {
         Logger.Debug("Closing and flushing ...");
-        await Logger.DisposeAsync();
+        await Logger.DisposeAsync().ConfigureAwait(false);
         LogsSubscription.Dispose();
     }
 }

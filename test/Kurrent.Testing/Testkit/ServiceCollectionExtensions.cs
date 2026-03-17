@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
-namespace Kurrent.Testing;
+namespace Kurrent.Testing.Testkit;
 
 public static class ServiceCollectionExtensions {
     // public static IServiceCollection AddTestLogging(this IServiceCollection services) =>

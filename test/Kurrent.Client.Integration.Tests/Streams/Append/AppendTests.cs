@@ -11,7 +11,10 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("Integration")]
 public class AppendTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
+
+    static AppendTests() => Environment.SetEnvironmentVariable("TestContainers:KurrentDB:Enabled", "false");
+
+    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]

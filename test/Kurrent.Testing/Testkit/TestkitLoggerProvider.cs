@@ -2,7 +2,7 @@ using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Logging;
 
-namespace Kurrent.Testing;
+namespace Kurrent.Testing.Testkit;
 
 /// <summary>
 /// An <see cref="ILoggerProvider"/> that uses the current <see cref="TestContext"/>'s
@@ -17,8 +17,7 @@ namespace Kurrent.Testing;
 public abstract record TestkitLoggerProvider<T>(T GlobalProvider)
 	: ILoggerProvider, ISupportExternalScope where T : ILoggerProvider, ISupportExternalScope {
 
-	T Proxy => TestContext.Current.TryExtractItem<T>(out var provider)
-        ? provider : GlobalProvider;
+	T Proxy => TestContext.Current.ExtractItem<T>() ?? GlobalProvider;
 
 	public ILogger CreateLogger(string categoryName) =>
 		Proxy.CreateLogger(categoryName);

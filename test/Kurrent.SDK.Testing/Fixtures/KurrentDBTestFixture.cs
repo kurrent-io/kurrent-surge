@@ -3,6 +3,7 @@ using Kurrent.Client.Streams;
 using Kurrent.SDK.Testing.Hosting;
 using Kurrent.Testing;
 using Kurrent.Testing.Bogus;
+using Kurrent.Testing.Testkit;
 using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -17,7 +18,7 @@ public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    public ILogger Logger => TestContext.CurrrentLogger;
+    public ILogger Logger => TestContext.CurrentLogger;
 
     public ILoggerFactory LoggerFactory => TestContext.CurrentLoggerFactory;
 
@@ -29,18 +30,11 @@ public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
 
     public string AnonymousConnectionString { get; private set; } = string.Empty;
 
-    public async ValueTask DisposeAsync() {
-        if (Client is not null)
-            await Client.DisposeAsync();
-
-        if (_cluster is not null)
-            await _cluster.DisposeAsync();
-    }
-
     public async Task InitializeAsync() {
         _cluster = await new KurrentDBTestClusterBuilder()
             .AddNode()
-            .BuildAsync();
+            .BuildAsync()
+            .ConfigureAwait(false);
 
         ConnectionString          = _cluster.AuthenticatedConnectionString;
         AnonymousConnectionString = _cluster.AnonymousConnectionString;
@@ -48,10 +42,17 @@ public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
         Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
             .WithLoggerFactory(new TestkitLoggerFactory())
             .ConfigureSchema(schema => schema
-                                 .WithValidation(false)
-                                 .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata"))
-            )
+                .WithValidation(false)
+                .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
             .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
             .CreateClient();
+    }
+
+    public async ValueTask DisposeAsync() {
+        if (Client is { } client)
+            await client.DisposeAsync();
+
+        if (_cluster is { }  cluster)
+            await cluster.DisposeAsync();
     }
 }

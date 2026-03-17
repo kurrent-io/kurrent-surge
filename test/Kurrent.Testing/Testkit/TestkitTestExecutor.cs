@@ -4,20 +4,15 @@ using Kurrent.Testing.OpenTelemetry;
 using Kurrent.Testing.TUnit;
 using TUnit.Core.Interfaces;
 
-namespace Kurrent.Testing;
+namespace Kurrent.Testing.Testkit;
 
 public class TestkitTestExecutor : ITestExecutor {
     public async ValueTask ExecuteTest(TestContext context, Func<ValueTask> action) {
-        context.ConfigureOtel(new OtelServiceMetadata(context.Metadata.TestDetails.ClassType.Name) {
-            ServiceInstanceId = context.Id.ToString("N"),
-            ServiceNamespace  = context.Metadata.TestDetails.ClassType.Namespace
-        });
-
         var logger = context.AddLogging(
-            TestkitExecutionContext.GetTestLogger(context.Id));
+            TestkitExecutionContext.GetTestLogger(context.TestId));
 
         try {
-            await action();
+            await action().ConfigureAwait(false);
         }
         catch (RpcException ex) {
             var status = ex.GetRpcStatus();

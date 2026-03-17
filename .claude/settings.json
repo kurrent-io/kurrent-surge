@@ -1,12 +1,9 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
-    "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": 64000,
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": 1,
-    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": 0,
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": 95,
+    "CLAUDE_CODE_EFFORT_LEVEL": "high",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": 1,
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
     "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": 1,
     "ENABLE_TOOL_SEARCH": 1,
     "DISABLE_TELEMETRY": 1,
@@ -15,22 +12,41 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "AskUserQuestion",
+      "Agent",
       "Bash",
+      "CronCreate",
+      "CronDelete",
+      "CronList",
       "Edit",
+      "EnterPlanMode",
+      "EnterWorktree",
+      "ExitPlanMode",
+      "ExitWorktree",
       "Glob",
       "Grep",
+      "LSP",
+      "ListMcpResourcesTool",
+      "NotebookEdit",
       "Read",
-      "Task",
+      "ReadMcpResourceTool",
+      "SendMessage",
+      "Skill",
+      "TaskCreate",
+      "TaskGet",
+      "TaskList",
+      "TaskOutput",
+      "TaskStop",
+      "TaskUpdate",
+      "TeamCreate",
+      "TeamDelete",
+      "ToolSearch",
       "WebFetch",
       "WebSearch",
       "Write",
+      "mcp__claude-in-chrome__*",
       "mcp__plugin_context7_context7__*",
       "mcp__plugin_microsoft-docs_microsoft-learn__*",
-      "mcp__rider__*",
-      "Skill(microsoft-docs:*)",
-      "Skill(dotnet-skills:*)",
-      "Skill(dotnet-nuget-proxy:*)"
+      "mcp__rider__*"
     ],
     "deny": [
       "Read(./**/*.key)",
@@ -53,6 +69,11 @@
       "mcp__rider__get_run_configurations",
       "mcp__rider__execute_terminal_command"
     ]
+  },
+  "includeGitInstructions": false,
+  "cleanupPeriodDays": 7,
+  "worktree": {
+    "symlinkDirectories": ["node_modules"]
   },
   "enableAllProjectMcpServers": true,
   "enabledPlugins": {
@@ -81,6 +102,5 @@
         "repo": "logiclabs/dotnet-nuget-proxy-skill"
       }
     }
-  },
-  "spinnerTipsEnabled": false
+  }
 }
