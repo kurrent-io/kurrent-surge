@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Kurrent.Testing.Assertions;
+namespace Kurrent.Testing.TUnit.Assertions;
 
 public class EquivalencyConfiguration {
     readonly Dictionary<Type, Delegate>   _customComparers     = new();

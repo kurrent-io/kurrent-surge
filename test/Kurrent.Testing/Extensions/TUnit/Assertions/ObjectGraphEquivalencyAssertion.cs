@@ -1,6 +1,6 @@
 using TUnit.Assertions.Core;
 
-namespace Kurrent.Testing.Assertions;
+namespace Kurrent.Testing.TUnit.Assertions;
 
 public class ObjectGraphEquivalencyAssertion<TValue>(AssertionContext<TValue> context, object? expected, EquivalencyConfiguration? config = null) : Assertion<TValue>(context) {
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<TValue> metadata) {

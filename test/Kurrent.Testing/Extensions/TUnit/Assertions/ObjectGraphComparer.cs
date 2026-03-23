@@ -2,7 +2,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
-namespace Kurrent.Testing.Assertions;
+namespace Kurrent.Testing.TUnit.Assertions;
 
 public class ObjectGraphComparisonException(string message) : Exception(message);
 

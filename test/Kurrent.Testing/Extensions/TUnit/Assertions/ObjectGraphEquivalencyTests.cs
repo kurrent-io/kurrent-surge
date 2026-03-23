@@ -9,7 +9,7 @@ using System.Reflection;
 using Bogus;
 using Kurrent.Testing.Bogus;
 
-namespace Kurrent.Testing.Assertions;
+namespace Kurrent.Testing.TUnit.Assertions;
 
 [Category("Testing")]
 public class ObjectGraphEquivalencyTests {

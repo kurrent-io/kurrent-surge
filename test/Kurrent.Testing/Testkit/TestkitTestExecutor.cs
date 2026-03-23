@@ -1,15 +1,14 @@
-using System.Diagnostics;
-using Grpc.Core;
-using Kurrent.Testing.OpenTelemetry;
-using Kurrent.Testing.TUnit;
-using TUnit.Core.Interfaces;
+// ReSharper disable CheckNamespace
 
-namespace Kurrent.Testing.Testkit;
+using Grpc.Core;
+using Serilog;
+using Serilog.Context;
+using TUnit.Core.Interfaces;
+namespace Kurrent.Testkit;
 
 public class TestkitTestExecutor : ITestExecutor {
     public async ValueTask ExecuteTest(TestContext context, Func<ValueTask> action) {
-        var logger = context.AddLogging(
-            TestkitExecutionContext.GetTestLogger(context.TestId));
+        using var _ = LogContext.PushProperty("TestUid", context.TestId);
 
         try {
             await action().ConfigureAwait(false);
@@ -18,40 +17,42 @@ public class TestkitTestExecutor : ITestExecutor {
             var status = ex.GetRpcStatus();
 
             if (status is null) {
-                logger.Error(
-                    ex, "{TestClass} {TestName} {State} {ErrorMessage}", context.Metadata.TestDetails.ClassType.Name,
-                    context.Metadata.TestDetails.TestName, TestState.Failed, ex.Message
+                Log.Error(
+                    ex, "{TestClass} {TestName} failed: {ErrorMessage}",
+                    context.Metadata.TestDetails.ClassType.Name,
+                    context.Metadata.TestDetails.TestName,
+                    ex.Message
                 );
 
-                throw ex.Demystify();
+                throw;
             }
 
-            logger.Error(
+            Log.Error(
                 ex.Status.DebugException,
-                "{TestClass} {TestName} {State} {ErrorMessage}",
-                context.Metadata.TestDetails.ClassType.Name, context.Metadata.TestDetails.TestName, TestState.Failed,
+                "{TestClass} {TestName} failed: {ErrorMessage}",
+                context.Metadata.TestDetails.ClassType.Name,
+                context.Metadata.TestDetails.TestName,
                 ex.Status.Detail
             );
 
-            var errorMessage =
-                $"*** gRPC Request Failed ***{Environment.NewLine}"
-              + $"Status:  {ex.StatusCode} ({ex.StatusCode.GetHashCode()}){Environment.NewLine}"
-              + $"Error:   {ex.Status.Detail}{Environment.NewLine}"
-              + $"Details:{Environment.NewLine}{string.Join($"{Environment.NewLine}", status.Details.Select(d => $"  - {d.TypeUrl}"))}{Environment.NewLine}";
+            var details = string.Join($"{Environment.NewLine}", status.Details.Select(d => $"  - {d.TypeUrl}"));
 
-            throw new Exception(errorMessage, ex.Status.DebugException).Demystify();
+            var errorMessage = $"*** gRPC Request Failed ***{Environment.NewLine}"
+                             + $"Status:  {ex.StatusCode} ({ex.StatusCode.GetHashCode()}){Environment.NewLine}"
+                             + $"Error:   {ex.Status.Detail}{Environment.NewLine}"
+                             + $"Details:{Environment.NewLine}{details}{Environment.NewLine}";
+
+            throw new Exception(errorMessage, ex.Status.DebugException);
         }
         catch (Exception ex) {
-            logger.Error(
-                ex, "{TestClass} {TestName} {State} {ErrorMessage}", context.Metadata.TestDetails.ClassType.Name,
-                context.Metadata.TestDetails.TestName, TestState.Failed, ex.Message
+            Log.Error(
+                ex, "{TestClass} {TestName} failed: {ErrorMessage}",
+                context.Metadata.TestDetails.ClassType.Name,
+                context.Metadata.TestDetails.TestName,
+                ex.Message
             );
 
-            throw ex.Demystify();
-        }
-        finally {
-            if (logger is IAsyncDisposable disposable)
-                await disposable.DisposeAsync();
+            throw;
         }
     }
 }

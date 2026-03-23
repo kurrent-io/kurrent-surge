@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using TUnit.Assertions.Core;
 
-namespace Kurrent.Testing.Assertions;
+namespace Kurrent.Testing.TUnit.Assertions;
 
 public static class TUnitAssertionExtensions {
     extension<TValue>(IAssertionSource<TValue> source) {

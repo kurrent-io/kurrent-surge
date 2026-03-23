@@ -1,6 +1,6 @@
 using TUnit.Assertions.Core;
 
-namespace Kurrent.Testing.Assertions;
+namespace Kurrent.Testing.TUnit.Assertions;
 
 public class GuidAssertion<TValue>(AssertionContext<TValue> context) : Assertion<TValue>(context) {
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<TValue> metadata) {
