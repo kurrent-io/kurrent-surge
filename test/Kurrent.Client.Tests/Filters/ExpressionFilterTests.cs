@@ -4,16 +4,9 @@ namespace Kurrent.Client.Tests.Filters;
 
 [Category("Filters")]
 public class ExpressionFilterTests {
-    readonly ExpressionFilterParser _parser = new();
-    readonly RecordFaker            _faker  = new();
+    readonly RecordFaker _faker = new();
 
-    IFilterExpression Parse(string expression) {
-        var result = _parser.Parse(expression);
-        if (!result.IsSuccess)
-            throw new InvalidOperationException($"Failed to parse: {expression}");
-
-        return result.Value;
-    }
+    static IFilterExpression Parse(string expression) => ExpressionFilterParser.Parse(expression);
 
     #region Comparison Operators
 

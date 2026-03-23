@@ -5,7 +5,6 @@ namespace Kurrent.Client.Tests.Filters;
 
 [Category("Filters")]
 public class ServerFilterExtractorTests {
-    readonly ExpressionFilterParser _parser = new();
 
     #region Stream Filter Extraction
 
@@ -838,11 +837,5 @@ public class ServerFilterExtractorTests {
 
     #endregion
 
-    IFilterExpression ParseExpression(string input) {
-        var result = _parser.Parse(input);
-        if (!result.IsSuccess)
-            throw new InvalidOperationException($"Failed to parse: {input}");
-
-        return result.Value;
-    }
+    static IFilterExpression ParseExpression(string input) => ExpressionFilterParser.Parse(input);
 }

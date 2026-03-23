@@ -2,7 +2,7 @@
 
 using System.Buffers;
 using System.Collections.Frozen;
-using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 
 namespace Kurrent.Client.Streams;
@@ -11,27 +11,51 @@ namespace Kurrent.Client.Streams;
 /// Parser for DuckDB-compatible filter expressions using a Pratt parser.
 /// </summary>
 [PublicAPI]
-public sealed class ExpressionFilterParser {
+public static class ExpressionFilterParser {
     /// <summary>
     /// Parses a filter expression from a character span into an executable filter.
+    /// Throws <see cref="ExpressionFilterFormatException"/> if the expression is invalid.
     /// </summary>
-    public Result<IFilterExpression, ExpressionFilterParseError> Parse(ReadOnlySpan<char> input) {
-        if (input.IsEmpty || input.IsWhiteSpace())
-            return ExpressionFilterParseError.EmptyInput();
+    public static IFilterExpression Parse(ReadOnlySpan<char> input) {
+        if (!TryParse(input, out var expression, out var error))
+            throw error.ToException();
+
+        return expression;
+    }
+
+    /// <summary>
+    /// Attempts to parse a filter expression from a character span.
+    /// </summary>
+    public static bool TryParse(
+        ReadOnlySpan<char> input,
+        [NotNullWhen(true)]  out IFilterExpression? expression,
+        [NotNullWhen(false)] out ExpressionFilterParseError? error
+    ) {
+        expression = null;
+        error      = null;
+
+        if (input.IsEmpty || input.IsWhiteSpace()) {
+            error = ExpressionFilterParseError.EmptyInput();
+            return false;
+        }
 
         try {
             var tokenizer = new FilterTokenizer(input);
             var tokens    = tokenizer.Tokenize();
 
             var errorToken = tokens.FirstOrDefault(t => t.Type == TokenType.Error);
-            if (errorToken.Type == TokenType.Error)
-                return ExpressionFilterParseError.SyntaxError(errorToken.Value, errorToken.Position);
+            if (errorToken.Type == TokenType.Error) {
+                error = ExpressionFilterParseError.SyntaxError(errorToken.Value, errorToken.Position);
+                return false;
+            }
 
             var parser = new PrattParser(tokens);
-            return Result.Success<IFilterExpression, ExpressionFilterParseError>(parser.Parse());
+            expression = parser.Parse();
+            return true;
         }
         catch (ParseException ex) {
-            return ExpressionFilterParseError.SyntaxError(ex.NearToken, ex.Position);
+            error = ExpressionFilterParseError.SyntaxError(ex.NearToken, ex.Position);
+            return false;
         }
     }
 
@@ -42,12 +66,7 @@ public sealed class ExpressionFilterParser {
 /// Error messages follow DuckDB format: "Error parsing filter: syntax error at or near 'TOKEN'"
 /// </summary>
 [PublicAPI]
-public sealed record ExpressionFilterParseError : IResultError {
-    /// <summary>
-    /// Gets the error code for filter parse errors.
-    /// </summary>
-    public ErrorCode ErrorCode { get; } = ErrorCode.FromType<ExpressionFilterParseError>();
-
+public sealed record ExpressionFilterParseError {
     /// <summary>
     /// Gets the human-readable error message.
     /// </summary>
@@ -63,23 +82,10 @@ public sealed record ExpressionFilterParseError : IResultError {
     /// </summary>
     public string? NearToken { get; }
 
-    /// <summary>
-    /// Gets metadata associated with this error.
-    /// </summary>
-    public ImmutableDictionary<string, object?> Metadata { get; }
-
     ExpressionFilterParseError(string errorMessage, int position, string? nearToken) {
         ErrorMessage = errorMessage;
         Position     = position;
         NearToken    = nearToken;
-
-        var builder = ImmutableDictionary.CreateBuilder<string, object?>();
-        builder["Position"] = position;
-
-        if (nearToken is not null)
-            builder["NearToken"] = nearToken;
-
-        Metadata = builder.ToImmutable();
     }
 
     /// <summary>
@@ -115,9 +121,22 @@ public sealed record ExpressionFilterParseError : IResultError {
     public static ExpressionFilterParseError Custom(string message, int position = 0) =>
         new($"Error parsing filter: {message}", position, null);
 
-    /// <inheritdoc />
-    public Exception GetOrCreateException() =>
-        new FormatException(ErrorMessage);
+    /// <summary>
+    /// Creates a <see cref="ExpressionFilterFormatException"/> from this error.
+    /// </summary>
+    public ExpressionFilterFormatException ToException() => new(this);
+}
+
+/// <summary>
+/// Exception thrown when a filter expression cannot be parsed.
+/// Extends <see cref="FormatException"/> with structured parse error details.
+/// </summary>
+[PublicAPI]
+public sealed class ExpressionFilterFormatException(ExpressionFilterParseError error) : FormatException(error.ErrorMessage) {
+    /// <summary>
+    /// Gets the structured parse error that caused this exception.
+    /// </summary>
+    public ExpressionFilterParseError ParseError { get; } = error;
 }
 
 /// <summary>

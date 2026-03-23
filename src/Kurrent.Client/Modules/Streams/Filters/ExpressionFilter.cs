@@ -32,13 +32,7 @@ public record ExpressionFilter : IRecordFilter {
 
         Expression = expression;
 
-        var parser      = new ExpressionFilterParser();
-        var parseResult = parser.Parse(expression);
-
-        if (!parseResult.IsSuccess)
-            throw new ArgumentException($"Invalid SQL filter expression: {parseResult.Error}", nameof(expression));
-
-        _parsedExpression = parseResult.Value;
+        _parsedExpression = ExpressionFilterParser.Parse(expression);
 
         ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
         TargetStream = ServerFilter.TargetStream != StreamName.Unset
