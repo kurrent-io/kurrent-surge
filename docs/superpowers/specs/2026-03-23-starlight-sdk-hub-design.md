@@ -31,7 +31,20 @@ Three components:
    recent changelog entries, and featured documentation links.
 
 Output is pure static HTML/CSS/JS. No SSR adapter. Deployable to GitHub Pages, Cloudflare Pages, or any
-static host. Must also work locally via `pnpm dev`.
+static host. Must also work locally via `pnpm dev`. Requires Node >= 18.17.1 (pin Node 22 LTS in CI).
+
+### `base` path handling
+
+Cloudflare Pages with a custom domain serves at `/` — no `base` config needed. GitHub Pages without a
+custom domain serves at `https://<org>.github.io/Kurrent.Client/`, which requires `base: '/Kurrent.Client/'`.
+To handle both targets, set `base` via environment variable:
+
+```javascript
+// astro.config.mjs
+base: process.env.SITE_BASE || '/',
+```
+
+CI workflows set `SITE_BASE` per target. Local dev and Cloudflare use the default `/`.
 
 ## URL Structure
 
@@ -229,18 +242,18 @@ sidebar: [
   --sl-color-black: #080b0d;            /* Brand dark background */
 }
 
-/* Light mode */
+/* Light mode — gray scale must be monotonic (1=lightest, 6=darkest) */
 :root[data-theme='light'] {
   --sl-color-accent-low: #f5eef1;       /* Very light plum tint */
   --sl-color-accent: #631B3A;           /* Plum (primary) */
   --sl-color-accent-high: #3d1024;      /* Dark plum for contrast */
   --sl-color-white: #ffffff;
-  --sl-color-gray-1: #F7F7F8;           /* Neutral-50 */
+  --sl-color-gray-1: #F7F7F8;           /* Neutral-50  — lightest */
   --sl-color-gray-2: #EEEEF0;           /* Neutral-100 */
-  --sl-color-gray-3: #B8B9C1;           /* Neutral-300 */
-  --sl-color-gray-4: #6D6F7B;           /* Neutral-500 */
-  --sl-color-gray-5: #D9D9DE;           /* Neutral-200 */
-  --sl-color-gray-6: #F7F7F8;           /* Neutral-50 */
+  --sl-color-gray-3: #D9D9DE;           /* Neutral-200 */
+  --sl-color-gray-4: #B8B9C1;           /* Neutral-300 */
+  --sl-color-gray-5: #6D6F7B;           /* Neutral-500 */
+  --sl-color-gray-6: #42434A;           /* Neutral-800 — darkest */
   --sl-color-black: #000000;
 }
 ```
@@ -273,7 +286,7 @@ achieves ~9.5:1 — well above AA.
 
 ### From VuePress (`docs/api/`)
 
-Port all 11 markdown pages. Changes needed per file:
+Port all 13 markdown pages (5 root-level + 3 streams + 3 processors + 2 registry). Changes needed per file:
 
 - Remove VuePress-specific frontmatter (`order:` → Starlight `sidebar.order:`)
 - Convert `@[code{lines}{region}]()` imports to Starlight code blocks (inline the relevant snippets or
@@ -301,7 +314,7 @@ first blog entry. Add starlight-blog frontmatter (date, authors, tags).
 | `@astrojs/starlight`        | Core documentation framework                    |
 | `starlight-blog`            | Blog with RSS, tags, pagination                 |
 | `starlight-links-validator` | Catch broken internal links at build time        |
-| `@astrojs/mdx`              | Component imports in docs (Tabs, etc.)          |
+| `@astrojs/mdx` (via Starlight) | Component imports in docs — bundled with Starlight, do NOT add separately |
 | `rehype-mermaid`            | Mermaid diagram rendering                        |
 | `remark-definition-list`    | Definition list markdown syntax (if needed)      |
 
@@ -335,9 +348,10 @@ pnpm preview      # Preview built site (search works here, not in dev)
 
 ### GitHub Actions
 
-A workflow in `.project/website/.github/` (or the repo root) that:
+A workflow at the repo root `.github/workflows/deploy-docs.yml` (GitHub only reads workflows from the
+repo-root `.github/workflows/`). Uses `defaults.run.working-directory: .project/website`.
 
-1. Installs pnpm + Node
+1. Installs pnpm + Node 22 (Astro 5+ requires Node >=18.17.1; pinning 22 LTS for forward compat)
 2. Runs `pnpm build` in `.project/website/`
 3. Deploys `dist/` to GitHub Pages
 
