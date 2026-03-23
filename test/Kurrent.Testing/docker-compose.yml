@@ -24,8 +24,9 @@ services:
       - ASPIRE_ALLOW_UNSECURED_TRANSPORT=true
     ports:
       - "18888:18888" # Dashboard UI
-      - "4317:18889"  # OTLP gRPC ingestion
-      - "4318:18890"  # OTLP HTTP/Protobuf ingestion
+      - "4317:18889"  # OTLP/gRPC ingestion
+      - "4318:18890"  # OTLP/HTTP Protobuf ingestion
+      - "18891:18891" # MCP server
     networks:
       - kurrentdb-net
 

@@ -180,7 +180,7 @@ public class KurrentClientOptionsTests {
 
         var result = options.ValidateOptions();
 
-        await Assert.That(result.IsSuccess).IsEqualTo(false);
+        await Assert.That(result.IsSuccess).IsFalse();
     }
 
     [Test]

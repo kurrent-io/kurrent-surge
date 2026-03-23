@@ -1,7 +1,9 @@
+// ReSharper disable CheckNamespace
+
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Kurrent.Testing.TUnit.Assertions;
+namespace Kurrent.Testkit.TUnit.Assertions;
 
 public class EquivalencyConfiguration {
     readonly Dictionary<Type, Delegate>   _customComparers     = new();

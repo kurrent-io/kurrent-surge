@@ -50,7 +50,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		var input   = Faker.Random.Bytes(16);
 
 		// Act
-		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(input, context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(input);
@@ -63,7 +63,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		ReadOnlyMemory<byte> input = Faker.Random.Bytes(16);
 
 		// Act
-		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(input, context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(input.ToArray());
@@ -76,7 +76,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		Memory<byte> input = Faker.Random.Bytes(16);
 
 		// Act
-		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(input, context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(input.ToArray());
@@ -90,7 +90,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		var input   = new ReadOnlySequence<byte>(bytes);
 
 		// Act
-		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(input, context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(bytes);
@@ -104,7 +104,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		var input   = new ArraySegment<byte>(bytes);
 
 		// Act
-		var result = await _sut.Serialize(input, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(input, context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(result.Span.ToArray()).IsEquivalentTo(bytes);
@@ -119,7 +119,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		};
 
 		// Act
-		await _sut.Serialize(Faker.Random.Bytes(8), context).ConfigureAwait(false);
+		await Sut.Serialize(Faker.Random.Bytes(8), context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(context.RecordSchema.SchemaFormat).IsEqualTo(SchemaDataFormat.Bytes);
@@ -132,7 +132,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		ReadOnlyMemory<byte> input = Faker.Random.Bytes(16);
 
 		// Act
-		var result = await _sut.Deserialize(input, context).ConfigureAwait(false);
+		var result = await Sut.Deserialize(input, context).ConfigureAwait(false);
 
 		// Assert
 		await Assert.That(result).IsTypeOf<ReadOnlyMemory<byte>>();
@@ -146,7 +146,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		var context = CreateSerializeContext();
 
 		// Act & Assert
-		await Assert.That(async () => await _sut.Serialize("not-bytes", context).ConfigureAwait(false))
+		await Assert.That(async () => await Sut.Serialize("not-bytes", context).ConfigureAwait(false))
 			.ThrowsException();
 	}
 }

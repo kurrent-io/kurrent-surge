@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Kurrent.Testing.TUnit;
+namespace Kurrent.Testkit;
 
 [PublicAPI]
 public static partial class TestContextStateExtensions {

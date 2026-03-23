@@ -71,7 +71,7 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 		var context = CreateSerializeContext();
 
 		// Act & Assert
-		await Assert.That(async () => await _sut.Serialize("hello", context).ConfigureAwait(false))
+		await Assert.That(async () => await Sut.Serialize("hello", context).ConfigureAwait(false))
 			.ThrowsException();
 	}
 
@@ -84,7 +84,7 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 		var data    = new ReadOnlyMemory<byte>([1, 2, 3]);
 
 		// Act & Assert
-		await Assert.That(async () => await _sut.Deserialize(data, context).ConfigureAwait(false))
+		await Assert.That(async () => await Sut.Deserialize(data, context).ConfigureAwait(false))
 			.ThrowsException();
 	}
 }

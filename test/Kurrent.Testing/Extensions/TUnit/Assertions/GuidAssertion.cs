@@ -1,6 +1,8 @@
+// ReSharper disable CheckNamespace
+
 using TUnit.Assertions.Core;
 
-namespace Kurrent.Testing.TUnit.Assertions;
+namespace Kurrent.Testkit.TUnit.Assertions;
 
 public class GuidAssertion<TValue>(AssertionContext<TValue> context) : Assertion<TValue>(context) {
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<TValue> metadata) {

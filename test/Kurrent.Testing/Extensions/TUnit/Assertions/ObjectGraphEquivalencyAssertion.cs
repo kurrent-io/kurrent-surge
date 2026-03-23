@@ -1,6 +1,8 @@
+// ReSharper disable CheckNamespace
+
 using TUnit.Assertions.Core;
 
-namespace Kurrent.Testing.TUnit.Assertions;
+namespace Kurrent.Testkit.TUnit.Assertions;
 
 public class ObjectGraphEquivalencyAssertion<TValue>(AssertionContext<TValue> context, object? expected, EquivalencyConfiguration? config = null) : Assertion<TValue>(context) {
     protected override Task<AssertionResult> CheckAsync(EvaluationMetadata<TValue> metadata) {

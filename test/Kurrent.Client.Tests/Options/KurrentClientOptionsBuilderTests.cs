@@ -77,7 +77,7 @@ public class KurrentClientOptionsBuilderTests {
 
         // ConfigureResilience preserves other properties
         await Assert.That(newOptions.Resilience.Deadline).IsEqualTo(originalDeadline);
-        await Assert.That(newOptions.Resilience.Retry.Enabled).IsEqualTo(false);
+        await Assert.That(newOptions.Resilience.Retry.Enabled).IsFalse();
         await Assert.That(newOptions.Resilience.KeepAliveInterval).IsEqualTo(validOptions.Resilience.KeepAliveInterval);
         await Assert.That(newOptions.Resilience.KeepAliveTimeout).IsEqualTo(validOptions.Resilience.KeepAliveTimeout);
     }

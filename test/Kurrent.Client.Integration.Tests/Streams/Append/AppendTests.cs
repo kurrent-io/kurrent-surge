@@ -3,8 +3,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.Assertions;
-using Kurrent.Testing.TUnit;
+using Kurrent.Testkit;
 
 namespace Kurrent.Client.Tests.Streams;
 

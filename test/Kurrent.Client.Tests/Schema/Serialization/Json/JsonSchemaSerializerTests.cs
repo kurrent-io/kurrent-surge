@@ -52,7 +52,7 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 		var transfer = TransfermarktFakers.PlayerTransferred.Generate();
 
 		// Act
-		var result = await _sut.Serialize(transfer, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(transfer, context).ConfigureAwait(false);
 		var json   = Encoding.UTF8.GetString(result.Span);
 
 		// Assert
@@ -70,13 +70,13 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 		// Arrange - serialize first to register the schema via auto-map
 		var context  = CreateSerializeContext();
 		var transfer = TransfermarktFakers.PlayerTransferred.Generate();
-		await _sut.Serialize(transfer, context).ConfigureAwait(false);
+		await Sut.Serialize(transfer, context).ConfigureAwait(false);
 
 		var deserializeContext = CreateDeserializeContext(context);
 		var malformedBytes    = new ReadOnlyMemory<byte>([0xFF, 0xFE, 0x00, 0x01]);
 
 		// Act & Assert
-		await Assert.That(async () => await _sut.Deserialize(malformedBytes, deserializeContext).ConfigureAwait(false))
+		await Assert.That(async () => await Sut.Deserialize(malformedBytes, deserializeContext).ConfigureAwait(false))
 			.ThrowsException();
 	}
 }

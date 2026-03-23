@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Kurrent.Testkit</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Bogus" />
+    <Using Include="TUnit" />
+    <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+</Project>

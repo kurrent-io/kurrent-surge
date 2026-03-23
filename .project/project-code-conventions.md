@@ -26,7 +26,7 @@ Conventions that `.editorconfig` cannot enforce or only marks as `suggestion` (w
 ## Testing
 
 - TUnit only (`[Test]`, `[Arguments]`, `[Category]`). No xUnit/NUnit attributes
-- `dotnet test` with TUnit flags after `--` separator (e.g. `-- --treenode-filter "..."`)
+- `dotnet run` (not `dotnet test`) — see [Testing](project-testing.md) for full reference
 - FluentDocker for containers, not TestContainers
 - New tests use `Assert.That(...)` exclusively, not Shouldly
 - Custom assertion extensions: `ShouldNotThrow`, `ShouldNotThrowAsync` (in `test/Kurrent.Testing/Shouldly/`)

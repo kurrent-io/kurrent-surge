@@ -1,69 +1,34 @@
 {
-    "name": "Kurrent.Client",
-    "image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0",
+  "name": "RedSec",
 
-    "features": {
-        // Additional .NET SDKs (8.0, 10.0) alongside the base 9.0
-        "ghcr.io/devcontainers/features/dotnet:2": {
-            "additionalVersions": "8.0,10.0"
-        },
-        // Docker-in-Docker for running integration tests with FluentDocker
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
-            "dockerDashComposeVersion": "v2"
-        },
-        // GitHub CLI for PR workflows, issue management
-        "ghcr.io/devcontainers/features/github-cli:1": {},
-        // Common utilities (zsh, oh-my-zsh, etc.)
-        "ghcr.io/devcontainers/features/common-utils:2": {
-            "configureZshAsDefaultShell": true
-        }
-    },
+  "image": "ghcr.io/kurrent-io/devcontainers/dotnet",
 
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                // C# Development
-                "ms-dotnettools.csharp",
-                "ms-dotnettools.csdevkit",
-                "ms-dotnettools.vscode-dotnet-runtime",
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "32gb",
+    "storage": "64gb"
+  },
 
-                // Code Quality
-                "EditorConfig.EditorConfig",
-                "streetsidesoftware.code-spell-checker",
+  "remoteEnv": {
+    "NUGET_AUTH_TOKEN": "${localEnv:NUGET_AUTH_TOKEN}"
+  },
+  "secrets": {
+    "NUGET_AUTH_TOKEN": {
+      "description": "NuGet feed authentication token"
+    }
+  },
 
-                // Git & GitHub
-                "GitHub.vscode-pull-request-github",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "dotnet.defaultSolution": "RedSec.slnx",
+        "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'MesloLGS NF', monospace"
+      }
+    }
+  },
 
-                // Productivity
-                "GitHub.copilot",
-                "GitHub.copilot-chat",
-
-                // Docker (for viewing containers during integration tests)
-                "ms-azuretools.vscode-docker"
-            ],
-            "settings": {
-                "dotnet.defaultSolution": "Kurrent.Client.slnx",
-                "editor.bracketPairColorization.enabled": true,
-                "files.trimTrailingWhitespace": true,
-                "files.insertFinalNewline": true,
-                "omnisharp.enableRoslynAnalyzers": true,
-                "omnisharp.enableEditorConfigSupport": true,
-                "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
-                "terminal.integrated.defaultProfile.linux": "zsh"
-            }
-        }
-    },
-
-    // Environment variables for .NET
-    "containerEnv": {
-        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
-        "DOTNET_NOLOGO": "1",
-        "DOTNET_GENERATE_ASPNET_CERTIFICATE": "false"
-    },
-
-    // Lifecycle commands
-    "postCreateCommand": "dotnet restore && dotnet build --no-restore",
-    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
-
-    "remoteUser": "vscode"
+  "onCreateCommand": "dotnet tool restore",
+  "updateContentCommand": "dotnet restore",
+  "postCreateCommand": "dotnet build --no-restore",
+  "waitFor": "postCreateCommand"
 }

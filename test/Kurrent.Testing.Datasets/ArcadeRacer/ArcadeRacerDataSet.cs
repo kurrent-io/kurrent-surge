@@ -2,6 +2,7 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
+using Testing.Datasets.ArcadeRacer.Contracts;
 using Testing.Datasets.ArcadeRacer.Model;
 
 namespace Testing.Datasets.ArcadeRacer;
@@ -56,6 +57,14 @@ public class ArcadeRacerDataSet(Faker? faker = null) : CustomDataSet<ArcadeRacer
         "collision with debris",
         "overheated engine"
     ];
+
+    #endregion
+
+    #region Simulation
+
+    /// <summary>Creates a new <see cref="ArcadeRaceBuilder"/> that shares this dataset's <see cref="Faker"/> instance.</summary>
+    /// <returns>A fluent builder for configuring and running a race simulation.</returns>
+    public ArcadeRaceBuilder NewRace() => new(Faker);
 
     #endregion
 

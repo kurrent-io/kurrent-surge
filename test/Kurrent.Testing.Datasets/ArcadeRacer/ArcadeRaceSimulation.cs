@@ -10,11 +10,14 @@ namespace Testing.Datasets.ArcadeRacer;
 
 /// <summary>
 /// Orchestrates a full arcade race simulation. Consumed as an <see cref="IAsyncEnumerable{T}"/>
-/// that streams events one at a time with optional <see cref="Pacing"/> delay between each.
+/// that streams events one at a time with optional pacing delay between each.
+/// After enumeration completes, the <see cref="Result"/> property contains the full race logbook.
 /// </summary>
 public class ArcadeRaceSimulation : IAsyncEnumerable<IRaceEvent> {
-    readonly ArcadeRaceOptions _options;
-    readonly Faker             _faker;
+    readonly ArcadeRaceOptions  _options;
+    readonly Faker              _faker;
+    readonly List<IRaceEvent>   _events = [];
+    CompletedRace?              _result;
 
     internal ArcadeRaceSimulation(ArcadeRaceOptions options, Faker? faker = null) {
         _options = options;
@@ -25,36 +28,51 @@ public class ArcadeRaceSimulation : IAsyncEnumerable<IRaceEvent> {
             : ct => Task.WhenAny(Task.Delay(options.Pacing, ct));
     }
 
-    Func<CancellationToken, Task> Pace  { get; init; }
+    Func<CancellationToken, Task> Pace { get; init; }
 
-    /// <summary>Streams race events one at a time with optional <see cref="Pacing"/> delay between each.</summary>
+    /// <summary>True once the race has finished and <see cref="Result"/> is available.</summary>
+    public bool IsFinished => _result is not null;
+
+    /// <summary>
+    /// The complete race logbook. Available after enumeration completes.
+    /// Throws <see cref="InvalidOperationException"/> if the race has not finished yet.
+    /// </summary>
+    public CompletedRace Result => _result
+        ?? throw new InvalidOperationException("The race has not finished yet. Enumerate the simulation first.");
+
+    /// <summary>Streams race events one at a time with optional pacing delay between each.</summary>
     /// <param name="ct">Cancellation token checked between laps.</param>
     /// <returns>An async enumerator yielding <see cref="IRaceEvent"/> instances as the race progresses.</returns>
     public async IAsyncEnumerator<IRaceEvent> GetAsyncEnumerator(CancellationToken ct = default) {
         var race = new ArcadeRace(_faker);
 
         foreach (var e in race.FormGrid(_options)) {
+            _events.Add(e);
             yield return e;
             await Pace(ct);
         }
 
         foreach (var e in race.Start()) {
+            _events.Add(e);
             yield return e;
             await Pace(ct);
         }
 
         while (race.State.IsActive && (race.State.TotalLaps == 0 || race.State.Lap < race.State.TotalLaps)) {
             foreach (var e in race.SimulateLap()) {
+                _events.Add(e);
                 yield return e;
                 await Pace(ct);
             }
 
             foreach (var e in race.CheckWeather()) {
+                _events.Add(e);
                 yield return e;
                 await Pace(ct);
             }
 
             foreach (var e in race.CheckIncident()) {
+                _events.Add(e);
                 yield return e;
                 await Pace(ct);
             }
@@ -62,8 +80,22 @@ public class ArcadeRaceSimulation : IAsyncEnumerable<IRaceEvent> {
             if (ct.IsCancellationRequested) break;
         }
 
-        foreach (var e in race.Finish())
+        foreach (var e in race.Finish()) {
+            _events.Add(e);
             yield return e;
+        }
+
+        var gridFormed = _events.OfType<GridFormed>().Single();
+        var finished   = _events.OfType<RaceFinished>().Single();
+
+        _result = new CompletedRace {
+            Cars       = gridFormed.Cars,
+            Circuit    = gridFormed.Circuit,
+            Conditions = gridFormed.Conditions,
+            Results    = finished.Results,
+            TotalLaps  = finished.TotalLaps,
+            Events     = _events.AsReadOnly()
+        };
     }
 }
 
@@ -72,8 +104,10 @@ public class ArcadeRaceBuilder {
     readonly Faker              _faker;
     readonly ArcadeRacerDataSet _ds;
 
-    public ArcadeRaceBuilder() {
-        _faker = new Faker();
+    public ArcadeRaceBuilder() : this(new Faker()) { }
+
+    internal ArcadeRaceBuilder(Faker faker) {
+        _faker = faker;
         _ds    = _faker.ArcadeRacer();
 
         Options = new ArcadeRaceOptions {
@@ -91,7 +125,7 @@ public class ArcadeRaceBuilder {
     /// <param name="count">Number of cars to generate (default is 12).</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithCars(int count) {
-        Options  = Options with { Cars = _ds.Grid(count) };
+        Options = Options with { Cars = _ds.Grid(count) };
         return this;
     }
 
@@ -100,6 +134,13 @@ public class ArcadeRaceBuilder {
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithLaps(int laps) {
         Options = Options with { TotalLaps = laps };
+        return this;
+    }
+
+    /// <summary>Configures the race to run indefinitely until cancelled.</summary>
+    /// <returns>This builder for chaining.</returns>
+    public ArcadeRaceBuilder WithEndlessLaps() {
+        Options = Options with { TotalLaps = 0 };
         return this;
     }
 
@@ -128,16 +169,15 @@ public class ArcadeRaceBuilder {
         return this;
     }
 
-    /// <summary>Builds the <see cref="ArcadeRaceSimulation"/> with randomized defaults for any unset options.</summary>
-    /// <returns>A configured simulation ready for streaming or resolution.</returns>
-    public ArcadeRaceSimulation Create() {
-        return new ArcadeRaceSimulation(Options, _faker);
-    }
-}
+    /// <summary>Starts the simulation for streaming events one at a time via <c>await foreach</c>.</summary>
+    /// <returns>A simulation whose <see cref="ArcadeRaceSimulation.Result"/> is available after enumeration.</returns>
+    public ArcadeRaceSimulation Start() => new(Options, _faker);
 
-/// <summary>Static entry point for creating arcade race simulations.</summary>
-public static class ArcadeRacer {
-    /// <summary>Creates a new <see cref="ArcadeRaceBuilder"/> to configure and build a race simulation.</summary>
-    /// <returns>A new builder instance.</returns>
-    public static ArcadeRaceBuilder NewRace() => new();
+    /// <summary>Runs the full simulation to completion and returns the race logbook.</summary>
+    /// <returns>A <see cref="CompletedRace"/> containing setup, standings, and all events.</returns>
+    public async Task<CompletedRace> SimulateAsync() {
+        var sim = Start();
+        await foreach (var _ in sim) { }
+        return sim.Result;
+    }
 }

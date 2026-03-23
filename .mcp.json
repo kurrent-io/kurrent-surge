@@ -1,9 +1,29 @@
 {
   "mcpServers": {
+    "aspire": {
+      "command": "aspire",
+      "args": [
+        "mcp",
+        "start"
+      ]
+    },
     "rider": {
-      "type": "http",
-      "url": "http://127.0.0.1:64342/stream",
-      "headers": {}
+      "command": "/Users/sergio/Applications/Rider.app/Contents/jbr/Contents/Home/bin/java",
+      "args": [
+        "-classpath",
+        "/Users/sergio/Applications/Rider.app/Contents/plugins/mcpserver/lib/mcpserver-frontend.jar:/Users/sergio/Applications/Rider.app/Contents/lib/util-8.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.ktor.client.cio.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.ktor.client.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.ktor.network.tls.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.ktor.io.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.ktor.utils.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.kotlinx.io.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.kotlinx.serialization.core.jar:/Users/sergio/Applications/Rider.app/Contents/lib/module-intellij.libraries.kotlinx.serialization.json.jar",
+        "com.intellij.mcpserver.stdio.McpStdioRunnerKt"
+      ],
+      "env": {
+        "IJ_MCP_SERVER_PORT": "64342"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ]
     }
   }
 }

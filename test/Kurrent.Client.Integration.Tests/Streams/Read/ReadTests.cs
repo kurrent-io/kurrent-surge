@@ -3,7 +3,7 @@ using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Client.Tests.Tools;
-using Kurrent.Testing.TUnit;
+using Kurrent.Testkit;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;

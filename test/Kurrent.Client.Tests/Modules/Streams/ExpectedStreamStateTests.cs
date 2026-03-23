@@ -1,5 +1,5 @@
 using Kurrent.Client.Streams;
-using Kurrent.Testing.TUnit;
+using Kurrent.Testkit;
 
 namespace Kurrent.Client.Tests.Modules.Streams;
 

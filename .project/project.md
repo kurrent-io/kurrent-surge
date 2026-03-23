@@ -26,23 +26,23 @@ developers install only what they need.
 
 ## Testing
 
+TUnit on `Microsoft.Testing.Platform`. Use `dotnet run` (not `dotnet test`) — it launches the test app directly and
+gives full access to TUnit's CLI flags. See [Testing](project-testing.md) for the complete reference.
+
 ```sh
-# test all (TUnit flags go after -- separator)
-dotnet test test/Kurrent.Client.Tests/ \
-  --framework net8.0 \
+# run all tests
+dotnet run --project test/Kurrent.Client.Tests/ --framework net8.0 \
   -- --disable-logo --fail-fast --adaptive-metrics \
   --output Detailed --log-level Trace
 
-# test single class
-dotnet test test/Kurrent.Client.Tests/ \
-  --framework net8.0 \
+# run single class
+dotnet run --project test/Kurrent.Client.Tests/ --framework net8.0 \
   -- --disable-logo --fail-fast --adaptive-metrics \
   --output Detailed --log-level Trace \
   --treenode-filter "/*/*/ReadTests/*"
 
-# test by category
-dotnet test test/Kurrent.Client.Tests/ \
-  --framework net8.0 \
+# run by category
+dotnet run --project test/Kurrent.Client.Tests/ --framework net8.0 \
   -- --disable-logo --fail-fast --adaptive-metrics \
   --treenode-filter "/*/*/*/*[Category=Streams]"
 ```
@@ -70,16 +70,32 @@ After cloning, restore once with `dotnet tool restore`.
 
 ### Available tools
 
-| Script               | Command            | Description                                    |
-|----------------------|--------------------|------------------------------------------------|
-| `semver-bump.cs`     | `semver-bump`      | Compute next version from conventional commits |
-| `benchmark-report.cs`| `benchmark-report` | Generate HTML report from BenchmarkDotNet JSON |
-| `nuwrap.cs`          | `nuwrap`           | NuGet package wrapper utility                  |
+| Script                | Command            | Description                                    |
+|-----------------------|--------------------|------------------------------------------------|
+| `semver-bump.cs`      | `semver-bump`      | Compute next version from conventional commits |
+| `benchmark-report.cs` | `benchmark-report` | Generate HTML report from BenchmarkDotNet JSON |
+| `nuwrap.cs`           | `nuwrap`           | NuGet package wrapper utility                  |
 
 ## Documentation
 
 `docs/` — VuePress 2 site for the SDK section of https://docs.kurrent.io/ (streams, processors, registry,
 serialization). Run locally with `./scripts/run-docs.sh` (handles Node, pnpm, and dependency setup).
+
+## Central Package Management
+
+`Directory.Packages.props` groups packages by where they are consumed. Place each package in the group matching its
+primary consumer. When a package is used by both `src/` and `test/`, it belongs in the `src/` group. Alphabetical
+order within each group.
+
+| Group                      | Packages consumed by                                                   |
+|----------------------------|------------------------------------------------------------------------|
+| Client & Processors        | `src/Kurrent.Client`, `src/Kurrent.Processors` + their transitive pins |
+| Source generation          | `src/*.SourceGenerators` projects                                      |
+| Examples                   | `examples/` projects                                                   |
+| Benchmarking               | `perf/` projects                                                       |
+| Testing                    | `test/` projects and shared test infrastructure                        |
+| Aspire integration testing | `test/Kurrent.SDK.Testing` (Aspire-specific only)                      |
+| Build tooling              | `Directory.Build.props` (applied to all projects)                      |
 
 ## Reference
 
@@ -91,3 +107,19 @@ Read these before working on related areas. Do not read all upfront.
 | [Code Conventions](project-code-conventions.md) | Before writing new code in unfamiliar areas              |
 | [Kurrent.Client](project-client.md)             | Before working on the client library                     |
 | [Kurrent.Processors](project-processors.md)     | Before working on stream processing                      |
+| [Testing](project-testing.md)                   | Before running tests or changing test infrastructure     |
+
+## Design Context
+
+See [`.impeccable.md`](.impeccable.md) for the full design context including brand system, color palettes, and
+asset locations. Key points:
+
+- **Brand personality**: Technical, Confident, Precise (Vercel/Stripe/Linear energy)
+- **Primary color**: Plum (#631B3A), dark backgrounds (#080b0d), Pale Lavender (#DED9FF) accent
+- **Typography**: Solina (proprietary) for prose/headings, system mono for code, Work Sans as fallback
+- **Theme**: Dark-first with polished light mode. Avoid washed-out white aesthetics
+- **Accessibility**: Pragmatic WCAG AA — 4.5:1 for body text, decorative elements get more freedom
+- **References**: Vercel (changelog/blog/academy), Stripe (docs density), Linear (dark confidence),
+  Slack Engineering / Uber Engineering (engineering blog presentation)
+- **Direction**: Migrating docs from VuePress 2 to Astro Starlight for a unified multi-language SDK site
+  (.NET, Go, Java, Python, Rust) with API docs, blogs, postmortems, specs, and per-component changelogs

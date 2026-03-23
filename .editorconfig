@@ -22,17 +22,10 @@ max_line_length = 120
 trim_trailing_whitespace = false
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# JSON, YAML, XML - 2-space indentation
+# JSON, YAML, Protocol Buffers, XML - 2-space indentation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-[*.{json,yml,yaml,xml,csproj,props,targets}]
-indent_size = 2
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Protocol Buffers - 2-space indentation
-# ═══════════════════════════════════════════════════════════════════════════════
-
-[*.proto]
+[*.{json,yml,yaml,proto,xml,csproj,props,targets}]
 indent_size = 2
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -427,3 +420,9 @@ dotnet_diagnostic.CA1724.severity = none
 
 # CA1822: Mark members as static (sometimes impacts readability)
 dotnet_diagnostic.CA1822.severity = suggestion
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TUNIT
+# ═══════════════════════════════════════════════════════════════════════════════
+tunit.enable_verbose_diagnostics = true # Verbose diagnostics (default: false)

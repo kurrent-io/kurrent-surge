@@ -1,0 +1,37 @@
+<Solution>
+  <Folder Name="/.Solution/">
+    <File Path="context7.json" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+
+  <Folder Name="/Benchmarks/">
+    <Project Path="perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
+  </Folder>
+
+  <Folder Name="/Client/">
+    <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
+    <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
+    <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
+    <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
+  </Folder>
+
+  <Folder Name="/Processors/">
+    <Project Path="src/Kurrent.Processors/Kurrent.Processors.csproj" />
+    <Project Path="test\Kurrent.Processors.Integration.Tests\Kurrent.Processors.Integration.Tests.csproj" />
+    <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
+  </Folder>
+
+  <Folder Name="/Shared/">
+    <Project Path="test/Kurrent.Testing.Datasets/Kurrent.Testing.Datasets.csproj" />
+    <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
+    <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
+<!--    <Project Path="test/Kurrent.SDK.Testing/Kurrent.SDK.Testing.csproj" />-->
+  </Folder>
+
+  <Folder Name="/Shared/Variant/">
+    <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" />
+    <Project Path="src\Variant\Variant.csproj" />
+    <Project Path="test\Variant.Tests\Variant.Tests.csproj" />
+  </Folder>
+</Solution>

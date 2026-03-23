@@ -1,5 +1,5 @@
-namespace Kurrent.Testkit.Tests;
+using Kurrent.Testkit;
 
-public class TestkitBootstrap {
-    
-}
+//[assembly: Kurrent.Testkit.BootstrapTUnitTests]
+[assembly: TUnit.Core.Executors.TestExecutor<TestkitTestExecutor>]
+

@@ -538,6 +538,7 @@ wip/
 # every commit of these must be intentional (git add -f)
 
 .agents/
+.project/.scratch/
 .project/docs/reference/
 .project/docs/research
 .project/docs/plans/

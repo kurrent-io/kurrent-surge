@@ -1,7 +1,6 @@
 using Bogus;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Bogus;
 
 namespace Kurrent.Client.Tests.Schema.Serialization;
 
@@ -11,13 +10,13 @@ namespace Kurrent.Client.Tests.Schema.Serialization;
 /// multiple message types per serializer format.
 /// </summary>
 public abstract class SchemaSerializerTestFixture {
-    protected static Faker Faker => BogusFaker.Shared;
+    protected static Faker Faker => new Faker();
 
-    protected ISchemaSerializer _sut = null!;
+    protected ISchemaSerializer Sut = null!;
 
     [Before(Test)]
     public void SetUp() {
-        _sut = CreateSut();
+        Sut = CreateSut();
         OnSetUp();
     }
 
@@ -54,7 +53,7 @@ public abstract class SchemaSerializerTestFixture {
     [Test]
     public async ValueTask data_format_matches_expected() {
         // Assert
-        await Assert.That(_sut.DataFormat).IsEqualTo(ExpectedDataFormat);
+        await Assert.That(Sut.DataFormat).IsEqualTo(ExpectedDataFormat);
     }
 
     [Test]
@@ -63,7 +62,7 @@ public abstract class SchemaSerializerTestFixture {
         var context = CreateSerializeContext();
 
         // Act
-        var result = await _sut.Serialize(null, context).ConfigureAwait(false);
+        var result = await Sut.Serialize(null, context).ConfigureAwait(false);
 
         // Assert
         await Assert.That(result.Length).IsEqualTo(0);
@@ -76,7 +75,7 @@ public abstract class SchemaSerializerTestFixture {
             var context = CreateSerializeContext();
 
             // Act
-            var result = await _sut.Serialize(message, context).ConfigureAwait(false);
+            var result = await Sut.Serialize(message, context).ConfigureAwait(false);
 
             // Assert
             await Assert.That(result.Length).IsGreaterThan(0);
@@ -88,12 +87,12 @@ public abstract class SchemaSerializerTestFixture {
         foreach (var message in CreateTestMessages()) {
             // Arrange
             var context = CreateSerializeContext();
-            var bytes   = await _sut.Serialize(message, context).ConfigureAwait(false);
+            var bytes   = await Sut.Serialize(message, context).ConfigureAwait(false);
 
             var deserializeContext = CreateDeserializeContext(context);
 
             // Act
-            var result = await _sut.Deserialize(bytes, deserializeContext).ConfigureAwait(false);
+            var result = await Sut.Deserialize(bytes, deserializeContext).ConfigureAwait(false);
 
             // Assert
             await AssertDeserialized(message, result);

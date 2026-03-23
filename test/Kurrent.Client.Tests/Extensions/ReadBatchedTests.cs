@@ -43,7 +43,7 @@ public class ReadBatchedTests {
 
         // Should complete nearly instantly (fast path)
         await Assert.That(sw.ElapsedMilliseconds).IsLessThan(1000);
-        await Assert.That(results).HasCount().EqualTo(10); // 100 items / 10 batch size
+        await Assert.That(results).Count().IsEqualTo(10); // 100 items / 10 batch size
     }
 
     #endregion
@@ -65,12 +65,12 @@ public class ReadBatchedTests {
         await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
 
-        await Assert.That(results).HasCount().EqualTo(1);
+        await Assert.That(results).Count().IsEqualTo(1);
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
 
         var batch = (TestBatch)results[0];
-        await Assert.That(batch.Items).HasCount().EqualTo(1);
+        await Assert.That(batch.Items).Count().IsEqualTo(1);
         await Assert.That(batch.Items[0].Value).IsEqualTo(1);
     }
 
@@ -82,12 +82,12 @@ public class ReadBatchedTests {
         await foreach (var result in source.ReadBatched(3, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
 
-        await Assert.That(results).HasCount().EqualTo(1);
+        await Assert.That(results).Count().IsEqualTo(1);
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
 
         var batch = (TestBatch)results[0];
-        await Assert.That(batch.Items).HasCount().EqualTo(3);
+        await Assert.That(batch.Items).Count().IsEqualTo(3);
     }
 
     [Test]
@@ -102,7 +102,7 @@ public class ReadBatchedTests {
             results.Add(result);
 
         // Assert: correct number of batches
-        await Assert.That(results).HasCount().EqualTo(expectedBatches.Length)
+        await Assert.That(results).Count().IsEqualTo(expectedBatches.Length)
             .Because($"expected {expectedBatches.Length} batches for {itemCount} items with batch size {batchSize}");
 
         // Assert: each batch contains expected items in order
@@ -118,27 +118,27 @@ public class ReadBatchedTests {
         }
     }
 
-    public static IEnumerable<(int itemCount, int batchSize, int[][] expectedBatches)> BatchingTestCases() {
+    public static IEnumerable<Func<(int itemCount, int batchSize, int[][] expectedBatches)>> BatchingTestCases() {
         // Exact fit: 6 items, batch size 2 → 3 batches
-        yield return (6, 2, [[1, 2], [3, 4], [5, 6]]);
+        yield return () => (6, 2, [[1, 2], [3, 4], [5, 6]]);
 
         // Exact fit: 9 items, batch size 3 → 3 batches
-        yield return (9, 3, [[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+        yield return () => (9, 3, [[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
 
         // Remainder: 7 items, batch size 3 → 3 batches (last partial)
-        yield return (7, 3, [[1, 2, 3], [4, 5, 6], [7]]);
+        yield return () => (7, 3, [[1, 2, 3], [4, 5, 6], [7]]);
 
         // Remainder: 10 items, batch size 4 → 3 batches (last partial)
-        yield return (10, 4, [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10]]);
+        yield return () => (10, 4, [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10]]);
 
         // Single batch: 5 items, batch size 5 → 1 batch
-        yield return (5, 5, [[1, 2, 3, 4, 5]]);
+        yield return () => (5, 5, [[1, 2, 3, 4, 5]]);
 
         // Single batch (under size): 3 items, batch size 10 → 1 batch
-        yield return (3, 10, [[1, 2, 3]]);
+        yield return () => (3, 10, [[1, 2, 3]]);
 
         // Single item: 1 item, batch size 1 → 1 batch
-        yield return (1, 1, [[1]]);
+        yield return () => (1, 1, [[1]]);
     }
 
     [Test]
@@ -171,7 +171,7 @@ public class ReadBatchedTests {
         await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
 
-        await Assert.That(results).HasCount().EqualTo(3);
+        await Assert.That(results).Count().IsEqualTo(3);
 
         // First: batch with items 1, 2
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
@@ -203,7 +203,7 @@ public class ReadBatchedTests {
         await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
 
-        await Assert.That(results).HasCount().EqualTo(2);
+        await Assert.That(results).Count().IsEqualTo(2);
         await Assert.That(results[0]).IsTypeOf<TestTrigger>();
         await Assert.That(results[1]).IsTypeOf<TestBatch>();
     }
@@ -219,7 +219,7 @@ public class ReadBatchedTests {
         await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
 
-        await Assert.That(results).HasCount().EqualTo(4);
+        await Assert.That(results).Count().IsEqualTo(4);
 
         // Batch(1), Trigger(100), Trigger(200), Batch(2)
         await Assert.That(results[0]).IsTypeOf<TestBatch>();
@@ -247,12 +247,12 @@ public class ReadBatchedTests {
             break;
         }
 
-        await Assert.That(results).HasCount().EqualTo(1);
+        await Assert.That(results).Count().IsEqualTo(1);
         await Assert.That(results[0]).IsTypeOf<TestBatch>()
             .Because($"expected TestBatch but got {results[0].GetType().Name}");
 
         var batch = (TestBatch)results[0];
-        await Assert.That(batch.Items).HasCount().EqualTo(3);
+        await Assert.That(batch.Items).Count().IsEqualTo(3);
     }
 
     // Helper: yields N items then blocks until cancellation
@@ -421,7 +421,7 @@ public class ReadBatchedTests {
             .SelectMany(b => b.Items.Select(i => i.Value))
             .ToList();
 
-        await Assert.That(allValues).HasCount().EqualTo(25);
+        await Assert.That(allValues).Count().IsEqualTo(25);
 
         // Verify order is preserved
         for (var i = 0; i < allValues.Count; i++)
@@ -444,7 +444,7 @@ public class ReadBatchedTests {
             results.Add(result);
 
         // Expected: Batch([0,1]), Trigger(100), Batch([2,3,4]), Trigger(200), Batch([5])
-        await Assert.That(results).HasCount().EqualTo(5);
+        await Assert.That(results).Count().IsEqualTo(5);
 
         await Assert.That(results[0]).IsTypeOf<TestBatch>();
         var batch1 = (TestBatch)results[0];
@@ -479,7 +479,7 @@ public class ReadBatchedTests {
         await foreach (var result in source.ReadBatched(10, TimeSpan.FromSeconds(10), Classify, ToBatch))
             results.Add(result);
 
-        await Assert.That(results).HasCount().EqualTo(1);
+        await Assert.That(results).Count().IsEqualTo(1);
         // If we get here without exception, the finally block executed
     }
 

@@ -179,12 +179,12 @@ public class VariantGenerationTests {
         await Assert.That(result.AsInt).IsEqualTo(789);
     }
 
-
     [Test]
     public async Task switch_should_execute_correct_action_for_string() {
-        TestVariantResult result             = "switch_me";
-        var                stringActionCalled = false;
-        var                intActionCalled    = false;
+        TestVariantResult result = "switch_me";
+
+        var stringActionCalled = false;
+        var intActionCalled    = false;
 
         result.Switch(
             _ => stringActionCalled = true,
@@ -197,9 +197,10 @@ public class VariantGenerationTests {
 
     [Test]
     public async Task switch_should_execute_correct_action_for_int() {
-        TestVariantResult result             = 555;
-        var                stringActionCalled = false;
-        var                intActionCalled    = false;
+        TestVariantResult result = 555;
+
+        var stringActionCalled = false;
+        var intActionCalled    = false;
 
         result.Switch(
             _ => stringActionCalled = true,
@@ -258,7 +259,8 @@ public class VariantGenerationTests {
 
     [Test]
     public async Task complex_type_generation_is_my_error_should_be_true() {
-        var                       error  = new MyError("E01", "Test Error");
+        var error = new MyError("E01", "Test Error");
+
         TestVariantComplexResult result = error;
 
         await Assert.That(result.IsMyError).IsTrue();
@@ -269,8 +271,9 @@ public class VariantGenerationTests {
 
     [Test]
     public async Task complex_type_generation_is_my_success_should_be_true() {
-        var                       success = new MySuccess(Guid.NewGuid());
-        TestVariantComplexResult result  = success;
+        var success = new MySuccess(Guid.NewGuid());
+
+        TestVariantComplexResult result = success;
 
         await Assert.That(result.IsMyError).IsFalse();
         await Assert.That(result.IsMySuccess).IsTrue();

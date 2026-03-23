@@ -21,7 +21,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(2);
+        await Assert.That(request.Records).Count().IsEqualTo(2);
         await Assert.That(request.Records[0].Stream).IsEqualTo((StreamName)"target-stream");
         await Assert.That(request.Records[1].Stream).IsEqualTo((StreamName)"target-stream");
     }
@@ -57,7 +57,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Checks).HasCount().EqualTo(1);
+        await Assert.That(request.Checks).Count().IsEqualTo(1);
 
         var check = request.Checks[0].AsStreamStateCheck;
         await Assert.That(check.Stream).IsEqualTo((StreamName)"test-stream");
@@ -124,7 +124,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(1);
+        await Assert.That(request.Records).Count().IsEqualTo(1);
         await Assert.That(request.Records[0].Value).IsEqualTo("from-builder");
     }
 
@@ -136,7 +136,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(1);
+        await Assert.That(request.Records).Count().IsEqualTo(1);
         await Assert.That(request.Records[0].Value).IsEqualTo("from-action");
     }
 
@@ -148,7 +148,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(1);
+        await Assert.That(request.Records).Count().IsEqualTo(1);
         await Assert.That(request.Records[0].Value).IsEqualTo("simple-value");
         await Assert.That(request.Records[0].Stream).IsEqualTo((StreamName)"test-stream");
         await Assert.That(request.Records[0].DataFormat).IsEqualTo(SchemaDataFormat.Json);
@@ -167,7 +167,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(3);
+        await Assert.That(request.Records).Count().IsEqualTo(3);
     }
 
     #endregion
@@ -245,7 +245,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Checks).HasCount().EqualTo(1);
+        await Assert.That(request.Checks).Count().IsEqualTo(1);
 
         var streamCheck = request.Checks[0].AsStreamStateCheck;
         await Assert.That(streamCheck.Stream).IsEqualTo((StreamName)"my-stream");
@@ -265,7 +265,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Checks).HasCount().EqualTo(2);
+        await Assert.That(request.Checks).Count().IsEqualTo(2);
     }
 
     [Test]
@@ -281,7 +281,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(1);
+        await Assert.That(request.Records).Count().IsEqualTo(1);
         await Assert.That(request.Records[0].Value).IsEqualTo("from-builder");
     }
 
@@ -293,7 +293,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(1);
+        await Assert.That(request.Records).Count().IsEqualTo(1);
         await Assert.That(request.Records[0].Value).IsEqualTo("from-action");
     }
 
@@ -305,7 +305,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(1);
+        await Assert.That(request.Records).Count().IsEqualTo(1);
         await Assert.That(request.Records[0].Value).IsEqualTo("simple-value");
         await Assert.That(request.Records[0].Stream).IsEqualTo((StreamName)"test-stream");
         await Assert.That(request.Records[0].DataFormat).IsEqualTo(SchemaDataFormat.Json);
@@ -324,7 +324,7 @@ public class AppendRecordsRequestBuildersTests {
             .Build();
 
         // Assert
-        await Assert.That(request.Records).HasCount().EqualTo(3);
+        await Assert.That(request.Records).Count().IsEqualTo(3);
     }
 
     #endregion

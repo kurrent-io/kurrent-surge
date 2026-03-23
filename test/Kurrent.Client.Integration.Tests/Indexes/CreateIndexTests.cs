@@ -39,7 +39,7 @@ public class CreateIndexTests {
 
         await Assert.That(index.Name).IsEqualTo(indexName);
         await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'OrderCreated'");
-        await Assert.That(index.Fields).HasCount().EqualTo(1);
+        await Assert.That(index.Fields).Count().IsEqualTo(1);
         await Assert.That(index.Fields[0].Name).IsEqualTo("amount");
         await Assert.That(index.Fields[0].Selector).IsEqualTo("rec => rec.value.amount");
         await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Double);

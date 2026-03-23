@@ -166,6 +166,9 @@ public record RaceFinished : IRaceEvent {
     /// <summary>Ordered array of race results (finishers first, then DNFs).</summary>
     public required RaceResult[] Results { get; init; }
 
+    /// <summary>The race winner (first position in <see cref="Results"/>).</summary>
+    public RaceResult Winner => Results[0];
+
     /// <summary>Total laps completed in the race.</summary>
     public required int TotalLaps { get; init; }
 

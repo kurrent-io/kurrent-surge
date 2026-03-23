@@ -48,7 +48,7 @@ public class ArcadeRacerDataSetTests {
     [Test]
     public async Task grid_generates_requested_count() {
         var grid = new Faker().ArcadeRacer().Grid(8);
-        await Assert.That(grid).HasCount().EqualTo(8);
+        await Assert.That(grid).Count().IsEqualTo(8);
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class ArcadeRacerDataSetTests {
     public async Task grid_cars_have_unique_ids() {
         var grid = new Faker().ArcadeRacer().Grid(10);
         var ids  = grid.Select(c => c.Id).Distinct().ToList();
-        await Assert.That(ids).HasCount().EqualTo(10);
+        await Assert.That(ids).Count().IsEqualTo(10);
     }
 
     [Test]

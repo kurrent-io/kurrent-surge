@@ -1,15 +1,12 @@
 // ReSharper disable ArrangeTypeMemberModifiers
 
+using Bogus;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Containers.KurrentDB;
 using Kurrent.Testing.Testkit;
-using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using TUnit.Core.Interfaces;
-
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
@@ -23,12 +20,12 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
     /// <summary>
     /// The logger used for logging in tests.
     /// </summary>
-    public ILogger Logger => TestContext.CurrentLogger;
+    public ILogger Logger => TestkitExecutionContext.Logger;
 
     /// <summary>
     /// The logger factory used for creating loggers in tests.
     /// </summary>
-    public ILoggerFactory LoggerFactory => TestContext.CurrentLoggerFactory;
+    public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
 
     /// <summary>
     /// Time provider used for simulating and controlling time in tests.
@@ -40,12 +37,12 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
     /// </summary>
     public KurrentClient Client => LazyClient.Value;
 
-    Lazy<KurrentClient> LazyClient { get; set; }
+    Lazy<KurrentClient> LazyClient { get; set; } = null!;
 
     public Task InitializeAsync() {
         LazyClient = new Lazy<KurrentClient>(() => {
             var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
-                .WithLoggerFactory(new TestkitLoggerFactory())
+                .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
                 .ConfigureSchema(schema => schema
                     .WithValidation(false)
                     .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
@@ -65,7 +62,13 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
 
     public async ValueTask DisposeAsync() {
         if (LazyClient.IsValueCreated) {
-            await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
+            try {
+                await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) {
+                Logger.LogError(ex, "Failed to dispose of Client");
+                throw;
+            }
         }
     }
 }

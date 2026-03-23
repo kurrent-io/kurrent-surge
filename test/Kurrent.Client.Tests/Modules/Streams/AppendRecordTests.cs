@@ -37,7 +37,7 @@ public class AppendRecordTests {
 
         var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
 
-        await Assert.That(ex.Errors).HasCount().EqualTo(1);
+        await Assert.That(ex.Errors).Count().IsEqualTo(1);
         await Assert.That(ex.Errors[0].FieldName).IsEqualTo(nameof(AppendRecord.RecordId));
     }
 
@@ -115,7 +115,7 @@ public class AppendRecordTests {
 
         var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
 
-        await Assert.That(ex.Errors).HasCount().EqualTo(4);
+        await Assert.That(ex.Errors).Count().IsEqualTo(4);
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.RecordId));
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.Value));
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.DataFormat));

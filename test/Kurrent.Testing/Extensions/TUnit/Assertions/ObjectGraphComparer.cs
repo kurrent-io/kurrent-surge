@@ -1,8 +1,10 @@
+// ReSharper disable CheckNamespace
+
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
-namespace Kurrent.Testing.TUnit.Assertions;
+namespace Kurrent.Testkit.TUnit.Assertions;
 
 public class ObjectGraphComparisonException(string message) : Exception(message);
 

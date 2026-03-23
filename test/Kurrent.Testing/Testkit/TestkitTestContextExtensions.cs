@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kurrent.Testkit;
 
-public static class TestUidTestContextExtensions {
+public static class TestkitTestContextExtensions {
     static readonly DeterministicGuidGenerator Generator =
         new(Guid.Parse("92BBC7B6-8921-4C35-A255-F1ED21B5EDEA"));
 

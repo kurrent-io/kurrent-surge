@@ -1,7 +1,9 @@
+// ReSharper disable CheckNamespace
+
 using System.Runtime.CompilerServices;
 using TUnit.Assertions.Core;
 
-namespace Kurrent.Testing.TUnit.Assertions;
+namespace Kurrent.Testkit.TUnit.Assertions;
 
 public static class TUnitAssertionExtensions {
     extension<TValue>(IAssertionSource<TValue> source) {

@@ -1,5 +1,8 @@
-namespace Kurrent.Testing.Bogus;
+// ReSharper disable CheckNamespace
 
-public class BogusFaker {
-    
-}
+namespace Bogus;
+
+/// <summary>
+/// In order to use Faker as a TUnit ClassDataSource we must have a parameterless ctor.
+/// </summary>
+public class BogusFaker() : Faker("en") { }

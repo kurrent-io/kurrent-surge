@@ -184,7 +184,7 @@ class ArcadeRace {
     /// <summary>Randomly triggers an incident (time penalty or DNF) based on the difficulty profile.</summary>
     /// <returns>An <see cref="IncidentOccurred"/> or <see cref="CarRetired"/> event if triggered; otherwise empty.</returns>
     public IRaceEvent[] CheckIncident() {
-        if (!_faker.Random.Bool((float)State.Profile.IncidentRate) || !State.IsActive)
+        if (!_faker.Random.Bool((float)State.Profile.IncidentRate) || !State.IsActive || State.RaceOrder.Count <= 1)
             return [];
 
         var carId       = _faker.PickRandom(State.RaceOrder);

@@ -2,12 +2,11 @@
 
 using System.Collections;
 using System.Collections.Immutable;
+using Bogus;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Containers.KurrentDB;
 using Kurrent.Testing.Testkit;
-using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Serilog;
@@ -30,12 +29,12 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     /// <summary>
     /// The logger used for logging in tests.
     /// </summary>
-    public ILogger Logger => TestContext.CurrentLogger;
+    public ILogger Logger => TestkitExecutionContext.Logger;
 
     /// <summary>
     /// The logger factory used for creating loggers in tests.
     /// </summary>
-    public ILoggerFactory LoggerFactory => TestContext.CurrentLoggerFactory;
+    public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
 
     /// <summary>
     /// Time provider used for simulating and controlling time in tests.
@@ -50,7 +49,7 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     public Task InitializeAsync() {
        var lazyClient = new Lazy<KurrentClient>(() => {
             var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
-                .WithLoggerFactory(new TestkitLoggerFactory())
+                .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
                 .ConfigureSchema(schema => schema
                     .WithValidation(false)
                     .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))

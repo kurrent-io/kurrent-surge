@@ -337,7 +337,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     public async Task try_get_key_non_existing_value_should_return_false_and_default_key() {
         var result = _sut.TryGetKey(1, out var key);
         await Assert.That(result).IsFalse();
-        await Assert.That(key).IsEqualTo(default(string)); // null for string
+        await Assert.That(key).IsNull();
     }
 
     [Test]

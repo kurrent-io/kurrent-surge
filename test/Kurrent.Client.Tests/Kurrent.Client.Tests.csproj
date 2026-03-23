@@ -11,13 +11,12 @@
 
 <ItemGroup>
     <Using Include="FakeItEasy" />
-    <Using Include="Kurrent.Testing" />
-    <Using Include="Kurrent.Testing.Assertions" />
     <Using Include="TUnit" />
+    <Using Include="Kurrent.Testing" />
+    <Using Include="Kurrent.Testkit.TUnit.Assertions" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Bogus" />
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentValidation" />

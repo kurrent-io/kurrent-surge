@@ -1,3 +1,1 @@
-using Kurrent.Testing.Testkit;
-
-[assembly: TUnit.Core.Executors.TestExecutor<TestkitTestExecutor>]
+[assembly: TUnit.Core.Executors.TestExecutor<Kurrent.Testkit.TestkitTestExecutor>]

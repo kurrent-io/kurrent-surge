@@ -3,17 +3,17 @@
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper disable NotAccessedPositionalProperty.Local
+// ReSharper disable CheckNamespace
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Bogus;
-using Kurrent.Testing.Bogus;
 
-namespace Kurrent.Testing.TUnit.Assertions;
+namespace Kurrent.Testkit.TUnit.Assertions;
 
 [Category("Testing")]
 public class ObjectGraphEquivalencyTests {
-    static readonly BogusFaker Faker = BogusFaker.Shared;
+    static readonly Faker Faker = new Faker();
 
     #region Primitive & value type equivalence
 

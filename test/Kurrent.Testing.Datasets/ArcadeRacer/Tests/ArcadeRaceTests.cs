@@ -32,7 +32,7 @@ public class ArcadeRaceTests {
         var race   = CreateRace();
         var events = race.Start();
 
-        await Assert.That(events).HasCount().EqualTo(1);
+        await Assert.That(events).Count().IsEqualTo(1);
         await Assert.That(events[0]).IsTypeOf<RaceStarted>();
     }
 
@@ -48,7 +48,7 @@ public class ArcadeRaceTests {
         var events    = race.SimulateLap();
         var lapEvents = events.OfType<LapCompleted>().ToList();
 
-        await Assert.That(lapEvents).HasCount().EqualTo(4);
+        await Assert.That(lapEvents).Count().IsEqualTo(4);
     }
 
     [Test]
@@ -145,6 +145,27 @@ public class ArcadeRaceTests {
         await Assert.That(retirementFound).IsTrue();
     }
 
+    [Test]
+    public async Task last_car_standing_cannot_retire() {
+        // Start with only 2 cars so one retirement leaves a sole survivor
+        var race = CreateRace(cars: 2);
+        race.Start();
+        race.SimulateLap();
+
+        // Force incidents until one car retires
+        for (var i = 0; i < 1000 && race.State.RaceOrder.Count > 1; i++)
+            race.CheckIncident();
+
+        await Assert.That(race.State.RaceOrder.Count).IsEqualTo(1);
+
+        // Now hammer incident checks — the last car must survive
+        for (var i = 0; i < 1000; i++)
+            race.CheckIncident();
+
+        await Assert.That(race.State.RaceOrder.Count).IsEqualTo(1);
+        await Assert.That(race.State.IsActive).IsTrue();
+    }
+
     #endregion
 
     #region CheckWeather
@@ -178,7 +199,7 @@ public class ArcadeRaceTests {
 
         var events = race.Finish();
 
-        await Assert.That(events).HasCount().EqualTo(1);
+        await Assert.That(events).Count().IsEqualTo(1);
         await Assert.That(events[0]).IsTypeOf<RaceFinished>();
     }
 
@@ -191,7 +212,7 @@ public class ArcadeRaceTests {
         var events   = race.Finish();
         var finished = (RaceFinished)events[0];
 
-        await Assert.That(finished.Results).HasCount().EqualTo(6);
+        await Assert.That(finished.Results).Count().IsEqualTo(6);
     }
 
     [Test]
