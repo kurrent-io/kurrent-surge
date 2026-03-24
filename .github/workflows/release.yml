@@ -38,7 +38,7 @@ jobs:
       - name: Setup .NET
         uses: ./.github/actions/dotnet-setup
         env:
-          DOTNET_INSTALL_VERSIONS: 8.x 9.x 10.x 11.x
+          DOTNET_INSTALL_VERSIONS: 10.x
 
       - name: Version
         id: version

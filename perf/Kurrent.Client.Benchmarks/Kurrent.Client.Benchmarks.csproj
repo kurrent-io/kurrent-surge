@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-    <ProjectReference Include="..\..\test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Testing.ArcadeRacer\Kurrent.Testing.ArcadeRacer.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />

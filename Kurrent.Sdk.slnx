@@ -12,29 +12,26 @@
   <Folder Name="/Client/">
     <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
     <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
-    <Project Path="test\Kurrent.Client.Integration.Tests\Kurrent.Client.Integration.Tests.csproj" />
     <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
   </Folder>
 
   <Folder Name="/Processors/">
     <Project Path="src/Kurrent.Processors/Kurrent.Processors.csproj" />
-    <Project Path="test\Kurrent.Processors.Integration.Tests\Kurrent.Processors.Integration.Tests.csproj" />
     <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
   </Folder>
 
-  <Folder Name="/Shared/">
-    <Project Path="test/Kurrent.Testing.ArcadeRacer/Kurrent.Testing.ArcadeRacer.csproj" />
-    <Project Path="test/Kurrent.Testkit.Datasets.Tests/Kurrent.Testkit.Datasets.Tests.csproj" />
-    <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
-    <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
-<!--    <Project Path="test/Kurrent.SDK.Testing/Kurrent.SDK.Testing.csproj" />-->
-    <Project Path="test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
-  </Folder>
+  <Folder Name="/Shared/" />
 
   <Folder Name="/Shared/Variant/">
     <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" />
     <Project Path="src\Variant\Variant.csproj" />
     <Project Path="test\Variant.Tests\Variant.Tests.csproj" />
   </Folder>
-  <Folder Name="/Testkit/" />
+  <Folder Name="/Testkit/">
+    <Project Path="test/Kurrent.Testing.ArcadeRacer/Kurrent.Testing.ArcadeRacer.csproj" />
+    <Project Path="test/Kurrent.Testkit.Datasets.Tests/Kurrent.Testkit.Datasets.Tests.csproj" />
+    <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
+    <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <Project Path="test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
+  </Folder>
 </Solution>

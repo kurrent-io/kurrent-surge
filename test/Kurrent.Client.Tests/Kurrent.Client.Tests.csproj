@@ -5,8 +5,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-    <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing.ArcadeRacer\Kurrent.Testing.ArcadeRacer.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 
@@ -22,6 +23,7 @@
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="NodaTime.Testing" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 
@@ -29,5 +31,12 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Content Include="..\..\certs\**\*">
+      <Link>certs\%(RecursiveDir)/%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

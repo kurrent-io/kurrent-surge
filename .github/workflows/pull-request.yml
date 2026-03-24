@@ -39,14 +39,14 @@ jobs:
       - name: Setup .NET & Restore
         uses: ./.github/actions/dotnet-setup
         env:
-          DOTNET_INSTALL_VERSIONS: 8.x 9.x 10.x 11.x
+          DOTNET_INSTALL_VERSIONS: 10.x
 
       - name: Build
         run: dotnet build -c Release --no-restore
 
       - name: Unit tests
         run: >-
-          dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
+          dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
           -- --treenode-filter "/*/*/*/*[Category!=Integration]"
           --disable-logo --adaptive-metrics --report-trx --coverage
