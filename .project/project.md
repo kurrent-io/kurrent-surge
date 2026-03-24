@@ -1,7 +1,11 @@
 # Kurrent .NET SDK
 
-.NET monorepo for the Kurrent platform SDK. Kurrent is a platform, not a database. There is no meta-package;
-developers install only what they need.
+.NET monorepo for the Kurrent platform SDK. Kurrent is a platform, not a database. 
+
+There is no meta-package; developers install only what they need.
+
+- Kurrent.Client: gRPC client library for reading and writing streams
+- Kurrent.Processors: stream processing library for processing streams
 
 ## Code Style
 
@@ -26,32 +30,36 @@ developers install only what they need.
 
 ## Testing
 
-TUnit on `Microsoft.Testing.Platform`. Use `dotnet run` (not `dotnet test`) — it launches the test app directly and
-gives full access to TUnit's CLI flags. See [Testing](project-testing.md) for the complete reference.
-
+*** Run all Unit tests:***
 ```sh
-# run all tests
-dotnet run --project test/Kurrent.Client.Tests/ --framework net8.0 \
-  -- --disable-logo --fail-fast --adaptive-metrics \
-  --output Detailed --log-level Trace
+dotnet test -c Release --ignore-exit-code 8 --results-directory ./artifacts/test-results \
+-- --treenode-filter "/*/*/*/*[Category!=Integration]" \
+--adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace
+```
 
-# run single class
-dotnet run --project test/Kurrent.Client.Tests/ --framework net8.0 \
-  -- --disable-logo --fail-fast --adaptive-metrics \
-  --output Detailed --log-level Trace \
-  --treenode-filter "/*/*/ReadTests/*"
+*** Run all Integration tests:***
+```sh
+dotnet test -c Release --ignore-exit-code 8 --results-directory ./artifacts/test-results \
+-- --treenode-filter "/*/*/*/*[Category=Integration]" \
+--adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace --fail-fast 
+```
 
-# run by category
-dotnet run --project test/Kurrent.Client.Tests/ --framework net8.0 \
-  -- --disable-logo --fail-fast --adaptive-metrics \
-  --treenode-filter "/*/*/*/*[Category=Streams]"
+*** Run a single test class:***
+```sh
+dotnet test -c Release --results-directory ./artifacts/test-results \
+-- --treenode-filter "/*/*/ReadTests/*" \
+--adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace
+```
+
+*** Run a category of tests: (eg. Streams)***
+```sh
+dotnet test -c Release --ignore-exit-code 8 --results-directory ./artifacts/test-results \
+-- --treenode-filter "/*/*/*/*[Category=SerDe]" \
+--adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace
 ```
 
 One-time setup: `sudo ./scripts/gencert.sh` generates TLS certs for secure test mode. FluentDocker containers are
 reused across runs.
-
-Observability: `cd test/Kurrent.Testing && docker compose up -d` starts Seq (logs, port 5341) and Aspire Dashboard
-(telemetry, port 18888).
 
 ## Tools
 
@@ -108,18 +116,3 @@ Read these before working on related areas. Do not read all upfront.
 | [Kurrent.Client](project-client.md)             | Before working on the client library                     |
 | [Kurrent.Processors](project-processors.md)     | Before working on stream processing                      |
 | [Testing](project-testing.md)                   | Before running tests or changing test infrastructure     |
-
-## Design Context
-
-See [`.impeccable.md`](.impeccable.md) for the full design context including brand system, color palettes, and
-asset locations. Key points:
-
-- **Brand personality**: Technical, Confident, Precise (Vercel/Stripe/Linear energy)
-- **Primary color**: Plum (#631B3A), dark backgrounds (#080b0d), Pale Lavender (#DED9FF) accent
-- **Typography**: Solina (proprietary) for prose/headings, system mono for code, Work Sans as fallback
-- **Theme**: Dark-first with polished light mode. Avoid washed-out white aesthetics
-- **Accessibility**: Pragmatic WCAG AA — 4.5:1 for body text, decorative elements get more freedom
-- **References**: Vercel (changelog/blog/academy), Stripe (docs density), Linear (dark confidence),
-  Slack Engineering / Uber Engineering (engineering blog presentation)
-- **Direction**: Migrating docs from VuePress 2 to Astro Starlight for a unified multi-language SDK site
-  (.NET, Go, Java, Python, Rust) with API docs, blogs, postmortems, specs, and per-component changelogs

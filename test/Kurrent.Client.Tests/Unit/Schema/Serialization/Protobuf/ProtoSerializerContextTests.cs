@@ -3,6 +3,7 @@ using Kurrent.Client.Schema.Serialization.Protobuf;
 
 namespace Kurrent.Client.Tests.Schema.Serialization.Protobuf;
 
+[Category("SerDe")]
 public class ProtoSerializerContextTests {
 	[After(Test)]
 	public void cleanup() => ProtobufMessages.System.ClearCache();

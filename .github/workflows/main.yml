@@ -31,7 +31,7 @@ jobs:
       - name: Setup .NET & Restore
         uses: ./.github/actions/dotnet-setup
         env:
-          DOTNET_INSTALL_VERSIONS: 8.x 9.x 10.x 11.x
+          DOTNET_INSTALL_VERSIONS: 10.x
 
       - name: Build
         run: dotnet build -c Release --no-restore

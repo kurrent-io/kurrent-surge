@@ -5,6 +5,7 @@ using Kurrent.Client.Tests.Schema.Serialization.Fixtures;
 
 namespace Kurrent.Client.Tests.Schema.Serialization.Json;
 
+[Category("SerDe")]
 public class JsonSchemaSerializerOptionsTests {
     [Test]
     public async Task default_options_has_camel_case_naming_policy() {
