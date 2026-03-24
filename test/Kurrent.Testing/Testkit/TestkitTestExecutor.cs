@@ -56,3 +56,14 @@ public class TestkitTestExecutor : ITestExecutor {
         }
     }
 }
+
+// This is suposed to be executed on every test that is discovered but was creating issues
+// So we reverted to a deterministic approach to generate a test uid.
+//
+// public class BootstrapTUnitTests : Attribute, ITestDiscoveryEventReceiver {
+//     public ValueTask OnTestDiscovered(DiscoveredTestContext ctx) {
+//         Log.Information("Test discovered: {TestName}", ctx.TestName);
+//         return ValueTask.CompletedTask;
+//     }
+// }
+

@@ -51,7 +51,6 @@ public static class TestkitExecutionContext {
             .Enrich.WithProperty("TestUid", Guid.Empty)
             .Enrich.WithProperty("AppDomainId", AppDomain.CurrentDomain.Id)
             .WriteTo.OpenTelemetry(o => o.BatchingOptions.BufferingTimeLimit = TimeSpan.FromMilliseconds(100))
-            .WriteTo.Observers(o => o.Subscribe(LogEvents.OnNext))
             .WriteTo.Console(theme: ConsoleTheme.None, outputTemplate: ConsoleOutputTemplate)
             .CreateLogger();
 
@@ -67,19 +66,9 @@ public static class TestkitExecutionContext {
         Log.Debug("Testkit context initialized");
     }
 
-    [Before(TestDiscovery)]
-    public static void BeforeTestDiscovery() {
-        Logger.LogInformation("Test discovery starting...");
-    }
-
     public static Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory { get; private set; }
 
     public static Microsoft.Extensions.Logging.ILogger Logger { get; private set; }
-
-    /// <summary>
-    /// An observable subject that emits all log events.
-    /// </summary>
-    public static Subject<LogEvent> LogEvents { get; } = new();
 
     /// <summary>
     /// The application's configuration settings, built from various sources such as JSON files and environment variables.

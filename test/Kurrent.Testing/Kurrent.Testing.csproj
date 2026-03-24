@@ -51,11 +51,6 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="Testkit\.scratch\BootstrapTUnitTests.cs" />
-    <Compile Include="Testkit\.scratch\_TestkitSystemLoggerFactory.cs" />
-  </ItemGroup>
-
 <!--  <ItemGroup>-->
 <!--    <EmbeddedResource Include="Sample\FormulaOne\Data\*.json" />-->
 <!--  </ItemGroup>-->
