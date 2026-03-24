@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing.ArcadeRacer\Kurrent.Testing.ArcadeRacer.csproj" />
     <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>

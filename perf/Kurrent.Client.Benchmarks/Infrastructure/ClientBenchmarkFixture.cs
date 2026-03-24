@@ -1,7 +1,7 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Tools;
 using Kurrent.Testing.Containers.KurrentDB;
+using Testing.ArcadeRacer;
 
 namespace Benchmarks.Infrastructure;
 
@@ -36,7 +36,7 @@ public sealed class ClientBenchmarkFixture : IAsyncDisposable {
         if (_seededStreams.TryGetValue(messageCount, out var existing))
             return existing;
 
-        var activity = HomeAutomationTestData.SimulateHomeActivity(messageCount);
+        var activity = ArcadeRacerTestData.SimulateRace(messageCount);
 
         await Client.Streams
             .AppendRecords(activity.Stream, ExpectedStreamState.Any, activity.Records)

@@ -54,7 +54,7 @@ public partial class StreamRevisionConflictException {
     public StreamName Stream           { get; private set; } = StreamName.Unset;
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
-        : this(Format(ErrorMessages.StreamRevisionConflictException, stream, expectedRevision, actualRevision)) {
+        : this(Format(format: ErrorMessages.StreamRevisionConflictException, args: [stream, expectedRevision, actualRevision])) {
         ExpectedRevision = expectedRevision;
         ActualRevision   = actualRevision;
         Stream           = stream;
@@ -82,7 +82,9 @@ public partial class AppendConsistencyViolationException {
     public AppendConsistencyViolationException(QueryPredicateViolation violation) : this([violation]) { }
 
     public void AfterParseRpcStatus(Status status, AppendConsistencyViolationException self) {
-        var details = status.GetDetail<Contracts.Errors.AppendConsistencyViolationErrorDetails>()!;
+        var details = status.GetDetail<Contracts.Errors.AppendConsistencyViolationErrorDetails>();
+
+        if (details is null) return;
 
         self.Violations = details.Violations.Select(v => {
             ConsistencyViolation violation = v.TypeCase switch {

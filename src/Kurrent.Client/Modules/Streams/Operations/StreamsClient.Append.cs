@@ -1,84 +1,36 @@
 using Kurrent.Client.Exceptions;
-using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient {
-
-    [Obsolete("Use AppendRecords instead.")]
-    async ValueTask<AppendSessionSuccess> AppendSession(
-        IAsyncEnumerable<AppendStreamRequest> requests, CancellationToken cancellationToken = default) {
-        try {
-            using var session = ServiceClient.AppendSession(cancellationToken: cancellationToken);
-
-            await foreach (var request in requests.WithCancellation(cancellationToken).ConfigureAwait(false)) {
-                if (request.Stream == StreamName.Unset || request.Stream == StreamName.All)
-                    throw new ArgumentException("Stream cannot be StreamName.Unset or StreamName.All", nameof(request.Stream));
-
-                var records = await request.Messages
-                    .Map(request.Stream, SerializerProvider, cancellationToken)
-                    .ToArrayAsync(cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (!records.Any())
-                    throw new ArgumentException("At least one record must be provided", nameof(records));
-
-                var serviceRequest = new Contracts.AppendRequest {
-                    Stream           = request.Stream,
-                    ExpectedRevision = request.ExpectedState.ToWireValue(),
-                    Records          = { records }
-                };
-
-                // Cancellation of stream writes is not supported by this gRPC implementation.
-                // To cancel the operation, we should cancel the entire session.
-                await session.RequestStream
-                    .WriteAsync(serviceRequest, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-
-            await session.RequestStream
-                .CompleteAsync()
-                .ConfigureAwait(false);
-
-            var response = await session.ResponseAsync
-                .ConfigureAwait(false);
-
-            return response.Map();
-        }
-        catch (Exception ex) {
-            throw ex.ToException(StreamNotFoundException.From, StreamTombstonedException.From, StreamRevisionConflictException.From, StreamAlreadyInAppendSessionException.From, MaxAppendRecordSizeExceededException.From, MaxAppendTransactionSizeExceededException.From, AppendSessionNoRequestsException.From);
-        }
-    }
-
     public async ValueTask<AppendRecordsSuccess> AppendRecords(
         StreamName                stream,
         ExpectedStreamState       expectedState,
         IEnumerable<AppendRecord> records,
         CancellationToken         cancellationToken = default
     ) {
-        var request = new List<AppendStreamRequest> {
-            new AppendStreamRequest(stream, expectedState, records)
-        }.ToAsyncEnumerable();
+        var builder = AppendRecordsRequest.ToStream(stream);
+
+        // V2 protocol doesn't support 'Any' — omit the check entirely (no precondition)
+        if (expectedState != ExpectedStreamState.Any)
+            builder.ExpectingState(expectedState);
+
+        foreach (var record in records)
+            builder.WithRecord(record);
 
         try {
-            var value = await AppendSession(request, cancellationToken)
-                .ConfigureAwait(false);
-
-            return new AppendRecordsSuccess(
-                [new StreamRevision(value[0].Stream, value[0].Revision)],
-                value.Position);
+            return await AppendRecords(builder.Build(), cancellationToken);
         }
-        catch (StreamNotFoundException ex) {
-            throw new AppendConsistencyViolationException(
-                new StreamStateViolation(ex.Stream, expectedState, ActualStreamCondition.NoStream));
-        }
-        catch (StreamTombstonedException ex) {
-            throw new AppendConsistencyViolationException(
-                new StreamStateViolation(ex.Stream, expectedState, ActualStreamCondition.Tombstoned));
-        }
-        catch (StreamRevisionConflictException ex) {
-            throw new AppendConsistencyViolationException(
-                new StreamStateViolation(ex.Stream, expectedState, ex.ActualRevision));
+        catch (AppendConsistencyViolationException ex) when (ex.Violations is [{ Value: StreamStateViolation v }]) {
+            // unwrap single-stream consistency violations into specific stream exceptions
+            throw v.ActualState.Match<Exception>(
+                condition => condition switch {
+                    ActualStreamCondition.Tombstoned => new StreamTombstonedException(v.Stream),
+                    ActualStreamCondition.Deleted    => new StreamDeletedException(v.Stream),
+                    ActualStreamCondition.NoStream   => new StreamNotFoundException(v.Stream),
+                    _                                => ex
+                },
+                _ => ex);
         }
     }
 
@@ -99,6 +51,9 @@ public partial class StreamsClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
                 AppendConsistencyViolationException.From,
                 MaxAppendRecordSizeExceededException.From,
                 MaxAppendTransactionSizeExceededException.From);

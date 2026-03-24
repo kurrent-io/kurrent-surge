@@ -16,7 +16,7 @@
     <PackageReference Include="Bogus" />
     <PackageReference Include="DiffEngine" />
     <PackageReference Include="DotNext" />
-    <PackageReference Include="Ductus.FluentDocker" PrivateAssets="All" />
+    <PackageReference Include="Ductus.FluentDocker" />
     <PackageReference Include="Humanizer.Core" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />

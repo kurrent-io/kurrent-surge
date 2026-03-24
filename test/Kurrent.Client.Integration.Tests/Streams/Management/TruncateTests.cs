@@ -13,7 +13,7 @@ public class TruncateTests {
 
     [Test]
     public async ValueTask truncates_stream_at_revision(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await  Fixture.Client.Streams
             .Truncate(simulation.Stream, simulation.Revision, ct);
@@ -27,7 +27,7 @@ public class TruncateTests {
 
     [Test]
     public async ValueTask truncates_full_stream(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var revision = simulation.Revision + 1; // all messages
 
@@ -43,7 +43,7 @@ public class TruncateTests {
 
     [Test]
     public async ValueTask returns_revision_conflict_error_when_revision_is_not_matched(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var badRevision = simulation.Revision + 99;
 

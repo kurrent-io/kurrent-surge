@@ -11,10 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- <PackageReference Include="Bogus" /> -->
     <PackageReference Include="Microsoft.CodeAnalysis.Common" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="All" />
-    <!-- <PackageReference Include="TUnit" /> -->
+    <PackageReference Include="TUnit" />
   </ItemGroup>
 
   <ItemGroup>

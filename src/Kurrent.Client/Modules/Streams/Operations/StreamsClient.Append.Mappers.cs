@@ -22,7 +22,8 @@ partial class StreamsProtocolMapper {
             result.Records.Add(await ToContract(record, ct).ConfigureAwait(false));
 
         foreach (var check in source.Checks)
-            result.Checks.Add(ToContract(check));
+            if (check != ConsistencyCheck.None)
+                result.Checks.Add(ToContract(check));
 
         return result;
     }
@@ -41,8 +42,12 @@ partial class StreamsProtocolMapper {
                 .Serialize(source.Value, context)
                 .ConfigureAwait(false);
 
+            var schemaVersionId = context.RecordSchema.HasSchemaId
+                ? context.RecordSchema.SchemaVersionId.ToString()
+                : Guid.NewGuid().ToString();
+
             var schema = new Contracts.SchemaInfo {
-                Id     = context.RecordSchema.SchemaVersionId,
+                Id     = schemaVersionId,
                 Name   = context.RecordSchema.SchemaName,
                 Format = (Contracts.SchemaFormat)context.RecordSchema.SchemaFormat
             };
@@ -75,8 +80,10 @@ partial class StreamsProtocolMapper {
     }
 
     public AppendRecordsSuccess ToModel(Contracts.AppendRecordsResponse source) {
-        var revisions = new StreamRevision[source.Revisions.Count];
-        revisions.AddAll(source.Revisions.Select(x => new StreamRevision(x.Stream, x.Revision)));
+        var revisions = source.Revisions
+            .Select(x => new StreamRevision(x.Stream, x.Revision))
+            .ToArray();
+
         return new(revisions, source.Position);
     }
 }

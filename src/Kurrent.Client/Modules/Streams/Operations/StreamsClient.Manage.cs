@@ -167,9 +167,13 @@ public partial class StreamsClient {
     }
 
     public async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision revision, CancellationToken cancellationToken = default) {
+        ConsistencyCheck check = revision == Revision.Unset
+            ? ConsistencyCheck.None
+            : ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision);
+
         var result = await this.AppendRecords(
-            new AppendRecord { Value = metadata },
-            ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision),
+            new AppendRecord { Value = metadata, Stream = stream.Metastream },
+            check,
             cancellationToken
         ).ConfigureAwait(false);
 

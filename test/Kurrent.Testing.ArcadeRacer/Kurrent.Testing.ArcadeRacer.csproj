@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Testing.ArcadeRacer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
+  </ItemGroup>
+</Project>

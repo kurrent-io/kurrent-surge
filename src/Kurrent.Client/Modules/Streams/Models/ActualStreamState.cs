@@ -74,14 +74,13 @@ public readonly partial record struct ExpectedStreamState
 
     internal static ExpectedStreamState FromWireValue(long value) =>
         value switch {
-            >= 0  => Revision.From(value),
-            -1    => NoStream,
-            -2    => Any,
-            -4    => Exists,
-            -10   => Deleted,
-            -100  => Tombstoned,
-            -1000 => ExpectedStreamCondition.Any,
-            _    => throw new ArgumentOutOfRangeException(nameof(value), value, $"Cannot convert value {value}. Expected -1 (NoStream), -2 (Any), -4 (Exists), -10 (Deleted), or -100 (Tombstoned).")
+            >= 0 => Revision.From(value),
+            -1   => NoStream,
+            -2   => Any,
+            -4   => Exists,
+            -5   => Deleted,
+            -6   => Tombstoned,
+            _    => throw new ArgumentOutOfRangeException(nameof(value), value, $"Cannot convert value {value}. Expected -1 (NoStream), -2 (Any), -4 (Exists), -5 (Deleted), or -6 (Tombstoned).")
         };
 
     internal long ToWireValue() =>
@@ -139,7 +138,7 @@ public enum ExpectedStreamCondition : long {
     /// <para />
     /// A soft-deleted stream can be recreated; its revision is preserved and continues to increment for new records.
     /// </remarks>
-    Deleted = -10,
+    Deleted = -5,
 
     /// <summary>
     /// The stream must be in a tombstoned state.
@@ -149,7 +148,7 @@ public enum ExpectedStreamCondition : long {
     /// <para />
     /// A tombstoned stream cannot be recreated or have any new records appended to it.
     /// </remarks>
-    Tombstoned = -100,
+    Tombstoned = -6,
 }
 
 /// <summary>
@@ -199,9 +198,9 @@ public readonly partial record struct ActualStreamState
     internal static ActualStreamState FromWireValue(long value) => value switch {
         >= 0 => Revision.From(value),
         -1   => ActualStreamCondition.NoStream,
-        -10  => ActualStreamCondition.Deleted,
-        -100 => ActualStreamCondition.Tombstoned,
-        _    => throw new ArgumentOutOfRangeException(nameof(value), value, $"Cannot convert value {value}. Expected a revision or -1 (NoStream), -10 (Deleted), or -100 (Tombstoned).")
+        -5   => ActualStreamCondition.Deleted,
+        -6   => ActualStreamCondition.Tombstoned,
+        _    => throw new ArgumentOutOfRangeException(nameof(value), value, $"Cannot convert value {value}. Expected a revision or -1 (NoStream), -5 (Deleted), or -6 (Tombstoned).")
     };
 
     internal long ToWireValue() =>
@@ -231,7 +230,7 @@ public enum ActualStreamCondition : long {
     /// <para />
     /// Its revision was not reset and will continue to increment for new records.
     /// </remarks>
-    Deleted = -10,
+    Deleted = -5,
 
     /// <summary>
     /// The stream has been hard-deleted and tombstoned.
@@ -241,7 +240,7 @@ public enum ActualStreamCondition : long {
     /// <para />
     /// It cannot be recreated or have any new records appended to it.
     /// </remarks>
-    Tombstoned = -100,
+    Tombstoned = -6,
 }
 
 // /// <summary>

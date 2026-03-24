@@ -1,7 +1,5 @@
 // ReSharper disable ArrangeTypeMemberModifiers
 
-using System.Collections;
-using System.Collections.Immutable;
 using Bogus;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
@@ -10,10 +8,8 @@ using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Serilog;
-using Testing.Datasets.HomeAutomation;
-using Testing.Datasets.HomeAutomation.Model;
+using Testing.ArcadeRacer;
 using TUnit.Core.Interfaces;
-using AppendRecord = Kurrent.Client.Streams.AppendRecord;
 
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -66,102 +62,19 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     public async ValueTask DisposeAsync() =>
         await Client.DisposeAsync().ConfigureAwait(false);
 
-    public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(int numberOfEvents, CancellationToken cancellationToken) {
-        var omgRefactor  = HomeAutomationTestData.SimulateHomeActivity(numberOfEvents);
+    public async ValueTask<SeededRace> SeedRace(int numberOfEvents, CancellationToken cancellationToken) {
+        var race = ArcadeRacerTestData.SimulateRace(numberOfEvents);
 
-        var request = new AppendRecordsRequest {
-            Records = [],
-            Checks  = [ConsistencyCheck.Stream(omgRefactor.Stream).DoesNotExist()]
-        };
-
-        var response = await Client.Streams.AppendRecords(request, cancellationToken: cancellationToken);
+        var response = await Client.Streams
+            .AppendRecords(race.AppendRequest, cancellationToken);
 
         Log.Debug(
-            "Seeded SmartHomeActivity to stream {Stream} with {Count} events with revision {Revision} at position {Position}",
-            request.Checks[0].AsStreamStateCheck.Stream, request.Records.Length, response.Revisions[0].Revision, response.Position);
+            "{Stream}: seeded {Count} race events (rev {Revision}, pos {Position})",
+            race.Stream, race.Records.Count, response.Revisions[0].Revision, response.Position);
 
-        return new SeededSmartHomeActivity(omgRefactor, response.Revisions[0].Revision, response.Position);
+        return new SeededRace(race, response.Revisions[0].Revision, response.Position);
     }
 
-    public async ValueTask<SeededSmartHomeActivity> SeedSmartHomeActivity(CancellationToken cancellationToken) =>
-        await SeedSmartHomeActivity(Random.Shared.Next(3, 13), cancellationToken);
-}
-
-public record SeededSmartHomeActivity(SmartHomeActivity Activity, Revision Revision, LogPosition Position) {
-    public SmartHome                   Home          => Activity.Home;
-    public StreamName                  Stream        => Activity.Stream;
-    public ImmutableList<AppendRecord> Records       => Activity.Messages;
-    public long                        LastTimestamp => Activity.LastTimestamp;
-
-    public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
-        Activity.SimulateMoreEvents(numberOfEvents);
-
-    public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
-        Activity.WithExpectedRevision(expectedRevision);
-
-    public static implicit operator AppendRecordsRequest(SeededSmartHomeActivity _) => _.Activity;
-}
-
-static class HomeAutomationTestData {
-    public static SmartHomeActivity SimulateHomeActivity(int? numberOfEvents = null, long? startTime = null) =>
-        SimulateHomeActivity(HomeAutomationDataSet.Default.Home(), numberOfEvents, startTime);
-
-    public static SmartHomeActivity SimulateHomeActivity(SmartHome home, int? numberOfEvents = null, long? startTime = null) {
-        var events = HomeAutomationDataSet.Default
-            .Events(home).Take(numberOfEvents ?? Random.Shared.Next(5, 15)).ToList();
-
-        var stream = $"{nameof(SmartHomeActivity)}-{home.Id}";
-
-        var request = events
-            .Aggregate(
-                AppendRecordsRequest.ToStream(stream),
-                (bldr, evt) => bldr.WithRecord(CreateRecord(evt, bldr.RecordsCount + 1)))
-            .Build();
-
-        var lastEventTs = request.Records.Last().Metadata
-            .GetRequiredValue<long>("iot.evt.timestamp");
-
-        return new SmartHomeActivity(home, request, lastEventTs);
-    }
-
-    static AppendRecord CreateRecord(object evt, int sequence) {
-        dynamic iotEvent = evt;
-
-        Guid recordId  = iotEvent.EventId;
-        long timestamp = iotEvent.Timestamp;
-
-        var meta = Metadata.New
-            .With("iot.evt.sequence", sequence)
-            .With("iot.evt.timestamp", timestamp);
-
-        var record = AppendRecord.New
-            .WithValue(evt)
-            .WithDataFormat(SchemaDataFormat.Json)
-            .WithRecordId(recordId)
-            .WithMetadata(meta)
-            .Build();
-
-        return record;
-    }
-}
-
-public record SmartHomeActivity(SmartHome Home, AppendRecordsRequest Request, long LastTimestamp) : IEnumerable<AppendRecord> {
-    public StreamName                  Stream   { get; } = Request.Records[0].Stream;
-    public ImmutableList<AppendRecord> Messages { get; } = Request.Records.ToImmutableList();
-
-    public SmartHomeActivity SimulateMoreEvents(int? numberOfEvents = null) =>
-        HomeAutomationTestData.SimulateHomeActivity(Home, numberOfEvents, LastTimestamp);
-
-    public SmartHomeActivity WithExpectedRevision(long expectedRevision) =>
-        this with {
-            Request = Request with {
-                Checks = [ConsistencyCheck.Stream(Stream).AtRevision(Revision.From(expectedRevision))]
-            }
-        };
-
-    public static implicit operator AppendRecordsRequest(SmartHomeActivity _) => _.Request;
-
-    public IEnumerator<AppendRecord> GetEnumerator() => Messages.GetEnumerator();
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    public async ValueTask<SeededRace> SeedRace(CancellationToken cancellationToken) =>
+        await SeedRace(Random.Shared.Next(3, 13), cancellationToken);
 }

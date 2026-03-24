@@ -1,7 +1,7 @@
 using JetBrains.Annotations;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Client.Tests.Tools;
+using Testing.ArcadeRacer;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -11,7 +11,7 @@ public abstract class AppendConsistencyTestBase {
 
     protected async ValueTask<(StreamName Stream, Revision Revision)> SeedActiveStream(
         int records, CancellationToken ct) {
-        var activity = HomeAutomationTestData.SimulateHomeActivity(records);
+        var activity = ArcadeRacerTestData.SimulateRace(records);
         var result   = await Fixture.Client.Streams.AppendRecords(activity.AppendRequest, ct);
         return (activity.Stream, result.Revisions[0].Revision);
     }
@@ -37,6 +37,8 @@ public abstract class AppendConsistencyTestBase {
         StreamName stream, ExpectedStreamState expectedState) =>
         AppendRecordsRequest.ToStream(stream)
             .ExpectingState(expectedState)
-            .WithRecord(new { Type = "consistency-test" })
+            .WithRecord(new ConsistencyTestRecord("consistency-test"))
             .Build();
+
+    record ConsistencyTestRecord(string Type);
 }

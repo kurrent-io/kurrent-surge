@@ -6,16 +6,11 @@ namespace Benchmarks;
 [MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class ExpressionFilterParseBenchmarks {
-    ExpressionFilterParser _parser = null!;
-
-    [GlobalSetup]
-    public void Setup() => _parser = new ExpressionFilterParser();
-
     [ParamsSource(nameof(Expressions))]
     public string Expression { get; set; } = "";
 
     [Benchmark]
-    public IFilterExpression Parse() => _parser.Parse(Expression).Value;
+    public IFilterExpression Parse() => ExpressionFilterParser.Parse(Expression);
 
     public static IEnumerable<string> Expressions => [
         "stream = 'orders-123'",

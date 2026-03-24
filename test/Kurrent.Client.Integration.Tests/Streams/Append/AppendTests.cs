@@ -2,7 +2,7 @@ using System.Text.Json;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Client.Tests.Tools;
+using Testing.ArcadeRacer;
 using Kurrent.Testkit;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -11,14 +11,14 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Integration")]
 public class AppendTests {
 
-    static AppendTests() => Environment.SetEnvironmentVariable("TestContainers:KurrentDB:Enabled", "false");
+    // static AppendTests() => Environment.SetEnvironmentVariable("TestContainers:KurrentDB:Enabled", "false");
 
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask appends_to_single_stream(CancellationToken ct) {
-        var simulation = HomeAutomationTestData.SimulateHomeActivity();
+        var simulation = ArcadeRacerTestData.SimulateRace();
 
         var success = await Fixture.Client.Streams
             .AppendRecords(simulation.AppendRequest, ct);
@@ -30,7 +30,7 @@ public class AppendTests {
 
     [Test]
     public async ValueTask creates_stream(CancellationToken ct) {
-        var simulation = HomeAutomationTestData.SimulateHomeActivity();
+        var simulation = ArcadeRacerTestData.SimulateRace();
 
         var success = await Fixture.Client.Streams
             .AppendRecords(simulation.AppendRequest, ct);
@@ -42,18 +42,18 @@ public class AppendTests {
 
     [Test]
     public async ValueTask appends_to_existing_stream(CancellationToken ct) {
-        var smartHomeActivity = await Fixture.SeedSmartHomeActivity(6, ct); // Ensure at least 6 records for Take(3) + Skip(3)
+        var raceActivity = await Fixture.SeedRace(6, ct); // Ensure at least 6 records for Take(3) + Skip(3)
 
         // create stream
         var result = await Fixture.Client.Streams
-            .AppendRecords(smartHomeActivity.Stream, ExpectedStreamCondition.NoStream, smartHomeActivity.Records.Take(3), ct);
+            .AppendRecords(raceActivity.Stream, ExpectedStreamCondition.NoStream, raceActivity.Records.Take(3), ct);
 
         // append to existing stream
         var success = await Fixture.Client.Streams
-            .AppendRecords(smartHomeActivity.Stream, result.Revisions[0].Revision, smartHomeActivity.Records.Skip(3), ct);
+            .AppendRecords(raceActivity.Stream, result.Revisions[0].Revision, raceActivity.Records.Skip(3), ct);
 
-        await Assert.That(success.Revisions[0].Stream).IsEqualTo(smartHomeActivity.Stream);
-        await Assert.That(success.Revisions[0].Revision).IsEqualTo(smartHomeActivity.Records.Count() - 1);
+        await Assert.That(success.Revisions[0].Stream).IsEqualTo(raceActivity.Stream);
+        await Assert.That(success.Revisions[0].Revision).IsEqualTo(raceActivity.Records.Count() - 1);
         await Assert.That(success.Position).IsGreaterThan(LogPosition.Earliest);
     }
 
@@ -66,27 +66,27 @@ public class AppendTests {
 
     [Test, AppendToStreamInAnyState]
     public async Task appends_to_stream_in_any_state(ExpectedStreamState expectedStreamState, CancellationToken ct) {
-        var smartHomeActivity = await Fixture.SeedSmartHomeActivity(6, ct); // Ensure at least 6 records for Take(3) + Skip(3)
+        var raceActivity = await Fixture.SeedRace(6, ct); // Ensure at least 6 records for Take(3) + Skip(3)
 
         if (expectedStreamState == (ExpectedStreamState)ExpectedStreamCondition.NoStream) {
-            var expectedRevision = Revision.From(smartHomeActivity.Records.Count() - 1);
+            var expectedRevision = Revision.From(raceActivity.Records.Count() - 1);
 
             // should create the stream
             var success = await Fixture.Client.Streams
-                .AppendRecords(smartHomeActivity.Stream, ExpectedStreamState.Any, smartHomeActivity.Records, ct);
+                .AppendRecords(raceActivity.Stream, ExpectedStreamState.Any, raceActivity.Records, ct);
 
-            await Assert.That(success.Revisions[0].Stream).IsEqualTo(smartHomeActivity.Stream);
+            await Assert.That(success.Revisions[0].Stream).IsEqualTo(raceActivity.Stream);
             await Assert.That(success.Revisions[0].Revision).IsEqualTo(expectedRevision);
             await Assert.That(success.Position).IsGreaterThan(LogPosition.Earliest);
         }
         else if(expectedStreamState == (ExpectedStreamState)ExpectedStreamCondition.Exists) {
             // create stream
             await Fixture.Client.Streams
-                .AppendRecords(smartHomeActivity.Stream, ExpectedStreamCondition.NoStream, smartHomeActivity.Records.Take(3), ct);
+                .AppendRecords(raceActivity.Stream, ExpectedStreamCondition.NoStream, raceActivity.Records.Take(3), ct);
 
             // append to existing stream
             await Fixture.Client.Streams
-                .AppendRecords(smartHomeActivity.Stream, ExpectedStreamCondition.Exists, smartHomeActivity.Records.Skip(3), ct);
+                .AppendRecords(raceActivity.Stream, ExpectedStreamCondition.Exists, raceActivity.Records.Skip(3), ct);
         }
     }
 
@@ -98,7 +98,7 @@ public class AppendTests {
 
     [Test, CreatesMultipleStreamsTransactionallyState]
     public async Task creates_multiple_streams_transactionally(int streams, CancellationToken ct) {
-        var activities = HomeAutomationTestData.SimulateHousingComplexActivity();
+        var activities = ArcadeRacerTestData.SimulateRaces();
 
         var builder = AppendRecordsRequest.New();
 
@@ -128,7 +128,7 @@ public class AppendTests {
             .ConfigureStreamDataRetention(streamName, new() { MaxCount = maxCount }, ct);
 
         // Act - Append 10 records
-        var activity = HomeAutomationTestData.SimulateHomeActivity(10);
+        var activity = ArcadeRacerTestData.SimulateRace(10);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 
@@ -159,7 +159,7 @@ public class AppendTests {
             .ConfigureStreamDataRetention(streamName, new() { MaxAge = maxAge }, ct);
 
         // Act - Append records
-        var activity = HomeAutomationTestData.SimulateHomeActivity(5);
+        var activity = ArcadeRacerTestData.SimulateRace(5);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 
@@ -196,7 +196,7 @@ public class AppendTests {
             }, ct);
 
         // Act - Append more than MaxCount
-        var activity = HomeAutomationTestData.SimulateHomeActivity(20);
+        var activity = ArcadeRacerTestData.SimulateRace(20);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 
@@ -226,12 +226,12 @@ public class AppendTests {
         var streamName = $"stream-exists-{Guid.NewGuid():N}";
 
         // Create stream first
-        var activity = HomeAutomationTestData.SimulateHomeActivity(1);
+        var activity = ArcadeRacerTestData.SimulateRace(1);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 
         // Act & Assert - Attempt to append with NoStream expectation
-        var activity2 = HomeAutomationTestData.SimulateHomeActivity(1);
+        var activity2 = ArcadeRacerTestData.SimulateRace(1);
         await Assert.That(async () => await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity2.Records, ct))
             .Throws<AppendConsistencyViolationException>();
@@ -243,7 +243,7 @@ public class AppendTests {
         var streamName = $"stream-missing-{Guid.NewGuid():N}";
 
         // Act & Assert - Attempt to append with StreamExists expectation
-        var activity = HomeAutomationTestData.SimulateHomeActivity(1);
+        var activity = ArcadeRacerTestData.SimulateRace(1);
         await Assert.That(async () => await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.Exists, activity.Records, ct))
             .Throws<AppendConsistencyViolationException>();
@@ -255,12 +255,12 @@ public class AppendTests {
         var streamName = $"stream-revision-{Guid.NewGuid():N}";
 
         // Create stream with 3 records (revision will be 2)
-        var activity1 = HomeAutomationTestData.SimulateHomeActivity(3);
+        var activity1 = ArcadeRacerTestData.SimulateRace(3);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity1.Records, ct);
 
         // Act & Assert - Attempt to append expecting wrong revision
-        var activity2 = HomeAutomationTestData.SimulateHomeActivity(1);
+        var activity2 = ArcadeRacerTestData.SimulateRace(1);
         var ex = await Assert.ThrowsAsync<AppendConsistencyViolationException>(
             async () => await Fixture.Client.Streams
                 .AppendRecords(streamName, Revision.From(5), activity2.Records, ct));
@@ -286,7 +286,7 @@ public class AppendTests {
             .SetStreamMetadata(streamName, new StreamMetadata { CustomMetadata = customJson }, ct);
 
         // Act - Append records
-        var activity = HomeAutomationTestData.SimulateHomeActivity(5);
+        var activity = ArcadeRacerTestData.SimulateRace(5);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 
@@ -311,7 +311,7 @@ public class AppendTests {
             }, ct);
 
         // Act - Append records
-        var activity = HomeAutomationTestData.SimulateHomeActivity(5);
+        var activity = ArcadeRacerTestData.SimulateRace(5);
         await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 
@@ -335,7 +335,7 @@ public class AppendTests {
             .ConfigureStreamDataRetention(streamName, new() { MaxCount = maxCount }, ct);
 
         // Act - Create stream via first append (using NoStream)
-        var activity = HomeAutomationTestData.SimulateHomeActivity(3);
+        var activity = ArcadeRacerTestData.SimulateRace(3);
         var result = await Fixture.Client.Streams
             .AppendRecords(streamName, ExpectedStreamCondition.NoStream, activity.Records, ct);
 

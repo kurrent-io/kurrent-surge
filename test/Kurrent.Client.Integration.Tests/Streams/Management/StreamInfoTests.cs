@@ -2,7 +2,7 @@ using System.Text.Json;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Client.Tests.Tools;
+using Testing.ArcadeRacer;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -15,7 +15,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask returns_existing_stream_info(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var customMetadata = JsonDocument.Parse("""{"key1":"value1"}""");
 
@@ -49,7 +49,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask returns_stream_info_with_empty_metadata_when_no_metadata_exists(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var info = await Fixture.Client.Streams
             .GetStreamInfo(simulation.Stream, ct);
@@ -73,7 +73,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask returns_stream_info_when_stream_is_deleted(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await Fixture.Client.Streams
             .Delete(simulation.Stream, ct);
@@ -87,7 +87,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask returns_stream_info_when_stream_is_tombstoned(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await Fixture.Client.Streams
             .Tombstone(simulation.Stream, ct);
@@ -101,7 +101,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask sets_stream_metadata_when_stream_exists(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var customMetadata = JsonDocument.Parse("""{ "key1": "value1" }""");
 
@@ -121,7 +121,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask sets_stream_metadata_when_stream_does_not_exist(CancellationToken ct) {
-        var simulation = HomeAutomationTestData.SimulateHomeActivity(1);
+        var simulation = ArcadeRacerTestData.SimulateRace(1);
 
         var stream = simulation.Stream;
 
@@ -151,7 +151,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask sets_stream_metadata_when_stream_is_deleted(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await Fixture.Client.Streams
             .Delete(simulation.Stream, ct);
@@ -168,7 +168,7 @@ public class StreamInfoTests {
 
     [Test]
     public async ValueTask fails_to_set_stream_metadata_when_stream_is_tombstoned(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await Fixture.Client.Streams
             .Tombstone(simulation.Stream, ct);

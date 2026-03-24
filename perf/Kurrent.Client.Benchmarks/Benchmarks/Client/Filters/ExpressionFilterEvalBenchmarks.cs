@@ -16,8 +16,7 @@ public class ExpressionFilterEvalBenchmarks {
 
     [GlobalSetup]
     public void Setup() {
-        var parser = new ExpressionFilterParser();
-        _filter = parser.Parse(Scenario.Expression).Value;
+        _filter = ExpressionFilterParser.Parse(Scenario.Expression);
         _record = Scenario.CreateRecord();
     }
 

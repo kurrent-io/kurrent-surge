@@ -23,6 +23,7 @@
   </Folder>
 
   <Folder Name="/Shared/">
+    <Project Path="test/Kurrent.Testing.ArcadeRacer/Kurrent.Testing.ArcadeRacer.csproj" />
     <Project Path="test/Kurrent.Testing.Datasets/Kurrent.Testing.Datasets.csproj" />
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />

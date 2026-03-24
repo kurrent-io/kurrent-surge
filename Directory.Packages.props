@@ -8,8 +8,8 @@
     <PackageVersion Include="DotNext.Threading" Version="5.26.3" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="Google.Api.CommonProtos" Version="2.17.0" />
-    <PackageVersion Include="Google.Protobuf" Version="3.34.0" />
-    <PackageVersion Include="Google.Protobuf.Tools" Version="3.34.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.34.1" />
+    <PackageVersion Include="Google.Protobuf.Tools" Version="3.34.1" />
     <PackageVersion Include="Grpc.StatusProto" Version="2.76.0" />
     <PackageVersion Include="Grpc.Net.Client" Version="2.76.0" />
     <PackageVersion Include="Grpc.Net.ClientFactory" Version="2.76.0" />
@@ -34,7 +34,7 @@
     <PackageVersion Include="OpenTelemetry.Api" Version="1.15.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
     <PackageVersion Include="System.Linq.Async" Version="7.0.0" />
-    <PackageVersion Include="TUnit.Assertions" Version="1.20.0" />
+    <PackageVersion Include="TUnit.Assertions" Version="1.21.6" />
   </ItemGroup>
   <!--- Packages for source generation -->
   <ItemGroup>

@@ -1,19 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net10.0</TargetFrameworks>
     <RootNamespace>Kurrent.Client.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing.ArcadeRacer\Kurrent.Testing.ArcadeRacer.csproj" />
     <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
-
-<!--  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">-->
-<!--    <ProjectReference Include="..\Kurrent.SDK.Testing\Kurrent.SDK.Testing.csproj" />-->
-<!--  </ItemGroup>-->
-
+  
   <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testing" />

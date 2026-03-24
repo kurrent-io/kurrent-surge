@@ -2,7 +2,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Client.Tests.Tools;
+using Testing.ArcadeRacer;
 using Kurrent.Testkit;
 using Serilog;
 
@@ -17,14 +17,11 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_log(CancellationToken ct) {
-        // var home = HomeAutomationDataSet.Default.Home();
-        // var stream = StreamName.From($"{nameof(SmartHomeActivity)}-{home.Id}");
-
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         var stoppingToken = cancellator.Token;
 
-        var simulation = await Fixture.SeedSmartHomeActivity(10, stoppingToken);
+        var simulation = await Fixture.SeedRace(10, stoppingToken);
 
         var options = ReadLog.FromStart()
             .WithFilterExpression($"stream = '{simulation.Stream}'")
@@ -60,7 +57,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_stream(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var now = Fixture.Time.GetUtcNow();
 
@@ -84,7 +81,7 @@ public class ReadTests {
 
             await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
             await Assert.That(record.Schema.SchemaFormat).IsEqualTo(iotEvent.DataFormat);
-            await Assert.That(record.Schema.SchemaVersionId).IsEqualTo(SchemaVersionId.Unset);
+            await Assert.That(record.Schema.SchemaVersionId).IsNotEqualTo(SchemaVersionId.Unset);
 
             await Assert.That(record.Value).IsEquivalentTo(iotEvent.Value);
             await Assert.That(record.ValueType).IsEqualTo(iotEvent.Value.GetType());
@@ -106,7 +103,7 @@ public class ReadTests {
     [Arguments(10)]
     [Arguments(100)]
     public async ValueTask gracefully_stops_reading_and_flushes_queue_when_read_token_is_cancelled(int records, CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(records, ct);
+        var simulation = await Fixture.SeedRace(records, ct);
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -134,7 +131,7 @@ public class ReadTests {
     [Arguments(10)]
     [Arguments(100)]
     public async ValueTask gracefully_stops_reading_without_flushing_queue_when_enumerable_token_is_cancelled(int records, CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(records, ct);
+        var simulation = await Fixture.SeedRace(records, ct);
 
         await using RecordStream messages = await Fixture.Client.Streams
             .ReadStreamRecords(simulation.Stream, ct);
@@ -158,7 +155,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_first_stream_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var expectedRecord = simulation.Records.First();
 
@@ -171,7 +168,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_last_stream_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         var expectedRecord = simulation.Records.Last();
 
@@ -201,7 +198,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask fails_with_log_position_not_found_when_log_position_is_broken(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         RecordStream messages = await Fixture.Client.Streams
             .ReadStreamRecords(simulation.Stream, ct);
@@ -232,7 +229,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_stream_from_specific_revision(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(10, ct);
+        var simulation = await Fixture.SeedRace(10, ct);
 
         var startFrom = 5;
 
@@ -261,7 +258,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask fails_with_stream_deleted_error_when_stream_is_deleted(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await Fixture.Client.Streams
             .Delete(simulation.Stream, ct);
@@ -273,7 +270,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask fails_with_stream_tombstoned_error_when_stream_is_tombstoned(CancellationToken ct) {
-        var simulation = await Fixture.SeedSmartHomeActivity(ct);
+        var simulation = await Fixture.SeedRace(ct);
 
         await Fixture.Client.Streams
             .Tombstone(simulation.Stream, ct);
@@ -285,7 +282,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask fails_with_stream_not_found_error_when_stream_does_not_exist(CancellationToken ct) {
-        var activity = HomeAutomationTestData.SimulateHomeActivity();
+        var activity = ArcadeRacerTestData.SimulateRace();
 
         await Assert.That(async () => await Fixture.Client.Streams
             .ReadStreamRecords(activity.Stream, ct))
