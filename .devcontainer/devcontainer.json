@@ -1,5 +1,5 @@
 {
-  "name": "RedSec",
+  "name": "Kurrent .NET SDK",
 
   "image": "ghcr.io/kurrent-io/devcontainers/dotnet",
 
@@ -21,8 +21,7 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "dotnet.defaultSolution": "RedSec.slnx",
-        "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'MesloLGS NF', monospace"
+        "dotnet.defaultSolution": "kurrent-sdk-dotnet.slnx"
       }
     }
   },

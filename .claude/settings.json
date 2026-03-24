@@ -90,7 +90,7 @@
       }
     }
   },
-  "plansDirectory": "./project/docs/plans",
+  "plansDirectory": ".project/docs/plans",
   "hooks": {
     "SessionStart": [
       {
