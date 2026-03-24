@@ -5,6 +5,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
   </ItemGroup>
 </Project>

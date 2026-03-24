@@ -1,8 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <RootNamespace>Kurrent.Testkit.Datasets</RootNamespace>
-  </PropertyGroup>
-
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Testkit.Datasets.Tests" />
   </ItemGroup>
