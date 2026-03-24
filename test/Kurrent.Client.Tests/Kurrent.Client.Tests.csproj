@@ -4,8 +4,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\examples\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>

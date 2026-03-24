@@ -1,177 +1,177 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
-using Testing.Datasets.ArcadeRacer.Model;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Testing.Datasets.ArcadeRacer.Contracts;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 /// <summary>Marker interface for all events produced by the arcade race simulation.</summary>
 public interface IRaceEvent {
     /// <summary>Unique identifier for this event instance.</summary>
-    Guid EventId { get; init; }
+    Guid EventId { get; set; }
 
     /// <summary>Unix timestamp in milliseconds when the event occurred.</summary>
-    long Timestamp { get; init; }
+    long Timestamp { get; set; }
 }
 
 /// <summary>Emitted when the starting grid is formed with cars, circuit, and conditions.</summary>
-public record GridFormed : IRaceEvent {
+public class GridFormed : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Cars placed on the starting grid.</summary>
-    public required RaceCar[] Cars { get; init; }
+    public RaceCar[] Cars { get; set; } = [];
 
     /// <summary>The circuit being raced on.</summary>
-    public required Circuit Circuit { get; init; }
+    public Circuit Circuit { get; set; } = new();
 
     /// <summary>Initial weather and time-of-day conditions.</summary>
-    public required RaceConditions Conditions { get; init; }
+    public RaceConditions Conditions { get; set; } = new();
 
     /// <summary>Total number of laps in the race. Zero means unlimited.</summary>
-    public required int TotalLaps { get; init; }
+    public int TotalLaps { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted once at the start of the race, establishing the race clock.</summary>
-public record RaceStarted : IRaceEvent {
+public class RaceStarted : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted for each car at the end of a lap with timing data.</summary>
-public record LapCompleted : IRaceEvent {
+public class LapCompleted : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Identifier of the car that completed the lap.</summary>
-    public required Guid CarId { get; init; }
+    public Guid CarId { get; set; }
 
     /// <summary>Lap number just completed (1-based).</summary>
-    public required int Lap { get; init; }
+    public int Lap { get; set; }
 
     /// <summary>Time in seconds for this lap alone.</summary>
-    public required double LapTime { get; init; }
+    public double LapTime { get; set; }
 
     /// <summary>Total elapsed race time in seconds.</summary>
-    public required double CumulativeTime { get; init; }
+    public double CumulativeTime { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted when a car gains a position by passing another car during a lap.</summary>
-public record OvertakePerformed : IRaceEvent {
+public class OvertakePerformed : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Identifier of the car that gained the position.</summary>
-    public required Guid OvertakerId { get; init; }
+    public Guid OvertakerId { get; set; }
 
     /// <summary>Identifier of the car that lost the position.</summary>
-    public required Guid DefenderId { get; init; }
+    public Guid DefenderId { get; set; }
 
     /// <summary>Lap number when the overtake occurred.</summary>
-    public required int Lap { get; init; }
+    public int Lap { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted when a car enters the pit lane for tire refresh, incurring a time penalty.</summary>
-public record PitStopPerformed : IRaceEvent {
+public class PitStopPerformed : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Identifier of the car that pitted.</summary>
-    public required Guid CarId { get; init; }
+    public Guid CarId { get; set; }
 
     /// <summary>Lap number when the pit stop occurred.</summary>
-    public required int Lap { get; init; }
+    public int Lap { get; set; }
 
     /// <summary>Time penalty in seconds added to cumulative time.</summary>
-    public required double TimePenalty { get; init; }
+    public double TimePenalty { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted when a car is involved in an incident that results in a time penalty.</summary>
-public record IncidentOccurred : IRaceEvent {
+public class IncidentOccurred : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Identifier of the affected car.</summary>
-    public required Guid CarId { get; init; }
+    public Guid CarId { get; set; }
 
     /// <summary>Lap number when the incident occurred.</summary>
-    public required int Lap { get; init; }
+    public int Lap { get; set; }
 
     /// <summary>Human-readable description of the incident (e.g. "tire puncture").</summary>
-    public required string Description { get; init; }
+    public string Description { get; set; } = "";
 
     /// <summary>Time penalty in seconds added to cumulative time.</summary>
-    public required double TimePenalty { get; init; }
+    public double TimePenalty { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted when a car retires from the race (Did Not Finish).</summary>
-public record CarRetired : IRaceEvent {
+public class CarRetired : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Identifier of the retired car.</summary>
-    public required Guid CarId { get; init; }
+    public Guid CarId { get; set; }
 
     /// <summary>Lap number when the car retired.</summary>
-    public required int Lap { get; init; }
+    public int Lap { get; set; }
 
     /// <summary>Human-readable description of the retirement cause.</summary>
-    public required string Description { get; init; }
+    public string Description { get; set; } = "";
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted when weather conditions change mid-race, affecting the difficulty profile.</summary>
-public record WeatherChanged : IRaceEvent {
+public class WeatherChanged : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Weather condition before the change.</summary>
-    public required Weather OldWeather { get; init; }
+    public Weather OldWeather { get; set; }
 
     /// <summary>Weather condition after the change.</summary>
-    public required Weather NewWeather { get; init; }
+    public Weather NewWeather { get; set; }
 
     /// <summary>Lap number when the change occurred.</summary>
-    public required int Lap { get; init; }
+    public int Lap { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }
 
 /// <summary>Emitted once at the end of the race with final standings for all cars.</summary>
-public record RaceFinished : IRaceEvent {
+public class RaceFinished : IRaceEvent {
     /// <inheritdoc />
-    public required Guid EventId { get; init; }
+    public Guid EventId { get; set; }
 
     /// <summary>Ordered array of race results (finishers first, then DNFs).</summary>
-    public required RaceResult[] Results { get; init; }
+    public RaceResult[] Results { get; set; } = [];
 
     /// <summary>The race winner (first position in <see cref="Results"/>).</summary>
-    public RaceResult Winner => Results[0];
+    public RaceResult? Winner => Results.Length > 0 ? Results[0] : null;
 
     /// <summary>Total laps completed in the race.</summary>
-    public required int TotalLaps { get; init; }
+    public int TotalLaps { get; set; }
 
     /// <inheritdoc />
-    public required long Timestamp { get; init; }
+    public long Timestamp { get; set; }
 }

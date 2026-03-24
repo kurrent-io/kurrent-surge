@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public record SmartHome {
     public required string       Id        { get; init; }

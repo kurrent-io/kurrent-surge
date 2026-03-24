@@ -1,5 +1,5 @@
 
-namespace Testing.Datasets.HomeAutomation.Contracts.Events;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
 public record DeviceInfo {
     public required string Id           { get; init; }

@@ -1,6 +1,6 @@
-using Testing.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
-namespace Testing.Datasets.ArcadeRacer.Model;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>Mutable state of a race, mutated in place by the <see cref="ArcadeRace"/> aggregate.</summary>
 public class ArcadeRaceState {
@@ -74,7 +74,7 @@ public class ArcadeRaceState {
                 break;
 
             case WeatherChanged e:
-                Conditions = Conditions with { Weather = e.NewWeather };
+                Conditions = new RaceConditions { TimeOfDay = Conditions.TimeOfDay, Weather = e.NewWeather };
                 Profile    = DifficultyProfile.For(Circuit.Difficulty, Conditions);
                 break;
 

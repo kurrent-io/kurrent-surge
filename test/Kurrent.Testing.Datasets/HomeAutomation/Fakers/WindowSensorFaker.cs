@@ -1,7 +1,7 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class WindowSensorFaker : Faker<WindowSensor> {
     public static readonly WindowSensorFaker Instance = new();

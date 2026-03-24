@@ -2,10 +2,12 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
-using Testing.Datasets.ArcadeRacer.Contracts;
-using Testing.Datasets.ArcadeRacer.Model;
+using Kurrent.Testkit.Datasets.ArcadeRacer;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Testing.Datasets.ArcadeRacer.Tests;
+namespace Kurrent.Testkit.Datasets.Tests.ArcadeRacer;
 
 [Category("ArcadeRacer")]
 public class ArcadeRaceTests {
@@ -16,9 +18,9 @@ public class ArcadeRaceTests {
         var race  = new ArcadeRace(faker);
 
         race.FormGrid(new ArcadeRaceOptions {
-            Cars       = ds.Grid(cars),
-            Circuit    = ds.Circuit(difficulty),
-            Conditions = new RaceConditions(TimeOfDay.Day, Weather.Sunny),
+            Cars       = ds.RaceCar.Generate(cars),
+            Circuit    = Circuit.New(faker).RuleFor(x => x.Difficulty, difficulty).Generate(),
+            Conditions = new RaceConditions { TimeOfDay = TimeOfDay.Day, Weather = Weather.Sunny },
             TotalLaps  = laps
         });
 
@@ -72,12 +74,12 @@ public class ArcadeRaceTests {
 
         var highHandling = new RaceCar {
             Id = Guid.NewGuid(), Name = "Handler", Number = 1, Pilot = "H. Test",
-            Spec = new RaceCarSpec(5, 5, 10, 10)
+            Spec = new RaceCarSpec { Acceleration = 5, TopSpeed = 5, Handling = 10, Endurance = 10 }
         };
 
         var lowHandling = new RaceCar {
             Id = Guid.NewGuid(), Name = "Speeder", Number = 2, Pilot = "S. Test",
-            Spec = new RaceCarSpec(5, 5, 1, 10)
+            Spec = new RaceCarSpec { Acceleration = 5, TopSpeed = 5, Handling = 1, Endurance = 10 }
         };
 
         var race = new ArcadeRace(faker);
@@ -85,7 +87,7 @@ public class ArcadeRaceTests {
         race.FormGrid(new ArcadeRaceOptions {
             Cars       = [highHandling, lowHandling],
             Circuit    = circuit,
-            Conditions = new RaceConditions(TimeOfDay.Day, Weather.Sunny),
+            Conditions = new RaceConditions { TimeOfDay = TimeOfDay.Day, Weather = Weather.Sunny },
             TotalLaps  = 5
         });
 

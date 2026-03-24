@@ -1,8 +1,8 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Contracts.Events;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class DoorEventFaker(Device device, Guid roomId, long timestamp) {
     readonly Faker _faker = new();

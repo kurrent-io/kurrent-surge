@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public enum AlarmStatus {
     Unspecified = 0,

@@ -3,7 +3,7 @@
 
 using Bogus;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public static class FakerExtensions {
     extension(Faker faker) {

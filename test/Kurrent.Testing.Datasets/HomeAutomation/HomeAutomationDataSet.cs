@@ -4,10 +4,10 @@
 // ReSharper disable IteratorNeverReturns
 
 using Bogus;
-using Testing.Datasets.HomeAutomation.Contracts.Events;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public interface IHomeAutomationDataSet {
     SmartHome Home(int? rooms = null, int? devicesPerRoom = null);

@@ -1,4 +1,4 @@
-namespace Testing.Datasets.ArcadeRacer.Model;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>Simulation tuning parameters derived from <see cref="CircuitDifficulty"/> and <see cref="RaceConditions"/>.</summary>
 public record DifficultyProfile {

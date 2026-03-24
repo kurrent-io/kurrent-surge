@@ -1,7 +1,7 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class HumiditySensorFaker : Faker<HumiditySensor> {
     public static readonly HumiditySensorFaker Instance = new();

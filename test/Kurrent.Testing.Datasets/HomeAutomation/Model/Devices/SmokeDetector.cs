@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public sealed record SmokeDetector : Device {
     public required string SensorType     { get; init; } // "photoelectric" | "ionization"

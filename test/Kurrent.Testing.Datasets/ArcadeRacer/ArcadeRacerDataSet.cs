@@ -2,128 +2,42 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
-using Testing.Datasets.ArcadeRacer.Contracts;
-using Testing.Datasets.ArcadeRacer.Model;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 
-namespace Testing.Datasets.ArcadeRacer;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer;
 
-/// <summary>Bogus <see cref="DataSet"/> that generates randomized cars, circuits, and race conditions.</summary>
-public class ArcadeRacerDataSet(Faker? faker = null) : CustomDataSet<ArcadeRacerDataSet>(faker ?? new Faker()) {
+/// <summary>
+/// Entry point for generating arcade racer test data. Provides access to model fakers,
+/// event fakers, and the race simulation builder.
+/// </summary>
+public class ArcadeRacerDataSet {
+    public static readonly ArcadeRacerDataSet Instance = new();
 
-    protected override void Initialize() { }
+    readonly Faker _faker;
 
-    #region Vocabulary
-
-    static readonly string[] CarAdjectives = [
-        "Thunder", "Shadow", "Blaze", "Storm", "Phantom",
-        "Viper", "Turbo", "Apex", "Nitro", "Volt",
-        "Fury", "Stealth", "Hyper", "Nova", "Titan"
-    ];
-
-    static readonly string[] CarNouns = [
-        "Bolt", "Hawk", "Fury", "Fang", "Arrow",
-        "Ghost", "Rocket", "Streak", "Strike", "Claw",
-        "Flash", "Edge", "Blade", "Surge", "Drift"
-    ];
-
-    static readonly string[] CarSuffixes = [
-        "MK-I", "MK-II", "MK-III", "MK-IV", "MK-V",
-        "GT", "GTS", "RS", "Sport", "Pro", "Turbo"
-    ];
-
-    static readonly string[] CircuitPrefixes = [
-        "Bay", "Grand", "Silver", "Iron", "Storm",
-        "Eagle", "Royal", "Shadow", "Thunder", "Crystal",
-        "Golden", "Red", "Black", "Emerald", "Azure"
-    ];
-
-    static readonly string[] CircuitSuffixes = [
-        "shore", "vale", "park", "ring", "way",
-        "wood", "heights", "point", "ridge", "crest",
-        "gate", "field", "haven", "stone", "brook"
-    ];
-
-    internal static readonly string[] IncidentDescriptions = [
-        "spun off at corner exit",
-        "mechanical failure",
-        "collision with barrier",
-        "engine stall on straight",
-        "brake failure into corner",
-        "suspension damage from curb",
-        "gearbox malfunction",
-        "hydraulic leak",
-        "electrical failure",
-        "tire puncture",
-        "collision with debris",
-        "overheated engine"
-    ];
-
-    #endregion
-
-    #region Simulation
-
-    /// <summary>Creates a new <see cref="ArcadeRaceBuilder"/> that shares this dataset's <see cref="Faker"/> instance.</summary>
-    /// <returns>A fluent builder for configuring and running a race simulation.</returns>
-    public ArcadeRaceBuilder NewRace() => new(Faker);
-
-    #endregion
-
-    #region Generators
-
-    /// <summary>Generates a randomized <see cref="Testing.Datasets.ArcadeRacer.Model.RaceCar"/> with random name, pilot, and spec.</summary>
-    /// <param name="number">Grid number assigned to the car.</param>
-    /// <returns>A new <see cref="Testing.Datasets.ArcadeRacer.Model.RaceCar"/> with randomized attributes.</returns>
-    public RaceCar RaceCar(int number = 1) {
-        var adj    = Random.ArrayElement(CarAdjectives);
-        var noun   = Random.ArrayElement(CarNouns);
-        var suffix = Random.Bool() ? $" {Random.ArrayElement(CarSuffixes)}" : "";
-        var first  = Faker.Name.FirstName();
-        var last   = Faker.Name.LastName();
-
-        return new RaceCar {
-            Id     = Guid.NewGuid(),
-            Name   = $"{adj} {noun}{suffix}",
-            Number = number,
-            Pilot  = $"{first[0]}. {last}",
-            Spec = new RaceCarSpec(
-                Acceleration: Random.Number(1, 10),
-                TopSpeed:     Random.Number(1, 10),
-                Handling:     Random.Number(1, 10),
-                Endurance:    Random.Number(1, 10)
-            )
-        };
+    public ArcadeRacerDataSet(Faker? faker = null) {
+        _faker = faker ?? new Faker();
+        RaceCar = new RaceCarFaker(_faker);
+        Circuit = new CircuitFaker(_faker);
+        Events  = new EventFakers(_faker);
     }
 
-    /// <summary>Generates a starting grid of randomized cars numbered 1 through <paramref name="count"/>.</summary>
-    /// <param name="count">Number of cars on the grid.</param>
-    /// <returns>A list of <see cref="ArcadeRacer.RaceCar"/> instances.</returns>
-    public List<RaceCar> Grid(int count = 12) =>
-        Enumerable.Range(1, count).Select(RaceCar).ToList();
+    public RaceCarFaker RaceCar { get; }
+    public CircuitFaker Circuit { get; }
+    public EventFakers  Events  { get; }
 
-    /// <summary>Generates a randomized <see cref="ArcadeRacer.Circuit"/> with the given difficulty.</summary>
-    /// <param name="difficulty">Difficulty tier for the generated circuit.</param>
-    /// <returns>A new <see cref="ArcadeRacer.Circuit"/> with randomized layout and name.</returns>
-    public Circuit Circuit(CircuitDifficulty difficulty = CircuitDifficulty.Medium) {
-        var prefix = Random.ArrayElement(CircuitPrefixes);
-        var suffix = Random.ArrayElement(CircuitSuffixes);
+    /// <summary>Creates a new race simulation builder using this dataset's faker.</summary>
+    public ArcadeRaceBuilder NewRace() => new(_faker);
 
-        return new Circuit {
-            Id         = Guid.NewGuid(),
-            Name       = $"{prefix}{suffix}",
-            Country    = Faker.Address.Country(),
-            Corners    = Random.Number(4, 16),
-            Straights  = Random.Number(3, 12),
-            LengthKm   = Math.Round(Random.Double(3.0, 7.0), 3),
-            Difficulty = difficulty
-        };
+    public class EventFakers(Faker faker) {
+        public GridFormedFaker        GridFormed        { get; } = new(faker);
+        public RaceStartedFaker       RaceStarted       { get; } = new(faker);
+        public LapCompletedFaker      LapCompleted      { get; } = new(faker);
+        public OvertakePerformedFaker OvertakePerformed { get; } = new(faker);
+        public PitStopPerformedFaker  PitStopPerformed  { get; } = new(faker);
+        public IncidentOccurredFaker  IncidentOccurred  { get; } = new(faker);
+        public CarRetiredFaker        CarRetired        { get; } = new(faker);
+        public WeatherChangedFaker    WeatherChanged    { get; } = new(faker);
+        public RaceFinishedFaker      RaceFinished      { get; } = new(faker);
     }
-
-    /// <summary>Generates random <see cref="RaceConditions"/> with a random time of day and weather.</summary>
-    /// <returns>A randomly selected combination of <see cref="TimeOfDay"/> and <see cref="Weather"/>.</returns>
-    public RaceConditions Conditions() => new(
-        TimeOfDay: Faker.PickRandom(TimeOfDay.Day, TimeOfDay.Night),
-        Weather:   Faker.PickRandom(Weather.Sunny, Weather.Rainy)
-    );
-
-    #endregion
 }

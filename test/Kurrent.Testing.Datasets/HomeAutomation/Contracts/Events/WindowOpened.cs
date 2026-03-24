@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Contracts.Events;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
 public record WindowOpened : IHomeAutomationEvent {
     public Guid EventId { get; init; } = Guid.NewGuid();

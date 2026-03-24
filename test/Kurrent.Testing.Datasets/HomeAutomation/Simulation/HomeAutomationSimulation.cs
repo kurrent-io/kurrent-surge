@@ -1,9 +1,9 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Contracts.Commands;
-using Testing.Datasets.HomeAutomation.Contracts.Events;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Commands;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation.Simulation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Simulation;
 
 public static class HomeSimulator {
     public static HomeAutomationSimulationBuilder NewSimulation() => new();

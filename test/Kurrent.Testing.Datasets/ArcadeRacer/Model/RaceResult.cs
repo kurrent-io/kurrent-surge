@@ -1,21 +1,28 @@
-namespace Testing.Datasets.ArcadeRacer.Model;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>Final standings entry for a single car in a completed race.</summary>
-/// <param name="CarId">Unique car identifier.</param>
-/// <param name="CarName">Generated car name.</param>
-/// <param name="Pilot">Pilot name.</param>
-/// <param name="Position">Finishing position (1-based). DNF cars are ranked after finishers.</param>
-/// <param name="Dnf">True if the car did not finish.</param>
-/// <param name="CumulativeTime">Total race time in seconds. Zero for DNF cars.</param>
-/// <param name="GapToLeader">Time gap to the race leader in seconds.</param>
-/// <param name="LapsCompleted">Number of laps completed before finishing or retiring.</param>
-public record struct RaceResult(
-    Guid   CarId,
-    string CarName,
-    string Pilot,
-    int    Position,
-    bool   Dnf,
-    double CumulativeTime,
-    double GapToLeader,
-    int    LapsCompleted
-);
+public class RaceResult {
+    /// <summary>Unique car identifier.</summary>
+    public Guid CarId { get; set; }
+
+    /// <summary>Generated car name.</summary>
+    public string CarName { get; set; } = "";
+
+    /// <summary>Pilot name.</summary>
+    public string Pilot { get; set; } = "";
+
+    /// <summary>Finishing position (1-based). DNF cars are ranked after finishers.</summary>
+    public int Position { get; set; }
+
+    /// <summary>True if the car did not finish.</summary>
+    public bool Dnf { get; set; }
+
+    /// <summary>Total race time in seconds. Zero for DNF cars.</summary>
+    public double CumulativeTime { get; set; }
+
+    /// <summary>Time gap to the race leader in seconds.</summary>
+    public double GapToLeader { get; set; }
+
+    /// <summary>Number of laps completed before finishing or retiring.</summary>
+    public int LapsCompleted { get; set; }
+}

@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public sealed record DoorLock : Device {
     public required bool HasKeypad  { get; init; }

@@ -3,13 +3,15 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Schema.Serialization.Fixtures;
+using Kurrent.Testkit.Datasets.ArcadeRacer;
 
 namespace Kurrent.Client.Tests.Schema.Serialization.Json;
 
 [InheritsTests]
 [Category("SerDe")]
 public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
+	static readonly ArcadeRacerDataSet ArcadeRacer = ArcadeRacerDataSet.Instance;
+
 	protected override SchemaDataFormat ExpectedDataFormat => SchemaDataFormat.Json;
 
 	protected override ISchemaSerializer CreateSut() {
@@ -23,9 +25,9 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	}
 
 	protected override object[] CreateTestMessages() => [
-		TransfermarktFakers.PlayerTransferred.Generate(),
-		TransfermarktFakers.PlayerRetired.Generate(),
-		TransfermarktFakers.PlayerRegistered.Generate()
+		ArcadeRacer.Events.LapCompleted.Generate(),
+		ArcadeRacer.Events.OvertakePerformed.Generate(),
+		ArcadeRacer.Events.PitStopPerformed.Generate()
 	];
 
 	protected override SchemaSerializationContext CreateSerializeContext() => new() {
@@ -48,29 +50,29 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	[Test]
 	public async ValueTask serialize_uses_camel_case_by_default() {
 		// Arrange
-		var context  = CreateSerializeContext();
-		var transfer = TransfermarktFakers.PlayerTransferred.Generate();
+		var context = CreateSerializeContext();
+		var lap     = ArcadeRacer.Events.LapCompleted.Generate();
 
 		// Act
-		var result = await Sut.Serialize(transfer, context).ConfigureAwait(false);
+		var result = await Sut.Serialize(lap, context).ConfigureAwait(false);
 		var json   = Encoding.UTF8.GetString(result.Span);
 
 		// Assert
-		await Assert.That(json).Contains("\"transferId\"");
-		await Assert.That(json).Contains("\"playerId\"");
-		await Assert.That(json).Contains("\"playerName\"");
-		await Assert.That(json).Contains("\"fee\"");
+		await Assert.That(json).Contains("\"eventId\"");
+		await Assert.That(json).Contains("\"carId\"");
+		await Assert.That(json).Contains("\"lapTime\"");
+		await Assert.That(json).Contains("\"cumulativeTime\"");
 
-		await Assert.That(json).DoesNotContain("\"TransferId\"");
-		await Assert.That(json).DoesNotContain("\"PlayerId\"");
+		await Assert.That(json).DoesNotContain("\"EventId\"");
+		await Assert.That(json).DoesNotContain("\"CarId\"");
 	}
 
 	[Test]
 	public async ValueTask deserialize_malformed_bytes_throws() {
 		// Arrange - serialize first to register the schema via auto-map
-		var context  = CreateSerializeContext();
-		var transfer = TransfermarktFakers.PlayerTransferred.Generate();
-		await Sut.Serialize(transfer, context).ConfigureAwait(false);
+		var context = CreateSerializeContext();
+		var lap     = ArcadeRacer.Events.LapCompleted.Generate();
+		await Sut.Serialize(lap, context).ConfigureAwait(false);
 
 		var deserializeContext = CreateDeserializeContext(context);
 		var malformedBytes    = new ReadOnlyMemory<byte>([0xFF, 0xFE, 0x00, 0x01]);

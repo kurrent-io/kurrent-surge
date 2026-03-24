@@ -1,7 +1,8 @@
 using Bogus;
-using Testing.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 
-namespace Testing.Datasets.ArcadeRacer.Model;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>
 /// Aggregate that drives a single arcade race simulation. Tracks positions,
@@ -189,7 +190,7 @@ class ArcadeRace {
 
         var carId       = _faker.PickRandom(State.RaceOrder);
         var dnf         = _faker.Random.Bool((float)State.Profile.DnfRate);
-        var description = _faker.PickRandom(ArcadeRacerDataSet.IncidentDescriptions);
+        var description = _faker.PickRandom(IncidentOccurredFaker.Descriptions);
 
         if (dnf) {
             var e = new CarRetired {
@@ -231,35 +232,31 @@ class ArcadeRace {
             var cumTime    = State.CumulativeTimes[carId];
             var leaderTime = State.CumulativeTimes[raceOrder[0]];
 
-            results.Add(
-                new RaceResult(
-                    car.Id,
-                    car.Name,
-                    car.Pilot,
-                    pos + 1,
-                    false,
-                    Math.Round(cumTime, 3),
-                    Math.Round(cumTime - leaderTime, 3),
-                    State.Lap
-                )
-            );
+            results.Add(new RaceResult {
+                CarId          = car.Id,
+                CarName        = car.Name,
+                Pilot          = car.Pilot,
+                Position       = pos + 1,
+                Dnf            = false,
+                CumulativeTime = Math.Round(cumTime, 3),
+                GapToLeader    = Math.Round(cumTime - leaderTime, 3),
+                LapsCompleted  = State.Lap
+            });
         }
 
         var dnfPosition = raceOrder.Count + 1;
 
         foreach (var carId in State.Retired)
-            results.Add(
-                new RaceResult(
-                    State.Cars[carId].Id,
-                    State.Cars[carId].Name,
-                    State.Cars[carId].Pilot,
-                    dnfPosition++,
-                    true,
-                    0,
-                    0,
-                    0
-                )
-            );
+            results.Add(new RaceResult {
+                CarId          = State.Cars[carId].Id,
+                CarName        = State.Cars[carId].Name,
+                Pilot          = State.Cars[carId].Pilot,
+                Position       = dnfPosition++,
+                Dnf            = true,
+                CumulativeTime = 0,
+                GapToLeader    = 0,
+                LapsCompleted  = 0
+            });
 
         return [
             new RaceFinished {

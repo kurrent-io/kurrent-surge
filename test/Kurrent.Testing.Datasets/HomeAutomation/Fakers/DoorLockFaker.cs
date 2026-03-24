@@ -1,7 +1,7 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class DoorLockFaker : Faker<DoorLock> {
     public static readonly DoorLockFaker Instance = new();

@@ -1,11 +1,21 @@
-namespace Testing.Datasets.ArcadeRacer.Model;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>Performance attributes for a car. Each stat ranges from 1 (worst) to 10 (best).</summary>
-/// <param name="Acceleration">Affects lap time via acceleration factor.</param>
-/// <param name="TopSpeed">Affects lap time on straights; reduced in rain.</param>
-/// <param name="Handling">Affects lap time in corners; reduced at night.</param>
-/// <param name="Endurance">Controls tire degradation rate and pit stop window.</param>
-public record struct RaceCarSpec(int Acceleration, int TopSpeed, int Handling, int Endurance) {
+public class RaceCarSpec {
     /// <summary>Neutral baseline spec with all stats set to 5.</summary>
-    public static readonly RaceCarSpec Default = new(5, 5, 5, 5);
+    public static readonly RaceCarSpec Default = new() {
+        Acceleration = 5, TopSpeed = 5, Handling = 5, Endurance = 5
+    };
+
+    /// <summary>Affects lap time via acceleration factor.</summary>
+    public int Acceleration { get; set; }
+
+    /// <summary>Affects lap time on straights; reduced in rain.</summary>
+    public int TopSpeed { get; set; }
+
+    /// <summary>Affects lap time in corners; reduced at night.</summary>
+    public int Handling { get; set; }
+
+    /// <summary>Controls tire degradation rate and pit stop window.</summary>
+    public int Endurance { get; set; }
 }

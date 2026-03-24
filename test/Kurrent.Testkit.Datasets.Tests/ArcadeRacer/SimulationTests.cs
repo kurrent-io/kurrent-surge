@@ -1,15 +1,15 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
-using Bogus;
-using Testing.Datasets.ArcadeRacer.Contracts;
-using Testing.Datasets.ArcadeRacer.Model;
+using Kurrent.Testkit.Datasets.ArcadeRacer;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Testing.Datasets.ArcadeRacer.Tests;
+namespace Kurrent.Testkit.Datasets.Tests.ArcadeRacer;
 
 [Category("ArcadeRacer")]
 public class SimulationTests {
-    readonly ArcadeRacerDataSet _ds = new Faker().ArcadeRacer();
+    readonly ArcadeRacerDataSet _ds = ArcadeRacerDataSet.Instance;
 
     static async Task<List<IRaceEvent>> CollectEvents(ArcadeRaceSimulation sim) {
         var events = new List<IRaceEvent>();

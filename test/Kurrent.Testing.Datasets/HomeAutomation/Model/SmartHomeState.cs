@@ -1,7 +1,7 @@
-using Testing.Datasets.HomeAutomation.Contracts.Commands;
-using Testing.Datasets.HomeAutomation.Contracts.Events;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Commands;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public class SmartHomeState {
     readonly Dictionary<string, Device>      _catalog    = [];

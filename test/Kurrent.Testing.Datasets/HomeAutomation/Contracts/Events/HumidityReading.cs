@@ -1,6 +1,6 @@
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation.Contracts.Events;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
 public record HumidityReading : IHomeAutomationEvent {
     public Guid EventId { get; init; } = Guid.NewGuid();

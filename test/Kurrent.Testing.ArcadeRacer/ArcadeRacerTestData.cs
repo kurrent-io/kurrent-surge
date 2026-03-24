@@ -1,6 +1,6 @@
 using Kurrent.Client.Streams;
-using Testing.Datasets.ArcadeRacer;
-using Testing.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Testing.ArcadeRacer;
 

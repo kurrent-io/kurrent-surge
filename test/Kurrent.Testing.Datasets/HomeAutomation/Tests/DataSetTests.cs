@@ -1,7 +1,7 @@
 using Bogus;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation.Tests;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Tests;
 
 [Category("HomeAutomation")]
 public class DataSetTests {

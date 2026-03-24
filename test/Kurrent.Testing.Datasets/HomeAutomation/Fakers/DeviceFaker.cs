@@ -1,8 +1,8 @@
 using Bogus;
 using Humanizer;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation;
+namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class DeviceFaker : Faker<Device> {
     public DeviceFaker(RoomType roomType = RoomType.LivingRoom, DeviceType? deviceType = null, string? homeId = null) {

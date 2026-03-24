@@ -2,8 +2,8 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
-using Testing.Datasets.HomeAutomation;
-using Testing.Datasets.HomeAutomation.Contracts.Events;
+using Kurrent.Testkit.Datasets.HomeAutomation;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
 namespace Benchmarks;
 

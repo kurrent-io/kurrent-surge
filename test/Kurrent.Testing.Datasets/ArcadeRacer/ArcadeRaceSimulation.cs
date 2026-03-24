@@ -2,10 +2,11 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
-using Testing.Datasets.ArcadeRacer.Contracts;
-using Testing.Datasets.ArcadeRacer.Model;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Testing.Datasets.ArcadeRacer;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer;
 
 
 /// <summary>
@@ -108,12 +109,12 @@ public class ArcadeRaceBuilder {
 
     internal ArcadeRaceBuilder(Faker faker) {
         _faker = faker;
-        _ds    = _faker.ArcadeRacer();
+        _ds    = new ArcadeRacerDataSet(faker);
 
         Options = new ArcadeRaceOptions {
-            Cars       = _ds.Grid(_faker.Random.Int(8, 16)),
-            Circuit    = _ds.Circuit(_faker.PickRandom<CircuitDifficulty>()),
-            Conditions = _ds.Conditions(),
+            Cars       = _ds.RaceCar.Generate(_faker.Random.Int(8, 16)),
+            Circuit    = _ds.Circuit.Generate(),
+            Conditions = new RaceConditionsFaker(_faker).Generate(),
             TotalLaps  = _faker.Random.Int(5, 20),
             Pacing     = TimeSpan.Zero
         };
@@ -125,7 +126,7 @@ public class ArcadeRaceBuilder {
     /// <param name="count">Number of cars to generate (default is 12).</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithCars(int count) {
-        Options = Options with { Cars = _ds.Grid(count) };
+        Options = Options with { Cars = _ds.RaceCar.Generate(count) };
         return this;
     }
 
@@ -148,7 +149,9 @@ public class ArcadeRaceBuilder {
     /// <param name="difficulty">Difficulty level for the generated circuit.</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithDifficulty(CircuitDifficulty difficulty) {
-        Options = Options with { Circuit = _ds.Circuit(difficulty) };
+        Options = Options with {
+            Circuit = Circuit.New(_faker).RuleFor(x => x.Difficulty, difficulty).Generate()
+        };
         return this;
     }
 
@@ -157,7 +160,7 @@ public class ArcadeRaceBuilder {
     /// <param name="weather">Weather condition for the race.</param>
     /// <returns>This builder for chaining.</returns>
     public ArcadeRaceBuilder WithConditions(TimeOfDay timeOfDay, Weather weather) {
-        Options = Options with { Conditions = new RaceConditions(timeOfDay, weather) };
+        Options = Options with { Conditions = new RaceConditions { TimeOfDay = timeOfDay, Weather = weather } };
         return this;
     }
 

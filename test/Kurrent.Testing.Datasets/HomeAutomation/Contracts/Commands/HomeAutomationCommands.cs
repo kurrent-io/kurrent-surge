@@ -3,9 +3,9 @@
 
 // ReSharper disable CheckNamespace
 
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Testing.Datasets.HomeAutomation.Contracts.Commands;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Commands;
 
 public interface ISmartHomeCommand {
     string DeviceId { get; }

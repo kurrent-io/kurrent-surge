@@ -1,9 +1,9 @@
-using Testing.Datasets.HomeAutomation.Contracts.Events;
-using Testing.Datasets.HomeAutomation.Model;
+using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
+using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 // ReSharper disable InconsistentNaming
 
-namespace Testing.Datasets.HomeAutomation.Tests;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Tests;
 
 [Category("HomeAutomation")]
 public class ModelTests {

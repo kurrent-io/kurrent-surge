@@ -1,12 +1,20 @@
-namespace Testing.Datasets.ArcadeRacer.Model;
+namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>Environmental conditions that affect the <see cref="DifficultyProfile"/>.</summary>
-/// <param name="TimeOfDay">Time of day (day or night).</param>
-/// <param name="Weather">Weather condition (sunny or rainy).</param>
-public record struct RaceConditions(TimeOfDay TimeOfDay, Weather Weather) {
+public class RaceConditions {
     /// <summary>Sentinel value indicating conditions have not been set.</summary>
-    public static readonly RaceConditions Unspecified = new(TimeOfDay.Unspecified, Weather.Unspecified);
+    public static readonly RaceConditions Unspecified = new() {
+        TimeOfDay = TimeOfDay.Unspecified, Weather = Weather.Unspecified
+    };
 
     /// <summary>Standard conditions: daytime, sunny.</summary>
-    public static readonly RaceConditions Default = new(TimeOfDay.Day, Weather.Sunny);
+    public static readonly RaceConditions Default = new() {
+        TimeOfDay = TimeOfDay.Day, Weather = Weather.Sunny
+    };
+
+    /// <summary>Time of day (day or night).</summary>
+    public TimeOfDay TimeOfDay { get; set; }
+
+    /// <summary>Weather condition (sunny or rainy).</summary>
+    public Weather Weather { get; set; }
 }

@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public sealed record SmartLight : Device {
     public required int    MaxBrightness          { get; init; }

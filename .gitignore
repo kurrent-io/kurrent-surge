@@ -555,3 +555,6 @@ certs-*/
 docs/plans/
 benchmark-*.html
 .dmux/
+
+# Local design context
+.impeccable.md

@@ -1,11 +1,9 @@
-using System.Collections.Immutable;
 using System.Text.Json.Serialization;
-using Transfermarkt.Domain;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Client.Tests.Schema.Serialization.Fixtures;
 
-[JsonSerializable(typeof(PlayerTransferred))]
-[JsonSerializable(typeof(PlayerRetired))]
-[JsonSerializable(typeof(PlayerRegistered))]
-[JsonSerializable(typeof(LoanConvertedToPermanent))]
+[JsonSerializable(typeof(LapCompleted))]
+[JsonSerializable(typeof(OvertakePerformed))]
+[JsonSerializable(typeof(PitStopPerformed))]
 partial class TestJsonContext : JsonSerializerContext;

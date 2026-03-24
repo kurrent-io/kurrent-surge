@@ -1,4 +1,4 @@
-namespace Testing.Datasets.HomeAutomation.Model;
+namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public static class WeatherModifiers {
     public static (double TempOffset, double HumidityOffset, double WindowCloseFactor) For(
