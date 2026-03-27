@@ -298,7 +298,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             var merged = MergePositions(currentState, workerId, checkpointId, positions);
 
             // 3. Attempt to store with expected revision
-            var request = AppendRecordsRequest.ToStream(_stream)
+            var request = AppendToStreamRequest.For(_stream)
                 .ExpectingState(expectedRevision)
                 .WithRecord(rec => rec
                     .WithValue(merged)
@@ -307,8 +307,8 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 .Build();
 
             try {
-                var result = await _client.AppendRecords(request, ct).ConfigureAwait(false);
-                LogStored(ProcessorId, workerId, positions.Count, result.Revisions[0].Revision);
+                var result = await _client.AppendToStream(request, ct).ConfigureAwait(false);
+                LogStored(ProcessorId, workerId, positions.Count, result.Revision);
                 return;
             }
             catch (AppendConsistencyViolationException) {

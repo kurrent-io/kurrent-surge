@@ -167,17 +167,15 @@ public partial class StreamsClient {
     }
 
     public async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision revision, CancellationToken cancellationToken = default) {
-        ConsistencyCheck check = revision == Revision.Unset
-            ? ConsistencyCheck.None
-            : ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision);
+        var builder = AppendToStreamRequest.For(stream.Metastream)
+            .WithRecord(new AppendRecord { Value = metadata, Stream = stream.Metastream });
 
-        var result = await this.AppendRecords(
-            new AppendRecord { Value = metadata, Stream = stream.Metastream },
-            check,
-            cancellationToken
-        ).ConfigureAwait(false);
+        if (revision != Revision.Unset)
+            builder.WithCheck(ConsistencyCheck.Stream(stream.Metastream).AtRevision(revision));
 
-        return result.Revisions[0].Revision;
+        var result = await AppendToStream(builder.Build(), cancellationToken).ConfigureAwait(false);
+
+        return result.Revision;
     }
 
     public async ValueTask<Success> Truncate(StreamName stream, Revision truncateRevision, CancellationToken cancellationToken) {

@@ -21,7 +21,7 @@ public class StreamsAppender : IAsyncDisposable {
 
     public AppendRecordsRequestBuilder NewRequestBuilder() => new();
 
-    public async ValueTask<AppendRecordsSuccess> AppendAsync(AppendRecordsRequest request, CancellationToken ct) {
+    public async ValueTask<AppendRecordsResponse> AppendAsync(AppendRecordsRequest request, CancellationToken ct) {
         if (request.Records.Length == 0)
             throw new InvalidOperationException("No records to append. Add at least one record before calling AppendAsync.");
 
@@ -38,14 +38,14 @@ public class StreamsAppender : IAsyncDisposable {
                 .AppendRecordsAsync(contract, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return _mapper.ToModel(response);
+            return _mapper.ToAppendRecordsResponse(response);
         }
         catch (Exception ex) {
             throw ex.ToException(AppendConsistencyViolationException.From, MaxAppendRecordSizeExceededException.From, MaxAppendTransactionSizeExceededException.From);
         }
     }
 
-    public async ValueTask<AppendRecordsSuccess> AppendAsync(Action<AppendRecordsRequestBuilder> configure, CancellationToken ct) {
+    public async ValueTask<AppendRecordsResponse> AppendAsync(Action<AppendRecordsRequestBuilder> configure, CancellationToken ct) {
         var builder = NewRequestBuilder();
         configure(builder);
         return await AppendAsync(builder.Build(), ct).ConfigureAwait(false);

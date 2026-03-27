@@ -1,7 +1,6 @@
 // ReSharper disable MemberCanBeMadeStatic.Global
 
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 using DotNext.Collections.Generic;
 using Google.Protobuf;
 using Kurrent.Client.Schema;
@@ -79,6 +78,40 @@ partial class StreamsProtocolMapper {
         return result;
     }
 
+    public async ValueTask<Contracts.AppendRecordsRequest> ToContract(AppendToStreamRequest source, CancellationToken ct) {
+        var result = new Contracts.AppendRecordsRequest {
+            Records = { Capacity = source.Records.Length }
+        };
+
+        foreach (var record in source.Records) {
+            var stamped = record with { Stream = source.Stream };
+            result.Records.Add(await ToContract(stamped, ct).ConfigureAwait(false));
+        }
+
+        foreach (var check in source.Checks)
+            if (check != ConsistencyCheck.None)
+                result.Checks.Add(ToContract(check));
+
+        return result;
+    }
+
+    public AppendToStreamResponse ToAppendToStreamResponse(Contracts.AppendRecordsResponse source, StreamName stream) {
+        var revision = source.Revisions
+            .Where(r => (StreamName)r.Stream == stream)
+            .Select(r => (Revision)r.Revision)
+            .LastOrDefault(Revision.Unset);
+
+        return new AppendToStreamResponse(stream, revision, source.Position);
+    }
+
+    public AppendRecordsResponse ToAppendRecordsResponse(Contracts.AppendRecordsResponse source) {
+        var revisions = source.Revisions
+            .Select(x => new StreamRevision(x.Stream, x.Revision))
+            .ToArray();
+
+        return new AppendRecordsResponse(revisions, source.Position);
+    }
+
     public AppendRecordsSuccess ToModel(Contracts.AppendRecordsResponse source) {
         var revisions = source.Revisions
             .Select(x => new StreamRevision(x.Stream, x.Revision))
@@ -86,61 +119,4 @@ partial class StreamsProtocolMapper {
 
         return new(revisions, source.Position);
     }
-}
-
-static partial class StreamsClientV2Mapper {
-    #region . Old MSA .
-
-    public static async IAsyncEnumerable<Contracts.AppendRecord> Map(
-        this IEnumerable<AppendRecord> source,
-        string stream,
-        ISchemaSerializerProvider serializerProvider,
-        [EnumeratorCancellation] CancellationToken ct
-    ) {
-        foreach (var message in source)
-            yield return await message
-                .Map(stream, serializerProvider, ct)
-                .ConfigureAwait(false);
-    }
-
-    public static async ValueTask<Contracts.AppendRecord> Map(
-        this AppendRecord source,
-        string stream,
-        ISchemaSerializerProvider serializerProvider,
-        CancellationToken ct
-    ) {
-        try {
-            var context = new SchemaSerializationContext {
-                Stream               = stream,
-                RecordSchema         = new RecordSchemaInfo { SchemaFormat = source.DataFormat },
-                SchemaRegistryPolicy = SchemaRegistryPolicy.NoRequirements,
-                CancellationToken    = ct
-            };
-
-            var data = await serializerProvider
-                .GetSerializer(source.DataFormat)
-                .Serialize(source.Value, context)
-                .ConfigureAwait(false);
-
-            var schemaInfo = new Contracts.SchemaInfo {
-                Name   = context.RecordSchema.SchemaName,
-                Format = (Contracts.SchemaFormat)source.DataFormat
-            };
-
-            // UnsafeWrap constructs a new ByteString from the given bytes.
-            // The bytes are not copied, and must not be modified while the
-            // ByteString is in use.
-            return new Contracts.AppendRecord {
-                RecordId   = source.RecordId.ToString(),
-                Data       = UnsafeByteOperations.UnsafeWrap(data),
-                Schema     = schemaInfo,
-                Properties = { source.Metadata.ToProperties() }
-            };
-        }
-        catch (Exception ex) {
-            throw new ArgumentException($"Failed to map AppendRecord for stream '{stream}'", ex);
-        }
-    }
-
-    #endregion
 }
