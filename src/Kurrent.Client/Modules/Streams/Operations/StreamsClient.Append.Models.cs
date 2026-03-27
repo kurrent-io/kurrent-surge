@@ -21,6 +21,11 @@ public record AppendRecordsRequest() {
     /// </summary>
     public static MultiStreamAppendBuilder New() => new();
 
+    /// <summary>
+    /// Creates a builder for appending records to a single stream.
+    /// </summary>
+    public static SingleStreamAppendBuilder ToStream(StreamName stream) => new(stream);
+
     [method: SetsRequiredMembers]
     public AppendRecordsRequest(
         ImmutableArray<AppendRecord> records, ImmutableArray<ConsistencyCheck> checks

@@ -52,8 +52,3 @@ public record AppendToStreamResponse(StreamName Stream, Revision Revision, LogPo
     public required LogPosition Position { get; init; } = Position;
 }
 
-// Stub - full implementation in Task 4
-[PublicAPI]
-public class AppendToStreamRequestBuilder {
-    internal AppendToStreamRequestBuilder(StreamName stream) { }
-}

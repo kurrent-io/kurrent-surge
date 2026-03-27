@@ -142,16 +142,5 @@ static partial class StreamsClientV2Mapper {
         }
     }
 
-    public static AppendStreamSuccess Map(this Contracts.AppendResponse source) =>
-        new(source.Stream, source.Position, source.StreamRevision);
-
-    public static AppendSessionSuccess Map(this Contracts.AppendSessionResponse source) =>
-        new(source.Output.Select(success => {
-            if (!success.HasPosition)
-                success.Position = source.Position;
-            return success.Map();
-        }).ToList(), source.Position);
-
-
     #endregion
 }
