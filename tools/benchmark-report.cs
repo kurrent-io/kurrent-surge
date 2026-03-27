@@ -150,15 +150,15 @@ partial class ReportJsonContext : JsonSerializerContext;
 sealed class ReportSettings : CommandSettings {
     [CommandOption("--input")]
     [Description("Directory containing BenchmarkDotNet JSON results")]
-    public string Input { get; init; } = "./artifacts/benchmarks";
+    public string Input { get; init; } = "./artifacts/benchmarks/results";
 
     [CommandOption("--baseline")]
     [Description("Baseline directory for comparison mode")]
     public string? Baseline { get; init; }
 
     [CommandOption("--output")]
-    [Description("Output HTML report path")]
-    public string Output { get; init; } = "./benchmark-report.html";
+    [Description("Output HTML report path (defaults to <input>/benchmark-report.html)")]
+    public string? Output { get; init; }
 
     [CommandOption("--threshold")]
     [Description("Regression threshold percentage (default: 10.0)")]
@@ -179,6 +179,9 @@ sealed class ReportCommand : Command<ReportSettings> {
     public override int Execute(CommandContext context, ReportSettings settings, CancellationToken cancellation = default) {
         AnsiConsole.Write(new FigletText("benchmark-report").Color(Color.MediumPurple));
         AnsiConsole.MarkupLine("[grey]BenchmarkDotNet JSON → HTML dashboard[/]\n");
+
+        // ── Resolve output path ────────────────────────────────────────────
+        var output = settings.Output ?? Path.Combine(settings.Input, "benchmark-report.html");
 
         // ── Discover input files ────────────────────────────────────────────
         var inputFiles = DiscoverJsonFiles(settings.Input);
@@ -220,10 +223,10 @@ sealed class ReportCommand : Command<ReportSettings> {
 
         // ── Generate HTML ───────────────────────────────────────────────────
         var html = GenerateHtml(reportData, measurementMap, settings.Threshold);
-        var outputDir = Path.GetDirectoryName(Path.GetFullPath(settings.Output));
+        var outputDir = Path.GetDirectoryName(Path.GetFullPath(output));
         if (outputDir is not null && !Directory.Exists(outputDir))
             Directory.CreateDirectory(outputDir);
-        File.WriteAllText(settings.Output, html);
+        File.WriteAllText(output, html);
 
         // ── Generate summary JSON ───────────────────────────────────────────
         var regressionCount  = comparisons?.Count(c => c.Classification == "Regressed") ?? 0;
@@ -256,7 +259,7 @@ sealed class ReportCommand : Command<ReportSettings> {
         }
 
         // ── Console summary ─────────────────────────────────────────────────
-        PrintSummary(settings, benchmarks.Count, regressionCount, improvementCount, isComparison);
+        PrintSummary(output, settings, benchmarks.Count, regressionCount, improvementCount, isComparison);
 
         // ── Exit code ───────────────────────────────────────────────────────
         if (isComparison && regressionCount > 0) {
@@ -430,6 +433,7 @@ sealed class ReportCommand : Command<ReportSettings> {
     // ─── Console output ──────────────────────────────────────────────────────
 
     static void PrintSummary(
+        string output,
         ReportSettings settings,
         int totalBenchmarks,
         int regressions,
@@ -450,7 +454,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             grid.AddRow("[grey]Threshold[/]",    $"[white]{settings.Threshold}%[/]");
         }
 
-        grid.AddRow("[grey]Output[/]", $"[white]{settings.Output}[/]");
+        grid.AddRow("[grey]Output[/]", $"[white]{output}[/]");
         if (settings.SummaryJson is not null)
             grid.AddRow("[grey]Summary JSON[/]", $"[white]{settings.SummaryJson}[/]");
 
@@ -487,42 +491,52 @@ sealed class ReportCommand : Command<ReportSettings> {
         var measurementsJson = JsonSerializer.Serialize(measurementMap, Ctx.DictionaryStringMeasurementData);
         var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC");
 
+        // Derive report title from benchmark class names
+        var shortNames = classes.Select(c => c.Split('.').Last()).ToList();
+        var reportTitle = shortNames.Count switch {
+            0 => "Benchmark Report",
+            1 => shortNames[0],
+            2 => string.Join(" & ", shortNames),
+            _ => $"Benchmark Report ({shortNames.Count} classes)"
+        };
+
         sb.Append($$"""
             <!DOCTYPE html>
             <html lang="en" data-theme="dark">
             <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Kurrent.Client Benchmark Report</title>
+            <title>{{reportTitle}} — Benchmark Report</title>
             <link rel="preconnect" href="https://fonts.googleapis.com">
-            <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+            <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
             <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
             <style>
             :root {
-                --bg-root: #07090d;
-                --bg-surface: #0c1017;
-                --bg-elevated: #111820;
-                --bg-hover: #161e2a;
-                --border: #1c2536;
-                --border-subtle: #151d2a;
-                --text-primary: #e0e6ed;
-                --text-secondary: #8494a7;
-                --text-muted: #4f6178;
-                --accent-green: #34d97a;
-                --accent-green-glow: #34d97a40;
-                --accent-red: #ff5c5c;
-                --accent-red-glow: #ff5c5c40;
-                --accent-amber: #ffb545;
-                --accent-amber-glow: #ffb54540;
-                --accent-blue: #5ea4ff;
-                --accent-blue-glow: #5ea4ff40;
-                --accent-purple: #a78bfa;
-                --accent-purple-glow: #a78bfa40;
+                --bg-root: #080b0d;
+                --bg-surface: #0e0b12;
+                --bg-elevated: #15101c;
+                --bg-hover: #1d1528;
+                --border: #2c1f38;
+                --border-subtle: #1e152a;
+                --text-primary: #e2dff0;
+                --text-secondary: #a09bb8;
+                --text-muted: #6e6590;
+                --accent-green: #64EDBB;
+                --accent-green-glow: #64EDBB30;
+                --accent-red: #FF4A80;
+                --accent-red-glow: #FF4A8030;
+                --accent-amber: #FFED4E;
+                --accent-amber-glow: #FFED4E30;
+                --accent-blue: #DED9FF;
+                --accent-blue-glow: #DED9FF25;
+                --accent-purple: #8D5FFF;
+                --accent-purple-glow: #8D5FFF30;
                 --radius-card: 5px;
                 --radius-sm: 5px;
                 --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
-                --font-body: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+                --font-display: 'Work Sans', -apple-system, system-ui, sans-serif;
+                --font-body: 'Work Sans', -apple-system, system-ui, sans-serif;
               }
 
               * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -530,7 +544,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               body {
                 background: var(--bg-root);
                 color: var(--text-primary);
-                font-family: var(--font-mono);
+                font-family: var(--font-body);
                 font-size: 14px;
                 line-height: 1.55;
                 max-width: 1400px;
@@ -564,7 +578,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               }
 
               .header-title h1 {
-                font-family: var(--font-body);
+                font-family: var(--font-display);
                 font-size: 22px;
                 font-weight: 700;
                 letter-spacing: -0.3px;
@@ -683,7 +697,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               /* ── Environment Panel */
               .env-panel {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr 1fr 1fr;
                 gap: 10px;
                 margin-bottom: 24px;
               }
@@ -744,7 +758,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               }
 
               .bento-value {
-                font-family: var(--font-body);
+                font-family: var(--font-display);
                 font-size: 30px;
                 font-weight: 800;
                 letter-spacing: -1.5px;
@@ -757,10 +771,10 @@ sealed class ReportCommand : Command<ReportSettings> {
                 margin-top: 4px;
               }
 
-              .bento-value.green { color: var(--accent-green); text-shadow: 0 0 20px var(--accent-green-glow); }
-              .bento-value.red { color: var(--accent-red); text-shadow: 0 0 20px var(--accent-red-glow); }
-              .bento-value.amber { color: var(--accent-amber); text-shadow: 0 0 20px var(--accent-amber-glow); }
-              .bento-value.blue { color: var(--accent-blue); text-shadow: 0 0 20px var(--accent-blue-glow); }
+              .bento-value.green { color: var(--accent-green); }
+              .bento-value.red { color: var(--accent-red); }
+              .bento-value.amber { color: var(--accent-amber); }
+              .bento-value.blue { color: var(--accent-blue); }
 
               /* ── Section Header */
               .section-header {
@@ -773,7 +787,7 @@ sealed class ReportCommand : Command<ReportSettings> {
               }
 
               .section-header h2 {
-                font-family: var(--font-body);
+                font-family: var(--font-display);
                 font-size: 19px;
                 font-weight: 700;
                 letter-spacing: -0.3px;
@@ -789,7 +803,6 @@ sealed class ReportCommand : Command<ReportSettings> {
                 height: 7px;
                 border-radius: 50%;
                 background: var(--accent-green);
-                box-shadow: 0 0 8px var(--accent-green-glow);
               }
 
               /* ── Group-by pill bar */
@@ -826,8 +839,23 @@ sealed class ReportCommand : Command<ReportSettings> {
               table {
                 width: 100%;
                 border-collapse: collapse;
-                font-size: 14px;
+                font-size: 13px;
+                font-family: var(--font-mono);
+                table-layout: fixed;
               }
+              table th[data-col="Method"] { width: 14%; }
+              table th[data-col^="param_"] { width: 12%; }
+              table th[data-col="MeanNs"],
+              table th[data-col="OpsPerSec"],
+              table th[data-col="ErrorNs"],
+              table th[data-col="StdDevNs"],
+              table th[data-col="P95Ns"] { width: 10%; }
+              table th[data-col="AllocatedBytes"] { width: 8%; }
+              table th[data-col="Rank"] { width: 6%; }
+              table th[data-col="Gen0"],
+              table th[data-col="Gen1"],
+              table th[data-col="Gen2"] { width: 6%; }
+              td { overflow: hidden; text-overflow: ellipsis; }
 
               thead tr { background: var(--bg-elevated); }
 
@@ -882,7 +910,7 @@ sealed class ReportCommand : Command<ReportSettings> {
                 height: 12px;
                 flex-shrink: 0;
                 opacity: 0;
-                transition: opacity 0.15s, transform 0.15s;
+                transition: opacity 0.15s, transform 0.2s;
               }
               th:hover .sort-icon { opacity: 0.3; }
               th.sort-asc .sort-icon, th.sort-desc .sort-icon { opacity: 1; color: var(--accent-blue); }
@@ -998,7 +1026,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
               .charts-grid {
                 display: grid;
-                grid-template-columns: 3fr 2fr;
+                grid-template-columns: 1fr;
                 gap: 10px;
                 margin-bottom: 20px;
               }
@@ -1235,35 +1263,6 @@ sealed class ReportCommand : Command<ReportSettings> {
                 to   { opacity: 1; }
               }
 
-              @keyframes pulseGlow {
-                0%, 100% { box-shadow: 0 0 8px var(--accent-green-glow); }
-                50%      { box-shadow: 0 0 14px var(--accent-green-glow), 0 0 4px var(--accent-green); }
-              }
-
-              .bento-card {
-                animation: fadeSlideUp 0.5s ease backwards;
-              }
-              .bento-card:nth-child(1) { animation-delay: 0.05s; }
-              .bento-card:nth-child(2) { animation-delay: 0.12s; }
-              .bento-card:nth-child(3) { animation-delay: 0.19s; }
-              .bento-card:nth-child(4) { animation-delay: 0.26s; }
-
-              .env-card {
-                animation: fadeSlideUp 0.4s ease backwards;
-              }
-              .env-card:nth-child(1) { animation-delay: 0s; }
-              .env-card:nth-child(2) { animation-delay: 0.08s; }
-
-              .chart-card {
-                animation: fadeSlideUp 0.5s ease backwards;
-                animation-delay: 0.3s;
-              }
-
-              .table-wrap {
-                animation: fadeIn 0.4s ease backwards;
-                animation-delay: 0.45s;
-              }
-
               .dist-whisker {
                 transform-origin: left;
                 animation: growRight 0.6s ease backwards;
@@ -1275,144 +1274,107 @@ sealed class ReportCommand : Command<ReportSettings> {
               .dist-median {
                 animation: fadeIn 0.3s ease backwards;
               }
-              .dist-row:nth-child(1) .dist-whisker, .dist-row:nth-child(1) .dist-box-rect { animation-delay: 0.35s; }
-              .dist-row:nth-child(1) .dist-median { animation-delay: 0.75s; }
-              .dist-row:nth-child(2) .dist-whisker, .dist-row:nth-child(2) .dist-box-rect { animation-delay: 0.45s; }
-              .dist-row:nth-child(2) .dist-median { animation-delay: 0.85s; }
-              .dist-row:nth-child(3) .dist-whisker, .dist-row:nth-child(3) .dist-box-rect { animation-delay: 0.55s; }
-              .dist-row:nth-child(3) .dist-median { animation-delay: 0.95s; }
-              .dist-row:nth-child(4) .dist-whisker, .dist-row:nth-child(4) .dist-box-rect { animation-delay: 0.65s; }
-              .dist-row:nth-child(4) .dist-median { animation-delay: 1.05s; }
-              .dist-row:nth-child(5) .dist-whisker, .dist-row:nth-child(5) .dist-box-rect { animation-delay: 0.75s; }
-              .dist-row:nth-child(5) .dist-median { animation-delay: 1.15s; }
-              .dist-row:nth-child(6) .dist-whisker, .dist-row:nth-child(6) .dist-box-rect { animation-delay: 0.85s; }
-              .dist-row:nth-child(6) .dist-median { animation-delay: 1.25s; }
 
-              .status-dot {
-                animation: pulseGlow 2.5s ease infinite;
+              @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after {
+                  animation-duration: 0.01ms !important;
+                  animation-iteration-count: 1 !important;
+                  transition-duration: 0.01ms !important;
+                }
               }
 
-              .keyboard-hints {
-                animation: fadeIn 0.4s ease backwards;
-                animation-delay: 0.6s;
-              }
+              /* ── Hover & focus */
+              .bento-card { transition: border-color 0.15s; }
+              .bento-card:hover { border-color: var(--border); }
 
-              .section-header {
-                animation: fadeSlideUp 0.4s ease backwards;
-                animation-delay: 0.1s;
-              }
+              .env-card { transition: border-color 0.15s; }
+              .env-card:hover { border-color: var(--border); }
 
-              /* ── Hover animations */
-              .bento-card {
-                transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-              }
-              .bento-card:hover {
-                border-color: var(--border);
-                transform: translateY(-2px);
-                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-              }
+              .chart-card { transition: border-color 0.15s; }
+              .chart-card:hover { border-color: var(--border); }
 
-              .env-card {
-                transition: border-color 0.2s, transform 0.15s;
-              }
-              .env-card:hover {
-                border-color: var(--border);
-                transform: translateY(-1px);
-              }
+              tr td { transition: background 0.1s ease; }
 
-              .chart-card {
-                transition: border-color 0.2s, box-shadow 0.2s;
-              }
-              .chart-card:hover {
-                border-color: var(--border);
-                box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-              }
-
-              .icon-btn {
-                transition: all 0.15s ease;
-              }
-              .icon-btn:hover {
-                background: var(--bg-hover);
-                color: var(--text-primary);
-                transform: scale(1.08);
-              }
-              .icon-btn:active { transform: scale(0.95); }
-
-              .group-pill {
-                transition: all 0.15s ease;
-              }
-              .group-pill:hover {
-                border-color: var(--accent-blue);
-                color: var(--text-primary);
-                transform: translateY(-1px);
-              }
-              .group-pill:active { transform: translateY(0); }
-
-              .metric-pill {
-                transition: all 0.15s ease;
-              }
-              .metric-pill:hover {
-                color: var(--text-secondary);
-                border-color: var(--accent-blue);
-                transform: translateY(-1px);
-              }
-
-              .rank {
-                transition: transform 0.15s ease;
-              }
-              tr:hover .rank { transform: scale(1.15); }
-
-              .alloc-badge {
-                transition: transform 0.15s ease;
-              }
-              tr:hover .alloc-badge { transform: scale(1.05); }
-
-              .sparkline .bar {
-                transition: height 0.2s ease, opacity 0.15s ease;
-              }
-              tr:hover .sparkline .bar { opacity: 1; }
-
-              .section-header {
-                transition: color 0.15s;
-              }
-              .section-header:hover .status-dot {
-                box-shadow: 0 0 12px var(--accent-green-glow), 0 0 4px var(--accent-green);
-              }
-              .status-dot { transition: box-shadow 0.2s; }
-
-              tr td {
-                transition: background 0.1s ease, box-shadow 0.1s ease;
-              }
-
-              .search-input {
-                transition: border-color 0.15s, box-shadow 0.2s;
-              }
+              .search-input { transition: border-color 0.15s; }
               .search-input:focus {
                 border-color: var(--accent-blue);
-                box-shadow: 0 0 0 3px var(--accent-blue-glow);
+                box-shadow: 0 0 0 2px var(--accent-blue-glow);
+              }
+
+              /* ── Column picker */
+              .col-picker { position: relative; display: inline-block; }
+              .col-picker-btn {
+                font-family: var(--font-body);
+                font-size: 12px;
+                font-weight: 600;
+                padding: 4px 10px;
+                border-radius: var(--radius-sm);
+                background: var(--bg-elevated);
+                border: 1px solid var(--border);
+                color: var(--text-secondary);
+                cursor: pointer;
+                transition: border-color 0.15s;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+              }
+              .col-picker-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+              .col-picker-menu {
+                display: none;
+                position: absolute;
+                right: 0;
+                top: calc(100% + 4px);
+                background: var(--bg-elevated);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-card);
+                padding: 6px 0;
+                min-width: 180px;
+                z-index: 20;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+              }
+              .col-picker-menu.open { display: block; }
+              .col-picker-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 14px;
+                cursor: pointer;
+                font-size: 13px;
+                font-family: var(--font-body);
+                color: var(--text-secondary);
+                user-select: none;
+              }
+              .col-picker-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+              .col-picker-item input { accent-color: var(--accent-blue); margin: 0; }
+              .col-picker-divider { border-top: 1px solid var(--border-subtle); margin: 4px 0; }
+
+              /* ── Focus visible */
+              :focus-visible {
+                outline: 2px solid var(--accent-blue);
+                outline-offset: 2px;
               }
 
               /* ── Light theme */
               [data-theme="light"] {
-                --bg-root: #e8eaef;
-                --bg-surface: #f0f1f5;
-                --bg-elevated: #d9dce4;
-                --bg-hover: #d0d4dd;
-                --border: #b8bec9;
-                --border-subtle: #ccd1da;
-                --text-primary: #1a1d24;
-                --text-secondary: #454d5e;
-                --text-muted: #6e7788;
+                --bg-root: #f0edf5;
+                --bg-surface: #f5f3f8;
+                --bg-elevated: #e5e1ed;
+                --bg-hover: #dbd6e6;
+                --border: #c4bdd0;
+                --border-subtle: #d5cfde;
+                --text-primary: #1a1525;
+                --text-secondary: #4a4260;
+                --text-muted: #6e6585;
                 --accent-green: #15803d;
-                --accent-green-glow: #15803d25;
-                --accent-red: #b91c1c;
-                --accent-red-glow: #b91c1c25;
-                --accent-amber: #b45309;
-                --accent-amber-glow: #b4530925;
-                --accent-blue: #1d4ed8;
-                --accent-blue-glow: #1d4ed825;
-                --accent-purple: #6d28d9;
-                --accent-purple-glow: #6d28d925;
+                --accent-green-glow: #15803d20;
+                --accent-red: #be185d;
+                --accent-red-glow: #be185d20;
+                --accent-amber: #a16207;
+                --accent-amber-glow: #a1620720;
+                --accent-blue: #631B3A;
+                --accent-blue-glow: #631B3A20;
+                --accent-purple: #462F63;
+                --accent-purple-glow: #462F6320;
               }
             </style>
             </head>
@@ -1421,7 +1383,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             <div class="sticky-header">
               <div class="header-top">
                 <div class="header-title">
-                  <h1>Kurrent.Client Benchmark Report</h1>
+                  <h1>{{reportTitle}}</h1>
                   <span class="badge badge-mode">{{(data.IsComparison ? "comparison" : "single-run")}}</span>
                   <span class="badge badge-count" id="benchmark-count-badge"></span>
                   <span class="header-meta">Generated {{timestamp}}</span>
@@ -1456,6 +1418,9 @@ sealed class ReportCommand : Command<ReportSettings> {
             <!-- Regression Summary (comparison mode only) -->
             <div id="regression-section" style="display:none;"></div>
 
+            <!-- Zero-value warning -->
+            <div id="zero-warning" style="display:none"></div>
+
             <!-- Benchmark Sections (one per class) -->
             <div id="class-sections"></div>
 
@@ -1463,7 +1428,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             <div class="keyboard-hints">
               <span class="hint"><span class="kbd">j</span><span class="kbd">k</span> navigate rows</span>
               <span class="hint"><span class="kbd">/</span> search</span>
-              <span class="hint"><span class="kbd">Enter</span> expand</span>
+              <span class="hint"><span class="kbd">Enter</span> expand charts</span>
               <span class="hint"><span class="kbd">Esc</span> collapse</span>
             </div>
 
@@ -1472,7 +1437,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             <!-- Footer -->
             <footer>
-              <code>Kurrent.Client</code> &middot; Generated by benchmark-report
+              Generated by <code>benchmark-report</code>
             </footer>
 
             <script>
@@ -1489,6 +1454,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             // ── Formatting Functions ─────────────────────────────────────────────
 
             function formatNs(ns) {
+              if (ns === 0) return "\u2014";
               if (ns >= 1_000_000) return (ns / 1_000_000).toFixed(2) + " ms";
               if (ns >= 1_000) return (ns / 1_000).toFixed(2) + " \u00B5s";
               return ns.toFixed(1) + " ns";
@@ -1502,6 +1468,7 @@ sealed class ReportCommand : Command<ReportSettings> {
             }
 
             function formatOps(ops) {
+              if (ops === 0) return "\u2014";
               if (ops >= 1_000_000_000) return (ops / 1_000_000_000).toFixed(2) + " Gops/s";
               if (ops >= 1_000_000)     return (ops / 1_000_000).toFixed(2)     + " Mops/s";
               if (ops >= 1_000)         return (ops / 1_000).toFixed(2)         + " Kops/s";
@@ -1690,33 +1657,36 @@ sealed class ReportCommand : Command<ReportSettings> {
               var el = document.getElementById("env-section");
               if (!el) return;
 
+              var ic = '<i style="width:13px;height:13px;opacity:0.5;flex-shrink:0" data-lucide="';
               var machineItems = [];
-              if (env.OsVersion) machineItems.push({ label: "OS", value: env.OsVersion });
-              if (env.ProcessorName) machineItems.push({ label: "CPU", value: env.ProcessorName });
+              if (env.OsVersion) machineItems.push({ icon: "monitor", label: "OS", value: env.OsVersion });
+              if (env.ProcessorName) machineItems.push({ icon: "cpu", label: "CPU", value: env.ProcessorName });
               if (env.LogicalCoreCount) machineItems.push({
-                label: "Cores",
+                icon: "layers", label: "Cores",
                 value: (env.PhysicalCoreCount || "?") + " physical, " + env.LogicalCoreCount + " logical"
               });
-              if (env.Architecture) machineItems.push({ label: "Arch", value: env.Architecture });
+              if (env.Architecture) machineItems.push({ icon: "chip", label: "Arch", value: env.Architecture });
 
-              var configItems = [];
-              if (env.RuntimeVersion) configItems.push({ label: "Runtime", value: env.RuntimeVersion });
-              if (env.BenchmarkDotNetVersion) configItems.push({ label: "BDN Version", value: env.BenchmarkDotNetVersion });
+              var runtimeItems = [];
+              if (env.RuntimeVersion) runtimeItems.push({ icon: "box", label: "Runtime", value: env.RuntimeVersion });
+              if (env.BenchmarkDotNetVersion) runtimeItems.push({ icon: "gauge", label: "BDN", value: env.BenchmarkDotNetVersion });
+              if (env.Configuration) runtimeItems.push({ icon: "settings", label: "Config", value: env.Configuration });
+
+              var jobItems = [];
               if (jobConfig) {
-                if (jobConfig.Toolchain) configItems.push({ label: "Toolchain", value: jobConfig.Toolchain });
-                if (jobConfig.WarmupCount != null) configItems.push({
-                  label: "Warmup", value: jobConfig.WarmupCount + (jobConfig.WarmupCount === 1 ? " iteration" : " iterations")
+                if (jobConfig.Toolchain) jobItems.push({ icon: "wrench", label: "Toolchain", value: jobConfig.Toolchain });
+                if (jobConfig.WarmupCount != null) jobItems.push({
+                  icon: "flame", label: "Warmup", value: jobConfig.WarmupCount + (jobConfig.WarmupCount === 1 ? " iteration" : " iterations")
                 });
-                if (jobConfig.IterationCount != null) configItems.push({
-                  label: "Iterations", value: jobConfig.IterationCount + (jobConfig.IterationCount === 1 ? " iteration" : " iterations")
+                if (jobConfig.IterationCount != null) jobItems.push({
+                  icon: "repeat", label: "Iterations", value: jobConfig.IterationCount + (jobConfig.IterationCount === 1 ? " iteration" : " iterations")
                 });
               }
-              if (env.Configuration) configItems.push({ label: "Configuration", value: env.Configuration });
 
               function gridHtml(items) {
                 return '<div class="env-grid">' +
                   items.map(function(i) {
-                    return '<span class="label">' + i.label + '</span><span class="value">' + i.value + '</span>';
+                    return '<span class="label" style="display:flex;align-items:center;gap:5px">' + ic + i.icon + '"></i>' + i.label + '</span><span class="value">' + i.value + '</span>';
                   }).join("") + '</div>';
               }
 
@@ -1726,8 +1696,12 @@ sealed class ReportCommand : Command<ReportSettings> {
                   gridHtml(machineItems) +
                 '</div>' +
                 '<div class="env-card">' +
-                  '<div class="env-card-title"><i data-lucide="flask-conical" style="width:14px;height:14px"></i> Configuration</div>' +
-                  gridHtml(configItems) +
+                  '<div class="env-card-title"><i data-lucide="code" style="width:14px;height:14px"></i> Runtime</div>' +
+                  gridHtml(runtimeItems) +
+                '</div>' +
+                '<div class="env-card">' +
+                  '<div class="env-card-title"><i data-lucide="flask-conical" style="width:14px;height:14px"></i> Job</div>' +
+                  gridHtml(jobItems) +
                 '</div>';
             }
 
@@ -1738,10 +1712,14 @@ sealed class ReportCommand : Command<ReportSettings> {
               var el = document.getElementById("bento-stats");
               if (!el) return;
 
-              var fastest = benchmarks.reduce(function(a, b) { return a.MeanNs <= b.MeanNs ? a : b; });
-              var slowest = benchmarks.reduce(function(a, b) { return a.MeanNs >= b.MeanNs ? a : b; });
+              // Filter out zero-mean benchmarks for stat calculations
+              var measurable = benchmarks.filter(function(b) { return b.MeanNs > 0; });
+              if (measurable.length === 0) { el.style.display = "none"; return; }
+
+              var fastest = measurable.reduce(function(a, b) { return a.MeanNs <= b.MeanNs ? a : b; });
+              var slowest = measurable.reduce(function(a, b) { return a.MeanNs >= b.MeanNs ? a : b; });
               var peakAlloc = benchmarks.reduce(function(a, b) { return a.AllocatedBytes >= b.AllocatedBytes ? a : b; });
-              var topOps = benchmarks.reduce(function(a, b) { return a.OpsPerSec >= b.OpsPerSec ? a : b; });
+              var topOps = measurable.reduce(function(a, b) { return a.OpsPerSec >= b.OpsPerSec ? a : b; });
 
               function card(icon, label, value, color, detail) {
                 return '<div class="bento-card">' +
@@ -1804,7 +1782,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function renderClassSection(className) {
               var classBenchmarks = benchmarks
-                .filter(function(b) { return b.Type === className; })
+                .filter(function(b) { return b.Type === className && b.MeanNs > 0; })
                 .sort(function(a, b) { return a.MeanNs - b.MeanNs; });
 
               if (classBenchmarks.length === 0) return;
@@ -1819,8 +1797,9 @@ sealed class ReportCommand : Command<ReportSettings> {
               var anyGen1 = classBenchmarks.some(function(b) { return b.Gen1 !== 0; });
               var anyGen2 = classBenchmarks.some(function(b) { return b.Gen2 !== 0; });
 
-              var bestMean = classBenchmarks[0].MeanNs;
-              var worstMean = classBenchmarks[classBenchmarks.length - 1].MeanNs;
+              var measurable = classBenchmarks.filter(function(b) { return b.MeanNs > 0; });
+              var bestMean = measurable.length > 0 ? measurable[0].MeanNs : 0;
+              var worstMean = measurable.length > 0 ? measurable[measurable.length - 1].MeanNs : 0;
 
               // Build comparison lookup
               var compMap = {};
@@ -1840,68 +1819,85 @@ sealed class ReportCommand : Command<ReportSettings> {
                 return m && m.Values ? buildSparkline(m.Values) : "";
               }
 
+              // Detect parameter columns
+              var paramKeys = getParamKeys(classBenchmarks);
+
               // Table header
-              var thHtml = '<tr>' +
-                '<th data-sort="Method" style="text-align:left"><span class="th-inner"><i data-lucide="flask-conical" class="col-icon"></i>Method<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th data-sort="count" class="text-right"><span class="th-inner"><i data-lucide="hash" class="col-icon"></i>Count<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th data-sort="MeanNs" class="text-right"><span class="th-inner"><i data-lucide="bar-chart-2" class="col-icon"></i>Mean<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th data-sort="OpsPerSec" class="text-right"><span class="th-inner"><i data-lucide="zap" class="col-icon"></i>Ops/s<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th class="text-center"><span class="th-inner"><i data-lucide="bar-chart" class="col-icon"></i>Dist.</span></th>' +
-                '<th data-sort="ErrorNs" class="text-right"><span class="th-inner"><i data-lucide="shield-alert" class="col-icon"></i>Error<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th data-sort="StdDevNs" class="text-right"><span class="th-inner"><i data-lucide="activity" class="col-icon"></i>StdDev<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th data-sort="P95Ns" class="text-right"><span class="th-inner"><i data-lucide="percent" class="col-icon"></i>P95<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                '<th data-sort="AllocatedBytes" class="text-right"><span class="th-inner"><i data-lucide="memory-stick" class="col-icon"></i>Alloc<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                (anyGen0 ? '<th data-sort="Gen0" class="text-right"><span class="th-inner">Gen0<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
-                (anyGen1 ? '<th data-sort="Gen1" class="text-right"><span class="th-inner">Gen1<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
-                (anyGen2 ? '<th data-sort="Gen2" class="text-right"><span class="th-inner">Gen2<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
-                '<th data-sort="Rank" class="text-center"><span class="th-inner"><i data-lucide="trophy" class="col-icon"></i>Rank<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' +
-                (isComparison ? '<th data-sort="DeltaPercent" class="text-right"><span class="th-inner">Delta<i data-lucide="arrow-up" class="sort-icon"></i></span></th>' : '') +
-                (isComparison ? '<th class="text-center"><span class="th-inner">Class.</span></th>' : '') +
-              '</tr>';
+              var ci = ' class="col-icon"';
+              var si = '<i data-lucide="arrow-up" class="sort-icon"></i>';
+              // Column definitions: [dataCol, sortKey, label, icon, align, defaultVisible]
+              var colDefs = [
+                ["Method", "Method", "Method", "flask-conical", "left", true]
+              ];
+              paramKeys.forEach(function(k) {
+                colDefs.push(["param_" + k, "param_" + k, k, "sliders-horizontal", "left", true]);
+              });
+              colDefs.push(
+                ["MeanNs", "MeanNs", "Mean", "bar-chart-2", "right", true],
+                ["OpsPerSec", "OpsPerSec", "Ops/s", "zap", "right", true],
+                ["AllocatedBytes", "AllocatedBytes", "Alloc", "memory-stick", "right", true],
+                ["ErrorNs", "ErrorNs", "Error", "shield-alert", "right", false],
+                ["StdDevNs", "StdDevNs", "StdDev", "activity", "right", false],
+                ["P95Ns", "P95Ns", "P95", "percent", "right", false]
+              );
+              if (anyGen0) colDefs.push(["Gen0", "Gen0", "Gen0", "recycle", "right", false]);
+              if (anyGen1) colDefs.push(["Gen1", "Gen1", "Gen1", "recycle", "right", false]);
+              if (anyGen2) colDefs.push(["Gen2", "Gen2", "Gen2", "recycle", "right", false]);
+              if (isComparison) {
+                colDefs.push(["DeltaPercent", "DeltaPercent", "Delta", "git-compare", "right", true]);
+                colDefs.push(["Classification", "Classification", "Class.", "tag", "center", true]);
+              }
+              // Rank always last
+              colDefs.push(["Rank", "Rank", "Rank", "trophy", "center", true]);
+
+              var thHtml = '<tr>' + colDefs.map(function(c) {
+                var align = c[4] === "right" ? "text-right" : c[4] === "center" ? "text-center" : "";
+                return '<th data-sort="' + c[1] + '" data-col="' + c[0] + '" class="' + align + '"><span class="th-inner"><i data-lucide="' + c[3] + '"' + ci + '></i>' + c[2] + si + '</span></th>';
+              }).join("") + '</tr>';
 
               // Table rows
               var rowsHtml = classBenchmarks.map(function(b) {
-                var meanClass = b.MeanNs === bestMean ? " value-best" : (b.MeanNs === worstMean && classBenchmarks.length > 1 ? " value-worst" : "");
-                var paramSub = b.Parameters ? '<div style="font-size:11px;color:var(--text-muted);margin-top:1px">' + b.Parameters + '</div>' : '';
+                var meanClass = b.MeanNs > 0 && b.MeanNs === bestMean ? " value-best" : (b.MeanNs > 0 && b.MeanNs === worstMean && measurable.length > 1 ? " value-worst" : "");
+                var parsed = parseParams(b.Parameters);
 
-                // Comparison cells
-                var deltaCell = "";
-                var classCell = "";
+                // Build cells in column order
+                var cellValues = {
+                  "Method": '<span class="method-name">' + b.Method + '</span>',
+                  "MeanNs": formatNs(b.MeanNs),
+                  "OpsPerSec": formatOps(b.OpsPerSec),
+                  "AllocatedBytes": allocBadge(b.AllocatedBytes),
+                  "Rank": rankBadge(b.Rank),
+                  "ErrorNs": formatNs(b.ErrorNs),
+                  "StdDevNs": formatNs(b.StdDevNs),
+                  "P95Ns": formatNs(b.P95Ns),
+                  "Gen0": formatGen(b.Gen0),
+                  "Gen1": formatGen(b.Gen1),
+                  "Gen2": formatGen(b.Gen2)
+                };
+                paramKeys.forEach(function(k) { cellValues["param_" + k] = parsed[k] || '\u2014'; });
                 if (isComparison) {
                   var comp = compMap[b.CompositeKey];
                   if (comp) {
-                    var dcls = comp.Classification === "Regressed" ? "alloc-high" :
-                               comp.Classification === "Improved" ? "alloc-low" :
-                               comp.Classification === "New" ? "alloc-mid" : "alloc-zero";
-                    var dlabel = comp.Classification === "New" ? "new" : formatDelta(comp.DeltaPercent);
-                    deltaCell = '<td style="text-align:right"><span class="alloc-badge ' + dcls + '">' + dlabel + '</span></td>';
-                    classCell = '<td style="text-align:center;font-size:11px;color:var(--text-muted)">' + comp.Classification + '</td>';
+                    var dcls = comp.Classification === "Regressed" ? "alloc-high" : comp.Classification === "Improved" ? "alloc-low" : comp.Classification === "New" ? "alloc-mid" : "alloc-zero";
+                    cellValues["DeltaPercent"] = '<span class="alloc-badge ' + dcls + '">' + (comp.Classification === "New" ? "new" : formatDelta(comp.DeltaPercent)) + '</span>';
+                    cellValues["Classification"] = comp.Classification;
                   } else {
-                    deltaCell = '<td style="text-align:right;color:var(--text-muted)">\u2014</td>';
-                    classCell = '<td></td>';
+                    cellValues["DeltaPercent"] = '\u2014';
+                    cellValues["Classification"] = '';
                   }
                 }
 
-                return '<tr data-key="' + b.CompositeKey + '" data-method="' + b.Method + (b.Parameters ? " " + b.Parameters : "") + '">' +
-                  '<td><span class="method-name">' + b.Method + '</span>' + paramSub + '</td>' +
-                  '<td style="text-align:right;color:var(--text-muted)">' + measCount(b) + '</td>' +
-                  '<td style="text-align:right" class="' + meanClass.trim() + '">' + formatNs(b.MeanNs) + '</td>' +
-                  '<td style="text-align:right">' + formatOps(b.OpsPerSec) + '</td>' +
-                  '<td style="text-align:center">' + sparkFor(b) + '</td>' +
-                  '<td style="text-align:right">' + formatNs(b.ErrorNs) + '</td>' +
-                  '<td style="text-align:right">' + formatNs(b.StdDevNs) + '</td>' +
-                  '<td style="text-align:right">' + formatNs(b.P95Ns) + '</td>' +
-                  '<td style="text-align:right">' + allocBadge(b.AllocatedBytes) + '</td>' +
-                  (anyGen0 ? '<td style="text-align:right">' + formatGen(b.Gen0) + '</td>' : '') +
-                  (anyGen1 ? '<td style="text-align:right">' + formatGen(b.Gen1) + '</td>' : '') +
-                  (anyGen2 ? '<td style="text-align:right">' + formatGen(b.Gen2) + '</td>' : '') +
-                  '<td style="text-align:center">' + rankBadge(b.Rank) + '</td>' +
-                  deltaCell + classCell +
-                '</tr>';
-              }).join("");
+                var cells = colDefs.map(function(c) {
+                  var val = cellValues[c[0]] || '';
+                  var align = c[4] === "right" ? "text-align:right" : c[4] === "center" ? "text-align:center" : "";
+                  var cls = c[0] === "MeanNs" ? meanClass.trim() : (c[0].indexOf("param_") === 0 ? "" : "");
+                  if (c[0].indexOf("param_") === 0) cls = "";
+                  var style = align ? ' style="' + align + '"' : '';
+                  return '<td data-col="' + c[0] + '"' + style + (cls ? ' class="' + cls + '"' : '') + '>' + val + '</td>';
+                }).join("");
 
-              // Distribution plot
-              var distHtml = buildDistPlot(classBenchmarks);
+                return '<tr data-key="' + b.CompositeKey + '" data-method="' + b.Method + (b.Parameters ? " " + b.Parameters : "") + '">' + cells + '</tr>';
+              }).join("");
 
               // Build section HTML
               var html =
@@ -1913,6 +1909,9 @@ sealed class ReportCommand : Command<ReportSettings> {
                     '<span class="section-count">' + classBenchmarks.length + ' benchmarks</span>' +
                   '</div>' +
                   '<div class="section-body" id="body-' + sectionId + '">' +
+                    '<div style="display:flex;justify-content:flex-end;margin-bottom:6px">' +
+                      '<div class="col-picker" id="picker-' + sectionId + '"></div>' +
+                    '</div>' +
                     '<div class="table-wrap">' +
                       '<table id="table-' + sectionId + '"><thead>' + thHtml + '</thead><tbody>' + rowsHtml + '</tbody></table>' +
                     '</div>' +
@@ -1923,24 +1922,21 @@ sealed class ReportCommand : Command<ReportSettings> {
                         '<span style="font-size:13px;font-weight:600">Charts</span>' +
                       '</div>' +
                       '<div class="charts-body">' +
-                        '<div class="charts-grid">' +
-                          '<div class="chart-card">' +
-                            '<div class="chart-header">' +
-                              '<div class="chart-title"><i data-lucide="bar-chart-horizontal" style="width:14px;height:14px"></i> Comparison</div>' +
-                              '<div style="display:flex;align-items:center;gap:8px">' +
-                                '<div class="metric-pills" id="pills-' + sectionId + '">' +
-                                  metrics.map(function(m, i) {
-                                    return '<span class="metric-pill' + (i === 0 ? ' active' : '') + '" data-metric="' + m.key + '" data-section="' + sectionId + '">' + m.label + '</span>';
-                                  }).join("") +
-                                '</div>' +
-                                '<span class="metric-pill" data-log-toggle="' + sectionId + '" title="Toggle log scale" style="font-size:11px">linear</span>' +
+                        '<div class="chart-card">' +
+                          '<div class="chart-header">' +
+                            '<div class="chart-title"><i data-lucide="bar-chart-horizontal" style="width:14px;height:14px"></i> Comparison</div>' +
+                            '<div style="display:flex;align-items:center;gap:8px">' +
+                              '<div class="metric-pills" id="pills-' + sectionId + '">' +
+                                metrics.map(function(m, i) {
+                                  return '<span class="metric-pill' + (i === 0 ? ' active' : '') + '" data-metric="' + m.key + '" data-section="' + sectionId + '">' + m.label + '</span>';
+                                }).join("") +
                               '</div>' +
-                            '</div>' +
-                            '<div class="chart-container" id="chartwrap-' + sectionId + '">' +
-                              '<canvas id="chart-' + sectionId + '"></canvas>' +
+                              '<span class="metric-pill" data-log-toggle="' + sectionId + '" title="Toggle log scale" style="font-size:11px">linear</span>' +
                             '</div>' +
                           '</div>' +
-                          distHtml +
+                          '<div class="chart-container" id="chartwrap-' + sectionId + '">' +
+                            '<canvas id="chart-' + sectionId + '"></canvas>' +
+                          '</div>' +
                         '</div>' +
                       '</div>' +
                     '</div>' +
@@ -1952,6 +1948,9 @@ sealed class ReportCommand : Command<ReportSettings> {
               // Initialize pagination
               pageState[sectionId] = { page: 0, size: 10 };
               paginate(sectionId);
+
+              // Initialize column picker
+              buildColPicker(sectionId, colDefs);
 
               // Build initial chart
               buildBarChart(sectionId, "MeanNs");
@@ -1971,17 +1970,10 @@ sealed class ReportCommand : Command<ReportSettings> {
               // Reset all headers in this table
               table.querySelectorAll("thead th[data-sort]").forEach(function(h) {
                 h.classList.remove("sort-asc", "sort-desc");
-                var icon = h.querySelector(".sort-icon");
-                if (icon) icon.setAttribute("data-lucide", "arrow-up");
               });
 
               var dir = isAsc ? -1 : 1;
-              var newDir = isAsc ? "sort-desc" : "sort-asc";
-              th.classList.add(newDir);
-              var activeIcon = th.querySelector(".sort-icon");
-              if (activeIcon) {
-                activeIcon.setAttribute("data-lucide", newDir === "sort-asc" ? "arrow-up" : "arrow-down");
-              }
+              th.classList.add(isAsc ? "sort-desc" : "sort-asc");
 
               // Build benchmark lookup
               var benchByKey = {};
@@ -1994,7 +1986,16 @@ sealed class ReportCommand : Command<ReportSettings> {
                 var bb = benchByKey[rb.dataset.key];
                 var va = 0, vb = 0;
 
-                if (key === "count") {
+                if (key.indexOf("param_") === 0) {
+                  var pk = key.substring(6);
+                  var pa = parseParams(ba ? ba.Parameters : "");
+                  var pb = parseParams(bb ? bb.Parameters : "");
+                  va = pa[pk] || "";
+                  vb = pb[pk] || "";
+                  // Sort numerically if both values are numbers
+                  var na = parseFloat(va), nb = parseFloat(vb);
+                  if (!isNaN(na) && !isNaN(nb)) { va = na; vb = nb; }
+                } else if (key === "count") {
                   var ma = measurements ? measurements[getMeasurementKey(ba)] : null;
                   var mb = measurements ? measurements[getMeasurementKey(bb)] : null;
                   va = ma && ma.Values ? ma.Values.length : 0;
@@ -2070,18 +2071,23 @@ sealed class ReportCommand : Command<ReportSettings> {
               }
 
               var btns = '';
-              // Prev
-              btns += '<span class="page-btn' + (state.page === 0 ? ' disabled' : '') + '" data-page="prev">&laquo;</span>';
-              // Page numbers
-              for (var p = 0; p < totalPages; p++) {
-                if (totalPages > 7 && p > 1 && p < totalPages - 2 && Math.abs(p - state.page) > 1) {
-                  if (p === 2 || p === totalPages - 3) btns += '<span class="page-btn disabled">&hellip;</span>';
-                  continue;
-                }
+              var atFirst = state.page === 0;
+              var atLast = state.page === totalPages - 1;
+              // First + Prev
+              btns += '<span class="page-btn' + (atFirst ? ' disabled' : '') + '" data-page="first">&laquo;</span>';
+              btns += '<span class="page-btn' + (atFirst ? ' disabled' : '') + '" data-page="prev">&lsaquo;</span>';
+              // Page numbers — show at most 3 (current and neighbors)
+              var pStart = Math.max(0, state.page - 1);
+              var pEnd = Math.min(totalPages - 1, pStart + 2);
+              pStart = Math.max(0, pEnd - 2);
+              if (pStart > 0) btns += '<span class="page-btn disabled">&hellip;</span>';
+              for (var p = pStart; p <= pEnd; p++) {
                 btns += '<span class="page-btn' + (p === state.page ? ' active' : '') + '" data-page="' + p + '">' + (p + 1) + '</span>';
               }
-              // Next
-              btns += '<span class="page-btn' + (state.page === totalPages - 1 ? ' disabled' : '') + '" data-page="next">&raquo;</span>';
+              if (pEnd < totalPages - 1) btns += '<span class="page-btn disabled">&hellip;</span>';
+              // Next + Last
+              btns += '<span class="page-btn' + (atLast ? ' disabled' : '') + '" data-page="next">&rsaquo;</span>';
+              btns += '<span class="page-btn' + (atLast ? ' disabled' : '') + '" data-page="last">&raquo;</span>';
 
               // Page size selector
               var sizeOpts = [10, 25, 50, 100].map(function(s) {
@@ -2098,8 +2104,10 @@ sealed class ReportCommand : Command<ReportSettings> {
               pag.querySelectorAll(".page-btn:not(.disabled)").forEach(function(btn) {
                 btn.addEventListener("click", function() {
                   var v = btn.dataset.page;
-                  if (v === "prev") state.page = Math.max(0, state.page - 1);
+                  if (v === "first") state.page = 0;
+                  else if (v === "prev") state.page = Math.max(0, state.page - 1);
                   else if (v === "next") state.page = Math.min(totalPages - 1, state.page + 1);
+                  else if (v === "last") state.page = totalPages - 1;
                   else state.page = parseInt(v, 10);
                   paginate(sectionId);
                 });
@@ -2236,7 +2244,7 @@ sealed class ReportCommand : Command<ReportSettings> {
 
             function buildBarChart(sectionId, metricKey) {
               var cls = sectionId.replace("section-", "");
-              var sectionBenchmarks = benchmarks.filter(function(b) { return b.Type === cls; });
+              var sectionBenchmarks = benchmarks.filter(function(b) { return b.Type === cls && b.MeanNs > 0; });
               var metric = allMetrics.find(function(m) { return m.key === metricKey; });
               if (!metric) return;
 
@@ -2355,18 +2363,28 @@ sealed class ReportCommand : Command<ReportSettings> {
               var el = document.getElementById("legends-section");
               if (!el) return;
 
+              var li = '<i style="width:12px;height:12px;opacity:0.4;flex-shrink:0" data-lucide="';
+              function legendItem(icon, label, desc) {
+                return '<div style="display:flex;align-items:baseline;gap:6px;font-size:13px">' +
+                  '<span class="label" style="display:flex;align-items:center;gap:4px;white-space:nowrap">' + li + icon + '"></i>' + label + '</span>' +
+                  '<span class="value">' + desc + '</span></div>';
+              }
+
               el.innerHTML =
                 '<div class="env-card-title" style="margin-bottom:10px"><i data-lucide="info" style="width:14px;height:14px"></i> Legend</div>' +
-                '<div class="env-grid" style="grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px">' +
-                  '<span class="label">Mean</span><span class="value">Arithmetic mean of all iterations</span>' +
-                  '<span class="label">Error</span><span class="value">Half of 99.9% confidence interval</span>' +
-                  '<span class="label">StdDev</span><span class="value">Standard deviation of all iterations</span>' +
-                  '<span class="label">P95</span><span class="value">95th percentile: worst 5% of iterations were slower</span>' +
-                  '<span class="label">Rank</span><span class="value">Relative position within the benchmark class (1 = fastest)</span>' +
-                  '<span class="label">Alloc</span><span class="value">Allocated memory per single operation (managed only)</span>' +
-                  '<span class="label">1 ns</span><span class="value">1 Nanosecond (0.000000001 sec)</span>' +
-                  '<span class="label">1 \u00B5s</span><span class="value">1 Microsecond (0.000001 sec)</span>' +
-                  '<span class="label">1 ms</span><span class="value">1 Millisecond (0.001 sec)</span>' +
+                '<div style="display:grid;grid-template-rows:repeat(3,auto);grid-auto-flow:column;grid-template-columns:1fr 1fr 1fr;gap:8px 24px">' +
+                  // Column 1: Timing metrics
+                  legendItem("bar-chart-2", "Mean", "Arithmetic mean of all iterations") +
+                  legendItem("shield-alert", "Error", "Half of 99.9% confidence interval") +
+                  legendItem("activity", "StdDev", "Standard deviation of all iterations") +
+                  // Column 2: Ranking & allocation
+                  legendItem("percent", "P95", "95th percentile: worst 5% were slower") +
+                  legendItem("trophy", "Rank", "Position within benchmark class (1 = fastest)") +
+                  legendItem("memory-stick", "Alloc", "Allocated memory per operation (managed only)") +
+                  // Column 3: Time units
+                  legendItem("clock", "1 ns", "1 Nanosecond (0.000000001 sec)") +
+                  legendItem("clock", "1 \u00B5s", "1 Microsecond (0.000001 sec)") +
+                  legendItem("clock", "1 ms", "1 Millisecond (0.001 sec)") +
                 '</div>';
             }
 
@@ -2391,6 +2409,112 @@ sealed class ReportCommand : Command<ReportSettings> {
             })();
 
             // ── Section Toggle Functions ──────────────────────────────────────────
+
+            // ── Column Picker ──────────────────────────────────────────────────
+
+            var colPickerState = {};
+            var colPickerDefaults = {};
+
+            function buildColPicker(sectionId, colDefs) {
+              var pickerEl = document.getElementById("picker-" + sectionId);
+              if (!pickerEl) return;
+
+              // Initialize state: default visibility from colDefs
+              colPickerState[sectionId] = {};
+              colPickerDefaults[sectionId] = {};
+              colDefs.forEach(function(c) {
+                colPickerState[sectionId][c[0]] = c[5];
+                colPickerDefaults[sectionId][c[0]] = c[5];
+              });
+
+              var menuItems = colDefs.map(function(c) {
+                var checked = c[5] ? " checked" : "";
+                var alwaysOn = c[0] === "Method" || c[0] === "Rank" || c[0].indexOf("param_") === 0;
+                var disabled = alwaysOn ? " disabled" : "";
+                return '<label class="col-picker-item"><input type="checkbox" data-col="' + c[0] + '"' + checked + disabled + '>' + c[2] + '</label>';
+              });
+
+              // Insert divider between always-on params and metric cols
+              var paramCount = colDefs.filter(function(c) { return c[0].indexOf("param_") === 0; }).length;
+              var dividerIdx = 1 + paramCount; // after Method + params
+              if (paramCount > 0) menuItems.splice(dividerIdx, 0, '<div class="col-picker-divider"></div>');
+
+              pickerEl.innerHTML =
+                '<button class="col-picker-btn" onclick="toggleColMenu(\'' + sectionId + '\')">' +
+                  '<i data-lucide="columns-3" style="width:13px;height:13px"></i> Columns' +
+                '</button>' +
+                '<div class="col-picker-menu" id="colmenu-' + sectionId + '">' +
+                  menuItems.join("") +
+                  '<div class="col-picker-divider"></div>' +
+                  '<div class="col-picker-item" style="color:var(--accent-blue);font-weight:600" onclick="resetColPicker(\'' + sectionId + '\')"><i data-lucide="rotate-ccw" style="width:12px;height:12px"></i> Defaults</div>' +
+                '</div>';
+
+              // Bind checkbox changes
+              pickerEl.querySelectorAll("input[data-col]").forEach(function(cb) {
+                cb.addEventListener("change", function() {
+                  colPickerState[sectionId][cb.dataset.col] = cb.checked;
+                  applyColVisibility(sectionId);
+                });
+              });
+
+              // Apply initial hidden state
+              applyColVisibility(sectionId);
+            }
+
+            function toggleColMenu(sectionId) {
+              // Close all other menus first
+              document.querySelectorAll(".col-picker-menu.open").forEach(function(m) {
+                if (m.id !== "colmenu-" + sectionId) m.classList.remove("open");
+              });
+              var menu = document.getElementById("colmenu-" + sectionId);
+              if (menu) menu.classList.toggle("open");
+            }
+
+            // Close picker on outside click
+            document.addEventListener("click", function(e) {
+              if (!e.target.closest(".col-picker")) {
+                document.querySelectorAll(".col-picker-menu.open").forEach(function(m) { m.classList.remove("open"); });
+              }
+            });
+
+            function applyColVisibility(sectionId) {
+              var state = colPickerState[sectionId];
+              if (!state) return;
+              var tableWrap = document.querySelector("#" + sectionId + " .table-wrap");
+              if (!tableWrap) return;
+
+              // Find or create style element
+              var styleEl = tableWrap.querySelector("style.col-vis");
+              if (!styleEl) {
+                styleEl = document.createElement("style");
+                styleEl.className = "col-vis";
+                tableWrap.prepend(styleEl);
+              }
+
+              var tableId = "table-" + sectionId;
+              var rules = [];
+              Object.keys(state).forEach(function(col) {
+                if (!state[col]) {
+                  rules.push("#" + tableId + " [data-col=\"" + col + "\"] { display: none; }");
+                }
+              });
+              styleEl.textContent = rules.join("\n");
+            }
+
+            function resetColPicker(sectionId) {
+              var defaults = colPickerDefaults[sectionId];
+              if (!defaults) return;
+              colPickerState[sectionId] = {};
+              Object.keys(defaults).forEach(function(k) { colPickerState[sectionId][k] = defaults[k]; });
+              // Update checkboxes
+              var picker = document.getElementById("picker-" + sectionId);
+              if (picker) {
+                picker.querySelectorAll("input[data-col]").forEach(function(cb) {
+                  cb.checked = defaults[cb.dataset.col] !== false;
+                });
+              }
+              applyColVisibility(sectionId);
+            }
 
             function toggleSection(sectionId) {
               var body = document.getElementById("body-" + sectionId);
@@ -2436,11 +2560,28 @@ sealed class ReportCommand : Command<ReportSettings> {
             renderEnvPanel();
             renderBentoStats();
             if (isComparison) renderRegressionSummary();
-            classes.forEach(function(cls) { renderClassSection(cls); });
             renderLegends();
 
+            // Warn about zero-value benchmarks
+            var zeroBenchmarks = benchmarks.filter(function(b) { return b.MeanNs === 0; });
+            if (zeroBenchmarks.length > 0) {
+              var warnEl = document.getElementById("zero-warning");
+              if (warnEl) {
+                warnEl.style.display = "";
+                warnEl.innerHTML =
+                  '<div style="background:var(--bg-surface);border:1px solid var(--accent-amber);border-radius:var(--radius-card);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:13px">' +
+                    '<i data-lucide="triangle-alert" style="width:16px;height:16px;color:var(--accent-amber);flex-shrink:0"></i>' +
+                    '<span><strong style="color:var(--accent-amber)">' + zeroBenchmarks.length + ' benchmark' + (zeroBenchmarks.length === 1 ? '' : 's') + ' excluded</strong>' +
+                    '<span style="color:var(--text-secondary)"> — reported 0 ns mean (below measurable threshold or missing data)</span></span>' +
+                  '</div>';
+              }
+            }
+
+            classes.forEach(function(cls) { renderClassSection(cls); });
+
             // Badge count
-            document.getElementById("benchmark-count-badge").textContent = benchmarks.length + " benchmarks";
+            var measurableCount = benchmarks.filter(function(b) { return b.MeanNs > 0; }).length;
+            document.getElementById("benchmark-count-badge").textContent = measurableCount + " benchmarks";
 
             // Populate jump-to select
             (function() {

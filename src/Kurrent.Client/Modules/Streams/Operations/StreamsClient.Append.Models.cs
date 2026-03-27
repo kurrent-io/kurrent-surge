@@ -29,7 +29,9 @@ public record AppendRecordsRequest() {
     public static MultiStreamAppendBuilder New() => new();
 
     [method: SetsRequiredMembers]
-    public AppendRecordsRequest(ImmutableArray<AppendRecord> records, ImmutableArray<ConsistencyCheck> checks) : this() {
+    public AppendRecordsRequest(
+        ImmutableArray<AppendRecord> records, ImmutableArray<ConsistencyCheck> checks
+    ) : this() {
         Records = records;
         Checks  = checks;
     }
@@ -42,7 +44,7 @@ public record AppendRecordsRequest() {
     /// <summary>
     /// Gets the consistency checks to be performed before appending.
     /// </summary>
-    public required ImmutableArray<ConsistencyCheck> Checks  { get; init; }
+    public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
 }
 
 /// <summary>
@@ -63,7 +65,7 @@ public record AppendRecordsSuccess(StreamRevision[] Revisions, LogPosition Posit
     /// <summary>
     /// Gets the log position where the records were persisted.
     /// </summary>
-    public required LogPosition                      Position  { get; init; } = Position;
+    public required LogPosition Position { get; init; } = Position;
 }
 
 /// <summary>
@@ -80,17 +82,17 @@ record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState,
     /// <summary>
     /// Gets the target stream name.
     /// </summary>
-    public required StreamName                Stream        { get; init; } = Stream;
+    public required StreamName Stream { get; init; } = Stream;
 
     /// <summary>
     /// Gets the messages to be appended to the stream.
     /// </summary>
-    public required IEnumerable<AppendRecord> Messages      { get; init; } = Messages;
+    public required IEnumerable<AppendRecord> Messages { get; init; } = Messages;
 
     /// <summary>
     /// Gets the expected state condition that must be satisfied before appending.
     /// </summary>
-    public required ExpectedStreamState       ExpectedState { get; init; } = ExpectedState;
+    public required ExpectedStreamState ExpectedState { get; init; } = ExpectedState;
 }
 
 /// <summary>
@@ -107,12 +109,12 @@ public record AppendStreamSuccess(StreamName Stream, LogPosition Position, Revis
     /// <summary>
     /// Gets the stream name where the messages were appended.
     /// </summary>
-    public required StreamName     Stream         { get; init; } = Stream;
+    public required StreamName Stream { get; init; } = Stream;
 
     /// <summary>
     /// Gets the log position where the messages were persisted.
     /// </summary>
-    public required LogPosition    Position       { get; init; } = Position;
+    public required LogPosition Position { get; init; } = Position;
 
     /// <summary>
     /// Gets the stream revision after appending.
@@ -129,7 +131,8 @@ public record AppendStreamSuccess(StreamName Stream, LogPosition Position, Revis
 /// </remarks>
 [PublicAPI]
 [Obsolete("Use AppendRecordsSuccess with appropriate stream revisions instead.")]
-public record AppendSessionSuccess(IReadOnlyList<AppendStreamSuccess> Results, LogPosition Position) : IReadOnlyList<AppendStreamSuccess> {
+public record AppendSessionSuccess(IReadOnlyList<AppendStreamSuccess> Results, LogPosition Position)
+    : IReadOnlyList<AppendStreamSuccess> {
     /// <summary>
     /// Gets the number of stream append results in this session.
     /// </summary>

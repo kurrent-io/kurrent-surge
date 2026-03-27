@@ -2,6 +2,7 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 
 namespace Kurrent.Testkit.Datasets.ArcadeRacer;
@@ -10,24 +11,23 @@ namespace Kurrent.Testkit.Datasets.ArcadeRacer;
 /// Entry point for generating arcade racer test data. Provides access to model fakers,
 /// event fakers, and the race simulation builder.
 /// </summary>
-public class ArcadeRacerDataSet {
+public class ArcadeRacerDataSet : CustomDataSet<ArcadeRacerDataSet> {
     public static readonly ArcadeRacerDataSet Instance = new();
 
-    readonly Faker _faker;
+    protected override void Initialize() { }
 
-    public ArcadeRacerDataSet(Faker? faker = null) {
-        _faker = faker ?? new Faker();
-        RaceCar = new RaceCarFaker(_faker);
-        Circuit = new CircuitFaker(_faker);
-        Events  = new EventFakers(_faker);
+    public ArcadeRacerDataSet(Faker? faker = null) : base(faker ?? new Faker()) {
+        RaceCar    = new RaceCarFaker(Faker);
+        Circuit    = new CircuitFaker(Faker);
+        RaceEvents = new EventFakers(Faker);
     }
 
-    public RaceCarFaker RaceCar { get; }
-    public CircuitFaker Circuit { get; }
-    public EventFakers  Events  { get; }
+    /// <summary>Creates a pre-computed race builder that shares this dataset's Faker for reproducible data.</summary>
+    public PrecomputedRaceSimulatorBuilder Race => new(Faker);
 
-    /// <summary>Creates a new race simulation builder using this dataset's faker.</summary>
-    public ArcadeRaceBuilder NewRace() => new(_faker);
+    public RaceCarFaker  RaceCar    { get; }
+    public CircuitFaker  Circuit    { get; }
+    public EventFakers   RaceEvents { get; }
 
     public class EventFakers(Faker faker) {
         public GridFormedFaker        GridFormed        { get; } = new(faker);
@@ -39,5 +39,12 @@ public class ArcadeRacerDataSet {
         public CarRetiredFaker        CarRetired        { get; } = new(faker);
         public WeatherChangedFaker    WeatherChanged    { get; } = new(faker);
         public RaceFinishedFaker      RaceFinished      { get; } = new(faker);
+    }
+}
+
+public static class FakerExtensions {
+    extension(Faker faker) {
+        public ArcadeRacerDataSet ArcadeRacer() =>
+            ContextHelper.GetOrSet(faker, f => new ArcadeRacerDataSet(f));
     }
 }

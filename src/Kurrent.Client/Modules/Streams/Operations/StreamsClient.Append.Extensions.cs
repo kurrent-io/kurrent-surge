@@ -18,24 +18,22 @@ public static partial class StreamsClientExtensions {
             CancellationToken            cancellationToken = default
         ) => client.AppendRecords(records, [check ?? ConsistencyCheck.None], cancellationToken);
 
+        /// <summary>
+        /// The record is appended to the stream with the given consistency checks.
+        /// </summary>
         public ValueTask<AppendRecordsSuccess> AppendRecords(
             AppendRecord                     record,
             ImmutableArray<ConsistencyCheck> checks,
             CancellationToken                cancellationToken = default
         ) => client.AppendRecords([record], checks, cancellationToken);
 
+        /// <summary>
+        /// The record is appended to the stream with the given consistency checks.
+        /// </summary>
         public ValueTask<AppendRecordsSuccess> AppendRecords(
             AppendRecord      record,
             ConsistencyCheck? check             = null,
             CancellationToken cancellationToken = default
         ) => client.AppendRecords(record, [check ?? ConsistencyCheck.None], cancellationToken);
-
-        // public ValueTask<AppendRecordsSuccess> AppendRecords(
-        //     object      value,
-        //     ConsistencyCheck? check             = null,
-        //     CancellationToken cancellationToken = default
-        // ) => client.AppendRecords(new AppendRecord { Value = value }, check ?? ConsistencyCheck.None, cancellationToken);
-
-
     }
 }

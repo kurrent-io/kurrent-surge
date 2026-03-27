@@ -25,9 +25,9 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	}
 
 	protected override object[] CreateTestMessages() => [
-		ArcadeRacer.Events.LapCompleted.Generate(),
-		ArcadeRacer.Events.OvertakePerformed.Generate(),
-		ArcadeRacer.Events.PitStopPerformed.Generate()
+		ArcadeRacer.RaceEvents.LapCompleted.Generate(),
+		ArcadeRacer.RaceEvents.OvertakePerformed.Generate(),
+		ArcadeRacer.RaceEvents.PitStopPerformed.Generate()
 	];
 
 	protected override SchemaSerializationContext CreateSerializeContext() => new() {
@@ -51,7 +51,7 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	public async ValueTask serialize_uses_camel_case_by_default() {
 		// Arrange
 		var context = CreateSerializeContext();
-		var lap     = ArcadeRacer.Events.LapCompleted.Generate();
+		var lap     = ArcadeRacer.RaceEvents.LapCompleted.Generate();
 
 		// Act
 		var result = await Sut.Serialize(lap, context).ConfigureAwait(false);
@@ -71,7 +71,7 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	public async ValueTask deserialize_malformed_bytes_throws() {
 		// Arrange - serialize first to register the schema via auto-map
 		var context = CreateSerializeContext();
-		var lap     = ArcadeRacer.Events.LapCompleted.Generate();
+		var lap     = ArcadeRacer.RaceEvents.LapCompleted.Generate();
 		await Sut.Serialize(lap, context).ConfigureAwait(false);
 
 		var deserializeContext = CreateDeserializeContext(context);

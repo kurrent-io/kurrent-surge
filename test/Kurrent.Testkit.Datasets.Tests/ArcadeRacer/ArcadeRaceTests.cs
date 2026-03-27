@@ -14,8 +14,9 @@ public class ArcadeRaceTests {
 
     static ArcadeRace CreateRace(int cars = 4, int laps = 10, CircuitDifficulty difficulty = CircuitDifficulty.Medium) {
         var faker = new Faker();
+
         var ds    = new ArcadeRacerDataSet(faker);
-        var race  = new ArcadeRace(faker);
+        var race  = new ArcadeRace(new Guid(), faker);
 
         race.FormGrid(new ArcadeRaceOptions {
             Cars       = ds.RaceCar.Generate(cars),
@@ -82,7 +83,7 @@ public class ArcadeRaceTests {
             Spec = new RaceCarSpec { Acceleration = 5, TopSpeed = 5, Handling = 1, Endurance = 10 }
         };
 
-        var race = new ArcadeRace(faker);
+        var race = new ArcadeRace(new Guid(), faker);
 
         race.FormGrid(new ArcadeRaceOptions {
             Cars       = [highHandling, lowHandling],

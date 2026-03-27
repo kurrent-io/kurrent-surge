@@ -1,9 +1,6 @@
-using System.Reactive.Subjects;
 using Kurrent.Testing.OpenTelemetry;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Events;
 using Serilog.Exceptions;
 using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;

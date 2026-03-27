@@ -1,5 +1,5 @@
-# EditorConfig - https://editorconfig.org
 root = true
+# EditorConfig - https://editorconfig.org
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Default settings for all files
@@ -13,6 +13,12 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 max_line_length = 120
+
+# ReSharper properties
+resharper_arguments_anonymous_function = positional
+resharper_csharp_allow_far_alignment = false
+resharper_csharp_wrap_arguments_style = chop_if_long
+resharper_wrap_before_invocation_rpar = false
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Markdown
@@ -389,37 +395,37 @@ dotnet_naming_symbols.local_function_symbols.applicable_accessibilities = *
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # IDE0005: Remove unnecessary using directives
-dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.ide0005.severity = warning
 
 # IDE0055: Fix formatting
-dotnet_diagnostic.IDE0055.severity = suggestion
+dotnet_diagnostic.ide0055.severity = suggestion
 
 # IDE0160: Convert to file-scoped namespace
-dotnet_diagnostic.IDE0160.severity = warning
+dotnet_diagnostic.ide0160.severity = warning
 
 # IDE0161: Convert to block-scoped namespace
-dotnet_diagnostic.IDE0161.severity = none
+dotnet_diagnostic.ide0161.severity = none
 
 # CA1848: Use LoggerMessage delegates
-dotnet_diagnostic.CA1848.severity = suggestion
+dotnet_diagnostic.ca1848.severity = suggestion
 
 # CA1062: Validate arguments of public methods (nullable handles this)
-dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.ca1062.severity = none
 
 # CA1034: Nested types should not be visible (sometimes useful)
-dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.ca1034.severity = none
 
 # CA1716: Identifiers should not match keywords
-dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.ca1716.severity = none
 
 # CA1720: Identifier contains type name
-dotnet_diagnostic.CA1720.severity = none
+dotnet_diagnostic.ca1720.severity = none
 
 # CA1724: Type names should not match namespaces
-dotnet_diagnostic.CA1724.severity = none
+dotnet_diagnostic.ca1724.severity = none
 
 # CA1822: Mark members as static (sometimes impacts readability)
-dotnet_diagnostic.CA1822.severity = suggestion
+dotnet_diagnostic.ca1822.severity = suggestion
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

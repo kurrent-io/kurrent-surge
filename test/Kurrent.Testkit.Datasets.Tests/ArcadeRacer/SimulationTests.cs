@@ -9,131 +9,19 @@ namespace Kurrent.Testkit.Datasets.Tests.ArcadeRacer;
 
 [Category("ArcadeRacer")]
 public class SimulationTests {
-    readonly ArcadeRacerDataSet _ds = ArcadeRacerDataSet.Instance;
 
-    static async Task<List<IRaceEvent>> CollectEvents(ArcadeRaceSimulation sim) {
-        var events = new List<IRaceEvent>();
-
-        await foreach (var e in sim)
-            events.Add(e);
-
-        return events;
-    }
-
-    #region Streaming mode
+    #region Pre-computed (Simulate)
 
     [Test]
-    public async Task streaming_produces_events() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithLaps(3)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        var events = await CollectEvents(sim);
-
-        await Assert.That(events.Count).IsGreaterThan(0);
-    }
-
-    [Test]
-    public async Task streaming_starts_with_grid_formed_then_race_started() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithLaps(2)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        var events = await CollectEvents(sim);
-
-        await Assert.That(events[0]).IsTypeOf<GridFormed>();
-        await Assert.That(events[1]).IsTypeOf<RaceStarted>();
-    }
-
-    [Test]
-    public async Task streaming_ends_with_race_finished() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithLaps(2)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        var events = await CollectEvents(sim);
-
-        await Assert.That(events[^1]).IsTypeOf<RaceFinished>();
-    }
-
-    [Test]
-    public async Task streaming_race_finished_includes_all_cars() {
-        var sim = _ds.NewRace()
-            .WithCars(6)
-            .WithLaps(3)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        var events   = await CollectEvents(sim);
-        var finished = events.OfType<RaceFinished>().Single();
-
-        await Assert.That(finished.Results.Length).IsEqualTo(6);
-    }
-
-    [Test]
-    public async Task streaming_contains_lap_completed_events() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithLaps(5)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        var events    = await CollectEvents(sim);
-        var lapEvents = events.OfType<LapCompleted>().ToList();
-
-        // At least 4 cars * 5 laps = 20 LapCompleted events (some may be missing due to DNF)
-        await Assert.That(lapEvents.Count).IsGreaterThanOrEqualTo(10);
-    }
-
-    #endregion
-
-    #region Endless mode
-
-    [Test]
-    public async Task endless_mode_runs_until_cancelled() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        using var cts    = new CancellationTokenSource();
-        var events       = new List<IRaceEvent>();
-        var maxLap       = 0;
-
-        await foreach (var e in sim.WithCancellation(cts.Token)) {
-            events.Add(e);
-
-            if (e is LapCompleted lc)
-                maxLap = Math.Max(maxLap, lc.Lap);
-
-            if (maxLap >= 5)
-                cts.Cancel();
-        }
-
-        await Assert.That(events[0]).IsTypeOf<GridFormed>();
-        await Assert.That(events[1]).IsTypeOf<RaceStarted>();
-        await Assert.That(events[^1]).IsTypeOf<RaceFinished>();
-        await Assert.That(maxLap).IsGreaterThanOrEqualTo(5);
-    }
-
-    #endregion
-
-    #region SimulateAsync
-
-    [Test]
-    public async Task simulate_async_returns_completed_race() {
-        var race = await _ds.NewRace()
+    public async Task simulate_returns_completed_race() {
+        // Arrange & Act
+        var race = ArcadeRaceSimulator.NewRace()
             .WithCars(6)
             .WithLaps(5)
             .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .SimulateAsync();
+            .Simulate();
 
+        // Assert
         await Assert.That(race.Cars).Count().IsEqualTo(6);
         await Assert.That(race.TotalLaps).IsGreaterThanOrEqualTo(1);
         await Assert.That(race.Results).Count().IsEqualTo(6);
@@ -141,26 +29,30 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task simulate_async_winner_is_first_position() {
-        var race = await _ds.NewRace()
+    public async Task simulate_winner_is_first_position() {
+        // Arrange & Act
+        var race = ArcadeRaceSimulator.NewRace()
             .WithCars(4)
             .WithLaps(3)
             .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .SimulateAsync();
+            .Simulate();
 
+        // Assert
         await Assert.That(race.Winner.Position).IsEqualTo(1);
         await Assert.That(race.Winner.Dnf).IsFalse();
     }
 
     [Test]
-    public async Task simulate_async_logbook_contains_setup_and_finish() {
-        var race = await _ds.NewRace()
+    public async Task simulate_logbook_contains_setup_and_finish() {
+        // Arrange & Act
+        var race = ArcadeRaceSimulator.NewRace()
             .WithCars(4)
             .WithLaps(3)
             .WithDifficulty(CircuitDifficulty.Medium)
             .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .SimulateAsync();
+            .Simulate();
 
+        // Assert
         await Assert.That(race.Circuit.Difficulty).IsEqualTo(CircuitDifficulty.Medium);
         await Assert.That(race.Conditions.TimeOfDay).IsEqualTo(TimeOfDay.Day);
         await Assert.That(race.Conditions.Weather).IsEqualTo(Weather.Sunny);
@@ -168,58 +60,114 @@ public class SimulationTests {
         await Assert.That(race.Events[^1]).IsTypeOf<RaceFinished>();
     }
 
+    [Test]
+    public async Task simulate_rejects_endless_laps() {
+        // Arrange
+        var builder = ArcadeRaceSimulator.NewRace().WithLaps(0);
+
+        // Act & Assert
+        await Assert.That(() => builder.Simulate()).Throws<InvalidOperationException>();
+    }
+
     #endregion
 
-    #region Result after streaming
+    #region Streaming
 
     [Test]
-    public async Task result_is_not_available_before_enumeration() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithLaps(2)
-            .Start();
-
-        await Assert.That(sim.IsFinished).IsFalse();
-        await Assert.That(() => sim.Result).Throws<InvalidOperationException>();
-    }
-
-    [Test]
-    public async Task result_is_available_after_enumeration() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithLaps(3)
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
-        await foreach (var _ in sim) { }
-
-        await Assert.That(sim.IsFinished).IsTrue();
-        await Assert.That(sim.Result.Winner.Position).IsEqualTo(1);
-        await Assert.That(sim.Result.Events.Count).IsGreaterThan(0);
-    }
-
-    [Test]
-    public async Task result_is_available_after_endless_mode_cancellation() {
-        var sim = _ds.NewRace()
-            .WithCars(4)
-            .WithEndlessLaps()
-            .WithConditions(TimeOfDay.Day, Weather.Sunny)
-            .Start();
-
+    public async Task streaming_produces_events() {
+        // Arrange
         using var cts = new CancellationTokenSource();
+        await using var sim = ArcadeRaceSimulator.NewStreamingRace()
+            .WithCars(4)
+            .WithConditions(TimeOfDay.Day, Weather.Sunny)
+            .Start();
+
+        // Act
+        var events = await sim.RaceEvents(ct: cts.Token).Take(10).ToListAsync();
+
+        // Assert
+        await Assert.That(events.Count).IsEqualTo(10);
+    }
+
+    [Test]
+    public async Task streaming_starts_with_grid_formed_then_race_started() {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await using var sim = ArcadeRaceSimulator.NewStreamingRace()
+            .WithCars(4)
+            .WithConditions(TimeOfDay.Day, Weather.Sunny)
+            .Start();
+
+        // Act
+        var events = await sim.RaceEvents(ct: cts.Token).Take(2).ToListAsync();
+
+        // Assert
+        await Assert.That(events[0]).IsTypeOf<GridFormed>();
+        await Assert.That(events[1]).IsTypeOf<RaceStarted>();
+    }
+
+    [Test]
+    public async Task streaming_contains_lap_completed_events() {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await using var sim = ArcadeRaceSimulator.NewStreamingRace()
+            .WithCars(4)
+            .WithConditions(TimeOfDay.Day, Weather.Sunny)
+            .Start();
+
+        // Act
+        var events    = await sim.RaceEvents(ct: cts.Token).Take(100).ToListAsync();
+        var lapEvents = events.OfType<LapCompleted>().ToList();
+
+        // Assert
+        await Assert.That(lapEvents.Count).IsGreaterThanOrEqualTo(10);
+    }
+
+    [Test]
+    public async Task streaming_with_race_finished_on_cancellation() {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await using var sim = ArcadeRaceSimulator.NewStreamingRace()
+            .WithCars(4)
+            .WithConditions(TimeOfDay.Day, Weather.Sunny)
+            .Start();
+
+        // Act — read events, cancel after 5 laps, include RaceFinished
+        var events = new List<IRaceEvent>();
         var maxLap = 0;
 
-        await foreach (var e in sim.WithCancellation(cts.Token)) {
+        await foreach (var e in sim.RaceEvents(includeRaceFinished: true, ct: cts.Token)) {
+            events.Add(e);
+
             if (e is LapCompleted lc)
                 maxLap = Math.Max(maxLap, lc.Lap);
 
-            if (maxLap >= 3)
-                cts.Cancel();
+            if (maxLap >= 5)
+                await cts.CancelAsync();
         }
 
-        await Assert.That(sim.IsFinished).IsTrue();
-        await Assert.That(sim.Result.Cars.Length).IsEqualTo(4);
-        await Assert.That(sim.Result.Results.Length).IsGreaterThanOrEqualTo(1);
+        // Assert
+        await Assert.That(events[0]).IsTypeOf<GridFormed>();
+        await Assert.That(events[1]).IsTypeOf<RaceStarted>();
+        await Assert.That(events[^1]).IsTypeOf<RaceFinished>();
+        await Assert.That(maxLap).IsGreaterThanOrEqualTo(5);
+    }
+
+    [Test]
+    public async Task streaming_without_race_finished_on_cancellation() {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await using var sim = ArcadeRaceSimulator.NewStreamingRace()
+            .WithCars(4)
+            .WithConditions(TimeOfDay.Day, Weather.Sunny)
+            .Start();
+
+        // Act — read 10 events without RaceFinished
+        var events = await sim.RaceEvents(includeRaceFinished: false, ct: cts.Token).Take(10).ToListAsync();
+
+        // Assert — no RaceFinished
+        await Assert.That(events.OfType<RaceFinished>().Count()).IsEqualTo(0);
+        await Assert.That(events.Count).IsEqualTo(10);
     }
 
     #endregion
@@ -228,17 +176,17 @@ public class SimulationTests {
 
     [Test]
     public async Task race_with_night_and_rain_has_incidents() {
-        // Hard + night + rain gives ~21.6% incident rate per lap.
-        // 50 laps makes zero incidents virtually impossible (p ≈ 0.0000005).
-        var race = await _ds.NewRace()
+        // Arrange & Act
+        var race = ArcadeRaceSimulator.NewRace()
             .WithCars(8)
             .WithLaps(50)
             .WithDifficulty(CircuitDifficulty.Hard)
             .WithConditions(TimeOfDay.Night, Weather.Rainy)
-            .SimulateAsync();
+            .Simulate();
 
         var incidents = race.Events.OfType<IncidentOccurred>().ToList();
 
+        // Assert
         await Assert.That(incidents.Count).IsGreaterThan(0);
     }
 

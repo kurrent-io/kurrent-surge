@@ -9,9 +9,11 @@ namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 /// cumulative times, pit stops, incidents, and weather changes lap by lap.
 /// </summary>
 class ArcadeRace {
+    readonly Guid  _id;
     readonly Faker _faker;
 
-    internal ArcadeRace(Faker faker) {
+    internal ArcadeRace(Guid id, Faker faker) {
+        _id    = id;
         _faker = faker;
         State  = new ArcadeRaceState();
     }
@@ -54,7 +56,8 @@ class ArcadeRace {
             Circuit    = options.Circuit,
             Conditions = options.Conditions,
             TotalLaps  = options.TotalLaps,
-            Timestamp  = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            Timestamp  = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            RaceId     = _id
         };
 
         return [State.Apply(e)];
@@ -65,7 +68,8 @@ class ArcadeRace {
     public IRaceEvent[] Start() {
         var e = new RaceStarted {
             EventId   = Guid.NewGuid(),
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            RaceId    = _id
         };
 
         return [State.Apply(e)];
@@ -85,7 +89,8 @@ class ArcadeRace {
             OldWeather = oldWeather,
             NewWeather = newWeather,
             Lap        = State.Lap,
-            Timestamp  = State.Timestamp
+            Timestamp  = State.Timestamp,
+            RaceId     = _id
         };
 
         return [State.Apply(e)];
@@ -123,7 +128,8 @@ class ArcadeRace {
                     CarId       = carId,
                     Lap         = currentLap,
                     TimePenalty = Math.Round(20.0 + _faker.Random.Double(0, 5.0), 3),
-                    Timestamp   = nextTimestamp
+                    Timestamp   = nextTimestamp,
+                    RaceId      = _id
                 };
 
                 State.Apply(e);
@@ -150,7 +156,8 @@ class ArcadeRace {
                     Lap            = currentLap,
                     LapTime        = Math.Round(laps[carId], 3),
                     CumulativeTime = Math.Round(cumTime, 3),
-                    Timestamp      = nextTimestamp
+                    Timestamp      = nextTimestamp,
+                    RaceId         = _id
                 };
 
                 State.Apply(e);
@@ -174,7 +181,8 @@ class ArcadeRace {
                             OvertakerId = carId,
                             DefenderId  = oldOrder[i],
                             Lap         = currentLap,
-                            Timestamp   = nextTimestamp
+                            Timestamp   = nextTimestamp,
+                            RaceId      = _id
                         }
                     );
                 }
@@ -198,7 +206,8 @@ class ArcadeRace {
                 CarId       = carId,
                 Lap         = State.Lap,
                 Description = description,
-                Timestamp   = State.Timestamp
+                Timestamp   = State.Timestamp,
+                RaceId      = _id
             };
 
             return [State.Apply(e)];
@@ -210,7 +219,8 @@ class ArcadeRace {
                 Lap         = State.Lap,
                 Description = description,
                 TimePenalty = Math.Round(2.0 + _faker.Random.Double(0, 5.0), 3),
-                Timestamp   = State.Timestamp
+                Timestamp   = State.Timestamp,
+                RaceId      = _id
             };
 
             return [State.Apply(e)];
@@ -263,9 +273,55 @@ class ArcadeRace {
                 EventId   = Guid.NewGuid(),
                 Results   = results.ToArray(),
                 TotalLaps = State.Lap,
-                Timestamp = State.Timestamp
+                Timestamp = State.Timestamp,
+                RaceId    = _id
             }
         ];
+    }
+
+    public RaceInsight Insight() {
+        var results   = new List<RaceResult>();
+        var raceOrder = State.RaceOrder;
+
+        for (var pos = 0; pos < raceOrder.Count; pos++) {
+            var carId      = raceOrder[pos];
+            var car        = State.Cars[carId];
+            var cumTime    = State.CumulativeTimes[carId];
+            var leaderTime = State.CumulativeTimes[raceOrder[0]];
+
+            results.Add(new RaceResult {
+                CarId          = car.Id,
+                CarName        = car.Name,
+                Pilot          = car.Pilot,
+                Position       = pos + 1,
+                Dnf            = false,
+                CumulativeTime = Math.Round(cumTime, 3),
+                GapToLeader    = Math.Round(cumTime - leaderTime, 3),
+                LapsCompleted  = State.Lap
+            });
+        }
+
+        var dnfPosition = raceOrder.Count + 1;
+
+        foreach (var carId in State.Retired)
+            results.Add(new RaceResult {
+                CarId          = State.Cars[carId].Id,
+                CarName        = State.Cars[carId].Name,
+                Pilot          = State.Cars[carId].Pilot,
+                Position       = dnfPosition++,
+                Dnf            = true,
+                CumulativeTime = 0,
+                GapToLeader    = 0,
+                LapsCompleted  = 0
+            });
+
+        return new RaceInsight {
+            EventId   = Guid.NewGuid(),
+            Results   = results.ToArray(),
+            TotalLaps = State.Lap,
+            Timestamp = State.Timestamp,
+            RaceId    = _id
+        };
     }
 
     #endregion

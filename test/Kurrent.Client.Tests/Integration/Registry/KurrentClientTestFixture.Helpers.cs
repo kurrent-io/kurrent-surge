@@ -5,31 +5,34 @@ using NJsonSchema;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
-public partial class KurrentClientTestFixture {
-	static readonly TimeSpan EventualConsistencyDelay = TimeSpan.FromMilliseconds(200);
+public static class KurrentClientTestFixtureRegistryExtensions {
+    static readonly TimeSpan EventualConsistencyDelay = TimeSpan.FromMilliseconds(200);
 
-	/// <summary>
-	/// Waits for the schema registry read model to catch up after a state-changing operation.
-	/// </summary>
-	public static Task WaitForEventualConsistency(CancellationToken ct = default) =>
-		Task.Delay(EventualConsistencyDelay, ct);
+    extension(KurrentClientTestFixture) {
 
-	public static string NewSchemaName() => $"test-schema-{Guid.NewGuid():N}";
+        /// <summary>
+        /// Waits for the schema registry read model to catch up after a state-changing operation.
+        /// </summary>
+        public static Task WaitForEventualConsistency(CancellationToken ct = default) =>
+            Task.Delay(EventualConsistencyDelay, ct);
 
-	public static JsonSchema NewJsonSchemaDefinition() {
-		return JsonSchema.FromJsonAsync(
-			"""
-			{
-			    "type": "object",
-			    "properties": {
-			        "id": { "type": "string" },
-			        "name": { "type": "string" }
-			    },
-			    "required": ["id"]
-			}
-			"""
-		).GetAwaiter().GetResult();
-	}
+        public static string NewSchemaName() => $"test-schema-{Guid.NewGuid():N}";
+
+        public static JsonSchema NewJsonSchemaDefinition() {
+            return JsonSchema.FromJsonAsync(
+                """
+                {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" }
+                    },
+                    "required": ["id"]
+                }
+                """
+            ).GetAwaiter().GetResult();
+        }
+    }
 }
 
 public static class JsonSchemaExtensions {

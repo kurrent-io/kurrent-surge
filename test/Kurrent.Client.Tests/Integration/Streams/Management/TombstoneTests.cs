@@ -14,7 +14,7 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask tombstones_existing_stream_without_specifing_revision(CancellationToken ct) {
-        var raceActivity = await Fixture.SeedRace(ct);
+        var raceActivity = await Fixture.SeedData(ct);
 
         var position = await Fixture.Client.Streams
             .Tombstone(raceActivity.Stream, ct);
@@ -24,53 +24,53 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask tombstones_stream_when_expected_revision_matches(CancellationToken ct) {
-        var simulation = await Fixture.SeedRace(ct);
+        var data = await Fixture.SeedData(ct);
 
         var position = await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, simulation.Revision, ct);
+            .Tombstone(data.Stream, data.Revision, ct);
 
-        await Assert.That(position).IsGreaterThanOrEqualTo(simulation.Position);
+        await Assert.That(position).IsGreaterThanOrEqualTo(data.Position);
     }
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_revision_conflict_error_when_revision_is_not_matched(CancellationToken ct) {
-        var simulation = await Fixture.SeedRace(ct);
+        var data = await Fixture.SeedData(ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, simulation.Revision + 99, ct))
+            .Tombstone(data.Stream, data.Revision + 99, ct))
             .Throws<StreamRevisionConflictException>();
     }
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_not_found_error_when_stream_does_not_exist(CancellationToken ct) {
-        var simulation = ArcadeRacerTestData.SimulateRace();
+        var data = await Fixture.TestData.GenerateSet(ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct))
+            .Tombstone(data.Stream, ct))
             .Throws<StreamNotFoundException>();
     }
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
-        var simulation = await Fixture.SeedRace(ct);
+        var data = await Fixture.SeedData(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct);
+            .Delete(data.Stream, ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct))
+            .Tombstone(data.Stream, ct))
             .Throws<StreamDeletedException>();
     }
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_stream_tombstoned_error_when_stream_was_tombstoned(CancellationToken ct) {
-        var simulation = await Fixture.SeedRace(ct);
+        var data = await Fixture.SeedData(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct);
+            .Tombstone(data.Stream, ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct))
+            .Tombstone(data.Stream, ct))
             .Throws<StreamTombstonedException>();
     }
 }

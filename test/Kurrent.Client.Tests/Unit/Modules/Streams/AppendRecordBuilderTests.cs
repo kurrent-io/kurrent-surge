@@ -15,7 +15,7 @@ public class AppendRecordBuilderTests {
             .ForStream("my-stream")
             .WithValue("payload")
             .WithDataFormat(SchemaDataFormat.Json)
-            .WithRecordId(recordId)
+            .WithId(recordId)
             .WithMetadata(metadata)
             .Build();
 

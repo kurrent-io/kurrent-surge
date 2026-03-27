@@ -2,7 +2,6 @@ using Ductus.FluentDocker.Builders;
 using Ductus.FluentDocker.Common;
 using Ductus.FluentDocker.Model.Containers;
 using Ductus.FluentDocker.Services;
-using Kurrent.Testing.Configuration;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Configuration;
 using Serilog;
@@ -48,8 +47,9 @@ public abstract class TestContainer {
 
             Logger.Information("Container settings loaded: {@Settings}", settings);
 
-            // Logger.Information("Container initialized. Enabled: {Enabled} Image: {Image}", Enabled, Image);
+            Logger.Information("Container initialized. Enabled: {Enabled} Image: {Image}", Enabled, Image);
         } catch (Exception ex) {
+            Log.Error(ex, "Failed to initialize container {ServiceName}", ServiceName);
             throw new FluentDockerException($"Failed to initialize container {ServiceName} container", ex);
         }
 

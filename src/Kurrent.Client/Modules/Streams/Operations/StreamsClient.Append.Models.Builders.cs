@@ -18,7 +18,7 @@ public class AppendRecordBuilder {
         return this;
     }
 
-    public AppendRecordBuilder WithRecordId(Guid recordId) {
+    public AppendRecordBuilder WithId(Guid recordId) {
         _appendRecord = _appendRecord with { RecordId = recordId };
         return this;
     }
@@ -43,6 +43,14 @@ public class AppendRecordBuilder {
 
     public AppendRecordBuilder WithMetadata<T>(string key, T value) =>
         WithMetadata(_appendRecord.Metadata.With(key, value));
+
+    public AppendRecordBuilder WithTimestamp(DateTimeOffset timestamp) {
+        _appendRecord = _appendRecord with { Timestamp = timestamp };
+        return this;
+    }
+
+    public AppendRecordBuilder WithTimestamp(long timestamp) =>
+        WithTimestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
 
     public AppendRecord Build() => _appendRecord.EnsureValid();
 }
@@ -125,6 +133,17 @@ public class SingleStreamAppendBuilder {
     /// </summary>
     /// <param name="records">The records to append.</param>
     public SingleStreamAppendBuilder WithRecords(params AppendRecord[] records) {
+        foreach (var record in records)
+            _builders.Add(new AppendRecordBuilder().FromRecord(record));
+
+        return this;
+    }
+
+    /// <summary>
+    /// Adds multiple pre-built records to the request.
+    /// </summary>
+    /// <param name="records">The records to append.</param>
+    public SingleStreamAppendBuilder WithRecords(IEnumerable<AppendRecord> records) {
         foreach (var record in records)
             _builders.Add(new AppendRecordBuilder().FromRecord(record));
 

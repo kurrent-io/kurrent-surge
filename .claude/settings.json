@@ -1,17 +1,19 @@
 {
-  "cleanupPeriodDays": 7,
+  "companyAnnouncements": [],
   "env": {
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
+    "CLAUDE_CODE_NEW_INIT": 1,
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": 1,
     "CLAUDE_CODE_EFFORT_LEVEL": "high",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": 1,
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
-    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
-    "ENABLE_TOOL_SEARCH": "1",
-    "DISABLE_TELEMETRY": "1",
-    "DISABLE_ERROR_REPORTING": "1"
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": 1,
+    "ENABLE_TOOL_SEARCH": 1,
+    "DISABLE_TELEMETRY": 1,
+    "DISABLE_ERROR_REPORTING": 1
   },
-  "includeCoAuthoredBy": false,
+  "attribution": { "commit": "", "pr": "" },
   "includeGitInstructions": false,
+  "cleanupPeriodDays": 7,
   "permissions": {
     "allow": [
       "Agent",
@@ -47,6 +49,7 @@
       "Write",
       "mcp__plugin_context7_context7__*",
       "mcp__plugin_microsoft-docs_microsoft-learn__*",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__*",
       "mcp__rider__*"
     ],
     "deny": [
@@ -61,6 +64,7 @@
       "Read(./**/launchSettings.json)",
       "Read(./**/secrets.json)",
       "Read(./**/secrets/**)",
+      "Read(./config/credentials.json)",
       "Read(./.env)",
       "Read(./.env.*)",
       "Read(./appsettings.*.Local.json)",
@@ -79,8 +83,10 @@
   "enabledPlugins": {
     "context7@claude-plugins-official": true,
     "microsoft-docs@claude-plugins-official": true,
-    "dotnet-skills@dotnet-skills": true,
-    "csharp-lsp@claude-plugins-official": true
+    "chrome-devtools-mcp@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "dotnet-skills@dotnet-skills": true
   },
   "extraKnownMarketplaces": {
     "dotnet-skills": {
@@ -100,6 +106,12 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/setup-remote.py",
             "timeout": 300,
             "statusMessage": "Setting up remote environment..."
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/company-announcements.py",
+            "timeout": 30,
+            "statusMessage": "Checking for company announcements..."
           }
         ]
       }

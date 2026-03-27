@@ -6,16 +6,20 @@ using Kurrent.Testing.Containers.KurrentDB;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
+using Testing.ArcadeRacer;
 using TUnit.Core.Interfaces;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
-public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposable {
+public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposable {
     [ClassDataSource<KurrentDBTestContainer>(Shared = SharedType.PerTestSession)]
     public required KurrentDBTestContainer KurrentDB { get; [UsedImplicitly] init; }
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
+
+    [ClassDataSource<ArcadeRacerTestDataSource>(Shared = SharedType.PerTestSession)]
+    public required ITestDataSource TestData { get; [UsedImplicitly] init; }
 
     /// <summary>
     /// The logger used for logging in tests.
@@ -71,4 +75,23 @@ public sealed partial class KurrentClientTestFixture : IAsyncInitializer, IAsync
             }
         }
     }
+
+
+    public async ValueTask<SeededTestStream> SeedData(int numberOfEvents, CancellationToken cancellationToken) {
+        var ds = await TestData.GenerateSet(numberOfEvents, cancellationToken);
+
+        var rsp = await Client.Streams
+            .AppendRecords(ds.AppendRequest, cancellationToken);
+
+        var seeded = new SeededTestStream(ds, rsp.Revisions[0].Revision, rsp.Position);
+
+        Logger.LogDebug(
+            "Seeded {Count} {DataSource} events: {Stream} v{Revision} @ {Position}",
+            seeded.Records.Count, TestData.Name, seeded.Stream, seeded.Revision, seeded.Position);
+
+        return seeded;
+    }
+
+    public async ValueTask<SeededTestStream> SeedData(CancellationToken cancellationToken) =>
+        await SeedData(Random.Shared.Next(15, 60), cancellationToken);
 }

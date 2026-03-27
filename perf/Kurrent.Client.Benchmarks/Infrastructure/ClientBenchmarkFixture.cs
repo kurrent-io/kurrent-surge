@@ -17,6 +17,8 @@ public sealed class ClientBenchmarkFixture : IAsyncDisposable {
     public KurrentClient Client =>
         _client ?? throw new InvalidOperationException("Fixture not initialized. Call InitializeAsync first.");
 
+    public ITestDataSource TestData { get; private set; } = null!;
+
     public async Task InitializeAsync() {
         await _container.InitializeAsync().ConfigureAwait(false);
 
@@ -26,6 +28,8 @@ public sealed class ClientBenchmarkFixture : IAsyncDisposable {
             .ConfigureSchema(KurrentClientSchemaOptions.NoValidation)
             .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
             .CreateClient();
+
+        TestData = new ArcadeRacerTestDataSource();
     }
 
     /// <summary>
@@ -36,15 +40,15 @@ public sealed class ClientBenchmarkFixture : IAsyncDisposable {
         if (_seededStreams.TryGetValue(messageCount, out var existing))
             return existing;
 
-        var activity = ArcadeRacerTestData.SimulateRace(messageCount);
+        var data = await new ArcadeRacerTestDataSource().GenerateSet(messageCount, CancellationToken.None);
 
         await Client.Streams
-            .AppendRecords(activity.Stream, ExpectedStreamState.Any, activity.Records)
+            .AppendRecords(data.Stream, ExpectedStreamState.Any, data.Records)
             .ConfigureAwait(false);
 
-        _seededStreams[messageCount] = activity.Stream;
+        _seededStreams[messageCount] = data.Stream;
 
-        return activity.Stream;
+        return data.Stream;
     }
 
     /// <summary>

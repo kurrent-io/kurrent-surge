@@ -18,6 +18,9 @@ public record AppendRecord {
 
     public static AppendRecordBuilder New => new();
 
+    public static AppendRecordBuilder ToStream(StreamName stream) =>
+        new AppendRecordBuilder().ForStream(stream);
+
     /// <summary>
     /// The assigned record id.
     /// </summary>
@@ -45,11 +48,18 @@ public record AppendRecord {
     public StreamName Stream { get; internal init; } = StreamName.Unset;
 
     /// <summary>
+    /// When the record was created.
+    /// </summary>
+    public DateTimeOffset Timestamp { get; internal init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
     /// Validates the properties of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
     /// indicating whether the instance is valid or contains validation problems.
     /// </summary>
-    /// <returns>A <see cref="ValidationResult"/> containing any validation problems found, or success if the instance is valid.</returns>
-    public ValidationResult Validate() {
+    /// <remarks>
+    /// If <paramref name="validateStream"/> is true, the stream name will be validated to ensure it is not unset.
+    /// </remarks>
+    public ValidationResult Validate(bool validateStream = false) {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)
@@ -69,7 +79,7 @@ public record AppendRecord {
                 ValidationProblem.CreateForField(nameof(DataFormat),
                     ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
 
-        if (Stream == StreamName.Unset)
+        if (validateStream && Stream == StreamName.Unset)
             problems.Add(
                 ValidationProblem.CreateForField(nameof(Stream), ErrorMessages.AppendRecordStreamRequired, Stream));
 
@@ -81,9 +91,11 @@ public record AppendRecord {
     /// <summary>
     /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
     /// </summary>
-    /// <returns>The current instance if validation succeeds.</returns>
-    public AppendRecord EnsureValid() {
-        Validate().Unwrap();
+    /// <remarks>
+    /// If <paramref name="validateStream"/> is true, the stream name will be validated to ensure it is not unset.
+    /// </remarks>
+    public AppendRecord EnsureValid(bool validateStream = false) {
+        Validate(validateStream).Unwrap();
         return this;
     }
 }

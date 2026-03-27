@@ -4,8 +4,14 @@
 
 There is no meta-package; developers install only what they need.
 
-- Kurrent.Client: gRPC client library for reading and writing streams
-- Kurrent.Processors: stream processing library for processing streams
+- Kurrent.Client: gRPC client library for reading and writing streams to KurrentDB
+- Kurrent.Processors: stream processing library for processing streams (uses Kurrent.Client under the hood)
+
+## Greenfield Project
+
+This project is a greenfield project. There is no legacy code, and no existing user base. We have the freedom to 
+design the API and implementation with modern practices and patterns, without needing to maintain backward 
+compatibility or support legacy platforms.
 
 ## Code Style
 
@@ -13,20 +19,6 @@ There is no meta-package; developers install only what they need.
 
 - Code conventions in [project-code-conventions.md](project-code-conventions.md) override file-local style (e.g. `.editorconfig`).
 - When conventions are silent, match the majority pattern in the file you are editing.
-
-## Stack
-
-- C# 14 (`LangVersion: preview`), .NET 8.0/9.0/10.0 multi-target
-- gRPC + Protocol Buffers (dual protocol: v1 legacy + v2 native)
-- System.Text.Json (AOT-ready, no Newtonsoft)
-- `.slnx` solution format, Central Package Management
-- MinVer for git-tag versioning (prefix `v`, phase `alpha`)
-
-## Protocols
-
-- **V2 gRPC (native)** — All append operations, schema registry, processor management
-- **V1 gRPC (legacy)** — All read and stream management operations. Compatibility layer for EventStoreDB;
-  will be replaced by V2 as RPCs are implemented
 
 ## Testing
 
@@ -87,23 +79,9 @@ After cloning, restore once with `dotnet tool restore`.
 ## Documentation
 
 `docs/` — VuePress 2 site for the SDK section of https://docs.kurrent.io/ (streams, processors, registry,
-serialization). Run locally with `./scripts/run-docs.sh` (handles Node, pnpm, and dependency setup).
+serialization). 
 
-## Central Package Management
-
-`Directory.Packages.props` groups packages by where they are consumed. Place each package in the group matching its
-primary consumer. When a package is used by both `src/` and `test/`, it belongs in the `src/` group. Alphabetical
-order within each group.
-
-| Group                      | Packages consumed by                                                   |
-|----------------------------|------------------------------------------------------------------------|
-| Client & Processors        | `src/Kurrent.Client`, `src/Kurrent.Processors` + their transitive pins |
-| Source generation          | `src/*.SourceGenerators` projects                                      |
-| Examples                   | `examples/` projects                                                   |
-| Benchmarking               | `perf/` projects                                                       |
-| Testing                    | `test/` projects and shared test infrastructure                        |
-| Aspire integration testing | `test/Kurrent.SDK.Testing` (Aspire-specific only)                      |
-| Build tooling              | `Directory.Build.props` (applied to all projects)                      |
+Run locally with `./scripts/run-docs.sh` (handles Node, pnpm, and dependency setup).
 
 ## Reference
 

@@ -12,6 +12,11 @@ public interface IRaceEvent {
 
     /// <summary>Unix timestamp in milliseconds when the event occurred.</summary>
     long Timestamp { get; set; }
+
+    /// <summary>
+    /// Unique identifier for the race this event is associated with.
+    /// </summary>
+    Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted when the starting grid is formed with cars, circuit, and conditions.</summary>
@@ -33,6 +38,9 @@ public class GridFormed : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted once at the start of the race, establishing the race clock.</summary>
@@ -42,6 +50,9 @@ public class RaceStarted : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted for each car at the end of a lap with timing data.</summary>
@@ -63,6 +74,9 @@ public class LapCompleted : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car gains a position by passing another car during a lap.</summary>
@@ -81,6 +95,9 @@ public class OvertakePerformed : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car enters the pit lane for tire refresh, incurring a time penalty.</summary>
@@ -99,6 +116,9 @@ public class PitStopPerformed : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car is involved in an incident that results in a time penalty.</summary>
@@ -120,6 +140,9 @@ public class IncidentOccurred : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car retires from the race (Did Not Finish).</summary>
@@ -138,6 +161,9 @@ public class CarRetired : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted when weather conditions change mid-race, affecting the difficulty profile.</summary>
@@ -156,6 +182,9 @@ public class WeatherChanged : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }
 
 /// <summary>Emitted once at the end of the race with final standings for all cars.</summary>
@@ -174,4 +203,27 @@ public class RaceFinished : IRaceEvent {
 
     /// <inheritdoc />
     public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
+}
+
+/// <summary>
+/// Emitted any time a significant insight is available about the race.
+/// </summary>
+public class RaceInsight : IRaceEvent {
+    /// <inheritdoc />
+    public Guid EventId { get; set; }
+
+    /// <summary>Ordered array of race results (finishers first, then DNFs).</summary>
+    public RaceResult[] Results { get; set; } = [];
+
+    /// <summary>Total laps in the race.</summary>
+    public int TotalLaps { get; set; }
+
+    /// <inheritdoc />
+    public long Timestamp { get; set; }
+
+    /// <inheritdoc />
+    public Guid RaceId { get; set; }
 }

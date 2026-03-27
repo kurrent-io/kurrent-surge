@@ -1,7 +1,7 @@
 namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 /// <summary>Configuration used to initialize an <see cref="ArcadeRace"/>.</summary>
-record ArcadeRaceOptions {
+public record ArcadeRaceOptions {
     /// <summary>Cars on the starting grid.</summary>
     public List<RaceCar> Cars { get; init; } = [];
 

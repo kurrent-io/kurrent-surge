@@ -7,7 +7,7 @@
     <ProjectReference Include="..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing.ArcadeRacer\Kurrent.Testing.ArcadeRacer.csproj" />
+    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
   </ItemGroup>
 

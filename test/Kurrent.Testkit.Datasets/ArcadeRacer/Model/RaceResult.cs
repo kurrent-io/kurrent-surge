@@ -1,6 +1,6 @@
 namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-/// <summary>Final standings entry for a single car in a completed race.</summary>
+/// <summary>Standings entry for a single car in a race.</summary>
 public class RaceResult {
     /// <summary>Unique car identifier.</summary>
     public Guid CarId { get; set; }

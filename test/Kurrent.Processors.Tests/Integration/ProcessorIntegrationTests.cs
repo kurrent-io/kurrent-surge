@@ -1,6 +1,5 @@
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Tests.Fixtures;
-using Kurrent.Processors;
+using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Tests;
@@ -15,7 +14,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask complete_processor_lifecycle_with_checkpoint_recovery(CancellationToken ct) {
         // Arrange
-        var simulation               = await Fixture.SeedRace(20, ct);
+        var data                     = await Fixture.SeedData(20, ct);
         var processorId              = $"checkpoint-recovery-{Guid.NewGuid():N}";
         var recordsToProcessInPhase1 = 10;
 
@@ -32,7 +31,7 @@ public class ProcessorIntegrationTests {
         await KurrentProcessors.Create(processor1)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
             .RunAsync(ct);
@@ -44,7 +43,7 @@ public class ProcessorIntegrationTests {
         var processor2 = new TestRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= simulation.Position)
+            if (ctx.Record.Position.LogPosition >= data.Position)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -53,13 +52,13 @@ public class ProcessorIntegrationTests {
         await KurrentProcessors.Create(processor2)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
             .RunAsync(ct);
 
         // Assert - All records processed across both runs with tolerance for checkpoint timing
         var totalProcessedRecords = processor1.Records.Length + processor2.Records.Length;
-        await Assert.That(totalProcessedRecords).IsLessThanOrEqualTo(simulation.Records.Count + 5);
+        await Assert.That(totalProcessedRecords).IsLessThanOrEqualTo(data.Records.Count + 5);
 
         // Verify minimal duplicate processing
         var allProcessedIds = processor1.Records
@@ -74,14 +73,15 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_processes_all_records_individually(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedRace(25, ct);
+        var data        = await Fixture.SeedData(25, ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"individual-records-{Guid.NewGuid():N}";
         var recordCount = 0;
 
         processor.OnProcessRecord = ctx => {
             Interlocked.Increment(ref recordCount);
-            if (processor.Records.Length >= simulation.Records.Count)
+
+            if (processor.Records.Length >= data.Records.Count)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -91,7 +91,7 @@ public class ProcessorIntegrationTests {
         await KurrentProcessors.Create(processor)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .RunAsync(ct);
 
@@ -102,7 +102,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_cancels_gracefully(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedRace(ct);
+        var data        = await Fixture.SeedData(ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"processor_cancels_gracefully-{TestContext.Current!.Id:N}";
 
@@ -112,7 +112,7 @@ public class ProcessorIntegrationTests {
         var worker = KurrentProcessors.Create(processor)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .Build();
 
@@ -126,12 +126,12 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_stops_on_user_request(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedRace(ct);
+        var data        = await Fixture.SeedData(ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"processor_stops_on_user_request-{TestContext.Current!.Id:N}";
 
         processor.OnProcessRecord = ctx => {
-            if (processor.Records.Length == simulation.Records.Count)
+            if (processor.Records.Length == data.Records.Count)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -141,19 +141,19 @@ public class ProcessorIntegrationTests {
         await KurrentProcessors.Create(processor)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .RunAsync(ct);
 
         // Assert
         await Assert.That(processor.Complete).IsNotNull();
-        await Assert.That(processor.Records.Length).IsEqualTo(simulation.Records.Count);
+        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Count);
     }
 
     [Test]
     public async ValueTask processor_handles_exceptions_and_stops_processing(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedRace(10, ct);
+        var data        = await Fixture.SeedData(10, ct);
         var processorId = $"error-process-{Guid.NewGuid():N}";
 
         var processor = new TestRecordProcessor {
@@ -163,7 +163,7 @@ public class ProcessorIntegrationTests {
         var worker = KurrentProcessors.Create(processor)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .Build();
 
@@ -177,7 +177,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_calls_shutdown_even_on_error(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedRace(10, ct);
+        var data        = await Fixture.SeedData(10, ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"error-shutdown-{Guid.NewGuid():N}";
 
@@ -188,11 +188,10 @@ public class ProcessorIntegrationTests {
             await KurrentProcessors.Create(processor)
                 .UseClient(Fixture.Client)
                 .WithProcessorId(processorId)
-                .WithFilter(RecordFilter.ByStream(simulation.Stream))
+                .WithFilter(RecordFilter.ByStream(data.Stream))
                 .WithInitialPosition(SubscriptionInitialPosition.Earliest)
                 .RunAsync(ct);
-        }
-        catch (KurrentWorkerException) {
+        } catch (KurrentWorkerException) {
             // Expected
         }
 
@@ -204,12 +203,12 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask records_are_processed(CancellationToken ct) {
         // Arrange
-        var simulation  = await Fixture.SeedRace(100, ct);
+        var data        = await Fixture.SeedData(100, ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"order-{Guid.NewGuid():N}";
 
         processor.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= simulation.Position)
+            if (ctx.Record.Position.LogPosition >= data.Position)
                 ctx.StopProcessing();
 
             return ValueTask.CompletedTask;
@@ -219,7 +218,7 @@ public class ProcessorIntegrationTests {
         await KurrentProcessors.Create(processor)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(simulation.Stream))
+            .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
             .RunAsync(ct);
 
