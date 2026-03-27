@@ -230,6 +230,28 @@ valid at the record level.
 Unchanged. Builds a single `AppendRecord` with `ForStream`, `WithValue`, `WithDataFormat`, `WithMetadata`,
 `WithId`, `WithTimestamp`. `Build()` validates record invariants only.
 
+## Builder Execute Extensions
+
+Both builders get an `ExecuteAsync` extension method that calls `Build()` and dispatches to the client in one
+step. This avoids forcing users to create an intermediate request variable for simple flows.
+
+```csharp
+// Single-stream: build + execute in one call
+var response = await AppendToStreamRequest.For("my-stream")
+    .WithRecord(myRecord)
+    .ExpectingState(ExpectedStreamState.NoStream)
+    .ExecuteAsync(client.Streams, cancellationToken);
+
+// Multi-stream: same pattern
+var response = await AppendRecordsRequest.New()
+    .WithRecord(AppendRecord.ToStream("stream-a").WithValue(eventA).Build())
+    .WithRecord(AppendRecord.ToStream("stream-b").WithValue(eventB).Build())
+    .ExecuteAsync(client.Streams, cancellationToken);
+```
+
+These are extension methods on the builder types, not instance methods, so the builders stay decoupled from
+`StreamsClient`. The extension lives alongside the other `StreamsClient` extensions.
+
 ## What Gets Deleted
 
 - `SingleStreamAppendBuilder` --- replaced by `AppendToStreamRequestBuilder`
