@@ -14,11 +14,6 @@ public static partial class StreamsClientExtensions {
         /// </summary>
         public StreamQueryBuilder Query(StreamName stream) => new(client, stream);
 
-        /// <summary>
-        /// Start composing a stream-scoped read query.
-        /// </summary>
-        public StreamQueryBuilder Query(string stream) => new(client, StreamName.From(stream));
-
         #endregion
     }
 }

@@ -22,10 +22,12 @@ public class AppendTests {
 
         // Act
         var result = await Fixture.Client.Streams
-            .AppendRecords(data.AppendRequest, ct);
+            .AppendToStream(AppendToStreamRequest.For(data.Stream)
+                .WithRecords(data.Records)
+                .Build(), ct);
 
         // Assert
-        await Assert.That(result.Revisions[0]).IsEqualTo(expectedRevision);
+        await Assert.That(new StreamRevision(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
     }
 
     [Test]
@@ -36,11 +38,10 @@ public class AppendTests {
 
         var created = await Fixture.Client.Streams
             .AppendToStream(AppendToStreamRequest.For(data.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
                 .WithRecords(data.Records.Take(1))
                 .Build(), ct);
 
-        // Act — append to existing stream
+        // Act
         var result = await Fixture.Client.Streams
             .AppendToStream(AppendToStreamRequest.For(data.Stream)
                 .ExpectingState(created.Revision)
@@ -61,15 +62,14 @@ public class AppendTests {
 
         var created = await Fixture.Client.Streams
             .AppendToStream(AppendToStreamRequest.For(data.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(data.Records.Take(3))
+                .WithRecords(data.Records.Take(1))
                 .Build(), ct);
 
         // Act
         var result = await Fixture.Client.Streams
             .AppendToStream(AppendToStreamRequest.For(data.Stream)
                 .ExpectingState(created.Revision)
-                .WithRecords(data.Records.Skip(3))
+                .WithRecords(data.Records.Skip(1))
                 .Build(), ct);
 
         // Assert

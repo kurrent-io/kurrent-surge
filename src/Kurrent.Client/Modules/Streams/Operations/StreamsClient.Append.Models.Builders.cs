@@ -61,10 +61,11 @@ public class AppendRecordBuilder {
 /// </summary>
 [PublicAPI]
 public class AppendRecordsRequestBuilder {
-    readonly List<AppendRecordBuilder>  _builders = [];
-    readonly List<ConsistencyCheck>     _checks   = [];
+    readonly List<AppendRecordBuilder>  _builders          = [];
+    readonly List<ConsistencyCheck>     _checks            = [];
     readonly Dictionary<string, object> _metadataOverrides = [];
-    SchemaDataFormat?                   _dataFormatOverride;
+
+    SchemaDataFormat? _dataFormatOverride;
 
     internal AppendRecordsRequestBuilder() { }
 

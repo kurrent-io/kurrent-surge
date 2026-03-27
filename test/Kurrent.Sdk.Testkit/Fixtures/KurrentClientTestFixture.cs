@@ -81,9 +81,11 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
         var ds = await TestData.GenerateSet(numberOfEvents, cancellationToken);
 
         var rsp = await Client.Streams
-            .AppendRecords(ds.AppendRequest, cancellationToken);
+            .AppendToStream(AppendToStreamRequest.For(ds.Stream)
+                .WithRecords(ds.Records)
+                .Build(), cancellationToken);
 
-        var seeded = new SeededTestStream(ds, rsp.Revisions[0].Revision, rsp.Position);
+        var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position);
 
         Logger.LogDebug(
             "Seeded {Count} {DataSource} events: {Stream} v{Revision} @ {Position}",

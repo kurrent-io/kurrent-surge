@@ -111,12 +111,4 @@ partial class StreamsProtocolMapper {
 
         return new AppendRecordsResponse(revisions, source.Position);
     }
-
-    public AppendRecordsSuccess ToModel(Contracts.AppendRecordsResponse source) {
-        var revisions = source.Revisions
-            .Select(x => new StreamRevision(x.Stream, x.Revision))
-            .ToArray();
-
-        return new(revisions, source.Position);
-    }
 }

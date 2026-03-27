@@ -7,11 +7,8 @@ public partial class StreamsClient {
         AppendRecordsRequest request,
         CancellationToken cancellationToken = default
     ) {
-        // Belt-and-suspenders: validate every record has a stream
-        var missingStream = request.Records.FirstOrDefault(r => r.Stream == StreamName.Unset);
-        if (missingStream is not null)
-            throw new InvalidOperationException(
-                $"Record '{missingStream.RecordId}' has no stream assigned. Set the stream on each record or use AppendToStream for single-stream appends.");
+        // Validate all records have streams and meet invariants
+        request.EnsureValid();
 
         try {
             request = request with {

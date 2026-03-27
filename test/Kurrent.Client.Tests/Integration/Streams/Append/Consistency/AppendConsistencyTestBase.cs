@@ -9,8 +9,9 @@ public abstract class AppendConsistencyTestBase {
 
     protected async ValueTask<(StreamName Stream, Revision Revision)> SeedActiveStream(int records, CancellationToken ct) {
         var data   = await Fixture.TestData.GenerateSet(records, ct);
-        var result = await Fixture.Client.Streams.AppendRecords(data.AppendRequest, ct);
-        return (data.Stream, result.Revisions[0].Revision);
+        var result = await Fixture.Client.Streams.AppendToStream(
+            AppendToStreamRequest.For(data.Stream).WithRecords(data.Records).Build(), ct);
+        return (data.Stream, result.Revision);
     }
 
     protected async ValueTask<(StreamName Stream, Revision Revision)> SeedDeletedStream(

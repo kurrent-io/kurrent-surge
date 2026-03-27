@@ -18,7 +18,7 @@ public record AppendToStreamRequest() {
     public AppendToStreamRequest(
         StreamName stream,
         ImmutableArray<AppendRecord> records,
-        ImmutableArray<ConsistencyCheck> checks
+        ImmutableArray<ConsistencyCheck> checks = default
     ) : this() {
         Stream  = stream;
         Records = records;
@@ -39,6 +39,15 @@ public record AppendToStreamRequest() {
     /// Consistency checks to enforce before appending.
     /// </summary>
     public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
+
+    /// <summary>
+    /// Validates all records meet their invariants and stamps the target stream on each.
+    /// Returns a new request with the validated, stream-stamped records.
+    /// </summary>
+    public AppendToStreamRequest EnsureValid() =>
+        this with {
+            Records = [..Records.Select(r => (r with { Stream = Stream }).EnsureValid())]
+        };
 }
 
 /// <summary>

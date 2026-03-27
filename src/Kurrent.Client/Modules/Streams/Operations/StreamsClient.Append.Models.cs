@@ -38,6 +38,21 @@ public record AppendRecordsRequest() {
     /// Gets the consistency checks to be performed before appending.
     /// </summary>
     public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
+
+    /// <summary>
+    /// Validates all records meet their invariants and have a stream assigned.
+    /// </summary>
+    public AppendRecordsRequest EnsureValid() {
+        foreach (var record in Records) {
+            if (record.Stream == StreamName.Unset)
+                throw new InvalidOperationException(
+                    $"Record '{record.RecordId}' has no stream assigned. Set the stream on each record or use AppendToStream for single-stream appends.");
+
+            record.EnsureValid();
+        }
+
+        return this;
+    }
 }
 
 /// <summary>
@@ -47,28 +62,6 @@ public record AppendRecordsRequest() {
 [method: SetsRequiredMembers]
 public record AppendRecordsResponse(StreamRevision[] Revisions, LogPosition Position) {
     public required StreamRevision[] Revisions { get; init; } = Revisions;
-    public required LogPosition Position { get; init; } = Position;
-}
-
-/// <summary>
-/// Represents the successful result of appending multiple records.
-/// </summary>
-/// <remarks>
-/// Contains the stream revisions for each appended record and the log position
-/// where the records were persisted.
-/// </remarks>
-[PublicAPI]
-[method: SetsRequiredMembers]
-[Obsolete("Use AppendRecordsResponse instead.")]
-public record AppendRecordsSuccess(StreamRevision[] Revisions, LogPosition Position) {
-    /// <summary>
-    /// Gets the stream revisions for each appended record.
-    /// </summary>
-    public required StreamRevision[] Revisions { get; init; } = Revisions;
-
-    /// <summary>
-    /// Gets the log position where the records were persisted.
-    /// </summary>
     public required LogPosition Position { get; init; } = Position;
 }
 
