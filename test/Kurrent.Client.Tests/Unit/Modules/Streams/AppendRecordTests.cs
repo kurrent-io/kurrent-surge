@@ -92,19 +92,6 @@ public class AppendRecordTests {
     }
 
     [Test]
-    public async ValueTask ensure_valid_throws_when_stream_is_none() {
-        var record = new AppendRecord {
-            Value      = "test-payload",
-            DataFormat = SchemaDataFormat.Json,
-            Stream     = StreamName.Unset
-        };
-
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
-
-        await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.Stream));
-    }
-
-    [Test]
     public async ValueTask ensure_valid_collects_all_problems_at_once() {
         var record = new AppendRecord {
             RecordId   = Guid.Empty,
@@ -115,35 +102,9 @@ public class AppendRecordTests {
 
         var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
 
-        await Assert.That(ex.Errors).Count().IsEqualTo(4);
+        await Assert.That(ex.Errors).Count().IsEqualTo(3);
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.RecordId));
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.Value));
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.DataFormat));
-        await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.Stream));
-    }
-
-    [Test]
-    public async ValueTask ensure_valid_includes_attempted_value_in_problems() {
-        var record = new AppendRecord {
-            RecordId   = Guid.Empty,
-            Value      = "test-payload",
-            DataFormat = SchemaDataFormat.Json,
-            Stream     = StreamName.Unset
-        };
-
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
-
-        var streamProblem = ex.Errors.First(p => p.FieldName == nameof(AppendRecord.Stream));
-        await Assert.That(streamProblem.HasAttemptedValue).IsTrue();
-    }
-
-    [Test]
-    public void builder_build_calls_ensure_valid() {
-        var builder = AppendRecord.New
-            .WithValue("test-payload")
-            .WithDataFormat(SchemaDataFormat.Json);
-
-        // Stream is None - should throw via EnsureValid
-        Assert.Throws<ValidationException>(() => builder.Build());
     }
 }

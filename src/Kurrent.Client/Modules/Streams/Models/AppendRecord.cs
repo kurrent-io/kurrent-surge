@@ -53,13 +53,10 @@ public record AppendRecord {
     public DateTimeOffset Timestamp { get; internal init; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Validates the properties of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
+    /// Validates the record-level invariants of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
     /// indicating whether the instance is valid or contains validation problems.
     /// </summary>
-    /// <remarks>
-    /// If <paramref name="validateStream"/> is true, the stream name will be validated to ensure it is not unset.
-    /// </remarks>
-    public ValidationResult Validate(bool validateStream = false) {
+    public ValidationResult Validate() {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)
@@ -79,10 +76,6 @@ public record AppendRecord {
                 ValidationProblem.CreateForField(nameof(DataFormat),
                     ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
 
-        if (validateStream && Stream == StreamName.Unset)
-            problems.Add(
-                ValidationProblem.CreateForField(nameof(Stream), ErrorMessages.AppendRecordStreamRequired, Stream));
-
         return problems.Count > 0
             ? ValidationError.Create(ErrorCode.FromType<AppendRecord>(), [.. problems])
             : Results.Success;
@@ -91,11 +84,8 @@ public record AppendRecord {
     /// <summary>
     /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
     /// </summary>
-    /// <remarks>
-    /// If <paramref name="validateStream"/> is true, the stream name will be validated to ensure it is not unset.
-    /// </remarks>
-    public AppendRecord EnsureValid(bool validateStream = false) {
-        Validate(validateStream).Unwrap();
+    public AppendRecord EnsureValid() {
+        Validate().Unwrap();
         return this;
     }
 }

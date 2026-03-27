@@ -88,15 +88,6 @@ public class AppendRecordBuilderTests {
     }
 
     [Test]
-    public void build_throws_when_stream_is_none() {
-        // Arrange
-        var builder = AppendRecord.New.WithValue("payload");
-
-        // Act & Assert
-        Assert.Throws<ValidationException>(() => builder.Build());
-    }
-
-    [Test]
     public void build_throws_when_value_is_null() {
         // Arrange
         var builder = AppendRecord.New.ForStream("test-stream");
