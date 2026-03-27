@@ -1,6 +1,5 @@
 #pragma warning disable CS8604 // Possible null reference argument.
 
-using System.Collections;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Variant;
@@ -16,12 +15,6 @@ namespace Kurrent.Client.Streams;
 /// </remarks>
 [PublicAPI]
 public record AppendRecordsRequest() {
-    /// <summary>
-    /// Creates a builder for appending all records to a single stream.
-    /// </summary>
-    /// <param name="stream">The target stream for all records.</param>
-    public static SingleStreamAppendBuilder ToStream(StreamName stream) => new(stream);
-
     /// <summary>
     /// Creates a builder for appending records across one or more streams,
     /// with optional consistency checks.
@@ -48,6 +41,16 @@ public record AppendRecordsRequest() {
 }
 
 /// <summary>
+/// The result of appending records across multiple streams.
+/// </summary>
+[PublicAPI]
+[method: SetsRequiredMembers]
+public record AppendRecordsResponse(StreamRevision[] Revisions, LogPosition Position) {
+    public required StreamRevision[] Revisions { get; init; } = Revisions;
+    public required LogPosition Position { get; init; } = Position;
+}
+
+/// <summary>
 /// Represents the successful result of appending multiple records.
 /// </summary>
 /// <remarks>
@@ -56,6 +59,7 @@ public record AppendRecordsRequest() {
 /// </remarks>
 [PublicAPI]
 [method: SetsRequiredMembers]
+[Obsolete("Use AppendRecordsResponse instead.")]
 public record AppendRecordsSuccess(StreamRevision[] Revisions, LogPosition Position) {
     /// <summary>
     /// Gets the stream revisions for each appended record.
@@ -66,92 +70,6 @@ public record AppendRecordsSuccess(StreamRevision[] Revisions, LogPosition Posit
     /// Gets the log position where the records were persisted.
     /// </summary>
     public required LogPosition Position { get; init; } = Position;
-}
-
-/// <summary>
-/// Represents a request to append messages to a specific stream.
-/// </summary>
-/// <remarks>
-/// This request type allows appending a sequence of messages to a single stream with
-/// an optional expected state condition to ensure consistency.
-/// </remarks>
-[PublicAPI]
-[method: SetsRequiredMembers]
-[Obsolete("Use AppendRecordsRequest with a single stream and appropriate consistency checks instead.")]
-record AppendStreamRequest(StreamName Stream, ExpectedStreamState ExpectedState, IEnumerable<AppendRecord> Messages) {
-    /// <summary>
-    /// Gets the target stream name.
-    /// </summary>
-    public required StreamName Stream { get; init; } = Stream;
-
-    /// <summary>
-    /// Gets the messages to be appended to the stream.
-    /// </summary>
-    public required IEnumerable<AppendRecord> Messages { get; init; } = Messages;
-
-    /// <summary>
-    /// Gets the expected state condition that must be satisfied before appending.
-    /// </summary>
-    public required ExpectedStreamState ExpectedState { get; init; } = ExpectedState;
-}
-
-/// <summary>
-/// Represents the successful result of appending messages to a specific stream.
-/// </summary>
-/// <remarks>
-/// Contains the stream name, log position where the messages were persisted,
-/// and the stream revision after appending.
-/// </remarks>
-[PublicAPI]
-[method: SetsRequiredMembers]
-[Obsolete("Use AppendRecordsSuccess with appropriate stream revisions instead.")]
-public record AppendStreamSuccess(StreamName Stream, LogPosition Position, Revision Revision) {
-    /// <summary>
-    /// Gets the stream name where the messages were appended.
-    /// </summary>
-    public required StreamName Stream { get; init; } = Stream;
-
-    /// <summary>
-    /// Gets the log position where the messages were persisted.
-    /// </summary>
-    public required LogPosition Position { get; init; } = Position;
-
-    /// <summary>
-    /// Gets the stream revision after appending.
-    /// </summary>
-    public required Revision Revision { get; init; } = Revision;
-}
-
-/// <summary>
-/// Represents the successful result of appending messages to multiple streams in a single session.
-/// </summary>
-/// <remarks>
-/// Provides read-only list semantics over the collection of individual stream append results,
-/// allowing enumeration and indexed access to each stream's append outcome.
-/// </remarks>
-[PublicAPI]
-[Obsolete("Use AppendRecordsSuccess with appropriate stream revisions instead.")]
-public record AppendSessionSuccess(IReadOnlyList<AppendStreamSuccess> Results, LogPosition Position)
-    : IReadOnlyList<AppendStreamSuccess> {
-    /// <summary>
-    /// Gets the number of stream append results in this session.
-    /// </summary>
-    public int Count => Results.Count;
-
-    /// <summary>
-    /// Gets the append result for the stream at the specified index.
-    /// </summary>
-    /// <param name="index">The zero-based index of the result to retrieve.</param>
-    /// <returns>The <see cref="AppendStreamSuccess"/> result at the specified index.</returns>
-    public AppendStreamSuccess this[int index] => Results[index];
-
-    /// <summary>
-    /// Returns an enumerator that iterates through the stream append results.
-    /// </summary>
-    /// <returns>An enumerator for the collection of <see cref="AppendStreamSuccess"/> results.</returns>
-    public IEnumerator<AppendStreamSuccess> GetEnumerator() => Results.GetEnumerator();
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 /// <summary>
