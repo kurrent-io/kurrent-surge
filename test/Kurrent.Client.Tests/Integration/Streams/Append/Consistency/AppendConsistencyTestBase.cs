@@ -31,11 +31,15 @@ public abstract class AppendConsistencyTestBase {
         $"non-existent-{Guid.NewGuid():N}";
 
     protected static AppendRecordsRequest BuildAppendRequest(
-        StreamName stream, ExpectedStreamState expectedState) =>
-        AppendRecordsRequest.ToStream(stream)
-            .ExpectingState(expectedState)
-            .WithRecord(new ConsistencyTestRecord("consistency-test"))
-            .Build();
+        StreamName stream, ExpectedStreamState expectedState) {
+        var builder = AppendRecordsRequest.New()
+            .WithRecord(b => b.ForStream(stream).WithValue(new ConsistencyTestRecord("consistency-test")));
+
+        if (expectedState != ExpectedStreamState.Any)
+            builder.WithCheck(new StreamStateCheck(stream, expectedState));
+
+        return builder.Build();
+    }
 
     record ConsistencyTestRecord(string Type);
 }

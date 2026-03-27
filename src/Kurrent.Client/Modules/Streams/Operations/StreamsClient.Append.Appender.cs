@@ -19,7 +19,7 @@ public class StreamsAppender : IAsyncDisposable {
         _ct            = ct;
     }
 
-    public MultiStreamAppendBuilder NewRequestBuilder() => new();
+    public AppendRecordsRequestBuilder NewRequestBuilder() => new();
 
     public async ValueTask<AppendRecordsSuccess> AppendAsync(AppendRecordsRequest request, CancellationToken ct) {
         if (request.Records.Length == 0)
@@ -45,7 +45,7 @@ public class StreamsAppender : IAsyncDisposable {
         }
     }
 
-    public async ValueTask<AppendRecordsSuccess> AppendAsync(Action<MultiStreamAppendBuilder> configure, CancellationToken ct) {
+    public async ValueTask<AppendRecordsSuccess> AppendAsync(Action<AppendRecordsRequestBuilder> configure, CancellationToken ct) {
         var builder = NewRequestBuilder();
         configure(builder);
         return await AppendAsync(builder.Build(), ct).ConfigureAwait(false);

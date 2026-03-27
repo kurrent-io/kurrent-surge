@@ -19,12 +19,7 @@ public record AppendRecordsRequest() {
     /// Creates a builder for appending records across one or more streams,
     /// with optional consistency checks.
     /// </summary>
-    public static MultiStreamAppendBuilder New() => new();
-
-    /// <summary>
-    /// Creates a builder for appending records to a single stream.
-    /// </summary>
-    public static SingleStreamAppendBuilder ToStream(StreamName stream) => new(stream);
+    public static AppendRecordsRequestBuilder New() => new();
 
     [method: SetsRequiredMembers]
     public AppendRecordsRequest(

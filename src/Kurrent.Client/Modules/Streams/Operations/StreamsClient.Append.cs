@@ -48,11 +48,15 @@ public partial class StreamsClient {
         IEnumerable<AppendRecord> records,
         CancellationToken         cancellationToken = default
     ) {
-        var request = AppendRecordsRequest
-            .ToStream(stream)
-            .ExpectingState(expectedState)
-            .WithRecords(records)
-            .Build();
+        var builder = AppendRecordsRequest.New();
+
+        if (expectedState != ExpectedStreamState.Any)
+            builder.WithCheck(new StreamStateCheck(stream, expectedState));
+
+        foreach (var record in records)
+            builder.WithRecord(record with { Stream = stream });
+
+        var request = builder.Build();
 
         try {
             return await AppendRecords(request, cancellationToken);
