@@ -1118,6 +1118,153 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
+    #region . Other cases with implicit conversions .
+
+    [Test]
+    public async Task equivalent_objects_with_implicit_conversions_pass() {
+        var revision = Revision.From(Faker.Random.Int(1, 100));
+
+        await Assert.That(revision).IsDeepEquivalentTo(revision.Value);
+    }
+
+    [Test]
+    public async Task implicit_conversion_to_int_passes() {
+        var revision = Revision.From(Faker.Random.Int(1, 100));
+
+        await Assert.That(revision).IsDeepEquivalentTo((int)revision.Value);
+        await Assert.That((int)revision.Value).IsDeepEquivalentTo(revision);
+    }
+
+    [Test]
+    public async Task implicit_conversion_to_short_passes() {
+        var revision = Revision.From(Faker.Random.Int(1, 100));
+
+        await Assert.That(revision).IsDeepEquivalentTo((short)revision.Value);
+        await Assert.That((short)revision.Value).IsDeepEquivalentTo(revision);
+    }
+
+    [Test]
+    public async Task implicit_conversion_to_double_passes() {
+        var revision = Revision.From(Faker.Random.Int(1, 100));
+
+        await Assert.That(revision).IsDeepEquivalentTo((double)revision.Value);
+        await Assert.That((double)revision.Value).IsDeepEquivalentTo(revision);
+    }
+
+    [Test]
+    public async Task implicit_conversion_to_decimal_passes() {
+        var revision = Revision.From(Faker.Random.Int(1, 100));
+
+        await Assert.That(revision).IsDeepEquivalentTo((decimal)revision.Value);
+        await Assert.That((decimal)revision.Value).IsDeepEquivalentTo(revision);
+    }
+
+    [Test]
+    public async Task implicit_conversion_with_different_numeric_value_fails() {
+        var revision = Revision.From(Faker.Random.Int(1, 99));
+
+        var action = async () => await Assert.That(revision).IsDeepEquivalentTo((int)revision.Value + 1);
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task implicit_conversion_reverse_direction_with_different_value_fails() {
+        var revision = Revision.From(Faker.Random.Int(1, 99));
+
+        var action = async () => await Assert.That((int)revision.Value + 1).IsDeepEquivalentTo(revision);
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task cross_type_numeric_comparison_preserves_precision_for_large_values() {
+        var actual   = long.MaxValue;
+        var expected = long.MaxValue - 1;
+
+        var action = async () => await Assert.That(actual).IsDeepEquivalentTo(expected);
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task cross_type_integer_comparison_is_lossless() {
+        var value = long.MaxValue;
+
+        await Assert.That(value).IsDeepEquivalentTo(value);
+    }
+
+    [Test]
+    [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
+    public async Task different_integer_types_with_same_value_pass() {
+        await Assert.That(42).IsDeepEquivalentTo(42L);
+        await Assert.That(42L).IsDeepEquivalentTo(42);
+        await Assert.That((short)42).IsDeepEquivalentTo(42L);
+        await Assert.That(42L).IsDeepEquivalentTo((short)42);
+    }
+
+    [Test]
+    [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
+    public async Task different_integer_types_with_different_values_fail() {
+        var action = async () => await Assert.That(42).IsDeepEquivalentTo(43L);
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task implicit_string_conversion_passes() {
+        var label = Label.From(Faker.Lorem.Word());
+
+        await Assert.That(label).IsDeepEquivalentTo(label.Value);
+        await Assert.That(label.Value).IsDeepEquivalentTo(label);
+    }
+
+    [Test]
+    public async Task implicit_string_conversion_with_different_value_fails() {
+        var label = Label.From(Faker.Lorem.Word());
+
+        var action = async () => await Assert.That(label).IsDeepEquivalentTo($"{label.Value}_different");
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task implicit_string_conversion_reverse_with_different_value_fails() {
+        var label = Label.From(Faker.Lorem.Word());
+
+        var action = async () => await Assert.That($"{label.Value}_different").IsDeepEquivalentTo(label);
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task implicit_guid_conversion_passes() {
+        var entityId = EntityId.From(Faker.Random.Guid());
+
+        await Assert.That(entityId).IsDeepEquivalentTo(entityId.Value);
+        await Assert.That(entityId.Value).IsDeepEquivalentTo(entityId);
+    }
+
+    [Test]
+    public async Task implicit_guid_conversion_with_different_value_fails() {
+        var entityId = EntityId.From(Faker.Random.Guid());
+
+        var action = async () => await Assert.That(entityId).IsDeepEquivalentTo(Faker.Random.Guid());
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    [Test]
+    public async Task implicit_guid_conversion_reverse_with_different_value_fails() {
+        var entityId = EntityId.From(Faker.Random.Guid());
+
+        var action = async () => await Assert.That(Faker.Random.Guid()).IsDeepEquivalentTo(entityId);
+
+        await Assert.That(action).ThrowsException();
+    }
+
+    #endregion
+
     #region Helpers
 
     static ComplexObject CloneComplexObject(ComplexObject source) {
@@ -1266,6 +1413,97 @@ public class ObjectGraphEquivalencyTests {
         public string      Name     { get; set; } = null!;
         public List<int>   Ordered  { get; set; } = [];
         public List<int>   Flexible { get; set; } = [];
+    }
+
+    public record Revision : IComparable<Revision>, IComparable {
+        /// <summary>
+        /// The end of a stream. Use this when reading a stream backwards or subscribing live to a stream.
+        /// </summary>
+        public static readonly Revision Max = new(long.MaxValue);
+
+        /// <summary>
+        /// The beginning (i.e., the first event) of a stream.
+        /// </summary>
+        public static readonly Revision Min = new((long)0);
+
+        /// <summary>
+        /// A special value that refers to an invalid, unassigned or default revision.
+        /// </summary>
+        public static readonly Revision Unset = new((long)-1000);
+
+        Revision(long value) => Value = value;
+
+        public long Value { get; private init; }
+
+        public bool IsUnset => this == Unset;
+
+        public static Revision From(long value) =>
+            value switch {
+                -1000 => Unset,
+                >= 0  => new Revision(value),
+                _     => throw new InvalidCastException($"Invalid revision value: {value}")
+            };
+
+        public static implicit operator long(Revision revision) => revision.Value;
+
+        public static implicit operator Revision(long revision) => From(revision);
+
+        #region . relational members .
+
+        public int CompareTo(Revision? other) {
+            if (ReferenceEquals(this, other))
+                return 0;
+
+            return other is null ? 1 : Value.CompareTo(other.Value);
+        }
+
+        public int CompareTo(object? obj) {
+            if (obj is null)
+                return 1;
+
+            if (ReferenceEquals(this, obj))
+                return 0;
+
+            return obj is Revision other
+                ? CompareTo(other)
+                : throw new ArgumentException($"Object must be of type {nameof(Revision)}");
+        }
+
+        public static bool operator <(Revision? left, Revision? right) =>
+            Comparer<Revision>.Default.Compare(left, right) < 0;
+
+        public static bool operator >(Revision? left, Revision? right) =>
+            Comparer<Revision>.Default.Compare(left, right) > 0;
+
+        public static bool operator <=(Revision? left, Revision? right) =>
+            Comparer<Revision>.Default.Compare(left, right) <= 0;
+
+        public static bool operator >=(Revision? left, Revision? right) =>
+            Comparer<Revision>.Default.Compare(left, right) >= 0;
+
+        #endregion
+    }
+
+    record Label {
+        Label(string value) => Value = value;
+
+        public string Value { get; }
+
+        public static Label From(string value) => new(value);
+
+        public static implicit operator string(Label label) => label.Value;
+        public static implicit operator Label(string value) => From(value);
+    }
+
+    record EntityId {
+        EntityId(Guid value) => Value = value;
+
+        public Guid Value { get; }
+
+        public static EntityId From(Guid value) => new(value);
+
+        public static implicit operator Guid(EntityId id) => id.Value;
+        public static implicit operator EntityId(Guid value) => From(value);
     }
 
     #endregion

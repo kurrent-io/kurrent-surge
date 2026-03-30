@@ -16,6 +16,8 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
         if (TestDataSource.IsUnspecifiedCount(numberOfEvents)) {
             var logbook = ArcadeRaceSimulator
                 .NewRace(Faker)
+                .WithCars(3)
+                .WithLaps(3)
                 .Simulate();
 
             return SimulateRace(logbook.RaceId, logbook.Events);
@@ -33,11 +35,10 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
         }
 
         static TestStream SimulateRace(Guid raceId, IReadOnlyList<IRaceEvent> events) {
-            StreamName stream  = $"ArcadeRace-{raceId:N}";
-            var        request = events
+            var request = events
                 .Aggregate(
-                    AppendRecordsRequest.New(),
-                    (bldr, evt) => bldr.WithRecord(rec => rec.ForStream(stream).WithId(evt.EventId).WithValue(evt).WithTimestamp(evt.Timestamp)))
+                    AppendToStreamRequest.For($"Race-{raceId:N}"),
+                    (req, evt) => req.WithRecord(rec => rec.WithId(evt.EventId).WithValue(evt).WithTimestamp(evt.Timestamp)))
                 .Build();
 
             return TestStream.From(request);

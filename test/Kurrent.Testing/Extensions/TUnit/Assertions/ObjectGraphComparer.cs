@@ -29,6 +29,36 @@ static class ObjectGraphComparer {
         if (BothValuesAreNull(actual, expected, path))
             return;
 
+        if (actual.GetType() != expected.GetType()) {
+            if (TryImplicitConversion(actual, expected.GetType(), out var converted)) {
+                CompareObjects(converted, expected, path, previousComparisons, config, depth);
+                return;
+            }
+
+            if (TryImplicitConversion(expected, actual.GetType(), out converted)) {
+                CompareObjects(actual, converted, path, previousComparisons, config, depth);
+                return;
+            }
+
+            var actualIsNumeric   = actual is ValueType && IsNumericType(actual.GetType());
+            var expectedIsNumeric = expected is ValueType && IsNumericType(expected.GetType());
+
+            if (actualIsNumeric && expectedIsNumeric) {
+                CompareNumericCrossType(actual, expected, path, config);
+                return;
+            }
+
+            if (expectedIsNumeric && TryImplicitConversionToNumeric(actual, out var numericValue)) {
+                CompareNumericCrossType(numericValue, expected, path, config);
+                return;
+            }
+
+            if (actualIsNumeric && TryImplicitConversionToNumeric(expected, out numericValue)) {
+                CompareNumericCrossType(actual, numericValue, path, config);
+                return;
+            }
+        }
+
         var (actualType, expectedType) = GetTypesToCompare(actual, expected, path, config);
 
         if (TryCustomCompare(actual, expected, actualType, config, path))
@@ -63,6 +93,68 @@ static class ObjectGraphComparer {
 
         return true;
     }
+
+    static bool TryImplicitConversion(object value, Type targetType, [NotNullWhen(true)] out object? converted) {
+        converted = null;
+        var sourceType = value.GetType();
+
+        var method = FindImplicitOperator(sourceType, sourceType, targetType)
+                  ?? FindImplicitOperator(targetType, sourceType, targetType);
+
+        if (method == null)
+            return false;
+
+        converted = method.Invoke(null, [value])!;
+        return true;
+    }
+
+    static MethodInfo? FindImplicitOperator(Type declaringType, Type sourceType, Type targetType) =>
+        declaringType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .FirstOrDefault(m => m.Name == "op_Implicit"
+                              && m.ReturnType == targetType
+                              && m.GetParameters() is [var p] && p.ParameterType == sourceType);
+
+    static bool TryImplicitConversionToNumeric(object value, [NotNullWhen(true)] out object? converted) {
+        converted = null;
+        var sourceType = value.GetType();
+
+        var method = sourceType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .FirstOrDefault(m => m.Name == "op_Implicit"
+                              && IsNumericType(m.ReturnType)
+                              && m.GetParameters() is [var p] && p.ParameterType == sourceType);
+
+        if (method == null)
+            return false;
+
+        converted = method.Invoke(null, [value])!;
+        return true;
+    }
+
+    static void CompareNumericCrossType(
+        object actual, object expected, IEnumerable<string> path, EquivalencyConfiguration config
+    ) {
+        if (IsIeeeFloatingPoint(actual.GetType()) || IsIeeeFloatingPoint(expected.GetType())) {
+            var actualDouble   = Convert.ToDouble(actual);
+            var expectedDouble = Convert.ToDouble(expected);
+
+            if (config.NumericTolerance > 0 && Math.Abs(actualDouble - expectedDouble) <= config.NumericTolerance)
+                return;
+
+            if (actualDouble != expectedDouble)
+                Throw(actual, expected, path);
+        } else {
+            var actualDecimal   = Convert.ToDecimal(actual);
+            var expectedDecimal = Convert.ToDecimal(expected);
+
+            if (config.NumericTolerance > 0 && Math.Abs(actualDecimal - expectedDecimal) <= (decimal)config.NumericTolerance)
+                return;
+
+            if (actualDecimal != expectedDecimal)
+                Throw(actual, expected, path);
+        }
+    }
+
+    static bool IsIeeeFloatingPoint(Type type) => Type.GetTypeCode(type) is TypeCode.Single or TypeCode.Double;
 
     static bool BothValuesAreNull(
         [NotNullWhen(false)] object? actual,

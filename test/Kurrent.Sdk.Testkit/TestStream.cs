@@ -7,7 +7,7 @@ namespace Testing.ArcadeRacer;
 public record TestStream : IEnumerable<AppendRecord> {
     TestStream() { }
 
-    public AppendRecordsRequest AppendRequest { get; private init; }
+    public AppendToStreamRequest AppendRequest { get; private init; }
 
     public StreamName Stream { get; private init; }
 
@@ -17,7 +17,7 @@ public record TestStream : IEnumerable<AppendRecord> {
         AppendRequest.Records.LastOrDefault()
             ?.Timestamp.ToUnixTimeMilliseconds() ?? -1;
 
-    public static TestStream From(AppendRecordsRequest request) =>
+    public static TestStream From(AppendToStreamRequest request) =>
         request.Checks.Length > 1
             ? throw new ArgumentException("Expected a single stream check", nameof(request))
             : new TestStream() {
@@ -31,5 +31,5 @@ public record TestStream : IEnumerable<AppendRecord> {
 
     public override string ToString() => $"{Stream} | recs: {Records.Count}";
 
-    public static implicit operator AppendRecordsRequest(TestStream testStream) => testStream.AppendRequest;
+    public static implicit operator AppendToStreamRequest(TestStream testStream) => testStream.AppendRequest;
 }

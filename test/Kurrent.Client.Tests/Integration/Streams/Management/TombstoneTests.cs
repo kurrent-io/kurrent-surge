@@ -14,7 +14,7 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask tombstones_existing_stream_without_specifing_revision(CancellationToken ct) {
-        var raceActivity = await Fixture.SeedData(ct);
+        var raceActivity = await Fixture.SeedTestStream(ct);
 
         var position = await Fixture.Client.Streams
             .Tombstone(raceActivity.Stream, ct);
@@ -24,7 +24,7 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask tombstones_stream_when_expected_revision_matches(CancellationToken ct) {
-        var data = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         var position = await Fixture.Client.Streams
             .Tombstone(data.Stream, data.Revision, ct);
@@ -34,7 +34,7 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_revision_conflict_error_when_revision_is_not_matched(CancellationToken ct) {
-        var data = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
             .Tombstone(data.Stream, data.Revision + 99, ct))
@@ -52,7 +52,7 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
-        var data = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         await Fixture.Client.Streams
             .Delete(data.Stream, ct);
@@ -64,7 +64,7 @@ public class TombstoneTests {
 
     [Test]
     public async ValueTask fails_to_tombstone_stream_with_stream_tombstoned_error_when_stream_was_tombstoned(CancellationToken ct) {
-        var data = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         await Fixture.Client.Streams
             .Tombstone(data.Stream, ct);

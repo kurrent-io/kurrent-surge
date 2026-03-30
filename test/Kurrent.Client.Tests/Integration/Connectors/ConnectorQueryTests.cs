@@ -18,7 +18,7 @@ public class ConnectorQueryTests {
         await Fixture.Client.Connectors
             .Create(connectorId, name, settings, ct);
 
-        var options = new ConnectorListOptions { ConnectorIds = [connectorId] };
+        var options = new ConnectorListOptions { ConnectorIds = [connectorId],  };
 
         var result = await Fixture.Client.Connectors
             .List(options, ct);

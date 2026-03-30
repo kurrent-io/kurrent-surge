@@ -73,9 +73,8 @@ public partial class AppendConsistencyViolationException {
     public IReadOnlyList<ConsistencyViolation> Violations { get; private set; } = [];
 
     public AppendConsistencyViolationException(IReadOnlyList<ConsistencyViolation> violations)
-        : this(Format(ErrorMessages.StreamRevisionConflictException, violations)) {
+        : this(Format(ErrorMessages.StreamRevisionConflictException, violations)) =>
         Violations = violations;
-    }
 
     public AppendConsistencyViolationException(StreamStateViolation violation) : this([violation]) { }
 

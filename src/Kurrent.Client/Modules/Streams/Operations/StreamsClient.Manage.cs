@@ -167,7 +167,8 @@ public partial class StreamsClient {
     }
 
     public async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision revision, CancellationToken cancellationToken = default) {
-        var builder = AppendToStreamRequest.For(stream.Metastream)
+        var builder = AppendToStreamRequest
+            .For(stream.Metastream)
             .WithRecord(new AppendRecord { Value = metadata, Stream = stream.Metastream });
 
         if (revision != Revision.Unset)

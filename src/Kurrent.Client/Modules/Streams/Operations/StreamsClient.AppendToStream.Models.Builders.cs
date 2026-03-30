@@ -10,12 +10,12 @@ namespace Kurrent.Client.Streams;
 /// </summary>
 [PublicAPI]
 public class AppendToStreamRequestBuilder {
-    readonly StreamName                 _stream;
-    readonly List<AppendRecordBuilder>  _builders = [];
-    readonly List<ConsistencyCheck>     _checks   = [];
-    readonly Dictionary<string, object> _metadataOverrides = [];
-    SchemaDataFormat?                   _dataFormatOverride;
-    ExpectedStreamState?                _expectedState;
+    readonly StreamName                  _stream;
+    readonly List<AppendRecordBuilder>   _builders          = [];
+    readonly List<ConsistencyCheck>      _checks            = [];
+    readonly Dictionary<string, object?> _metadataOverrides = [];
+    SchemaDataFormat?                    _dataFormatOverride;
+    ExpectedStreamState?                 _expectedState;
 
     internal AppendToStreamRequestBuilder(StreamName stream) => _stream = stream;
 
@@ -86,7 +86,17 @@ public class AppendToStreamRequestBuilder {
         return this;
     }
 
-    public AppendToStreamRequestBuilder WithMetadata(string key, object value) {
+    public AppendToStreamRequestBuilder WithMetadata(string key, object? value = null) {
+        _metadataOverrides[key] = value;
+        return this;
+    }
+
+    public AppendToStreamRequestBuilder WithMetadata<T>(KeyValuePair<string, T> entry) {
+        _metadataOverrides[entry.Key] = entry.Value;
+        return this;
+    }
+
+    public AppendToStreamRequestBuilder WithMetadata<T>(string key, T? value = default) {
         _metadataOverrides[key] = value;
         return this;
     }

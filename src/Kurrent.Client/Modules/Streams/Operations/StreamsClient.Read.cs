@@ -192,12 +192,20 @@ public partial class StreamsClient {
                 throw new LogPositionNotFoundException(position, details);
             }
 
-            throw rex.ToException(StreamNotFoundException.From, StreamDeletedException.From, StreamTombstonedException.From, LogPositionNotFoundException.From);
+            throw rex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
+                LogPositionNotFoundException.From);
         }
         catch (Exception ex) {
             session.Dispose();
             cancellator.Dispose();
-            throw ex.ToException(StreamNotFoundException.From, StreamDeletedException.From, StreamTombstonedException.From, LogPositionNotFoundException.From);
+            throw ex.ToException(
+                StreamNotFoundException.From,
+                StreamDeletedException.From,
+                StreamTombstonedException.From,
+                LogPositionNotFoundException.From);
         }
 
         var channelFactory = new Func<Channel<ReadRecordsResult>>(
@@ -233,21 +241,22 @@ public partial class StreamsClient {
                 // must continue from the cursor because we had to try to read
                 // the first entry to check if the stream existed or if access was granted
                 do {
-                    var resp = session.ResponseStream.Current;
+                    var rsp = session.ResponseStream.Current;
 
                     ReadRecordsResult result;
 
-                    switch (resp?.ContentCase) {
+                    switch (rsp?.ContentCase) {
                         case CaughtUp:
-                            result = resp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
+                            result = rsp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
                             break;
                         case Event:
-                            result = await resp.Event.MapToRecordAsync(
-                                sequencer.FetchNext(),
-                                SerializerProvider, MetadataDecoder,
-                                SchemaRegistryPolicy.NoRequirements,
-                                skipDecoding, stoppingToken
-                            ).ConfigureAwait(false);
+                            result = await rsp.Event
+                                .MapToRecordAsync(
+                                    sequencer.FetchNext(),
+                                    SerializerProvider, MetadataDecoder,
+                                    SchemaRegistryPolicy.NoRequirements,
+                                    skipDecoding, stoppingToken)
+                                .ConfigureAwait(false);
                             break;
                         default:
                             continue; // Skip irrelevant, no allocation

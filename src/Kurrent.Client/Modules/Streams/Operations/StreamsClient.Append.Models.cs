@@ -78,6 +78,21 @@ public readonly partial record struct ConsistencyCheck : IVariant<StreamStateChe
     /// </summary>
     /// <param name="stream">The stream name to check.</param>
     public static StreamStateCheckBuilder Stream(StreamName stream) => new(stream);
+
+    public static StreamStateCheck StreamAtRevision(StreamName stream, Revision revision) =>
+        new StreamStateCheck(stream, revision);
+
+    public static StreamStateCheck StreamExists(StreamName stream) =>
+        new StreamStateCheck(stream, ExpectedStreamState.Exists);
+
+    public static StreamStateCheck StreamDoesNotExist(StreamName stream) =>
+        new StreamStateCheck(stream, ExpectedStreamState.NoStream);
+
+    public static StreamStateCheck StreamIsDeleted(StreamName stream) =>
+        new StreamStateCheck(stream, ExpectedStreamState.Deleted);
+
+    public static StreamStateCheck StreamIsTombstoned(StreamName stream) =>
+        new StreamStateCheck(stream, ExpectedStreamState.Tombstoned);
 }
 
 /// <summary>

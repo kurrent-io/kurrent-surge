@@ -23,11 +23,11 @@ public partial class StreamsClient {
                 .ToContract(request, cancellationToken)
                 .ConfigureAwait(false);
 
-            var response = await ServiceClient
+            var rsp = await ServiceClient
                 .AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return Mapper.ToAppendRecordsResponse(response);
+            return Mapper.ToAppendRecordsResponse(rsp);
         }
         catch (Exception ex) {
             throw ex.ToException(

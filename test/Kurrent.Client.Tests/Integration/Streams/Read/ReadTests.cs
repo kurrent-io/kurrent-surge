@@ -21,7 +21,7 @@ public class ReadTests {
 
         var stoppingToken = cancellator.Token;
 
-        var simulation = await Fixture.SeedData(10, stoppingToken);
+        var simulation = await Fixture.SeedTestStream(10, stoppingToken);
 
         var options = ReadLog.FromStart()
             .WithFilterExpression($"stream = '{simulation.Stream}'")
@@ -29,8 +29,7 @@ public class ReadTests {
             .WithCancellationToken(stoppingToken)
             .Build();
 
-        await using var messages = await Fixture.Client.Streams
-            .ReadRecords(options);
+        await using var messages = await Fixture.Client.Streams.ReadRecords(options);
 
         var records = new List<Record>();
 
@@ -57,27 +56,27 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_stream(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         var now = Fixture.Time.GetUtcNow();
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct);
+            .ReadStreamRecords(data.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        await Assert.That(records.Count).IsEqualTo(simulation.Records.Count);
+        await Assert.That(records.Count).IsEqualTo(data.Records.Count);
 
         for (var i = 0; i < records.Count; i++) {
             var record   = records[i];
-            var iotEvent = simulation.Records[i];
+            var iotEvent = data.Records[i];
 
-            await Assert.That(record.Stream).IsEqualTo(simulation.Stream);
+            await Assert.That(record.Stream).IsEqualTo(data.Stream);
             await Assert.That(record.Revision).IsEquivalentTo(Revision.From(i));
-            await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(simulation.Position);
+            await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(data.Position);
 
             await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
             await Assert.That(record.Schema.SchemaFormat).IsEqualTo(iotEvent.DataFormat);
@@ -93,6 +92,7 @@ public class ReadTests {
     }
 
     [Test]
+    [Timeout(25000)]
     [Arguments(1)]
     [Arguments(2)]
     [Arguments(3)]
@@ -103,14 +103,14 @@ public class ReadTests {
     [Arguments(10)]
     [Arguments(100)]
     public async ValueTask gracefully_stops_reading_and_flushes_queue_when_read_token_is_cancelled(int records, CancellationToken ct) {
-        var simulation = await Fixture.SeedData(records, ct);
-
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, cancellator.Token);
+        var data = await Fixture.SeedTestStream(records, cancellator.Token);
 
-        var cancelOn = simulation.Records.Count / 2 + simulation.Records.Count % 2;
+        await using var messages = await Fixture.Client.Streams
+            .ReadStreamRecords(data.Stream, cancellator.Token);
+
+        var cancelOn = (data.Records.Count / 2) + (data.Records.Count % 2);
 
         await foreach (var _ in messages)
             if (--cancelOn == 0 && !cancellator.IsCancellationRequested)
@@ -121,6 +121,7 @@ public class ReadTests {
     }
 
     [Test]
+    [Timeout(25000)]
     [Arguments(1)]
     [Arguments(2)]
     [Arguments(3)]
@@ -131,31 +132,30 @@ public class ReadTests {
     [Arguments(10)]
     [Arguments(100)]
     public async ValueTask gracefully_stops_reading_without_flushing_queue_when_enumerable_token_is_cancelled(int records, CancellationToken ct) {
-        var simulation = await Fixture.SeedData(records, ct);
+        using var cancellator =  CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        await using RecordStream messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct);
+        var data = await Fixture.SeedTestStream(records, cancellator.Token);
 
-        var cancelOn = simulation.Records.Count / 2 + simulation.Records.Count % 2;
+        await using var messages = await Fixture.Client.Streams
+            .ReadStreamRecords(data.Stream, cancellator.Token);
 
-        using var cancellator = new CancellationTokenSource();
+        var cancelOn = (data.Records.Count / 2) + (data.Records.Count % 2);
 
         await foreach (var _ in messages.WithCancellation(cancellator.Token)) {
             if (--cancelOn == 0)
-                cancellator.Cancel();
-            else
-                await Task.Delay(25); // simulate some processing time
+                await cancellator.CancelAsync();
+            else if (!cancellator.IsCancellationRequested)
+                await Task.Delay(25, cancellator.Token); // simulate some processing time
         }
 
         await Assert.That(messages.QueuedMessages).IsGreaterThanOrEqualTo(cancelOn);
-
         await Assert.That(cancellator.Token.IsCancellationRequested).IsTrue();
         await Assert.That(cancellator.IsCancellationRequested).IsTrue();
     }
 
     [Test]
     public async ValueTask reads_first_stream_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(ct);
+        var simulation = await Fixture.SeedTestStream(ct);
 
         var expectedRecord = simulation.Records.First();
 
@@ -168,7 +168,7 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_last_stream_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(ct);
+        var simulation = await Fixture.SeedTestStream(ct);
 
         var expectedRecord = simulation.Records.Last();
 
@@ -198,9 +198,9 @@ public class ReadTests {
 
     [Test]
     public async ValueTask fails_with_log_position_not_found_when_log_position_is_broken(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(ct);
+        var simulation = await Fixture.SeedTestStream(ct);
 
-        RecordStream messages = await Fixture.Client.Streams
+        var messages = await Fixture.Client.Streams
             .ReadStreamRecords(simulation.Stream, ct);
 
         var records = await messages
@@ -229,19 +229,19 @@ public class ReadTests {
 
     [Test]
     public async ValueTask reads_stream_from_specific_revision(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(10, ct);
+        var seedData = await Fixture.SeedTestStream(10, ct);
 
         var startFrom = 5;
 
         await using var messages = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, Revision.From(startFrom), ct);
+            .ReadStreamRecords(seedData.Stream, startFrom, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        var expectedRecords = simulation.Records.Skip(startFrom).ToList();
+        var expectedRecords = seedData.Records.Skip(startFrom).ToList();
 
         await Assert.That(records.Count).IsEqualTo(expectedRecords.Count);
 
@@ -249,34 +249,36 @@ public class ReadTests {
             var record   = records[i];
             var expected = expectedRecords[i];
 
-            await Assert.That(record.Stream).IsEqualTo(simulation.Stream);
-            await Assert.That(record.Revision).IsEquivalentTo(Revision.From(startFrom + i));
-            await Assert.That(record.Id).IsEqualTo(expected.RecordId);
-            await Assert.That(record.Value).IsEquivalentTo(expected.Value);
+            await Assert.That(record.Id).IsDeepEquivalentTo(expected.RecordId);
+            await Assert.That(record.Value).IsDeepEquivalentTo(expected.Value);
+            await Assert.That(record.Stream).IsDeepEquivalentTo(seedData.Stream);
+            await Assert.That(record.Revision).IsDeepEquivalentTo(startFrom + i);
+            await Assert.That(startFrom + i).IsDeepEquivalentTo(record.Revision);
+
         }
     }
 
     [Test]
     public async ValueTask fails_with_stream_deleted_error_when_stream_is_deleted(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         await Fixture.Client.Streams
-            .Delete(simulation.Stream, ct);
+            .Delete(data.Stream, ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct))
+            .ReadStreamRecords(data.Stream, ct))
             .Throws<StreamDeletedException>();
     }
 
     [Test]
     public async ValueTask fails_with_stream_tombstoned_error_when_stream_is_tombstoned(CancellationToken ct) {
-        var simulation = await Fixture.SeedData(ct);
+        var data = await Fixture.SeedTestStream(ct);
 
         await Fixture.Client.Streams
-            .Tombstone(simulation.Stream, ct);
+            .Tombstone(data.Stream, ct);
 
         await Assert.That(async () => await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct))
+            .ReadStreamRecords(data.Stream, ct))
             .Throws<StreamTombstonedException>();
     }
 

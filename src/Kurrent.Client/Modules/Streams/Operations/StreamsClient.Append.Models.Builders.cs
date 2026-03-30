@@ -116,6 +116,12 @@ public class AppendRecordsRequestBuilder {
         return this;
     }
 
+    public AppendRecordsRequestBuilder WithRecords(IEnumerable<AppendRecord> records) {
+        foreach (var record in records)
+            _builders.Add(new AppendRecordBuilder().FromRecord(record));
+        return this;
+    }
+
     #endregion
 
     #region Batch Overrides

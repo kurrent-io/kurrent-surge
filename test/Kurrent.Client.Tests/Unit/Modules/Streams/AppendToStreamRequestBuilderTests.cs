@@ -144,35 +144,37 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public async ValueTask with_metadata_upserts_on_all_records() {
         // Arrange
-        var r1 = ValidRecord();
-        var r2 = ValidRecord();
+        var expectedEntry = new KeyValuePair<string, object?>("source", "batch");
+
+        var builder = AppendToStreamRequest.For("test-stream")
+            .WithMetadata(expectedEntry)
+            .WithRecord(ValidRecord())
+            .WithRecord(ValidRecord());
 
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
-            .WithMetadata("source", "batch")
-            .WithRecord(r1)
-            .WithRecord(r2)
-            .Build();
+        var request = builder.Build();
 
         // Assert
-        await Assert.That(request.Records[0].Metadata["source"]).IsEqualTo("batch");
-        await Assert.That(request.Records[1].Metadata["source"]).IsEqualTo("batch");
+        await Assert
+            .That(request.Records)
+            .All(r => r.Metadata.Contains(expectedEntry));
     }
 
     [Test]
     public async ValueTask with_metadata_overrides_existing_key() {
         // Arrange
         var record = AppendRecord.New
-            .WithValue("payload")
             .ForStream("test-stream")
-            .WithMetadata<string>("source", "record-level")
+            .WithValue("payload")
+            .WithMetadata("source", "record-level")
             .Build();
 
-        // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var builder = AppendToStreamRequest.For("test-stream")
             .WithMetadata("source", "batch-level")
-            .WithRecord(record)
-            .Build();
+            .WithRecord(record);
+
+        // Act
+        var request = builder.Build();
 
         // Assert
         await Assert.That(request.Records[0].Metadata["source"]).IsEqualTo("batch-level");
@@ -186,7 +188,7 @@ public class AppendToStreamRequestBuilderTests {
     public async ValueTask with_record_action_overload() {
         // Act
         var request = AppendToStreamRequest.For("test-stream")
-            .WithRecord(b => b.WithValue("from-action"))
+            .WithRecord(x => x.WithValue("from-action"))
             .Build();
 
         // Assert

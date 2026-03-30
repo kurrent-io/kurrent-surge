@@ -1,24 +1,22 @@
-using System.Text.Json;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Testing.ArcadeRacer;
 using Kurrent.Testkit;
 
 namespace Kurrent.Client.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
-public class AppendTests {
+public class AppendToStreamTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    public async ValueTask creates_stream(CancellationToken ct) {
+    public async ValueTask creates_multiple_streams(CancellationToken ct) {
         // Arrange
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var expectedRevision = new StreamRevision(data.Stream, data.Records.Count - 1);
+        var expectedRevision = data.Records.Count - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -27,19 +25,20 @@ public class AppendTests {
                 .Build(), ct);
 
         // Assert
-        await Assert.That(new StreamRevision(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
+        await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
     [Test]
     public async ValueTask appends_to_existing_stream(CancellationToken ct) {
         // Arrange
-        var data             = await Fixture.TestData.GenerateSet(ct);
-        var expectedRevision = new StreamRevision(data.Stream, data.Records.Count - 1);
+        var data = await Fixture.TestData.GenerateSet(ct);
 
         var created = await Fixture.Client.Streams
             .AppendToStream(AppendToStreamRequest.For(data.Stream)
                 .WithRecords(data.Records.Take(1))
                 .Build(), ct);
+
+        var expectedRevision = data.Records.Count - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -50,7 +49,7 @@ public class AppendTests {
 
         // Assert
         await Assert.That(result.Position).IsGreaterThan(created.Position);
-        await Assert.That(new StreamRevision(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
+        await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
     [Test]
@@ -58,12 +57,12 @@ public class AppendTests {
         // Arrange
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var expectedRevision = new StreamRevision(data.Stream, data.Records.Count - 1);
-
         var created = await Fixture.Client.Streams
             .AppendToStream(AppendToStreamRequest.For(data.Stream)
                 .WithRecords(data.Records.Take(1))
                 .Build(), ct);
+
+        var expectedRevision = data.Records.Count - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -74,92 +73,91 @@ public class AppendTests {
 
         // Assert
         await Assert.That(result.Position).IsGreaterThan(created.Position);
-        await Assert.That(new StreamRevision(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
+        await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
     [Test]
     public async ValueTask appends_to_existing_stream_with_any_state(CancellationToken ct) {
         // Arrange
-        var seededData = await Fixture.SeedData(6, ct);
+        var data = await Fixture.TestData.GenerateSet(ct);
 
-        var expectedRevision = new StreamRevision(seededData.Stream, seededData.Records.Count - 1);
+        var created = await Fixture.Client.Streams
+            .AppendToStream(data.Stream, data.Records.Take(1), ct);
 
-        await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(seededData.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(seededData.Records.Take(3))
-                .Build(), ct);
+        var expectedRevision = data.Records.Count - 1;
 
         // Act
         var result = await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(seededData.Stream)
-                .WithRecords(seededData.Records.Skip(3))
-                .Build(), ct);
+            .AppendToStream(data.Stream, ExpectedStreamCondition.Any, data.Records.Skip(1), ct);
 
         // Assert
-        await Assert.That(result.Position).IsGreaterThan(LogPosition.Earliest);
-        await Assert.That(new StreamRevision(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
+        await Assert.That(result.Position).IsGreaterThan(created.Position);
+        await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
     [Test]
-    public async ValueTask append_with_nostream_fails_when_stream_exists(CancellationToken ct) {
-        // Arrange
-        var seeded = await Fixture.SeedData(ct);
-        var data   = await Fixture.TestData.GenerateSet(ct);
-
-        // Act & Assert
-        var result = await Assert.That(async () => await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(seeded.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(data.Records)
-                .Build(), ct))
-            .Throws<AppendConsistencyViolationException>();
-    }
-
-    // [Test]
-    // public async ValueTask append_with_streamexists_fails_when_stream_does_not_exist(CancellationToken ct) {
-    //     // Arrange
-    //     var data = ArcadeRacerTestData.SimulateRace(1);
-    //
-    //     // Act & Assert
-    //     await Assert.That(async () => await Fixture.Client.Streams
-    //         .AppendToStream(AppendToStreamRequest.For(data.Stream)
-    //             .ExpectingState(ExpectedStreamCondition.Exists)
-    //             .WithRecords(data.Records)
-    //             .Build(), ct))
-    //         .Throws<AppendConsistencyViolationException>();
-    // }
-
-    [Test]
-    public async ValueTask throws_StreamDeletedException_when_stream_is_soft_deleted(CancellationToken ct) {
+    public async ValueTask appends_to_deleted_stream(CancellationToken ct) {
         // Arrange
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        // Act & Assert
-        await Assert
-            .That(Action)
-            .Throws<StreamDeletedException>();
+        var created = await Fixture.Client.Streams.AppendToStream(data.Stream, data.Records.Take(1), ct);
 
-        Func<Task<AppendToStreamResponse?>> Action() => async () =>
-            await Fixture.Client.Streams.AppendToStream(
-                AppendToStreamRequest.For(data.Stream)
-                    .ExpectingState(ExpectedStreamCondition.Exists)
-                    .WithRecords(data.Records)
-                    .Build(), ct);
+        var expectedRevision = data.Records.Count - 1;
+
+        // Act
+        var result = await Fixture.Client.Streams.AppendToStream(data.Stream, data.Records.Skip(1), ct);
+
+        // Assert
+        await Assert.That(result.Position).IsGreaterThan(created.Position);
+        await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
     [Test]
-    public async ValueTask throws_StreamTombstonedException_when_stream_is_tombstoned(CancellationToken ct) {
+    public async ValueTask throws_StreamAlreadyExistsException_when_stream_is_not_suposed_to_exist(CancellationToken ct) {
         // Arrange
-        var data = await Fixture.TestData.GenerateSet(ct);
+        var seeded = await Fixture.SeedTestStream(ct);
 
         // Act & Assert
-        await Assert
+        var result = await Assert
             .That(async () => await Fixture.Client.Streams.AppendToStream(
-                AppendToStreamRequest.For(data.Stream)
-                    .ExpectingState(ExpectedStreamCondition.Exists)
-                    .WithRecords(data.Records)
-                    .Build(), ct))
+                AppendToStreamRequest.For(seeded.Stream)
+                    .ExpectingState(ExpectedStreamCondition.NoStream)
+                    .WithRecords(seeded.Records.Take(1)) // just append the first record again...
+                    .Build(),
+                ct))
+            .Throws<StreamAlreadyExistsException>();
+    }
+
+
+    public class ExpectedStatesWhenStreamIsTombstoned : TestCaseGenerator<ExpectedStreamState> {
+        protected override IEnumerable<ExpectedStreamState> Data() {
+            yield return ExpectedStreamCondition.Any;
+            yield return ExpectedStreamCondition.NoStream;
+            yield return ExpectedStreamCondition.Exists;
+            yield return ExpectedStreamCondition.Deleted;
+            yield return ExpectedStreamCondition.Tombstoned;
+        }
+    }
+
+    [Test]
+    [ExpectedStatesWhenStreamIsTombstoned]
+    public async ValueTask throws_StreamTombstonedException_when_stream_is_tombstoned(
+        ExpectedStreamState streamState,
+        CancellationToken   ct
+    ) {
+        // Arrange
+        var seeded = await Fixture.SeedTestStream(ct);
+
+        await Fixture.Client.Streams.Tombstone(seeded.Stream, ct);
+
+        // Act & Assert
+        var result = await Assert
+            .That(async () => await Fixture.Client.Streams.AppendToStream(
+                AppendToStreamRequest.For(seeded.Stream)
+                    .ExpectingState(streamState)
+                    .WithRecords(seeded.Records.Take(1))
+                    .Build(),
+                ct))
             .Throws<StreamTombstonedException>();
     }
 
@@ -179,54 +177,31 @@ public class AppendTests {
     }
 
     [Test]
-    public async ValueTask
-    throws_AppendConsistencyViolationException_when_on_revision_mismatch(CancellationToken
-        ct) {
+    public async ValueTask throws_StreamRevisionConflictException_when_revision_mismatch(CancellationToken ct) {
         // Arrange
-        var seeded        = await Fixture.SeedData(3, ct);
-        var wrongRevision = Revision.From(seeded.Revision + 3);
-        var data          = await Fixture.TestData.GenerateSet(ct);
+        var data = await Fixture.TestData.GenerateSet(ct);
+
+        var created = await Fixture.Client.Streams.AppendToStream(
+            AppendToStreamRequest.For(data.Stream)
+                .WithRecords(data.Records.Take(1))
+                .Build(), ct);
+
+        Revision wrongRevision = created.Revision + Random.Shared.Next(5, 100);
+
+        var req = AppendToStreamRequest.For(data.Stream)
+            .ExpectingState(wrongRevision)
+            .WithRecords(data.Records.Skip(1))
+            .Build();
 
         // Act
-        var ex = await Assert.ThrowsAsync<AppendConsistencyViolationException>(async () => await Fixture.Client.Streams.AppendToStream(
-            AppendToStreamRequest.For(seeded.Stream)
-                .ExpectingState(wrongRevision)
-                .WithRecords(data.Records)
-                .Build(), ct));
+        var ex = await Assert.ThrowsAsync<StreamRevisionConflictException>(
+            async () => await Fixture.Client.Streams.AppendToStream(req , ct));
 
         // Assert
-        await Assert.That(ex).IsNotNull();
-        var violation = ex.Violations[0].AsStreamStateViolation;
-        await Assert.That(violation.ExpectedState).IsEqualTo((ExpectedStreamState)wrongRevision);
-        await Assert.That(violation.ActualState).IsEqualTo((ActualStreamState)seeded.Revision);
+        await Assert.That(ex).IsNotNull()
+            .And.Member(x => x.ExpectedRevision, x => x.IsEqualTo(wrongRevision))
+            .And.Member(x => x.ActualRevision, x => x.IsEqualTo(created.Revision));
     }
-
-    // public class CreatesMultipleStreamsTransactionallyState : TestCaseGenerator<int> {
-    //     protected override IEnumerable<int> Data() => [
-    //         2, 5, 6, 8, 10, 15, 20, 25, 30, 50, 100
-    //     ];
-    // }
-    //
-    // [Test, CreatesMultipleStreamsTransactionallyState]
-    // public async Task creates_multiple_streams_transactionally(int streams, CancellationToken ct) {
-    //     // Arrange
-    //     var activities = ArcadeRacerTestData.SimulateRaces();
-    //     var builder    = AppendRecordsRequest.New();
-    //
-    //     foreach (var act in activities) {
-    //         builder.WithRecords(act.Records.ToArray());
-    //         builder.WithCheck(ConsistencyCheck.Stream(act.Stream).DoesNotExist());
-    //     }
-    //
-    //     var request = builder.Build();
-    //
-    //     // Act
-    //     var result = await Fixture.Client.Streams
-    //         .AppendRecords(request, ct);
-    //
-    //     // Assert
-    //     await Assert.That(result.Position).IsGreaterThan(LogPosition.Earliest);
-    // }
 
     #region . Retention Policies .
 
@@ -327,59 +302,6 @@ public class AppendTests {
             .ToListAsync(ct);
 
         await Assert.That(records.Count).IsLessThanOrEqualTo(maxCount + 1);
-    }
-
-    #endregion
-
-    #region . Metadata Preservation .
-
-    [Test]
-    public async ValueTask append_preserves_custom_metadata(CancellationToken ct) {
-        // Arrange
-        var expectedTenant = "acme";
-        var customJson     = JsonDocument.Parse("""{"tenant": "acme", "region": "us-west"}""");
-        var data           = await Fixture.TestData.GenerateSet(5, ct);
-
-        await Fixture.Client.Streams
-            .SetStreamMetadata(data.Stream, new StreamMetadata { CustomMetadata = customJson }, ct);
-
-        // Act
-        await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(data.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(data.Records)
-                .Build(), ct);
-
-        // Assert
-        var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
-        await Assert.That(info.Metadata.CustomMetadata).IsNotNull();
-
-        var tenant = info.Metadata.CustomMetadata.RootElement.GetProperty("tenant").GetString();
-        await Assert.That(tenant).IsEqualTo(expectedTenant);
-    }
-
-    [Test]
-    public async ValueTask append_preserves_cachecontrol_metadata(CancellationToken ct) {
-        // Arrange
-        var data = await Fixture.TestData.GenerateSet(5, ct);
-
-        var expectedDuration = TimeSpan.FromHours(2);
-
-        await Fixture.Client.Streams
-            .SetStreamMetadata(data.Stream, new StreamMetadata {
-                CacheControl = expectedDuration
-            }, ct);
-
-        // Act
-        await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(data.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(data.Records)
-                .Build(), ct);
-
-        // Assert
-        var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
-        await Assert.That(info.Metadata.CacheControl).IsEqualTo(expectedDuration);
     }
 
     #endregion

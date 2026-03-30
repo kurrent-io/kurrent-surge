@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
@@ -21,36 +22,61 @@ public partial class StreamsClient {
                 .ToContract(request, cancellationToken)
                 .ConfigureAwait(false);
 
-            var response = await ServiceClient
+            var rsp = await ServiceClient
                 .AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return Mapper.ToAppendToStreamResponse(response, request.Stream);
-        }
-        catch (AppendConsistencyViolationException ex) when (ex.Violations is [{ Value: StreamStateViolation v }]) {
-            // need to check for revision mismatch and stream state violations separately since they are both returned as consistency violations by the service
-            // if both expected and actual state are revision violations and different, we return a stream revision conflict exception
-
-            if (v.ActualState.Value is Revision revision)
-                throw new StreamRevisionConflictException(v.Stream, v.ExpectedState, revision);
-
-            if (v.ExpectedState.IsRevision && v.ActualState.IsRevision && v.ExpectedState.AsRevision != v.ActualState.AsRevision)
-                throw new StreamRevisionConflictException(v.Stream, v.ExpectedState.AsRevision, v.ActualState.AsRevision);
-            else {
-                throw v.ActualState.Match<Exception>(
-                    condition => condition switch {
-                        ActualStreamCondition.Tombstoned => new StreamTombstonedException(v.Stream),
-                        ActualStreamCondition.NoStream   => new StreamNotFoundException(v.Stream),
-                        _                                => ex
-                    },
-                    _ => ex);
-            }
+            return new AppendToStreamResponse(request.Stream, rsp.Revisions[0].Revision, rsp.Position);
         }
         catch (Exception ex) {
-            throw ex.ToException(
+            var mex = ex.ToException(
                 AppendConsistencyViolationException.From,
                 MaxAppendRecordSizeExceededException.From,
                 MaxAppendTransactionSizeExceededException.From);
+
+            if (mex is not AppendConsistencyViolationException { Violations: [{ Value: StreamStateViolation violation }] })
+                throw mex;
+
+            throw violation.ActualState.Match<Exception>(
+                condition => condition switch {
+                    ActualStreamCondition.Tombstoned => new StreamTombstonedException(violation.Stream),
+                    ActualStreamCondition.NoStream   => new StreamNotFoundException(violation.Stream),
+                    _                                => ex
+                },
+                revision => {
+                    var targetStreamCheck = request.Checks
+                        .Where(c => c is { IsStreamStateCheck: true, Value: StreamStateCheck check } && check.Stream == request.Stream)
+                        .Select(c => c.AsStreamStateCheck)
+                        .SingleOrDefault();
+
+                    return targetStreamCheck.ExpectedState == ExpectedStreamState.NoStream
+                        ? new StreamAlreadyExistsException(violation.Stream)
+                        : new StreamRevisionConflictException(violation.Stream, violation.ExpectedState, revision);
+                });
         }
     }
+
+    public ValueTask<AppendToStreamResponse> AppendToStream(
+        StreamName                stream,
+        ExpectedStreamState       expectedState,
+        IEnumerable<AppendRecord> records,
+        CancellationToken         cancellationToken = default
+    ) =>
+        AppendToStream(
+            AppendToStreamRequest.For(stream)
+                .ExpectingState(expectedState)
+                .WithRecords(records)
+                .Build(),
+            cancellationToken);
+
+    public ValueTask<AppendToStreamResponse> AppendToStream(
+        StreamName                stream,
+        IEnumerable<AppendRecord> records,
+        CancellationToken         cancellationToken = default
+    ) =>
+        AppendToStream(
+            AppendToStreamRequest.For(stream)
+                .WithRecords(records)
+                .Build(),
+            cancellationToken);
 }

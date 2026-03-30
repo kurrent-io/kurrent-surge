@@ -39,7 +39,7 @@
     <comment>The exception message for when attempting to access a tombstoned stream. Parameter {0}: stream name.</comment>
   </data>
   <data name="StreamRevisionConflictException" xml:space="preserve">
-    <value>Operation failed due to a revision conflict on stream '{1}'. Expected revision: {2}. Actual revision: {3}.</value>
+    <value>Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.</value>
     <comment>The exception message for when expected stream revision does not match actual revision. Parameter {0}: operation name (Delete/Tombstone), {1}: stream name, {2}: expected revision, {3}: actual revision.</comment>
   </data>
   <data name="MaxAppendRecordSizeExceededException" xml:space="preserve">

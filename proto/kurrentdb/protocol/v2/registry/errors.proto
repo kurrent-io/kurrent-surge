@@ -31,7 +31,6 @@ enum RegistryError {
     status_code: FAILED_PRECONDITION,
     has_details: true
   }];
-
 }
 
 message SchemaNotFoundErrorDetails {

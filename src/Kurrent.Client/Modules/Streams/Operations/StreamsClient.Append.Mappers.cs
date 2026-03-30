@@ -95,15 +95,6 @@ partial class StreamsProtocolMapper {
         return result;
     }
 
-    public AppendToStreamResponse ToAppendToStreamResponse(Contracts.AppendRecordsResponse source, StreamName stream) {
-        var revision = source.Revisions
-            .Where(r => (StreamName)r.Stream == stream)
-            .Select(r => (Revision)r.Revision)
-            .LastOrDefault(Revision.Unset);
-
-        return new AppendToStreamResponse(stream, revision, source.Position);
-    }
-
     public AppendRecordsResponse ToAppendRecordsResponse(Contracts.AppendRecordsResponse source) {
         var revisions = source.Revisions
             .Select(x => new StreamRevision(x.Stream, x.Revision))

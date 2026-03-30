@@ -38,4 +38,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Integration\Streams\Append\AppendRecords\" />
+    <Folder Include="Integration\Streams\Append\AppendToStream\" />
+  </ItemGroup>
 </Project>

@@ -14,7 +14,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask complete_processor_lifecycle_with_checkpoint_recovery(CancellationToken ct) {
         // Arrange
-        var data                     = await Fixture.SeedData(20, ct);
+        var data                     = await Fixture.SeedTestStream(20, ct);
         var processorId              = $"checkpoint-recovery-{Guid.NewGuid():N}";
         var recordsToProcessInPhase1 = 10;
 
@@ -73,7 +73,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_processes_all_records_individually(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedData(25, ct);
+        var data        = await Fixture.SeedTestStream(25, ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"individual-records-{Guid.NewGuid():N}";
         var recordCount = 0;
@@ -102,7 +102,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_cancels_gracefully(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedData(ct);
+        var data        = await Fixture.SeedTestStream(ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"processor_cancels_gracefully-{TestContext.Current!.Id:N}";
 
@@ -126,7 +126,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_stops_on_user_request(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedData(ct);
+        var data        = await Fixture.SeedTestStream(ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"processor_stops_on_user_request-{TestContext.Current!.Id:N}";
 
@@ -153,7 +153,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_handles_exceptions_and_stops_processing(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedData(10, ct);
+        var data        = await Fixture.SeedTestStream(10, ct);
         var processorId = $"error-process-{Guid.NewGuid():N}";
 
         var processor = new TestRecordProcessor {
@@ -177,7 +177,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask processor_calls_shutdown_even_on_error(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedData(10, ct);
+        var data        = await Fixture.SeedTestStream(10, ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"error-shutdown-{Guid.NewGuid():N}";
 
@@ -203,7 +203,7 @@ public class ProcessorIntegrationTests {
     [Test]
     public async ValueTask records_are_processed(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedData(100, ct);
+        var data        = await Fixture.SeedTestStream(100, ct);
         var processor   = new TestRecordProcessor();
         var processorId = $"order-{Guid.NewGuid():N}";
 

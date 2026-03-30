@@ -298,6 +298,25 @@ message ConsistencyViolation {
     sint64 actual_state = 3;
   }
 
+  message StreamStateViolationV2 {
+    // The name of the stream whose state was checked.
+    string stream = 1;
+
+    // The expected state of the stream as specified in the consistency check.
+    // Negative values are RevisionConstants sentinels: -2 (ANY), -4 (EXISTS), -1 (NO_STREAM), -10 (DELETED), -100 (TOMBSTONED).
+    sint64 expected_condition = 2;
+
+    // For expected_condition values that are specific revisions (>= 0), this is the expected revision number.
+    sint64 expected_revision = 3;
+
+    // The actual state of the stream at the time the check was evaluated.
+    // Negative values are RevisionConstants sentinels: -1 (NO_STREAM), -4 (EXISTS), -10 (DELETED), -100 (TOMBSTONED).
+    sint64 actual_condition = 4;
+
+    // For existing or deleted streams, the actual revision number is returned (>= 0).
+    sint64 actual_revision = 5;
+  }
+
   // UNIMPLEMENTED: Placeholder for future support of server-side query predicates evaluated before commit.
   // A query predicate was violated — the expression evaluated to false.
   message QueryPredicateViolation {
