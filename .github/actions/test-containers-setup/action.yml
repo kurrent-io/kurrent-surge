@@ -12,8 +12,8 @@ inputs:
       Default username and password used for registries that don't specify their own.
       Example:
         default-credentials: |
-          username: ${{ secrets.CLOUDSMITH_CICD_USER }}
-          password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+          username: <your-username>
+          password: <your-password>
     required: false
     default: ''
   registries:
@@ -23,8 +23,8 @@ inputs:
         registries: |
           - registry: docker.cloudsmith.io
           - registry: docker.kurrent.io
-            username: ${{ secrets.OTHER_USER }}
-            password: ${{ secrets.OTHER_TOKEN }}
+            username: <override-username>
+            password: <override-password>
     required: false
     default: ''
   images:
