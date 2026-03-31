@@ -124,4 +124,5 @@ runs:
         echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
     - name: Build project
+      shell: bash
       run: dotnet build -c Release --no-restore
