@@ -89,7 +89,9 @@ jobs:
         continue-on-error: true
         with:
           name: artifacts
-          path: ./artifacts
+          path: |
+            ./artifacts
+            **/*-report.html
           overwrite: true
           include-hidden-files: true
 
