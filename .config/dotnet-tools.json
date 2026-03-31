@@ -8,27 +8,6 @@
         "minver"
       ],
       "rollForward": false
-    },
-    "semver-bump": {
-      "version": "1.0.0",
-      "commands": [
-        "semver-bump"
-      ],
-      "rollForward": false
-    },
-    "benchmark-report": {
-      "version": "1.0.0",
-      "commands": [
-        "benchmark-report"
-      ],
-      "rollForward": false
-    },
-    "nuwrap": {
-      "version": "1.0.0",
-      "commands": [
-        "nuwrap"
-      ],
-      "rollForward": false
     }
   }
 }

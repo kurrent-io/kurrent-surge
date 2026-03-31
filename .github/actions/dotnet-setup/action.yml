@@ -82,43 +82,32 @@ runs:
       shell: bash
       run: dotnet restore ${{ inputs.restore-args }}
 
-    # First restore tools from the standard manifest, then search for
-    # additional manifests in common project locations. Tools from search
-    # paths are installed globally so they appear on PATH directly
-    # (e.g. `minver` instead of `dotnet minver`).
     - name: Restore tools
       shell: bash
+      run: dotnet tool restore
+
+    # Pack file-based apps (*.cs with ToolCommandName) from tools/ and
+    # install them as global tools so they appear on PATH directly.
+    - name: Install local tools
+      shell: bash
       run: |
-        dotnet tool restore
-
-        search_paths='[
-          ".github/dotnet-tools.json",
-          ".github/tools/dotnet-tools.json",
-          ".tools/dotnet-tools.json",
-          "tools/dotnet-tools.json",
-          ".build/dotnet-tools.json",
-          "build/dotnet-tools.json",
-          ".build/tools/dotnet-tools.json",
-          "build/tools/dotnet-tools.json",
-          ".ci/dotnet-tools.json",
-          "ci/dotnet-tools.json",
-          ".ci/tools/dotnet-tools.json",
-          "ci/tools/dotnet-tools.json"
-        ]'
-
-        manifest=""
-        for path in $(echo "$search_paths" | jq -r '.[]'); do
-          if [ -f "$path" ]; then
-            manifest="$path"
-            break
-          fi
-        done
-
-        if [ -n "$manifest" ]; then
-          echo "Found tool manifest at $manifest"
-          jq -r '.tools | to_entries[] | "\(.key) \(.value.version)"' "$manifest" | while read -r tool version; do
-            dotnet tool install -g "$tool" --version "$version"
+        if compgen -G "tools/*.cs" > /dev/null; then
+          pack_dir="$(mktemp -d)"
+          for cs in tools/*.cs; do
+            if grep -q 'ToolCommandName' "$cs"; then
+              echo "Packing $cs"
+              dotnet pack "$cs" -o "$pack_dir" -v q --nologo
+            fi
           done
+
+          for pkg in "$pack_dir"/*.nupkg; do
+            [ -f "$pkg" ] || continue
+            name=$(basename "$pkg" | sed 's/\.[0-9].*//')
+            echo "Installing tool $name"
+            dotnet tool install -g "$name" --add-source "$pack_dir" --no-cache -v q
+          done
+
+          rm -rf "$pack_dir"
         fi
 
         echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
