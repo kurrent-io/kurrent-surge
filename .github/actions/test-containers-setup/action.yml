@@ -1,0 +1,37 @@
+name: Test Containers Setup
+description: >
+  Pulls Docker images in parallel and sets TESTCONTAINER_*_IMAGE environment
+  variables for each container used in integration tests.
+
+inputs:
+  images:
+    description: >
+      YAML mapping of container names to image references.
+      Example:
+        images: |
+          KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup test containers environment
+      shell: bash
+      run: |
+        echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | "TESTCONTAINER_\(.key)_IMAGE=\(.value)"' >> $GITHUB_ENV
+
+        echo "Set the following container variables:"
+        echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | "TESTCONTAINER_\(.key)_IMAGE=\(.value)"'
+
+    - name: Pull Docker images
+      shell: bash
+      run: |
+        echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | .value' | while read -r image; do
+          echo "Pulling $image..."
+          docker pull $image --quiet &
+        done
+        wait
+
+    - name: Create Docker Compose symlink
+      shell: bash
+      run: sudo ln -s /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose

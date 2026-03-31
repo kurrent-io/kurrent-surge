@@ -49,6 +49,13 @@ jobs:
           -- --treenode-filter "/*/*/*/*[Category!=Integration]"
           --disable-logo --adaptive-metrics --report-trx --coverage
 
+      - name: Test containers setup
+        if: github.event_name == 'merge_group'
+        uses: ./.github/actions/test-containers-setup
+        with:
+          images: |
+            KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
+
       - name: Integration tests
         if: github.event_name == 'merge_group'
         run: >-
