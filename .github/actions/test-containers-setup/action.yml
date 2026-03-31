@@ -1,9 +1,32 @@
 name: Test Containers Setup
 description: >
-  Pulls Docker images in parallel and sets TESTCONTAINER_*_IMAGE environment
-  variables for each container used in integration tests.
+  Logs into one or more Docker registries, pulls images in parallel, and sets
+  TESTCONTAINER_*_IMAGE environment variables for each container used in
+  integration tests.
+
+  Registry entries without credentials fall back to default-credentials.
 
 inputs:
+  default-credentials:
+    description: >
+      Default username and password used for registries that don't specify their own.
+      Example:
+        default-credentials: |
+          username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+          password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+    required: false
+    default: ''
+  registries:
+    description: >
+      YAML list of registries to log into. Per-entry credentials override default-credentials.
+      Example:
+        registries: |
+          - registry: docker.cloudsmith.io
+          - registry: docker.kurrent.io
+            username: ${{ secrets.OTHER_USER }}
+            password: ${{ secrets.OTHER_TOKEN }}
+    required: false
+    default: ''
   images:
     description: >
       YAML mapping of container names to image references.
@@ -15,6 +38,21 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Login to registries
+      if: inputs.registries != ''
+      shell: bash
+      run: |
+        default_user=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.username // ""')
+        default_pass=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.password // ""')
+
+        printf '%s' '${{ inputs.registries }}' | yq -r '.[] | [.registry, (.username // ""), (.password // "")] | @tsv' | \
+        while IFS=$'\t' read -r registry user pass; do
+          user="${user:-$default_user}"
+          pass="${pass:-$default_pass}"
+          echo "Logging into $registry..."
+          printf '%s' "$pass" | docker login "$registry" -u "$user" --password-stdin
+        done
+
     - name: Setup test containers environment
       shell: bash
       run: |

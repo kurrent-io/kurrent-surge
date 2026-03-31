@@ -53,6 +53,13 @@ jobs:
         if: github.event_name == 'merge_group'
         uses: ./.github/actions/test-containers-setup
         with:
+          default-credentials: |
+            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+          registries: |
+            - registry: docker.cloudsmith.io
+            - registry: docker.kurrent.io
+            - registry: docker.eventstore.com
           images: |
             KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
 

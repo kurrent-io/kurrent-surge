@@ -170,7 +170,8 @@ runs:
           else
             # Ensure semver-bump is available
             if ! command -v semver-bump &>/dev/null; then
-              dotnet tool restore --no-progress -v q 2>/dev/null
+              echo "::error::semver-bump not found on PATH. Ensure dotnet-setup ran first."
+              exit 1
             fi
 
             # Compute from conventional commits via semver-bump
