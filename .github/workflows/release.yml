@@ -35,10 +35,8 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Setup .NET
+      - name: Build project
         uses: ./.github/actions/dotnet-setup
-        env:
-          DOTNET_INSTALL_VERSIONS: 10.x
 
       - name: Version
         id: version
@@ -54,9 +52,6 @@ jobs:
         run: |
           git tag "${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
-
-      - name: Build
-        run: dotnet build -c Release --no-restore
 
       - name: Publish packages
         if: ${{ !inputs.dry_run }}

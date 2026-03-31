@@ -42,7 +42,7 @@ runs:
   steps:
     # Resolve environment defaults so subsequent steps can reference them.
     # DOTNET_MULTILEVEL_LOOKUP=0 prevents the SDK from probing system-wide installs.
-    - name: Set .NET environment
+    - name: Prepare environment
       shell: bash
       run: |
         echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
@@ -64,7 +64,7 @@ runs:
 
         echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
-    - name: Cache .NET SDKs and NuGet packages
+    - name: Cache SDK's, packages and tools
       id: cache
       uses: actions/cache@v5
       with:
@@ -73,7 +73,7 @@ runs:
           ${{ env.NUGET_PACKAGES }}
         key: ${{ inputs.cache-key || format('dotnet-{0}', runner.os) }}
 
-    - name: Setup .NET
+    - name: Setup SDK's
       uses: actions/setup-dotnet@v5.2.0
       with:
         dotnet-version: ${{ env.DOTNET_INSTALL_VERSIONS }}
@@ -122,3 +122,6 @@ runs:
         fi
 
         echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+    - name: Build project
+      run: dotnet build -c Release --no-restore

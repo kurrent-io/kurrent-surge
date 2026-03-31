@@ -1,4 +1,4 @@
-name: Pull Request
+name: Build and Test PRs
 
 on:
   workflow_dispatch:
@@ -20,7 +20,10 @@ env:
 
 jobs:
   ci:
+    name: Build and Test
+
     if: github.event_name != 'pull_request_target'
+
     runs-on: ubuntu-latest
 
     permissions:
@@ -36,13 +39,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET & Restore
+      - name: Build project
         uses: ./.github/actions/dotnet-setup
-        env:
-          DOTNET_INSTALL_VERSIONS: 10.x
-
-      - name: Build
-        run: dotnet build -c Release --no-restore
 
       - name: Unit tests
         run: >-
@@ -82,9 +80,12 @@ jobs:
           include-hidden-files: true
 
   validate:
+    name: Validate PR Title
+
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","edited","ready_for_review"]'), github.event.action)
+
     runs-on: ubuntu-latest
 
     permissions:
@@ -99,7 +100,10 @@ jobs:
         uses: ./.github/actions/conventional-commits
 
   labeler:
+    name: Pull Request Labeler
+
     if: github.event_name == 'pull_request_target'
+
     runs-on: ubuntu-latest
 
     permissions:

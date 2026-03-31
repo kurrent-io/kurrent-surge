@@ -1,4 +1,4 @@
-name: Main
+name: Build and Test
 
 on:
   push:
@@ -28,13 +28,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET & Restore
+      - name: Build project
         uses: ./.github/actions/dotnet-setup
-        env:
-          DOTNET_INSTALL_VERSIONS: 10.x
-
-      - name: Build
-        run: dotnet build -c Release --no-restore
 
       # Tests only run on direct push — merged PRs were already validated by CI
       - name: Unit tests

@@ -22,11 +22,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET
+      - name: Build project
         uses: ./.github/actions/dotnet-setup
-
-      - name: Build
-        run: dotnet build -c Release --no-restore
 
       - name: Run benchmarks
         run: >-

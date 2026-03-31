@@ -249,12 +249,12 @@ runs:
         fi
 
         # Step outputs
-        echo "version=$version"          >> "$GITHUB_OUTPUT"
-        echo "major=$major"              >> "$GITHUB_OUTPUT"
-        echo "minor=$minor"              >> "$GITHUB_OUTPUT"
-        echo "patch=$patch"              >> "$GITHUB_OUTPUT"
-        echo "pre-release=$pre_release_out" >> "$GITHUB_OUTPUT"
+        echo "version=$version"               >> "$GITHUB_OUTPUT"
+        echo "major=$major"                   >> "$GITHUB_OUTPUT"
+        echo "minor=$minor"                   >> "$GITHUB_OUTPUT"
+        echo "patch=$patch"                   >> "$GITHUB_OUTPUT"
+        echo "pre-release=$pre_release_out"   >> "$GITHUB_OUTPUT"
         echo "is-pre-release=$is_pre_release" >> "$GITHUB_OUTPUT"
-        echo "base=$base"                >> "$GITHUB_OUTPUT"
-        echo "tag=$tag"                  >> "$GITHUB_OUTPUT"
-        echo "bump=$bump"                >> "$GITHUB_OUTPUT"
+        echo "base=$base"                     >> "$GITHUB_OUTPUT"
+        echo "tag=$tag"                       >> "$GITHUB_OUTPUT"
+        echo "bump=$bump"                     >> "$GITHUB_OUTPUT"
