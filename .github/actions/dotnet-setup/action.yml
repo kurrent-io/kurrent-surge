@@ -12,9 +12,9 @@ description: >
 
   Tool restore order:
     1. dotnet tool restore (.config/dotnet-tools.json)
-    2. Search paths: tools/ → .build/ → build/ → .github/ → .ci/ → ci/
-  Tools found via search paths are installed globally so they appear on
-  PATH directly (e.g. `minver` instead of `dotnet minver`).
+    2. Pack and install file-based apps from tools/ (*.cs with ToolCommandName)
+  File-based app tools are installed globally so they appear on
+  PATH directly (e.g. `semver-bump` instead of `dotnet run tools/semver-bump.cs`).
 
 inputs:
   cache-key:
@@ -88,6 +88,7 @@ runs:
 
     # Pack file-based apps (*.cs with ToolCommandName) from tools/ and
     # install them as global tools so they appear on PATH directly.
+    # Uses `dotnet tool update` to handle both fresh installs and upgrades.
     - name: Install local tools
       shell: bash
       run: |
@@ -104,7 +105,7 @@ runs:
             [ -f "$pkg" ] || continue
             name=$(basename "$pkg" | sed 's/\.[0-9].*//')
             echo "Installing tool $name"
-            dotnet tool install -g "$name" --add-source "$pack_dir" --no-cache -v q
+            dotnet tool update -g "$name" --add-source "$pack_dir" --no-cache -v q
           done
 
           rm -rf "$pack_dir"
