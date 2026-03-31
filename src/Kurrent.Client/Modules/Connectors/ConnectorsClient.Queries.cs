@@ -77,9 +77,9 @@ public partial class ConnectorsClient {
             };
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -108,9 +108,9 @@ public partial class ConnectorsClient {
             };
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 

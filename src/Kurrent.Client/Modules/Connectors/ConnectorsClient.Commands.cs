@@ -1,4 +1,5 @@
 using Google.Protobuf.WellKnownTypes;
+using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Contracts = KurrentDB.Connectors.Management.Contracts;
 using Commands = KurrentDB.Connectors.Management.Contracts.Commands;
@@ -38,7 +39,12 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(ConnectorAlreadyExistsException.From);
+            var mex = ex.ToException(ConnectorAlreadyExistsException.From);
+
+            if (mex is not ConnectorAlreadyExistsException && ex is RpcException { StatusCode: StatusCode.AlreadyExists })
+                throw new ConnectorAlreadyExistsException(connectorId);
+
+            throw mex;
         }
     }
 
@@ -72,7 +78,12 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(ConnectorAlreadyExistsException.From);
+            var mex = ex.ToException(ConnectorAlreadyExistsException.From);
+
+            if (mex is not ConnectorAlreadyExistsException && ex is RpcException { StatusCode: StatusCode.AlreadyExists })
+                throw new ConnectorAlreadyExistsException(connectorId);
+
+            throw mex;
         }
     }
 
@@ -103,9 +114,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -134,9 +145,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -162,9 +173,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -198,9 +209,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -234,9 +245,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -262,9 +273,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 
@@ -293,9 +304,9 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From);
+            throw ToConnectorException(ex,
+                new ConnectorNotFoundException(connectorId),
+                new ConnectorDeletedException(connectorId));
         }
     }
 }
