@@ -49,28 +49,28 @@ public class StreamFilterTests {
     public async Task by_stream_pattern_category_wildcard_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("^Orders-.*$");
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
     }
 
     [Test]
     public async Task by_stream_pattern_with_single_char_wildcard_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("^Orders-.$");
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
     }
 
     [Test]
     public async Task by_stream_pattern_case_insensitive_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("(?i)^ORDERS-ABC123$");
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
     }
 
     [Test]
     public async Task by_stream_pattern_with_alternation_has_no_target_stream() {
         var filter = RecordFilter.ByStreamPattern("^(Orders-001|Payments-002)$");
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
     }
 
     [Test]

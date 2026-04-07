@@ -52,8 +52,14 @@ namespace Kurrent.Processors.Options;
 /// </example>
 [PublicAPI]
 public sealed class KurrentProcessorBuilder {
+    string?                  _processorTypeName;
+    ProcessorSettingsBuilder _settingsBuilder;
+
     internal KurrentProcessorBuilder(IRecordProcessorFactory processorFactory, string? processorTypeName) {
         _processorTypeName = processorTypeName;
+
+        _settingsBuilder = new ProcessorSettingsBuilder();
+
         GetProcessor = () => {
             try {
                 return processorFactory.CreateProcessor();
@@ -63,15 +69,16 @@ public sealed class KurrentProcessorBuilder {
             }
         };
 
-        _settingsBuilder = new ProcessorSettingsBuilder();
         GetClientOptions = () => new KurrentClientOptions();
     }
 
-    string?                     _processorTypeName;
-    Func<IRecordProcessor>      GetProcessor     { get; set; }
-    ProcessorSettingsBuilder    _settingsBuilder;
-    KurrentClient?              ProvidedClient   { get; set; }
-    Func<KurrentClientOptions>  GetClientOptions { get; set; }
+    Func<IRecordProcessor> GetProcessor { get; set; }
+
+    KurrentClient? ProvidedClient { get; set; }
+
+    Func<KurrentClientOptions> GetClientOptions { get; set; }
+
+    RecordPosition StartPosition { get; set; } = RecordPosition.Unset;
 
     /// <summary>
     /// Sets the connection string and configures client options in a single call.
@@ -339,6 +346,24 @@ public sealed class KurrentProcessorBuilder {
     }
 
     /// <summary>
+    /// Sets the position in the log from which the processor will begin reading records, effectively resetting all existing checkpoints.
+    /// </summary>
+    /// <param name="startPosition">The log position to start processing from.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// This is a destructive operation that resets all existing checkpoints to the specified position,
+    /// that will act as a high watermark for processing.
+    /// Use with caution as it can lead to data loss or duplicate processing if used incorrectly.
+    /// </remarks>
+    public KurrentProcessorBuilder StartFrom(RecordPosition startPosition) {
+        if (startPosition == RecordPosition.Unset)
+            throw new ArgumentException("Start position cannot be Unset.", nameof(startPosition));
+
+        StartPosition = startPosition;
+        return this;
+    }
+
+    /// <summary>
     /// Builds a processor worker for runtime access and control.
     /// </summary>
     /// <returns>An <see cref="IProcessorWorker"/> instance for monitoring and control.</returns>
@@ -349,22 +374,25 @@ public sealed class KurrentProcessorBuilder {
     /// </para>
     /// </remarks>
     public IProcessorWorker Build() {
+        var recordProcessor = GetProcessor();
+
         var settings = _settingsBuilder.Settings;
 
-        // Auto-generate ProcessorId from processor type name if not explicitly set.
-        // We check if WorkerId is still the default (valid GUID) to detect if user set a custom value.
-        if (string.IsNullOrWhiteSpace(settings.ProcessorId)) {
-            if (Guid.TryParse(settings.WorkerId, out _)) {
-                // WorkerId is still the default GUID - generate ProcessorId from processor type name
-                var processor         = GetProcessor();
-                var processorTypeName = processor.GetType().Name;
-                var processorId       = processorTypeName.ToSnakeCase();
+        // Auto-generate WorkerId if not explicitly set.
+        if (string.IsNullOrWhiteSpace(settings.WorkerId)) {
+            _settingsBuilder.WithWorkerId(PunyId.New());
+            settings = _settingsBuilder.Settings;
+        }
 
-                _settingsBuilder.WithProcessorId(processorId);
-            } else {
-                // WorkerId was explicitly set to a non-GUID value - use it as ProcessorId too
-                _settingsBuilder.WithProcessorId(settings.WorkerId);
-            }
+        // Auto-generate ProcessorId from processor type name if not explicitly set.
+        if (string.IsNullOrWhiteSpace(settings.ProcessorId)) {
+            var processorId = recordProcessor.GetType().Name.ToSnakeCase();
+            _settingsBuilder.WithProcessorId(processorId);
+            settings = _settingsBuilder.Settings;
+        }
+
+        if (StartPosition != RecordPosition.Unset) {
+            _settingsBuilder.ConfigureSubscription(s => s with { StartPosition = StartPosition });
             settings = _settingsBuilder.Settings;
         }
 
@@ -375,17 +403,13 @@ public sealed class KurrentProcessorBuilder {
         var ownsClient = ProvidedClient is null;
         var client     = ProvidedClient ?? new KurrentClient(options);
 
-        var recordProcessor = GetProcessor();
-        var diagnostics     = new WorkerTelemetry(
-            options.LoggerFactory.CreateLogger(recordProcessor.GetType()),
-            settings.ProcessorId,
-            settings.WorkerId);
-
         return new ProcessorWorker(
             settings,
             client,
             recordProcessor,
-            diagnostics, options.LoggerFactory, TimeProvider.System, ownsClient
+            options.LoggerFactory,
+            TimeProvider.System,
+            ownsClient
         );
     }
 

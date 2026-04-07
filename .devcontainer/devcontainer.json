@@ -21,7 +21,8 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "dotnet.defaultSolution": "Kurrent.Sdk.slnx"
+        "dotnet.defaultSolution": "Kurrent.Sdk.slnx",
+        "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'MesloLGS NF', monospace"
       }
     }
   },

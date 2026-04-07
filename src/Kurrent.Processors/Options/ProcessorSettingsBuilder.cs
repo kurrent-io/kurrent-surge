@@ -10,7 +10,7 @@ namespace Kurrent.Processors.Options;
 /// Used by both <see cref="KurrentProcessorBuilder"/> and <see cref="KurrentProcessorHostBuilder"/>
 /// to eliminate code duplication while maintaining their distinct public APIs.
 /// </summary>
-internal sealed class ProcessorSettingsBuilder {
+ sealed class ProcessorSettingsBuilder {
     ProcessorSettings _settings;
 
     internal ProcessorSettingsBuilder(ProcessorSettings? initial = null)

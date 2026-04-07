@@ -3,11 +3,11 @@
 #:package System.CommandLine@2.*
 #:package NuGet.Versioning@6.*
 #:package NuGet.Protocol@6.*
-#:package Microsoft.Extensions.Configuration@9.*
-#:package Microsoft.Extensions.Configuration.Json@9.*
-#:package Microsoft.Extensions.Configuration.Binder@9.*
-#:package Microsoft.Extensions.Configuration.EnvironmentVariables@9.*
-#:package NetEscapades.Configuration.Yaml@0.*
+#:package Microsoft.Extensions.Configuration@10.*
+#:package Microsoft.Extensions.Configuration.Json@10.*
+#:package Microsoft.Extensions.Configuration.Binder@10.*
+#:package Microsoft.Extensions.Configuration.EnvironmentVariables@10.*
+#:package NetEscapades.Configuration.Yaml@3.*
 #:property ToolCommandName=nuwrap
 
 using System.CommandLine;

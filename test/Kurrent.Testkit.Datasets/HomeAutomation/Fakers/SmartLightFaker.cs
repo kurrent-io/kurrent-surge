@@ -8,7 +8,7 @@ public class SmartLightFaker : Faker<SmartLight> {
 
     public SmartLightFaker() {
         CustomInstantiator(f => new SmartLight {
-            Id                     = $"urn:iot:smartlight:{f.Random.Guid()}",
+            Id                     = $"urn:iot:smartlight:{PunyId.New()}",
             FriendlyName           = $"Smart Light {f.Random.Number(1, 99)}",
             IsBatteryPowered       = false,
             BatteryLevel           = null,

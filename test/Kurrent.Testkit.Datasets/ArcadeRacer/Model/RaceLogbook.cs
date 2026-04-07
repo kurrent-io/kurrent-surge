@@ -11,7 +11,7 @@ public class RaceLogbook {
     /// <summary>
     /// Unique identifier for the race this logbook is associated with.
     /// </summary>
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 
     /// <summary>Cars that started the race.</summary>
     public IReadOnlyList<RaceCar> Cars { get; set; } = [];

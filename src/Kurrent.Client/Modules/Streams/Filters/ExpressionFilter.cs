@@ -27,8 +27,7 @@ public record ExpressionFilter : IRecordFilter {
     /// </summary>
     /// <param name="expression">A SQL-like filter expression (e.g., "stream = 'orders' AND properties.amount > 100")</param>
     public ExpressionFilter(string expression) {
-        if (IsNullOrWhiteSpace(expression))
-            throw new ArgumentNullException(nameof(expression));
+        ArgumentException.ThrowIfNullOrWhiteSpace(expression);
 
         Expression = expression;
 
@@ -37,7 +36,7 @@ public record ExpressionFilter : IRecordFilter {
         ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
         TargetStream = ServerFilter.TargetStream != StreamName.Unset
             ? ServerFilter.TargetStream
-            : StreamName.All;
+            : StreamName.Log;
     }
 
     /// <inheritdoc/>

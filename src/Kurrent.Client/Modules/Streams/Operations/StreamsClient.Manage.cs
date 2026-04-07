@@ -22,16 +22,16 @@ static class LegacyServiceClientExtensions {
 
 public partial class StreamsClient {
     public async ValueTask<StreamInfo> GetStreamInfo(StreamName stream, CancellationToken cancellationToken = default) {
-        // This operation can be greatly optimized by implementing it in the server
-        // and as unbelievable as it sounds, the code bellow is the simplest most effective
-        // way to get the stream details for the time being.
+        // This operation can be greatly optimized if implemented serverside
+        // and as unbelievable as it sounds, the code bellow is the simplest most
+        // effective way to get the stream details for the time being.
         // Even with all the permission issues, since the operation should always work...
         // This is just code that is easy to be deleted. That's it, and that's all.
 
         var metadataRecord = Record.None;
 
         try {
-            var request    = Requests.CreateReadStreamEdgeRequest(stream.Metastream, ReadDirection.Forwards);
+            var request = Requests.CreateReadStreamEdgeRequest(stream.Metastream, ReadDirection.Backwards);
 
             var response = await LegacyServiceClient
                 .ReadFirstOrDefault(request, cancellationToken)
@@ -88,7 +88,13 @@ public partial class StreamsClient {
                 );
 
             var record = await response.Event
-                .MapToRecordAsync(SequenceId.Unset, SerializerProvider, MetadataDecoder, SchemaRegistryPolicy.NoRequirements, skipDecoding: true, cancellationToken)
+                .MapToRecordAsync(
+                    SequenceId.Unset,
+                    SerializerProvider,
+                    MetadataDecoder,
+                    SchemaRegistryPolicy.NoRequirements,
+                    skipDecoding: true,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             return details with {
@@ -207,23 +213,18 @@ public partial class StreamsClient {
         }
     }
 
-    public ValueTask<Revision> ConfigureStreamDataRetention(StreamName stream, StreamDataRetentionOptions options, Revision metaRevision, CancellationToken cancellationToken) {
-        var metadata = new StreamMetadata { MaxCount = options.MaxCount, MaxAge = options.MaxAge };
-        return SetStreamMetadata(stream, metadata, metaRevision, cancellationToken);
-    }
-
-    // public ValueTask<Result<Revision, SetStreamMetadataError>> SetDataRetention(StreamName stream, int? maxCount, TimeSpan? maxAge, CancellationToken cancellationToken) =>
-    //     ConfigureStreamDataRetention(stream, maxCount, maxAge, Revision.Unset, cancellationToken);
-    //
-    // public ValueTask<Result<Revision, SetStreamMetadataError>> SetDataRetention(StreamName stream, int maxCount, CancellationToken cancellationToken) {
-    //     ArgumentOutOfRangeException.ThrowIfLessThan(maxCount, 1);
-    //     ArgumentOutOfRangeException.ThrowIfGreaterThan(maxCount, int.MaxValue);
-    //     return SetDataRetention(stream, maxCount, null, Revision.Unset, cancellationToken);
-    // }
-    //
-    // public ValueTask<Result<Revision, SetStreamMetadataError>> SetDataRetention(StreamName stream, TimeSpan maxAge, CancellationToken cancellationToken) {
-    //     ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxAge, TimeSpan.Zero);
-    //     ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(maxAge, TimeSpan.MaxValue);
-    //     return SetDataRetention(stream, null, maxAge, Revision.Unset, cancellationToken);
-    // }
+    public ValueTask<Revision> ConfigureStreamDataRetention(
+        StreamName                 stream,
+        StreamDataRetentionOptions options,
+        Revision                   metaRevision,
+        CancellationToken          cancellationToken
+    ) =>
+        SetStreamMetadata(
+            stream,
+            new StreamMetadata {
+                MaxCount = options.MaxCount,
+                MaxAge   = options.MaxAge
+            },
+            metaRevision,
+            cancellationToken);
 }

@@ -8,7 +8,7 @@ public class WaterSensorFaker : Faker<WaterSensor> {
 
     public WaterSensorFaker() {
         CustomInstantiator(f => new WaterSensor {
-            Id                    = $"urn:iot:watersensor:{f.Random.Guid()}",
+            Id                    = $"urn:iot:watersensor:{PunyId.New()}",
             FriendlyName          = $"Water Sensor {f.Random.Number(1, 99)}",
             IsBatteryPowered      = true,
             BatteryLevel          = f.Random.Number(60, 100),

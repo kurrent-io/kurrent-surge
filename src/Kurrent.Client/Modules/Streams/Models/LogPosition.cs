@@ -13,9 +13,9 @@ namespace Kurrent.Client.Streams;
 public readonly partial record struct LogPosition : IComparable<LogPosition>, IComparable {
     /// <summary>
     /// Initial position in the transaction file that is used when no other position is specified.
-    /// Represented by a value of 0.
+    /// The protocol requires null (not zero) to subscribe from the beginning of the log.
     /// </summary>
-    public static readonly LogPosition Earliest = new(0);
+    public static readonly LogPosition Earliest = new(-1);
 
     /// <summary>
     /// Initial position in the transaction file that represents the end of the transaction file.
@@ -46,13 +46,14 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
 
     /// <summary>
     /// Creates a LogPosition instance from a provided position value.
+    /// Null resolves to <see cref="Earliest"/>. Negative values other than <see cref="Unset"/> are invalid.
     /// </summary>
-    /// <param name="position">The position value from which to create the LogPosition. Must be Unset, greater than or equal to 0, or an exception will be thrown.</param>
-    public static LogPosition From(long position) =>
+    public static LogPosition From(long? position) =>
         position switch {
+            null  => Earliest,
             -1000 => Unset,
-            >= 0  => new LogPosition(position),
-            _     => throw new InvalidLogPosition(new LogPosition(position))
+            >= 0  => new LogPosition(position.Value),
+            _     => throw new InvalidLogPosition(new LogPosition(position.Value))
         };
 
     public static implicit operator long(LogPosition _) => _.Value;

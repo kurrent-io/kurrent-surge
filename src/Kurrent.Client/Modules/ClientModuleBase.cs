@@ -17,7 +17,6 @@ public abstract class ClientModuleBase {
         Time          = TimeProvider.System;
         LoggerFactory = client.Options.LoggerFactory;
         Logger        = client.Options.LoggerFactory.CreateLogger(moduleName ?? GetType().Name);
-
     }
 
     KurrentClient KurrentClient { get; }

@@ -153,32 +153,6 @@ public class ReadTests {
         await Assert.That(cancellator.IsCancellationRequested).IsTrue();
     }
 
-    [Test]
-    public async ValueTask reads_first_stream_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedTestStream(ct);
-
-        var expectedRecord = simulation.Records.First();
-
-        var record = await Fixture.Client.Streams
-            .ReadFirstStreamRecord(simulation.Stream, ct);
-
-        await Assert.That(record.Value).IsEquivalentTo(expectedRecord.Value);
-        await Assert.That(record.Id).IsEqualTo(expectedRecord.RecordId);
-    }
-
-    [Test]
-    public async ValueTask reads_last_stream_record(CancellationToken ct) {
-        var simulation = await Fixture.SeedTestStream(ct);
-
-        var expectedRecord = simulation.Records.Last();
-
-        var record = await Fixture.Client.Streams
-            .ReadLastStreamRecord(simulation.Stream, ct);
-
-        await Assert.That(record.Value).IsEquivalentTo(expectedRecord.Value);
-        await Assert.That(record.Id).IsEqualTo(expectedRecord.RecordId);
-    }
-
     public class NonExistingPositions : TestCaseGenerator<LogPosition> {
         protected override IEnumerable<LogPosition> Data() => [
             LogPosition.Latest, // edge case as it represents the end of the log

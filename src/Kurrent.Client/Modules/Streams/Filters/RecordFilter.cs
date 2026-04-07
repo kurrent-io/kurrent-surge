@@ -69,10 +69,12 @@ public interface IRecordFilter {
     /// <summary>
     /// The target stream for stream-specific read operations that defaults to the $all stream.
     /// </summary>
-    StreamName TargetStream => StreamName.AllStream;
+    StreamName TargetStream => StreamName.Log;
 
     /// <summary>
     /// The original filter expression.
     /// </summary>
     string Expression { get; }
+
+    bool IsStreamFilter => TargetStream != StreamName.Log && TargetStream != StreamName.Unset;
 }

@@ -42,7 +42,7 @@ public class RaceCarFaker : Faker<RaceCar> {
         faker ??= new Faker();
         var spec = new RaceCarSpecFaker(faker);
 
-        RuleFor(x => x.Id, f => f.Random.Guid());
+        RuleFor(x => x.Id, f => PunyId.New());
         RuleFor(x => x.Name, f => {
             var adj  = f.PickRandom(Adjectives);
             var noun = f.PickRandom(Nouns);
@@ -72,7 +72,7 @@ public class CircuitFaker : Faker<Circuit> {
 
     public CircuitFaker(Faker? faker = null) {
         faker ??= new Faker();
-        RuleFor(x => x.Id, f => f.Random.Guid());
+        RuleFor(x => x.Id, f => PunyId.New());
         RuleFor(x => x.Name, f => $"{f.PickRandom(Prefixes)}{f.PickRandom(Suffixes)}");
         RuleFor(x => x.Country, f => f.Address.Country());
         RuleFor(x => x.Corners, f => f.Random.Int(4, 16));
@@ -97,7 +97,7 @@ public class RaceResultFaker : Faker<RaceResult> {
 
     public RaceResultFaker(Faker? faker = null) {
         faker ??= new Faker();
-        RuleFor(x => x.CarId, f => f.Random.Guid());
+        RuleFor(x => x.CarId, f => PunyId.New());
         RuleFor(x => x.CarName, f => $"{f.PickRandom(RaceCarFaker.Adjectives)} {f.PickRandom(RaceCarFaker.Nouns)}");
         RuleFor(x => x.Pilot, f => $"{f.Name.FirstName()[0]}. {f.Name.LastName()}");
         RuleFor(x => x.Position, f => f.IndexFaker + 1);

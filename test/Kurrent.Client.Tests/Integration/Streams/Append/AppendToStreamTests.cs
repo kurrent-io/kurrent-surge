@@ -118,7 +118,7 @@ public class AppendToStreamTests {
         var seeded = await Fixture.SeedTestStream(ct);
 
         // Act & Assert
-        var result = await Assert
+        await Assert
             .That(async () => await Fixture.Client.Streams.AppendToStream(
                 AppendToStreamRequest.For(seeded.Stream)
                     .ExpectingState(ExpectedStreamCondition.NoStream)
@@ -151,7 +151,7 @@ public class AppendToStreamTests {
         await Fixture.Client.Streams.Tombstone(seeded.Stream, ct);
 
         // Act & Assert
-        var result = await Assert
+        await Assert
             .That(async () => await Fixture.Client.Streams.AppendToStream(
                 AppendToStreamRequest.For(seeded.Stream)
                     .ExpectingState(streamState)
@@ -314,7 +314,7 @@ public class AppendToStreamTests {
         var maxCount         = 5;
         var data             = await Fixture.TestData.GenerateSet(3, ct);
 
-        var expectedRevision = new StreamRevision(data.Stream, data.Records.Count - 1);
+        var expectedRevision = new StreamPosition(data.Stream, data.Records.Count - 1);
 
         await Fixture.Client.Streams
             .ConfigureStreamDataRetention(data.Stream, new() { MaxCount = maxCount }, ct);
@@ -327,7 +327,7 @@ public class AppendToStreamTests {
                 .Build(), ct);
 
         // Assert
-        await Assert.That(new StreamRevision(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
+        await Assert.That(new StreamPosition(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
 
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
         await Assert.That(info.Metadata.MaxCount).IsEqualTo(maxCount);

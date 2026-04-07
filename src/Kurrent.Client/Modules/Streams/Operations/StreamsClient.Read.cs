@@ -95,13 +95,13 @@ public partial class StreamsClient {
         if (stream == StreamName.Unset)
             throw new ArgumentException("Stream name cannot be None", nameof(stream));
 
-        if (stream == StreamName.All)
+        if (stream == StreamName.Log)
             throw new ArgumentException("Stream name cannot be `$all`", nameof(stream));
 
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction);
 
-            await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
+            await using var messages = await ReadCore(request, 100, skipDecoding, RecordFilter.None, cancellationToken)
                 .ConfigureAwait(false);
 
             var message = await messages.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
@@ -165,8 +165,9 @@ public partial class StreamsClient {
 
                 throw info.State switch {
                     StreamState.Missing    => new StreamNotFoundException(stream),
-                    StreamState.Deleted    => new StreamDeletedException(stream), // we cant read it yet we can subscribe to it
+                    StreamState.Deleted    => new StreamDeletedException(stream), // we cant read it. yet we can subscribe to it
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
+                    StreamState.Active     => new StreamNotFoundException(stream), // race: stream was created between gRPC read and GetStreamInfo
                     _                      => new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };
             }
@@ -175,12 +176,12 @@ public partial class StreamsClient {
             session.Dispose();
             cancellator.Dispose();
 
-            // handle cancellation gracefully
+            // handle cancellation properly
             if (rex.StatusCode == StatusCode.Cancelled)
                 throw new OperationCanceledException(rex.Message, rex);
 
             // when stream is tombstoned an exception is thrown for some weird reason
-            if (rex.StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted") {
+            if (rex.StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted") { //rex.Status.Detail.Contains("is deleted")
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
                 throw new StreamTombstonedException(stream);
             }

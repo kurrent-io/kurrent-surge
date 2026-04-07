@@ -102,7 +102,7 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("stream LIKE 'Orders-%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
         await Assert.That(filter).IsTypeOf<StreamFilter>();
     }
 
@@ -111,7 +111,7 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("stream IN ('Orders-123', 'Payments-456')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
         await Assert.That(filter).IsTypeOf<StreamFilter>();
         await Assert.That(filter.Expression).IsEqualTo("^(Orders-123|Payments-456)$");
     }
@@ -481,8 +481,7 @@ public class ServerFilterExtractorTests {
             Id       = Guid.NewGuid(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
-                Stream         = StreamName.From("Orders-ABC123"),
-                Revision = Revision.From(0)
+                StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
             },
             Timestamp = new DateTime(
                 2024, 6, 15,
@@ -498,8 +497,7 @@ public class ServerFilterExtractorTests {
             Id       = Guid.NewGuid(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
-                Stream         = StreamName.From("Orders-ABC123"),
-                Revision = Revision.From(0)
+                StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
             },
             Timestamp = new DateTime(
                 2023, 6, 15,
@@ -523,8 +521,7 @@ public class ServerFilterExtractorTests {
             Id       = Guid.NewGuid(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
-                Stream         = StreamName.From("Orders-D0332EB7480643E4"),
-                Revision = Revision.From(0)
+                StreamPosition = new StreamPosition(StreamName.From("Orders-D0332EB7480643E4"), Revision.From(0))
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
@@ -536,8 +533,7 @@ public class ServerFilterExtractorTests {
             Id       = Guid.NewGuid(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
-                Stream         = StreamName.From("Payments-F9E8D7C6B5A43210"),
-                Revision = Revision.From(0)
+                StreamPosition = new StreamPosition(StreamName.From("Payments-F9E8D7C6B5A43210"), Revision.From(0))
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
@@ -557,8 +553,7 @@ public class ServerFilterExtractorTests {
             Id       = Guid.NewGuid(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
-                Stream         = StreamName.From("Orders-ABC123"),
-                Revision = Revision.From(0)
+                StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()
@@ -571,8 +566,7 @@ public class ServerFilterExtractorTests {
             Id       = Guid.NewGuid(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
-                Stream         = StreamName.From("Orders-ABC123"),
-                Revision = Revision.From(0)
+                StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
             },
             Timestamp = DateTime.UtcNow,
             Metadata = new Metadata()

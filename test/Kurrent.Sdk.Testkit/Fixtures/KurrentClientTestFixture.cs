@@ -77,20 +77,39 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
         }
     }
 
-    public async ValueTask<LogPosition> LatestLogPosition(CancellationToken ct = default) {
-        var options = new ReadOptions() {
-            Direction    = ReadDirection.Backwards,
-            Start        = LogPosition.Latest,
-            MaxRecords   = 1,
-            SkipDecoding = true,
+    // public async ValueTask<LogPosition> LatestLogPosition(CancellationToken ct = default) {
+    //     var options = new ReadOptions {
+    //         Direction         = ReadDirection.Backwards,
+    //         Start             = LogPosition.Latest,
+    //         MaxRecords        = 1,
+    //         SkipDecoding      = true,
+    //         CancellationToken = ct
+    //     };
+    //
+    //     await using var reader = await Client.Streams.ReadRecords(options);
+    //
+    //     return await reader
+    //         .Select(x => x.AsRecord.Position.LogPosition)
+    //         .FirstAsync(ct);
+    // }
+
+    public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
+        var options = new ReadOptions {
+            Direction         = ReadDirection.Backwards,
+            Start             = LogPosition.Latest,
+            MaxRecords        = 1,
+            SkipDecoding      = true,
             CancellationToken = ct
         };
 
-        await using var reader = await Client.Streams.ReadRecords(options);
+        await using var reader = await Client.Streams
+            .ReadRecords(options)
+            .ConfigureAwait(false);
 
-        return await reader.Take(1)
-            .Select(x => x.AsRecord.Position.LogPosition)
-            .SingleAsync(ct);
+        return await reader
+            .Select(x => x.AsRecord.Position)
+            .FirstAsync(ct)
+            .ConfigureAwait(false);
     }
 
     public async ValueTask<SeededTestStream> SeedTestStream(
@@ -101,7 +120,9 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
             ? await TestData.GenerateSet(ct)
             : await TestData.GenerateSet(numberOfEvents.Value, ct);
 
-        var req = AppendToStreamRequest.For(ds.Stream).WithRecords(ds.Records).Build();
+        var req = AppendToStreamRequest.For(ds.Stream).WithRecords(ds.Records)
+            .WithMetadata("stream", ds.Stream) // allows filtering by stream without using a stream filter
+            .Build();
 
         var rsp = await Client.Streams.AppendToStream(req, ct);
 

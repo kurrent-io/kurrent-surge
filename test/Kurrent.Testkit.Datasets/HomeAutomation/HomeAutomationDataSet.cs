@@ -58,7 +58,7 @@ public class HomeAutomationDataSet(Faker? faker = null) : CustomDataSet<HomeAuto
         while (true) {
             timestamp += Faker.Random.Number(1, 30) * 60000L;
             var device = Faker.PickRandom(devices);
-            yield return GenerateEventForDevice(device, Guid.Empty, timestamp);
+            yield return GenerateEventForDevice(device, string.Empty, timestamp);
         }
     }
 
@@ -83,7 +83,7 @@ public class HomeAutomationDataSet(Faker? faker = null) : CustomDataSet<HomeAuto
         }
     }
 
-    static IHomeAutomationEvent GenerateEventForDevice(Device device, Guid roomId, long timestamp) {
+    static IHomeAutomationEvent GenerateEventForDevice(Device device, string roomId, long timestamp) {
         return device switch {
             Thermostat     => new TemperatureReadingFaker(device, roomId, timestamp).Generate(),
             MotionSensor   => new MotionDetectedFaker(device, roomId, timestamp).Generate(),

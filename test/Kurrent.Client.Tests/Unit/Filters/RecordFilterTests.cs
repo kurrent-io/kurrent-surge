@@ -27,7 +27,7 @@ public class RecordFilterTests {
     public async Task by_stream_does_not_set_target_stream_for_multiple_streams() {
         var filter = RecordFilter.ByStream("orders", "payments");
         var streamFilter = (StreamFilter)filter;
-        await Assert.That(streamFilter.TargetStream).IsEqualTo(StreamName.All);
+        await Assert.That(streamFilter.TargetStream).IsEqualTo(StreamName.Log);
     }
 
     [Test]

@@ -5,16 +5,16 @@ namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 /// <summary>Mutable state of a race, mutated in place by the <see cref="ArcadeRace"/> aggregate.</summary>
 public class ArcadeRaceState {
     /// <summary>All cars entered in the race, keyed by <see cref="RaceCar.Id"/>.</summary>
-    public Dictionary<Guid, RaceCar> Cars { get; private set; } = [];
+    public Dictionary<string, RaceCar> Cars { get; private set; } = [];
 
     /// <summary>IDs of cars that retired (Did Not Finish).</summary>
-    public HashSet<Guid> Retired { get; private set; } = [];
+    public HashSet<string> Retired { get; private set; } = [];
 
     /// <summary>Total elapsed race time per car, keyed by <see cref="RaceCar.Id"/>. Only active cars.</summary>
-    public Dictionary<Guid, double> CumulativeTimes { get; private set; } = [];
+    public Dictionary<string, double> CumulativeTimes { get; private set; } = [];
 
     /// <summary>Number of laps completed since the last pit stop, keyed by <see cref="RaceCar.Id"/>. Only active cars.</summary>
-    public Dictionary<Guid, int> LapsSincePit { get; private set; } = [];
+    public Dictionary<string, int> LapsSincePit { get; private set; } = [];
 
     /// <summary>The circuit being raced on.</summary>
     public Circuit Circuit { get; private set; } = Circuit.Unspecified;
@@ -38,7 +38,7 @@ public class ArcadeRaceState {
     public bool IsActive => CumulativeTimes.Count > 0;
 
     /// <summary>Active car IDs in position order (leader first), derived from cumulative times.</summary>
-    public List<Guid> RaceOrder => CumulativeTimes
+    public List<string> RaceOrder => CumulativeTimes
         .OrderBy(kv => kv.Value)
         .Select(kv => kv.Key)
         .ToList();

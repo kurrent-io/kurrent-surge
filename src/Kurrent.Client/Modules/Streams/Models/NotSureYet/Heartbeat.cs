@@ -24,7 +24,7 @@ public readonly record struct Heartbeat(HeartbeatType Type, LogPosition Position
     // temporary until I fix it...
     public RecordPosition RecordPosition =>
         HasPosition
-            ? RecordPosition.FromLogPosition(Position)
+            ? RecordPosition.From(Position)
             : RecordPosition.Unset;
 
 	/// <summary>

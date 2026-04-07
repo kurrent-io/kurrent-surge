@@ -67,7 +67,6 @@ public interface ICheckpointStore {
     );
 }
 
-
 /// <summary>
 /// Checkpoint data for a single partition.
 /// </summary>
@@ -76,22 +75,22 @@ public interface ICheckpointStore {
 [PublicAPI]
 public sealed record PartitionCheckpoint(RecordPosition Position, string WorkerId);
 
-/// <summary>
-/// Resolved start positions for creating a subscription.
-/// </summary>
-/// <param name="StartFrom">
-/// The log position to start the subscription from.
-/// This is the checkpoint checkpoint if one exists, otherwise resolved from initial position setting.
-/// </param>
-/// <param name="Partitions">
-/// Per-partition record positions for internal tracking/filtering.
-/// Merged from checkpoints and overrides.
-/// </param>
-[PublicAPI]
-public sealed record SubscriptionStartPosition(
-    LogPosition StartFrom,
-    Dictionary<Partition, LogPosition>[] Partitions
-);
+// /// <summary>
+// /// Resolved start positions for creating a subscription.
+// /// </summary>
+// /// <param name="StartFrom">
+// /// The log position to start the subscription from.
+// /// This is the checkpoint checkpoint if one exists, otherwise resolved from initial position setting.
+// /// </param>
+// /// <param name="Partitions">
+// /// Per-partition record positions for internal tracking/filtering.
+// /// Merged from checkpoints and overrides.
+// /// </param>
+// [PublicAPI]
+// public sealed record SubscriptionStartPosition(
+//     LogPosition StartFrom,
+//     Dictionary<Partition, LogPosition>[] Partitions
+// );
 
 /// <summary>
 /// Loaded checkpoint for a processor, with resolved positions for all assigned partitions.
@@ -122,7 +121,9 @@ public sealed record ProcessorCheckpoint {
     /// <summary>
     /// Whether any checkpoint data exists.
     /// </summary>
-    public bool HasCheckpoint => !Partitions.IsEmpty;
+    public bool HasCheckpoint => Timestamp != DateTimeOffset.MinValue
+                              && LowWatermark.LogPosition != LogPosition.Earliest
+                              && HighWatermark.LogPosition != LogPosition.Earliest;
 
     /// <summary>
     /// The minimum position across all partitions (subscription start position).

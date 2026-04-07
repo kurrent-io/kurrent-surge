@@ -9,10 +9,10 @@ namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 /// cumulative times, pit stops, incidents, and weather changes lap by lap.
 /// </summary>
 class ArcadeRace {
-    readonly Guid  _id;
-    readonly Faker _faker;
+    readonly string _id;
+    readonly Faker  _faker;
 
-    internal ArcadeRace(Guid id, Faker faker) {
+    internal ArcadeRace(string id, Faker faker) {
         _id    = id;
         _faker = faker;
         State  = new ArcadeRaceState();
@@ -51,7 +51,7 @@ class ArcadeRace {
     /// <returns>A single-element array containing the <see cref="GridFormed"/> event.</returns>
     public IRaceEvent[] FormGrid(ArcadeRaceOptions options) {
         var e = new GridFormed {
-            EventId    = Guid.NewGuid(),
+            EventId    = Guid.CreateVersion7(),
             Cars       = options.Cars.ToArray(),
             Circuit    = options.Circuit,
             Conditions = options.Conditions,
@@ -67,7 +67,7 @@ class ArcadeRace {
     /// <returns>A single-element array containing the <see cref="RaceStarted"/> event.</returns>
     public IRaceEvent[] Start() {
         var e = new RaceStarted {
-            EventId   = Guid.NewGuid(),
+            EventId   = Guid.CreateVersion7(),
             Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             RaceId    = _id
         };
@@ -85,7 +85,7 @@ class ArcadeRace {
         var newWeather = oldWeather == Weather.Sunny ? Weather.Rainy : Weather.Sunny;
 
         var e = new WeatherChanged {
-            EventId    = Guid.NewGuid(),
+            EventId    = Guid.CreateVersion7(),
             OldWeather = oldWeather,
             NewWeather = newWeather,
             Lap        = State.Lap,
@@ -124,7 +124,7 @@ class ArcadeRace {
                 if (lapsSincePit < pitWindow || lapsSincePit <= 0) continue;
 
                 var e = new PitStopPerformed {
-                    EventId     = Guid.NewGuid(),
+                    EventId     = Guid.CreateVersion7(),
                     CarId       = carId,
                     Lap         = currentLap,
                     TimePenalty = Math.Round(20.0 + _faker.Random.Double(0, 5.0), 3),
@@ -137,8 +137,8 @@ class ArcadeRace {
             }
         }
 
-        Dictionary<Guid, double> ComputeLapTimes() {
-            var times = new Dictionary<Guid, double>();
+        Dictionary<string, double> ComputeLapTimes() {
+            var times = new Dictionary<string, double>();
 
             foreach (var carId in State.RaceOrder)
                 times[carId] = ComputeLapTime(State.Cars[carId], State.LapsSincePit[carId]);
@@ -146,12 +146,12 @@ class ArcadeRace {
             return times;
         }
 
-        void EmitLapCompleted(Dictionary<Guid, double> laps) {
+        void EmitLapCompleted(Dictionary<string, double> laps) {
             foreach (var carId in State.RaceOrder) {
                 var cumTime = State.CumulativeTimes[carId] + laps[carId];
 
                 var e = new LapCompleted {
-                    EventId        = Guid.NewGuid(),
+                    EventId        = Guid.CreateVersion7(),
                     CarId          = carId,
                     Lap            = currentLap,
                     LapTime        = Math.Round(laps[carId], 3),
@@ -177,7 +177,7 @@ class ArcadeRace {
                 for (var i = newPos; i < oldPos; i++) {
                     events.Add(
                         new OvertakePerformed {
-                            EventId     = Guid.NewGuid(),
+                            EventId     = Guid.CreateVersion7(),
                             OvertakerId = carId,
                             DefenderId  = oldOrder[i],
                             Lap         = currentLap,
@@ -202,7 +202,7 @@ class ArcadeRace {
 
         if (dnf) {
             var e = new CarRetired {
-                EventId     = Guid.NewGuid(),
+                EventId     = Guid.CreateVersion7(),
                 CarId       = carId,
                 Lap         = State.Lap,
                 Description = description,
@@ -214,7 +214,7 @@ class ArcadeRace {
         }
         else {
             var e = new IncidentOccurred {
-                EventId     = Guid.NewGuid(),
+                EventId     = Guid.CreateVersion7(),
                 CarId       = carId,
                 Lap         = State.Lap,
                 Description = description,
@@ -270,7 +270,7 @@ class ArcadeRace {
 
         return [
             new RaceFinished {
-                EventId   = Guid.NewGuid(),
+                EventId   = Guid.CreateVersion7(),
                 Results   = results.ToArray(),
                 TotalLaps = State.Lap,
                 Timestamp = State.Timestamp,
@@ -316,7 +316,7 @@ class ArcadeRace {
             });
 
         return new RaceInsight {
-            EventId   = Guid.NewGuid(),
+            EventId   = Guid.CreateVersion7(),
             Results   = results.ToArray(),
             TotalLaps = State.Lap,
             Timestamp = State.Timestamp,

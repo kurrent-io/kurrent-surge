@@ -4,6 +4,8 @@ using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
+using Kurrent.Testing.Testkit;
+using Microsoft.Extensions.Logging;
 using CheckpointStore = Kurrent.Processors.Checkpointing.CheckpointStore;
 
 namespace Kurrent.Processors.Tests;
@@ -18,17 +20,16 @@ public class CheckpointStoreTests {
 	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	CheckpointStore CreateStore(string processorId, int maxCount = 100) {
-		return new CheckpointStore(
-			processorId,
-			maxCount,
-			Fixture.Client.Streams,
-			TimeProvider.System,
-			logger: null
-		);
-	}
+	CheckpointStore CreateStore(string processorId, int maxCount = 100) =>
+        new(
+            processorId,
+            maxCount,
+            Fixture.Client.Streams,
+            TimeProvider.System,
+            logger: TestkitExecutionContext.LoggerFactory.CreateLogger<CheckpointStore>()
+        );
 
-	#region Core Operations
+    #region Core Operations
 
 	[Test]
 	public async ValueTask load_returns_empty_checkpoint_when_no_checkpoint_exists(CancellationToken ct) {
@@ -48,10 +49,10 @@ public class CheckpointStoreTests {
 	[Test]
 	public async ValueTask store_and_load_single_partition_checkpoint(CancellationToken ct) {
 		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-single");
-		var store = CreateStore(processorId);
-		var positions = CheckpointTestHelpers.Positions((0, 1000));
-		var barrierId = CheckpointId.New();
+        var processorId = CheckpointTestHelpers.ProcessorId("test-single");
+        var store       = CreateStore(processorId);
+        var positions   = CheckpointTestHelpers.Positions((0, 1000));
+        var barrierId   = CheckpointId.New();
 
 		// Act - Store
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
@@ -72,9 +73,9 @@ public class CheckpointStoreTests {
 	public async ValueTask store_and_load_multiple_partitions_checkpoint(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-multi");
-		var store = CreateStore(processorId);
-		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
-		var barrierId = CheckpointId.New();
+        var store       = CreateStore(processorId);
+        var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
+        var barrierId   = CheckpointId.New();
 
 		// Act
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
@@ -95,9 +96,9 @@ public class CheckpointStoreTests {
 	public async ValueTask subsequent_store_merges_positions_with_existing(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-merge");
-		var store = CreateStore(processorId);
-		var positions1 = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
-		var positions2 = CheckpointTestHelpers.Positions((1, 2500), (2, 3000)); // Update partition 1, add partition 2
+		var store       = CreateStore(processorId);
+        var positions1  = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
+        var positions2  = CheckpointTestHelpers.Positions((1, 2500), (2, 3000)); // Update partition 1, add partition 2
 
 		// Act
 		await store.StoreAsync("worker-1", CheckpointId.New(), positions1, ct);
@@ -119,10 +120,10 @@ public class CheckpointStoreTests {
 	public async ValueTask concurrent_stores_from_different_workers_merge_correctly(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-concurrent");
-		var store1 = CreateStore(processorId);
-		var store2 = CreateStore(processorId);
-		var positions1 = CheckpointTestHelpers.Positions((0, 1000));
-		var positions2 = CheckpointTestHelpers.Positions((1, 2000));
+        var store1      = CreateStore(processorId);
+        var store2      = CreateStore(processorId);
+        var positions1  = CheckpointTestHelpers.Positions((0, 1000));
+        var positions2  = CheckpointTestHelpers.Positions((1, 2000));
 
 		// Act - Simulate near-simultaneous stores from 2 workers
 		var task1 = store1.StoreAsync("worker-1", CheckpointId.New(), positions1, ct).AsTask();
@@ -163,8 +164,9 @@ public class CheckpointStoreTests {
 		// Assert - All partitions should be present
 		await Assert.That(checkpoint.Partitions.Count).IsEqualTo(workerCount);
 		for (var i = 0; i < workerCount; i++) {
-			await Assert.That(checkpoint.Partitions[Partition.From(i)].Position.LogPosition.Value)
-				.IsEqualTo((i + 1) * 1000);
+			await Assert
+                .That(checkpoint.Partitions[Partition.From(i)].Position.LogPosition.Value)
+                .IsEqualTo((i + 1) * 1000);
 		}
 	}
 
@@ -174,26 +176,26 @@ public class CheckpointStoreTests {
 
 	[Test]
 	public async ValueTask store_with_empty_positions_throws_invalid_operation(CancellationToken ct) {
-		// Arrange
-		var store = CreateStore(CheckpointTestHelpers.ProcessorId("test-empty-pos"));
-		var emptyPositions = ImmutableDictionary<Partition, RecordPosition>.Empty;
+        // Arrange
+        var store          = CreateStore(CheckpointTestHelpers.ProcessorId("test-empty-pos"));
+        var emptyPositions = ImmutableDictionary<Partition, RecordPosition>.Empty;
 
-		// Act & Assert
-		await Assert.That(async () => {
-			await store.StoreAsync("worker-1", CheckpointId.New(), emptyPositions, ct);
-		}).ThrowsExactly<InvalidOperationException>();
+        // Act & Assert
+		await Assert
+            .That(async () => await store.StoreAsync("worker-1", CheckpointId.New(), emptyPositions, ct))
+            .ThrowsExactly<ArgumentOutOfRangeException>();
 	}
 
 	[Test]
 	public async ValueTask barrier_id_updated_on_each_store(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier");
-		var store = CreateStore(processorId);
-		var positions = CheckpointTestHelpers.Positions((0, 1000));
-		var barrier1 = CheckpointId.New();
-		var barrier2 = CheckpointId.New();
+        var store       = CreateStore(processorId);
+        var positions   = CheckpointTestHelpers.Positions((0, 1000));
+        var barrier1    = CheckpointId.New();
+        var barrier2    = CheckpointId.New();
 
-		// Act
+        // Act
 		await store.StoreAsync("worker-1", barrier1, positions, ct);
 		var checkpoint1 = await store.LoadLatestAsync(ct);
 
@@ -209,9 +211,9 @@ public class CheckpointStoreTests {
 	[Test]
 	public async ValueTask timestamp_increases_on_subsequent_stores(CancellationToken ct) {
 		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-timestamp");
-		var store = CreateStore(processorId);
-		var positions = CheckpointTestHelpers.Positions((0, 1000));
+        var processorId = CheckpointTestHelpers.ProcessorId("test-timestamp");
+        var store       = CreateStore(processorId);
+        var positions   = CheckpointTestHelpers.Positions((0, 1000));
 
 		// Act
 		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
@@ -232,13 +234,13 @@ public class CheckpointStoreTests {
 
 	[Test]
 	public async ValueTask ensures_stream_retention_policy_on_first_store(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-retention");
-		var maxCount = 50;
-		var store = CreateStore(processorId, maxCount);
-		var streamName = $"$processors/{processorId}/checkpoints";
+        // Arrange
+        var processorId = CheckpointTestHelpers.ProcessorId("test-retention");
+        var maxCount    = 50;
+        var store       = CreateStore(processorId, maxCount);
+        var streamName  = $"$processors/{processorId}/checkpoints";
 
-		// Act
+        // Act
 		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info to verify retention policy
@@ -274,10 +276,10 @@ public class CheckpointStoreTests {
 	public async ValueTask maxCount_zero_skips_retention_configuration(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-no-retention");
-		var store = CreateStore(processorId, maxCount: 0);
-		var streamName = $"$processors/{processorId}/checkpoints";
+        var store       = CreateStore(processorId, maxCount: 0);
+        var streamName  = $"$processors/{processorId}/checkpoints";
 
-		// Act
+        // Act
 		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Get stream info
@@ -295,8 +297,8 @@ public class CheckpointStoreTests {
 	public async ValueTask load_with_partitions_resolves_positions_and_computes_watermarks(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-watermarks");
-		var store = CreateStore(processorId);
-		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
+        var store       = CreateStore(processorId);
+        var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
 
 		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
 
@@ -320,11 +322,11 @@ public class CheckpointStoreTests {
 	[Test]
 	public async ValueTask load_with_partitions_filters_to_requested_partitions_only(CancellationToken ct) {
 		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-filter");
-		var store = CreateStore(processorId);
-		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
+        var processorId = CheckpointTestHelpers.ProcessorId("test-filter");
+        var store       = CreateStore(processorId);
+        var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
 
-		await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
+        await store.StoreAsync("worker-1", CheckpointId.New(), positions, ct);
 
 		// Request only partitions 0 and 2
 		var partitions = new[] { Partition.From(0), Partition.From(2) };
@@ -345,12 +347,12 @@ public class CheckpointStoreTests {
 
 	[Test]
 	public async ValueTask load_with_partitions_uses_initial_position_for_missing_partitions(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-initial");
-		var store = CreateStore(processorId);
+        // Arrange
+        var processorId = CheckpointTestHelpers.ProcessorId("test-initial");
+        var store       = CreateStore(processorId);
 
-		// No checkpoint stored - request new partitions
-		var partitions = new[] { Partition.From(0), Partition.From(1) };
+        // No checkpoint stored - request new partitions
+        var partitions = new[] { Partition.From(0), Partition.From(1) };
 
 		// Act - with Latest as initial position
 		var checkpoint = await store.LoadLatestAsync(partitions, SubscriptionInitialPosition.Latest, ct);
@@ -367,12 +369,12 @@ public class CheckpointStoreTests {
 	#region Load By Barrier
 
 	[Test]
-	public async ValueTask load_by_barrier_returns_empty_when_barrier_not_found(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-notfound");
-		var store = CreateStore(processorId);
+    public async ValueTask load_by_barrier_returns_empty_when_barrier_not_found(CancellationToken ct) {
+        // Arrange
+        var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-notfound");
+        var store       = CreateStore(processorId);
 
-		// Store with one barrier
+        // Store with one barrier
 		await store.StoreAsync("worker-1", CheckpointId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Act - try to load with different barrier
@@ -385,10 +387,10 @@ public class CheckpointStoreTests {
 	[Test]
 	public async ValueTask load_by_barrier_returns_checkpoint_with_watermarks(CancellationToken ct) {
 		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-load");
-		var store = CreateStore(processorId);
-		var barrierId = CheckpointId.New();
-		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 3000), (2, 2000));
+        var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-load");
+        var store       = CreateStore(processorId);
+        var barrierId   = CheckpointId.New();
+        var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 3000), (2, 2000));
 
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
 
@@ -407,11 +409,11 @@ public class CheckpointStoreTests {
 
 	[Test]
 	public async ValueTask load_by_barrier_with_partitions_resolves_and_computes_watermarks(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-partitions");
-		var store = CreateStore(processorId);
-		var barrierId = CheckpointId.New();
-		var positions = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
+        // Arrange
+        var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-partitions");
+        var store       = CreateStore(processorId);
+        var barrierId   = CheckpointId.New();
+        var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
 
 		await store.StoreAsync("worker-1", barrierId, positions, ct);
 
@@ -434,13 +436,13 @@ public class CheckpointStoreTests {
 
 	[Test]
 	public async ValueTask load_by_barrier_finds_older_checkpoint(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-older");
-		var store = CreateStore(processorId);
-		var barrier1 = CheckpointId.New();
-		var barrier2 = CheckpointId.New();
+        // Arrange
+        var processorId = CheckpointTestHelpers.ProcessorId("test-barrier-older");
+        var store       = CreateStore(processorId);
+        var barrier1    = CheckpointId.New();
+        var barrier2    = CheckpointId.New();
 
-		// Store two checkpoints
+        // Store two checkpoints
 		await store.StoreAsync("worker-1", barrier1, CheckpointTestHelpers.Positions((0, 1000)), ct);
 		await store.StoreAsync("worker-1", barrier2, CheckpointTestHelpers.Positions((0, 2000)), ct);
 
@@ -460,9 +462,9 @@ public class CheckpointStoreTests {
 	public async ValueTask processor_id_property_matches_constructor_argument(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-prop");
-		var store = CreateStore(processorId);
+        var store       = CreateStore(processorId);
 
-		// Assert
+        // Assert
 		await Assert.That(store.ProcessorId).IsEqualTo(processorId);
 	}
 

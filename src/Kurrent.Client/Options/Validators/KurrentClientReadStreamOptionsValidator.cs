@@ -20,7 +20,7 @@ public class KurrentClientReadStreamOptionsValidator : FluentOptionsValidator<Ku
             .WithSeverity(Severity.Error);
 
         RuleFor(options => options.Stream)
-            .Must(stream => !stream.IsAllStream)
+            .Must(stream => !stream.Value.Equals("$all", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Stream name cannot be '$all' when reading from a specific stream.")
             .WithSeverity(Severity.Error);
 

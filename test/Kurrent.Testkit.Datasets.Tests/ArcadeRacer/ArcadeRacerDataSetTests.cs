@@ -37,7 +37,7 @@ public class ArcadeRacerDataSetTests {
     [Test]
     public async Task car_has_valid_id() {
         var car = DS.RaceCar.Generate();
-        await Assert.That(car.Id).IsNotEqualTo(Guid.Empty);
+        await Assert.That(car.Id).IsNotNullOrWhiteSpace();
     }
 
     [Test]

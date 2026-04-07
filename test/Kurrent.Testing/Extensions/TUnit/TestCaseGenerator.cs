@@ -1,5 +1,16 @@
 ﻿namespace Kurrent.Testkit;
 
+public record TestCase<T>(T Data, string? DisplayName = null, string? Skip = null, string[]? Categories = null)
+    : TestDataRow<T>(Data, DisplayName, Skip, Categories);
+
+[PublicAPI]
+public abstract class TestCaseDataGenerator<T> : DataSourceGeneratorAttribute<TestCase<T>> {
+    protected override IEnumerable<Func<TestCase<T>>> GenerateDataSources(DataGeneratorMetadata dataGeneratorMetadata) =>
+        Data().Select(x => new Func<TestCase<T>>(() => x));
+
+    protected abstract IEnumerable<TestCase<T>> Data();
+}
+
 [PublicAPI]
 public abstract class TestCaseGenerator<T> : DataSourceGeneratorAttribute<T> {
     protected override IEnumerable<Func<T>> GenerateDataSources(DataGeneratorMetadata dataGeneratorMetadata) =>
@@ -7,7 +18,6 @@ public abstract class TestCaseGenerator<T> : DataSourceGeneratorAttribute<T> {
 
     protected abstract IEnumerable<T> Data();
 }
-
 
 [PublicAPI]
 public abstract class TestCaseGenerator<T1, T2> : DataSourceGeneratorAttribute<T1, T2> {
@@ -17,7 +27,6 @@ public abstract class TestCaseGenerator<T1, T2> : DataSourceGeneratorAttribute<T
     protected abstract IEnumerable<(T1, T2)> Data();
 }
 
-
 [PublicAPI]
 public abstract class TestCaseGenerator<T1, T2, T3> : DataSourceGeneratorAttribute<T1, T2, T3> {
     protected override IEnumerable<Func<(T1, T2, T3)>> GenerateDataSources(DataGeneratorMetadata dataGeneratorMetadata) =>
@@ -26,7 +35,6 @@ public abstract class TestCaseGenerator<T1, T2, T3> : DataSourceGeneratorAttribu
     protected abstract IEnumerable<(T1, T2, T3)> Data();
 }
 
-
 [PublicAPI]
 public abstract class TestCaseGenerator<T1, T2, T3, T4> : DataSourceGeneratorAttribute<T1, T2, T3, T4> {
     protected override IEnumerable<Func<(T1, T2, T3, T4)>> GenerateDataSources(DataGeneratorMetadata dataGeneratorMetadata) =>
@@ -34,7 +42,6 @@ public abstract class TestCaseGenerator<T1, T2, T3, T4> : DataSourceGeneratorAtt
 
     protected abstract IEnumerable<(T1, T2, T3, T4)> Data();
 }
-
 
 [PublicAPI]
 public abstract class TestCaseGenerator<T1, T2, T3, T4, T5> : DataSourceGeneratorAttribute<T1, T2, T3, T4, T5> {

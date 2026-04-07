@@ -13,19 +13,20 @@ namespace Kurrent.Testkit.TUnit.Assertions;
 
 [Category("Testing")]
 public class ObjectGraphEquivalencyTests {
-    static readonly Faker Faker = new Faker();
+    [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
+    public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
     #region Primitive & value type equivalence
 
     [Test]
-    public async Task equivalent_integers_pass() {
+    public async ValueTask equivalent_integers_pass() {
         var value = Faker.Random.Int();
 
         await Assert.That(value).IsDeepEquivalentTo(value);
     }
 
     [Test]
-    public async Task different_integers_fail() {
+    public async ValueTask different_integers_fail() {
         var actual   = Faker.Random.Int(1, 1000);
         var expected = actual + 1;
 
@@ -35,14 +36,14 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task equivalent_strings_pass() {
+    public async ValueTask equivalent_strings_pass() {
         var value = Faker.Lorem.Word();
 
         await Assert.That(value).IsDeepEquivalentTo(value);
     }
 
     [Test]
-    public async Task different_strings_fail() {
+    public async ValueTask different_strings_fail() {
         var actual   = Faker.Lorem.Word();
         var expected = $"{Faker.Lorem.Word()}_different";
 
@@ -52,21 +53,21 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task equivalent_booleans_pass() {
+    public async ValueTask equivalent_booleans_pass() {
         var value = Faker.Random.Bool();
 
         await Assert.That(value).IsDeepEquivalentTo(value);
     }
 
     [Test]
-    public async Task equivalent_guids_pass() {
+    public async ValueTask equivalent_guids_pass() {
         var guid = Faker.Random.Guid();
 
         await Assert.That(guid).IsDeepEquivalentTo(guid);
     }
 
     [Test]
-    public async Task equivalent_datetimes_pass() {
+    public async ValueTask equivalent_datetimes_pass() {
         var dt = Faker.Date.Recent();
 
         await Assert.That(dt).IsDeepEquivalentTo(dt);
@@ -78,13 +79,13 @@ public class ObjectGraphEquivalencyTests {
 
     [Test]
     [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
-    public async Task both_null_passes() {
+    public async ValueTask both_null_passes() {
         await Assert.That(null).IsDeepEquivalentTo(null);
     }
 
     [Test]
     [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
-    public async Task actual_null_expected_non_null_fails() {
+    public async ValueTask actual_null_expected_non_null_fails() {
         var expected = Faker.Lorem.Sentence();
 
         var action = async () => await Assert.That(null).IsDeepEquivalentTo(expected);
@@ -93,7 +94,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task actual_non_null_expected_null_fails() {
+    public async ValueTask actual_non_null_expected_null_fails() {
         var actual = Faker.Lorem.Sentence();
 
         var action = async () => await Assert.That(actual).IsDeepEquivalentTo(null);
@@ -106,7 +107,7 @@ public class ObjectGraphEquivalencyTests {
     #region Simple object equivalence
 
     [Test]
-    public async Task equivalent_objects_with_same_properties_pass() {
+    public async ValueTask equivalent_objects_with_same_properties_pass() {
         var name = Faker.Name.FirstName();
         var age  = Faker.Random.Int(1, 120);
 
@@ -117,7 +118,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task objects_with_different_property_values_fail() {
+    public async ValueTask objects_with_different_property_values_fail() {
         var age    = Faker.Random.Int(1, 120);
         var actual   = new SimpleRecord(Faker.Name.FirstName(), age);
         var expected = new SimpleRecord($"{Faker.Name.LastName()}_other", age);
@@ -132,7 +133,7 @@ public class ObjectGraphEquivalencyTests {
     #region Nested object equivalence
 
     [Test]
-    public async Task equivalent_nested_objects_pass() {
+    public async ValueTask equivalent_nested_objects_pass() {
         var label = Faker.Lorem.Word();
         var name  = Faker.Name.FirstName();
         var age   = Faker.Random.Int(1, 120);
@@ -144,7 +145,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task nested_objects_with_different_inner_values_fail() {
+    public async ValueTask nested_objects_with_different_inner_values_fail() {
         var label = Faker.Lorem.Word();
         var name  = Faker.Name.FirstName();
 
@@ -161,14 +162,14 @@ public class ObjectGraphEquivalencyTests {
     #region Collection equivalence
 
     [Test]
-    public async Task equivalent_lists_pass() {
+    public async ValueTask equivalent_lists_pass() {
         var items = Faker.Make(3, () => Faker.Random.Int());
 
         await Assert.That(items).IsDeepEquivalentTo(items.ToList());
     }
 
     [Test]
-    public async Task lists_with_different_elements_fail() {
+    public async ValueTask lists_with_different_elements_fail() {
         var actual   = Faker.Make(3, () => Faker.Random.Int(1, 100));
         var expected = actual.Select(x => x + 1000).ToList();
 
@@ -178,7 +179,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task lists_with_different_counts_fail() {
+    public async ValueTask lists_with_different_counts_fail() {
         var actual   = Faker.Make(2, () => Faker.Random.Int());
         var expected = Faker.Make(3, () => Faker.Random.Int());
 
@@ -188,14 +189,14 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task equivalent_arrays_pass() {
+    public async ValueTask equivalent_arrays_pass() {
         var items = Faker.Make(3, () => Faker.Lorem.Word()).ToArray();
 
         await Assert.That(items).IsDeepEquivalentTo(items.ToArray());
     }
 
     [Test]
-    public async Task objects_containing_collections_pass() {
+    public async ValueTask objects_containing_collections_pass() {
         var label = Faker.Lorem.Word();
         var items = Faker.Make(3, () => Faker.Random.Int()).ToList();
 
@@ -210,7 +211,7 @@ public class ObjectGraphEquivalencyTests {
     #region Type mismatch
 
     [Test]
-    public async Task different_types_fail() {
+    public async ValueTask different_types_fail() {
         var value = Faker.Random.Int();
 
         var action = async () => await Assert.That(value).IsDeepEquivalentTo(value.ToString());
@@ -223,7 +224,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: StringComparison
 
     [Test]
-    public async Task case_insensitive_string_comparison_passes() {
+    public async ValueTask case_insensitive_string_comparison_passes() {
         var word = Faker.Lorem.Word();
 
         await Assert.That(word.ToUpperInvariant()).IsDeepEquivalentTo(
@@ -233,7 +234,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task case_sensitive_string_comparison_fails_on_case_difference() {
+    public async ValueTask case_sensitive_string_comparison_fails_on_case_difference() {
         var word = Faker.Lorem.Word();
 
         var action = async () => await Assert.That(word.ToUpperInvariant()).IsDeepEquivalentTo(
@@ -249,7 +250,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: NumericTolerance
 
     [Test]
-    public async Task numeric_tolerance_passes_within_range() {
+    public async ValueTask numeric_tolerance_passes_within_range() {
         var value     = Faker.Random.Double(1, 1000);
         var tolerance = 0.1;
         var nearby    = value + Faker.Random.Double(0, tolerance);
@@ -261,7 +262,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task numeric_tolerance_fails_outside_range() {
+    public async ValueTask numeric_tolerance_fails_outside_range() {
         var value     = Faker.Random.Double(1, 1000);
         var tolerance = 0.1;
         var farAway   = value + tolerance + 1.0;
@@ -279,7 +280,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: IgnoreCollectionOrder
 
     [Test]
-    public async Task ignore_collection_order_passes_for_reordered_lists() {
+    public async ValueTask ignore_collection_order_passes_for_reordered_lists() {
         var items    = Faker.Make(5, () => Faker.Random.Int());
         var shuffled = items.OrderBy(_ => Faker.Random.Int()).ToList();
 
@@ -290,7 +291,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task ordered_collection_comparison_fails_for_reordered_lists() {
+    public async ValueTask ordered_collection_comparison_fails_for_reordered_lists() {
         var items    = Enumerable.Range(0, 3).Select(_ => Faker.Random.Int()).ToList();
         var reversed = items.AsEnumerable().Reverse().ToList();
 
@@ -304,7 +305,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Excluding
 
     [Test]
-    public async Task excluding_property_by_expression_ignores_difference() {
+    public async ValueTask excluding_property_by_expression_ignores_difference() {
         var name = Faker.Name.FirstName();
 
         var actual   = new SimpleRecord(name, Faker.Random.Int(1, 50));
@@ -317,7 +318,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_property_by_path_ignores_difference() {
+    public async ValueTask excluding_property_by_path_ignores_difference() {
         var name = Faker.Name.FirstName();
 
         var actual   = new SimpleRecord(name, Faker.Random.Int(1, 50));
@@ -334,7 +335,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Custom comparer
 
     [Test]
-    public async Task custom_comparer_is_used_for_type() {
+    public async ValueTask custom_comparer_is_used_for_type() {
         var word = Faker.Lorem.Word();
         var age  = Faker.Random.Int(1, 120);
 
@@ -348,7 +349,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task custom_comparer_fails_when_comparison_returns_false() {
+    public async ValueTask custom_comparer_fails_when_comparison_returns_false() {
         var age = Faker.Random.Int(1, 120);
 
         var actual   = new SimpleRecord(Faker.Name.FirstName(), age);
@@ -367,7 +368,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: String normalization
 
     [Test]
-    public async Task ignoring_newline_style_treats_crlf_and_lf_as_equal() {
+    public async ValueTask ignoring_newline_style_treats_crlf_and_lf_as_equal() {
         var text = Faker.Lorem.Paragraph();
         var withLf   = text.Replace("\r\n", "\n");
         var withCrLf = text.Replace("\n", "\r\n");
@@ -379,7 +380,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task ignoring_newline_style_still_detects_text_differences() {
+    public async ValueTask ignoring_newline_style_still_detects_text_differences() {
         var actual   = "line1\nline2";
         var expected = "line1\nline3";
 
@@ -392,7 +393,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task ignoring_leading_whitespace_passes() {
+    public async ValueTask ignoring_leading_whitespace_passes() {
         var word = Faker.Lorem.Word();
 
         await Assert.That($"  {word}").IsDeepEquivalentTo(
@@ -402,7 +403,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task ignoring_trailing_whitespace_passes() {
+    public async ValueTask ignoring_trailing_whitespace_passes() {
         var word = Faker.Lorem.Word();
 
         await Assert.That($"{word}  ").IsDeepEquivalentTo(
@@ -412,7 +413,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task whitespace_normalization_combines_with_case_insensitive() {
+    public async ValueTask whitespace_normalization_combines_with_case_insensitive() {
         var word = Faker.Lorem.Word();
 
         await Assert.That($"  {word.ToUpper()}  ").IsDeepEquivalentTo(
@@ -429,7 +430,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: ComparingEnumsByName
 
     [Test]
-    public async Task comparing_enums_by_name_passes_for_matching_names() {
+    public async ValueTask comparing_enums_by_name_passes_for_matching_names() {
         var original = ComplexObjectFaker.Generate();
         var clone    = CloneComplexObject(original);
 
@@ -440,7 +441,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task comparing_enums_by_name_fails_for_different_names() {
+    public async ValueTask comparing_enums_by_name_fails_for_different_names() {
         var original = ComplexObjectFaker.Generate();
         var clone    = CloneComplexObject(original);
         clone.Priority = original.Priority == Priority.Critical ? Priority.Low : Priority.Critical;
@@ -458,7 +459,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Recursion control
 
     [Test]
-    public async Task excluding_nested_objects_compares_only_top_level_members() {
+    public async ValueTask excluding_nested_objects_compares_only_top_level_members() {
         var actual = new Level {
             Name  = Faker.Lorem.Word(),
             Child = new Level { Name = Faker.Lorem.Word() }
@@ -477,7 +478,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_nested_objects_still_compares_value_types_and_strings() {
+    public async ValueTask excluding_nested_objects_still_compares_value_types_and_strings() {
         var actual = new Level {
             Name  = Faker.Lorem.Word(),
             Child = new Level { Name = Faker.Lorem.Word() }
@@ -497,7 +498,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task max_recursion_depth_throws_when_exceeded() {
+    public async ValueTask max_recursion_depth_throws_when_exceeded() {
         var deep = new Level { Name = "L0" };
         var current = deep;
         for (var i = 1; i <= 5; i++) {
@@ -521,7 +522,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task max_recursion_depth_passes_when_within_limit() {
+    public async ValueTask max_recursion_depth_passes_when_within_limit() {
         var actual = new Level {
             Name  = "L0",
             Child = new Level { Name = "L1" }
@@ -543,7 +544,7 @@ public class ObjectGraphEquivalencyTests {
     #region Circular reference handling
 
     [Test]
-    public async Task circular_references_do_not_stack_overflow() {
+    public async ValueTask circular_references_do_not_stack_overflow() {
         var name = Faker.Lorem.Word();
 
         var actual = new CircularNode(name);
@@ -556,7 +557,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task distinct_instances_with_structural_equality_are_compared_independently() {
+    public async ValueTask distinct_instances_with_structural_equality_are_compared_independently() {
         // Bug B: previousComparisons uses default Equals for key lookup.
         // If a type overrides Equals to be structural, two distinct instances
         // with the same key fields but different data fields get short-circuited
@@ -586,7 +587,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Value type semantics
 
     [Test]
-    public async Task comparing_by_value_uses_equals_instead_of_members() {
+    public async ValueTask comparing_by_value_uses_equals_instead_of_members() {
         var actual = new MoneyHolder {
             Name  = Faker.Commerce.ProductName(),
             Price = new Money { Amount = 10.00m, Currency = "USD" }
@@ -604,7 +605,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task comparing_by_value_fails_when_equals_returns_false() {
+    public async ValueTask comparing_by_value_fails_when_equals_returns_false() {
         var actual = new MoneyHolder {
             Name  = Faker.Commerce.ProductName(),
             Price = new Money { Amount = 10.00m, Currency = "USD" }
@@ -624,7 +625,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task comparing_by_members_forces_recursion_even_when_equals_overridden() {
+    public async ValueTask comparing_by_members_forces_recursion_even_when_equals_overridden() {
         var tag = Faker.Lorem.Word();
 
         var actual = new NodeContainer {
@@ -647,7 +648,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task custom_comparer_takes_precedence_over_comparing_by_value() {
+    public async ValueTask custom_comparer_takes_precedence_over_comparing_by_value() {
         var actual = new MoneyHolder {
             Name  = Faker.Commerce.ProductName(),
             Price = new Money { Amount = 10.00m, Currency = "USD" }
@@ -673,7 +674,7 @@ public class ObjectGraphEquivalencyTests {
     #region Complex scenario: nested objects with config
 
     [Test]
-    public async Task complex_nested_comparison_with_config_passes() {
+    public async ValueTask complex_nested_comparison_with_config_passes() {
         var label     = Faker.Lorem.Word();
         var name      = Faker.Name.FirstName();
         var age       = Faker.Random.Int(10, 100);
@@ -693,7 +694,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: ExcludingMembersNamed
 
     [Test]
-    public async Task excluding_members_named_skips_at_all_depths() {
+    public async ValueTask excluding_members_named_skips_at_all_depths() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.PrimaryAddress.City = $"{Faker.Address.City()}_different";
@@ -706,7 +707,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_members_named_multiple_names() {
+    public async ValueTask excluding_members_named_multiple_names() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Name  = $"{Faker.Name.FullName()}_different";
@@ -719,7 +720,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_members_named_does_not_skip_other_members() {
+    public async ValueTask excluding_members_named_does_not_skip_other_members() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Age = original.Age + 10;
@@ -737,7 +738,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Excluding by type
 
     [Test]
-    public async Task excluding_by_type_skips_all_members_of_that_type() {
+    public async ValueTask excluding_by_type_skips_all_members_of_that_type() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.CreatedAt = original.CreatedAt.AddYears(1);
@@ -750,7 +751,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_by_type_does_not_skip_other_types() {
+    public async ValueTask excluding_by_type_does_not_skip_other_types() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Name = $"{Faker.Name.FullName()}_different";
@@ -768,7 +769,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Including (whitelist mode)
 
     [Test]
-    public async Task including_by_expression_compares_only_specified_members() {
+    public async ValueTask including_by_expression_compares_only_specified_members() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Age     = original.Age + 10;
@@ -783,7 +784,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task including_by_expression_fails_when_included_member_differs() {
+    public async ValueTask including_by_expression_fails_when_included_member_differs() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Name = $"{Faker.Name.FullName()}_different";
@@ -797,7 +798,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task including_by_predicate_compares_only_matching_members() {
+    public async ValueTask including_by_predicate_compares_only_matching_members() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Age = original.Age + 10;
@@ -810,7 +811,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task including_and_excluding_throws_invalid_operation() {
+    public async ValueTask including_and_excluding_throws_invalid_operation() {
         var action = async () => await Assert.That(new SimpleRecord("a", 1)).IsDeepEquivalentTo(
             new SimpleRecord("a", 1),
             cfg => cfg
@@ -826,7 +827,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: ExcludingMissingMembers
 
     [Test]
-    public async Task excluding_missing_members_compares_shared_members_only() {
+    public async ValueTask excluding_missing_members_compares_shared_members_only() {
         var name  = Faker.Name.FullName();
         var email = Faker.Internet.Email();
 
@@ -850,7 +851,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_missing_members_fails_on_shared_member_difference() {
+    public async ValueTask excluding_missing_members_fails_on_shared_member_difference() {
         var actual = new FullUser {
             Name    = Faker.Name.FullName(),
             Email   = Faker.Internet.Email(),
@@ -872,7 +873,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task excluding_missing_members_with_same_type_is_noop() {
+    public async ValueTask excluding_missing_members_with_same_type_is_noop() {
         var original = ComplexObjectFaker.Generate();
         var clone    = CloneComplexObject(original);
 
@@ -887,7 +888,7 @@ public class ObjectGraphEquivalencyTests {
     #region EquivalencyConfiguration: Per-path ordering
 
     [Test]
-    public async Task strict_ordering_globally_fails_for_reordered_collection() {
+    public async ValueTask strict_ordering_globally_fails_for_reordered_collection() {
         var items    = Faker.Make(3, () => Faker.Random.Int()).ToList();
         var reversed = items.AsEnumerable().Reverse().ToList();
 
@@ -900,7 +901,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task without_strict_ordering_for_path_overrides_global_strict() {
+    public async ValueTask without_strict_ordering_for_path_overrides_global_strict() {
         var name  = Faker.Lorem.Word();
         var items = Faker.Make(3, () => Faker.Random.Int()).ToList();
 
@@ -924,7 +925,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task with_strict_ordering_for_path_overrides_global_unordered() {
+    public async ValueTask with_strict_ordering_for_path_overrides_global_unordered() {
         var name  = Faker.Lorem.Word();
         var items = Faker.Make(3, () => Faker.Random.Int()).ToList();
 
@@ -954,7 +955,7 @@ public class ObjectGraphEquivalencyTests {
     #region Complex object with all property types
 
     [Test]
-    public async Task equivalent_complex_objects_pass() {
+    public async ValueTask equivalent_complex_objects_pass() {
         var original = ComplexObjectFaker.Generate();
         var clone    = CloneComplexObject(original);
 
@@ -962,7 +963,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_guid_fails() {
+    public async ValueTask complex_object_with_different_guid_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Id = Faker.Random.Guid();
@@ -973,7 +974,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_string_fails() {
+    public async ValueTask complex_object_with_different_string_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Email = $"{Faker.Internet.Email()}_other";
@@ -984,7 +985,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_double_fails() {
+    public async ValueTask complex_object_with_different_double_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Score = original.Score + 100.0;
@@ -995,7 +996,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_decimal_fails() {
+    public async ValueTask complex_object_with_different_decimal_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Balance = original.Balance + 1000m;
@@ -1006,7 +1007,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_bool_fails() {
+    public async ValueTask complex_object_with_different_bool_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.IsActive = !original.IsActive;
@@ -1017,7 +1018,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_datetime_fails() {
+    public async ValueTask complex_object_with_different_datetime_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.CreatedAt = original.CreatedAt.AddDays(1);
@@ -1028,7 +1029,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_enum_fails() {
+    public async ValueTask complex_object_with_different_enum_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Priority = (Priority)(((int)original.Priority + 1) % 4);
@@ -1039,7 +1040,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_nested_object_fails() {
+    public async ValueTask complex_object_with_different_nested_object_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.PrimaryAddress = AddressFaker.Generate();
@@ -1050,7 +1051,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_list_element_fails() {
+    public async ValueTask complex_object_with_different_list_element_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Addresses[0] = AddressFaker.Generate();
@@ -1061,7 +1062,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_different_list_count_fails() {
+    public async ValueTask complex_object_with_different_list_count_fails() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Addresses = modified.Addresses.Take(1).ToList();
@@ -1072,7 +1073,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_excluding_property_passes() {
+    public async ValueTask complex_object_excluding_property_passes() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Score = original.Score + 999.0;
@@ -1084,7 +1085,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_reordered_addresses_passes_when_order_ignored() {
+    public async ValueTask complex_object_with_reordered_addresses_passes_when_order_ignored() {
         var original = ComplexObjectFaker.Generate();
         var modified = CloneComplexObject(original);
         modified.Addresses.Reverse();
@@ -1096,7 +1097,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_with_nullable_both_null_passes() {
+    public async ValueTask complex_object_with_nullable_both_null_passes() {
         var original      = ComplexObjectFaker.Generate();
         original.NickName = null;
         var clone = CloneComplexObject(original);
@@ -1105,7 +1106,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task complex_object_nullable_null_vs_non_null_fails() {
+    public async ValueTask complex_object_nullable_null_vs_non_null_fails() {
         var original      = ComplexObjectFaker.Generate();
         original.NickName = null;
         var modified      = CloneComplexObject(original);
@@ -1121,14 +1122,14 @@ public class ObjectGraphEquivalencyTests {
     #region . Other cases with implicit conversions .
 
     [Test]
-    public async Task equivalent_objects_with_implicit_conversions_pass() {
+    public async ValueTask equivalent_objects_with_implicit_conversions_pass() {
         var revision = Revision.From(Faker.Random.Int(1, 100));
 
         await Assert.That(revision).IsDeepEquivalentTo(revision.Value);
     }
 
     [Test]
-    public async Task implicit_conversion_to_int_passes() {
+    public async ValueTask implicit_conversion_to_int_passes() {
         var revision = Revision.From(Faker.Random.Int(1, 100));
 
         await Assert.That(revision).IsDeepEquivalentTo((int)revision.Value);
@@ -1136,7 +1137,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_conversion_to_short_passes() {
+    public async ValueTask implicit_conversion_to_short_passes() {
         var revision = Revision.From(Faker.Random.Int(1, 100));
 
         await Assert.That(revision).IsDeepEquivalentTo((short)revision.Value);
@@ -1144,7 +1145,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_conversion_to_double_passes() {
+    public async ValueTask implicit_conversion_to_double_passes() {
         var revision = Revision.From(Faker.Random.Int(1, 100));
 
         await Assert.That(revision).IsDeepEquivalentTo((double)revision.Value);
@@ -1152,7 +1153,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_conversion_to_decimal_passes() {
+    public async ValueTask implicit_conversion_to_decimal_passes() {
         var revision = Revision.From(Faker.Random.Int(1, 100));
 
         await Assert.That(revision).IsDeepEquivalentTo((decimal)revision.Value);
@@ -1160,7 +1161,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_conversion_with_different_numeric_value_fails() {
+    public async ValueTask implicit_conversion_with_different_numeric_value_fails() {
         var revision = Revision.From(Faker.Random.Int(1, 99));
 
         var action = async () => await Assert.That(revision).IsDeepEquivalentTo((int)revision.Value + 1);
@@ -1169,7 +1170,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_conversion_reverse_direction_with_different_value_fails() {
+    public async ValueTask implicit_conversion_reverse_direction_with_different_value_fails() {
         var revision = Revision.From(Faker.Random.Int(1, 99));
 
         var action = async () => await Assert.That((int)revision.Value + 1).IsDeepEquivalentTo(revision);
@@ -1178,7 +1179,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task cross_type_numeric_comparison_preserves_precision_for_large_values() {
+    public async ValueTask cross_type_numeric_comparison_preserves_precision_for_large_values() {
         var actual   = long.MaxValue;
         var expected = long.MaxValue - 1;
 
@@ -1188,7 +1189,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task cross_type_integer_comparison_is_lossless() {
+    public async ValueTask cross_type_integer_comparison_is_lossless() {
         var value = long.MaxValue;
 
         await Assert.That(value).IsDeepEquivalentTo(value);
@@ -1196,7 +1197,7 @@ public class ObjectGraphEquivalencyTests {
 
     [Test]
     [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
-    public async Task different_integer_types_with_same_value_pass() {
+    public async ValueTask different_integer_types_with_same_value_pass() {
         await Assert.That(42).IsDeepEquivalentTo(42L);
         await Assert.That(42L).IsDeepEquivalentTo(42);
         await Assert.That((short)42).IsDeepEquivalentTo(42L);
@@ -1205,14 +1206,14 @@ public class ObjectGraphEquivalencyTests {
 
     [Test]
     [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
-    public async Task different_integer_types_with_different_values_fail() {
+    public async ValueTask different_integer_types_with_different_values_fail() {
         var action = async () => await Assert.That(42).IsDeepEquivalentTo(43L);
 
         await Assert.That(action).ThrowsException();
     }
 
     [Test]
-    public async Task implicit_string_conversion_passes() {
+    public async ValueTask implicit_string_conversion_passes() {
         var label = Label.From(Faker.Lorem.Word());
 
         await Assert.That(label).IsDeepEquivalentTo(label.Value);
@@ -1220,7 +1221,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_string_conversion_with_different_value_fails() {
+    public async ValueTask implicit_string_conversion_with_different_value_fails() {
         var label = Label.From(Faker.Lorem.Word());
 
         var action = async () => await Assert.That(label).IsDeepEquivalentTo($"{label.Value}_different");
@@ -1229,7 +1230,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_string_conversion_reverse_with_different_value_fails() {
+    public async ValueTask implicit_string_conversion_reverse_with_different_value_fails() {
         var label = Label.From(Faker.Lorem.Word());
 
         var action = async () => await Assert.That($"{label.Value}_different").IsDeepEquivalentTo(label);
@@ -1238,7 +1239,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_guid_conversion_passes() {
+    public async ValueTask implicit_guid_conversion_passes() {
         var entityId = EntityId.From(Faker.Random.Guid());
 
         await Assert.That(entityId).IsDeepEquivalentTo(entityId.Value);
@@ -1246,7 +1247,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_guid_conversion_with_different_value_fails() {
+    public async ValueTask implicit_guid_conversion_with_different_value_fails() {
         var entityId = EntityId.From(Faker.Random.Guid());
 
         var action = async () => await Assert.That(entityId).IsDeepEquivalentTo(Faker.Random.Guid());
@@ -1255,7 +1256,7 @@ public class ObjectGraphEquivalencyTests {
     }
 
     [Test]
-    public async Task implicit_guid_conversion_reverse_with_different_value_fails() {
+    public async ValueTask implicit_guid_conversion_reverse_with_different_value_fails() {
         var entityId = EntityId.From(Faker.Random.Guid());
 
         var action = async () => await Assert.That(Faker.Random.Guid()).IsDeepEquivalentTo(entityId);

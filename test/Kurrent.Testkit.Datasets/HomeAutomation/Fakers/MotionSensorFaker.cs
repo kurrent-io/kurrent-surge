@@ -8,7 +8,7 @@ public class MotionSensorFaker : Faker<MotionSensor> {
 
     public MotionSensorFaker() {
         CustomInstantiator(f => new MotionSensor {
-            Id                   = $"urn:iot:motionsensor:{f.Random.Guid()}",
+            Id                   = $"urn:iot:motionsensor:{PunyId.New()}",
             FriendlyName         = $"Motion Sensor {f.Random.Number(1, 99)}",
             IsBatteryPowered     = false,
             BatteryLevel         = null,

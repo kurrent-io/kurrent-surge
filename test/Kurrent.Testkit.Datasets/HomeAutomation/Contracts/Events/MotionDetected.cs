@@ -1,7 +1,7 @@
 namespace Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
 public record MotionDetected : IHomeAutomationEvent {
-    public Guid EventId { get; init; } = Guid.NewGuid();
+    public string EventId { get; init; } = PunyId.New();
 
     public required DeviceInfo Device     { get; init; }
     public required double     Confidence { get; init; }

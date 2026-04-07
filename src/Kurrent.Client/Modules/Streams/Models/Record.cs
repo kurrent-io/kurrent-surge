@@ -104,11 +104,11 @@ public record Record {
     /// Represents the revision of a stream at a specific point in time.
     /// </summary>
     public Revision Revision => Position.Revision;
-
-    /// <summary>
-    /// Represents the classification or grouping of an item.
-    /// </summary>
-    public StreamCategory Category => Stream.StreamCategory;
+    //
+    // /// <summary>
+    // /// Represents the classification or grouping of an item.
+    // /// </summary>
+    // public StreamCategory Category => Stream.Category;
 
 	/// <summary>
 	/// Attempts to decode the record's data asynchronously.

@@ -5,7 +5,7 @@ namespace Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 public class SmartHomeState {
     readonly Dictionary<string, Device>      _catalog    = [];
-    readonly Dictionary<string, Guid>        _roomLookup = [];
+    readonly Dictionary<string, string>        _roomLookup = [];
     readonly Dictionary<string, DeviceState> _devices    = [];
 
     public SmartHome Home        { get; private set; } = null!;

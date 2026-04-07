@@ -12,13 +12,13 @@ public sealed class WorkerSettingsBuilder : OptionsBuilder<WorkerSettingsBuilder
     /// </summary>
     public WorkerSettingsBuilder() : base(new WorkerSettings()) { }
 
-    /// <summary>
-    /// Throws an exception on processing failure instead of logging and stopping.
-    /// </summary>
-    /// <param name="enabled">True to throw on failure (default: true when called).</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    public WorkerSettingsBuilder ThrowOnFailure(bool enabled = true) =>
-        With(s => s with { ThrowOnFailure = enabled });
+    // /// <summary>
+    // /// Throws an exception on processing failure instead of logging and stopping.
+    // /// </summary>
+    // /// <param name="enabled">True to throw on failure (default: true when called).</param>
+    // /// <returns>The builder instance for method chaining.</returns>
+    // public WorkerSettingsBuilder ThrowOnFailure(bool enabled = true) =>
+    //     With(s => s with { ThrowOnFailure = enabled });
 
     /// <summary>
     /// Sets the number of records to buffer in memory.

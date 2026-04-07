@@ -1,3 +1,4 @@
+using Kurrent.Client.Admin;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Legacy;
@@ -42,7 +43,7 @@ public class KurrentClient : IAsyncDisposable {
         Streams                 = new StreamsClient(this);
         Indexes                 = new IndexesClient(this);
         Connectors              = new ConnectorsClient(this);
-        // Admin                   = new AdminClient(this);
+        Admin                   = new AdminClient(this);
         // PersistentSubscriptions = new PersistentSubscriptionsClient(this);
         // Projections             = new ProjectionsClient(this);
         // Users                   = new UsersClient(this);
@@ -61,7 +62,7 @@ public class KurrentClient : IAsyncDisposable {
     public ConnectorsClient              Connectors              { get; }
     // public UsersClient                   Users                   { get; }
     // public PersistentSubscriptionsClient PersistentSubscriptions { get; }
-    // public AdminClient                   Admin                   { get; }
+    public AdminClient                   Admin                   { get; }
     // public ProjectionsClient             Projections             { get; }
 
 	// internal async Task<ServerFeatures> ForceRefresh(CancellationToken cancellationToken = default) {

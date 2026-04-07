@@ -3,7 +3,7 @@ namespace Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 /// <summary>Standings entry for a single car in a race.</summary>
 public class RaceResult {
     /// <summary>Unique car identifier.</summary>
-    public Guid CarId { get; set; }
+    public string CarId { get; set; }
 
     /// <summary>Generated car name.</summary>
     public string CarName { get; set; } = "";

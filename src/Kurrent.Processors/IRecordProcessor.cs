@@ -134,7 +134,49 @@ public record ProcessRecordContext : WorkerContext {
     /// </summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static")]
     public void StopProcessing() => throw new OperationCanceledException("Processing stopped by user request.");
+
+    public void StopBeforeTrack(string? reason = null) =>
+        StopProcessingRequest = StopProcessingRequest.BeforeTracking(reason);
+
+    public void StopAfterTrack(string? reason = null) =>
+        StopProcessingRequest = StopProcessingRequest.AfterTracking(reason);
+
+    internal StopProcessingRequest StopProcessingRequest { get; private set; } = StopProcessingRequest.Unspecified;
 }
+
+record StopProcessingRequest(StopProcessingTrigger Trigger, string? Reason = null) {
+    public static readonly StopProcessingRequest Unspecified = new(StopProcessingTrigger.Unspecified);
+
+    public static StopProcessingRequest BeforeTracking(string? reason = null) =>
+        new(StopProcessingTrigger.StopBeforeTrack, reason);
+
+    public static StopProcessingRequest AfterTracking(string? reason = null) =>
+        new(StopProcessingTrigger.StopAfterTrack, reason);
+}
+
+public enum StopProcessingTrigger {
+    Unspecified,
+    StopBeforeTrack,
+    StopAfterTrack,
+}
+
+// record StopProcessingRequest(StopProcessingTrigger Trigger, string? Reason = null) {
+//     public static readonly StopProcessingRequest Unspecified = new(StopProcessingTrigger.Unspecified);
+//
+//     public static StopProcessingRequest BeforeTrack(string? reason = null) =>
+//         new(StopProcessingTrigger.StopBeforeTrack, reason);
+//
+//     public static StopProcessingRequest AfterTrack(string? reason = null) =>
+//         new(StopProcessingTrigger.StopAfterTrack, reason);
+// }
+//
+// internal enum StopProcessingTrigger {
+//     Unspecified,
+//     StopBeforeTrack,
+//     StopAfterTrack,
+// }
+
+
 
 /// <summary>
 /// Context provided when a checkpoint is signaled.

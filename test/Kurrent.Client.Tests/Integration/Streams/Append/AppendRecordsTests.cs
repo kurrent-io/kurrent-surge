@@ -1,7 +1,5 @@
-using EnumerableAsyncProcessor.Extensions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Testing.ArcadeRacer;
 
 namespace Kurrent.Client.Tests.Streams;
 

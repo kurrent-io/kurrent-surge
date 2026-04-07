@@ -1,7 +1,7 @@
 #!/usr/bin/env dotnet
 #:package Spectre.Console@0.*
 #:package System.CommandLine@2.*
-#:package Octokit@13.*
+#:package Octokit@14.*
 #:property ToolCommandName=semver-bump
 
 // ReSharper disable ClassNeverInstantiated.Global

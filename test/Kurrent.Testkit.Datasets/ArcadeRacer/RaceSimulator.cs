@@ -23,14 +23,14 @@ public sealed class RaceSimulator : IAsyncDisposable {
     CancellationTokenSource? _cts;
     Task?                    _backgroundTask;
 
-    internal RaceSimulator(Guid raceId, ArcadeRaceOptions options, Faker faker) {
+    internal RaceSimulator(string raceId, ArcadeRaceOptions options, Faker faker) {
         RaceId   = raceId;
         _race    = new ArcadeRace(raceId, faker);
         _options = options;
     }
 
     /// <summary>Unique identifier for this race simulation.</summary>
-    public Guid RaceId { get; }
+    public string RaceId { get; }
 
     #region Pre-computed (sync)
 

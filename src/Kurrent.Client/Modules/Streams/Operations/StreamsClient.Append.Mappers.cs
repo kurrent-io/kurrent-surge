@@ -97,7 +97,7 @@ partial class StreamsProtocolMapper {
 
     public AppendRecordsResponse ToAppendRecordsResponse(Contracts.AppendRecordsResponse source) {
         var revisions = source.Revisions
-            .Select(x => new StreamRevision(x.Stream, x.Revision))
+            .Select(x => new StreamPosition(x.Stream, x.Revision))
             .ToArray();
 
         return new AppendRecordsResponse(revisions, source.Position);

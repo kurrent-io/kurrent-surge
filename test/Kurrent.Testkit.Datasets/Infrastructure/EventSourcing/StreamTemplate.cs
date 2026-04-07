@@ -32,9 +32,7 @@ public record StreamTemplate {
 
     public string GetStream(string id) =>
         FormattableStringFactory.Create(Format, id).ToString();
-
-    public string GetStream(Guid id) => GetStream(id.ToString());
-
+    
     public static implicit operator StreamTemplate(string format) =>
         new StreamTemplate(format);
 

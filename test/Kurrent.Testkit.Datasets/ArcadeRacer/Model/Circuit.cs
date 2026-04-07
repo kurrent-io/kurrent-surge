@@ -6,7 +6,7 @@ public class Circuit {
     public static readonly Circuit Unspecified = new();
 
     /// <summary>Unique identifier for the circuit.</summary>
-    public Guid Id { get; set; } = Guid.Empty;
+    public string Id { get; set; } = string.Empty;
 
     /// <summary>Generated circuit name (e.g. "Silvervale").</summary>
     public string Name { get; set; } = "";

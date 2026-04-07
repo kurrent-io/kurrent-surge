@@ -16,7 +16,7 @@ public interface IRaceEvent {
     /// <summary>
     /// Unique identifier for the race this event is associated with.
     /// </summary>
-    Guid RaceId { get; set; }
+    string RaceId { get; set; }
 }
 
 /// <summary>Emitted when the starting grid is formed with cars, circuit, and conditions.</summary>
@@ -40,7 +40,7 @@ public class GridFormed : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted once at the start of the race, establishing the race clock.</summary>
@@ -52,7 +52,7 @@ public class RaceStarted : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted for each car at the end of a lap with timing data.</summary>
@@ -61,7 +61,7 @@ public class LapCompleted : IRaceEvent {
     public Guid EventId { get; set; }
 
     /// <summary>Identifier of the car that completed the lap.</summary>
-    public Guid CarId { get; set; }
+    public string CarId { get; set; }
 
     /// <summary>Lap number just completed (1-based).</summary>
     public int Lap { get; set; }
@@ -76,7 +76,7 @@ public class LapCompleted : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car gains a position by passing another car during a lap.</summary>
@@ -85,10 +85,10 @@ public class OvertakePerformed : IRaceEvent {
     public Guid EventId { get; set; }
 
     /// <summary>Identifier of the car that gained the position.</summary>
-    public Guid OvertakerId { get; set; }
+    public string OvertakerId { get; set; }
 
     /// <summary>Identifier of the car that lost the position.</summary>
-    public Guid DefenderId { get; set; }
+    public string DefenderId { get; set; }
 
     /// <summary>Lap number when the overtake occurred.</summary>
     public int Lap { get; set; }
@@ -97,7 +97,7 @@ public class OvertakePerformed : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car enters the pit lane for tire refresh, incurring a time penalty.</summary>
@@ -106,7 +106,7 @@ public class PitStopPerformed : IRaceEvent {
     public Guid EventId { get; set; }
 
     /// <summary>Identifier of the car that pitted.</summary>
-    public Guid CarId { get; set; }
+    public string CarId { get; set; }
 
     /// <summary>Lap number when the pit stop occurred.</summary>
     public int Lap { get; set; }
@@ -118,7 +118,7 @@ public class PitStopPerformed : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car is involved in an incident that results in a time penalty.</summary>
@@ -127,7 +127,7 @@ public class IncidentOccurred : IRaceEvent {
     public Guid EventId { get; set; }
 
     /// <summary>Identifier of the affected car.</summary>
-    public Guid CarId { get; set; }
+    public string CarId { get; set; }
 
     /// <summary>Lap number when the incident occurred.</summary>
     public int Lap { get; set; }
@@ -142,7 +142,7 @@ public class IncidentOccurred : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted when a car retires from the race (Did Not Finish).</summary>
@@ -151,7 +151,7 @@ public class CarRetired : IRaceEvent {
     public Guid EventId { get; set; }
 
     /// <summary>Identifier of the retired car.</summary>
-    public Guid CarId { get; set; }
+    public string CarId { get; set; }
 
     /// <summary>Lap number when the car retired.</summary>
     public int Lap { get; set; }
@@ -163,7 +163,7 @@ public class CarRetired : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted when weather conditions change mid-race, affecting the difficulty profile.</summary>
@@ -184,7 +184,7 @@ public class WeatherChanged : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>Emitted once at the end of the race with final standings for all cars.</summary>
@@ -205,7 +205,7 @@ public class RaceFinished : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }
 
 /// <summary>
@@ -225,5 +225,5 @@ public class RaceInsight : IRaceEvent {
     public long Timestamp { get; set; }
 
     /// <inheritdoc />
-    public Guid RaceId { get; set; }
+    public string RaceId { get; set; }
 }

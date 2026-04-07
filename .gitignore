@@ -555,6 +555,5 @@ certs-*/
 docs/plans/
 benchmark-*.html
 .dmux/
-
-# Local design context
+skills-lock.json
 .impeccable.md

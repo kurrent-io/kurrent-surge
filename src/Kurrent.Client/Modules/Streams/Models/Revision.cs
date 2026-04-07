@@ -4,22 +4,18 @@ using Kurrent.Client.Exceptions;
 namespace Kurrent.Client.Streams;
 
 [PublicAPI]
-[DebuggerDisplay("{ToDebugString()}")]
 public record Revision : IComparable<Revision>, IComparable {
+    /// <summary>
+    /// The beginning (i.e., the first event) of a stream.
+    /// </summary>
+    public static readonly Revision Min = new(0L);
+
     /// <summary>
     /// The end of a stream. Use this when reading a stream backwards or subscribing live to a stream.
     /// </summary>
     public static readonly Revision Max = new(long.MaxValue);
 
-    /// <summary>
-    /// The beginning (i.e., the first event) of a stream.
-    /// </summary>
-    public static readonly Revision Min = new((long)0);
-
-    /// <summary>
-    /// A special value that refers to an invalid, unassigned or default revision.
-    /// </summary>
-    public static readonly Revision Unset = new((long)-1000);
+    public static readonly Revision Unset = new(-1000L);
 
     Revision(long value) => Value = value;
 
@@ -36,22 +32,6 @@ public record Revision : IComparable<Revision>, IComparable {
 
     public static implicit operator long(Revision revision) => revision.Value;
     public static implicit operator Revision(long revision) => From(revision);
-
-    public override string ToString() => Value.ToString();
-
-    /// <summary>
-    /// Creates a debug view.
-    /// </summary>
-    string ToDebugString() {
-        var valueText = Value switch {
-            -1000         => "Unset",
-            0             => "Min",
-            long.MaxValue => "Max",
-            _             => Value.ToString()
-        };
-
-        return $"Revision: {valueText}";
-    }
 
     #region . relational members .
 

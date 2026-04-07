@@ -10,7 +10,7 @@ using Kurrent.Client.Registry;
 
 namespace Kurrent.Client.Streams;
 
-// TODO SS: I don't think that we need to handle anything related with adding schema name/format to metadata anymore.
+// TODO SS: Don't think that we need to handle anything related with adding schema name/format to metadata anymore.
 
 /// <summary>
 /// Provides a base implementation for decoding metadata from serialized byte representations.
@@ -48,8 +48,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
         // [3] = {DebugViewDictionaryItem<string, JsonValue>} [$causedBy]=373c6630-d8fe-ff2c-16af-e286265e7e98
 
         var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(
-            bytes.Span,
-            Schema.Serialization.Json.KurrentJsonContext.Default.Options)!;
+            bytes.Span, Schema.Serialization.Json.KurrentJsonContext.Default.Options)!;
 
         return new Metadata()
             .With(SystemMetadataKeys.SchemaName, LinkSchemaName)
@@ -88,8 +87,7 @@ public interface IMetadataDecoder {
 public readonly record struct MetadataDecoderContext(
     StreamName Stream,
     SchemaName SchemaName,
-    SchemaDataFormat SchemaFormat
-);
+    SchemaDataFormat SchemaFormat);
 
 [PublicAPI]
 public class MetadataDecodingException(Type decoderType, MetadataDecoderContext decoderContext, Exception innerException)

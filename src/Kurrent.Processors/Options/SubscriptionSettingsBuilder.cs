@@ -48,4 +48,12 @@ public sealed class SubscriptionSettingsBuilder : OptionsBuilder<SubscriptionSet
     /// <returns>The builder instance for method chaining.</returns>
     public SubscriptionSettingsBuilder InitialPosition(SubscriptionInitialPosition position) =>
         With(s => s with { InitialPosition = position });
+
+    /// <summary>
+    /// Sets the starting position for the subscription.
+    /// </summary>
+    /// <param name="startPosition">The position from which the subscription should start.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    public SubscriptionSettingsBuilder StartFrom(RecordPosition startPosition) =>
+        With(s => s with { StartPosition = startPosition });
 }

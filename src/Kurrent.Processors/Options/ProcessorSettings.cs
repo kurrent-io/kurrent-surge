@@ -26,14 +26,14 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// Unique identifier for this worker instance within the processor group.
     /// </summary>
     /// <remarks>
-    /// <para><b>Default:</b> New GUID</para>
+    /// <para><b>Default:</b> Auto-generated short ID</para>
     /// <para><b>Importance:</b> High</para>
     /// <para>
     /// Used for checkpoint attribution. For sticky partition assignment,
     /// use a consistent identifier like <c>Environment.MachineName</c>.
     /// </para>
     /// </remarks>
-    public string WorkerId { get; init; } = Guid.NewGuid().ToString("N");
+    public string WorkerId { get; init; } = PunyId.New();
 
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.
@@ -45,7 +45,7 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// Determines the upper bound for parallel processing.
     /// </para>
     /// </remarks>
-    internal int MaxParallelism { get; init; } = 128;
+    internal int MaxParallelism { get; init; } = 1;
 
     /// <summary>
     /// Subscription settings (filter, partitioning, initial position).
@@ -124,6 +124,11 @@ public record SubscriptionSettings {
     /// <para><b>Importance:</b> High</para>
     /// </remarks>
     public SubscriptionInitialPosition InitialPosition { get; init; } = SubscriptionInitialPosition.Latest;
+    
+    /// <summary>
+    /// When set, overrides the stored checkpoint and forces subscription to start from this position.
+    /// </summary>
+    internal RecordPosition? StartPosition { get; init; }
 }
 
 /// <summary>
@@ -284,14 +289,14 @@ public enum CheckpointFailurePolicy {
 /// </remarks>
 [PublicAPI]
 public record WorkerSettings {
-    /// <summary>
-    /// Whether to throw an exception on processing failure or log and stop.
-    /// </summary>
-    /// <remarks>
-    /// <para><b>Default:</b> false (log and stop)</para>
-    /// <para><b>Importance:</b> Medium</para>
-    /// </remarks>
-    public bool ThrowOnFailure { get; init; }
+    // /// <summary>
+    // /// Whether to throw an exception on processing failure or log and stop.
+    // /// </summary>
+    // /// <remarks>
+    // /// <para><b>Default:</b> false (log and stop)</para>
+    // /// <para><b>Importance:</b> Medium</para>
+    // /// </remarks>
+    // public bool ThrowOnFailure { get; init; }
 
     /// <summary>
     /// Number of records to buffer in memory.

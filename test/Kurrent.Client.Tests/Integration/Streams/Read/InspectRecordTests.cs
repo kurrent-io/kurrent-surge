@@ -123,10 +123,9 @@ public class InspectRecordTests {
     }
 
     [Test]
-    public async ValueTask throws_ArgumentOutOfRangeException_when_log_position_is_unset() {
-        var action = async () => await Fixture.Client.Streams
-            .InspectRecord(LogPosition.Unset, CancellationToken.None);
-
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(action);
+    public async ValueTask throws_ArgumentOutOfRangeException_when_log_position_is_unset(CancellationToken ct) {
+        await Assert.That(async () => await Fixture.Client.Streams
+            .InspectRecord(LogPosition.Unset, ct))
+            .Throws<ArgumentOutOfRangeException>();
     }
 }

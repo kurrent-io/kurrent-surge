@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
+using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Kurrent.Variant;
 
@@ -18,7 +20,7 @@ public readonly record struct CheckpointId(string Value) {
 	public static readonly CheckpointId Unset = new(string.Empty);
 
 	/// <summary>Creates a new unique checkpoint ID.</summary>
-	public static CheckpointId New() => new(Guid.NewGuid().ToString());
+	public static CheckpointId New() => new(PunyId.New());
 
     public static CheckpointId From(string value) {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -47,7 +49,8 @@ public readonly record struct CheckpointId(string Value) {
 /// </summary>
 [PublicAPI]
 public readonly record struct WorkOrder(
-    ImmutableArray<Partition> Partitions
+    SessionId        SessionId,
+    RecordPosition[] Positions
 );
 
 /// <summary>
@@ -135,23 +138,18 @@ public readonly partial record struct ProcessorControlMessage : IVariant<
     public static readonly ProcessorControlMessage None;
 }
 
-
 #endregion
 
 #region Outbound - Worker Messages
-
-public readonly record struct Connect(ProcessorSettings Settings);
 
 /// <summary>
 /// Worker signals it has recovered to a consistent state and is ready to receive records.
 /// Sent in response to <see cref="WorkOrder"/>.
 /// A <see cref="Record"/> will not be sent until this message is received.
 /// </summary>
-/// <param name="CheckpointId">The checkpoint ID representing the recovered state.</param>
 /// <param name="Positions">Partition to record position mapping after recovery.</param>
 [PublicAPI]
 public readonly record struct WorkerReady(
-    CheckpointId CheckpointId,
     PartitionPositions Positions
 );
 
@@ -183,7 +181,6 @@ public readonly record struct Disconnect(
 /// </summary>
 [PublicAPI]
 public readonly partial record struct WorkerMessage : IVariant<
-    Connect,
     WorkerReady,
     CheckpointComplete,
     Disconnect> {
@@ -262,7 +259,12 @@ public enum CheckpointTrigger {
     /// <summary>
     /// Checkpoint triggered by graceful worker shutdown to persist final state.
     /// </summary>
-    Shutdown = 6
+    Shutdown = 6,
+
+    /// <summary>
+    /// Checkpoint triggered by manually setting a new high watermark position to start from.
+    /// </summary>
+    Reset = 7
 }
 
 /// <summary>

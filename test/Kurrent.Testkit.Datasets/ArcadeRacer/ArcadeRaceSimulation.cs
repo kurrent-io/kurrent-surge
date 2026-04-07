@@ -49,7 +49,7 @@ public sealed class StreamingRaceSimulator : IAsyncDisposable {
     readonly CancellationTokenSource _cts = new();
     readonly Task                    _backgroundTask;
 
-    internal StreamingRaceSimulator(Guid raceId, ArcadeRaceOptions options, Faker faker) {
+    internal StreamingRaceSimulator(string raceId, ArcadeRaceOptions options, Faker faker) {
         RaceId   = raceId;
         _race    = new ArcadeRace(raceId, faker);
         _options = options with { TotalLaps = 0 };
@@ -64,7 +64,7 @@ public sealed class StreamingRaceSimulator : IAsyncDisposable {
     }
 
     /// <summary>Unique identifier for this race simulation.</summary>
-    public Guid RaceId { get; }
+    public string RaceId { get; }
 
     /// <summary>
     /// Streams race events as they are produced. When <paramref name="ct"/> is cancelled,
@@ -150,7 +150,7 @@ public sealed class StreamingRaceSimulatorBuilder {
     internal StreamingRaceSimulatorBuilder(Faker? faker = null) {
         Faker  = faker ?? new Faker();
         _ds    = new ArcadeRacerDataSet(Faker);
-        RaceId = Guid.NewGuid();
+        RaceId = PunyId.New();
 
         Options = new ArcadeRaceOptions {
             Cars       = _ds.RaceCar.Generate(Faker.Random.Int(3, 9)),
@@ -161,7 +161,7 @@ public sealed class StreamingRaceSimulatorBuilder {
         };
     }
 
-    public Guid  RaceId  { get; }
+    public string  RaceId  { get; }
     public Faker Faker   { get; }
 
     ArcadeRaceOptions Options { get; set; }
@@ -207,13 +207,13 @@ public sealed class PrecomputedRaceSimulator {
     readonly ArcadeRace        _race;
     readonly ArcadeRaceOptions _options;
 
-    internal PrecomputedRaceSimulator(Guid raceId, ArcadeRaceOptions options, Faker faker) {
+    internal PrecomputedRaceSimulator(string raceId, ArcadeRaceOptions options, Faker faker) {
         RaceId   = raceId;
         _race    = new ArcadeRace(raceId, faker);
         _options = options;
     }
 
-    public Guid RaceId { get; }
+    public string RaceId { get; }
 
     /// <summary>
     /// Runs the full race synchronously and returns the complete logbook.
@@ -247,7 +247,7 @@ public sealed class PrecomputedRaceSimulatorBuilder {
     internal PrecomputedRaceSimulatorBuilder(Faker? faker = null) {
         Faker  = faker ?? new Faker();
         _ds    = new ArcadeRacerDataSet(Faker);
-        RaceId = Guid.NewGuid();
+        RaceId = PunyId.New();
 
         Options = new ArcadeRaceOptions {
             Cars       = _ds.RaceCar.Generate(Faker.Random.Int(3, 9)),
@@ -258,7 +258,7 @@ public sealed class PrecomputedRaceSimulatorBuilder {
         };
     }
 
-    public Guid  RaceId  { get; }
+    public string  RaceId  { get; }
     public Faker Faker   { get; }
 
     ArcadeRaceOptions Options { get; set; }

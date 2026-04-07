@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Kurrent.Client.Exceptions;
 using Kurrent.Variant;
 
@@ -8,6 +9,7 @@ namespace Kurrent.Client.Streams;
 /// Can be either a <see cref="StreamStateViolation"/> (stream was not at the expected state)
 /// or a <see cref="QueryPredicateViolation"/> (a query predicate evaluated to false).
 /// </summary>
+[StructLayout(LayoutKind.Auto)]
 public readonly partial record struct ConsistencyViolation : IVariant<StreamStateViolation, QueryPredicateViolation> {
     public static readonly ConsistencyViolation None = new();
 

@@ -14,8 +14,7 @@ public record TestStream : IEnumerable<AppendRecord> {
     public ImmutableList<AppendRecord> Records => AppendRequest.Records.ToImmutableList();
 
     public long LastTimestamp =>
-        AppendRequest.Records.LastOrDefault()
-            ?.Timestamp.ToUnixTimeMilliseconds() ?? -1;
+        AppendRequest.Records.LastOrDefault()?.Timestamp.ToUnixTimeMilliseconds() ?? -1;
 
     public static TestStream From(AppendToStreamRequest request) =>
         request.Checks.Length > 1

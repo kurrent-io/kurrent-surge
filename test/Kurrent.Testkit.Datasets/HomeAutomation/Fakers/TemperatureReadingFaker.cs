@@ -5,7 +5,7 @@ using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class TemperatureReadingFaker : Faker<TemperatureReading> {
-    public TemperatureReadingFaker(Device device, Guid roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
+    public TemperatureReadingFaker(Device device, string roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
         var thermo = (Thermostat)device;
         var (tempOffset, _, _) = WeatherModifiers.For(weather);
         var info = new DeviceInfo {
@@ -14,7 +14,7 @@ public class TemperatureReadingFaker : Faker<TemperatureReading> {
             BatteryLevel = device.IsBatteryPowered ? device.BatteryLevel : null
         };
 
-        RuleFor(e => e.EventId, f => f.Random.Guid())
+        RuleFor(e => e.EventId, f => PunyId.New())
             .RuleFor(e => e.Device, _ => info)
             .RuleFor(e => e.Temperature, f => Math.Round(f.Random.Double(thermo.MinOperatingTemp + tempOffset, thermo.MaxOperatingTemp + tempOffset), thermo.MeasurementPrecision))
             .RuleFor(e => e.Unit, thermo.PreferredUnit)

@@ -60,8 +60,8 @@ public record AppendRecordsRequest() {
 /// </summary>
 [PublicAPI]
 [method: SetsRequiredMembers]
-public record AppendRecordsResponse(StreamRevision[] Revisions, LogPosition Position) {
-    public required StreamRevision[] Revisions { get; init; } = Revisions;
+public record AppendRecordsResponse(StreamPosition[] Revisions, LogPosition Position) {
+    public required StreamPosition[] Revisions { get; init; } = Revisions;
     public required LogPosition Position { get; init; } = Position;
 }
 

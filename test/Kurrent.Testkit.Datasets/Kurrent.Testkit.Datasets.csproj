@@ -11,6 +11,7 @@
     <PackageReference Include="Bogus" />
     <PackageReference Include="Eventuous.Application" />
     <PackageReference Include="Humanizer.Core" />
+    <PackageReference Include="shortid" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

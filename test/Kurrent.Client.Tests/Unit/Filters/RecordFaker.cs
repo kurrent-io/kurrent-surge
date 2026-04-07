@@ -17,11 +17,10 @@ sealed class RecordFaker : Faker<Record> {
                 var urn = GenerateMessageSchemaUrn(f);
 
                 return new Record {
-                    Id             = f.Random.Guid(),
+                    Id             = Guid.NewGuid(),
                     Position       = new RecordPosition {
                         LogPosition    = LogPosition.From(f.IndexGlobal + 1),
-                        Stream         = StreamName.From(f.Lorem.Slug()),
-                        Revision = Revision.From(f.Random.Long(1, 20))
+                        StreamPosition = new StreamPosition(f.Lorem.Slug(), f.Random.Long(1, 20))
                     },
                     Timestamp      = TimeProvider.System.GetLocalNow().LocalDateTime,
                     Schema         = new RecordSchemaInfo {
@@ -89,8 +88,9 @@ sealed class RecordFaker : Faker<Record> {
         return record with {
             Position = new RecordPosition {
                 LogPosition = position.HasValue ? LogPosition.From(position.Value) : record.Position.LogPosition,
-                Stream      = stream is { } ? StreamName.From(stream) : record.Position.Stream,
-                Revision    = streamRevision.HasValue ? Revision.From(streamRevision.Value) : record.Position.Revision,
+                StreamPosition = new StreamPosition(
+                    StreamName.From(stream ?? record.Position.Stream),
+                    Revision.From(streamRevision ?? record.Position.Revision)),
                 Partition   = record.Position.Partition
             },
             Timestamp = timestamp ?? record.Timestamp,

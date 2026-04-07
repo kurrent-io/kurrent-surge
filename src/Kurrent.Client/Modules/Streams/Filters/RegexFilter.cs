@@ -37,7 +37,7 @@ public abstract record RegexFilter : IRecordFilter {
     public string Expression => Regex.ToString();
 
     /// <inheritdoc/>
-    public virtual StreamName TargetStream { get; protected set; } = StreamName.All;
+    public virtual StreamName TargetStream { get; protected set; } = StreamName.Log;
 
     /// <summary>
     /// Evaluates whether the specified record matches this filter.

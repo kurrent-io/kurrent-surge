@@ -24,5 +24,5 @@ public static class CheckpointTestHelpers {
 	/// Generates a unique processor ID with the specified prefix.
 	/// </summary>
 	public static string ProcessorId(string prefix) =>
-		$"{prefix}-{Guid.NewGuid():N}";
+		$"{prefix}-{PunyId.New()}";
 }

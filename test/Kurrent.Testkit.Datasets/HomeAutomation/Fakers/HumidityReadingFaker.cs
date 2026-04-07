@@ -5,7 +5,7 @@ using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
 public class HumidityReadingFaker : Faker<HumidityReading> {
-    public HumidityReadingFaker(Device device, Guid roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
+    public HumidityReadingFaker(Device device, string roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
         var sensor = (HumiditySensor)device;
         var (_, humidityOffset, _) = WeatherModifiers.For(weather);
         var info = new DeviceInfo {
@@ -15,7 +15,7 @@ public class HumidityReadingFaker : Faker<HumidityReading> {
         };
 
         var humidity = 0.0;
-        RuleFor(e => e.EventId, f => f.Random.Guid())
+        RuleFor(e => e.EventId, f => PunyId.New())
             .RuleFor(e => e.Device, _ => info)
             .RuleFor(e => e.Humidity, f => {
                 humidity = Math.Round(Math.Clamp(f.Random.Double(20.0, 80.0) + humidityOffset, 0, 100), sensor.MeasurementPrecision);

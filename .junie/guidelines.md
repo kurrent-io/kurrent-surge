@@ -1,1 +1,1 @@
-../.project/project.md
+../AGENTS.md

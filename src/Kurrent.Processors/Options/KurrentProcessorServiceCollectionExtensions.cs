@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Diagnostics.Metrics;
+using Kurrent.Client.Streams;
 using Kurrent.Processors.Diagnostics;
 using Kurrent.Processors.Diagnostics.Metrics;
 
@@ -275,21 +276,22 @@ public static class KurrentProcessorServiceCollectionExtensions {
         return services;
     }
 
-    static KurrentProcessorHostedService<TProcessor> CreateHostedService<TProcessor>(
-        KurrentProcessorRegistration<TProcessor> registration,
-        IServiceProvider sp)
+    static KurrentProcessorHostedService<TProcessor> CreateHostedService<TProcessor>(KurrentProcessorRegistration<TProcessor> registration, IServiceProvider sp)
         where TProcessor : class, IRecordProcessor {
         var processor     = sp.GetRequiredService<TProcessor>();
         var client        = BuildClient(registration, sp);
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-        var diagnostics   = new WorkerTelemetry(
-            loggerFactory.CreateLogger(processor.GetType()),
-            registration.Settings.ProcessorId,
-            registration.Settings.WorkerId);
-        var worker             = new ProcessorWorker(registration.Settings, client, processor, diagnostics,
-                                                     loggerFactory, TimeProvider.System, registration.UseOwnClient
-        );
-        var logger             = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
+
+        var worker = new ProcessorWorker(
+            registration.Settings,
+            client,
+            processor,
+            loggerFactory,
+            TimeProvider.System,
+            registration.UseOwnClient);
+
+        var logger = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
+
         return new KurrentProcessorHostedService<TProcessor>(worker, logger);
     }
 

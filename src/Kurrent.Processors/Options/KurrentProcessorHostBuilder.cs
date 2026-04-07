@@ -263,6 +263,10 @@ public sealed class KurrentProcessorHostBuilder {
 
     internal KurrentProcessorRegistration<TProcessor> Build<TProcessor>()
         where TProcessor : IRecordProcessor {
+        // Auto-generate WorkerId if not explicitly set.
+        if (string.IsNullOrWhiteSpace(_settingsBuilder.Settings.WorkerId))
+            _settingsBuilder.WithWorkerId(PunyId.New());
+
         return new KurrentProcessorRegistration<TProcessor>(
             _settingsBuilder.Settings,
             _connectionString,

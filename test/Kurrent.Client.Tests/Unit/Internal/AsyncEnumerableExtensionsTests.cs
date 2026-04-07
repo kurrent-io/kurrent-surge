@@ -112,7 +112,7 @@ public class AsyncEnumerableExtensionsTests {
     }
 
     public readonly record struct TimeoutCase(int ItemCount, int BatchSize, TimeSpan ItemDelay, TimeSpan Timeout) {
-        public override string ToString() => $"{ItemCount} items,  {BatchSize} batch size,  {ItemDelay.TotalMilliseconds}ms delay, {Timeout.TotalMilliseconds}ms timeout";
+        public override string ToString() => $"{ItemCount} items,  {BatchSize} batch size, {ItemDelay.TotalMilliseconds}ms delay, {Timeout.TotalMilliseconds}ms timeout";
     }
 
     public class BatchSizeCases : TestCaseGenerator<BatchSizeCase> {

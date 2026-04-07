@@ -59,8 +59,8 @@ sealed partial class WorkerTelemetry : TelemetrySource {
         Publish("WorkerStopping", new WorkerStoppingEvent(_processorId, _workerId, totalRecords, duration, recordsPerSecond));
     }
 
-    public void Stopped(long totalRecords, TimeSpan duration) {
-        LogStopped(_processorId, _workerId);
+    public void Stopped(long totalRecords, TimeSpan duration, string? reason = null) {
+        LogStopped(_processorId, _workerId, reason is { } ? $": {reason}" : null);
         Publish("WorkerStopped", new WorkerStoppedEvent(_processorId, _workerId, totalRecords, duration));
     }
 
@@ -202,8 +202,8 @@ sealed partial class WorkerTelemetry : TelemetrySource {
     [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Stopping ({TotalRecords} records in {Duration} | {RecordsPerSecond:F1} rec/s)")]
     partial void LogStopping(string processorId, string workerId, long totalRecords, TimeSpan duration, double recordsPerSecond);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Stopped")]
-    partial void LogStopped(string processorId, string workerId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Stopped Gracefully{Reason}")]
+    partial void LogStopped(string processorId, string workerId, string? reason = null);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Final checkpoint ({PartitionCount} partitions)")]
     partial void LogFinalCheckpoint(string processorId, string workerId, int partitionCount);

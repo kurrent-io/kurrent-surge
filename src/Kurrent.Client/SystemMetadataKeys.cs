@@ -1,7 +1,6 @@
 namespace Kurrent.Client;
 
-[PublicAPI]
-public static class SystemMetadataKeys {
+static class SystemMetadataKeys {
     const string SystemPrefix = "$";
 
     public const string SchemaName   = $"{SystemPrefix}schema.name";

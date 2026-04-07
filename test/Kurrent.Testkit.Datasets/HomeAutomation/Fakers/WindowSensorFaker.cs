@@ -8,7 +8,7 @@ public class WindowSensorFaker : Faker<WindowSensor> {
 
     public WindowSensorFaker() {
         CustomInstantiator(f => new WindowSensor {
-            Id                  = $"urn:iot:windowsensor:{f.Random.Guid()}",
+            Id                  = $"urn:iot:windowsensor:{PunyId.New()}",
             FriendlyName        = $"Window Sensor {f.Random.Number(1, 99)}",
             IsBatteryPowered    = true,
             BatteryLevel        = f.Random.Number(60, 100),

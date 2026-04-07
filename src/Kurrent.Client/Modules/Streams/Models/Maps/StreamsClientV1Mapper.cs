@@ -175,7 +175,7 @@ static class StreamsClientV1Mapper {
             start switch {
                 _ when start == Revision.Max => new() { StreamIdentifier = stream.Value, End      = DefaultEmpty },
                 _ when start == Revision.Min => new() { StreamIdentifier = stream.Value, Start    = DefaultEmpty },
-                _                                  => new() { StreamIdentifier = stream.Value, Revision = (ulong)start.Value }
+                _                            => new() { StreamIdentifier = stream.Value, Revision = (ulong)start.Value }
             };
 
         static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter) {
@@ -290,12 +290,12 @@ static class StreamsClientV1Mapper {
             Id             = recordId,
             // Stream         = stream,
             // Revision = revision,
-            Position       = RecordPosition.FromStream(stream, revision, position),
-            Sequence       = sequenceId,
-            Timestamp      = timestamp,
-            Data           = data,
-            Metadata       = metadata,
-            Schema         = schema,
+            Position  = RecordPosition.From(position, stream, revision),
+            Sequence  = sequenceId,
+            Timestamp = timestamp,
+            Data      = data,
+            Metadata  = metadata,
+            Schema    = schema,
 
             // what? not sure...
             Link           = link,

@@ -1,21 +1,23 @@
+using System.Runtime.CompilerServices;
+using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Processors.Options;
 
 namespace Kurrent.Processors.Gateway;
 
 /// <summary>
-/// Connection factory for processor gateway implementations.
-/// Creates bidirectional worker sessions for message streaming.
-/// <para>
-/// Worker code interacts with the returned <see cref="IWorkerSession"/> for both
-/// receiving messages and sending responses.
-/// </para>
+/// Gateway for processor control message streaming and worker communication.
 /// </summary>
-public interface IProcessorGateway {
+public interface IProcessorGateway : IAsyncDisposable {
     /// <summary>
-    /// Establishes a bidirectional session with the gateway.
+    /// Connects to the gateway and returns an async stream of control messages.
     /// </summary>
-    /// <param name="settings">The processor settings for this session.</param>
+    /// <param name="settings">The processor settings for this connection.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>A worker session for consuming messages and sending responses.</returns>
-    ValueTask<IWorkerSession> ConnectAsync(ProcessorSettings settings, CancellationToken ct);
+    IAsyncEnumerable<ProcessorControlMessage> ConnectAsync(ProcessorSettings settings, CancellationToken ct);
+
+    /// <summary>
+    /// Sends a message from the worker to the gateway.
+    /// </summary>
+    /// <param name="message">The message to send.</param>
+    ValueTask SendAsync(WorkerMessage message);
 }

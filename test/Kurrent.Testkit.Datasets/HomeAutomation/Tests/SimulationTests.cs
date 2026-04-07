@@ -27,7 +27,7 @@ public class SimulationTests {
             CreatedAt = DateTime.UtcNow,
             Rooms = [
                 new Room {
-                    RoomId  = Guid.NewGuid(),
+                    RoomId  = PunyId.New(),
                     Name    = "Main Room",
                     Type    = RoomType.LivingRoom,
                     Devices = devices

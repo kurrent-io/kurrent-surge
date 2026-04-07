@@ -4,7 +4,7 @@ using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
-public class LightEventFaker(Device device, Guid roomId, long timestamp) {
+public class LightEventFaker(Device device, string roomId, long timestamp) {
     readonly Faker _faker = new();
 
     public IHomeAutomationEvent Generate() {

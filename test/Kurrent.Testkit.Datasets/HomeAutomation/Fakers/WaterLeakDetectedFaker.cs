@@ -4,7 +4,7 @@ using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
 namespace Kurrent.Testkit.Datasets.HomeAutomation;
 
-public class WaterLeakEventFaker(Device device, Guid roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
+public class WaterLeakEventFaker(Device device, string roomId, long timestamp, WeatherCondition weather = WeatherCondition.Sunny) {
     readonly Faker _faker = new();
 
     public IHomeAutomationEvent Generate() {

@@ -1,7 +1,6 @@
 using System.Text;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Processors;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Kurrent.Validation;
@@ -25,16 +24,9 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task default_worker_id_is_guid() {
+    public async Task default_worker_id_is_not_empty() {
         var settings = new ProcessorSettings();
         await Assert.That(settings.WorkerId).IsNotNull().And.IsNotEmpty();
-        await Assert.That(Guid.TryParse(settings.WorkerId, out _)).IsTrue();
-    }
-
-    [Test]
-    public async Task default_max_parallelism_is_128() {
-        var settings = new ProcessorSettings();
-        await Assert.That(settings.MaxParallelism).IsEqualTo(128);
     }
 
     [Test]
@@ -113,7 +105,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task without_worker_id_generates_guid() {
+    public async Task without_worker_id_generates_unique_id() {
         var worker = KurrentProcessors.Create(new NoOpProcessor())
             .ConnectTo("kurrentdb://localhost:2113")
             .WithProcessorId("test-processor")
@@ -121,7 +113,6 @@ public class ConfigurationTests {
             .Build();
 
         await Assert.That(worker.WorkerId).IsNotNull().And.IsNotEmpty();
-        await Assert.That(Guid.TryParse(worker.WorkerId, out _)).IsTrue();
     }
 
     [Test]

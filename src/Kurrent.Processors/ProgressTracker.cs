@@ -17,7 +17,7 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    CheckpointId         _lastCheckpointId      = CheckpointId.Unset;
+    CheckpointId      _lastCheckpointId      = CheckpointId.Unset;
     CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
     DateTimeOffset?   _lastCheckpointAt;
 
@@ -49,10 +49,10 @@ sealed class ProgressTracker {
     /// <param name="checkpoint">The checkpoint that completed.</param>
     public void TrackCheckpoint(Checkpoint checkpoint) {
         _totalCheckpoints++;
-        _recordsAtLastCheckpoint  = _totalRecords;
-        _lastCheckpointId  = checkpoint.CheckpointId;
-        _lastCheckpointTrigger    = checkpoint.Trigger;
-        _lastCheckpointAt         = checkpoint.Timestamp;
+        _recordsAtLastCheckpoint = _totalRecords;
+        _lastCheckpointId        = checkpoint.CheckpointId;
+        _lastCheckpointTrigger   = checkpoint.Trigger;
+        _lastCheckpointAt        = checkpoint.Timestamp;
     }
 
     /// <summary>

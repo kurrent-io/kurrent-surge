@@ -92,7 +92,7 @@
 //
 //     public record SchemaVersion {
 //         public static readonly SchemaVersion None = new SchemaVersion {
-//             SchemaVersionId       = Guid.Empty.ToString(),
+//             SchemaVersionId       = string.Empty.ToString(),
 //             VersionNumber         = 0,
 //             SchemaDefinitionBytes = default,
 //             SchemaDefinition      = "",

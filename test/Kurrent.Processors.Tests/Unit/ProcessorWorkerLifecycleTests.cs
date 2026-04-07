@@ -1,7 +1,7 @@
+using FakeItEasy;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Processors;
-using Kurrent.Processors.Diagnostics;
+using Kurrent.Client.Streams;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
@@ -12,47 +12,41 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 public class ProcessorWorkerLifecycleTests {
     static ProcessorWorker CreateWorker(
-        IProcessorGateway gateway,
-        IRecordProcessor? processor = null,
-        bool ownsClient = true,
-        KurrentClient? client = null
+        IProcessorGateway? gateway   = null,
+        IRecordProcessor?  processor = null,
+        KurrentClient?     client    = null,
+        bool               ownsClient = true
     ) {
-        client ??= A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        client    ??= A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
         processor ??= new NoOpProcessor();
+        gateway   ??= EmptyGateway();
 
         var settings = new ProcessorSettings {
             ProcessorId = "test-processor",
             WorkerId    = "test-worker"
         };
 
-        var diagnostics = new WorkerTelemetry(
-            NullLoggerFactory.Instance.CreateLogger(processor.GetType().FullName ?? processor.GetType().Name),
-            settings.ProcessorId,
-            settings.WorkerId);
-
         return new ProcessorWorker(
             settings,
             client,
+            gateway,
             processor,
-            diagnostics,
             NullLoggerFactory.Instance,
             TimeProvider.System,
-            ownsClient,
-            gateway
+            ownsClient
         );
     }
 
-    static IWorkerSession CreateFakeSession(IAsyncEnumerable<ProcessorControlMessage>? messages = null) {
-        var session = A.Fake<IWorkerSession>();
+    static IProcessorGateway EmptyGateway() {
+        var gateway = A.Fake<IProcessorGateway>();
 
-        A.CallTo(() => session.SessionId).Returns(SessionId.From(Guid.NewGuid()));
+        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
+            .Returns(AsyncEnumerable.Empty<ProcessorControlMessage>());
 
-        messages ??= AsyncEnumerable.Empty<ProcessorControlMessage>();
+        A.CallTo(() => gateway.SendAsync(A<WorkerMessage>._))
+            .Returns(ValueTask.CompletedTask);
 
-        A.CallTo(() => session.GetAsyncEnumerator(A<CancellationToken>._))
-            .ReturnsLazily(call => messages.GetAsyncEnumerator(call.GetArgument<CancellationToken>(0)));
-
-        return session;
+        return gateway;
     }
 
     #region . cleanup .
@@ -60,43 +54,36 @@ public class ProcessorWorkerLifecycleTests {
     [Test]
     public async Task cleanup_runs_on_normal_completion() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
+        var gateway = EmptyGateway();
         var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
-
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-
-        var worker = CreateWorker(gateway, ownsClient: true, client: client);
+        var worker  = CreateWorker(gateway: gateway, ownsClient: true, client: client);
 
         // Act
         await worker.RunAsync(CancellationToken.None);
 
         // Assert
-        A.CallTo(() => session.DisposeAsync()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => gateway.DisposeAsync()).MustHaveHappenedOnceExactly();
         A.CallTo(() => client.DisposeAsync()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task cleanup_runs_on_cancellation() {
         // Arrange
-        var cts = new CancellationTokenSource();
-
-        var messages = new BlockingAsyncEnumerable<ProcessorControlMessage>();
-        var session  = CreateFakeSession(messages);
-        var gateway  = A.Fake<IProcessorGateway>();
-        var client   = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var cts     = new CancellationTokenSource();
+        var gateway = A.Fake<IProcessorGateway>();
+        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
 
         A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
+            .ReturnsLazily((ProcessorSettings _, CancellationToken ct) => new BlockingAsyncEnumerable<ProcessorControlMessage>(ct));
 
-        var worker = CreateWorker(gateway, ownsClient: true, client: client);
+        A.CallTo(() => gateway.SendAsync(A<WorkerMessage>._))
+            .Returns(ValueTask.CompletedTask);
 
-        // Act — cancel immediately after connect
+        var worker = CreateWorker(gateway: gateway, ownsClient: true, client: client);
+
+        // Act
         cts.Cancel();
 
-        // RunAsync should propagate the OperationCanceledException through HandleShutdown
-        // which re-throws. The finally block still runs Cleanup.
         try {
             await worker.RunAsync(cts.Token);
         }
@@ -105,7 +92,7 @@ public class ProcessorWorkerLifecycleTests {
         }
 
         // Assert
-        A.CallTo(() => session.DisposeAsync()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => gateway.DisposeAsync()).MustHaveHappenedOnceExactly();
         A.CallTo(() => client.DisposeAsync()).MustHaveHappenedOnceExactly();
     }
 
@@ -113,87 +100,74 @@ public class ProcessorWorkerLifecycleTests {
     public async Task cleanup_runs_on_processing_error() {
         // Arrange
         var processor = A.Fake<IRecordProcessor>();
+        var gateway   = A.Fake<IProcessorGateway>();
+        var client    = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
 
         A.CallTo(() => processor.OnError(A<ErrorContext>._)).Returns(ValueTask.CompletedTask);
 
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
-
-        // Make ConnectAsync throw to simulate a connection error
         A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .ThrowsAsync(new InvalidOperationException("connection failed"));
+            .Throws(new InvalidOperationException("connection failed"));
 
-        var worker = CreateWorker(gateway, processor: processor, ownsClient: true, client: client);
+        var worker = CreateWorker(gateway: gateway, processor: processor, ownsClient: true, client: client);
 
         // Act
         try {
             await worker.RunAsync(CancellationToken.None);
         }
         catch (InvalidOperationException) {
-            // expected — HandleShutdown re-throws
+            // expected
         }
 
-        // Assert — cleanup still ran
+        // Assert
         A.CallTo(() => client.DisposeAsync()).MustHaveHappenedOnceExactly();
     }
 
     [Test]
-    public async Task cleanup_disposes_all_resources_even_when_session_disposal_throws() {
+    public async Task cleanup_disposes_all_resources_even_when_gateway_disposal_throws() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
+        var gateway = EmptyGateway();
         var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
 
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-        A.CallTo(() => session.DisposeAsync())
-            .ThrowsAsync(new ObjectDisposedException("session"));
+        A.CallTo(() => gateway.DisposeAsync())
+            .ThrowsAsync(new ObjectDisposedException("gateway"));
 
-        var worker = CreateWorker(gateway, ownsClient: true, client: client);
+        var worker = CreateWorker(gateway: gateway, ownsClient: true, client: client);
 
         // Act
         var ex = await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<AggregateException>();
 
-        // Assert — client was still disposed despite session throwing
+        // Assert — client was still disposed despite gateway throwing
         A.CallTo(() => client.DisposeAsync()).MustHaveHappenedOnceExactly();
-        await Assert.That(ex.InnerExceptions.Count).IsGreaterThanOrEqualTo(1);
+        await Assert.That(ex!.InnerExceptions.Count).IsGreaterThanOrEqualTo(1);
     }
 
     [Test]
     public async Task cleanup_throws_aggregate_when_multiple_disposals_fail() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
+        var gateway = EmptyGateway();
         var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
 
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-        A.CallTo(() => session.DisposeAsync())
-            .ThrowsAsync(new ObjectDisposedException("session"));
+        A.CallTo(() => gateway.DisposeAsync())
+            .ThrowsAsync(new ObjectDisposedException("gateway"));
+
         A.CallTo(() => client.DisposeAsync())
             .ThrowsAsync(new ObjectDisposedException("client"));
 
-        var worker = CreateWorker(gateway, ownsClient: true, client: client);
+        var worker = CreateWorker(gateway: gateway, ownsClient: true, client: client);
 
         // Act
         var ex = await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<AggregateException>();
 
         // Assert — both errors collected
-        await Assert.That(ex.InnerExceptions.Count).IsGreaterThanOrEqualTo(2);
+        await Assert.That(ex!.InnerExceptions.Count).IsGreaterThanOrEqualTo(2);
     }
 
     [Test]
     public async Task cleanup_is_idempotent() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
+        var gateway = EmptyGateway();
         var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
-
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-
-        var worker = CreateWorker(gateway, ownsClient: true, client: client);
+        var worker  = CreateWorker(gateway: gateway, ownsClient: true, client: client);
 
         // Act — first call triggers cleanup via RunAsync
         await worker.RunAsync(CancellationToken.None);
@@ -202,7 +176,7 @@ public class ProcessorWorkerLifecycleTests {
         await Assert.That(async () => await worker.RunAsync(CancellationToken.None)).Throws<InvalidOperationException>();
 
         // Assert — resources were only disposed once
-        A.CallTo(() => session.DisposeAsync()).MustHaveHappenedOnceExactly();
+        A.CallTo(() => gateway.DisposeAsync()).MustHaveHappenedOnceExactly();
         A.CallTo(() => client.DisposeAsync()).MustHaveHappenedOnceExactly();
     }
 
@@ -213,13 +187,7 @@ public class ProcessorWorkerLifecycleTests {
     [Test]
     public async Task run_async_throws_if_called_twice() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
-
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-
-        var worker = CreateWorker(gateway);
+        var worker = CreateWorker();
 
         // Act
         await worker.RunAsync(CancellationToken.None);
@@ -235,14 +203,8 @@ public class ProcessorWorkerLifecycleTests {
     [Test]
     public async Task client_not_disposed_when_not_owned() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
-
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-
-        var worker = CreateWorker(gateway, ownsClient: false, client: client);
+        var client = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var worker = CreateWorker(ownsClient: false, client: client);
 
         // Act
         await worker.RunAsync(CancellationToken.None);
@@ -254,14 +216,8 @@ public class ProcessorWorkerLifecycleTests {
     [Test]
     public async Task client_disposed_when_owned() {
         // Arrange
-        var session = CreateFakeSession();
-        var gateway = A.Fake<IProcessorGateway>();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
-
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-
-        var worker = CreateWorker(gateway, ownsClient: true, client: client);
+        var client = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var worker = CreateWorker(ownsClient: true, client: client);
 
         // Act
         await worker.RunAsync(CancellationToken.None);
@@ -278,28 +234,24 @@ public class ProcessorWorkerLifecycleTests {
     public async Task shutdown_notifies_processor_before_cleanup() {
         // Arrange
         var callOrder = new List<string>();
-
+        var gateway   = EmptyGateway();
         var processor = A.Fake<IRecordProcessor>();
+
         A.CallTo(() => processor.OnComplete(A<CompleteContext>._))
             .Invokes(() => callOrder.Add("OnComplete"))
             .Returns(ValueTask.CompletedTask);
 
-        var session = CreateFakeSession();
-        A.CallTo(() => session.DisposeAsync())
-            .Invokes(() => callOrder.Add("SessionDisposed"))
+        A.CallTo(() => gateway.DisposeAsync())
+            .Invokes(() => callOrder.Add("GatewayDisposed"))
             .Returns(ValueTask.CompletedTask);
 
-        var gateway = A.Fake<IProcessorGateway>();
-        A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
-            .Returns(session);
-
-        var worker = CreateWorker(gateway, processor: processor);
+        var worker = CreateWorker(gateway: gateway, processor: processor);
 
         // Act
         await worker.RunAsync(CancellationToken.None);
 
-        // Assert — OnComplete called before session disposed
-        await Assert.That(callOrder).IsEquivalentTo(new[] { "OnComplete", "SessionDisposed" });
+        // Assert — OnComplete called before gateway disposed
+        await Assert.That(callOrder).IsEquivalentTo(new[] { "OnComplete", "GatewayDisposed" });
     }
 
     #endregion
@@ -311,25 +263,20 @@ class NoOpProcessor : IRecordProcessor {
     public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
 }
 
-/// <summary>
-/// An async enumerable that blocks until cancelled.
-/// Used to simulate in-progress processing that gets cancelled.
-/// </summary>
-class BlockingAsyncEnumerable<T> : IAsyncEnumerable<T> {
-    public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken ct = default) =>
-        new BlockingEnumerator(ct);
+class BlockingAsyncEnumerable<T>(CancellationToken externalCt = default) : IAsyncEnumerable<T> {
+    public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken ct = default) {
+        var linked = externalCt.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(externalCt, ct).Token
+            : ct;
+
+        return new BlockingEnumerator(linked);
+    }
 
     class BlockingEnumerator(CancellationToken ct) : IAsyncEnumerator<T> {
         public T Current => default!;
 
         public async ValueTask<bool> MoveNextAsync() {
-            try {
-                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) {
-                // propagate so the foreach exits
-                throw;
-            }
+            await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
             return false;
         }
 

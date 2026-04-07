@@ -16,12 +16,9 @@ public static class ExpressionFilterParser {
     /// Parses a filter expression from a character span into an executable filter.
     /// Throws <see cref="ExpressionFilterFormatException"/> if the expression is invalid.
     /// </summary>
-    public static IFilterExpression Parse(ReadOnlySpan<char> input) {
-        if (!TryParse(input, out var expression, out var error))
-            throw error.ToException();
-
-        return expression;
-    }
+    public static IFilterExpression Parse(ReadOnlySpan<char> input) =>
+        !TryParse(input, out var expression, out var error)
+            ? throw error.ToException() : expression;
 
     /// <summary>
     /// Attempts to parse a filter expression from a character span.
@@ -891,7 +888,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
                 "stream", "stream_name", "rec.stream", "rec.position.stream")
            .Register(r => r.Schema.SchemaName.Value,
                 "schema", "schema_name", "event_type", "rec.schema", "rec.schema.name")
-           .Register(r => r.Stream.StreamCategory.Value,
+           .Register(r => r.Stream.Category,
                 "category", "rec.category")
            .Register(r => r.Timestamp,
                 "timestamp", "ts", "created_at", "created_ts", "rec.timestamp", "rec.ts", "rec.created_at")

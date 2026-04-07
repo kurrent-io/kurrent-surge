@@ -1,16 +1,4 @@
 
----
-
-<a href="https://kurrent.io">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kurrent-io/.github/main/profile/KurrentLogo-White.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/kurrent-io/.github/main/profile/KurrentLogo-Black.png">
-    <img alt="Kurrent" src="https://raw.githubusercontent.com/kurrent-io/.github/main/profile/KurrentLogo-Plum.png" height="35%" width="35%">
-  </picture>
-</a>
-
----
-
 # Kurrent .NET SDK
 
 [![Build](https://github.com/kurrent-io/Kurrent.Client/actions/workflows/build.yml/badge.svg)](https://github.com/kurrent-io/Kurrent.Client/actions/workflows/build.yml)
