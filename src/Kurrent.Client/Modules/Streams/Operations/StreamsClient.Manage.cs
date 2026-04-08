@@ -52,7 +52,7 @@ public partial class StreamsClient {
                     MaxAge   = metadata.MaxAge,
                     MaxCount = metadata.MaxCount
                 },
-                CacheControl = metadata.CacheControl,
+                //CacheControl = metadata.CacheControl,
                 Acl          = metadata.Acl ?? StreamAcl.Unset,
                 Metadata     = Metadata.FromJsonDocument(metadata.CustomMetadata),
                 InfoRevision = metadataRecord.Revision,
@@ -124,94 +124,6 @@ public partial class StreamsClient {
 
             return null;
         }
-
-        // async Task<ReadResp?> ReadLastStreamEvent(StreamName targetStream) {
-        //     var request = Requests.CreateReadLastStreamEventRequest(targetStream);
-        //
-        //     using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
-        //
-        //     var isEmpty = !await session.ResponseStream
-        //         .MoveNext(cancellationToken)
-        //         .ConfigureAwait(false);
-        //
-        //     return isEmpty || session.ResponseStream.Current is null
-        //         ? null : session.ResponseStream.Current;
-        // }
-
-
-        // async Task<ReadResp.Types.ReadEvent?> ReadFirstStreamEvent(StreamName targetStream, long? count = null) {
-        //     var request = Requests.CreateReadFirstStreamEventRequest(targetStream, count);
-        //
-        //     using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
-        //
-        //     ReadResp.Types.ReadEvent? firstEvent = null;
-        //
-        //     using var logging = Logger.BeginScope("{Stream} : Looking for the first non-deleted record in the stream.", targetStream);
-        //
-        //     while (await session.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false)) {
-        //         if (session.ResponseStream.Current.ContentCase is ReadResp.ContentOneofCase.Event) {
-        //             if (session.ResponseStream.Current.Event is { } evt) {
-        //                 Logger.LogDebug(
-        //                     "Found the first non-deleted event. Revision: {Revision}, Position: {Position}.",
-        //                     evt.Event.StreamRevision, evt.CommitPosition);
-        //
-        //                 firstEvent = evt;
-        //                 break;
-        //             }
-        //
-        //             Logger.LogDebug("Skipping an event but it was null");
-        //
-        //         } else {
-        //             Logger.LogDebug("Skipping {MessageType} message.", session.ResponseStream.Current.ContentCase);
-        //         }
-        //     }
-        //
-        //     return firstEvent;
-        // }
-
-        // async Task<ReadResp.Types.ReadEvent?> ReadFirstStreamEvent(StreamName targetStream, long? count = null) {
-        //     var request = Requests.CreateReadFirstStreamEventRequest(targetStream, count);
-        //
-        //     using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
-        //
-        //     ReadResp.Types.ReadEvent? firstEvent = null;
-        //
-        //     using var logging = Logger.BeginScope("{Stream} : Looking for the first non-deleted record in the stream.", targetStream);
-        //
-        //     await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
-        //         if (session.ResponseStream.Current?.Event is { } evt ) {
-        //             Logger.LogDebug(
-        //                 "Found the first non-deleted event. Revision: {Revision}, Position: {Position}.",
-        //                 evt.Event.StreamRevision, evt.CommitPosition);
-        //
-        //             firstEvent = evt;
-        //             break;
-        //         } else {
-        //             Logger.LogDebug("Skipping {MessageType} message.", session.ResponseStream.Current.ContentCase);
-        //         }
-        //     }
-        //
-        //     //
-        //     // while (await session.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false)) {
-        //     //     if (session.ResponseStream.Current.ContentCase is ReadResp.ContentOneofCase.Event) {
-        //     //         if (session.ResponseStream.Current.Event is { } evt) {
-        //     //             Logger.LogDebug(
-        //     //                 "Found the first non-deleted event. Revision: {Revision}, Position: {Position}.",
-        //     //                 evt.Event.StreamRevision, evt.CommitPosition);
-        //     //
-        //     //             firstEvent = evt;
-        //     //             break;
-        //     //         }
-        //     //
-        //     //         Logger.LogDebug("Skipping an event but it was null");
-        //     //
-        //     //     } else {
-        //     //         Logger.LogDebug("Skipping {MessageType} message.", session.ResponseStream.Current.ContentCase);
-        //     //     }
-        //     // }
-        //
-        //     return firstEvent;
-        // }
 
         ValueTask<Record> MapToRecordAsync(ReadResp.Types.ReadEvent readEvent, bool skipDecoding) {
             return readEvent.MapToRecordAsync(

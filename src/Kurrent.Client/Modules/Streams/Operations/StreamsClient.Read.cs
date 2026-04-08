@@ -154,27 +154,34 @@ public partial class StreamsClient {
 
         var session = LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
 
+        LogPosition position = LogPosition.From(request.Options.All.Position?.CommitPosition);
+
         try {
-            var moved = await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
+            var advanced = await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
 
             // determine the actual stream state when not found (v1 protocol quirk)
             if (session.ResponseStream.Current?.ContentCase is StreamNotFound) {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
 
-                var info = await GetStreamInfo(stream, stoppingToken)
-                    .ConfigureAwait(false);
+                var info = await GetStreamInfo(stream, stoppingToken).ConfigureAwait(false);
 
                 throw info.State switch {
                     StreamState.Missing    => new StreamNotFoundException(stream),
                     StreamState.Deleted    => new StreamDeletedException(stream), // we cant read it. yet we can subscribe to it
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    StreamState.Active     => new StreamNotFoundException(stream), // race: stream was created between gRPC read and GetStreamInfo
-                    _                      => new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
+
+                    // how is this even possible? Race condition between read and get info?
+                    // Maybe the stream was just created after we got the not found response?
+                    // We could retry the read probably but we will let the user handle it fro now
+                    StreamState.Active     => new StreamNotFoundException(stream)
                 };
             }
 
-            if (!moved) {
-                throw new InvalidOperationException("WTF? No records found.");
+            if (!advanced) {
+                throw new LogPositionNotFoundException(
+                    request.Options.All.Position?.CommitPosition ?? LogPosition.Unset,
+                    $"There is no record at the specified position"
+                );
             }
         }
         catch (RpcException rex) {
@@ -193,7 +200,7 @@ public partial class StreamsClient {
 
             // when a position does not exist (targets a position between records in the same stream)
             if (rex.StatusCode == StatusCode.Unknown && rex.Message.Contains("InvalidPosition >>", OrdinalIgnoreCase)) {
-                var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Latest;
+                // var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Unset;
                 var details  = rex.Message.Split(">>").Last().Trim();
                 throw new LogPositionNotFoundException(position, details);
             }

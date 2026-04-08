@@ -58,6 +58,9 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
             _          => throw new InvalidLogPosition(positionValue)
         };
 
+    public static LogPosition From(ulong? positionValue) =>
+        From((long?)positionValue);
+
     public static implicit operator long(LogPosition position) => position.Value;
 
     public static implicit operator LogPosition(long position) => From(position);

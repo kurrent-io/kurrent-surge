@@ -32,10 +32,10 @@ public record StreamInfo {
     /// </summary>
     public StreamRetention Retention { get; init; } = new();
 
-    /// <summary>
-    /// The optional amount of time for which the stream head is cacheable.
-    /// </summary>
-    public TimeSpan? CacheControl { get; init; }
+    // /// <summary>
+    // /// The optional amount of time for which the stream head is cacheable.
+    // /// </summary>
+    // public TimeSpan? CacheControl { get; init; }
 
     /// <summary>
     /// The access control list for the stream.
@@ -86,16 +86,6 @@ public record StreamInfo {
     public DateTime LastStreamAppendedAt { get; init; } = DateTime.MinValue;
 
     #endregion
-
-    // public Exception AsWellKnownException() {
-    //     return State switch {
-    //         StreamState.Active     => new StreamRevisionConflictException(Stream, revision, LastStreamRevision),
-    //         StreamState.Deleted    => new StreamDeletedException(stream),
-    //         StreamState.Tombstoned => new StreamTombstonedException(stream),
-    //         StreamState.Missing    => new StreamNotFoundException(stream),
-    //         _                      => rex
-    //     };
-    // }
 }
 
 public enum StreamState { Active, Deleted, Tombstoned, Missing }
@@ -122,18 +112,12 @@ public record StreamRetention {
     // /// </summary>
     // internal Revision TruncateBefore { get; init; } = Revision.Unset;
 
+    internal Revision TruncateBefore { get; init; } = Revision.Unset;
+
     public bool HasMaxAge => MaxAge.HasValue && MaxAge > TimeSpan.Zero;
 
     public bool HasMaxCount => MaxCount is > 0;
 }
-
-// [PublicAPI]
-// public record StreamDataRetentionOptions {
-//     public static readonly StreamDataRetentionOptions NoRetention = new();
-//
-//     public int?      MaxCount { get; init; }
-//     public TimeSpan? MaxAge   { get; init; }
-// }
 
 /// <summary>
 /// Represents an access control list for a stream
