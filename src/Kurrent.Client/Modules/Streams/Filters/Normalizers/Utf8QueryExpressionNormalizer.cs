@@ -1,8 +1,5 @@
 using System.Buffers;
-using System.Collections.Frozen;
-using System.IO.Hashing;
 using System.Text;
-using System.Text.Unicode;
 using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;

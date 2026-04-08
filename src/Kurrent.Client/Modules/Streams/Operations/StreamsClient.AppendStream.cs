@@ -1,11 +1,10 @@
-using System.Collections.Immutable;
 using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient {
-    public async ValueTask<AppendToStreamResponse> AppendToStream(
-        AppendToStreamRequest request,
+    public async ValueTask<AppendToStreamResponse> AppendStream(
+        AppendStreamRequest request,
         CancellationToken cancellationToken = default
     ) {
         try {
@@ -56,26 +55,26 @@ public partial class StreamsClient {
         }
     }
 
-    public ValueTask<AppendToStreamResponse> AppendToStream(
+    public ValueTask<AppendToStreamResponse> AppendStream(
         StreamName stream,
         ExpectedStreamState expectedState,
         IEnumerable<AppendRecord> records,
         CancellationToken cancellationToken = default
     ) =>
-        AppendToStream(
-            AppendToStreamRequest.For(stream)
+        AppendStream(
+            AppendStreamRequest.For(stream)
                 .ExpectingState(expectedState)
                 .WithRecords(records)
                 .Build(),
             cancellationToken);
 
-    public ValueTask<AppendToStreamResponse> AppendToStream(
+    public ValueTask<AppendToStreamResponse> AppendStream(
         StreamName stream,
         IEnumerable<AppendRecord> records,
         CancellationToken cancellationToken = default
     ) =>
-        AppendToStream(
-            AppendToStreamRequest.For(stream)
+        AppendStream(
+            AppendStreamRequest.For(stream)
                 .WithRecords(records)
                 .Build(),
             cancellationToken

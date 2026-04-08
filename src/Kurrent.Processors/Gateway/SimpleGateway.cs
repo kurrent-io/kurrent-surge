@@ -238,12 +238,12 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
 
         var stream = CheckpointStreamName();
 
-        var request = AppendToStreamRequest.For(stream)
+        var request = AppendStreamRequest.For(stream)
             .ExpectingState(ExpectedStreamState.Any)
             .WithRecord(rec => rec.WithValue(evt))
             .Build();
 
-        var rsp = await _streams.AppendToStream(request, ct).ConfigureAwait(false);
+        var rsp = await _streams.AppendStream(request, ct).ConfigureAwait(false);
 
     }
 

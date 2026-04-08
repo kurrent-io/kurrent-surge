@@ -1,5 +1,3 @@
-using static System.String;
-
 namespace Kurrent.Client.Streams;
 
 /// <summary>

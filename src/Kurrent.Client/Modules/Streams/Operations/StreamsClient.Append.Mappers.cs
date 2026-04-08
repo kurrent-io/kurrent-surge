@@ -1,9 +1,7 @@
 // ReSharper disable MemberCanBeMadeStatic.Global
 
 using System.Diagnostics.CodeAnalysis;
-using DotNext.Collections.Generic;
 using Google.Protobuf;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
@@ -78,7 +76,7 @@ partial class StreamsProtocolMapper {
         return result;
     }
 
-    public async ValueTask<Contracts.AppendRecordsRequest> ToContract(AppendToStreamRequest source, CancellationToken ct) {
+    public async ValueTask<Contracts.AppendRecordsRequest> ToContract(AppendStreamRequest source, CancellationToken ct) {
         var result = new Contracts.AppendRecordsRequest {
             Records = { Capacity = source.Records.Length }
         };

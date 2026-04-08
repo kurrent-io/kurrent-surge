@@ -8,14 +8,14 @@ namespace Kurrent.Client.Streams;
 /// All records are assigned to the specified stream regardless of their individual Stream property.
 /// </summary>
 [PublicAPI]
-public record AppendToStreamRequest() {
+public record AppendStreamRequest() {
     /// <summary>
     /// Creates a builder for appending records to the specified stream.
     /// </summary>
-    public static AppendToStreamRequestBuilder For(StreamName stream) => new(stream);
+    public static AppendStreamRequestBuilder For(StreamName stream) => new(stream);
 
     [method: SetsRequiredMembers]
-    public AppendToStreamRequest(
+    public AppendStreamRequest(
         StreamName stream,
         ImmutableArray<AppendRecord> records,
         ImmutableArray<ConsistencyCheck> checks = default
@@ -44,7 +44,7 @@ public record AppendToStreamRequest() {
     /// Validates all records meet their invariants and stamps the target stream on each.
     /// Returns a new request with the validated, stream-stamped records.
     /// </summary>
-    public AppendToStreamRequest EnsureValid() =>
+    public AppendStreamRequest EnsureValid() =>
         this with {
             Records = [..Records.Select(r => (r with { Stream = Stream }).EnsureValid())]
         };

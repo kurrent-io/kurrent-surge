@@ -1,7 +1,6 @@
 // ReSharper disable CheckNamespace
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
 using Google.Rpc.Exceptions;

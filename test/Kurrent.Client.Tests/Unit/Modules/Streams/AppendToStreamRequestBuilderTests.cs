@@ -3,7 +3,7 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Client.Tests.Modules.Streams;
 
 [Category("Streams")]
-public class AppendToStreamRequestBuilderTests {
+public class AppendStreamRequestBuilderTests {
     static AppendRecord ValidRecord(string stream = "test-stream") =>
         AppendRecord.New.WithValue("payload").ForStream(stream).Build();
 
@@ -12,7 +12,7 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public void build_throws_when_no_records_added() {
         // Arrange
-        var builder = AppendToStreamRequest.For("test-stream");
+        var builder = AppendStreamRequest.For("test-stream");
 
         // Act & Assert
         Assert.Throws<Exception>(() => builder.Build());
@@ -21,7 +21,7 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public async ValueTask request_stream_matches_builder_stream() {
         // Arrange & Act
-        var request = AppendToStreamRequest.For("my-stream")
+        var request = AppendStreamRequest.For("my-stream")
             .WithRecord(ValidRecord())
             .Build();
 
@@ -40,7 +40,7 @@ public class AppendToStreamRequestBuilderTests {
         var r2 = ValidRecord("another-stream");
 
         // Act
-        var request = AppendToStreamRequest.For("target-stream")
+        var request = AppendStreamRequest.For("target-stream")
             .WithRecord(r1)
             .WithRecord(r2)
             .Build();
@@ -57,7 +57,7 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public async ValueTask build_produces_stream_state_check_from_expecting_state() {
         // Arrange & Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .ExpectingState(ExpectedStreamState.Exists)
             .WithRecord(ValidRecord())
             .Build();
@@ -76,7 +76,7 @@ public class AppendToStreamRequestBuilderTests {
         var extraCheck = ConsistencyCheck.Stream("other-stream").Exists();
 
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .ExpectingState(ExpectedStreamState.Exists)
             .WithCheck(extraCheck)
             .WithRecord(ValidRecord())
@@ -89,7 +89,7 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public async ValueTask build_without_expecting_state_has_no_state_checks() {
         // Arrange & Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithRecord(ValidRecord())
             .Build();
 
@@ -108,7 +108,7 @@ public class AppendToStreamRequestBuilderTests {
         var r2 = AppendRecord.New.WithValue("b").ForStream("s").WithDataFormat(SchemaDataFormat.Json).Build();
 
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithDataFormat(SchemaDataFormat.Protobuf)
             .WithRecord(r1)
             .WithRecord(r2)
@@ -129,7 +129,7 @@ public class AppendToStreamRequestBuilderTests {
             .Build();
 
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithRecord(record)
             .Build();
 
@@ -146,7 +146,7 @@ public class AppendToStreamRequestBuilderTests {
         // Arrange
         var expectedEntry = new KeyValuePair<string, object?>("source", "batch");
 
-        var builder = AppendToStreamRequest.For("test-stream")
+        var builder = AppendStreamRequest.For("test-stream")
             .WithMetadata(expectedEntry)
             .WithRecord(ValidRecord())
             .WithRecord(ValidRecord());
@@ -169,7 +169,7 @@ public class AppendToStreamRequestBuilderTests {
             .WithMetadata("source", "record-level")
             .Build();
 
-        var builder = AppendToStreamRequest.For("test-stream")
+        var builder = AppendStreamRequest.For("test-stream")
             .WithMetadata("source", "batch-level")
             .WithRecord(record);
 
@@ -187,7 +187,7 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public async ValueTask with_record_action_overload() {
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithRecord(x => x.WithValue("from-action"))
             .Build();
 
@@ -200,7 +200,7 @@ public class AppendToStreamRequestBuilderTests {
     [Test]
     public async ValueTask with_record_value_overload() {
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithRecord("simple-value")
             .Build();
 
@@ -219,7 +219,7 @@ public class AppendToStreamRequestBuilderTests {
         var r3 = ValidRecord();
 
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithRecords(r1, r2, r3)
             .Build();
 
@@ -233,7 +233,7 @@ public class AppendToStreamRequestBuilderTests {
         var records = new List<AppendRecord> { ValidRecord(), ValidRecord() };
 
         // Act
-        var request = AppendToStreamRequest.For("test-stream")
+        var request = AppendStreamRequest.For("test-stream")
             .WithRecords(records)
             .Build();
 

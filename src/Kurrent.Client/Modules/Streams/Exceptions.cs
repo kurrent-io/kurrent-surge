@@ -1,7 +1,6 @@
 // ReSharper disable CheckNamespace
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
-using System.Diagnostics;
 using Google.Rpc;
 using Kurrent.Client.Streams;
 using Resources;

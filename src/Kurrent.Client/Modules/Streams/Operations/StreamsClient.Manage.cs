@@ -417,14 +417,14 @@ public partial class StreamsClient {
     #endregion
 
     async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision rev, CancellationToken ct) {
-        var builder = AppendToStreamRequest
+        var builder = AppendStreamRequest
             .For(stream.Metastream)
             .WithRecord(rec => rec.WithValue(metadata));
 
         if (rev != Revision.Unset)
             builder.ExpectingState(rev);
 
-        var result = await AppendToStream(builder.Build(), ct).ConfigureAwait(false);
+        var result = await AppendStream(builder.Build(), ct).ConfigureAwait(false);
 
         return result.Revision;
     }

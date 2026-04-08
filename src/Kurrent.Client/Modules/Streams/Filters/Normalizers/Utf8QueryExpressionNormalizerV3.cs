@@ -1,8 +1,6 @@
 using System.Buffers;
 using System.Numerics;
-using System.Runtime.Intrinsics;
 using System.Text;
-using System.Text.Unicode;
 using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;

@@ -306,7 +306,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             var mergedState = MergePositions(currentState, workerId, checkpointId, positions);
 
             // 3. Attempt to store with expected revision
-            var request = AppendToStreamRequest.For(_stream)
+            var request = AppendStreamRequest.For(_stream)
                 .ExpectingState(expectedState)
                 .WithRecord(rec => rec
                     .WithValue(mergedState)
@@ -315,7 +315,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 .Build();
 
             try {
-                var result = await _client.AppendToStream(request, ct).ConfigureAwait(false);
+                var result = await _client.AppendStream(request, ct).ConfigureAwait(false);
 
                 var storedPositions = mergedState.Partitions
                     .Where(x => x.Value.Position > LogPosition.Earliest)
@@ -385,7 +385,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             };
 
             // 3. Attempt to store with expected revision
-            var request = AppendToStreamRequest.For(_stream)
+            var request = AppendStreamRequest.For(_stream)
                 .ExpectingState(expectedStreamState)
                 .WithRecord(rec => rec
                     .WithValue(resetState)
@@ -394,7 +394,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
                 .Build();
 
             try {
-                var result = await _client.AppendToStream(request, ct).ConfigureAwait(false);
+                var result = await _client.AppendStream(request, ct).ConfigureAwait(false);
 
                 var storedPositions = resetState.Partitions
                     .Where(x => x.Value.Position > LogPosition.Earliest)

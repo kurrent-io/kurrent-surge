@@ -18,5 +18,5 @@ public record SeededTestStream(TestStream TestStream, Revision Revision, LogPosi
 
     public override string ToString() => $"{Stream} v{Revision} @ {Position}";
 
-    public static implicit operator AppendToStreamRequest(SeededTestStream seeded) => seeded.TestStream.AppendRequest;
+    public static implicit operator AppendStreamRequest(SeededTestStream seeded) => seeded.TestStream.AppendRequest;
 }

@@ -3,12 +3,12 @@ using Kurrent.Validation;
 namespace Kurrent.Client.Streams;
 
 [Category("Streams")]
-public class AppendToStreamRequestTests {
+public class AppendStreamRequestTests {
     static readonly StreamName TestStream = $"test-stream-{Guid.NewGuid():N}";
 
     [Test]
     public async ValueTask ensure_valid_stamps_stream_on_all_records() {
-        var request = new AppendToStreamRequest(
+        var request = new AppendStreamRequest(
             TestStream,
             [AppendRecord.New.WithValue("event-1").Build(), AppendRecord.New.WithValue("event-2").Build()]
         );
@@ -27,7 +27,7 @@ public class AppendToStreamRequestTests {
             DataFormat = SchemaDataFormat.Unspecified
         };
 
-        var request = new AppendToStreamRequest(TestStream, [invalidRecord]);
+        var request = new AppendStreamRequest(TestStream, [invalidRecord]);
 
         var vex = await Assert.That(request.EnsureValid).Throws<ValidationException>();
     }

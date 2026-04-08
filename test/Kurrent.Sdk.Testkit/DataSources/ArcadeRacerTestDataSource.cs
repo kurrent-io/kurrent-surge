@@ -37,7 +37,7 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
         static TestStream SimulateRace(string raceId, IReadOnlyList<IRaceEvent> events) {
             var request = events
                 .Aggregate(
-                    AppendToStreamRequest.For($"race-{raceId}"),
+                    AppendStreamRequest.For($"race-{raceId}"),
                     (req, evt) => req.WithRecord(rec => rec.WithId(evt.EventId).WithValue(evt).WithTimestamp(evt.Timestamp)))
                 .Build();
 

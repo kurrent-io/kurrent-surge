@@ -120,11 +120,11 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
             ? await TestData.GenerateSet(ct)
             : await TestData.GenerateSet(numberOfEvents.Value, ct);
 
-        var req = AppendToStreamRequest.For(ds.Stream).WithRecords(ds.Records)
+        var req = AppendStreamRequest.For(ds.Stream).WithRecords(ds.Records)
             .WithMetadata("stream", ds.Stream) // allows filtering by stream without using a stream filter
             .Build();
 
-        var rsp = await Client.Streams.AppendToStream(req, ct);
+        var rsp = await Client.Streams.AppendStream(req, ct);
 
         var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position);
 
