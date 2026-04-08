@@ -57,10 +57,10 @@ public partial class StreamsClient {
     }
 
     public ValueTask<AppendToStreamResponse> AppendToStream(
-        StreamName                stream,
-        ExpectedStreamState       expectedState,
+        StreamName stream,
+        ExpectedStreamState expectedState,
         IEnumerable<AppendRecord> records,
-        CancellationToken         cancellationToken = default
+        CancellationToken cancellationToken = default
     ) =>
         AppendToStream(
             AppendToStreamRequest.For(stream)
@@ -70,13 +70,14 @@ public partial class StreamsClient {
             cancellationToken);
 
     public ValueTask<AppendToStreamResponse> AppendToStream(
-        StreamName                stream,
+        StreamName stream,
         IEnumerable<AppendRecord> records,
-        CancellationToken         cancellationToken = default
+        CancellationToken cancellationToken = default
     ) =>
         AppendToStream(
             AppendToStreamRequest.For(stream)
                 .WithRecords(records)
                 .Build(),
-            cancellationToken);
+            cancellationToken
+        );
 }

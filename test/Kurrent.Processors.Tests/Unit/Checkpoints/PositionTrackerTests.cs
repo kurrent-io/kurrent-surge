@@ -493,7 +493,7 @@ public class PositionTrackerTests {
 
 static class TestPositions {
     public static RecordPosition At(ulong logPosition) =>
-        RecordPosition.FromLogPosition(new LogPosition((long)logPosition));
+        RecordPosition.FromLogPosition((long)logPosition);
 }
 
 /// <summary>

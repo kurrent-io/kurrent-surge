@@ -247,8 +247,8 @@ public class CheckpointStoreTests {
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
 
 		// Assert
-		await Assert.That(info.Metadata.HasMaxCount).IsTrue();
-		await Assert.That(info.Metadata.MaxCount).IsEqualTo(maxCount);
+		await Assert.That(info.Retention.HasMaxCount).IsTrue();
+		await Assert.That(info.Retention.MaxCount).IsEqualTo(maxCount);
 	}
 
 	[Test]
@@ -259,7 +259,7 @@ public class CheckpointStoreTests {
 
 		// Pre-configure stream with different retention
 		await Fixture.Client.Streams
-			.ConfigureStreamDataRetention(streamName, new() { MaxCount = 10 }, ct);
+			.ConfigureDataRetention(streamName, maxCount: 10, ct);
 
 		// Act - Create store with different maxCount
 		var store = CreateStore(processorId, maxCount: 100);
@@ -269,7 +269,7 @@ public class CheckpointStoreTests {
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
 
 		// Assert - Original retention should be preserved
-		await Assert.That(info.Metadata.MaxCount).IsEqualTo(10);
+		await Assert.That(info.Retention.MaxCount).IsEqualTo(10);
 	}
 
 	[Test]
@@ -286,7 +286,7 @@ public class CheckpointStoreTests {
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
 
 		// Assert - No retention policy should be set
-		await Assert.That(info.Metadata.HasMaxCount).IsFalse();
+		await Assert.That(info.Retention.HasMaxCount).IsFalse();
 	}
 
 	#endregion

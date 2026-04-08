@@ -106,7 +106,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             .ToImmutableDictionary(
                 kvp => Partition.From(kvp.Key),
                 kvp => {
-                    var position = RecordPosition.FromLogPosition(new LogPosition(kvp.Value.Position), Partition.From(kvp.Key));
+                    var position = RecordPosition.FromLogPosition(kvp.Value.Position, Partition.From(kvp.Key));
                     if (low is null || position < low) low = position;
                     if (high is null || position > high) high = position;
                     return new PartitionCheckpoint(position, kvp.Value.WorkerId);
@@ -472,9 +472,9 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         if (_maxCount > 0) {
             var info = await _client.GetStreamInfo(_stream, ct).ConfigureAwait(false);
 
-            if (!info.Metadata.HasMaxCount) {
+            if (!info.Retention.HasMaxCount) {
                 await _client
-                    .ConfigureStreamDataRetention(_stream, new() { MaxCount = _maxCount }, ct)
+                    .ConfigureDataRetention(_stream, x => x with { MaxCount = _maxCount }, ct)
                     .ConfigureAwait(false);
 
                 LogRetentionConfigured(ProcessorId, _maxCount);

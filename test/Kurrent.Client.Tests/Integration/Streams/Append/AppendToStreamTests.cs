@@ -2,6 +2,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit;
+using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -118,13 +119,13 @@ public class AppendToStreamTests {
         var seeded = await Fixture.SeedTestStream(ct);
 
         // Act & Assert
+        var request = AppendToStreamRequest.For(seeded.Stream)
+            .ExpectingState(ExpectedStreamCondition.NoStream)
+            .WithRecords(seeded.Records.First()) // just append the first record again...
+            .Build();
+
         await Assert
-            .That(async () => await Fixture.Client.Streams.AppendToStream(
-                AppendToStreamRequest.For(seeded.Stream)
-                    .ExpectingState(ExpectedStreamCondition.NoStream)
-                    .WithRecords(seeded.Records.Take(1)) // just append the first record again...
-                    .Build(),
-                ct))
+            .That(async () => await Fixture.Client.Streams.AppendToStream(request, ct))
             .Throws<StreamAlreadyExistsException>();
     }
 
@@ -212,18 +213,19 @@ public class AppendToStreamTests {
         var data     = await Fixture.TestData.GenerateSet(10, ct);
 
         await Fixture.Client.Streams
-            .ConfigureStreamDataRetention(data.Stream, new() { MaxCount = maxCount }, ct);
+            .ConfigureDataRetention(data.Stream, maxCount, ct);
 
         // Act
-        await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(data.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(data.Records)
-                .Build(), ct);
+        await Fixture.Client.Streams.AppendToStream(
+            data.Stream,
+            ExpectedStreamState.NoStream,
+            data.Records,
+            ct
+        );
 
         // Assert
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
-        await Assert.That(info.Metadata.MaxCount).IsEqualTo(maxCount);
+        await Assert.That(info.Retention.MaxCount).IsEqualTo(maxCount);
 
         await using var messages = await Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
@@ -239,11 +241,11 @@ public class AppendToStreamTests {
     [Test]
     public async ValueTask append_to_stream_with_maxage_retention(CancellationToken ct) {
         // Arrange
-        var maxAge = TimeSpan.FromHours(1);
+        var maxAge = FromHours(1);
         var data   = await Fixture.TestData.GenerateSet(5, ct);
 
         await Fixture.Client.Streams
-            .ConfigureStreamDataRetention(data.Stream, new() { MaxAge = maxAge }, ct);
+            .ConfigureDataRetention(data.Stream, maxAge, ct);
 
         // Act
         await Fixture.Client.Streams
@@ -254,8 +256,8 @@ public class AppendToStreamTests {
 
         // Assert
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
-        await Assert.That(info.Metadata.HasMaxAge).IsTrue();
-        await Assert.That(info.Metadata.MaxAge).IsEqualTo(maxAge);
+        await Assert.That(info.Retention.HasMaxAge).IsTrue();
+        await Assert.That(info.Retention.MaxAge).IsEqualTo(maxAge);
 
         await using var messages = await Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
@@ -271,15 +273,16 @@ public class AppendToStreamTests {
     [Test]
     public async ValueTask append_to_stream_with_combined_retention_policies(CancellationToken ct) {
         // Arrange
-        var maxCount = 10;
-        var maxAge   = TimeSpan.FromMinutes(5);
-        var data     = await Fixture.TestData.GenerateSet(10, ct);
+
+        var options = new StreamRetention() {
+            MaxCount = 10,
+            MaxAge   = FromMinutes(5)
+        };
+
+        var data = await Fixture.TestData.GenerateSet(options.MaxCount.Value, ct);
 
         await Fixture.Client.Streams
-            .ConfigureStreamDataRetention(data.Stream, new() {
-                MaxCount = maxCount,
-                MaxAge   = maxAge
-            }, ct);
+            .ConfigureDataRetention(data.Stream, options, ct);
 
         // Act
         await Fixture.Client.Streams
@@ -290,8 +293,7 @@ public class AppendToStreamTests {
 
         // Assert
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
-        await Assert.That(info.Metadata.MaxCount).IsEqualTo(maxCount);
-        await Assert.That(info.Metadata.MaxAge).IsEqualTo(maxAge);
+        await Assert.That(info.Retention).IsEqualTo(options);
 
         await using var messages = await Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
@@ -301,7 +303,7 @@ public class AppendToStreamTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        await Assert.That(records.Count).IsLessThanOrEqualTo(maxCount + 1);
+        await Assert.That(records.Count).IsLessThanOrEqualTo(options.MaxCount.Value + 1);
     }
 
     #endregion
@@ -311,26 +313,31 @@ public class AppendToStreamTests {
     [Test]
     public async ValueTask create_stream_via_append_when_retention_preconfigured(CancellationToken ct) {
         // Arrange
-        var maxCount         = 5;
-        var data             = await Fixture.TestData.GenerateSet(3, ct);
+        var data = await Fixture.TestData.GenerateSet(3, ct);
+
+        var options = new StreamRetention() { MaxCount = 5 };
 
         var expectedRevision = new StreamPosition(data.Stream, data.Records.Count - 1);
 
         await Fixture.Client.Streams
-            .ConfigureStreamDataRetention(data.Stream, new() { MaxCount = maxCount }, ct);
+            .ConfigureDataRetention(data.Stream, options, ct);
 
         // Act
-        var result = await Fixture.Client.Streams
-            .AppendToStream(AppendToStreamRequest.For(data.Stream)
-                .ExpectingState(ExpectedStreamCondition.NoStream)
-                .WithRecords(data.Records)
-                .Build(), ct);
+        var request = AppendToStreamRequest.For(data.Stream)
+            .ExpectingState(ExpectedStreamState.NoStream)
+            .WithRecords(data.Records)
+            .Build();
+
+        var result = await Fixture.Client.Streams.AppendToStream(request, ct);
 
         // Assert
         await Assert.That(new StreamPosition(result.Stream, result.Revision)).IsEqualTo(expectedRevision);
 
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
-        await Assert.That(info.Metadata.MaxCount).IsEqualTo(maxCount);
+
+        await Assert.That(info.Retention.MaxCount).IsEqualTo(options.MaxCount);
+        await Assert.That(info.Retention.MaxAge).IsEqualTo(options.MaxAge);
+        await Assert.That(info.Retention).IsEquivalentTo(options);
     }
 
     #endregion

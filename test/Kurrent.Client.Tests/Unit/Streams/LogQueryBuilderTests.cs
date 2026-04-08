@@ -26,8 +26,8 @@ public class LogQueryBuilderTests {
 
     [Test]
     public async Task from_sets_explicit_position() {
-        var position = new LogPosition(42);
-        var options = CreateBuilder().From(position).Build();
+        var position = LogPosition.From(42);
+        var options  = CreateBuilder().From(position).Build();
 
         await Assert.That(options.Start).IsEqualTo(position);
     }
@@ -103,14 +103,14 @@ public class LogQueryBuilderTests {
     [Test]
     public async Task full_chain_produces_correct_options() {
         var options = CreateBuilder()
-            .From(new LogPosition(10))
+            .From(10)
             .Forward()
             .WithMaxRecords(50)
             .WithBufferCapacity(200)
             .SkipDecoding()
             .Build();
 
-        await Assert.That(options.Start).IsEqualTo(new LogPosition(10));
+        await Assert.That(options.Start).IsEqualTo(10);
         await Assert.That(options.Direction).IsEqualTo(ReadDirection.Forwards);
         await Assert.That(options.MaxRecords).IsEqualTo(50);
         await Assert.That(options.BufferCapacity).IsEqualTo(200);

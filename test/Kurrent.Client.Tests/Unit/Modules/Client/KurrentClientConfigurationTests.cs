@@ -1,5 +1,4 @@
 using System.Text;
-using Kurrent.Client.Streams;
 using KurrentDB.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

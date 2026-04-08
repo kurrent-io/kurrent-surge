@@ -1,6 +1,7 @@
 // ReSharper disable ConvertIfStatementToReturnStatement
 // ReSharper disable DuplicatedSequentialIfBodies
 
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Kurrent.Client.Exceptions;
 
@@ -10,19 +11,8 @@ namespace Kurrent.Client.Streams;
 /// Record position in the global log.
 /// </summary>
 [PublicAPI]
+[DebuggerDisplay("{DebuggerDisplayValue}")]
 public readonly partial record struct LogPosition : IComparable<LogPosition>, IComparable {
-    /// <summary>
-    /// Initial position in the transaction file that is used when no other position is specified.
-    /// The protocol requires null (not zero) to subscribe from the beginning of the log.
-    /// </summary>
-    public static readonly LogPosition Earliest = new(-1);
-
-    /// <summary>
-    /// Initial position in the transaction file that represents the end of the transaction file.
-    /// Represented by a value of long.MaxValue.
-    /// </summary>
-    public static readonly LogPosition Latest = new(long.MaxValue);
-
     /// <summary>
     /// Indicates that the log position is not set and therefore is invalid and should be ignored.
     /// Represented by a value of -1000.
@@ -30,38 +20,49 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
     public static readonly LogPosition Unset = new(-1000);
 
     /// <summary>
-    /// Record position in the global log.
+    /// Initial position in the transaction file that is used when no other position is specified.
+    /// The protocol requires null (not zero) to subscribe from the beginning of the log.
     /// </summary>
-    public LogPosition(long value) => Value = value;
+    public static readonly LogPosition Earliest = new(-1);
+
+    /// <summary>
+    /// Represents the end of the log. Use this when subscribing live to the log, or when reading the log backwards.
+    /// </summary>
+    public static readonly LogPosition Latest = new(long.MaxValue);
+
+    LogPosition(long value) => Value = value;
 
     /// <summary>
     /// Represents the underlying value of the log position in the global transaction log.
     /// </summary>
-    public long Value { get; init; }
+    public long Value { get; } = -1000;
 
     /// <summary>
     /// Indicates whether this position is <see cref="Unset"/>.
     /// </summary>
     public bool IsUnset => this == Unset;
 
-    /// <summary>
-    /// Creates a LogPosition instance from a provided position value.
-    /// Null resolves to <see cref="Earliest"/>. Negative values other than <see cref="Unset"/> are invalid.
-    /// </summary>
-    public static LogPosition From(long? position) =>
-        position switch {
-            null  => Earliest,
-            -1000 => Unset,
-            >= 0  => new LogPosition(position.Value),
-            _     => throw new InvalidLogPosition(new LogPosition(position.Value))
+    public override string ToString() => Value.ToString();
+
+    string DebuggerDisplayValue => this switch {
+        _ when this == Unset    => $"{Value} (Unset)",
+        _ when this == Earliest => $"{Value} (Earliest)",
+        _ when this == Latest   => $"{Value} (Latest)",
+        _                       => $"{Value}"
+    };
+
+    public static LogPosition From(long? positionValue) =>
+        positionValue switch {
+            null or -1 => Earliest, -1000 => Unset,
+            >= 0       => new(positionValue.Value),
+            _          => throw new InvalidLogPosition(positionValue)
         };
 
-    public static implicit operator long(LogPosition _) => _.Value;
-    public static implicit operator LogPosition(long _) => From(_);
+    public static implicit operator long(LogPosition position) => position.Value;
 
-    public static implicit operator ulong(LogPosition _) => (ulong)_.Value;
+    public static implicit operator LogPosition(long position) => From(position);
 
-    public override string ToString() => Value.ToString();
+    public static implicit operator ulong(LogPosition position) => (ulong)position.Value;
 
     [GeneratedRegex(@"^C:(?<commit>[0-9]*)\/P:(?<prepare>[0-9]*)$")]
     public static partial Regex LogPositionRegex();
@@ -85,14 +86,7 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
     #endregion
 }
 
-/// <summary>
-/// Exception thrown when a log position is invalid.
-/// </summary>
-public class InvalidLogPosition : KurrentException {
-    /// <summary>
-    /// Initializes a new instance with the specified <paramref name="value"/>.
-    /// </summary>
-    /// <param name="value">The invalid log position.</param>
-    public InvalidLogPosition(LogPosition value)
-        : base(ErrorCode.FromType<InvalidLogPosition>(), $"Log position is invalid: {value.ToString()}") { }
-}
+public class InvalidLogPosition(long? value) : KurrentException(
+    ErrorCode.FromType<InvalidLogPosition>(),
+    $"Invalid log position value: {value}. Position must be greater than or equal to -1, or equal to -1000 (for Unset)."
+);

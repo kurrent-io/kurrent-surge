@@ -76,6 +76,39 @@ static class StreamsClientV1Mapper {
         }
 
         /// <summary>
+        /// Creates a request to read the last event in the specified stream.
+        /// </summary>
+        public static Contracts.ReadReq CreateReadLastStreamEventRequest(StreamName stream) {
+            return new Contracts.ReadReq { Options = new() {
+                UuidOption    = DefaultUuidOptions,
+                ControlOption = DefaultControlOption,
+                NoFilter      = DefaultEmpty,
+                Count         = 1,
+                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                Stream        = ConvertToStreamOptions(stream, Revision.Max),
+            }};
+        }
+
+        /// <summary>
+        /// Creates a request to read the first event in the specified stream.
+        /// </summary>
+        /// <remarks>
+        /// if scavenged, the first event might not be the one with revision 0,
+        /// so we need to read from the start until we find the first non null event.
+        /// </remarks>
+        public static Contracts.ReadReq CreateReadFirstStreamEventRequest(StreamName stream, long? count = null) {
+            return new Contracts.ReadReq {
+                Options = new() {
+                UuidOption    = DefaultUuidOptions,
+                ControlOption = DefaultControlOption,
+                NoFilter      = DefaultEmpty,
+                Count         = count is null ? ulong.MaxValue : (ulong)count,
+                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                Stream        = ConvertToStreamOptions(stream, Revision.Min),
+            }};
+        }
+
+        /// <summary>
         /// Creates a request to read log records based on the provided options.
         /// </summary>
         public static Contracts.ReadReq CreateReadLogRequest(ReadOptions options) {

@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
 
 [PublicAPI]
+[DebuggerDisplay("{DebuggerDisplayValue}")]
 public readonly record struct Partition : IComparable<Partition>, IComparable {
     public static readonly Partition Any = new(-1);
 
@@ -15,17 +17,23 @@ public readonly record struct Partition : IComparable<Partition>, IComparable {
     /// </summary>
     public bool IsAny => this == Any;
 
-    public static Partition From(int value) {
-        if (value < 0 && value != Any.Value)
-            InvalidPartitionException.Throw($"Partition must range from 0 to {int.MaxValue}, or be {Any.Value} for 'Any'.");
-
-        return new(value);
-    }
-
-    public static implicit operator int(Partition _) => _.Value;
-    public static implicit operator Partition(int _) => From(_);
-
     public override string ToString() => Value.ToString();
+
+    string DebuggerDisplayValue => this switch {
+        _ when this == Any => $"partition: {Value} (Unset)",
+        _                  => $"partition: {Value}"
+    };
+
+    public static Partition From(int partitionValue) =>
+        partitionValue switch {
+            -1   => Any,
+            >= 0 => new(partitionValue),
+            _    => throw new InvalidPartition(partitionValue)
+        };
+
+    public static implicit operator int(Partition partition) => partition.Value;
+
+    public static implicit operator Partition(int partition) => From(partition);
 
     #region . relational members .
 
@@ -47,7 +55,7 @@ public readonly record struct Partition : IComparable<Partition>, IComparable {
     #endregion
 }
 
-public sealed class InvalidPartitionException(string message, Exception? innerException = null)
-    : KurrentException(ErrorCode.FromType<InvalidPartitionException>(), message, innerException), IThrowableException<InvalidPartitionException> {
-    public static InvalidPartitionException Create(string message, Exception? innerException) => new(message, innerException);
-}
+public sealed class InvalidPartition(int value) : KurrentException(
+    ErrorCode.FromType<InvalidPartition>(),
+    $"Invalid partition value: {value}. Partition must be greater than or equal to 0, or equal to -1 (for Any)."
+);

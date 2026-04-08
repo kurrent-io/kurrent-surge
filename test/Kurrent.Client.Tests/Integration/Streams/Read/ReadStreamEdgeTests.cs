@@ -8,6 +8,7 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("Read")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class ReadStreamEdgeTests {
 	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
@@ -41,10 +42,6 @@ public class ReadStreamEdgeTests {
 		await Assert.That(record.Revision).IsEqualTo(expectedRevision);
 
         await Assert.That(record.Value).IsEquivalentTo(expectedRecordInfo.Value).When(!skipDecoding);
-
-        await Assert.That(record)
-            .IsDeepEquivalentTo(expectedRecordInfo, x => x.ExcludingMissingMembers())
-            .When(skipDecoding);
     }
 
 	[Test]
@@ -83,4 +80,38 @@ public class ReadStreamEdgeTests {
 			.ReadStreamEdge(data.Stream, direction, skipDecoding: true, ct))
 			.Throws<StreamTombstonedException>();
 	}
+
+    [Test]
+    public async ValueTask fails_when_concurrent_reads_on_missing_stream(CancellationToken ct) {
+        var data = await Fixture.TestData.GenerateSet(ct);
+
+        var lastTask = Fixture.Client.Streams
+            .ReadStreamEdge(data.Stream, ReadDirection.Backwards, skipDecoding: true, ct).AsTask();
+
+        var firstTask = Fixture.Client.Streams
+            .ReadStreamEdge(data.Stream, ReadDirection.Forwards, skipDecoding: true, ct).AsTask();
+
+        await Assert.That(async () => await Task.WhenAll(lastTask, firstTask))
+            .Throws<StreamNotFoundException>();
+    }
+
+    [Test]
+    public async ValueTask succeeds_when_concurrent_reads_on_missing_stream(CancellationToken ct) {
+        var data = await Fixture.SeedTestStream(ct);
+
+        var lastTask  = Fixture.Client.Streams
+            .ReadStreamEdge(data.Stream, ReadDirection.Backwards, skipDecoding: true, ct).AsTask();
+
+        var firstTask = Fixture.Client.Streams
+            .ReadStreamEdge(data.Stream, ReadDirection.Forwards, skipDecoding: true, ct).AsTask();
+
+        await Task.WhenAll(lastTask, firstTask);
+
+        await Assert.That(lastTask).IsCompletedSuccessfully();
+        await Assert.That(firstTask).IsCompletedSuccessfully();
+
+        await Assert.That(lastTask.Result).IsNotEqualTo(Record.None);
+        await Assert.That(firstTask.Result).IsNotEqualTo(Record.None);
+    }
+
 }

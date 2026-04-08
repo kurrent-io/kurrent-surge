@@ -101,15 +101,16 @@ public partial class StreamsClient {
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction);
 
-            await using var messages = await ReadCore(request, 100, skipDecoding, RecordFilter.None, cancellationToken)
+            await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
                 .ConfigureAwait(false);
 
             var message = await messages.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
             if (message.IsRecord)
                 return message.AsRecord;
-
-            throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
+            else {
+                throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
+            }
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -154,7 +155,7 @@ public partial class StreamsClient {
         var session = LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
 
         try {
-            await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
+            var moved = await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
 
             // determine the actual stream state when not found (v1 protocol quirk)
             if (session.ResponseStream.Current?.ContentCase is StreamNotFound) {
@@ -170,6 +171,10 @@ public partial class StreamsClient {
                     StreamState.Active     => new StreamNotFoundException(stream), // race: stream was created between gRPC read and GetStreamInfo
                     _                      => new UnreachableException($"Stream '{stream}' reported as not found, but has unexpected state '{info.State}'.")
                 };
+            }
+
+            if (!moved) {
+                throw new InvalidOperationException("WTF? No records found.");
             }
         }
         catch (RpcException rex) {

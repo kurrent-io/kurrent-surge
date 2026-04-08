@@ -5,7 +5,7 @@ public static partial class StreamsClientExtensions {
         public ValueTask<Record> InspectRecord(LogPosition position, CancellationToken cancellationToken = default) =>
             client.InspectRecord(position, true, cancellationToken);
 
-        #region . Read Log .
+        #region ->> Read Log <--
 
         public ValueTask<RecordStream> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
             client.ReadRecords(
@@ -16,7 +16,7 @@ public static partial class StreamsClientExtensions {
 
         #endregion
 
-        #region . Read Streams .
+        #region ->> Read Streams <<-
 
         public ValueTask<RecordStream> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
             client.ReadRecords(

@@ -121,6 +121,8 @@ public record Record {
 	string ToDebugString() =>
 		$"Record: Id={Id}, Position={Position}, Stream={Stream}, Revision={Revision}, " +
 		$"Value={Value ?? "Not Decoded"}, ValueType={ValueType}";
+
+    public T As<T>() where T : class => (T)Value!;
 }
 
 public readonly record struct Link() {

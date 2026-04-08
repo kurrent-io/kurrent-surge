@@ -134,3 +134,10 @@ public class AppendToStreamRequestBuilder {
         return new AppendToStreamRequest(_stream, records.MoveToImmutable(), checks.ToImmutable());
     }
 }
+
+public static partial class AppendToStreamRequestBuilderExtensions {
+    extension(AppendToStreamRequestBuilder builder) {
+        public ValueTask<AppendToStreamResponse> ExecuteAsync(StreamsClient client, CancellationToken cancellationToken = default) =>
+            client.AppendToStream(builder.Build(), cancellationToken);
+    }
+}

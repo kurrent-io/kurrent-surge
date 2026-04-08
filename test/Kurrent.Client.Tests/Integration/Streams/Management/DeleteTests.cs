@@ -1,7 +1,5 @@
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Testing.ArcadeRacer;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -34,11 +32,10 @@ public class DeleteTests {
 
     [Test]
     public async ValueTask fails_to_delete_stream_with_revision_conflict_error_when_revision_is_not_matched(CancellationToken ct) {
-        var data  = await Fixture.SeedTestStream(ct);
+        var data        = await Fixture.SeedTestStream(ct);
         var badRevision = data.Revision + 1;
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .Delete(data.Stream, badRevision, ct))
+        await Assert.That(async () => await Fixture.Client.Streams.Delete(data.Stream, badRevision, ct))
             .Throws<StreamRevisionConflictException>();
     }
 
@@ -46,8 +43,7 @@ public class DeleteTests {
     public async ValueTask fails_to_delete_stream_with_not_found_error_when_stream_does_not_exist(CancellationToken ct) {
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .Delete(data.Stream, ct))
+        await Assert.That(async () => await Fixture.Client.Streams.Delete(data.Stream, ct))
             .Throws<StreamNotFoundException>();
     }
 
@@ -58,8 +54,7 @@ public class DeleteTests {
         await Fixture.Client.Streams
             .Delete(data.Stream, ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .Delete(data.Stream, ct))
+        await Assert.That(async () => await Fixture.Client.Streams.Delete(data.Stream, ct))
             .Throws<StreamDeletedException>();
     }
 

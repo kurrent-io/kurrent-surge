@@ -160,7 +160,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
         return new() { LogPosition = logPosition };
     }
 
-    public static RecordPosition From(LogPosition logPosition, StreamName stream, Revision revision) {
+    public static RecordPosition From(LogPosition logPosition, StreamName stream, Revision revision, Partition partition = default) {
         // if (logPosition == LogPosition.Unset)
         //     throw new ArgumentException("LogPosition cannot be Unset.", nameof(logPosition));
         //
@@ -172,7 +172,8 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
 
         return new RecordPosition {
             LogPosition    = logPosition,
-            StreamPosition = new(stream, revision)
+            StreamPosition = new(stream, revision),
+            Partition      = partition
         };
     }
 

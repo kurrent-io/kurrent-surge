@@ -16,7 +16,7 @@ public static class CheckpointTestHelpers {
 		var builder = ImmutableDictionary.CreateBuilder<Partition, RecordPosition>();
 		foreach (var (partition, position) in pairs)
 			builder[Partition.From(partition)] =
-				RecordPosition.FromLogPosition(new LogPosition(position));
+				RecordPosition.FromLogPosition(position);
 		return builder.ToImmutable();
 	}
 

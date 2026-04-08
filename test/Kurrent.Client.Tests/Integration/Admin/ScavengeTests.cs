@@ -17,7 +17,7 @@ public class ScavengeTests {
 
         // Assert
         await Assert.That(result.ScavengeId).IsNotEmpty();
-        await Assert.That(result.Status == ScavengeStatus.Started || result.Status == ScavengeStatus.InProgress).IsTrue();
+        await Assert.That(result.Status is ScavengeStatus.Started or ScavengeStatus.InProgress).IsTrue();
 
         // Cleanup — stop if still running
         try {
