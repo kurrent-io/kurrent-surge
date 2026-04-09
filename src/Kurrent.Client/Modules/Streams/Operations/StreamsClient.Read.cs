@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
+using Kurrent.Client.Legacy;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using KurrentDB.Protocol.V1.Streams;
@@ -34,38 +35,61 @@ public partial class StreamsClient {
         if (position == LogPosition.Unset)
             throw new ArgumentOutOfRangeException(nameof(position), "Log position cannot be Unset.");
 
-        try {
-            var request = Requests.CreateInspectRecordRequest(position);
+        var request = Requests.CreateInspectRecordRequest(position);
 
-            await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
-                .ConfigureAwait(false);
+        await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
+            .ConfigureAwait(false);
 
-            var message = await messages
-                .FirstOrDefaultAsync(cancellationToken)
-                .ConfigureAwait(false);
+        var message = await messages
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-            if (message.Value is not Record record)
-                throw new LogPositionNotFoundException(position);
+        if (message.Value is not Record record)
+            throw new LogPositionNotFoundException(position);
 
-            // Check if the source stream has been deleted or tombstoned
-            if (record.Position.Stream != StreamName.Unset) {
-                var streamInfo = await GetStreamInfo(record.Position.Stream, cancellationToken)
-                    .ConfigureAwait(false);
+        // Check if the source stream has been deleted or tombstoned
+        if (record.Stream != StreamName.Unset && !record.Stream.IsMetadataStream) {
+            var streamInfo = await GetStreamInfo(record.Stream, cancellationToken).ConfigureAwait(false);
 
-                switch (streamInfo.State) {
-                    case StreamState.Deleted:    throw new StreamDeletedException(record.Position.Stream);
-                    case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
-                }
+            switch (streamInfo.State) {
+                case StreamState.Deleted:    throw new StreamDeletedException(record.Position.Stream);
+                case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
             }
+        }
 
-            return record;
-        }
-        catch (Exception ex) {
-            throw ex.AsWellKnownException(
-                StreamTombstonedException.From,
-                StreamDeletedException.From,
-                LogPositionNotFoundException.From);
-        }
+        return record;
+
+        // try {
+        //     var request = Requests.CreateInspectRecordRequest(position);
+        //
+        //     await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
+        //         .ConfigureAwait(false);
+        //
+        //     var message = await messages
+        //         .FirstOrDefaultAsync(cancellationToken)
+        //         .ConfigureAwait(false);
+        //
+        //     if (message.Value is not Record record)
+        //         throw new LogPositionNotFoundException(position);
+        //
+        //     // Check if the source stream has been deleted or tombstoned
+        //     if (record.Position.Stream != StreamName.Unset) {
+        //         var streamInfo = await GetStreamInfo(record.Stream, cancellationToken).ConfigureAwait(false);
+        //
+        //         switch (streamInfo.State) {
+        //             case StreamState.Deleted:    throw new StreamDeletedException(record.Position.Stream);
+        //             case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
+        //         }
+        //     }
+        //
+        //     return record;
+        // }
+        // catch (Exception ex) {
+        //     throw ex.AsWellKnownException(
+        //         StreamTombstonedException.From,
+        //         StreamDeletedException.From,
+        //         LogPositionNotFoundException.From);
+        // }
 
         // {
         //     "$v": "3:-1:1:4",
@@ -99,7 +123,7 @@ public partial class StreamsClient {
             throw new ArgumentException("Stream name cannot be `$all`", nameof(stream));
 
         try {
-            var request = Requests.CreateReadStreamEdgeRequest(stream, direction);
+            var request = Requests.CreateReadStreamEdgeRequest(stream, direction, 1);
 
             await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
                 .ConfigureAwait(false);
@@ -108,16 +132,15 @@ public partial class StreamsClient {
 
             if (message.IsRecord)
                 return message.AsRecord;
-            else {
-                throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
-            }
+
+            throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
         }
         catch (Exception ex) {
-            throw ex.ToException(
-                StreamNotFoundException.From,
-                StreamDeletedException.From,
-                StreamTombstonedException.From,
-                LogPositionNotFoundException.From);
+            throw ex.AsWellKnownException();
+                // StreamNotFoundException.From,
+                // StreamDeletedException.From,
+                // StreamTombstonedException.From,
+                // LogPositionNotFoundException.From);
         }
     }
 
@@ -145,6 +168,8 @@ public partial class StreamsClient {
         );
     }
 
+    //TODO SS: Consider spliting ReadCore into ReadLog and ReadStream. We can share the relay, but split logic.
+
     async ValueTask<RecordStream> ReadCore(
         ReadReq request, int bufferCapacity, bool skipDecoding,
         IRecordFilter filter, CancellationToken cancellationToken
@@ -153,8 +178,6 @@ public partial class StreamsClient {
         var stoppingToken = cancellator.Token;
 
         var session = LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
-
-        LogPosition position = LogPosition.From(request.Options.All.Position?.CommitPosition);
 
         try {
             var advanced = await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
@@ -193,28 +216,38 @@ public partial class StreamsClient {
                 throw new OperationCanceledException(rex.Message, rex);
 
             // when stream is tombstoned an exception is thrown for some weird reason
-            if (rex.StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted") { //rex.Status.Detail.Contains("is deleted")
+            if (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) { //StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted")) { //rex.Status.Detail.Contains("is deleted")
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
                 throw new StreamTombstonedException(stream);
             }
 
             // when a position does not exist (targets a position between records in the same stream)
             if (rex.StatusCode == StatusCode.Unknown && rex.Message.Contains("InvalidPosition >>", OrdinalIgnoreCase)) {
-                // var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Unset;
                 var details  = rex.Message.Split(">>").Last().Trim();
-                throw new LogPositionNotFoundException(position, details);
+
+                //FIXME SS: figure out how to handle LogPositionNotFoundException
+
+                // // just return Unset if the position is null (log read)
+                // throw request.Options.All.Position?.CommitPosition is { } pos
+                //     ? new LogPositionNotFoundException(pos, details)
+                //     : new LogPositionNotFoundException(LogPosition.Unset, details);
+
+                throw new LogPositionNotFoundException(
+                    request.Options.All.Position?.CommitPosition
+                 ?? LogPosition.Unset, details);
             }
 
-            throw rex.ToException(
-                StreamNotFoundException.From,
-                StreamDeletedException.From,
-                StreamTombstonedException.From,
-                LogPositionNotFoundException.From);
+            // throw rex.AsWellKnownException(
+            //     StreamNotFoundException.From,
+            //     StreamDeletedException.From);
+
+            throw rex.AsWellKnownException();
         }
         catch (Exception ex) {
             session.Dispose();
             cancellator.Dispose();
-            throw ex.ToException(
+
+            throw ex.AsWellKnownException(
                 StreamNotFoundException.From,
                 StreamDeletedException.From,
                 StreamTombstonedException.From,

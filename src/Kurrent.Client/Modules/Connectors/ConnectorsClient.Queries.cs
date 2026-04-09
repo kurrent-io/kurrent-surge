@@ -48,7 +48,7 @@ public partial class ConnectorsClient {
             };
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 

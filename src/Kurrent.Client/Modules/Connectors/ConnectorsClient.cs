@@ -21,7 +21,7 @@ public partial class ConnectorsClient : ClientModuleBase {
         ConnectorNotFoundException notFound,
         ConnectorDeletedException deleted
     ) {
-        var mex = ex.ToException(
+        var mex = ex.AsWellKnownException(
             ConnectorNotFoundException.From,
             ConnectorDeletedException.From);
 

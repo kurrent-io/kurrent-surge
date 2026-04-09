@@ -1,6 +1,7 @@
+using Kurrent.Client.Streams;
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Client.Tests.Streams;
 
 [Category("Streams")]
 public class AppendStreamRequestTests {
@@ -10,7 +11,8 @@ public class AppendStreamRequestTests {
     public async ValueTask ensure_valid_stamps_stream_on_all_records() {
         var request = new AppendStreamRequest(
             TestStream,
-            [AppendRecord.New.WithValue("event-1").Build(), AppendRecord.New.WithValue("event-2").Build()]
+            [AppendRecord.New.WithValue("event-1").Build(), AppendRecord.New.WithValue("event-2").Build()],
+            ExpectedStreamState.Any
         );
 
         var validated = request.EnsureValid();
@@ -27,7 +29,7 @@ public class AppendStreamRequestTests {
             DataFormat = SchemaDataFormat.Unspecified
         };
 
-        var request = new AppendStreamRequest(TestStream, [invalidRecord]);
+        var request = new AppendStreamRequest(TestStream, [invalidRecord], ExpectedStreamState.Any);
 
         var vex = await Assert.That(request.EnsureValid).Throws<ValidationException>();
     }

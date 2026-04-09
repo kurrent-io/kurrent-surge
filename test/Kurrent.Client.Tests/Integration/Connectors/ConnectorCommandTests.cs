@@ -1,5 +1,6 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
+using Sdk.TestKit.Fixtures;
 
 namespace Kurrent.Client.Tests.Connectors;
 

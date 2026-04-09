@@ -1,7 +1,8 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Processors.Models;
+using Microsoft.Extensions.Logging;
+using Sdk.TestKit.Fixtures;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;
@@ -63,7 +64,7 @@ public class StreamSubscriptionTests {
             .RunAsync(ct);
 
         // Assert
-        await Assert.That(processor.Records).Count().IsEqualTo(data.Records.Count);
+        await Assert.That(processor.Records).Count().IsEqualTo(data.Records.Length);
     }
 
     [Test]
@@ -143,7 +144,7 @@ public class StreamSubscriptionTests {
 
         // Assert
         await Assert.That(processor.Complete).IsNotNull();
-        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Count);
+        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
     }
 
     [Test]
@@ -243,7 +244,7 @@ public class StreamSubscriptionTests {
 
         // Assert - All records processed across both runs with tolerance for checkpoint timing
         var totalProcessedRecords = processor1.Records.Length + processor2.Records.Length;
-        await Assert.That(totalProcessedRecords).IsLessThanOrEqualTo(data.Records.Count + 5);
+        await Assert.That(totalProcessedRecords).IsLessThanOrEqualTo(data.Records.Length + 5);
 
         // Verify minimal duplicate processing
         var allProcessedIds = processor1.Records
@@ -367,7 +368,7 @@ public class StreamSubscriptionTests {
         var uniqueCount    = allProcessedIds.Distinct().Count();
         var duplicateCount = allProcessedIds.Count - uniqueCount;
 
-        await Assert.That(uniqueCount).IsGreaterThanOrEqualTo(data.Records.Count);
+        await Assert.That(uniqueCount).IsGreaterThanOrEqualTo(data.Records.Length);
         await Assert.That(duplicateCount).IsLessThanOrEqualTo(5);
     }
 
@@ -422,14 +423,14 @@ public class StreamSubscriptionTests {
     public async ValueTask checkpoint_recovery_when_stream_is_tombstoned(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(20, ct);
-        var processorId = $"tombstoned-stream-{PunyId.New()}";
+        var processorId = $"tombstoned-{PunyId.New()}";
 
         // Phase 1: Process first 10 records, checkpoint, stop
         var processor1 = new TestRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
-                ctx.StopProcessing();
+                ctx.StopBeforeTrack("Phase 1 done after 10 records");
 
             return ValueTask.CompletedTask;
         };
@@ -443,27 +444,46 @@ public class StreamSubscriptionTests {
             .RunAsync(ct);
 
         // Tombstone the stream between phases
-        await Fixture.Client.Streams.Tombstone(data.Stream, ct);
+        var pos = await Fixture.Client.Streams.Tombstone(data.Stream, ct);
+
+        try {
+            var temp = await Fixture.Client.Streams.InspectRecord(pos, ct);
+
+            Fixture.Logger.LogInformation("Tombstoned record: {RecordId}", temp.Id);
+        }
+        catch (Exception ex) {
+            Fixture.Logger.LogInformation("Expected error when inspecting tombstoned record: {Message}", ex.Message);
+        }
 
         // Phase 2: Resume — stream is tombstoned
+        // Cancel after 2s to stop the idle live subscription.
+        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cancellator.CancelAfter(2000);
+
         var processor2 = new TestRecordProcessor();
 
         var worker = KurrentProcessors.Create(processor2)
             .UseClient(Fixture.Client)
             .WithProcessorId(processorId)
             .WithFilter(RecordFilter.ByStream(data.Stream))
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
             .Build();
 
+        // // Act & Assert — expect error due to tombstoned stream
+        // var task = worker.RunAsync(cancellator.Token);
+        // await Assert.That(task).IsNotCompletedSuccessfully();
+
+        var task = worker.RunAsync(cancellator.Token);
+
         // Act & Assert — expect error due to tombstoned stream
-        await Assert.ThrowsAsync<StreamTombstonedException>(() => worker.RunAsync(ct));
+        await Assert.That(task).IsNotCompletedSuccessfully();
+        await Assert.That(task).ThrowsExactly<StreamTombstonedException>();
     }
 
     [Test]
     public async ValueTask checkpoint_recovery_when_stream_is_soft_deleted(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(20, ct);
-        var processorId = $"soft-deleted-{PunyId.New()}";
+        var processorId = $"deleted-{PunyId.New()}";
 
         // Phase 1: Process first 10 records, checkpoint, stop
         var processor1 = new TestRecordProcessor();
@@ -500,10 +520,10 @@ public class StreamSubscriptionTests {
             .Build();
 
         var task = worker.RunAsync(cancellator.Token);
-        await Assert.That(task).IsNotCompletedSuccessfully();
 
-        // Assert — phase 1 processed 10, phase 2 saw 0 (soft delete truncated the stream)
+        // Assert
         using var _ = Assert.Multiple();
+        await Assert.That(task).IsNotCompletedSuccessfully();
         await Assert.That(processor1.Records.Length).IsEqualTo(10);
         await Assert.That(processor2.Records.Length).IsEqualTo(0);
     }

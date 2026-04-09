@@ -42,51 +42,82 @@ static class StreamsClientV1Mapper {
         ///  Creates a request to read a single record from the log at the specified position, resolving links if necessary.
         /// </summary>
         public static Contracts.ReadReq CreateInspectRecordRequest(LogPosition position) {
-            return new Contracts.ReadReq { Options = new() {
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                NoFilter      = DefaultEmpty,
-                Count         = 1,
-                ResolveLinks  = true,
-                All           = ConvertToAllOptions(position),
-                ReadDirection = position == LogPosition.Latest
-                    ? Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards
-                    : Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-            }};
+            return new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = 1,
+                    ResolveLinks  = true,
+                    All           = ConvertToAllOptions(position),
+                    ReadDirection = position == LogPosition.Latest
+                        ? Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards
+                        : Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                }
+            };
         }
 
         /// <summary>
         /// Creates a request to read the edge record from a stream in the specified direction.
         /// </summary>
-        public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction) {
-            return new Contracts.ReadReq { Options = new() {
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                NoFilter      = DefaultEmpty,
-                Count         = 1,
-                ReadDirection = direction switch {
-                    ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                    ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                },
-                Stream = ConvertToStreamOptions(stream, start: direction switch {
-                    ReadDirection.Backwards => Revision.Max,
-                    ReadDirection.Forwards  => Revision.Min,
-                }),
-            }};
+        public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction, long? count = null) {
+            return new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    ReadDirection = direction switch {
+                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    },
+                    Stream = ConvertToStreamOptions(
+                        stream, start: direction switch {
+                            ReadDirection.Backwards => Revision.Max,
+                            ReadDirection.Forwards  => Revision.Min,
+                        }
+                    ),
+                }
+            };
+        }
+
+        public static Contracts.ReadReq CreateReadStreamEdgeRequestV2(StreamName stream, ReadDirection direction, long? count = null) {
+            return new Contracts.ReadReq {
+                Options = new() {
+                    Subscription  = DefaultSubscriptionOptions,
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    // ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    ReadDirection = direction switch {
+                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    },
+                    Stream = ConvertToStreamOptions(
+                        stream, start: direction switch {
+                            ReadDirection.Backwards => Revision.Max,
+                            ReadDirection.Forwards  => Revision.Min,
+                        }
+                    ),
+                }
+            };
         }
 
         /// <summary>
         /// Creates a request to read the last event in the specified stream.
         /// </summary>
-        public static Contracts.ReadReq CreateReadLastStreamEventRequest(StreamName stream) {
-            return new Contracts.ReadReq { Options = new() {
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                NoFilter      = DefaultEmpty,
-                Count         = 1,
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                Stream        = ConvertToStreamOptions(stream, Revision.Max),
-            }};
+        public static Contracts.ReadReq CreateReadLastStreamEventRequest(StreamName stream, long? count = null) {
+            return new Contracts.ReadReq {
+                Options = new() {
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
+                    Stream        = ConvertToStreamOptions(stream, Revision.Max),
+                }
+            };
         }
 
         /// <summary>
@@ -99,13 +130,14 @@ static class StreamsClientV1Mapper {
         public static Contracts.ReadReq CreateReadFirstStreamEventRequest(StreamName stream, long? count = null) {
             return new Contracts.ReadReq {
                 Options = new() {
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                NoFilter      = DefaultEmpty,
-                Count         = count is null ? ulong.MaxValue : (ulong)count,
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                Stream        = ConvertToStreamOptions(stream, Revision.Min),
-            }};
+                    UuidOption    = DefaultUuidOptions,
+                    ControlOption = DefaultControlOption,
+                    NoFilter      = DefaultEmpty,
+                    Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
+                    Stream        = ConvertToStreamOptions(stream, Revision.Min),
+                }
+            };
         }
 
         /// <summary>

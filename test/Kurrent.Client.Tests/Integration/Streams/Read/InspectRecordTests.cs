@@ -1,6 +1,7 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Sdk.TestKit.Fixtures;
 
 namespace Kurrent.Client.Tests.Streams;
 

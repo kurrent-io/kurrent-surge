@@ -30,7 +30,7 @@ public partial class StreamsClient {
             return Mapper.ToAppendRecordsResponse(rsp);
         }
         catch (Exception ex) {
-            throw ex.ToException(
+            throw ex.AsWellKnownException(
                 AppendConsistencyViolationException.From,
                 MaxAppendRecordSizeExceededException.From,
                 MaxAppendTransactionSizeExceededException.From);

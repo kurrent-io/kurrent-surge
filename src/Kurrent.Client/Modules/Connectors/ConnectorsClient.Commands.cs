@@ -39,7 +39,7 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            var mex = ex.ToException(ConnectorAlreadyExistsException.From);
+            var mex = ex.AsWellKnownException(ConnectorAlreadyExistsException.From);
 
             if (mex is not ConnectorAlreadyExistsException && ex is RpcException { StatusCode: StatusCode.AlreadyExists })
                 throw new ConnectorAlreadyExistsException(connectorId);
@@ -78,7 +78,7 @@ public partial class ConnectorsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            var mex = ex.ToException(ConnectorAlreadyExistsException.From);
+            var mex = ex.AsWellKnownException(ConnectorAlreadyExistsException.From);
 
             if (mex is not ConnectorAlreadyExistsException && ex is RpcException { StatusCode: StatusCode.AlreadyExists })
                 throw new ConnectorAlreadyExistsException(connectorId);

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Kurrent.Client.Exceptions;
 using Kurrent.Variant;
@@ -24,6 +25,8 @@ public readonly partial record struct ConsistencyViolation : IVariant<StreamStat
 /// The actual state may be a specific revision, or a lifecycle state (NoStream, Deleted, Tombstoned).
 /// </summary>
 public readonly record struct StreamStateViolation() {
+    public static readonly StreamStateViolation None = new(StreamName.Unset, ExpectedStreamState.NoStream, ActualStreamState.NoStream);
+
     public StreamStateViolation(StreamName stream, ExpectedStreamState expectedState, ActualStreamState actualState) : this() {
         Stream        = stream;
         ExpectedState = expectedState;
@@ -37,7 +40,7 @@ public readonly record struct StreamStateViolation() {
     /// <summary>
     /// Converts this stream state violation into the appropriate exception type based on the expected and actual states.
     /// </summary>
-    internal T ToException<T>() {
+    internal T ToException2<T>() {
         dynamic ex = ActualState switch {
             _ when ActualState == ActualStreamState.NoStream   => new StreamNotFoundException(Stream),
             _ when ActualState == ActualStreamState.Deleted    => new StreamDeletedException(Stream),
@@ -50,6 +53,22 @@ public readonly record struct StreamStateViolation() {
         };
 
         return (T) ex;
+    }
+
+    [StackTraceHidden]
+    internal Exception ToStreamException() {
+        dynamic ex = ActualState switch {
+            _ when ActualState == ActualStreamState.NoStream   => new StreamNotFoundException(Stream),
+            _ when ActualState == ActualStreamState.Deleted    => new StreamDeletedException(Stream),
+            _ when ActualState == ActualStreamState.Tombstoned => new StreamTombstonedException(Stream),
+
+            _ when ActualState.IsRevision && ExpectedState == ExpectedStreamState.NoStream =>
+                new StreamAlreadyExistsException(Stream, ActualState.AsRevision),
+
+            _ => new StreamRevisionConflictException(Stream, ExpectedState, ActualState.AsRevision)
+        };
+
+        return ex;
     }
 }
 

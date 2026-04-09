@@ -21,7 +21,7 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
         var result = await Fixture.Client.Streams.AppendRecords(req, ct);
 
         // assert
-        await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Count - 1);
+        await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Length - 1);
     }
 
     [Test]
@@ -39,7 +39,7 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
         var result = await Fixture.Client.Streams.AppendRecords(req, ct);
 
         // assert
-        await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Count - 1);
+        await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Length - 1);
     }
 
     [Test]

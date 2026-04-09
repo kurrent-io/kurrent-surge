@@ -2,13 +2,14 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit;
+using Sdk.TestKit.Fixtures;
 using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
-public class AppendToStreamTests {
+public class AppendStreamTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
@@ -17,7 +18,7 @@ public class AppendToStreamTests {
         // Arrange
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var expectedRevision = data.Records.Count - 1;
+        var expectedRevision = data.Records.Length - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -39,7 +40,7 @@ public class AppendToStreamTests {
                 .WithRecords(data.Records.Take(1))
                 .Build(), ct);
 
-        var expectedRevision = data.Records.Count - 1;
+        var expectedRevision = data.Records.Length - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -63,7 +64,7 @@ public class AppendToStreamTests {
                 .WithRecords(data.Records.Take(1))
                 .Build(), ct);
 
-        var expectedRevision = data.Records.Count - 1;
+        var expectedRevision = data.Records.Length - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -85,7 +86,7 @@ public class AppendToStreamTests {
         var created = await Fixture.Client.Streams
             .AppendStream(data.Stream, data.Records.Take(1), ct);
 
-        var expectedRevision = data.Records.Count - 1;
+        var expectedRevision = data.Records.Length - 1;
 
         // Act
         var result = await Fixture.Client.Streams
@@ -103,7 +104,7 @@ public class AppendToStreamTests {
 
         var created = await Fixture.Client.Streams.AppendStream(data.Stream, data.Records.Take(1), ct);
 
-        var expectedRevision = data.Records.Count - 1;
+        var expectedRevision = data.Records.Length - 1;
 
         // Act
         var result = await Fixture.Client.Streams.AppendStream(data.Stream, data.Records.Skip(1), ct);
@@ -128,7 +129,6 @@ public class AppendToStreamTests {
             .That(async () => await Fixture.Client.Streams.AppendStream(request, ct))
             .Throws<StreamAlreadyExistsException>();
     }
-
 
     public class ExpectedStatesWhenStreamIsTombstoned : TestCaseGenerator<ExpectedStreamState> {
         protected override IEnumerable<ExpectedStreamState> Data() {
@@ -267,7 +267,7 @@ public class AppendToStreamTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        await Assert.That(records.Count).IsEqualTo(data.Records.Count);
+        await Assert.That(records.Count).IsEqualTo(data.Records.Length);
     }
 
     [Test]
@@ -317,7 +317,7 @@ public class AppendToStreamTests {
 
         var options = new StreamRetention() { MaxCount = 5 };
 
-        var expectedRevision = new StreamPosition(data.Stream, data.Records.Count - 1);
+        var expectedRevision = new StreamPosition(data.Stream, data.Records.Length - 1);
 
         await Fixture.Client.Streams
             .ConfigureDataRetention(data.Stream, options, ct);

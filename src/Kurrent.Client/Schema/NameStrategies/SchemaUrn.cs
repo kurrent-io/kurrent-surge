@@ -21,7 +21,6 @@ public partial record SchemaUrn {
 	[GeneratedRegex(Pattern , RegexOptions.Compiled | RegexOptions.CultureInvariant)]
 	private static partial Regex GetUrnRegex();
 
-	// Using GeneratedRegex for performance in parsing operations
 	static readonly Regex UrnRegex = GetUrnRegex();
 
 	/// <summary>

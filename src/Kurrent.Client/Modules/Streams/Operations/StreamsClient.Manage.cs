@@ -1,6 +1,7 @@
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 #pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
+using System.Diagnostics;
 using Grpc.Core;
 using Kurrent.Client.Legacy;
 using KurrentDB.Protocol.V1.Streams;
@@ -15,6 +16,207 @@ namespace Kurrent.Client.Streams;
 public partial class StreamsClient {
     #region ->> GetStreamInfo <<-
 
+    // public async ValueTask<StreamInfo> GetStreamInfoOmg(StreamName stream, CancellationToken cancellationToken = default) {
+    //     // Dudes... This is just code that is easy to be deleted. That's it, and that's all...
+    //     //
+    //     // It will be implemented it server-side.
+    //     // And as unbelievable as it sounds, this implementation is the simplest most
+    //     // effective way to get the stream details for the time being.
+    //     // Even with all the permission issues, since the operation should always work.
+    //
+    //     // var metadataRecord = Record.None;
+    //     //
+    //     // // read the metastream
+    //     // try {
+    //     //     var (evt, streamNotFound, streamTombstoned) = await ReadLastStreamEvent(stream.Metastream).ConfigureAwait(false);
+    //     //
+    //     //     if (streamTombstoned)
+    //     //         return new StreamInfo { Stream = stream, State = StreamState.Tombstoned };
+    //     //     else if (streamNotFound)
+    //     //         return new StreamInfo { Stream = stream, State = StreamState.Tombstoned }; // wtf?!?!?!
+    //     //     else
+    //     //         metadataRecord = await MapToRecordAsync(evt!, false).ConfigureAwait(false);
+    //     // }
+    //     // catch (Exception ex) {
+    //     //     throw ex.AsWellKnownException();
+    //     // }
+    //
+    //     var metadataRecord = Record.None;
+    //
+    //     // read the metastream
+    //     try {
+    //         if (await ReadLastStreamEvent(stream.Metastream).ConfigureAwait(false) is { } evt)
+    //             metadataRecord = await MapToRecordAsync(evt!, false).ConfigureAwait(false);
+    //         else {
+    //             // now we try to read the stream itself if its not a metastream
+    //             if (!stream.IsMetadataStream) {
+    //                 try {
+    //                     if (await ReadLastStreamEvent(stream).ConfigureAwait(false) is { } realEvt) {
+    //                         // the idea is that this will blow up.
+    //                     }
+    //                 } catch (Exception ex) {
+    //                     throw;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     catch (StreamTombstonedException ex) {
+    //         return new StreamInfo { Stream = stream, State = StreamState.Tombstoned };
+    //     }
+    //     catch (Exception ex) {
+    //         throw ex.AsWellKnownException();
+    //     }
+    //
+    //     var info = new StreamInfo { Stream = stream };
+    //
+    //     if (metadataRecord.Value is StreamMetadata metadata) {
+    //         info = info with {
+    //             State     = metadata.TruncateBefore == Revision.Max ? StreamState.Deleted : StreamState.Missing,
+    //             Retention = new StreamRetention {
+    //                 MaxAge   = metadata.MaxAge,
+    //                 MaxCount = metadata.MaxCount,
+    //                 // TruncateBefore =
+    //             },
+    //             Acl          = metadata.Acl ?? StreamAcl.Unset,
+    //             Metadata     = Metadata.FromJsonDocument(metadata.CustomMetadata),
+    //             InfoRevision = metadataRecord.Revision,
+    //         };
+    //     }
+    //
+    //     // no point reading the stream edges because unfortunately,
+    //     // the protocol will return stream not found.
+    //     if (info.State is StreamState.Deleted)
+    //         return info;
+    //
+    //     // reads last and first events from the stream
+    //
+    //     var readLastEvent  = ReadLastStreamEvent(stream);
+    //     var readFirstEvent = ReadFirstStreamEvent(stream);
+    //
+    //     await Task.WhenAll(readLastEvent, readFirstEvent).ConfigureAwait(false);
+    //
+    //     var lastEvent  = await readLastEvent;
+    //     var firstEvent = await readFirstEvent;
+    //
+    //     // just a stupid fallback in case the stream is not found — return current details (Missing state)
+    //     if (lastEvent is null || firstEvent is null)
+    //         return info;
+    //
+    //     var lastRecord  = await MapToRecordAsync(lastEvent, skipDecoding: true).ConfigureAwait(false);
+    //     var firstRecord = await MapToRecordAsync(firstEvent, skipDecoding: true).ConfigureAwait(false);
+    //
+    //     return info with {
+    //         State                 = StreamState.Active,
+    //         FirstStreamRevision   = firstRecord.Revision,
+    //         FirstStreamPosition   = firstRecord.Position.LogPosition,
+    //         FirstStreamAppendedAt = firstRecord.Timestamp,
+    //         LastStreamRevision    = lastRecord.Revision,
+    //         LastStreamPosition    = lastRecord.Position.LogPosition,
+    //         LastStreamAppendedAt  = lastRecord.Timestamp
+    //     };
+    //
+    //     // async Task<(ReadResp.Types.ReadEvent? readEvent, bool notFound, bool tombstoned)> ReadLastStreamEvent2(StreamName targetStream) {
+    //     //     var request = Requests.CreateReadLastStreamEventRequest(targetStream);
+    //     //
+    //     //     try {
+    //     //         using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+    //     //
+    //     //         await session.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false);
+    //     //
+    //     //         return (
+    //     //             session.ResponseStream.Current?.Event,
+    //     //             session.ResponseStream.Current?.ContentCase == ReadResp.ContentOneofCase.StreamNotFound,
+    //     //             false);
+    //     //
+    //     //         // return session.ResponseStream.Current?.ContentCase == ReadResp.ContentOneofCase.StreamNotFound
+    //     //         //     ? (null, true, false)
+    //     //         //     : (session.ResponseStream.Current?.Event, false, false);
+    //     //     }
+    //     //     catch (RpcException rex) when (rex.StatusCode is StatusCode.FailedPrecondition && rex.Status.Detail.Contains("is deleted")) {
+    //     //         return (null, false, true);
+    //     //     }
+    //     //     catch (Exception ex) {
+    //     //         throw ex.AsWellKnownException();
+    //     //     }
+    //     // }
+    //
+    //     async Task<ReadResp.Types.ReadEvent?> ReadLastStreamEvent(StreamName targetStream) {
+    //         var request = Requests.CreateReadLastStreamEventRequest(targetStream);
+    //
+    //         try {
+    //             using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+    //
+    //             using var logging = Logger.BeginScope(
+    //                 "{Stream} : Looking for the last record in the stream.", targetStream);
+    //
+    //             await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
+    //                 if (response.ContentCase == ReadResp.ContentOneofCase.StreamNotFound) {
+    //                     Logger.LogDebug("Stream {Stream} not found.", targetStream);
+    //                     return null;
+    //                 }
+    //
+    //                 if (response.Event is { } evt) {
+    //                     Logger.LogDebug(
+    //                         "Stream {Stream} : Found the last record. Revision: {Revision}, Position: {Position}.",
+    //                         targetStream, evt.Event.StreamRevision, evt.CommitPosition);
+    //
+    //                     return evt;
+    //                 }
+    //
+    //                 Logger.LogDebug("Stream {Stream} : Skipping {ResponseType} response.", targetStream, response?.ContentCase);
+    //             }
+    //         }
+    //         catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) {
+    //             throw new StreamTombstonedException(targetStream);
+    //         }
+    //         catch (Exception ex) {
+    //             throw ex.AsWellKnownException();
+    //         }
+    //
+    //         Logger.LogDebug("Stream {Stream} has no records", targetStream);
+    //         return null;
+    //     }
+    //
+    //     async Task<ReadResp.Types.ReadEvent?> ReadFirstStreamEvent(StreamName targetStream, long? count = null) {
+    //         var request = Requests.CreateReadFirstStreamEventRequest(targetStream, count);
+    //
+    //         try {
+    //             using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+    //
+    //             using var logging = Logger.BeginScope(
+    //                 "{Stream} : Looking for the first non-deleted record in the stream.", targetStream);
+    //
+    //             await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
+    //                 if (response?.Event is { } evt) {
+    //                     Logger.LogDebug(
+    //                         "Stream {Stream} : Found the first non-deleted record. Revision: {Revision}, Position: {Position}.",
+    //                         targetStream, evt.Event.StreamRevision, evt.CommitPosition);
+    //
+    //                     return evt;
+    //                 }
+    //
+    //                 Logger.LogDebug("Stream {Stream} : Skipping {ResponseType} response.", targetStream, response?.ContentCase);
+    //             }
+    //
+    //             return null;
+    //         }
+    //         catch (Exception ex) {
+    //             throw ex.AsWellKnownException();
+    //         }
+    //     }
+    //
+    //     ValueTask<Record> MapToRecordAsync(ReadResp.Types.ReadEvent readEvent, bool skipDecoding) {
+    //         return readEvent.MapToRecordAsync(
+    //             SequenceId.Unset,
+    //             SerializerProvider,
+    //             MetadataDecoder,
+    //             SchemaRegistryPolicy.NoRequirements,
+    //             skipDecoding: skipDecoding,
+    //             cancellationToken
+    //         );
+    //     }
+    // }
+
     public async ValueTask<StreamInfo> GetStreamInfo(StreamName stream, CancellationToken cancellationToken = default) {
         // Dudes... This is just code that is easy to be deleted. That's it, and that's all...
         //
@@ -23,60 +225,44 @@ public partial class StreamsClient {
         // effective way to get the stream details for the time being.
         // Even with all the permission issues, since the operation should always work.
 
-        try {
-            var kebas = Record.None;
-        } catch (Exception e) {
-            throw;
-        }
+        if (stream.IsMetadataStream)
+            throw new ArgumentException("Cannot get stream info for a metadata stream.", nameof(stream));
 
         var metadataRecord = Record.None;
 
-        // read the metastream
+        var readMetadataEvent = ReadLastStreamEvent(stream.Metastream);
+        var readLastEvent     = ReadLastStreamEvent(stream);
+        var readFirstEvent    = ReadFirstStreamEvent(stream);
+
         try {
-            if (await ReadLastStreamEvent(stream.Metastream) is { } evt)
-                metadataRecord = await MapToRecordAsync(evt, false).ConfigureAwait(false);
-        }
-        catch (RpcException rex) when (rex.StatusCode is StatusCode.FailedPrecondition && rex.Status.Detail.Contains("is deleted")) {
-            return new StreamInfo { Stream = stream, State = StreamState.Tombstoned };
-        }
-        catch (Exception ex) {
-            throw ex.AsWellKnownException();
-        }
+            await Task.WhenAll(readMetadataEvent, readLastEvent, readFirstEvent).ConfigureAwait(false);
 
-        var info = new StreamInfo { Stream = stream };
+            var metadataEvent = await readMetadataEvent;
+            if (metadataEvent is not null)
+                metadataRecord = await MapToRecordAsync(metadataEvent, false).ConfigureAwait(false);
 
-        if (metadataRecord.Value is StreamMetadata metadata) {
-            info = info with {
-                State     = metadata.TruncateBefore == Revision.Max ? StreamState.Deleted : StreamState.Missing,
-                Retention = new StreamRetention {
-                    MaxAge   = metadata.MaxAge,
-                    MaxCount = metadata.MaxCount
-                },
-                //CacheControl = metadata.CacheControl,
-                Acl          = metadata.Acl ?? StreamAcl.Unset,
-                Metadata     = Metadata.FromJsonDocument(metadata.CustomMetadata),
-                InfoRevision = metadataRecord.Revision,
-            };
-        }
+            var info = new StreamInfo { Stream = stream };
 
-        // no point reading the stream edges because unfortunately,
-        // the protocol will return stream not found.
-        if (info.State is StreamState.Deleted)
-            return info;
-
-        // reads last and first events from the stream
-        try {
-            var readLastEvent  = ReadLastStreamEvent(stream);
-            var readFirstEvent = ReadFirstStreamEvent(stream);
-
-            await Task.WhenAll(readLastEvent, readFirstEvent).ConfigureAwait(false);
+            if (metadataRecord.Value is StreamMetadata metadata) {
+                info = info with {
+                    State     = metadata.TruncateBefore == Revision.Max ? StreamState.Deleted : StreamState.Missing,
+                    Retention = new() {
+                        MaxAge   = metadata.MaxAge,
+                        MaxCount = metadata.MaxCount,
+                        // TruncateBefore =
+                    },
+                    //CacheControl = metadata.CacheControl,
+                    Acl          = metadata.Acl ?? new(),
+                    Metadata     = Metadata.FromJsonDocument(metadata.CustomMetadata),
+                    InfoRevision = metadataRecord.Revision,
+                };
+            }
 
             var lastEvent  = await readLastEvent;
             var firstEvent = await readFirstEvent;
 
-            // just a stupid fallback in case the stream is not found — return current details (Missing state)
-            if (lastEvent is null || firstEvent is null)
-                return info;
+            // its missing if we cannot read the edges, but we also have no metadata about it.
+            if (lastEvent is null || firstEvent is null) return info;
 
             var lastRecord  = await MapToRecordAsync(lastEvent, skipDecoding: true).ConfigureAwait(false);
             var firstRecord = await MapToRecordAsync(firstEvent, skipDecoding: true).ConfigureAwait(false);
@@ -91,38 +277,190 @@ public partial class StreamsClient {
                 LastStreamAppendedAt  = lastRecord.Timestamp
             };
         }
+        catch (StreamTombstonedException ex) {
+            return new StreamInfo { Stream = stream, State = StreamState.Tombstoned };
+        }
         catch (Exception ex) {
             throw ex.AsWellKnownException();
         }
 
+        // var info = new StreamInfo { Stream = stream };
+        //
+        // if (metadataRecord.Value is StreamMetadata metadata) {
+        //     info = info with {
+        //         State     = metadata.TruncateBefore == Revision.Max ? StreamState.Deleted : StreamState.Missing,
+        //         Retention = new StreamRetention {
+        //             MaxAge   = metadata.MaxAge,
+        //             MaxCount = metadata.MaxCount,
+        //             // TruncateBefore =
+        //         },
+        //         //CacheControl = metadata.CacheControl,
+        //         Acl          = metadata.Acl ?? StreamAcl.Unset,
+        //         Metadata     = Metadata.FromJsonDocument(metadata.CustomMetadata),
+        //         InfoRevision = metadataRecord.Revision,
+        //     };
+        // }
 
-        async Task<ReadResp.Types.ReadEvent?> ReadLastStreamEvent(StreamName targetStream) {
-            var request = Requests.CreateReadLastStreamEventRequest(targetStream);
-            using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
-            await session.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false);
-            return session.ResponseStream.Current?.Event;
+        // // no point reading the stream edges because unfortunately,
+        // // the protocol will return stream not found.
+        // if (info.State is StreamState.Deleted)
+        //     return info;
+        //
+        // // reads last and first events from the stream
+        //
+        // var readLastEvent  = ReadLastStreamEvent(stream);
+        // var readFirstEvent = ReadFirstStreamEvent(stream);
+        //
+        // await Task.WhenAll(readLastEvent, readFirstEvent).ConfigureAwait(false);
+        //
+        // var lastEvent  = await readLastEvent;
+        // var firstEvent = await readFirstEvent;
+        //
+        // // just a stupid fallback in case the stream is not found — return current details (Missing state)
+        // if (lastEvent is null || firstEvent is null)
+        //     return info;
+        //
+        // var lastRecord  = await MapToRecordAsync(lastEvent, skipDecoding: true).ConfigureAwait(false);
+        // var firstRecord = await MapToRecordAsync(firstEvent, skipDecoding: true).ConfigureAwait(false);
+        //
+        // return info with {
+        //     State                 = StreamState.Active,
+        //     FirstStreamRevision   = firstRecord.Revision,
+        //     FirstStreamPosition   = firstRecord.Position.LogPosition,
+        //     FirstStreamAppendedAt = firstRecord.Timestamp,
+        //     LastStreamRevision    = lastRecord.Revision,
+        //     LastStreamPosition    = lastRecord.Position.LogPosition,
+        //     LastStreamAppendedAt  = lastRecord.Timestamp
+        // };
+
+        // async Task<(ReadResp.Types.ReadEvent? readEvent, bool notFound, bool tombstoned)> ReadLastStreamEvent2(StreamName targetStream) {
+        //     var request = Requests.CreateReadLastStreamEventRequest(targetStream);
+        //
+        //     try {
+        //         using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+        //
+        //         await session.ResponseStream.MoveNext(cancellationToken).ConfigureAwait(false);
+        //
+        //         return (
+        //             session.ResponseStream.Current?.Event,
+        //             session.ResponseStream.Current?.ContentCase == ReadResp.ContentOneofCase.StreamNotFound,
+        //             false);
+        //
+        //         // return session.ResponseStream.Current?.ContentCase == ReadResp.ContentOneofCase.StreamNotFound
+        //         //     ? (null, true, false)
+        //         //     : (session.ResponseStream.Current?.Event, false, false);
+        //     }
+        //     catch (RpcException rex) when (rex.StatusCode is StatusCode.FailedPrecondition && rex.Status.Detail.Contains("is deleted")) {
+        //         return (null, false, true);
+        //     }
+        //     catch (Exception ex) {
+        //         throw ex.AsWellKnownException();
+        //     }
+        // }
+
+        // async Task<ReadResp.Types.ReadEvent?> ReadLastStreamEvent(StreamName targetStream) {
+        //     var request = Requests.CreateReadLastStreamEventRequestV2(targetStream);
+        //
+        //     try {
+        //         using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+        //
+        //         using var logging = Logger.BeginScope(
+        //             "{Stream} : Looking for the last record in the stream.", targetStream);
+        //
+        //         await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
+        //             if (response.ContentCase == ReadResp.ContentOneofCase.StreamNotFound) {
+        //                 Logger.LogDebug("Stream {Stream} not found.", targetStream);
+        //                 return null;
+        //             }
+        //
+        //             if (response.Event is { } evt) {
+        //                 Logger.LogDebug(
+        //                     "Stream {Stream} : Found the last record. Revision: {Revision}, Position: {Position}.",
+        //                     targetStream, evt.Event.StreamRevision, evt.CommitPosition);
+        //
+        //                 return evt;
+        //             }
+        //
+        //             Logger.LogDebug("Stream {Stream} : Skipping {ResponseType} response.", targetStream, response?.ContentCase);
+        //         }
+        //     }
+        //     catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) {
+        //         throw new StreamTombstonedException(targetStream);
+        //     }
+        //     catch (Exception ex) {
+        //         throw ex.AsWellKnownException();
+        //     }
+        //
+        //     Logger.LogDebug("Stream {Stream} has no records", targetStream);
+        //     return null;
+        // }
+
+        async Task<ReadResp.Types.ReadEvent?> ReadLastStreamEvent(StreamName targetStream, long? count = null) {
+            var request = Requests.CreateReadLastStreamEventRequest(targetStream, count);
+
+            try {
+                using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+
+                using var logging = Logger.BeginScope(
+                    "{Stream} : Looking for the last record in the stream.", targetStream);
+
+                await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
+                    if (response.ContentCase == ReadResp.ContentOneofCase.StreamNotFound) {
+                        Logger.LogDebug("Stream {Stream} not found.", targetStream);
+                        // return null;
+                    }
+
+                    if (response.Event is { } evt) {
+                        Logger.LogDebug(
+                            "Stream {Stream} : Found the last record. Revision: {Revision}, Position: {Position}.",
+                            targetStream, evt.Event.StreamRevision, evt.CommitPosition);
+
+                        return evt;
+                    }
+
+                    Logger.LogDebug("Stream {Stream} : Skipping {ResponseType} response.", targetStream, response?.ContentCase);
+                }
+            }
+            catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) {
+                throw new StreamTombstonedException(targetStream);
+            }
+            catch (Exception ex) {
+                throw ex.AsWellKnownException();
+            }
+
+            Logger.LogDebug("Stream {Stream} has no records", targetStream);
+            return null;
         }
 
         async Task<ReadResp.Types.ReadEvent?> ReadFirstStreamEvent(StreamName targetStream, long? count = null) {
             var request = Requests.CreateReadFirstStreamEventRequest(targetStream, count);
 
-            using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
+            try {
+                using var session = LegacyServiceClient.Read(request, cancellationToken: cancellationToken);
 
-            using var logging = Logger.BeginScope("{Stream} : Looking for the first non-deleted record in the stream.", targetStream);
+                using var logging = Logger.BeginScope(
+                    "{Stream} : Looking for the first non-deleted record in the stream.", targetStream);
 
-            await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
-                if (response?.Event is { } evt ) {
-                    Logger.LogDebug(
-                        "Found the first non-deleted event. Revision: {Revision}, Position: {Position}.",
-                        evt.Event.StreamRevision, evt.CommitPosition);
+                await foreach (var response in session.ResponseStream.ReadAllAsync(cancellationToken)) {
+                    if (response?.Event is { } evt) {
+                        Logger.LogDebug(
+                            "Stream {Stream} : Found the first non-deleted record. Revision: {Revision}, Position: {Position}.",
+                            targetStream, evt.Event.StreamRevision, evt.CommitPosition);
 
-                    return evt;
+                        return evt;
+                    }
+
+                    Logger.LogDebug("Stream {Stream} : Skipping {ResponseType} response.", targetStream, response?.ContentCase);
                 }
 
-                Logger.LogDebug("Skipping {ResponseType} response.", response?.ContentCase);
+                return null;
             }
-
-            return null;
+            catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) {
+                throw new StreamTombstonedException(targetStream);
+            }
+            catch (Exception ex) {
+                throw ex.AsWellKnownException();
+            }
         }
 
         ValueTask<Record> MapToRecordAsync(ReadResp.Types.ReadEvent readEvent, bool skipDecoding) {
@@ -200,7 +538,7 @@ public partial class StreamsClient {
             };
         }
         catch (Exception ex) {
-            throw ex.ToException(
+            throw ex.AsWellKnownException(
                 StreamNotFoundException.From,
                 StreamDeletedException.From,
                 StreamTombstonedException.From,
@@ -235,7 +573,7 @@ public partial class StreamsClient {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
+            throw ex.AsWellKnownException(
                 StreamNotFoundException.From,
                 StreamDeletedException.From,
                 StreamTombstonedException.From,

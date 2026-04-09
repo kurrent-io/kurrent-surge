@@ -47,9 +47,16 @@ public class IndexesClient : ClientModuleBase {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException((status, info) => ex);
+            throw ex.AsWellKnownException();
         }
     }
+
+    public ValueTask Create(
+        string name,
+        string filter,
+        IEnumerable<IndexField> fields,
+        CancellationToken cancellationToken = default
+    ) => Create(name, filter, fields, start: null, cancellationToken);
 
     /// <summary>
     /// Starts an existing secondary index.
@@ -61,10 +68,9 @@ public class IndexesClient : ClientModuleBase {
     /// <returns>
     /// A <see cref="Result{Success, StartIndexError}"/> indicating the outcome of the operation.
     /// </returns>
-    public async ValueTask Start(
-        string name,
-        CancellationToken cancellationToken = default
-    ) {
+    public async ValueTask Start(string name, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name, "indexName");
+
         var request = new Contracts.StartIndexRequest { Name = name };
 
         try {
@@ -73,7 +79,7 @@ public class IndexesClient : ClientModuleBase {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException((status, info) => ex);
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -99,7 +105,7 @@ public class IndexesClient : ClientModuleBase {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException((status, info) => ex);
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -125,7 +131,7 @@ public class IndexesClient : ClientModuleBase {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException((status, info) => ex);
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -151,7 +157,7 @@ public class IndexesClient : ClientModuleBase {
             return response.Indexes.Select(Index.FromProto).ToList();
         }
         catch (Exception ex) {
-            throw ex.ToException((status, info) => ex);
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -169,6 +175,8 @@ public class IndexesClient : ClientModuleBase {
         string name,
         CancellationToken cancellationToken = default
     ) {
+
+
         var request = new Contracts.GetIndexRequest { Name = name };
 
         try {
@@ -179,7 +187,7 @@ public class IndexesClient : ClientModuleBase {
             return Index.FromProto(response.Index);
         }
         catch (Exception ex) {
-            throw ex.ToException((status, info) => ex);
+            throw ex.AsWellKnownException();
         }
     }
 }

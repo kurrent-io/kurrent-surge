@@ -93,7 +93,7 @@ static class InternalClientExtensions {
                 throw new LogPositionNotFoundException(position, details);
             }
 
-            throw rex.ToException();
+            throw rex.AsWellKnownException();
         }
 
         yield return new Connected(sessionId);
@@ -289,7 +289,7 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
                 _channel.Writer.TryComplete();
             }
             catch (Exception ex) {
-                _channel?.Writer.TryComplete(ex.ToException());
+                _channel?.Writer.TryComplete(ex.AsWellKnownException());
             }
         }
     }

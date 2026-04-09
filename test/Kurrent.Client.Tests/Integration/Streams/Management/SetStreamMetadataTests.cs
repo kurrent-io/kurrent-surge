@@ -1,6 +1,7 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Sdk.TestKit.Fixtures;
 using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -79,12 +80,14 @@ public class SetStreamCustomMetadataTests {
 	public async ValueTask fails_when_revision_does_not_match(CancellationToken ct) {
 		var data = await Fixture.SeedTestStream(ct);
 
-		await Fixture.Client.Streams
+		var revision = await Fixture.Client.Streams
 			.ConfigureDataRetention(data.Stream, maxCount: 100, ct);
+
+        var badRevision = revision + 10;
 
 		// Try to update at a stale revision
 		await Assert.That(async () => await Fixture.Client.Streams
-			.ConfigureDataRetention(data.Stream, new() { MaxCount = 200 }, revision: 99, ct))
+			.ConfigureDataRetention(data.Stream, new() { MaxCount = 200 }, revision: badRevision, ct))
 			.Throws<StreamRevisionConflictException>();
 	}
 

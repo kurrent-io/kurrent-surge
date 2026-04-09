@@ -3,6 +3,7 @@ using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit;
+using Sdk.TestKit.Fixtures;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -20,12 +21,15 @@ public class ReadTests {
 
         var stoppingToken = cancellator.Token;
 
+        var lastPosition = await Fixture.LatestRecordPosition(stoppingToken);
+
         var simulation = await Fixture.SeedTestStream(10, stoppingToken);
 
         var options = ReadLog.FromStart()
             .WithFilterExpression($"stream = '{simulation.Stream}'")
             .SkipDecoding()
             .WithCancellationToken(stoppingToken)
+            .From(lastPosition.LogPosition)
             .Build();
 
         await using var messages = await Fixture.Client.Streams.ReadRecords(options);
@@ -50,7 +54,7 @@ public class ReadTests {
             );
         }
 
-        await Assert.That(records.Count).IsEqualTo(simulation.Records.Count);
+        await Assert.That(records.Count).IsEqualTo(simulation.Records.Length);
     }
 
     [Test]
@@ -67,7 +71,7 @@ public class ReadTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        await Assert.That(records.Count).IsEqualTo(data.Records.Count);
+        await Assert.That(records.Count).IsEqualTo(data.Records.Length);
 
         for (var i = 0; i < records.Count; i++) {
             var record   = records[i];
@@ -109,7 +113,7 @@ public class ReadTests {
         await using var messages = await Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, cancellator.Token);
 
-        var cancelOn = (data.Records.Count / 2) + (data.Records.Count % 2);
+        var cancelOn = (data.Records.Length / 2) + (data.Records.Length % 2);
 
         await foreach (var _ in messages)
             if (--cancelOn == 0 && !cancellator.IsCancellationRequested)
@@ -138,7 +142,7 @@ public class ReadTests {
         await using var messages = await Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, cancellator.Token);
 
-        var cancelOn = (data.Records.Count / 2) + (data.Records.Count % 2);
+        var cancelOn = (data.Records.Length / 2) + (data.Records.Length % 2);
 
         await foreach (var _ in messages.WithCancellation(cancellator.Token)) {
             if (--cancelOn == 0)
@@ -171,6 +175,18 @@ public class ReadTests {
 
     [Test]
     public async ValueTask fails_with_log_position_not_found_when_log_position_is_broken(CancellationToken ct) {
+
+        // wtf?!
+        // error message:
+        // "The provided log position does not exist: 18446744073709550616.
+        // Details: Error while reading log record forwards at actual position 23780042.
+        // Ticks must be between DateTime.MinValue.Ticks and DateTime.MaxValue.Ticks. (Parameter 'ticks')"
+
+        // error message:
+        // "The provided log position does not exist: 18446744073709550616.
+        // Details: There is not enough space to read full record (length prefix: 464640).
+        // Actual pre-position: 30628457. Something is seriously wrong in chunk #2-2 (chunk-000002.000000).")"
+
         var simulation = await Fixture.SeedTestStream(ct);
 
         var messages = await Fixture.Client.Streams

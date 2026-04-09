@@ -24,7 +24,7 @@ public partial class AdminClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -35,7 +35,7 @@ public partial class AdminClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -48,7 +48,7 @@ public partial class AdminClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 }

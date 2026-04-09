@@ -1,5 +1,5 @@
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
+using Sdk.TestKit.Fixtures;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;
@@ -63,7 +63,7 @@ public class LogSubscriptionTests {
             .RunAsync(ct);
 
         // Assert
-        await Assert.That(processor.Records).Count().IsEqualTo(data.Records.Count);
+        await Assert.That(processor.Records).Count().IsEqualTo(data.Records.Length);
     }
 
     [Test]
@@ -146,7 +146,7 @@ public class LogSubscriptionTests {
 
         // Assert
         await Assert.That(processor.Complete).IsNotNull();
-        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Count);
+        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
     }
 
     [Test]
@@ -249,7 +249,7 @@ public class LogSubscriptionTests {
 
         // Assert
         var totalProcessedRecords = processor1.Records.Length + processor2.Records.Length;
-        await Assert.That(totalProcessedRecords).IsLessThanOrEqualTo(data.Records.Count + 5);
+        await Assert.That(totalProcessedRecords).IsLessThanOrEqualTo(data.Records.Length + 5);
 
         var allProcessedIds = processor1.Records
             .Concat(processor2.Records)
@@ -373,7 +373,7 @@ public class LogSubscriptionTests {
         var uniqueCount    = allProcessedIds.Distinct().Count();
         var duplicateCount = allProcessedIds.Count - uniqueCount;
 
-        await Assert.That(uniqueCount).IsGreaterThanOrEqualTo(data.Records.Count);
+        await Assert.That(uniqueCount).IsGreaterThanOrEqualTo(data.Records.Length);
         await Assert.That(duplicateCount).IsLessThanOrEqualTo(5);
     }
 
@@ -480,7 +480,7 @@ public class LogSubscriptionTests {
         var duplicateCount = allProcessedIds.Count - allProcessedIds.Distinct().Count();
 
         using var _ = Assert.Multiple();
-        await Assert.That(allProcessedIds.Distinct().Count()).IsEqualTo(data.Records.Count);
+        await Assert.That(allProcessedIds.Distinct().Count()).IsEqualTo(data.Records.Length);
         await Assert.That(duplicateCount).IsLessThanOrEqualTo(5);
     }
 
@@ -538,7 +538,7 @@ public class LogSubscriptionTests {
         var duplicateCount = allProcessedIds.Count - allProcessedIds.Distinct().Count();
 
         using var _ = Assert.Multiple();
-        await Assert.That(allProcessedIds.Distinct().Count()).IsEqualTo(data.Records.Count);
+        await Assert.That(allProcessedIds.Distinct().Count()).IsEqualTo(data.Records.Length);
         await Assert.That(duplicateCount).IsLessThanOrEqualTo(5);
     }
 

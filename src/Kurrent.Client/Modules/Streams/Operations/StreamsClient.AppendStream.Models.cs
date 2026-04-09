@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Kurrent.Client.Streams;
 
@@ -14,15 +16,26 @@ public record AppendStreamRequest() {
     /// </summary>
     public static AppendStreamRequestBuilder For(StreamName stream) => new(stream);
 
+    // [method: SetsRequiredMembers]
+    // public AppendStreamRequest(
+    //     StreamName stream,
+    //     AppendRecord[] records,
+    //     ConsistencyCheck[] checks
+    // ) : this() {
+    //     Stream  = stream;
+    //     Records = [..records];
+    //     Checks  = [..checks];
+    // }
+
     [method: SetsRequiredMembers]
     public AppendStreamRequest(
         StreamName stream,
         ImmutableArray<AppendRecord> records,
-        ImmutableArray<ConsistencyCheck> checks = default
+        ExpectedStreamState expectedState
     ) : this() {
-        Stream  = stream;
-        Records = records;
-        Checks  = checks;
+        Stream        = stream;
+        Records       = records;
+        ExpectedState = expectedState;
     }
 
     /// <summary>
@@ -36,28 +49,91 @@ public record AppendStreamRequest() {
     public required ImmutableArray<AppendRecord> Records { get; init; }
 
     /// <summary>
-    /// Consistency checks to enforce before appending.
+    /// The expected state of the stream before appending.
     /// </summary>
-    public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
+    public required ExpectedStreamState ExpectedState { get; init; }
+
+    // /// <summary>
+    // /// Consistency checks to enforce before appending.
+    // /// </summary>
+    // public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
 
     /// <summary>
-    /// Validates all records meet their invariants and stamps the target stream on each.
+    /// Validates all records meet their invariants and stamps the target stream on each,
+    /// while also filtering out irrelevant stream-state checks.
     /// Returns a new request with the validated, stream-stamped records.
     /// </summary>
-    public AppendStreamRequest EnsureValid() =>
-        this with {
-            Records = [..Records.Select(r => (r with { Stream = Stream }).EnsureValid())]
-        };
+    public AppendStreamRequest EnsureValid() {
+        var builder        = Records.ToBuilder();
+        var recordsChanged = false;
+
+        for(var i = 0; i < builder.Count; i++) {
+            var record = builder[i].EnsureValid();
+
+            if (record.Stream == Stream)
+                continue;
+
+            builder[i]     = record with { Stream = Stream };
+            recordsChanged = true;
+        }
+
+        // var checksBuilder = Checks.ToBuilder();
+        // var checksChanged = false;
+        //
+        // for(var i = 0; i < checksBuilder.Count; i++) {
+        //     var check = checksBuilder[i];
+        //
+        //     if (check.Value is not StreamStateCheck ssc || ssc.ExpectedState == ExpectedStreamState.Any)
+        //         continue;
+        //
+        //     builder.RemoveAt(i);
+        //     checksChanged = true;
+        // }
+        //
+        // if (recordsChanged && checksChanged) {
+        //     return this with {
+        //         Records = builder.MoveToImmutable(),
+        //         Checks  = checksBuilder.MoveToImmutable()
+        //     };
+        // }
+
+        if (recordsChanged)
+            return this with { Records = builder.MoveToImmutable() };
+
+        // if (checksChanged)
+        //     return this with { Checks = checksBuilder.MoveToImmutable() };
+
+        return this;
+    }
 }
 
 /// <summary>
 /// The result of appending records to a single stream.
 /// </summary>
 [PublicAPI]
-[method: SetsRequiredMembers]
-public record AppendToStreamResponse(StreamName Stream, Revision Revision, LogPosition Position) {
-    public required StreamName Stream { get; init; } = Stream;
-    public required Revision Revision { get; init; } = Revision;
-    public required LogPosition Position { get; init; } = Position;
+// [method: SetsRequiredMembers]
+public record AppendStreamResponse(StreamName Stream, Revision Revision, LogPosition Position) {
+    // public required StreamName  Stream   { get; init; } = Stream;
+    // public required Revision    Revision { get; init; } = Revision;
+    // public required LogPosition Position { get; init; } = Position;
+}
+
+
+/// <summary>
+/// The result of appending records to a single stream.
+/// </summary>
+[PublicAPI]
+// [method: SetsRequiredMembers]
+public record AppendStreamResponse4(LogPosition Position, Revision Revision) {
+    // public required Revision    Revision { get; init; } = Revision;
+    // public required LogPosition Position { get; init; } = Position;
+}
+
+public record AppendStreamResponse2(StreamPosition StreamPosition, LogPosition LogPosition) {
+    public static AppendStreamResponse2 Unset { get; } = new(StreamPosition.Unset, LogPosition.Unset);
+}
+
+public record AppendStreamResponse3(RecordPosition Position) {
+    public static AppendStreamResponse3 Unset { get; } = new(RecordPosition.Unset);
 }
 

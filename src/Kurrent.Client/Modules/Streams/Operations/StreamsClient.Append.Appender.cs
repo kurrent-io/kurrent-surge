@@ -41,7 +41,10 @@ public class StreamsAppender : IAsyncDisposable {
             return _mapper.ToAppendRecordsResponse(response);
         }
         catch (Exception ex) {
-            throw ex.ToException(AppendConsistencyViolationException.From, MaxAppendRecordSizeExceededException.From, MaxAppendTransactionSizeExceededException.From);
+            throw ex.AsWellKnownException(
+                AppendConsistencyViolationException.From,
+                MaxAppendRecordSizeExceededException.From,
+                MaxAppendTransactionSizeExceededException.From);
         }
     }
 

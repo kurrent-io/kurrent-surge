@@ -33,7 +33,7 @@ public partial class AdminClient {
             };
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -58,7 +58,7 @@ public partial class AdminClient {
             };
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 }

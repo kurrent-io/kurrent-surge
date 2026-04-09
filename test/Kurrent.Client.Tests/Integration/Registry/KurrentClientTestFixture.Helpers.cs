@@ -2,6 +2,7 @@
 
 using Google.Protobuf;
 using NJsonSchema;
+using Sdk.TestKit.Fixtures;
 
 namespace Kurrent.Client.Tests.Fixtures;
 

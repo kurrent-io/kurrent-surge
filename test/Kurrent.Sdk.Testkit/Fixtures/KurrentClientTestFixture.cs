@@ -2,6 +2,7 @@
 
 using System.Runtime.CompilerServices;
 using Bogus;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Containers.KurrentDB;
 using Kurrent.Testing.Testkit;
@@ -10,7 +11,7 @@ using Microsoft.Extensions.Time.Testing;
 using Testing.ArcadeRacer;
 using TUnit.Core.Interfaces;
 
-namespace Kurrent.Client.Tests.Fixtures;
+namespace Sdk.TestKit.Fixtures;
 
 public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposable {
     [ClassDataSource<KurrentDBTestContainer>(Shared = SharedType.PerTestSession)]
@@ -77,22 +78,6 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
         }
     }
 
-    // public async ValueTask<LogPosition> LatestLogPosition(CancellationToken ct = default) {
-    //     var options = new ReadOptions {
-    //         Direction         = ReadDirection.Backwards,
-    //         Start             = LogPosition.Latest,
-    //         MaxRecords        = 1,
-    //         SkipDecoding      = true,
-    //         CancellationToken = ct
-    //     };
-    //
-    //     await using var reader = await Client.Streams.ReadRecords(options);
-    //
-    //     return await reader
-    //         .Select(x => x.AsRecord.Position.LogPosition)
-    //         .FirstAsync(ct);
-    // }
-
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var options = new ReadOptions {
             Direction         = ReadDirection.Backwards,
@@ -117,20 +102,17 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
         CancellationToken ct = default
     ) {
         var ds = numberOfEvents is null
-            ? await TestData.GenerateSet(ct)
-            : await TestData.GenerateSet(numberOfEvents.Value, ct);
+            ? await TestData.GenerateSet(ct).ConfigureAwait(false)
+            : await TestData.GenerateSet(numberOfEvents.Value, ct).ConfigureAwait(false);
 
-        var req = AppendStreamRequest.For(ds.Stream).WithRecords(ds.Records)
-            .WithMetadata("stream", ds.Stream) // allows filtering by stream without using a stream filter
-            .Build();
-
-        var rsp = await Client.Streams.AppendStream(req, ct);
+        var req = AppendStreamRequest.For(ds.Stream).WithRecords(ds.Records).Build();
+        var rsp = await Client.Streams.AppendStream(req, ct).ConfigureAwait(false);
 
         var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position);
 
         Logger.LogDebug(
             "Seeded {Count} {DataSource} events: {Stream} v{Revision} @ {Position}",
-            seeded.Records.Count, TestData.Name, seeded.Stream, seeded.Revision, seeded.Position);
+            seeded.Records.Length, TestData.Name, seeded.Stream, seeded.Revision.Value, seeded.Position.Value);
 
         return seeded;
     }
@@ -139,17 +121,14 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
 
     public async IAsyncEnumerable<SeededTestStream> TestStreams([EnumeratorCancellation] CancellationToken ct) {
         while (!ct.IsCancellationRequested) {
-            SeededTestStream? seededStream = null;
-
+            SeededTestStream seededStream;
             try {
-                seededStream = await SeedTestStream(ct);
+                seededStream = await SeedTestStream(ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) {
                 yield break;
             }
-
-            if (seededStream is not null)
-                yield return seededStream;
+            yield return seededStream;
         }
     }
 

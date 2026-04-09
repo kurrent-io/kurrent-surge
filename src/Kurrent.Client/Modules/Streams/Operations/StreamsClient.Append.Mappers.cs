@@ -76,22 +76,22 @@ partial class StreamsProtocolMapper {
         return result;
     }
 
-    public async ValueTask<Contracts.AppendRecordsRequest> ToContract(AppendStreamRequest source, CancellationToken ct) {
-        var result = new Contracts.AppendRecordsRequest {
-            Records = { Capacity = source.Records.Length }
-        };
-
-        foreach (var record in source.Records) {
-            var stamped = record with { Stream = source.Stream };
-            result.Records.Add(await ToContract(stamped, ct).ConfigureAwait(false));
-        }
-
-        foreach (var check in source.Checks)
-            if (check != ConsistencyCheck.None)
-                result.Checks.Add(ToContract(check));
-
-        return result;
-    }
+    // public async ValueTask<Contracts.AppendRecordsRequest> ToContract(AppendStreamRequest source, CancellationToken ct) {
+    //     var result = new Contracts.AppendRecordsRequest {
+    //         Records = { Capacity = source.Records.Length }
+    //     };
+    //
+    //     foreach (var record in source.Records) {
+    //         var stamped = record with { Stream = source.Stream };
+    //         result.Records.Add(await ToContract(stamped, ct).ConfigureAwait(false));
+    //     }
+    //
+    //     // foreach (var check in source.Checks)
+    //     //     if (check != ConsistencyCheck.None)
+    //     //         result.Checks.Add(ToContract(check));
+    //
+    //     return result;
+    // }
 
     public AppendRecordsResponse ToAppendRecordsResponse(Contracts.AppendRecordsResponse source) {
         var revisions = source.Revisions

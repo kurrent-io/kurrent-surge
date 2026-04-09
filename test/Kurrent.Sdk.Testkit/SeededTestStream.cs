@@ -6,7 +6,7 @@ namespace Testing.ArcadeRacer;
 public record SeededTestStream(TestStream TestStream, Revision Revision, LogPosition Position) {
     public StreamName Stream => TestStream.Stream;
 
-    public ImmutableList<AppendRecord> Records => TestStream.Records;
+    public ImmutableArray<AppendRecord> Records => TestStream.Records;
 
     public long LastTimestamp => TestStream.LastTimestamp;
 
@@ -16,7 +16,7 @@ public record SeededTestStream(TestStream TestStream, Revision Revision, LogPosi
     // public SimulatedRace WithExpectedRevision(long expectedRevision) =>
     //     Race.WithExpectedRevision(expectedRevision);
 
-    public override string ToString() => $"{Stream} v{Revision} @ {Position}";
+    public override string ToString() => $"{Stream} v{Revision.Value} @ {Position.Value}";
 
     public static implicit operator AppendStreamRequest(SeededTestStream seeded) => seeded.TestStream.AppendRequest;
 }

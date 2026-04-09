@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
+using Sdk.TestKit.Fixtures;
 using CheckpointStore = Kurrent.Processors.Checkpointing.CheckpointStore;
 
 namespace Kurrent.Processors.Tests;

@@ -1,12 +1,17 @@
 using Kurrent.Client.Admin;
 using Kurrent.Client.Tests.Fixtures;
+using Sdk.TestKit.Fixtures;
 
 namespace Kurrent.Client.Tests.Integration.Admin;
 
 [Category("Admin")]
 [Category("Integration")]
-[Timeout(60_000)]
+[Timeout(10_000)]
+[Skip("Scavenge tests are destructive and impact the shared test database, "
+    + "and are not currently run in CI. They should be run manually when needed.")]
 public class ScavengeTests {
+    //TODO SS: Use Aspire instead of fluent docker to allow creating isolated databases for these tests, and remove the Skip attribute.
+
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 

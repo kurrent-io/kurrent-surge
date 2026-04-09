@@ -137,8 +137,8 @@ public partial class AppendSessionNoRequestsException;
 [KurrentOperationError(Contracts.Errors.StreamsError.LogPositionNotFound)]
 public partial class LogPositionNotFoundException {
     public LogPositionNotFoundException(ulong position)
-        : this($"The provided log position does not exist: {position}.") { }
+        : this($"Failed to find log position: {position}") { }
 
     public LogPositionNotFoundException(ulong position, string details)
-        : this($"The provided log position does not exist: {position}. Details: {details}") { }
+        : this($"Failed to find log position: {position} Details: {details}") { }
 }

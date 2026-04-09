@@ -76,7 +76,7 @@ public class RegistryClient : ClientModuleBase {
             return response.ToSchemaVersionDescriptor();
         }
         catch (Exception ex) {
-            var mex = ex.ToException(SchemaAlreadyExistsException.From);
+            var mex = ex.AsWellKnownException(SchemaAlreadyExistsException.From);
 
             if (mex is not SchemaAlreadyExistsException && ex is RpcException { StatusCode: StatusCode.AlreadyExists })
                 throw new SchemaAlreadyExistsException(schemaName);
@@ -306,7 +306,7 @@ public class RegistryClient : ClientModuleBase {
             return response.ToSchemas();
         }
         catch (Exception ex) {
-            throw ex.ToException();
+            throw ex.AsWellKnownException();
         }
     }
 
@@ -355,7 +355,7 @@ public class RegistryClient : ClientModuleBase {
         SchemaNotFoundException notFound,
         SchemaDeletedException deleted
     ) {
-        var mex = ex.ToException(
+        var mex = ex.AsWellKnownException(
             SchemaNotFoundException.From,
             SchemaDeletedException.From);
 
