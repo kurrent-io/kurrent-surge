@@ -1,14 +1,33 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Kurrent.Client.Admin;
 using Kurrent.Client.Schema;
 
 namespace Kurrent.Client;
 
 /// <summary>
+/// Handles the standard .NET TimeSpan format strings written by the KurrentDB server (e.g. "00:01:23.4567890"),
+/// as opposed to the ISO 8601 duration format used by the SDK's default TimeSpan converter.
+/// </summary>
+sealed class ServerTimeSpanConverter : JsonConverter<TimeSpan> {
+    public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+        if (reader.TokenType == JsonTokenType.Null)
+            return TimeSpan.Zero;
+
+        var value = reader.GetString();
+
+        return string.IsNullOrEmpty(value) ? TimeSpan.Zero : TimeSpan.Parse(value);
+    }
+
+    public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value.ToString());
+}
+
+/// <summary>
 /// Event written when a scavenge operation starts.
 /// Schema: <c>$scavengeStarted</c>
 /// </summary>
-[PublicAPI]
-public record ScavengeStarted {
+record ScavengeStarted {
     [JsonPropertyName("scavengeId")]
     public string ScavengeId { get; init; } = "";
 
@@ -32,8 +51,8 @@ public record ScavengeStarted {
 /// Event written when a scavenge operation completes, stops, or errors.
 /// Schema: <c>$scavengeCompleted</c>
 /// </summary>
-[PublicAPI]
-public record ScavengeCompleted {
+
+record ScavengeCompleted {
     [JsonPropertyName("scavengeId")]
     public string ScavengeId { get; init; } = "";
 
@@ -42,12 +61,13 @@ public record ScavengeCompleted {
 
     [JsonPropertyName("result")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ScavengeCompletionResult Result { get; init; }
+    public ScavengeState Result { get; init; }
 
     [JsonPropertyName("error")]
     public string Error { get; init; } = "";
 
     [JsonPropertyName("timeTaken")]
+    [JsonConverter(typeof(ServerTimeSpanConverter))]
     public TimeSpan TimeTaken { get; init; }
 
     [JsonPropertyName("spaceSaved")]
@@ -61,8 +81,7 @@ public record ScavengeCompleted {
 /// Event written when chunks are scavenged (or skipped).
 /// Schema: <c>$scavengeChunksCompleted</c>
 /// </summary>
-[PublicAPI]
-public record ScavengeChunksCompleted {
+record ScavengeChunksCompleted {
     [JsonPropertyName("scavengeId")]
     public string ScavengeId { get; init; } = "";
 
@@ -73,6 +92,7 @@ public record ScavengeChunksCompleted {
     public int ChunkEndNumber { get; init; }
 
     [JsonPropertyName("timeTaken")]
+    [JsonConverter(typeof(ServerTimeSpanConverter))]
     public TimeSpan TimeTaken { get; init; }
 
     [JsonPropertyName("wasScavenged")]
@@ -92,8 +112,7 @@ public record ScavengeChunksCompleted {
 /// Event written when chunks are merged (or skipped).
 /// Schema: <c>$scavengeMergeCompleted</c>
 /// </summary>
-[PublicAPI]
-public record ScavengeMergeCompleted {
+record ScavengeMergeCompleted {
     [JsonPropertyName("scavengeId")]
     public string ScavengeId { get; init; } = "";
 
@@ -104,6 +123,7 @@ public record ScavengeMergeCompleted {
     public int ChunkEndNumber { get; init; }
 
     [JsonPropertyName("timeTaken")]
+    [JsonConverter(typeof(ServerTimeSpanConverter))]
     public TimeSpan TimeTaken { get; init; }
 
     [JsonPropertyName("spaceSaved")]
@@ -123,8 +143,7 @@ public record ScavengeMergeCompleted {
 /// Event written when index tables are scavenged (or skipped).
 /// Schema: <c>$scavengeIndexCompleted</c>
 /// </summary>
-[PublicAPI]
-public record ScavengeIndexCompleted {
+record ScavengeIndexCompleted {
     [JsonPropertyName("scavengeId")]
     public string ScavengeId { get; init; } = "";
 
@@ -135,6 +154,7 @@ public record ScavengeIndexCompleted {
     public int Index { get; init; }
 
     [JsonPropertyName("timeTaken")]
+    [JsonConverter(typeof(ServerTimeSpanConverter))]
     public TimeSpan TimeTaken { get; init; }
 
     [JsonPropertyName("entriesDeleted")]
@@ -156,19 +176,9 @@ public record ScavengeIndexCompleted {
     public string ErrorMessage { get; init; } = "";
 }
 
-/// <summary>
-/// The result of a completed scavenge operation, as written by the server.
-/// </summary>
-[PublicAPI]
-public enum ScavengeCompletionResult {
-    Success,
-    Stopped,
-    Errored,
-    Interrupted
-}
+// ScavengeCompletionResult is replaced by Kurrent.Client.Admin.ScavengeState
 
-
-public static class TypeMapperExtensions {
+static class TypeMapperExtensions {
     extension(MessageTypeMapper mapper) {
         public void MapScavengeEvents() {
            mapper.Map<ScavengeStarted>("$scavengeStarted");
