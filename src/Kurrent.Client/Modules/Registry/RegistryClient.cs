@@ -76,12 +76,11 @@ public class RegistryClient : ClientModuleBase {
             return response.ToSchemaVersionDescriptor();
         }
         catch (Exception ex) {
-            var mex = ex.AsWellKnownException(SchemaAlreadyExistsException.From);
+            throw ex.ToException(
+                SchemaAlreadyExistsException.From,
 
-            if (mex is not SchemaAlreadyExistsException && ex is RpcException { StatusCode: StatusCode.AlreadyExists })
-                throw new SchemaAlreadyExistsException(schemaName);
-
-            throw mex;
+                // StatusCode fallbacks
+                StatusCode.AlreadyExists.MapTo(new SchemaAlreadyExistsException(schemaName)));
         }
     }
 
@@ -110,9 +109,15 @@ public class RegistryClient : ClientModuleBase {
             return response.Schema.ToSchema();
         }
         catch (Exception ex) {
-            throw ToSchemaException(ex,
-                new SchemaNotFoundException(schemaName),
-                new SchemaDeletedException(schemaName));
+            throw ex.ToException(
+                SchemaNotFoundException.From,
+                SchemaDeletedException.From,
+                SchemaAlreadyExistsException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName))
+            );
         }
     }
 
@@ -149,9 +154,15 @@ public class RegistryClient : ClientModuleBase {
             return response.Version.ToSchemaVersion();
         }
         catch (Exception ex) {
-            throw ToSchemaException(ex,
-                new SchemaNotFoundException(schemaName),
-                new SchemaDeletedException(schemaName));
+            throw ex.ToException(
+                SchemaNotFoundException.From,
+                SchemaDeletedException.From,
+                SchemaAlreadyExistsException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName))
+            );
         }
     }
 
@@ -181,9 +192,15 @@ public class RegistryClient : ClientModuleBase {
             return response.Version.ToSchemaVersion();
         }
         catch (Exception ex) {
-            throw ToSchemaException(ex,
-                new SchemaNotFoundException($"Schema version '{schemaVersionId}' was not found."),
-                new SchemaDeletedException($"Schema for version '{schemaVersionId}' has been deleted."));
+            throw ex.ToException(
+                SchemaNotFoundException.From,
+                SchemaDeletedException.From,
+                SchemaAlreadyExistsException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema version '{schemaVersionId}' was not found.")),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema for version '{schemaVersionId}' has been deleted."))
+            );
         }
     }
 
@@ -213,9 +230,15 @@ public class RegistryClient : ClientModuleBase {
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ToSchemaException(ex,
-                new SchemaNotFoundException(schemaName),
-                new SchemaDeletedException(schemaName));
+            throw ex.ToException(
+                SchemaNotFoundException.From,
+                SchemaDeletedException.From,
+                SchemaAlreadyExistsException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName))
+            );
         }
     }
 
@@ -262,9 +285,15 @@ public class RegistryClient : ClientModuleBase {
             throw new SchemaIncompatibleException(SchemaCompatibilityErrors.FromProto(response.Failure.Errors));
         }
         catch (Exception ex) {
-            throw ToSchemaException(ex,
-                new SchemaNotFoundException($"Schema '{identifier}' was not found."),
-                new SchemaDeletedException($"Schema '{identifier}' has been deleted."));
+            throw ex.ToException(
+                SchemaNotFoundException.From,
+                SchemaDeletedException.From,
+                SchemaAlreadyExistsException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema '{identifier}' was not found.")),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema '{identifier}' has been deleted."))
+            );
         }
     }
 
@@ -343,29 +372,15 @@ public class RegistryClient : ClientModuleBase {
             return response.ToSchemaVersionDescriptor();
         }
         catch (Exception ex) {
-            throw ToSchemaException(ex,
-                new SchemaNotFoundException(schemaName),
-                new SchemaDeletedException(schemaName));
+            throw ex.ToException(
+                SchemaNotFoundException.From,
+                SchemaDeletedException.From,
+                SchemaAlreadyExistsException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName))
+            );
         }
-    }
-
-    // The server does not yet send ErrorInfo. Remove when the server sends structured error details
-    static Exception ToSchemaException(
-        Exception ex,
-        SchemaNotFoundException notFound,
-        SchemaDeletedException deleted
-    ) {
-        var mex = ex.AsWellKnownException(
-            SchemaNotFoundException.From,
-            SchemaDeletedException.From);
-
-        if (mex is SchemaNotFoundException or SchemaDeletedException)
-            return mex;
-
-        return ex switch {
-            RpcException { StatusCode: StatusCode.NotFound }           => notFound,
-            RpcException { StatusCode: StatusCode.FailedPrecondition } => deleted,
-            _                                                          => mex
-        };
     }
 }
