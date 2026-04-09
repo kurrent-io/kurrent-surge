@@ -1,6 +1,7 @@
 #pragma warning disable CS8524
 
 using System.Runtime.CompilerServices;
+using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using KurrentDB.Protocol.V1.Operations;
@@ -62,6 +63,21 @@ public partial class AdminClient {
 
             return MapScavengeResponse(response);
         }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound) {
+            // The server returns NotFound for both "already completed" and "never existed".
+            // Check if the scavenge existed by reading its detail stream.
+            try {
+                var details = await Projector.Project(scavengeId, cancellationToken).ConfigureAwait(false);
+
+                if (details.State != ScavengeState.Running)
+                    return new ScavengeResponse(scavengeId, ScavengeResponseStatus.StopRequested);
+            }
+            catch {
+                // Detail stream doesn't exist either — truly not found
+            }
+
+            throw ex.AsWellKnownException();
+        }
         catch (Exception ex) {
             throw ex.AsWellKnownException();
         }
@@ -73,6 +89,8 @@ public partial class AdminClient {
         if (current is null)
             throw new InvalidOperationException("No scavenge is currently running.");
 
+        // StopScavenge handles the race where the scavenge completes between
+        // GetCurrentScavenge and the stop call — it returns StopRequested instead of throwing.
         return await StopScavenge(current.ScavengeId, cancellationToken).ConfigureAwait(false);
     }
 
