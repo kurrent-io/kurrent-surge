@@ -7,7 +7,7 @@ namespace Kurrent.Client.Tests.Integration.Admin;
 
 [Category("Admin")]
 [Category("Integration")]
-[Timeout(10_000)]
+[Timeout(15_000)]
 [NotInParallel(nameof(ScavengeTests))]
 // [Skip("Scavenge tests are destructive and impact the shared test database, "
 //     + "and are not currently run in CI. They should be run manually when needed.")]

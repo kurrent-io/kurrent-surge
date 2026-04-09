@@ -6,8 +6,9 @@ using OperationsServiceClient = KurrentDB.Protocol.V1.Operations.Operations.Oper
 namespace Kurrent.Client.Admin;
 
 public partial class AdminClient {
-    internal AdminClient(KurrentClient source) {
+    internal AdminClient(KurrentClient source, ScavengeProjector? scavengeProjector = null) {
         Source             = source;
+        Projector          = scavengeProjector ?? new ScavengeProjector(source.Streams);
         AdminServiceClient = new OperationsServiceClient(source.LegacyCallInvoker);
     }
 

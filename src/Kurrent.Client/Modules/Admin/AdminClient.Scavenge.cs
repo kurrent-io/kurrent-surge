@@ -11,9 +11,7 @@ namespace Kurrent.Client.Admin;
 public partial class AdminClient {
     const int DefaultScavengeLimit = 3;
 
-    ScavengeProjector? _scavengeProjector;
-
-    ScavengeProjector Projector => _scavengeProjector ??= new ScavengeProjector(Source.Streams);
+    ScavengeProjector Projector { get; }
 
     #region Commands
 
@@ -65,9 +63,9 @@ public partial class AdminClient {
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound) {
             // The server returns NotFound for both "already completed" and "never existed".
-            // Check if the scavenge existed by reading its detail stream.
+            // Check if the scavenge existed by reading its detail stream directly.
             try {
-                var details = await Projector.Project(scavengeId, cancellationToken).ConfigureAwait(false);
+                var details = await Projector.ProjectScavenge(scavengeId, cancellationToken).ConfigureAwait(false);
 
                 if (details.State != ScavengeState.Running)
                     return new ScavengeResponse(scavengeId, ScavengeResponseStatus.StopRequested);
@@ -89,8 +87,6 @@ public partial class AdminClient {
         if (current is null)
             throw new InvalidOperationException("No scavenge is currently running.");
 
-        // StopScavenge handles the race where the scavenge completes between
-        // GetCurrentScavenge and the stop call — it returns StopRequested instead of throwing.
         return await StopScavenge(current.ScavengeId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -104,12 +100,14 @@ public partial class AdminClient {
     public ValueTask<ScavengeDetails?> GetLastScavenge(CancellationToken cancellationToken = default) =>
         Projector.GetLastCompleted(cancellationToken);
 
-    public IAsyncEnumerable<ScavengeSummary> ListScavenges(int limit = DefaultScavengeLimit, CancellationToken cancellationToken = default) =>
-        Projector.ListScavenges(limit, cancellationToken);
+    public IAsyncEnumerable<ScavengeSummary> ListScavenges(
+        int limit = DefaultScavengeLimit,
+        CancellationToken cancellationToken = default
+    ) => Projector.ListScavenges(limit, cancellationToken);
 
     public ValueTask<ScavengeDetails> GetScavengeDetails(string scavengeId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(scavengeId);
-        return Projector.Project(scavengeId, cancellationToken);
+        return Projector.ProjectScavenge(scavengeId, cancellationToken);
     }
 
     /// <summary>
@@ -119,6 +117,7 @@ public partial class AdminClient {
     public ValueTask<RecordStream> ReadScavengeIndex(CancellationToken cancellationToken = default) =>
         Source.Streams.ReadRecords(
             ReadStream.From("$scavenges")
+                .FromStart()
                 .WithCancellationToken(cancellationToken)
                 .Build()
         );
