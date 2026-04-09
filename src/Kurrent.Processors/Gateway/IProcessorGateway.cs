@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Processors.Options;
 

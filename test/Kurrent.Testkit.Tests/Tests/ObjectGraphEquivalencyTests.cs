@@ -7,7 +7,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Bogus;
 
 namespace Kurrent.Testkit.TUnit.Assertions;
 

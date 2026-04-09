@@ -23,11 +23,18 @@ public record AppendRecordsRequest() {
 
     [method: SetsRequiredMembers]
     public AppendRecordsRequest(
-        ImmutableArray<AppendRecord> records, ImmutableArray<ConsistencyCheck> checks
+        ImmutableArray<AppendRecord> records,
+        ImmutableArray<ConsistencyCheck> checks
     ) : this() {
         Records = records;
         Checks  = checks;
     }
+
+    bool? IsValid { get; set; } // set to true/false after EnsureValid() is called to prevent multiple validations
+
+    // public AppendRecordsRequest Apply(Func<AppendRecordsRequest, AppendRecordsRequest> action) {
+    //     return action(this).EnsureValid();
+    // }
 
     /// <summary>
     /// Gets the records to be appended.

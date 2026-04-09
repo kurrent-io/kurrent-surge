@@ -1,7 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Diagnostics;
 using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 

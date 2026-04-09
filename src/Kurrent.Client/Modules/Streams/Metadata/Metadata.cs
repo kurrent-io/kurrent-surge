@@ -13,39 +13,27 @@ namespace Kurrent.Client;
 /// Note: This class is not thread-safe. Synchronization must be provided by the caller when accessed from multiple threads.
 /// </summary>
 [PublicAPI]
-[DebuggerDisplay("{ToDebugString(prettyPrint: true)}")]
+[DebuggerDisplay("{DebuggerDisplay(true)}")]
 [JsonConverter(typeof(MetadataJsonConverter))]
-public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
+public class Metadata : IEnumerable<KeyValuePair<string, object?>>, IEquatable<Metadata> {
 	internal readonly Dictionary<string, object?> Dictionary;
 
 	/// <summary>
 	/// Initializes a new, empty instance of the Metadata class using ordinal string comparison.
 	/// </summary>
 	public Metadata() =>
-		Dictionary = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-
-	/// <summary>
-	/// Initializes a new instance of the Metadata class from an existing metadata instance.
-	/// </summary>
-	/// <param name="metadata">The metadata to copy from.</param>
-    public Metadata(Metadata metadata) =>
-		Dictionary = new Dictionary<string, object?>(metadata.Dictionary, StringComparer.OrdinalIgnoreCase);
-
-	/// <summary>
-	/// Initializes a new instance of the Metadata class from a dictionary.
-	/// </summary>
-	/// <param name="items">The dictionary to copy from.</param>
-    public Metadata(Dictionary<string, object?> items) =>
-        Dictionary = new Dictionary<string, object?>(items, StringComparer.OrdinalIgnoreCase);
+		Dictionary = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
 	/// Initializes a new instance of the Metadata class from a collection of key-value pairs.
 	/// </summary>
 	/// <param name="items">The collection of key-value pairs to copy from.</param>
-    public Metadata(IEnumerable<KeyValuePair<string, object?>> items) {
-		// Skip the dictionary constructor to avoid ambiguity
-		Dictionary = items.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
-	}
+    public Metadata(IEnumerable<KeyValuePair<string, object?>> items) =>
+        Dictionary = items switch {
+            Metadata meta => new(meta.Dictionary, StringComparer.OrdinalIgnoreCase),
+            IReadOnlyDictionary<string, object?> dic => new(dic, StringComparer.OrdinalIgnoreCase),
+            _ => items.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase)
+        };
 
     public static Metadata New => new Metadata();
 
@@ -92,15 +80,60 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	///     .Lock();
 	/// </code>
 	/// </example>
-	public Metadata CreateUnlockedCopy() => new(this);
+	public Metadata CreateUnlockedCopy() => new Metadata(this);
+
+    Metadata ThrowIfLocked() =>
+        IsLocked ? throw new InvalidOperationException("Cannot modify locked metadata. Use CreateUnlockedCopy() to obtain a mutable copy.") : this;
 
     /// <summary>
-	/// Throws an InvalidOperationException if this metadata instance is locked.
-	/// </summary>
-	Metadata ThrowIfLocked() =>
-        IsLocked ? throw new InvalidOperationException("Cannot modify locked metadata. Use CreateUnlockedCopy() to create a mutable copy.") : this;
+    /// Replaces the current metadata with the specified collection of key-value pairs.
+    /// </summary>
+    /// <param name="items">A collection of key-value pairs to replace the current metadata.</param>
+    /// <returns>The current instance of <see cref="Metadata"/> after resetting its contents.</returns>
+    public Metadata Reset(IEnumerable<KeyValuePair<string, object?>> items) {
+        ThrowIfLocked();
 
-    #region . IDictionary .
+        foreach (var item in items)
+            Dictionary[item.Key] = item.Value;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Creates a new Metadata instance where all values are converted to their string representation
+    /// using appropriate formatting for common types (ISO dates, etc.).
+    /// </summary>
+    /// <returns>A new Metadata instance with all values as formatted strings.</returns>
+    public Metadata Stringify() {
+        return new Metadata()
+            .WithMany(this.Select(kvp => new KeyValuePair<string, object?>(kvp.Key, ConvertValueToString(kvp.Value))));
+
+        static string? ConvertValueToString(object? value) =>
+            value switch {
+                null                          => null,
+                DateTime dateTime             => dateTime.ToString("O"),
+                DateTimeOffset dateTimeOffset => dateTimeOffset.ToString("O"),
+                DateOnly dateOnly             => dateOnly.ToString("O"),
+                TimeOnly timeOnly             => timeOnly.ToString("O"),
+                TimeSpan timeSpan             => timeSpan.ToString("c"),
+                Guid guid                     => guid.ToString("D"),
+                int int32                     => int32.ToString(CultureInfo.InvariantCulture),
+                long int64                    => int64.ToString(CultureInfo.InvariantCulture),
+                decimal dec                   => dec.ToString(CultureInfo.InvariantCulture),
+                double dbl                    => dbl.ToString(CultureInfo.InvariantCulture),
+                float flt                     => flt.ToString(CultureInfo.InvariantCulture),
+                byte b                        => b.ToString(CultureInfo.InvariantCulture),
+                char c                        => c.ToString(CultureInfo.InvariantCulture),
+                byte[] bytes                  => Convert.ToBase64String(bytes),
+                Memory<byte> memory           => Convert.ToBase64String(memory.Span),
+                ReadOnlyMemory<byte> memory   => Convert.ToBase64String(memory.Span),
+                string str                    => str,
+                IEnumerable enumerable        => string.Join(", ", enumerable.Cast<object?>().Select(ConvertValueToString)),
+                _                             => value.ToString()
+            };
+    }
+
+    #region ->> IDictionary <<-
 
 	/// <summary>
 	/// Gets the number of elements in the collection.
@@ -131,11 +164,8 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	/// <exception cref="InvalidOperationException">Thrown when attempting to set a value on a locked metadata instance.</exception>
 	public object? this[string key] {
 		get => Dictionary[key];
-		set {
-			ThrowIfLocked();
-			Dictionary[key] = value;
-		}
-	}
+		set => ThrowIfLocked().Dictionary[key] = value;
+    }
 
 	/// <summary>
 	/// Determines whether the dictionary contains the specified key.
@@ -150,12 +180,10 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	/// <param name="key">The key to remove.</param>
 	/// <returns>true if the element is successfully removed; otherwise, false.</returns>
 	/// <exception cref="InvalidOperationException">Thrown when attempting to remove from a locked metadata instance.</exception>
-	public bool Remove(string key) {
-		ThrowIfLocked();
-		return Dictionary.Remove(key);
-	}
+	public bool Remove(string key) =>
+        ThrowIfLocked().Dictionary.Remove(key);
 
-	/// <summary>
+    /// <summary>
 	/// Returns an enumerator that iterates through the collection.
 	/// </summary>
 	/// <returns>An enumerator that can be used to iterate through the collection.</returns>
@@ -169,7 +197,7 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 
 	#endregion
 
-	#region . Value Retrieval Methods .
+	#region ->> Value Retrieval Methods <<-
 
 	/// <summary>
 	/// Tries to get a typed value from the metadata, with automatic conversion from strings.
@@ -278,7 +306,7 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 
 	#endregion
 
-	#region . Modification Methods .
+	#region ->> Modification Methods <<-
 
 	/// <summary>
 	/// Evolves the value associated with the specified key by applying a transformation function.
@@ -320,61 +348,18 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	}
 
 	/// <summary>
-	/// Updates the current metadata with entries from another metadata object.
-	/// </summary>
-	/// <param name="items">The metadata containing key-value pairs to be added or updated.</param>
-	/// <returns>This metadata instance for method chaining.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when attempting to modify a locked metadata instance.</exception>
-	public Metadata WithMany(Metadata items) {
-		ThrowIfLocked();
-		foreach (var item in items) Dictionary[item.Key] = item.Value;
-		return this;
-	}
-
-	/// <summary>
-	/// Updates the current metadata with additional key-value pairs.
+	/// Updates the current metadata with additional or updated key-value pairs.
 	/// </summary>
 	/// <param name="items">A collection of key-value pairs to update the metadata with.</param>
 	/// <returns>This metadata instance for method chaining.</returns>
 	/// <exception cref="InvalidOperationException">Thrown when attempting to modify a locked metadata instance.</exception>
 	public Metadata WithMany(IEnumerable<KeyValuePair<string, object?>> items) {
 		ThrowIfLocked();
-		foreach (var item in items) Dictionary[item.Key] = item.Value;
-		return this;
-	}
 
-	/// <summary>
-	/// Creates a new Metadata instance where all values are converted to their string representation
-	/// using appropriate formatting for common types (ISO dates, etc.).
-	/// </summary>
-	/// <returns>A new Metadata instance with all values as formatted strings.</returns>
-	public Metadata Stringify() {
-		return new Metadata()
-			.WithMany(this.Select(kvp => new KeyValuePair<string, object?>(kvp.Key, ConvertValueToString(kvp.Value))));
+        foreach (var item in items)
+            Dictionary[item.Key] = item.Value;
 
-		static string? ConvertValueToString(object? value) =>
-			value switch {
-				null                          => null,
-				DateTime dateTime             => dateTime.ToString("O"),
-				DateTimeOffset dateTimeOffset => dateTimeOffset.ToString("O"),
-				DateOnly dateOnly             => dateOnly.ToString("O"),
-				TimeOnly timeOnly             => timeOnly.ToString("O"),
-				TimeSpan timeSpan             => timeSpan.ToString("c"),
-				Guid guid                     => guid.ToString("D"),
-				int int32                     => int32.ToString(CultureInfo.InvariantCulture),
-				long int64                    => int64.ToString(CultureInfo.InvariantCulture),
-				decimal dec                   => dec.ToString(CultureInfo.InvariantCulture),
-				double dbl                    => dbl.ToString(CultureInfo.InvariantCulture),
-				float flt                     => flt.ToString(CultureInfo.InvariantCulture),
-				byte b                        => b.ToString(CultureInfo.InvariantCulture),
-				char c                        => c.ToString(CultureInfo.InvariantCulture),
-				byte[] bytes                  => Convert.ToBase64String(bytes),
-				Memory<byte> memory           => Convert.ToBase64String(memory.Span),
-				ReadOnlyMemory<byte> memory   => Convert.ToBase64String(memory.Span),
-				string str                    => str,
-				IEnumerable enumerable        => string.Join(", ", enumerable.Cast<object?>().Select(ConvertValueToString)),
-				_                             => value.ToString()
-			};
+        return this;
 	}
 
 	#endregion
@@ -388,8 +373,51 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>> {
 	/// <summary>
 	/// Creates a debug view.
 	/// </summary>
-	string ToDebugString(bool prettyPrint = false) =>
+	string DebuggerDisplay(bool prettyPrint = false) =>
 		!prettyPrint ? ToString() : $"Metadata:\n{string.Join("\n", Dictionary.Select(p => $"  {p.Key} = {p.Value ?? "null"} {p.Value?.GetType().Name}"))}";
+
+    #region ->> Equality <<-
+
+    public bool Equals(Metadata? other) {
+        if (other is null)
+            return false;
+
+        if (ReferenceEquals(this, other))
+            return true;
+
+        if (Dictionary.Count != other.Dictionary.Count)
+            return false;
+
+        foreach (var kvp in Dictionary) {
+            if (!other.Dictionary.TryGetValue(kvp.Key, out var otherValue))
+                return false;
+
+            if (!Equals(kvp.Value, otherValue))
+                return false;
+        }
+
+        return true;
+    }
+
+    public override bool Equals(object? obj) =>
+        obj is Metadata other && Equals(other);
+
+    public override int GetHashCode() {
+        var hash = new HashCode();
+
+        foreach (var kvp in Dictionary.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)) {
+            hash.Add(kvp.Key, StringComparer.OrdinalIgnoreCase);
+            hash.Add(kvp.Value);
+        }
+
+        return hash.ToHashCode();
+    }
+
+    public static bool operator ==(Metadata? left, Metadata? right) => Equals(left, right);
+
+    public static bool operator !=(Metadata? left, Metadata? right) => !Equals(left, right);
+
+    #endregion
 
 	public static implicit operator Metadata(Dictionary<string, object?> dictionary) => new(dictionary);
 }

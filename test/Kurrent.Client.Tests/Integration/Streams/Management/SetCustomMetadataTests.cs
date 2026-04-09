@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
 using Sdk.TestKit.Fixtures;
 using static System.TimeSpan;
 
@@ -9,7 +8,7 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("StreamInfo")]
 [Category("Integration")]
-public class SetStreamCustomMetadataTests {
+public class SetCustomMetadataTests {
 	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 

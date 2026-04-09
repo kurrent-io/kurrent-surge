@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -32,15 +33,10 @@ public record StreamInfo {
     /// </summary>
     public StreamRetention Retention { get; init; } = new();
 
-    // /// <summary>
-    // /// The optional amount of time for which the stream head is cacheable.
-    // /// </summary>
-    // public TimeSpan? CacheControl { get; init; }
-
     /// <summary>
     /// The access control list for the stream.
     /// </summary>
-    public StreamAcl Acl { get; init; } = StreamAcl.Unset;
+    public StreamAcl Acl { get; init; } = new();
 
     /// <summary>
     /// User-provided custom metadata associated with the stream.
@@ -88,7 +84,18 @@ public record StreamInfo {
     #endregion
 }
 
-public enum StreamState { Active, Deleted, Tombstoned, Missing }
+/// <summary>
+/// Represents the state of a stream in KurrentDB.
+/// </summary>
+/// <remarks>
+/// These values also match the stream state codes defined in the KurrentDB protocol.
+/// </remarks>
+public enum StreamState {
+    Active     = -4,
+    Deleted    = -5,
+    Tombstoned = -6,
+    Missing    = -1
+}
 
 /// <summary>
 /// Represents the retention configuration for a stream.
@@ -107,27 +114,56 @@ public record StreamRetention {
     /// </summary>
     public int? MaxCount { get; init; }
 
-    // /// <summary>
-    // /// The optional <see cref="Revision"/> from which previous events can be scavenged.
-    // /// </summary>
-    // internal Revision TruncateBefore { get; init; } = Revision.Unset;
-
-    internal Revision TruncateBefore { get; init; } = Revision.Unset;
+    public Revision TruncateBefore { get; init; } = Revision.Unset;
 
     public bool HasMaxAge => MaxAge.HasValue && MaxAge > TimeSpan.Zero;
 
-    public bool HasMaxCount => MaxCount is > 0;
+    public bool HasMaxCount => MaxCount is >= 0;
+
+
+    public static implicit operator StreamRetentionOptions(StreamRetention retention) =>
+        new() { MaxAge = retention.MaxAge, MaxCount = retention.MaxCount };
+}
+
+/// <summary>
+/// Represents the retention configuration for a stream.
+/// </summary>
+[PublicAPI]
+public class StreamRetentionOptions {
+    /// <summary>
+    /// The optional maximum age of events allowed in the stream.
+    /// </summary>
+    public TimeSpan? MaxAge { get; set; }
+
+    /// <summary>
+    /// The optional maximum number of events allowed in the stream.
+    /// </summary>
+    public int? MaxCount { get; set; }
+
+    /// <summary>
+    /// Indicates whether the stream has a maximum age configured for its retention policy.
+    /// </summary>
+    public bool HasMaxAge => MaxAge.HasValue && MaxAge > TimeSpan.Zero;
+
+    /// <summary>
+    /// Indicates whether a maximum count restriction is defined for the stream retention.
+    /// Returns <c>true</c> if <see cref="MaxCount"/> is greater than zero; otherwise, <c>false</c>.
+    /// </summary>
+    public bool HasMaxCount => MaxCount is >= 0;
+
+    public static implicit operator StreamRetention(StreamRetentionOptions options) =>
+        new() {
+            MaxAge   = options.MaxAge,
+            MaxCount = options.MaxCount
+        };
 }
 
 /// <summary>
 /// Represents an access control list for a stream
 /// </summary>
 [PublicAPI]
-public readonly record struct StreamAcl() {
-    public static readonly StreamAcl Unset = new();
-
-    public bool IsUnset => this == Unset;
-
+[DebuggerDisplay("{DebuggerDisplayValue,nq}")]
+public record StreamAcl {
     /// <summary>
     /// Roles and users permitted to read the stream
     /// </summary>
@@ -153,30 +189,34 @@ public readonly record struct StreamAcl() {
     /// </summary>
     public string[] MetaWriteRoles { get; init; } = [];
 
-    public bool Equals(StreamAcl other) =>
-        ReadRoles.SequenceEqual(other.ReadRoles) &&
-        WriteRoles.SequenceEqual(other.WriteRoles) &&
-        DeleteRoles.SequenceEqual(other.DeleteRoles) &&
-        MetaReadRoles.SequenceEqual(other.MetaReadRoles) &&
-        MetaWriteRoles.SequenceEqual(other.MetaWriteRoles);
+    public virtual bool Equals(StreamAcl? other) {
+        if (other is null)
+            return false;
 
-    public override int GetHashCode() {
-        var hash = new HashCode();
-        foreach (var role in ReadRoles) hash.Add(role);
-        foreach (var role in WriteRoles) hash.Add(role);
-        foreach (var role in DeleteRoles) hash.Add(role);
-        foreach (var role in MetaReadRoles) hash.Add(role);
-        foreach (var role in MetaWriteRoles) hash.Add(role);
-        return hash.ToHashCode();
+        if (ReferenceEquals(this, other))
+            return true;
+
+        return ReadRoles.SequenceEqual(other.ReadRoles)
+            && WriteRoles.SequenceEqual(other.WriteRoles)
+            && DeleteRoles.SequenceEqual(other.DeleteRoles)
+            && MetaReadRoles.SequenceEqual(other.MetaReadRoles)
+            && MetaWriteRoles.SequenceEqual(other.MetaWriteRoles);
     }
 
-    public override string ToString() =>
-        $"Read: [{string.Join(",", ReadRoles)}], "
-      + $"Write: [{string.Join(",", WriteRoles)}], "
-      + $"Delete: [{string.Join(",", DeleteRoles)}], "
-      + $"MetaRead: [{string.Join(",", MetaReadRoles)}], "
-      + $"MetaWrite: [{string.Join(",", MetaWriteRoles)}]";
+    public override int GetHashCode() =>
+        HashCode.Combine(ReadRoles, WriteRoles, DeleteRoles, MetaReadRoles, MetaWriteRoles);
+
+    string DebuggerDisplayValue =>
+        $"""
+        Read:       [{string.Join(",", ReadRoles)}]
+        Write:      [{string.Join(",", WriteRoles)}]
+        Delete:     [{string.Join(",", DeleteRoles)}]
+        MetaRead:   [{string.Join(",", MetaReadRoles)}]
+        MetaWrite:  [{string.Join(",", MetaWriteRoles)}]
+        """;
 }
+
+#region ->> Mappings  <<-
 
 /// <summary>
 /// Represents metadata associated with a stream in KurrentDB.
@@ -215,11 +255,11 @@ record StreamMetadata {
     public StreamAcl? Acl { get; init; }
 
     public bool HasMaxAge         => MaxAge.HasValue && MaxAge > TimeSpan.Zero;
-    public bool HasTruncateBefore => TruncateBefore is not null;
+    public bool HasTruncateBefore => TruncateBefore is { };
     public bool HasCacheControl   => CacheControl.HasValue && CacheControl.Value > TimeSpan.Zero;
     public bool HasMaxCount       => MaxCount is > 0;
-    public bool HasCustomMetadata => CustomMetadata is not null && CustomMetadata.RootElement.ValueKind != JsonValueKind.Undefined;
-    public bool HasAcl            => Acl is not null && Acl != StreamAcl.Unset;
+    public bool HasCustomMetadata => CustomMetadata is { } && CustomMetadata.RootElement.ValueKind != JsonValueKind.Undefined;
+    public bool HasAcl            => Acl is { };
 }
 
 class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
@@ -334,25 +374,25 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
     public override void Write(Utf8JsonWriter writer, StreamMetadata value, JsonSerializerOptions options) {
         writer.WriteStartObject();
 
-        if (value.MaxCount.HasValue)
-            writer.WriteNumber(MaxCountKey, value.MaxCount.Value);
+        if (value.MaxCount is { } maxCount)
+            writer.WriteNumber(MaxCountKey, maxCount);
 
-        if (value.MaxAge.HasValue)
-            writer.WriteNumber(MaxAgeKey, (long)value.MaxAge.Value.TotalSeconds);
+        if (value.MaxAge is { } maxAge)
+            writer.WriteNumber(MaxAgeKey, (long)maxAge.TotalSeconds);
 
-        if (value.TruncateBefore != null && value.TruncateBefore != Revision.Unset)
-            writer.WriteNumber(TruncateBeforeKey, value.TruncateBefore);
+        if (value.TruncateBefore is { } truncateBefore)
+            writer.WriteNumber(TruncateBeforeKey, truncateBefore);
 
-        if (value.CacheControl.HasValue)
-            writer.WriteNumber(CacheControlKey, (long)value.CacheControl.Value.TotalSeconds);
+        if (value.CacheControl is { } cacheControl)
+            writer.WriteNumber(CacheControlKey, (long)cacheControl.TotalSeconds);
 
-        if (value.Acl is not null) {
+        if (value.Acl is { } acl) {
             writer.WritePropertyName(AclKey);
-            StreamAclJsonConverter.Instance.Write(writer, value.Acl.Value, options);
+            StreamAclJsonConverter.Instance.Write(writer, acl, options);
         }
 
-        if (value.CustomMetadata is not null)
-            foreach (var property in value.CustomMetadata.RootElement.EnumerateObject())
+        if (value.CustomMetadata is { } customMetadata)
+            foreach (var property in customMetadata.RootElement.EnumerateObject())
                 property.WriteTo(writer);
 
         writer.WriteEndObject();
@@ -470,3 +510,4 @@ class StreamAclJsonConverter : JsonConverter<StreamAcl> {
     }
 }
 
+#endregion

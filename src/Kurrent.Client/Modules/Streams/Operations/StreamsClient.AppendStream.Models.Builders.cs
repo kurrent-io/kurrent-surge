@@ -10,12 +10,9 @@ namespace Kurrent.Client.Streams;
 /// </summary>
 [PublicAPI]
 public class AppendStreamRequestBuilder {
-    readonly StreamName                  _stream;
-    readonly List<AppendRecordBuilder>   _builders          = [];
-    // readonly List<ConsistencyCheck>      _checks            = [];
-    // readonly Dictionary<string, object?> _metadataOverrides = [];
+    readonly StreamName                _stream;
+    readonly List<AppendRecordBuilder> _builders = [];
 
-    // SchemaDataFormat?    _dataFormatOverride;
     ExpectedStreamState _expectedState = ExpectedStreamState.Any;
 
     internal AppendStreamRequestBuilder(StreamName stream) => _stream = stream;
@@ -23,25 +20,15 @@ public class AppendStreamRequestBuilder {
     public int RecordsCount => _builders.Count;
 
     public AppendStreamRequestBuilder ExpectingState(ExpectedStreamState expectedState) {
+        if (expectedState.Value is Revision revision && revision == Revision.Unset)
+            return this;
+
+        if (expectedState == ExpectedStreamState.Any)
+            return this;
+
         _expectedState = expectedState;
         return this;
     }
-
-    #region ->> Consistency Checks <<-
-
-    //
-    // public AppendStreamRequestBuilder WithCheck(ConsistencyCheck check) {
-    //     _checks.Add(check);
-    //     return this;
-    // }
-    //
-    // public AppendStreamRequestBuilder WithChecks(params ConsistencyCheck[] checks) {
-    //     foreach (var check in checks)
-    //         _checks.Add(check);
-    //     return this;
-    // }
-
-    #endregion
 
     #region ->> Records <<-
 
@@ -50,26 +37,20 @@ public class AppendStreamRequestBuilder {
         return this;
     }
 
-    public AppendStreamRequestBuilder WithRecord(AppendRecordBuilder builder) {
-        _builders.Add(builder.ForStream(_stream));
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord(Action<AppendRecordBuilder> configure) {
+    public AppendStreamRequestBuilder WithRecord(Action<AppendRecordBuilder> build) {
         var builder = AppendRecord.New;
-        configure(builder);
+        build(builder);
         _builders.Add(builder.ForStream(_stream));
         return this;
     }
 
-    public AppendStreamRequestBuilder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) {
+    public AppendStreamRequestBuilder WithRecord<T>(T value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull {
         _builders.Add(AppendRecord.New.ForStream(_stream).WithValue(value).WithDataFormat(dataFormat));
         return this;
     }
 
-    public AppendStreamRequestBuilder WithRecords(params AppendRecord[] records) {
-        foreach (var record in records)
-            _builders.Add(AppendRecord.New.FromRecord(record).ForStream(_stream));
+    public AppendStreamRequestBuilder WithRecord<T>(T value, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull {
+        _builders.Add(AppendRecord.New.ForStream(_stream).WithValue(value).WithMetadata(metadata).WithDataFormat(dataFormat));
         return this;
     }
 
@@ -81,30 +62,6 @@ public class AppendStreamRequestBuilder {
 
     #endregion
 
-    // #region ->> Batch Overrides <<-
-    //
-    // public AppendStreamRequestBuilder WithDataFormat(SchemaDataFormat dataFormat) {
-    //     _dataFormatOverride = dataFormat;
-    //     return this;
-    // }
-    //
-    // public AppendStreamRequestBuilder WithMetadata(string key, object? value = null) {
-    //     _metadataOverrides[key] = value;
-    //     return this;
-    // }
-    //
-    // public AppendStreamRequestBuilder WithMetadata<T>(KeyValuePair<string, T> entry) {
-    //     _metadataOverrides[entry.Key] = entry.Value;
-    //     return this;
-    // }
-    //
-    // public AppendStreamRequestBuilder WithMetadata<T>(string key, T? value = default) {
-    //     _metadataOverrides[key] = value;
-    //     return this;
-    // }
-    //
-    // #endregion
-
     public AppendStreamRequest Build() {
         if (_builders.Count == 0)
             throw ValidationError.FromProblem(
@@ -112,32 +69,7 @@ public class AppendStreamRequestBuilder {
                 ErrorMessages.AppendRecordsRequestEmpty
             ).GetOrCreateException();
 
-
         var records = ImmutableArray.CreateRange(_builders.Select(b => b.Build()));
-        // var records = ImmutableArray.CreateBuilder<AppendRecord>(_builders.Count);
-        //
-        //
-        // ImmutableArray.CreateRange()
-        // foreach (var builder in _builders) {
-        //     // builder.ForStream(_stream);
-        //
-        //     // if (_dataFormatOverride.HasValue)
-        //     //     builder.WithDataFormat(_dataFormatOverride.Value);
-        //     //
-        //     // foreach (var (key, value) in _metadataOverrides)
-        //     //     builder.WithMetadata(key, value);
-        //
-        //     records.Add(builder.Build());
-        // }
-
-        // var checks = ImmutableArray.CreateBuilder<ConsistencyCheck>();
-        //
-        // if (_expectedState.HasValue)
-        //     checks.Add(new StreamStateCheck(_stream, _expectedState.Value));
-
-        // checks.AddRange(_checks);
-
-        // return new AppendStreamRequest(_stream, records.MoveToImmutable(), checks.ToImmutable());
 
         return new AppendStreamRequest(_stream, records, _expectedState);
     }

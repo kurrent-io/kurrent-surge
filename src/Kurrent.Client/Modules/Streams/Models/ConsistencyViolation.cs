@@ -40,21 +40,6 @@ public readonly record struct StreamStateViolation() {
     /// <summary>
     /// Converts this stream state violation into the appropriate exception type based on the expected and actual states.
     /// </summary>
-    internal T ToException2<T>() {
-        dynamic ex = ActualState switch {
-            _ when ActualState == ActualStreamState.NoStream   => new StreamNotFoundException(Stream),
-            _ when ActualState == ActualStreamState.Deleted    => new StreamDeletedException(Stream),
-            _ when ActualState == ActualStreamState.Tombstoned => new StreamTombstonedException(Stream),
-
-            _ when ExpectedState == ExpectedStreamState.NoStream
-                && ActualState.IsRevision => new StreamAlreadyExistsException(Stream, ActualState.AsRevision),
-
-            _ => new StreamRevisionConflictException(Stream, ExpectedState, ActualState.AsRevision)
-        };
-
-        return (T) ex;
-    }
-
     [StackTraceHidden]
     internal Exception ToStreamException() {
         dynamic ex = ActualState switch {

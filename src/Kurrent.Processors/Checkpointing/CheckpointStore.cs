@@ -474,7 +474,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
             if (!info.Retention.HasMaxCount) {
                 await _client
-                    .ConfigureDataRetention(_stream, x => x with { MaxCount = _maxCount }, ct)
+                    .ConfigureDataRetention(_stream, _maxCount, ct)
                     .ConfigureAwait(false);
 
                 LogRetentionConfigured(ProcessorId, _maxCount);

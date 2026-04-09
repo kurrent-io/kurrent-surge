@@ -12,7 +12,7 @@ public record AppendRecord {
         RecordId   = Guid.Empty,
         Value      = null!,
         DataFormat = SchemaDataFormat.Unspecified,
-        Metadata   = null!,
+        Metadata   = new(),
         Stream     = StreamName.Unset
     };
 

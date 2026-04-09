@@ -81,29 +81,6 @@ static class StreamsClientV1Mapper {
             };
         }
 
-        public static Contracts.ReadReq CreateReadStreamEdgeRequestV2(StreamName stream, ReadDirection direction, long? count = null) {
-            return new Contracts.ReadReq {
-                Options = new() {
-                    Subscription  = DefaultSubscriptionOptions,
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    NoFilter      = DefaultEmpty,
-                    Count         = count is null ? ulong.MaxValue : (ulong)count,
-                    // ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    ReadDirection = direction switch {
-                        ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                        ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    },
-                    Stream = ConvertToStreamOptions(
-                        stream, start: direction switch {
-                            ReadDirection.Backwards => Revision.Max,
-                            ReadDirection.Forwards  => Revision.Min,
-                        }
-                    ),
-                }
-            };
-        }
-
         /// <summary>
         /// Creates a request to read the last event in the specified stream.
         /// </summary>
@@ -175,8 +152,9 @@ static class StreamsClientV1Mapper {
                     ReadDirection.Backwards => Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
                     ReadDirection.Forwards  => Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
                 },
-                Stream = ConvertToStreamOptions(options.Stream, options.Start),
-                Count  = (ulong)options.MaxRecords
+                Stream       = ConvertToStreamOptions(options.Stream, options.Start),
+                Count        = (ulong)options.MaxRecords,
+                ResolveLinks = true
             }};
 
             var filterOptions = ConvertToFilterOptions(options.Filter);
@@ -275,23 +253,6 @@ static class StreamsClientV1Mapper {
         return Heartbeat.CreateCaughtUp(position, revision, timestamp);
     }
 
-    // public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
-    //     var position  = LogPosition.From((long)checkpoint.CommitPosition);
-    //     var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
-    //     return new CheckpointBarrier(position, CheckpointBarrierTrigger.Interval, timestamp);
-    // }
-    //
-    // public static CheckpointBarrier MapToBarrier(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
-    //     var position  = caughtUp.Position is not null ? LogPosition.From((long)caughtUp.Position.CommitPosition) : LogPosition.Unset;
-    //     var revision  = caughtUp.HasStreamRevision ? Revision.From(caughtUp.StreamRevision) : Revision.Unset;
-    //     var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
-    //
-    //    if (position == Revision.Unset)
-    //        throw new InvalidOperationException("Remember, without a position, we cannot create a checkpoint barrier!!! Revision: " + revision);
-    //
-    //     return new CheckpointBarrier(position, CheckpointBarrierTrigger.CaughtUp, timestamp);
-    // }
-
     public static LogPosition MapToLogPosition(this Contracts.DeleteResp.Types.Position? position) =>
         position switch {
             null => LogPosition.Unset,
@@ -343,9 +304,9 @@ static class StreamsClientV1Mapper {
             }
             : Link.Unset;
 
-        var indexRevision = readEvent.HasCommitPosition
-            ? Revision.From((long)readEvent.CommitPosition)
-            : link.Revision == Revision.Unset ? revision : link.Revision;
+        // var indexRevision = readEvent.HasCommitPosition
+        //     ? Revision.From((long)readEvent.CommitPosition)
+        //     : link.Revision == Revision.Unset ? revision : link.Revision;
 
         // create a decoder
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);
@@ -361,10 +322,10 @@ static class StreamsClientV1Mapper {
             Data      = data,
             Metadata  = metadata,
             Schema    = schema,
+            Link      = link
 
-            // what? not sure...
-            Link           = link,
-            IndexRevision  = indexRevision
+            // // what? not sure...
+            // IndexRevision  = indexRevision
         };
 
         // now decode the record if required

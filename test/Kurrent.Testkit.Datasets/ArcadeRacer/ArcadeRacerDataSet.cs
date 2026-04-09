@@ -2,7 +2,6 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using Bogus;
-using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 
 namespace Kurrent.Testkit.Datasets.ArcadeRacer;

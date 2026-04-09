@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit;
 using Sdk.TestKit.Fixtures;
 
@@ -16,10 +15,10 @@ public class ReadStreamEdgeTests {
 
     public class ReadStreamEdgeTestCases : TestCaseDataGenerator<(ReadDirection Direction, bool SkipDecoding)> {
         protected override IEnumerable<TestCase<(ReadDirection Direction, bool SkipDecoding)>> Data() {
-            yield return new ((ReadDirection.Forwards, false), DisplayName: "Forwards");
-            yield return new((ReadDirection.Backwards, false), DisplayName: "Backwards");
-            yield return new((ReadDirection.Forwards, true), DisplayName: "Forwards without decoding");
-            yield return new((ReadDirection.Backwards, true), DisplayName: "Backwards without decoding");
+            yield return new ((ReadDirection.Forwards, false), DisplayName: "forwards");
+            yield return new((ReadDirection.Backwards, false), DisplayName: "backwards");
+            yield return new((ReadDirection.Forwards, true), DisplayName: "forwards no decoding");
+            yield return new((ReadDirection.Backwards, true), DisplayName: "backwards no decoding");
         }
     }
 
@@ -41,7 +40,6 @@ public class ReadStreamEdgeTests {
 
         await Assert.That(record.Id).IsEqualTo(expectedRecordInfo.RecordId);
 		await Assert.That(record.Revision).IsEqualTo(expectedRevision);
-
         await Assert.That(record.Value).IsEquivalentTo(expectedRecordInfo.Value).When(!skipDecoding);
     }
 

@@ -1,9 +1,6 @@
-using FakeItEasy;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
 using Kurrent.Processors.Gateway;
-using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 

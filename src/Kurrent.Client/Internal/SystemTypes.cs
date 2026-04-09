@@ -7,9 +7,15 @@ namespace Kurrent.Client;
 /// missing type placeholders, and instantiability.
 /// </summary>
 static class SystemTypes {
-    public static readonly Type MissingType = Type.Missing.GetType();
+    static readonly Type MissingType = Type.Missing.GetType();
 
-    public static bool IsBytes(this object value) => value.GetType().IsBytes();
+    extension(Type) {
+        public static Type MissingType => MissingType;
+    }
+
+    extension(object value) {
+        public bool IsBytes() => value.GetType().IsBytes();
+    }
 
     /// <param name="type">
     /// The <see cref="Type"/> to check.

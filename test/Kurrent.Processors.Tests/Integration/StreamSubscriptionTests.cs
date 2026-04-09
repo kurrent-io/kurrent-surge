@@ -1,3 +1,4 @@
+using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
@@ -422,7 +423,7 @@ public class StreamSubscriptionTests {
     [Test]
     public async ValueTask checkpoint_recovery_when_stream_is_tombstoned(CancellationToken ct) {
         // Arrange
-        var data        = await Fixture.SeedTestStream(20, ct);
+        var data        = await Fixture.SeedTestStream(200, ct);
         var processorId = $"tombstoned-{PunyId.New()}";
 
         // Phase 1: Process first 10 records, checkpoint, stop
@@ -440,7 +441,7 @@ public class StreamSubscriptionTests {
             .WithProcessorId(processorId)
             .WithFilter(RecordFilter.ByStream(data.Stream))
             .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
+            // .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
             .RunAsync(ct);
 
         // Tombstone the stream between phases
@@ -453,12 +454,16 @@ public class StreamSubscriptionTests {
         }
         catch (Exception ex) {
             Fixture.Logger.LogInformation("Expected error when inspecting tombstoned record: {Message}", ex.Message);
+            await Assert.That(ex).IsTypeOf<StreamTombstonedException>();
         }
 
         // Phase 2: Resume — stream is tombstoned
         // Cancel after 2s to stop the idle live subscription.
-        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cancellator.CancelAfter(2000);
+        using var cancellator = CancellationTokenSource
+            .CreateLinkedTokenSource(ct)
+            .With(x => x.CancelAfter(5000));
+
+        var stoppingToken = cancellator.Token;
 
         var processor2 = new TestRecordProcessor();
 
@@ -468,15 +473,9 @@ public class StreamSubscriptionTests {
             .WithFilter(RecordFilter.ByStream(data.Stream))
             .Build();
 
-        // // Act & Assert — expect error due to tombstoned stream
-        // var task = worker.RunAsync(cancellator.Token);
-        // await Assert.That(task).IsNotCompletedSuccessfully();
-
-        var task = worker.RunAsync(cancellator.Token);
-
         // Act & Assert — expect error due to tombstoned stream
-        await Assert.That(task).IsNotCompletedSuccessfully();
-        await Assert.That(task).ThrowsExactly<StreamTombstonedException>();
+        await Assert.That(async () => await worker.RunAsync(stoppingToken))
+            .Throws<StreamTombstonedException>();
     }
 
     [Test]
@@ -510,8 +509,7 @@ public class StreamSubscriptionTests {
         // Cancel after 2s to stop the idle live subscription.
         var processor2 = new TestRecordProcessor();
 
-        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cancellator.CancelAfter(2000);
+        using var cancellator = CancellationTokenSource.CreateShortLived(2000, ct);
 
         var worker = KurrentProcessors.Create(processor2)
             .UseClient(Fixture.Client)

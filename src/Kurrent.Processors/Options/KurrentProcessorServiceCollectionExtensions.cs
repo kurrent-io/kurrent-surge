@@ -3,8 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Diagnostics.Metrics;
-using Kurrent.Client.Streams;
-using Kurrent.Processors.Diagnostics;
 using Kurrent.Processors.Diagnostics.Metrics;
 
 namespace Kurrent.Processors.Options;

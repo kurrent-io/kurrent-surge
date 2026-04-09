@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit;
 using Sdk.TestKit.Fixtures;
 using static System.TimeSpan;
@@ -117,17 +116,24 @@ public class AppendStreamTests {
     [Test]
     public async ValueTask throws_StreamAlreadyExistsException_when_stream_is_not_suposed_to_exist(CancellationToken ct) {
         // Arrange
-        var seeded = await Fixture.SeedTestStream(ct);
+        var seed = await Fixture.SeedTestStream(ct);
+
+
+        var info = await Fixture.Client.Streams.GetStreamInfo(seed.Stream, ct);
 
         // Act & Assert
-        var request = AppendStreamRequest.For(seeded.Stream)
+        var request = AppendStreamRequest.For(seed.Stream)
             .ExpectingState(ExpectedStreamCondition.NoStream)
-            .WithRecords(seeded.Records.First()) // just append the first record again...
+            .WithRecords(seed.Records)
             .Build();
 
         await Assert
             .That(async () => await Fixture.Client.Streams.AppendStream(request, ct))
             .Throws<StreamAlreadyExistsException>();
+
+        // FIXME SS: Fix Appends with ExpectedStreamCondition.NoStream not returning consistency violations.
+        // This is clearly a bug because when we pass the no stream, it is gracefully returning that everything is okay
+        // when in reality it didn't actually append anything, but it also didn't throw the expected exception.
     }
 
     public class ExpectedStatesWhenStreamIsTombstoned : TestCaseGenerator<ExpectedStreamState> {
@@ -143,8 +149,7 @@ public class AppendStreamTests {
     [Test]
     [ExpectedStatesWhenStreamIsTombstoned]
     public async ValueTask throws_StreamTombstonedException_when_stream_is_tombstoned(
-        ExpectedStreamState streamState,
-        CancellationToken   ct
+        ExpectedStreamState streamState, CancellationToken ct
     ) {
         // Arrange
         var seeded = await Fixture.SeedTestStream(ct);

@@ -83,12 +83,12 @@ public record Record {
     /// <summary>
     /// The type of the deserialized message.
     /// </summary>
-    public Type ValueType { get; internal set; } = SystemTypes.MissingType;
+    public Type ValueType { get; internal set; } = Type.MissingType;
 
     /// <summary>
     /// Indicates whether the current <see cref="Record"/> instance has been successfully decoded.
     /// </summary>
-    public bool IsDecoded => Value is { } && ValueType != SystemTypes.MissingType;
+    public bool IsDecoded => Value is { } && ValueType != Type.MissingType;
 
     /// <summary>
     /// Indicates whether the current <see cref="Record"/> instance is unset.
@@ -138,8 +138,6 @@ public readonly record struct Link() {
 
 public interface IRecordDecoder {
 	ValueTask<bool> Decode(Record record, CancellationToken ct);
-
-    // ValueTask<DecodedRecord> DecodeOrDefault(EncodedRecord record, CancellationToken ct);
 }
 
 sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy? registryPolicy = null) : IRecordDecoder {

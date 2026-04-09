@@ -16,7 +16,7 @@ public partial class AdminClient {
 
         try {
             var request = new StartScavengeReq {
-                Options = new StartScavengeReq.Types.Options {
+                Options = new() {
                     ThreadCount    = threadCount,
                     StartFromChunk = startFromChunk
                 }
@@ -42,7 +42,7 @@ public partial class AdminClient {
 
         try {
             var request = new StopScavengeReq {
-                Options = new StopScavengeReq.Types.Options {
+                Options = new() {
                     ScavengeId = scavengeId
                 }
             };
@@ -61,4 +61,8 @@ public partial class AdminClient {
             throw ex.AsWellKnownException();
         }
     }
+
+    public ValueTask<ScavengeResult> StartScavenge(
+        CancellationToken cancellationToken = default
+    ) => StartScavenge(1, 0, cancellationToken);
 }

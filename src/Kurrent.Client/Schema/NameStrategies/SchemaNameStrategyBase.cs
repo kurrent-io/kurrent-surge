@@ -42,7 +42,7 @@ public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : IS
 	/// <exception cref="ArgumentNullException">Thrown when the provided message type is null.</exception>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when the schema name format is unsupported.</exception>
 	public SchemaName GenerateSchemaName(Type messageType, string? stream = null) {
-		if (messageType is null || messageType == SystemTypes.MissingType)
+		if (messageType is null || messageType == Type.MissingType)
 			throw new ArgumentNullException(nameof(messageType));
 
 		var (ns, msg) = Generate(messageType, stream ?? string.Empty);

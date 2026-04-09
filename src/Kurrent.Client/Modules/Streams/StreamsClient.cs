@@ -8,6 +8,7 @@ public partial class StreamsClient : ClientModuleBase {
     internal StreamsClient(KurrentClient client) : base(client) {
         TypeMapper.Map<StreamMetadata>("$metadata"); // metastream
         TypeMapper.Map<string>("$>");                // link
+        TypeMapper.MapScavengeEvents();
 
         ServiceClient       = new StreamsServiceClient(client.LegacyCallInvoker);
         LegacyServiceClient = new LegacyStreamsServiceClient(client.LegacyCallInvoker);
