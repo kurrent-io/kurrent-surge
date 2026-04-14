@@ -1,4 +1,5 @@
 using Kurrent.Client;
+using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
@@ -177,7 +178,7 @@ public sealed class KurrentProcessorHostBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the checkpoint settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder ConfigureCheckpointing(Action<CheckpointSettingsBuilder> configure) {
+    public KurrentProcessorHostBuilder Checkpointing(Action<CheckpointSettingsBuilder> configure) {
         _settingsBuilder.ConfigureCheckpointing(configure);
         return this;
     }
@@ -289,6 +290,9 @@ public sealed class KurrentProcessorHostBuilder {
         // Auto-generate WorkerId if not explicitly set.
         if (string.IsNullOrWhiteSpace(_settingsBuilder.Settings.WorkerId))
             _settingsBuilder.WithWorkerId(PunyId.New());
+
+        if (string.IsNullOrWhiteSpace(_settingsBuilder.Settings.ProcessorId))
+            _settingsBuilder.WithProcessorId(typeof(TProcessor).Name.ToSnakeCase());
 
         return new KurrentProcessorRegistration<TProcessor>(
             _settingsBuilder.Settings,

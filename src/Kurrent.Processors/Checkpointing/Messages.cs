@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Kurrent.Processors.Checkpointing;
 
-static partial class Contracts {
+public static partial class Contracts {
     /// <summary>
     /// One or more partition positions checkpointed by a worker.
     /// </summary>

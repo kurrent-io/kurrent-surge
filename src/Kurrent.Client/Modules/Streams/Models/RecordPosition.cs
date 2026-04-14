@@ -148,10 +148,10 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
         Stream == StreamName.Unset
             ? Partition == Partition.Any
                 ? $"{LogPosition}"
-                : $"[{Partition}] @{LogPosition}]"
+                : $"[{Partition}] @{LogPosition}"
             : Partition == Partition.Any
-                ? $"{Stream} @{LogPosition}"
-                : $"{Stream} [{Partition}] @{LogPosition}]";
+                ? $"{Stream} r{Revision} @{LogPosition}"
+                : $"{Stream} r{Revision} [{Partition}] @{LogPosition}";
 
     public static RecordPosition From(LogPosition logPosition) {
         // if (logPosition == LogPosition.Unset)

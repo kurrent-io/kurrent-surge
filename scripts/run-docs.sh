@@ -37,6 +37,9 @@ elif [ "$DOCS_DIR/package.json" -nt "$DOCS_DIR/node_modules/.pnpm/lock.yaml" ] |
      [ "$DOCS_DIR/pnpm-lock.yaml" -nt "$DOCS_DIR/node_modules/.pnpm/lock.yaml" ]; then
   echo "dependencies outdated, updating..."
   (cd "$DOCS_DIR" && pnpm install)
+elif [ ! -e "$DOCS_DIR/node_modules/vuepress/bin/vuepress-vite.js" ]; then
+  echo "dependencies corrupted, reinstalling..."
+  (cd "$DOCS_DIR" && pnpm install)
 fi
 
 # --- run ---

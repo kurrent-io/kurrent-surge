@@ -111,7 +111,7 @@ public sealed partial class EventSourcedCheckpointStore : ICheckpointStore {
             var partitions     = new Dictionary<int, Contracts.PartitionPosition>();
             var latestTimestamp = DateTimeOffset.MinValue;
 
-            await foreach (var message in recordStream.WithCancellation(ct).ConfigureAwait(false)) {
+            await foreach (var message in recordStream.ConfigureAwait(false)) {
                 if (!message.IsRecord)
                     continue;
 

@@ -1,3 +1,5 @@
+// ReSharper disable ClassNeverInstantiated.Global
+
 using Kurrent.Processors;
 using Transfermarkt.Domain;
 

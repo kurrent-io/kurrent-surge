@@ -22,31 +22,9 @@ Greenfield project: no legacy compatibility constraints, no existing user base.
 
 ## Build & Test
 
-Tests use TUnit on Microsoft.Testing.Platform (not VSTest). `dotnet test` delegates to MTP via `global.json`. All TUnit/MTP flags go after `--`.
+Read the [Testing](.agents/context/testing.md) section for more details.
 
 One-time setup: `sudo ./scripts/gencert.sh` generates TLS certs for secure test mode. FluentDocker containers (not TestContainers) are reused across runs.
-
-```sh
-# All unit tests
-dotnet test -c Release --ignore-exit-code 8 --results-directory ./artifacts/test-results \
-  -- --treenode-filter "/*/*/*/*[Category!=Integration]" \
-  --adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace
-
-# All integration tests (require live KurrentDB)
-dotnet test -c Release --ignore-exit-code 8 --results-directory ./artifacts/test-results \
-  -- --treenode-filter "/*/*/*/*[Category=Integration]" \
-  --adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace --fail-fast
-
-# Single test class
-dotnet test -c Release --results-directory ./artifacts/test-results \
-  -- --treenode-filter "/*/*/ReadTests/*" \
-  --adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace
-
-# Tests by category (e.g. SerDe)
-dotnet test -c Release --ignore-exit-code 8 --results-directory ./artifacts/test-results \
-  -- --treenode-filter "/*/*/*/*[Category=SerDe]" \
-  --adaptive-metrics --report-trx --coverage --output Detailed --log-level Trace
-```
 
 `tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning: `dotnet tool restore`.
 

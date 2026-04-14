@@ -6,9 +6,7 @@ namespace Registry.Quickstart;
 
 public class DashboardService(KurrentClient client) {
     public async Task ShowReadings(string stream) {
-        await using var records = await client.Streams.ReadStreamRecords(stream);
-
-        await foreach (var msg in records) {
+        await foreach (var msg in client.Streams.ReadStreamRecords(stream)) {
             msg.Switch(
                 record => {
                     var r = record.As<TemperatureReading>();

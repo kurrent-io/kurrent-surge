@@ -1,7 +1,7 @@
 
 # Kurrent .NET SDK
 
-[![Build](https://github.com/kurrent-io/Kurrent.Client/actions/workflows/build.yml/badge.svg)](https://github.com/kurrent-io/Kurrent.Client/actions/workflows/build.yml)
+[![Build](https://github.com/kurrent-io/kurrent-sdk-dotnet/actions/workflows/build.yml/badge.svg)](https://github.com/kurrent-io/kurrent-sdk-dotnet/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 The .NET SDK for the [Kurrent](https://kurrent.io) platform.
@@ -20,12 +20,12 @@ See each package's README for quick-start guides, code samples, and detailed fea
 
 ## Documentation
 
-- [API Reference](https://developers.kurrent.io/clients/grpc/)
+- [API Reference](https://developers.kurrent.io/clients/)
 - [Examples](./examples)
 
 ## Requirements
 
-- .NET 8.0, 9.0, or 10.0
+- .NET 10.0
 - KurrentDB 24.10 or later
 
 ## Contributing

@@ -360,9 +360,9 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     #endregion
 
-    sealed record StoredPartitionCheckpoint(long Position, string WorkerId);
+    public sealed record StoredPartitionCheckpoint(long Position, string WorkerId);
 
-    sealed record ProcessorCheckpointState {
+    public sealed record ProcessorCheckpointState {
         public ImmutableDictionary<int, StoredPartitionCheckpoint> Partitions { get; init; } =
             ImmutableDictionary<int, StoredPartitionCheckpoint>.Empty;
 

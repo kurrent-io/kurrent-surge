@@ -12,6 +12,7 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
+using Microsoft.Extensions.Logging;
 using static Kurrent.Client.Streams.StreamsClientV1Mapper;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
@@ -151,6 +152,14 @@ public partial class StreamsClient {
                             SchemaRegistryPolicy.NoRequirements,
                             skipDecoding, ct)
                         .ConfigureAwait(false);
+
+                    var record = result.AsRecord;
+
+                    Logger.LogInformation(
+                        "{Position} {Type}: {@Value}",
+                        record.Position, record.ValueType.Name, record.Value
+                    );
+
                     break;
                 default:
                     continue;
@@ -220,5 +229,10 @@ public static partial class StreamsClientExtensions {
             client.ReadLastStreamRecord(stream, false, cancellationToken);
 
         #endregion
+    }
+
+    extension(IAsyncEnumerable<ReadRecordsResult> source) {
+        public ValueTask<List<Record>> ToRecordsList() =>
+            source.Where(msg => msg.IsRecord).Select(msg => msg.AsRecord).ToListAsync();
     }
 }

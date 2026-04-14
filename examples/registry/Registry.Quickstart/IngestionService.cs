@@ -21,6 +21,7 @@ public class IngestionService(KurrentClient client) {
         try {
             await client.Registry.CheckSchemaCompatibility(
                 Schemas.TemperatureReading, definition, SchemaDataFormat.Json);
+
             return true;
         }
         catch (SchemaIncompatibleException ex) {

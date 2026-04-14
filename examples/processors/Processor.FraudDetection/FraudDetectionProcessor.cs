@@ -84,21 +84,6 @@ public sealed class FraudDetectionProcessor : IRecordProcessor {
                 smallTx.Location, largeTx.Location);
     }
 
-    public ValueTask OnCheckpoint(CheckpointContext context) {
-        context.Logger.LogInformation(
-            "Checkpoint {CheckpointId} | Transactions: {Tx} | Accounts: {Accounts} | Fraud Alerts: {Alerts}",
-            context.CheckpointId, _totalTransactions, _accountStates.Count, _fraudAlertsRaised);
-
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation(
-            "Completed | Total transactions: {Tx}, Fraud alerts: {Alerts}",
-            _totalTransactions, _fraudAlertsRaised);
-        return ValueTask.CompletedTask;
-    }
-
     sealed class AccountState {
         readonly List<Transaction> _recentSmallTransactions = [];
 

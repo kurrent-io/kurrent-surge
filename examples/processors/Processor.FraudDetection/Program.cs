@@ -14,6 +14,6 @@ Log.Logger = new LoggerConfiguration()
 var processor = new FraudDetectionProcessor();
 
 await KurrentProcessors.Create(processor)
-    .WithFilterExpression("schema_name = 'Transaction'")
+    .WithFilterExpression("schema like 'Transaction'")
     .ConnectTo("kurrentdb://localhost:2113")
     .RunWithGracefulShutdownAsync();

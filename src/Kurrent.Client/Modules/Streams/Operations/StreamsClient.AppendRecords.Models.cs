@@ -208,6 +208,11 @@ public class AppendRecordsRequestBuilder {
         return this;
     }
 
+    public AppendRecordsRequestBuilder WithRecord<T>(T value, StreamName stream, SchemaDataFormat dataFormat = SchemaDataFormat.Json) {
+        _builders.Add(AppendRecord.New.ForStream(stream).WithValue(value).WithDataFormat(dataFormat));
+        return this;
+    }
+
     public AppendRecordsRequestBuilder WithRecords(params AppendRecord[] records) {
         foreach (var record in records)
             _builders.Add(new AppendRecordBuilder().FromRecord(record));

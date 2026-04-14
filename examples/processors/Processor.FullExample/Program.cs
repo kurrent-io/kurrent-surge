@@ -38,7 +38,7 @@ try {
     builder.Services.AddKurrentProcessor<TransferAnalyticsProcessor>(config => config
         .WithFilter("schema_name IN ('PlayerRegistered', 'PlayerTransferred')")
         // .WithMaxParallelism(2)
-        .ConfigureCheckpointing(c => c.Interval(10_000))
+        .Checkpointing(c => c.Interval(10_000))
         .ConfigureBatching(b => b.MaxSize(50).Timeout(1000))
     );
 

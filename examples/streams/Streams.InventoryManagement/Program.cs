@@ -15,7 +15,7 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.Services.AddKurrentClient();
     builder.Services.AddSingleton<InventoryService>();
 
     var app = builder.Build();
@@ -64,10 +64,10 @@ try {
 
     app.MapGet("/activity", async (InventoryService svc, int? max) =>
         Results.Ok((await svc.GetRecentActivity(max ?? 20)).Select(r => new {
-            Stream    = r.Stream.ToString(),
-            Revision  = r.Revision.Value,
-            Type      = r.Value?.GetType().Name ?? r.Schema.SchemaName.ToString(),
-            Timestamp = r.Timestamp
+            Stream     = r.Stream.ToString(),
+            Revision   = r.Revision.Value,
+            SchemaName = r.Schema.SchemaName.ToString(),
+            Timestamp  = r.Timestamp
         })));
 
     await app.RunAsync();
@@ -82,9 +82,9 @@ finally {
 return;
 
 static object ToEvent(Record r) => new {
-    Revision  = r.Revision.Value,
-    Type      = r.Value?.GetType().Name ?? r.Schema.SchemaName.ToString(),
-    Timestamp = r.Timestamp
+    Revision   = r.Revision.Value,
+    SchemaName = r.Schema.SchemaName.ToString(),
+    Timestamp  = r.Timestamp
 };
 
 record ReceiveRequest(int Quantity, string Warehouse, string PurchaseOrderId);

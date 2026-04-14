@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client;
 
@@ -24,6 +25,8 @@ public static class KurrentClientServiceCollectionExtensions {
 
                 if (configuration is not null)
                     builder.FromConfiguration(configuration);
+
+                builder.WithLoggerFactory(sp.GetRequiredService<ILoggerFactory>());
 
                 return builder.CreateClient();
             });

@@ -19,12 +19,10 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         string sku, int quantity, string warehouse, string purchaseOrderId
     ) {
         var result = await client.Streams.AppendStream(
-            StreamFor(sku),
-            [
-                AppendRecord.New
-                    .WithValue(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow))
-                    .Build()
-            ]);
+            AppendRecord.New
+                .ForStream(StreamFor(sku))
+                .WithValue(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow))
+                .Build());
 
         logger.LogStockReceived(quantity, sku, warehouse, purchaseOrderId, result.Revision);
 
@@ -85,14 +83,9 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
 
         await client.Streams.AppendRecords(
             AppendRecordsRequest.New()
-                .WithRecord(r => r
-                    .ForStream(skuStream)
-                    .WithValue(transferEvent))
-                .WithRecord(r => r
-                    .ForStream("transfer-log")
-                    .WithValue(transferEvent))
-                .WithChecks(
-                    ConsistencyCheck.StreamExists(skuStream))
+                .WithRecord(transferEvent, skuStream)
+                .WithRecord(transferEvent, "transfer-log")
+                .WithChecks(ConsistencyCheck.StreamExists(skuStream))
                 .Build());
 
         logger.LogStockTransferred(quantity, sku, fromWarehouse, toWarehouse);
@@ -104,24 +97,20 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// (for use in optimistic concurrency checks).
     /// </summary>
     public async ValueTask<(int Level, Revision Revision)> GetStockLevel(string sku) {
-        var level = 0;
+        var level    = 0;
         var revision = Revision.From(0);
 
-        await using var stream = await client.Streams.ReadStreamRecords(StreamFor(sku));
-
-        await foreach (var message in stream) {
-            message.Switch(
-                record => {
-                    revision = record.Revision;
-                    level += record.Value switch {
-                        StockReceived e  => e.Quantity,
-                        StockShipped e   => -e.Quantity,
-                        StockAdjusted e  => e.Quantity,
-                        StockTransferred => 0,
-                        _                => 0
-                    };
-                },
-                _ => { });
+        await foreach (var message in client.Streams.ReadStreamRecords(StreamFor(sku))) {
+            if (message.Value is Record record) {
+                revision = record.Revision;
+                level += record.Value switch {
+                    StockReceived e  => e.Quantity,
+                    StockShipped e   => -e.Quantity,
+                    StockAdjusted e  => e.Quantity,
+                    StockTransferred => 0,
+                    _                => 0
+                };
+            }
         }
 
         return (level, revision);
@@ -130,14 +119,11 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// <summary>
     /// Read the full event history for a SKU as a list.
     /// </summary>
-    public async ValueTask<List<Record>> GetHistory(string sku) {
-        await using var stream = await client.Streams.ReadStreamRecords(StreamFor(sku));
-
-        return await stream
+    public async ValueTask<List<Record>> GetHistory(string sku) =>
+        await client.Streams.ReadStreamRecords(StreamFor(sku))
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync();
-    }
 
     /// <summary>
     /// Get the first event in a SKU stream (when this SKU was first tracked).
@@ -155,9 +141,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read events from a known revision onwards — catch-up from a checkpoint.
     /// </summary>
     public async ValueTask<List<Record>> GetEventsSince(string sku, Revision fromRevision) {
-        await using var stream = await client.Streams.ReadStreamRecords(StreamFor(sku), fromRevision);
-
-        return await stream
+        return await client.Streams.ReadStreamRecords(StreamFor(sku), fromRevision)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync();
@@ -167,13 +151,12 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read the last N events from a SKU stream backwards.
     /// </summary>
     public async ValueTask<List<Record>> GetRecentEvents(string sku, int count = 10) {
-        await using var stream = await client.Streams.ReadRecords(
-            ReadStream.From(StreamFor(sku))
-                .FromEnd()
-                .WithMaxRecords(count)
-                .Build());
+        var request = ReadStreamRequest.New.ForStream(StreamFor(sku))
+            .FromEnd()
+            .WithMaxRecords(count)
+            .Build();
 
-        return await stream
+        return await client.Streams.ReadStream(request)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync();
@@ -183,16 +166,13 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read recent inventory activity across all SKUs from the global log.
     /// </summary>
     public async ValueTask<List<Record>> GetRecentActivity(int maxRecords = 50) {
-        await using var stream = await client.Streams.ReadRecords(
-            ReadLog.FromEnd()
-                .WithMaxRecords(maxRecords)
-                .WithFilterExpression("stream LIKE 'inventory-%'")
-                .Build());
+        var req = ReadRecordsRequest.New
+            .Backwards()
+            .WithMaxRecords(maxRecords)
+            .WithFilterExpression("stream like 'inventory-%'")
+            .Build();
 
-        return await stream
-            .Where(msg => msg.IsRecord)
-            .Select(msg => msg.AsRecord)
-            .ToListAsync();
+        return await client.Streams.ReadRecords(req).ToRecordsList();
     }
 
     static StreamName StreamFor(string sku) => $"inventory-{sku}";

@@ -3,7 +3,6 @@ using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Streams;
 using Registry.Quickstart;
 using Serilog;
@@ -16,8 +15,8 @@ Log.Logger = new LoggerConfiguration()
 
 await using var client = KurrentClient.Create(
     KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2113?tls=false") with {
-        Schema = new KurrentClientSchemaOptions {
-            Json = new JsonSchemaSerializerOptions {
+        Schema = new() {
+            Json = new() {
                 SchemaRegistration = SchemaRegistrationOptions.AutoRegister
             }
         }
