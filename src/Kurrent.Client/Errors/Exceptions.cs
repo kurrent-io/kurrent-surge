@@ -36,6 +36,16 @@ public partial class NotLeaderNodeException {
 delegate dynamic? OperationExceptionParser(Status status, ErrorInfo? errorInfo);
 
 static class ExceptionExtensions {
+    /// <summary>
+    /// Creates a fallback parser that matches on gRPC StatusCode when the server
+    /// does not send structured ErrorInfo. Remove individual usages when the
+    /// server sends ErrorInfo for that module.
+    /// </summary>
+    extension(StatusCode statusCode) {
+        internal OperationExceptionParser MapTo(Exception exception) =>
+            (s, e) => (StatusCode)s.Code == statusCode ? (dynamic?)exception : null;
+    }
+
     static readonly OperationExceptionParser[] GoogleParsers = [
         static (s, e) => CancelledException.From(s, e),
         static (s, e) => UnknownException.From(s, e),

@@ -1,3 +1,4 @@
+using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Queries = KurrentDB.Connectors.Management.Contracts.Queries;
@@ -77,9 +78,13 @@ public partial class ConnectorsClient {
             };
         }
         catch (Exception ex) {
-            throw ToConnectorException(ex,
-                new ConnectorNotFoundException(connectorId),
-                new ConnectorDeletedException(connectorId));
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
         }
     }
 
@@ -108,9 +113,13 @@ public partial class ConnectorsClient {
             };
         }
         catch (Exception ex) {
-            throw ToConnectorException(ex,
-                new ConnectorNotFoundException(connectorId),
-                new ConnectorDeletedException(connectorId));
+            throw ex.ToException(
+                ConnectorNotFoundException.From,
+                ConnectorDeletedException.From,
+
+                // StatusCode fallbacks
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
         }
     }
 
@@ -120,19 +129,17 @@ public partial class ConnectorsClient {
             InstanceTypeName        = connector.InstanceTypeName,
             Name                    = connector.Name,
             State                   = (ConnectorState)(int)connector.State,
+            Position                = LogPosition.From(connector.Position),
             StateUpdateTime         = connector.StateUpdateTime?.ToDateTimeOffset() ?? default,
             Settings                = MapSettings(connector.Settings),
             SettingsUpdateTime      = connector.SettingsUpdateTime?.ToDateTimeOffset() ?? default,
             Configuration           = connector.Configuration,
             ConfigurationUpdateTime = connector.ConfigurationUpdateTime?.ToDateTimeOffset() ?? default,
-            Position = connector.Position is not null
-                ? LogPosition.From((long)connector.Position.Value)
-                : LogPosition.Unset,
-            PositionUpdateTime = connector.PositionUpdateTime?.ToDateTimeOffset() ?? default,
-            CreateTime         = connector.CreateTime?.ToDateTimeOffset() ?? default,
-            UpdateTime         = connector.UpdateTime?.ToDateTimeOffset() ?? default,
-            DeleteTime         = connector.DeleteTime?.ToDateTimeOffset() ?? default,
-            ErrorDetails       = connector.ErrorDetails?.Message
+            PositionUpdateTime      = connector.PositionUpdateTime?.ToDateTimeOffset() ?? default,
+            CreateTime              = connector.CreateTime?.ToDateTimeOffset() ?? default,
+            UpdateTime              = connector.UpdateTime?.ToDateTimeOffset() ?? default,
+            DeleteTime              = connector.DeleteTime?.ToDateTimeOffset() ?? default,
+            ErrorDetails            = connector.ErrorDetails?.Message,
         };
 
     static IReadOnlyDictionary<string, string> MapSettings(

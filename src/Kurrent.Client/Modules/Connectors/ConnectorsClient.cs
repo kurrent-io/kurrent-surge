@@ -1,6 +1,3 @@
-using Grpc.Core;
-using Kurrent.Client.Exceptions;
-
 using static KurrentDB.Connectors.Management.Contracts.Commands.ConnectorsCommandService;
 using static KurrentDB.Connectors.Management.Contracts.Queries.ConnectorsQueryService;
 
@@ -14,24 +11,4 @@ public partial class ConnectorsClient : ClientModuleBase {
 
     ConnectorsCommandServiceClient CommandServiceClient { get; }
     ConnectorsQueryServiceClient   QueryServiceClient   { get; }
-
-    // The server does not yet send ErrorInfo. Remove when the server sends structured error details
-    static Exception ToConnectorException(
-        Exception ex,
-        ConnectorNotFoundException notFound,
-        ConnectorDeletedException deleted
-    ) {
-        var mex = ex.AsWellKnownException(
-            ConnectorNotFoundException.From,
-            ConnectorDeletedException.From);
-
-        if (mex is ConnectorNotFoundException or ConnectorDeletedException)
-            return mex;
-
-        return ex switch {
-            RpcException { StatusCode: StatusCode.NotFound }           => notFound,
-            RpcException { StatusCode: StatusCode.FailedPrecondition } => deleted,
-            _                                                          => mex
-        };
-    }
 }
