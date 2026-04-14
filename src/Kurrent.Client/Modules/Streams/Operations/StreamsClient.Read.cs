@@ -98,7 +98,7 @@ public partial class StreamsClient {
     public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest request, CancellationToken ct = default) {
         request.EnsureValid();
 
-        var grpcRequest = Requests.CreateReadLogRequest(request);
+        var grpcRequest = Requests.CreateReadRecordsRequest(request);
 
         return ReadCore(grpcRequest, request.SkipDecoding, request.Filter, ct);
     }
@@ -115,7 +115,6 @@ public partial class StreamsClient {
         ReadReq request, bool skipDecoding,
         IRecordFilter filter, [EnumeratorCancellation] CancellationToken ct
     ) {
-
         var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
 
         var sequencer = new SequenceGenerator();
@@ -188,7 +187,7 @@ public static partial class StreamsClientExtensions {
 
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
             client.ReadRecords(
-                Streams.ReadRecords.From(start).Build(),
+                ReadRecordsRequest.New.FromPosition(start).Build(),
                 cancellationToken
             );
 
@@ -198,13 +197,13 @@ public static partial class StreamsClientExtensions {
 
         public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
             client.ReadStream(
-                ReadStream.Name(stream).FromRevision(start).Build(),
+                ReadStreamRequest.New.ForStream(stream).FromRevision(start).Build(),
                 cancellationToken
             );
 
         public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
             client.ReadStream(
-                ReadStream.Name(stream).Build(),
+                ReadStreamRequest.New.ForStream(stream).Build(),
                 cancellationToken
             );
 

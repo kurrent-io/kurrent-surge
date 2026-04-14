@@ -56,7 +56,7 @@ public class DroneLifecycleTests {
     static Mock<ICheckpointStore> EmptyCheckpointStore() {
         var store = Mock.Of<ICheckpointStore>();
 
-        store.LoadLatestAsync(Any<CancellationToken>())
+        store.LoadLatestAsync(Any<Partition[]>(), Any<SubscriptionInitialPosition>(), Any<CancellationToken>())
             .Returns(ProcessorCheckpoint.Empty);
 
         return store;
@@ -315,7 +315,7 @@ public class DroneLifecycleTests {
         await drone.RunAsync(CancellationToken.None);
 
         // Assert
-        store.LoadLatestAsync(Any<CancellationToken>()).WasCalled(Times.Once);
+        store.LoadLatestAsync(Any<Partition[]>(), Any<SubscriptionInitialPosition>(), Any<CancellationToken>()).WasCalled(Times.Once);
     }
 
     #endregion

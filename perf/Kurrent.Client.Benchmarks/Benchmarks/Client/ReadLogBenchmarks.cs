@@ -28,9 +28,11 @@ public class ReadLogBenchmarks {
         _ = _fixture.SeedStream(MessageCount).GetAwaiter().GetResult();
     }
 
+    // TODO SS: wrong name or we need proper benchmark for reading with limit, forwards and backwards.
     [Benchmark(Description = "Read $all forward with limit")]
     public async Task<int> read_log_forward() {
-        var builder = ReadRecords.From(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
+        var builder = ReadRecordsRequest.New
+            .FromPosition(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
             .WithMaxRecords(MessageCount);
 
         if (Direction == ReadDirection.Backwards)

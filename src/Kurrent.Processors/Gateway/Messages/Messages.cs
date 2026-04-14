@@ -118,7 +118,7 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 }
 
 /// <summary>
-/// Signals the worker to snapshot state and respond with <see cref="CheckpointComplete"/>.
+/// Signals the consumer to snapshot state and respond with <see cref="CheckpointComplete"/>.
 /// </summary>
 [PublicAPI]
 public readonly record struct Checkpoint(
@@ -222,7 +222,7 @@ public enum CheckpointTrigger {
     Interval = 2,
 
     /// <summary>
-    /// Subscription caught up to end of log, transitioning to live mode.
+    /// Subscription caught up to end of a filter, a stream or the log, transitioning to live mode.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -272,9 +272,6 @@ public enum CheckpointTrigger {
 /// </summary>
 [PublicAPI]
 public enum DisconnectReason {
-    /// <summary>
-    /// Unspecified reason. For proto compatibility.
-    /// </summary>
     Unspecified = 0,
 
     /// <summary>

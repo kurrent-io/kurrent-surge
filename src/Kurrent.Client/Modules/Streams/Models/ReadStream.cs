@@ -3,18 +3,18 @@ using Kurrent.Validation;
 
 namespace Kurrent.Client.Streams;
 
-/// <summary>
-/// Static entry point for building named stream read requests.
-/// </summary>
-[PublicAPI]
-public static class ReadStream {
-    /// <summary>
-    /// Start building read request for the specified stream.
-    /// </summary>
-    public static ReadStreamRequestBuilder Name(StreamName stream) =>
-        new ReadStreamRequestBuilder()
-            .ForStream(stream);
-}
+// /// <summary>
+// /// Static entry point for building named stream read requests.
+// /// </summary>
+// [PublicAPI]
+// public static class ReadStream {
+//     /// <summary>
+//     /// Start building read request for the specified stream.
+//     /// </summary>
+//     public static ReadStreamRequestBuilder Name(StreamName stream) =>
+//         new ReadStreamRequestBuilder()
+//             .ForStream(stream);
+// }
 
 /// <summary>
 /// Fluent builder for constructing <see cref="ReadStreamRequest"/> instances.
@@ -34,12 +34,6 @@ public class ReadStreamRequestBuilder : FluentBuilder<ReadStreamRequestBuilder, 
     /// </summary>
     public ReadStreamRequestBuilder ForStream(StreamName stream) =>
         With(request => request with { Stream = stream });
-
-    /// <summary>
-    /// Set the stream to read from.
-    /// </summary>
-    public ReadStreamRequestBuilder ForStream(string stream) =>
-        With(request => request with { Stream = StreamName.From(stream) });
 
     /// <summary>
     /// Start from the beginning of the stream (forwards).
@@ -98,6 +92,8 @@ public class ReadStreamRequestBuilder : FluentBuilder<ReadStreamRequestBuilder, 
 
 [PublicAPI]
 public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRequestValidator> {
+    public static ReadStreamRequestBuilder New => new();
+
     /// <summary>
     /// Name of the stream to read from.
     /// </summary>

@@ -216,7 +216,7 @@ static class StreamsClientV1Mapper {
         /// <summary>
         /// Creates a request to read log records based on the provided options.
         /// </summary>
-        public static Contracts.ReadReq CreateReadLogRequest(ReadRecordsRequest options) {
+        public static Contracts.ReadReq CreateReadRecordsRequest(ReadRecordsRequest options) {
             var req = new Contracts.ReadReq { Options = new() {
                 UuidOption    = DefaultUuidOptions,
                 ControlOption = DefaultControlOption,

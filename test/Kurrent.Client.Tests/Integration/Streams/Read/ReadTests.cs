@@ -24,10 +24,10 @@ public class ReadTests {
 
         var simulation = await Fixture.SeedTestStream(10, stoppingToken);
 
-        var options = ReadRecords.FromStart()
+        var options = ReadRecordsRequest.New
+            .FromPosition(lastPosition.LogPosition)
             .WithFilterExpression($"stream = '{simulation.Stream}'")
             .SkipDecoding()
-            .From(lastPosition.LogPosition)
             .Build();
 
         var messages = Fixture.Client.Streams.ReadRecords(options, stoppingToken);

@@ -28,7 +28,7 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Baseline = true, Description = "Read stream")]
     public async Task<int> read_stream() {
-        var builder = ReadStream.Name(_stream);
+        var builder = ReadStreamRequest.New.ForStream(_stream);
 
         if (SkipDecoding)
             builder.SkipDecoding();
@@ -44,7 +44,7 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Description = "Read stream with LINQ")]
     public async Task<int> read_stream_with_linq() {
-        var builder = ReadStream.Name(_stream);
+        var builder = ReadStreamRequest.New.ForStream(_stream);
 
         if (SkipDecoding)
             builder.SkipDecoding();
@@ -60,7 +60,8 @@ public class ReadStreamBenchmarks {
 
     // [Benchmark(Description = "Read stream from $all")]
     public async Task<int> read_stream_from_log() {
-        var builder = ReadRecords.FromStart()
+        var builder = ReadRecordsRequest.New
+            .FromPosition(LogPosition.Earliest)
             .WithFilter(RecordFilter.ByStream(_stream));
 
         if (SkipDecoding)

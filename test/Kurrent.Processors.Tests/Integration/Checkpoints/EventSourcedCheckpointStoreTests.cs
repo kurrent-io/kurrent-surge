@@ -550,17 +550,18 @@ public class EventSourcedCheckpointStoreTests {
 
 		await store.StoreAsync(workerId, PunyId.New(), Positions((0, pos0, s0, r0), (1, pos1, s1, r1), (2, pos2, s2, r2)), ct);
 
-		// Act — reset partition 1 to Earliest
+		// Act — reset partition 1 to Earliest (resolved to first record in log via InspectRecord)
 		await store.ResetAsync(workerId, PunyId.New(), [
 			new(Partition.From(1), RecordPosition.Earliest)
 		], ct);
 
 		var checkpoint = await store.LoadLatestAsync(ct);
 
-		// Assert
+		// Assert — partition 1 resolved to the first record in the log with full position data
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition).IsEqualTo(pos0);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition).IsEqualTo(LogPosition.Earliest);
+		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsGreaterThanOrEqualTo(0);
+		await Assert.That(byPartition[Partition.From(1)].Position.Stream.IsUnset).IsFalse();
 		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition).IsEqualTo(pos2);
 	}
 

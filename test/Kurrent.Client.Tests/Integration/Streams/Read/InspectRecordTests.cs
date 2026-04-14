@@ -115,7 +115,7 @@ public class InspectRecordTests {
 
     [Test]
     public async ValueTask fails_with_LogPositionNotFoundException_when_log_position_does_not_exist(CancellationToken ct) {
-        var nonExistentPosition = int.MaxValue - 1000;
+        var nonExistentPosition = long.MaxValue - 1000;
 
         await Assert.That(async () => await Fixture.Client.Streams
             .InspectRecord(nonExistentPosition, ct))

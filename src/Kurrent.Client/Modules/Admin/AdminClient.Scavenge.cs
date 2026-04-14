@@ -107,7 +107,8 @@ public partial class AdminClient {
         var pending = new Dictionary<string, ScavengeSummary>();
 
         var messages = Client.Streams.ReadStream(
-            ReadStream.Name(ScavengesStream)
+            ReadStreamRequest.New
+                .ForStream(ScavengesStream)
                 .FromEnd()
                 .Build(),
             cancellationToken
@@ -169,7 +170,8 @@ public partial class AdminClient {
         var progress = new ScavengeProgress();
 
         var messages = Client.Streams.ReadStream(
-            ReadStream.Name(ScavengeStream(scavengeId))
+            ReadStreamRequest.New
+                .ForStream(ScavengeStream(scavengeId))
                 .Build(),
             cancellationToken
         );

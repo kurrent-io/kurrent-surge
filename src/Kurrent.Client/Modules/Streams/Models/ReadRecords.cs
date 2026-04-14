@@ -3,34 +3,34 @@ using Kurrent.Validation;
 
 namespace Kurrent.Client.Streams;
 
-/// <summary>
-/// Static entry point for building global log read requests.
-/// </summary>
-[PublicAPI]
-public static class ReadRecords {
-    /// <summary>
-    /// Start reading from the earliest position in the log (forwards).
-    /// </summary>
-    public static ReadRecordsRequestBuilder FromStart() =>
-        new ReadRecordsRequestBuilder()
-            .From(LogPosition.Earliest)
-            .Forward();
-
-    /// <summary>
-    /// Start reading from the end of the log (backwards).
-    /// </summary>
-    public static ReadRecordsRequestBuilder FromEnd() =>
-        new ReadRecordsRequestBuilder()
-            .From(LogPosition.Latest)
-            .Backwards();
-
-    /// <summary>
-    /// Start reading from a specific log position.
-    /// </summary>
-    public static ReadRecordsRequestBuilder From(LogPosition position) =>
-        new ReadRecordsRequestBuilder()
-            .From(position);
-}
+// /// <summary>
+// /// Static entry point for building global log read requests.
+// /// </summary>
+// [PublicAPI]
+// public static class ReadRecords {
+//     /// <summary>
+//     /// Start reading from the earliest position in the log (forwards).
+//     /// </summary>
+//     public static ReadRecordsRequestBuilder FromStart() =>
+//         new ReadRecordsRequestBuilder()
+//             .From(LogPosition.Earliest)
+//             .Forward();
+//
+//     /// <summary>
+//     /// Start reading from the end of the log (backwards).
+//     /// </summary>
+//     public static ReadRecordsRequestBuilder FromEnd() =>
+//         new ReadRecordsRequestBuilder()
+//             .From(LogPosition.Latest)
+//             .Backwards();
+//
+//     /// <summary>
+//     /// Start reading from a specific log position.
+//     /// </summary>
+//     public static ReadRecordsRequestBuilder From(LogPosition position) =>
+//         new ReadRecordsRequestBuilder()
+//             .From(position);
+// }
 
 /// <summary>
 /// Fluent builder for constructing <see cref="ReadRecordsRequest"/> instances.
@@ -47,7 +47,7 @@ public class ReadRecordsRequestBuilder()
     /// <summary>
     /// Sets the starting log position.
     /// </summary>
-    public ReadRecordsRequestBuilder From(LogPosition position) =>
+    public ReadRecordsRequestBuilder FromPosition(LogPosition position) =>
         With(request => request with { Start = position });
 
     /// <summary>
@@ -89,6 +89,8 @@ public class ReadRecordsRequestBuilder()
 
 [PublicAPI]
 public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecordsRequestValidator> {
+    public static ReadRecordsRequestBuilder New => new();
+
     /// <summary>
     /// Starting position for the read operation in the global log.
     /// </summary>

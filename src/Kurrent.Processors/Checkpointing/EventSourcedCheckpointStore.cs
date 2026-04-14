@@ -102,7 +102,7 @@ public sealed partial class EventSourcedCheckpointStore : ICheckpointStore {
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
         try {
-            var readRequest = ReadStream.Name(_stream)
+            var readRequest = ReadStreamRequest.New.ForStream(_stream)
                 .FromEnd()
                 .Build();
 
@@ -193,7 +193,7 @@ public sealed partial class EventSourcedCheckpointStore : ICheckpointStore {
             Positions = positions.Select(p => new Contracts.PartitionPosition {
                 Partition      = p.Partition.Value,
                 LogPosition    = p.Position.LogPosition,
-                Stream         = p.Position.Stream == StreamName.Unset ? null : (string?)p.Position.Stream,
+                Stream         = p.Position.Stream,
                 StreamRevision = p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision
             }).ToArray()
         };
@@ -227,6 +227,23 @@ public sealed partial class EventSourcedCheckpointStore : ICheckpointStore {
 
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
+        // Resolve positions with unset streams from the database
+        for (var i = 0; i < positions.Length; i++) {
+            if (positions[i].Position.Stream.IsUnset) {
+                var record = await _client
+                    .InspectRecord(positions[i].Position.LogPosition, ct)
+                    .ConfigureAwait(false);
+
+                positions[i] = positions[i] with {
+                    Position = RecordPosition.From(
+                        record.Position.LogPosition,
+                        record.Stream,
+                        record.Revision,
+                        positions[i].Partition)
+                };
+            }
+        }
+
         var evt = new Contracts.CheckpointReset {
             ProcessorId  = ProcessorId,
             WorkerId     = workerId,
@@ -235,7 +252,7 @@ public sealed partial class EventSourcedCheckpointStore : ICheckpointStore {
             Positions = positions.Select(p => new Contracts.PartitionPosition {
                 Partition      = p.Partition.Value,
                 LogPosition    = p.Position.LogPosition,
-                Stream         = p.Position.Stream == StreamName.Unset ? null : (string?)p.Position.Stream,
+                Stream         = p.Position.Stream,
                 StreamRevision = p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision
             }).ToArray()
         };

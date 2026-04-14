@@ -230,7 +230,7 @@ public class ScavengeTests {
         // Act — backwards read of $scavenges with Take
         var messages = Fixture.Client.Streams
             .ReadStream(
-                ReadStream.Name("$scavenges")
+                ReadStreamRequest.New.ForStream("$scavenges")
                     .FromEnd()
                     .Build(),
                 ct
