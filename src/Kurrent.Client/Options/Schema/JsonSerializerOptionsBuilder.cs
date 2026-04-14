@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Kurrent.Client;
 
 [PublicAPI]
-public class JsonSerializerOptionsBuilder : OptionsBuilder<JsonSerializerOptionsBuilder, KurrentClientOptions> {
+public class JsonSerializerOptionsBuilder : FluentBuilder<JsonSerializerOptionsBuilder, KurrentClientOptions> {
 	public JsonSerializerOptionsBuilder(KurrentClientOptions options) : base(options) { }
 	public JsonSerializerOptionsBuilder() : base(new KurrentClientOptions()) { }
 

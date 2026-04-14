@@ -1,12 +1,13 @@
 // ReSharper disable CheckNamespace
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
-using Google.Rpc;
+using Grpc.Core;
 using Kurrent.Client.Streams;
 using Resources;
 using static System.String;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
+using Status = Google.Rpc.Status;
 
 namespace Kurrent.Client.Exceptions;
 
@@ -139,6 +140,16 @@ public partial class LogPositionNotFoundException {
     public LogPositionNotFoundException(ulong position)
         : this($"Failed to find log position: {position}") { }
 
-    public LogPositionNotFoundException(ulong position, string details)
-        : this($"Failed to find log position: {position} Details: {details}") { }
+    public LogPositionNotFoundException(ulong position, RpcException originalException)
+        : this($"Failed to find log position: {position} Details: {originalException.Message.Split(">>").Last().Trim()}") { }
+
+    public static bool IsMatch(RpcException rex) =>
+        rex.StatusCode == StatusCode.Unknown &&
+        rex.Message.Contains("InvalidPosition >>", StringComparison.OrdinalIgnoreCase);
+
+    // StatusCode="Unknown", Detail="
+    //   Unexpected ReadAllResult: InvalidPosition >>
+    //   There is not enough space to read full record (length prefix: 143170). Actual pre-position: 144798632.
+    //   Something is seriously wrong in chunk #1-1 (chunk-000001.000000).
+    // "
 }

@@ -67,6 +67,11 @@ namespace Kurrent.Processors.Options;
         return this;
     }
 
+    internal ProcessorSettingsBuilder WithDebugMode(bool enabled) {
+        _settings = _settings with { Debug = enabled };
+        return this;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════════
     // Filter Configuration
     // ═══════════════════════════════════════════════════════════════════════════════

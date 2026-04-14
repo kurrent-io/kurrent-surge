@@ -4,7 +4,7 @@ namespace Kurrent.Processors.Options;
 /// Fluent builder for <see cref="WorkerSettings"/>.
 /// </summary>
 [PublicAPI]
-public sealed class WorkerSettingsBuilder : OptionsBuilder<WorkerSettingsBuilder, WorkerSettings> {
+public sealed class WorkerSettingsBuilder : FluentBuilder<WorkerSettingsBuilder, WorkerSettings> {
     internal WorkerSettingsBuilder(WorkerSettings settings) : base(settings) { }
 
     /// <summary>

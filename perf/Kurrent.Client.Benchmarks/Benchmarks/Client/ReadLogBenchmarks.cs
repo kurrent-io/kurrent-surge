@@ -15,9 +15,6 @@ public class ReadLogBenchmarks {
     [Params(10000)]
     public int MessageCount { get; set; }
 
-    [Params(1000, 5000)]
-    public int BufferCapacity { get; set; }
-
     [Params(true, false)]
     public bool SkipDecoding { get; set; }
 
@@ -33,8 +30,7 @@ public class ReadLogBenchmarks {
 
     [Benchmark(Description = "Read $all forward with limit")]
     public async Task<int> read_log_forward() {
-        var builder = ReadLog.From(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
-            .WithBufferCapacity(BufferCapacity)
+        var builder = ReadRecords.From(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
             .WithMaxRecords(MessageCount);
 
         if (Direction == ReadDirection.Backwards)
@@ -44,25 +40,15 @@ public class ReadLogBenchmarks {
             builder.SkipDecoding();
 
         var options = builder.Build();
+        var count   = 0;
 
-        var messages = await _fixture.Client.Streams
-            .ReadRecords(options)
-            .ConfigureAwait(false);
-
-        try {
-            var count = 0;
-
-            await foreach (var msg in messages) {
-                count++;
-                if (count >= MessageCount)
-                    break;
-            }
-
-            return count;
+        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options)) {
+            count++;
+            if (count >= MessageCount)
+                break;
         }
-        finally {
-            await messages.DisposeAsync().ConfigureAwait(false);
-        }
+
+        return count;
     }
 
     [GlobalCleanup]

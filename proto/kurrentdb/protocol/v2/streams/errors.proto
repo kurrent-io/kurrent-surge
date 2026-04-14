@@ -156,10 +156,6 @@ enum StreamsError {
     status_code: NOT_FOUND
   }];
 
-  STREAMS_ERROR_RECORD_POSITION_NOT_FOUND = 13 [(kurrent.rpc.error) = {
-    status_code: NOT_FOUND
-  }];
-
   // One or more consistency checks failed during an AppendRecords operation.
   // The transaction is aborted — no records are written.
   //

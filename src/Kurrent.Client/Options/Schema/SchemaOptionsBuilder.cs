@@ -4,7 +4,7 @@ using Kurrent.Client.Schema.NameStrategies;
 namespace Kurrent.Client;
 
 [PublicAPI]
-public class SchemaOptionsBuilder : OptionsBuilder<SchemaOptionsBuilder, KurrentClientOptions> {
+public class SchemaOptionsBuilder : FluentBuilder<SchemaOptionsBuilder, KurrentClientOptions> {
     public SchemaOptionsBuilder(KurrentClientOptions options) : base(options) { }
 
     public SchemaOptionsBuilder() : base(new KurrentClientOptions()) { }
@@ -31,7 +31,7 @@ public class SchemaOptionsBuilder : OptionsBuilder<SchemaOptionsBuilder, Kurrent
     /// Sets whether messages should be validated against their schemas.
     /// </summary>
     public SchemaOptionsBuilder WithValidation(bool validate) =>
-        With(opts => opts with { Schema = opts.Schema with { Validate = validate } });
+        With(opts => opts with { Schema = opts.Schema with { PreValidate = validate } });
 
     /// <summary>
     /// Sets the strategy used for generating schema names.

@@ -76,7 +76,7 @@ public record WorkerContext {
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
-    public ProcessRecordContext ForProcessRecord(Record record, WorkerProgress progress) =>
+    public ProcessRecordContext ForProcessRecord(WorkerProgress progress, Record record) =>
         new() {
             ProcessorId       = ProcessorId,
             WorkerId          = WorkerId,
@@ -87,13 +87,14 @@ public record WorkerContext {
             Progress          = progress
         };
 
-    public CheckpointContext ForCheckpoint(Checkpoint checkpoint) =>
+    public CheckpointContext ForCheckpoint(PartitionPositions positions, Checkpoint checkpoint) =>
         new() {
             ProcessorId       = ProcessorId,
             WorkerId          = WorkerId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
+            Positions         = positions,
             CheckpointId      = checkpoint.CheckpointId,
             Trigger           = checkpoint.Trigger,
             Timestamp         = checkpoint.Timestamp
@@ -183,9 +184,10 @@ public enum StopProcessingTrigger {
 /// </summary>
 [PublicAPI]
 public record CheckpointContext : WorkerContext {
-    public string            CheckpointId { get; init; } = string.Empty;
-    public CheckpointTrigger Trigger      { get; init; }
-    public DateTimeOffset    Timestamp    { get; init; }
+    public required PartitionPositions Positions    { get; init; }
+    public required string             CheckpointId { get; init; }
+    public required CheckpointTrigger  Trigger      { get; init; }
+    public required DateTimeOffset     Timestamp    { get; init; }
 }
 
 /// <summary>
@@ -277,13 +279,13 @@ public readonly record struct WorkerProgress(
 /// </param>
 [PublicAPI]
 public readonly record struct PartitionProgress(
-    LogPosition LastTrackedPosition,
-    LogPosition LastFlushedPosition
+    RecordPosition LastTrackedPosition,
+    RecordPosition LastFlushedPosition
 ) {
     /// <summary>
     /// Empty partition progress with no positions tracked or flushed.
     /// </summary>
-    public static readonly PartitionProgress Empty = new(LogPosition.Unset, LogPosition.Unset);
+    public static readonly PartitionProgress Empty = new(RecordPosition.Unset, RecordPosition.Unset);
 }
 
 /// <summary>

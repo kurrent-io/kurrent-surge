@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Kurrent.Client;
 
-public class KurrentClientOptionsValidator : FluentOptionsValidator<KurrentClientOptionsValidator, KurrentClientOptions> {
+public class KurrentClientOptionsValidator : FluentValidator<KurrentClientOptionsValidator, KurrentClientOptions> {
     public KurrentClientOptionsValidator() {
         // Connection name validation
         RuleFor(options => options.ConnectionName)

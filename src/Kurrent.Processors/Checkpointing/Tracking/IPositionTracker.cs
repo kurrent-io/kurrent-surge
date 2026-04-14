@@ -21,8 +21,16 @@ public interface IPositionTracker : IDisposable {
     /// </summary>
     int Track(RecordPosition position);
 
+    int Track(Record record) => Track(record.Position);
+
     /// <summary>
     /// Flushes tracked positions up to and including the specified position.
     /// </summary>
     RecordPosition[] FlushUpTo(RecordPosition position);
+
+    /// <summary>
+    /// Resets the tracker to a new initial state, reusing the internal buffer.
+    /// </summary>
+    /// <param name="lastFlushedPosition">The new last flushed position.</param>
+    void Reset(RecordPosition lastFlushedPosition);
 }

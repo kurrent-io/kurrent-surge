@@ -24,6 +24,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="NodaTime.Testing" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="TUnit.Mocks" />
   </ItemGroup>
 
   <ItemGroup>

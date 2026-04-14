@@ -40,7 +40,7 @@ namespace Kurrent.Client;
 /// </code>
 /// </example>
 [PublicAPI]
-public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOptionsBuilder, KurrentClientOptions> {
+public sealed class KurrentClientOptionsBuilder : FluentBuilder<KurrentClientOptionsBuilder, KurrentClientOptions> {
     public KurrentClientOptionsBuilder(KurrentClientOptions options) : base(options) { }
     public KurrentClientOptionsBuilder() : base(new KurrentClientOptions()) { }
 
@@ -49,7 +49,7 @@ public sealed class KurrentClientOptionsBuilder : OptionsBuilder<KurrentClientOp
     /// </summary>
     /// <returns>A configured KurrentClientOptions instance.</returns>
     protected override KurrentClientOptions OnBuild(KurrentClientOptions options) {
-        options.EnsureOptionsAreValid();
+        options.EnsureValid();
         return options;
 
         // // might not need to do this anymore, double check.

@@ -64,7 +64,7 @@ static class ExceptionExtensions {
 
     extension(Exception ex) {
         [StackTraceHidden]
-        Exception ToException(params OperationExceptionParser[] parsers) {
+        internal Exception ToException(params OperationExceptionParser[] parsers) {
             // pass through KurrentException as is (just in case)
             if (ex is KurrentException kex)
                 return kex;

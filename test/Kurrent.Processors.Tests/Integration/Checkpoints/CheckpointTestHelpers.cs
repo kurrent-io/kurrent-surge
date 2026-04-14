@@ -1,5 +1,5 @@
-using System.Collections.Immutable;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
 
 namespace Kurrent.Processors.Tests;
 
@@ -8,17 +8,13 @@ namespace Kurrent.Processors.Tests;
 /// </summary>
 public static class CheckpointTestHelpers {
 	/// <summary>
-	/// Creates an ImmutableDictionary of partition positions from (partition, position) pairs.
+	/// Creates an array of partition positions from (partition, position) pairs.
 	/// </summary>
-	public static ImmutableDictionary<Partition, RecordPosition> Positions(
+	public static PartitionPosition[] Positions(
 		params (int partition, long position)[] pairs
-	) {
-		var builder = ImmutableDictionary.CreateBuilder<Partition, RecordPosition>();
-		foreach (var (partition, position) in pairs)
-			builder[Partition.From(partition)] =
-				RecordPosition.FromLogPosition(position);
-		return builder.ToImmutable();
-	}
+	) => pairs
+		.Select(p => new PartitionPosition(Partition.From(p.partition), RecordPosition.FromLogPosition(p.position)))
+		.ToArray();
 
 	/// <summary>
 	/// Generates a unique processor ID with the specified prefix.

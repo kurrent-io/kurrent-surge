@@ -24,14 +24,13 @@ public class ReadTests {
 
         var simulation = await Fixture.SeedTestStream(10, stoppingToken);
 
-        var options = ReadLog.FromStart()
+        var options = ReadRecords.FromStart()
             .WithFilterExpression($"stream = '{simulation.Stream}'")
             .SkipDecoding()
-            .WithCancellationToken(stoppingToken)
             .From(lastPosition.LogPosition)
             .Build();
 
-        await using var messages = await Fixture.Client.Streams.ReadRecords(options);
+        var messages = Fixture.Client.Streams.ReadRecords(options, stoppingToken);
 
         var records = new List<Record>();
 
@@ -62,7 +61,7 @@ public class ReadTests {
 
         var now = Fixture.Time.GetUtcNow();
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
 
         var records = await messages
@@ -104,22 +103,25 @@ public class ReadTests {
     [Arguments(9)]
     [Arguments(10)]
     [Arguments(100)]
-    public async ValueTask gracefully_stops_reading_and_flushes_queue_when_read_token_is_cancelled(int records, CancellationToken ct) {
+    public async ValueTask gracefully_stops_reading_when_read_token_is_cancelled(int records, CancellationToken ct) {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         var data = await Fixture.SeedTestStream(records, cancellator.Token);
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, cancellator.Token);
 
         var cancelOn = (data.Records.Length / 2) + (data.Records.Length % 2);
+        var read     = 0;
 
-        await foreach (var _ in messages)
+        await foreach (var _ in messages) {
+            read++;
             if (--cancelOn == 0 && !cancellator.IsCancellationRequested)
                 await cancellator.CancelAsync();
+        }
 
-        await Assert.That(messages.QueuedMessages).IsEqualTo(0);
         await Assert.That(cancellator.IsCancellationRequested).IsTrue();
+        await Assert.That(read).IsGreaterThan(0);
     }
 
     [Test]
@@ -133,26 +135,25 @@ public class ReadTests {
     [Arguments(9)]
     [Arguments(10)]
     [Arguments(100)]
-    public async ValueTask gracefully_stops_reading_without_flushing_queue_when_enumerable_token_is_cancelled(int records, CancellationToken ct) {
-        using var cancellator =  CancellationTokenSource.CreateLinkedTokenSource(ct);
+    public async ValueTask gracefully_stops_reading_when_enumerable_token_is_cancelled(int records, CancellationToken ct) {
+        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         var data = await Fixture.SeedTestStream(records, cancellator.Token);
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, cancellator.Token);
 
         var cancelOn = (data.Records.Length / 2) + (data.Records.Length % 2);
+        var read     = 0;
 
         await foreach (var _ in messages.WithCancellation(cancellator.Token)) {
+            read++;
             if (--cancelOn == 0)
                 await cancellator.CancelAsync();
-            else if (!cancellator.IsCancellationRequested)
-                await Task.Delay(25, cancellator.Token); // simulate some processing time
         }
 
-        await Assert.That(messages.QueuedMessages).IsGreaterThanOrEqualTo(cancelOn);
-        await Assert.That(cancellator.Token.IsCancellationRequested).IsTrue();
         await Assert.That(cancellator.IsCancellationRequested).IsTrue();
+        await Assert.That(read).IsGreaterThan(0);
     }
 
     public class NonExistingPositions : TestCaseGenerator<LogPosition> {
@@ -188,7 +189,7 @@ public class ReadTests {
 
         var simulation = await Fixture.SeedTestStream(ct);
 
-        var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(simulation.Stream, ct);
 
         var records = await messages
@@ -209,8 +210,9 @@ public class ReadTests {
         var brokenPosition = LogPosition.From(simulation.Position - 1);
 
         var ex = await Assert.ThrowsAsync<LogPositionNotFoundException>(
-            async () => await Fixture.Client.Streams
-                .ReadRecords(brokenPosition, ct));
+            async () => {
+                await foreach (var _ in Fixture.Client.Streams.ReadRecords(brokenPosition, ct)) { }
+            });
 
         await Assert.That(ex.Message).Contains($"{brokenPosition}");
     }
@@ -221,7 +223,7 @@ public class ReadTests {
 
         var startFrom = 5;
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(seedData.Stream, startFrom, ct);
 
         var records = await messages
@@ -253,9 +255,9 @@ public class ReadTests {
         await Fixture.Client.Streams
             .Delete(data.Stream, ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct))
-            .Throws<StreamDeletedException>();
+        await Assert.That(async () => {
+            await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
+        }).Throws<StreamDeletedException>();
     }
 
     [Test]
@@ -265,17 +267,17 @@ public class ReadTests {
         await Fixture.Client.Streams
             .Tombstone(data.Stream, ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct))
-            .Throws<StreamTombstonedException>();
+        await Assert.That(async () => {
+            await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
+        }).Throws<StreamTombstonedException>();
     }
 
     [Test]
     public async ValueTask fails_with_stream_not_found_error_when_stream_does_not_exist(CancellationToken ct) {
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct))
-            .Throws<StreamNotFoundException>();
+        await Assert.That(async () => {
+            await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
+        }).Throws<StreamNotFoundException>();
     }
 }

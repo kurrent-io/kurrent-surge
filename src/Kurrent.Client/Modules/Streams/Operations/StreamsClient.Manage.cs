@@ -187,7 +187,7 @@ public partial class StreamsClient {
 
             return resp.Position.MapToLogPosition();
         }
-        catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
+        catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted, LegacyErrorCodes.WrongExpectedVersion)) {
             var info = await GetStreamInfo(stream, cancellationToken).ConfigureAwait(false);
 
             throw info.State switch {
@@ -226,7 +226,7 @@ public partial class StreamsClient {
 
             return resp?.Position?.MapToLogPosition() ?? LogPosition.Unset;
         }
-        catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted) || rex.IsLegacyError(LegacyErrorCodes.WrongExpectedVersion)) {
+        catch (RpcException rex) when (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted, LegacyErrorCodes.WrongExpectedVersion)) {
             var info = await GetStreamInfo(stream, cancellationToken).ConfigureAwait(false);
 
             throw info.State switch {

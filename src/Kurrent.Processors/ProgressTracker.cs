@@ -39,9 +39,7 @@ sealed class ProgressTracker {
     /// <summary>
     /// Tracks a single record being processed.
     /// </summary>
-    public void TrackRecord() {
-        _totalRecords++;
-    }
+    public void TrackRecord() => _totalRecords++;
 
     /// <summary>
     /// Tracks a checkpoint completion.
@@ -95,7 +93,7 @@ sealed class ProgressTracker {
         var builder = ImmutableDictionary.CreateBuilder<Partition, PartitionProgress>();
 
         foreach (var (partition, lastFlushed) in flushed) {
-            var lastTracked = tracked.GetValueOrDefault(partition, LogPosition.Unset);
+            var lastTracked = tracked.GetValueOrDefault(partition, RecordPosition.Unset);
             builder.Add(partition, new PartitionProgress(lastTracked, lastFlushed));
         }
 

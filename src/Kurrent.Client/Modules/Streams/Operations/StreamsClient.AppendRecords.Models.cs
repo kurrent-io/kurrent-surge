@@ -2,7 +2,9 @@
 
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using Kurrent.Validation;
 using Kurrent.Variant;
+using Resources;
 
 namespace Kurrent.Client.Streams;
 
@@ -150,3 +152,118 @@ public readonly record struct QueryPredicateCheck(string Expression) {
     /// </summary>
     public required string Expression { get; init; } = Expression;
 }
+
+
+/// <summary>
+/// Builds an <see cref="AppendRecordsRequest"/> where each record carries its own stream assignment.
+/// </summary>
+[PublicAPI]
+public class AppendRecordsRequestBuilder {
+    readonly List<AppendRecordBuilder>  _builders          = [];
+    readonly List<ConsistencyCheck>     _checks            = [];
+    readonly Dictionary<string, object> _metadataOverrides = [];
+
+    SchemaDataFormat? _dataFormatOverride;
+
+    internal AppendRecordsRequestBuilder() { }
+
+    public int RecordsCount => _builders.Count;
+
+    #region Consistency Checks
+
+    public AppendRecordsRequestBuilder WithCheck(ConsistencyCheck check) {
+        _checks.Add(check);
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithChecks(params ConsistencyCheck[] checks) {
+        foreach (var check in checks)
+            _checks.Add(check);
+        return this;
+    }
+
+    #endregion
+
+    #region Records
+
+    public AppendRecordsRequestBuilder WithRecord(AppendRecord record) {
+        _builders.Add(new AppendRecordBuilder().FromRecord(record));
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(AppendRecordBuilder builder) {
+        _builders.Add(builder);
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(Action<AppendRecordBuilder> configure) {
+        var builder = new AppendRecordBuilder();
+        configure(builder);
+        _builders.Add(builder);
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) {
+        _builders.Add(AppendRecord.New.WithValue(value).WithDataFormat(dataFormat));
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecords(params AppendRecord[] records) {
+        foreach (var record in records)
+            _builders.Add(new AppendRecordBuilder().FromRecord(record));
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithRecords(IEnumerable<AppendRecord> records) {
+        foreach (var record in records)
+            _builders.Add(new AppendRecordBuilder().FromRecord(record));
+        return this;
+    }
+
+    #endregion
+
+    #region Batch Overrides
+
+    public AppendRecordsRequestBuilder WithDataFormat(SchemaDataFormat dataFormat) {
+        _dataFormatOverride = dataFormat;
+        return this;
+    }
+
+    public AppendRecordsRequestBuilder WithMetadata(string key, object value) {
+        _metadataOverrides[key] = value;
+        return this;
+    }
+
+    #endregion
+
+    public AppendRecordsRequest Build() {
+        if (_builders.Count == 0)
+            throw ValidationError.FromProblem(
+                ErrorCode.FromType<AppendRecordsRequest>(),
+                ErrorMessages.AppendRecordsRequestEmpty
+            ).GetOrCreateException();
+
+        var records = ImmutableArray.CreateBuilder<AppendRecord>(_builders.Count);
+
+        foreach (var builder in _builders) {
+            if (_dataFormatOverride.HasValue)
+                builder.WithDataFormat(_dataFormatOverride.Value);
+
+            foreach (var (key, value) in _metadataOverrides)
+                builder.WithMetadata(key, value);
+
+            var record = builder.Build();
+
+            if (record.Stream == StreamName.Unset)
+                throw ValidationError.FromProblem(
+                    ErrorCode.FromType<AppendRecordsRequest>(),
+                    ErrorMessages.AppendRecordStreamRequired
+                ).GetOrCreateException();
+
+            records.Add(record);
+        }
+
+        return new AppendRecordsRequest(records.MoveToImmutable(), [.._checks]);
+    }
+}
+

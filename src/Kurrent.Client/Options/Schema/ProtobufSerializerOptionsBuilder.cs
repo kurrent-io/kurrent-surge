@@ -3,7 +3,7 @@ using Kurrent.Client.Schema.Serialization.Protobuf;
 namespace Kurrent.Client;
 
 [PublicAPI]
-public class ProtobufSerializerOptionsBuilder : OptionsBuilder<ProtobufSerializerOptionsBuilder, KurrentClientOptions> {
+public class ProtobufSerializerOptionsBuilder : FluentBuilder<ProtobufSerializerOptionsBuilder, KurrentClientOptions> {
 	public ProtobufSerializerOptionsBuilder(KurrentClientOptions options) : base(options) { }
 	public ProtobufSerializerOptionsBuilder() : base(new KurrentClientOptions()) { }
 

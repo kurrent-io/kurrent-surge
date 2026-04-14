@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace Kurrent.Processors.Options.Validators;
 
-public class ProcessorSettingsValidator : FluentOptionsValidator<ProcessorSettingsValidator, ProcessorSettings> {
+public class ProcessorSettingsValidator : FluentValidator<ProcessorSettingsValidator, ProcessorSettings> {
     public ProcessorSettingsValidator() {
         // ProcessorId validation - required when checkpointing
         RuleFor(options => options.ProcessorId)

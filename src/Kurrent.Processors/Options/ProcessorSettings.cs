@@ -1,6 +1,7 @@
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options.Validators;
+using Kurrent.Validation;
 
 namespace Kurrent.Processors.Options;
 
@@ -8,7 +9,7 @@ namespace Kurrent.Processors.Options;
 /// Configuration settings for a processor.
 /// </summary>
 [PublicAPI]
-public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettingsValidator> {
+public record ProcessorSettings : SelfValidating<ProcessorSettings, ProcessorSettingsValidator> {
     /// <summary>
     /// Unique identifier for the processor group.
     /// </summary>
@@ -46,6 +47,24 @@ public record ProcessorSettings : OptionsBase<ProcessorSettings, ProcessorSettin
     /// </para>
     /// </remarks>
     internal int MaxParallelism { get; init; } = 1;
+
+    /// <summary>
+    /// Indicates whether debug mode is enabled for the processor.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Default:</b> false</para>
+    /// <para><b>Importance:</b> High</para>
+    /// <para>
+    /// When set to true, all exceptions are re-thrown, and  additional
+    /// diagnostic and logging information may be generated, which can
+    /// help in troubleshooting and debugging processor behavior.
+    /// </para>
+    /// <para>
+    /// It is recommended to disable this setting in production environments
+    /// to minimize performance overhead and log verbosity.
+    /// </para>
+    /// </remarks>
+    public bool Debug { get; init; }
 
     /// <summary>
     /// Subscription settings (filter, partitioning, initial position).
@@ -124,7 +143,7 @@ public record SubscriptionSettings {
     /// <para><b>Importance:</b> High</para>
     /// </remarks>
     public SubscriptionInitialPosition InitialPosition { get; init; } = SubscriptionInitialPosition.Latest;
-    
+
     /// <summary>
     /// When set, overrides the stored checkpoint and forces subscription to start from this position.
     /// </summary>

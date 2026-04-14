@@ -3,7 +3,7 @@ using Grpc.Core;
 
 namespace Kurrent.Grpc;
 
-public static class AsyncStreamReaderExtensions {
+static class AsyncStreamReaderExtensions {
 	extension<T>(IAsyncStreamReader<T> reader) {
         public async IAsyncEnumerable<T> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default) {
             while (await reader.MoveNext(cancellationToken).ConfigureAwait(false))

@@ -7,7 +7,7 @@ namespace Kurrent.Processors.Options;
 /// Fluent builder for <see cref="SubscriptionSettings"/>.
 /// </summary>
 [PublicAPI]
-public sealed class SubscriptionSettingsBuilder : OptionsBuilder<SubscriptionSettingsBuilder, SubscriptionSettings> {
+public sealed class SubscriptionSettingsBuilder : FluentBuilder<SubscriptionSettingsBuilder, SubscriptionSettings> {
     internal SubscriptionSettingsBuilder(SubscriptionSettings settings) : base(settings) { }
 
     /// <summary>

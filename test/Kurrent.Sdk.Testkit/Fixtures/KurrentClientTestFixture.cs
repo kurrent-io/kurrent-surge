@@ -78,20 +78,25 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
         }
     }
 
+    public KurrentClient GetNewClient() =>
+        KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
+            .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
+            .ConfigureSchema(schema => schema
+                .WithValidation(false)
+                .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
+            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
+            .CreateClient();
+
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
-        var options = new ReadOptions {
-            Direction         = ReadDirection.Backwards,
-            Start             = LogPosition.Latest,
-            MaxRecords        = 1,
-            SkipDecoding      = true,
-            CancellationToken = ct
+        var request = new ReadRecordsRequest {
+            Direction    = ReadDirection.Backwards,
+            Start        = LogPosition.Latest,
+            Limit   = 1,
+            SkipDecoding = true
         };
 
-        await using var reader = await Client.Streams
-            .ReadRecords(options)
-            .ConfigureAwait(false);
-
-        return await reader
+        return await Client.Streams
+            .ReadRecords(request, ct)
             .Select(x => x.AsRecord.Position)
             .FirstAsync(ct)
             .ConfigureAwait(false);

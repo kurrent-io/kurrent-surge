@@ -1,3 +1,3 @@
 namespace Kurrent.Client;
 
-public class KurrentClientSchemaOptionsValidator : FluentOptionsValidator<KurrentClientSchemaOptionsValidator, KurrentClientSchemaOptions> { }
+public class KurrentClientSchemaOptionsValidator : FluentValidator<KurrentClientSchemaOptionsValidator, KurrentClientSchemaOptions> { }

@@ -5,138 +5,17 @@
 
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using Grpc.Core;
 using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
-using Kurrent.Variant;
-using KurrentDB.Protocol.V1.Streams;
-
-using static System.StringComparison;
-using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
 namespace Kurrent.Processors.Gateway;
 
-public readonly record struct Connected(SessionId SessionId);
-
-readonly partial record struct SubscribeMessage : IVariant<Connected, Record, Checkpoint> {
-    public static readonly SubscribeMessage None;
-}
-
-static class InternalClientExtensions {
-    /// <summary>
-    /// Subscribes to a stream or log via the V1 wire protocol.
-    /// Connection phase (first message validation) runs eagerly before any yield,
-    /// so errors throw directly to the caller.
-    /// </summary>
-    public static async IAsyncEnumerable<SubscribeMessage> Subscribe(
-        this StreamsClient streams,
-        ISchemaSerializerProvider serializerProvider,
-        IMetadataDecoder metadataDecoder,
-        IRecordFilter filter,
-        RecordPosition start,
-        bool skipDecoding,
-        [EnumeratorCancellation] CancellationToken ct
-    ) {
-        var request = filter.IsStreamFilter
-            ? ProtocolMapping.Requests.CreateStreamSubscriptionRequest(filter, start.Revision)
-            : ProtocolMapping.Requests.CreateLogSubscriptionRequest(filter, start.LogPosition);
-
-        AsyncServerStreamingCall<ReadResp> grpcSession;
-        SessionId sessionId;
-
-        // ── Connection phase ── throws directly to caller, no yield here
-        try {
-            grpcSession = streams.LegacyServiceClient.Read(request, cancellationToken: ct);
-
-            await grpcSession.ResponseStream.MoveNext(ct).ConfigureAwait(false);
-
-            // determine the actual stream state when not found (v1 protocol quirk)
-            if (grpcSession.ResponseStream.Current?.ContentCase is StreamNotFound) {
-                StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-                var info = await streams.GetStreamInfo(stream, ct).ConfigureAwait(false);
-
-                throw info.State switch {
-                    StreamState.Missing    => new StreamNotFoundException(stream),
-                    StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    _                      => new StreamNotFoundException(stream)
-                };
-            }
-
-            if (grpcSession.ResponseStream.Current?.ContentCase is not Confirmation)
-                throw new InvalidOperationException("Expected subscription confirmation as the first message from the server.");
-
-            sessionId = SessionId.From(Guid.Parse(grpcSession.ResponseStream.Current!.Confirmation.SubscriptionId));
-        }
-        catch (RpcException rex) {
-            if (rex.StatusCode == StatusCode.Cancelled)
-                throw new OperationCanceledException(rex.Message, rex);
-
-            // when stream is tombstoned an exception is thrown for some weird reason
-            if (rex.StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted") {
-                StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-                throw new StreamTombstonedException(stream);
-            }
-
-            // when a position does not exist (targets a position between records in the same stream)
-            if (rex.StatusCode == StatusCode.Unknown && rex.Message.Contains("InvalidPosition >>", OrdinalIgnoreCase)) {
-                var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Latest;
-                var details  = rex.Message.Split(">>").Last().Trim();
-                throw new LogPositionNotFoundException(position, details);
-            }
-
-            throw rex.AsWellKnownException();
-        }
-
-        yield return new Connected(sessionId);
-
-        // ── Pump phase ── yields Record | Checkpoint
-        SequenceGenerator sequencer = new();
-
-        try {
-            while (await grpcSession.ResponseStream.MoveNext(ct).ConfigureAwait(false)) {
-                var resp = grpcSession.ResponseStream.Current;
-
-                switch (resp?.ContentCase) {
-                    case ReadResp.ContentOneofCase.Checkpoint:
-                        yield return resp.Checkpoint.MapToCheckpoint(sequencer.FetchNext());
-                        break;
-
-                    case CaughtUp:
-                        yield return resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
-                        break;
-
-                    case Event:
-                        var record = await ProtocolMapping.MapToRecordAsync(
-                            resp.Event,
-                            sequencer.FetchNext(),
-                            serializerProvider, metadataDecoder,
-                            SchemaRegistryPolicy.NoRequirements,
-                            skipDecoding,
-                            ct
-                        ).ConfigureAwait(false);
-
-                        // client-side filter until v2 protocol has a proper Subscription operation
-                        if (filter.IsMatch(record))
-                            yield return record;
-
-                        break;
-                }
-            }
-        }
-        finally {
-            grpcSession.Dispose();
-        }
-    }
-}
 
 sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
     readonly StreamsClient _streams;
@@ -148,8 +27,9 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
     StreamName CheckpointStreamName() =>
         $"$processors/{_settings.ProcessorId}/checkpoints";
 
-    internal SimpleGateway(KurrentClient client) : base(client) =>
+    internal SimpleGateway(KurrentClient client) : base(client) {
         _streams = new StreamsClient(client);
+    }
 
     public async IAsyncEnumerable<ProcessorControlMessage> ConnectAsync(
         ProcessorSettings settings,
@@ -215,10 +95,11 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
             var record = await _streams.ReadLastStreamRecord(stream, skipDecoding: false, ct)
                 .ConfigureAwait(false);
 
-            if (record.Value is not Contracts.PartitionCheckpointed data)
+            if (record.Value is not Contracts.PartitionsCheckpointed data || data.Positions.Length == 0)
                 return RecordPosition.Unset;
 
-            return RecordPosition.From(data.LogPosition, data.Stream!, data.StreamRevision!);
+            var pos = data.Positions[0];
+            return RecordPosition.From(pos.LogPosition, pos.Stream!, pos.StreamRevision!);
         }
         catch (StreamNotFoundException) {
             return RecordPosition.Unset; // or Earliest?
@@ -226,14 +107,19 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
     }
 
     async ValueTask WriteCheckpointAsync(RecordPosition position, CancellationToken ct) {
-        var evt = new Contracts.PartitionCheckpointed {
-            Partition      = 0,
-            LogPosition    = position.LogPosition,
-            Stream         = position.Stream,
-            StreamRevision = (int?)position.Revision,
-            ProcessorId    = _settings.ProcessorId,
-            WorkerId       = _settings.WorkerId,
-            Timestamp      = Time.GetUtcNow()
+        var evt = new Contracts.PartitionsCheckpointed {
+            ProcessorId  = _settings.ProcessorId,
+            WorkerId     = _settings.WorkerId,
+            CheckpointId = string.Empty,
+            Timestamp    = Time.GetUtcNow(),
+            Positions    = [
+                new Contracts.PartitionPosition {
+                    Partition      = 0,
+                    LogPosition    = position.LogPosition,
+                    Stream         = position.Stream,
+                    StreamRevision = (int?)position.Revision
+                }
+            ]
         };
 
         var stream = CheckpointStreamName();
@@ -244,7 +130,6 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
             .Build();
 
         var rsp = await _streams.AppendStream(request, ct).ConfigureAwait(false);
-
     }
 
     #endregion
@@ -253,19 +138,19 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
         _ = Task.Run(() => PumpAsync(from, _cancellator.Token).AsTask(), _cancellator.Token);
 
         [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
-        async ValueTask PumpAsync(RecordPosition from, CancellationToken ct) {
+        async ValueTask PumpAsync(RecordPosition startPosition, CancellationToken ct) {
             var settings = _settings;
 
             try {
                 var subscription = _streams.Subscribe(
                     SerializerProvider, MetadataDecoder,
-                    settings.Subscription.Filter, from,
+                    settings.Subscription.Filter, startPosition,
                     settings.Worker.SkipDecoding, ct);
 
                 await foreach (var msg in subscription.ConfigureAwait(false)) {
                     if (msg.IsConnected) {
                         await _channel.Writer
-                            .WriteAsync(new WorkOrder(msg.AsConnected.SessionId, [from]), ct)
+                            .WriteAsync(new WorkOrder(msg.AsConnected.SessionId, [startPosition]), ct)
                             .ConfigureAwait(false);
                     }
                     else if (msg.IsRecord) {
@@ -319,7 +204,6 @@ sealed class SimpleGateway : ClientModuleBase, IProcessorGateway {
             }
         }, _cancellator.Token);
     }
-
 
     public async ValueTask DisposeAsync() {
         _channel?.Writer.TryComplete();

@@ -1,9 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
+using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Legacy;
 
-static class KurrentDBLegacyExceptionExtensions {
+static partial class KurrentDBLegacyExceptionExtensions {
     const string LegacyErrorCodeKey = "exception";
 
     extension(Exception ex) {
@@ -28,6 +29,21 @@ static class KurrentDBLegacyExceptionExtensions {
         }
     }
 
-    public static bool IsLegacyError(this RpcException rex, string legacyErrorCode) =>
-        rex.GetLegacyErrorCode() == legacyErrorCode;
+    extension(RpcException rex) {
+        public bool IsLegacyError(params string[] legacyErrorCodes) {
+            var errorCode = rex.GetLegacyErrorCode();
+
+            if (legacyErrorCodes.Any(code => code == errorCode))
+                return true;
+
+            // one of the hidden ones...
+            // added explicitly to simplify the code
+            // will fix this on the server soon
+            if (legacyErrorCodes.Contains(LegacyErrorCodes.LogPositionNotFound)
+             && LogPositionNotFoundException.IsMatch(rex))
+                return true;
+
+            return false;
+        }
+    }
 }

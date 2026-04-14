@@ -43,13 +43,13 @@ public readonly record struct RecordProcessedEvent(
     string ProcessorId,
     string WorkerId,
     long TotalRecords,
-    double DurationMs
+    double? DurationMs = null
 );
 
 /// <summary>
 /// Event raised when a checkpoint is starting.
 /// </summary>
-public readonly record struct WorkerCheckpointingEvent(
+public readonly record struct CheckpointInitiatedEvent(
     string ProcessorId,
     string WorkerId,
     string Trigger,
@@ -66,6 +66,18 @@ public readonly record struct CheckpointCompletedEvent(
     string CheckpointId,
     int PartitionCount,
     double DurationMs
+);
+
+/// <summary>
+/// Event raised when a checkpoint failed to complete.
+/// </summary>
+public readonly record struct CheckpointFailedEvent(
+    string ProcessorId,
+    string WorkerId,
+    string Trigger,
+    string CheckpointId,
+    string ExceptionType,
+    string Message
 );
 
 /// <summary>
@@ -87,25 +99,6 @@ public readonly record struct WorkerStoppedEvent(
     string WorkerId,
     long TotalRecords,
     TimeSpan Duration
-);
-
-/// <summary>
-/// Event raised when a final checkpoint is being performed.
-/// </summary>
-public readonly record struct WorkerFinalCheckpointEvent(
-    string ProcessorId,
-    string WorkerId,
-    int PartitionCount
-);
-
-/// <summary>
-/// Event raised when a final checkpoint has failed.
-/// </summary>
-public readonly record struct WorkerFinalCheckpointFailedEvent(
-    string ProcessorId,
-    string WorkerId,
-    string ExceptionType,
-    string Message
 );
 
 /// <summary>

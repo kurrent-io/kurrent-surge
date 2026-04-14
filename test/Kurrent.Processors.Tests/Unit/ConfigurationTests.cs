@@ -291,7 +291,7 @@ public class ConfigurationTests {
             Worker         = new WorkerSettings { BufferCapacity = 1000 }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsTrue();
     }
@@ -303,7 +303,7 @@ public class ConfigurationTests {
             MaxParallelism = 1
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -315,7 +315,7 @@ public class ConfigurationTests {
             MaxParallelism = 0
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -327,7 +327,7 @@ public class ConfigurationTests {
             MaxParallelism = -1
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -339,7 +339,7 @@ public class ConfigurationTests {
             MaxParallelism = 32769
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -352,7 +352,7 @@ public class ConfigurationTests {
             Worker         = new WorkerSettings { BufferCapacity = 0 }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -365,7 +365,7 @@ public class ConfigurationTests {
             Worker         = new WorkerSettings { BufferCapacity = 10001 }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -378,7 +378,7 @@ public class ConfigurationTests {
             Batching       = new BatchingSettings { MaxSize = 0, Timeout = 100 }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -391,7 +391,7 @@ public class ConfigurationTests {
             Batching       = new BatchingSettings { MaxSize = 100, Timeout = 0 }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -404,7 +404,7 @@ public class ConfigurationTests {
             Checkpoint     = new CheckpointSettings { Interval = 0 }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -418,7 +418,7 @@ public class ConfigurationTests {
             Subscription   = new SubscriptionSettings { PartitionKeySelector = string.Empty }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         // Validation passes (warnings are ignored), but the warning is generated
         await Assert.That(result.IsSuccess).IsTrue();
@@ -432,7 +432,7 @@ public class ConfigurationTests {
             Subscription   = new SubscriptionSettings { PartitionKeySelector = "stream_id" }
         };
 
-        var result = settings.ValidateOptions();
+        var result = settings.Validate();
 
         await Assert.That(result.IsSuccess).IsTrue();
     }
@@ -757,7 +757,7 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration(json);
 
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(configuration);
         services.AddSingleton(new TestSettings { ProcessorId = "sp-processor" });
         services.AddLogging();
         services.AddKurrentClient("kurrentdb://localhost:2113");
@@ -770,7 +770,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;
@@ -794,7 +794,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;
@@ -822,7 +822,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         return hostedService.Worker.Settings;
@@ -848,7 +848,7 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration(json);
 
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(configuration);
         services.AddLogging();
         services.AddKurrentClient("kurrentdb://localhost:2113");
 
@@ -859,7 +859,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;
@@ -888,7 +888,7 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration(json);
 
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(configuration);
         services.AddLogging();
         services.AddKurrentClient("kurrentdb://localhost:2113");
         services.AddKurrentProcessor<NoOpProcessor>(config => config
@@ -897,7 +897,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<Kurrent.Processors.Options.KurrentProcessorHostedService<NoOpProcessor>>()
+            .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
         var settings = hostedService.Worker.Settings;

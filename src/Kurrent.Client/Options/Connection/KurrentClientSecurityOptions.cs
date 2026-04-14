@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using Kurrent.Validation;
 
 namespace Kurrent.Client;
 
@@ -16,7 +17,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientSecurityOptions : OptionsBase<KurrentClientSecurityOptions, KurrentClientSecurityOptionsValidator> {
+public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurityOptions, KurrentClientSecurityOptionsValidator> {
     /// <summary>
     /// Transport layer security settings.
     /// </summary>

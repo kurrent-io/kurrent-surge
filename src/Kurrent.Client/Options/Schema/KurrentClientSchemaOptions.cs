@@ -2,6 +2,7 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Schema.Serialization.Protobuf;
+using Kurrent.Validation;
 
 namespace Kurrent.Client;
 
@@ -36,7 +37,7 @@ namespace Kurrent.Client;
 /// </code>
 /// </example>
 [PublicAPI]
-public record KurrentClientSchemaOptions : OptionsBase<KurrentClientSchemaOptions, KurrentClientSchemaOptionsValidator> {
+public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOptions, KurrentClientSchemaOptionsValidator> {
 	/// <summary>
 	/// Whether schemas should be automatically registered.
 	/// </summary>
@@ -72,7 +73,7 @@ public record KurrentClientSchemaOptions : OptionsBase<KurrentClientSchemaOption
 	/// Defaults to <see langword="true"/>.
 	/// </para>
 	/// </remarks>
-	public bool Validate { get; init; } = true;
+	public bool PreValidate { get; init; } = true;
 
 	/// <summary>
 	/// The strategy used for generating schema names.
@@ -176,7 +177,7 @@ public record KurrentClientSchemaOptions : OptionsBase<KurrentClientSchemaOption
 	/// </code>
 	/// </example>
 	public static KurrentClientSchemaOptions NoValidation => new() {
-		Validate = false
+		PreValidate = false
 	};
 
 	/// <summary>
@@ -202,6 +203,6 @@ public record KurrentClientSchemaOptions : OptionsBase<KurrentClientSchemaOption
 	/// </returns>
 	public static KurrentClientSchemaOptions Disabled => new() {
 		AutoRegister = false,
-		Validate     = false
+		PreValidate     = false
 	};
 }

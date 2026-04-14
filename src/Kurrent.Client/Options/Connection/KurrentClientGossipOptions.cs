@@ -1,3 +1,4 @@
+using Kurrent.Validation;
 using KurrentDB.Client;
 
 namespace Kurrent.Client;
@@ -16,7 +17,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientGossipOptions : OptionsBase<KurrentClientGossipOptions, KurrentClientGossipOptionsValidator> {
+public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOptions, KurrentClientGossipOptionsValidator> {
     /// <summary>
     /// The maximum number of times to attempt node discovery.
     /// </summary>

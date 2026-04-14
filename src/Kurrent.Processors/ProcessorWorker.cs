@@ -14,6 +14,7 @@ sealed class ProcessorWorker : IProcessorWorker {
     readonly ProcessorSettings          _settings;
     readonly KurrentClient              _client;
     readonly IProcessorGateway          _gateway;
+    readonly TimeProvider               _timeProvider;
     readonly WorkerTelemetry            _telemetry;
     readonly PartitionedPositionTracker _tracker;
     readonly IRecordProcessor           _processor;
@@ -55,7 +56,8 @@ sealed class ProcessorWorker : IProcessorWorker {
         _processor  = new SafeRecordProcessor(processor);
         _ownsClient = ownsClient && !client.Shared;
 
-        _gateway = gateway;
+        _gateway      = gateway;
+        _timeProvider = timeProvider;
 
         _progress = new ProgressTracker(timeProvider);
         _tracker  = new PartitionedPositionTracker();
@@ -105,9 +107,9 @@ sealed class ProcessorWorker : IProcessorWorker {
             await foreach (var message in _gateway.ConnectAsync(_settings, cancellator.Token).ConfigureAwait(false)) {
                 await message
                     .SwitchAsync(
-                        msg => HandleWorkOrder(msg, stoppingToken),
-                        msg => HandleRecord(msg, stoppingToken),
-                        msg => HandleCheckpoint(msg, stoppingToken)
+                        HandleWorkOrder,
+                        HandleRecord,
+                        HandleCheckpoint
                     )
                     .ConfigureAwait(false);
             }
@@ -120,12 +122,9 @@ sealed class ProcessorWorker : IProcessorWorker {
         catch (Exception ex) {
             await HandleError(cancellator, ex).ConfigureAwait(false);
         }
-        finally {
-            await Cleanup().ConfigureAwait(false);
-        }
     }
 
-    async ValueTask HandleWorkOrder(WorkOrder workOrder, CancellationToken ct) {
+    async ValueTask HandleWorkOrder(WorkOrder workOrder) {
         _telemetry.RestoringState(workOrder.Positions.Length);
 
         var positions = workOrder.Positions
@@ -149,10 +148,10 @@ sealed class ProcessorWorker : IProcessorWorker {
         _telemetry.Processing(workOrder.SessionId);
     }
 
-    async ValueTask HandleRecord(Record record, CancellationToken ct) {
+    async ValueTask HandleRecord(Record record) {
         using var scope = _telemetry.TrackRecord();
 
-        var ctx = WorkerContext.ForProcessRecord(record, Progress);
+        var ctx = WorkerContext.ForProcessRecord(Progress, record);
 
         await _processor
             .ProcessRecord(ctx)
@@ -183,23 +182,56 @@ sealed class ProcessorWorker : IProcessorWorker {
         _telemetry.RecordProcessed(Progress.Throughput.TotalRecords);
     }
 
-    async ValueTask HandleCheckpoint(Checkpoint checkpoint, CancellationToken ct) {
-        _telemetry.Checkpointing(checkpoint.Trigger, checkpoint.CheckpointId);
+    // async ValueTask HandleCheckpoint(Checkpoint checkpoint, CancellationToken ct) {
+    //     _telemetry.CheckpointInitiated(checkpoint.CheckpointId, checkpoint.Trigger);
+    //
+    //     var pendingFlush = _tracker.PrepareFlush();
+    //
+    //     await _processor
+    //         .OnCheckpoint(WorkerContext.ForCheckpoint(pendingFlush.Positions, checkpoint))
+    //         .ConfigureAwait(false);
+    //
+    //     await _gateway
+    //         .SendAsync(new CheckpointComplete(checkpoint.CheckpointId, pendingFlush.Positions))
+    //         .ConfigureAwait(false);
+    //
+    //     pendingFlush.Execute();
+    //
+    //     _progress.TrackCheckpoint(checkpoint);
+    //     _telemetry.CheckpointComplete(checkpoint.CheckpointId, checkpoint.Trigger, pendingFlush);
+    // }
+
+    async ValueTask HandleCheckpoint(Checkpoint checkpoint) {
+        _telemetry.CheckpointInitiated(checkpoint.CheckpointId, checkpoint.Trigger);
 
         var pendingFlush = _tracker.PrepareFlush();
 
-        await _processor
-            .OnCheckpoint(WorkerContext.ForCheckpoint(checkpoint))
-            .ConfigureAwait(false);
+        PartitionPositions positions = pendingFlush.Positions
+            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
+            .ToImmutableDictionary();
 
-        await _gateway
-            .SendAsync(new CheckpointComplete(checkpoint.CheckpointId, PartitionPositions.From(pendingFlush.Positions)))
-            .ConfigureAwait(false);
+        try {
+            var ctx = WorkerContext.ForCheckpoint(positions, checkpoint);
 
-        pendingFlush.Execute();
+            await _processor
+                .OnCheckpoint(ctx)
+                .ConfigureAwait(false);
 
-        _progress.TrackCheckpoint(checkpoint);
-        _telemetry.CheckpointComplete(checkpoint.Trigger, checkpoint.CheckpointId, pendingFlush);
+            await _gateway
+                .SendAsync(new CheckpointComplete(checkpoint.CheckpointId, positions))
+                .ConfigureAwait(false);
+
+            pendingFlush.Execute();
+
+            _progress.TrackCheckpoint(checkpoint);
+            _telemetry.CheckpointComplete(checkpoint.CheckpointId, checkpoint.Trigger, positions);
+        }
+        catch (Exception ex) {
+            _telemetry.CheckpointFailed(checkpoint.CheckpointId, checkpoint.Trigger, positions, ex);
+
+            if (_settings.Checkpoint.FailurePolicy == CheckpointFailurePolicy.FailProcessor || _settings.Debug)
+                throw;
+        }
     }
 
     async ValueTask HandleStopped(CancellationTokenSource cts, OperationCanceledException? cex = null) {
@@ -214,88 +246,123 @@ sealed class ProcessorWorker : IProcessorWorker {
             throughput.Elapsed,
             throughput.RecordsPerSecond);
 
-        // Final checkpoint flush (best-effort)
-        // Only attempt if we reached Processing state (partitions assigned, tracker initialized)
-        if (Status == ProcessorWorkerStatus.Processing) {
-            try {
-                var pendingFlush = _tracker.PrepareFlush();
-                var checkpointId = CheckpointId.New();
+        List<Exception> errors = [];
 
-                _telemetry.FinalCheckpoint(pendingFlush.Positions.Count);
+        #region ->> Checkpointing <<-
 
-                var checkpoint = new Checkpoint(
-                    checkpointId,
-                    CheckpointTrigger.Shutdown,
-                    DateTimeOffset.UtcNow
-                );
+        // because the user handler needs this id as well as every fucking thing...
+        var checkpoint = new Checkpoint(
+            CheckpointId.New(),
+            CheckpointTrigger.Shutdown,
+            _timeProvider.GetUtcNow()
+        );
 
-                // CancellationToken.None — cts is cancelled, stoppingToken may be cancelled
-                await _processor
-                    .OnCheckpoint((WorkerContext with { CancellationToken = CancellationToken.None }).ForCheckpoint(checkpoint))
-                    .ConfigureAwait(false);
+        _telemetry.CheckpointInitiated(checkpoint.CheckpointId, checkpoint.Trigger);
 
-                var cleanPositions = pendingFlush.Positions
-                    .Where(x => x.Value.LogPosition != LogPosition.Earliest).ToImmutableDictionary();
+        var pendingFlush = _tracker.PrepareFlush();
 
-                await _gateway
-                    .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.From(cleanPositions)))
-                    .ConfigureAwait(false);
+        PartitionPositions positions = pendingFlush.Positions
+            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
+            .ToImmutableDictionary();
 
-                pendingFlush.Execute();
+        try {
+            var ctx = WorkerContext.ForCheckpoint(positions, checkpoint);
 
-                _progress.TrackCheckpoint(checkpoint);
-            }
-            catch (Exception ex) {
-                // Best-effort: positions replay on restart (at-least-once guarantee preserved)
-                _telemetry.FinalCheckpointFailed(ex);
+            await _processor
+                .OnCheckpoint(ctx)
+                .ConfigureAwait(false);
 
-                // Still send disconnect so gateway can clean up
-                try {
-                    await _gateway
-                        .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.Empty))
-                        .ConfigureAwait(false);
-                }
-                catch {
-                    // Swallow
-                }
-            }
-        }
-        else {
-            // Send Disconnect (best-effort, no-op if gateway not started)
+            await _gateway
+                .SendAsync(new CheckpointComplete(checkpoint.CheckpointId, positions))
+                .ConfigureAwait(false);
+
             try {
                 await _gateway
-                    .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.Empty))
+                    .SendAsync(new Disconnect(DisconnectReason.Stopped, positions))
                     .ConfigureAwait(false);
             }
-            catch {
-                // Swallow — protocol signaling, not critical
+            catch(Exception disconnectEx) {
+                errors.Add(new Exception("Failed to send disconnect message", disconnectEx));
             }
+
+            pendingFlush.Execute();
+
+            _progress.TrackCheckpoint(checkpoint);
+            _telemetry.CheckpointComplete(checkpoint.CheckpointId, checkpoint.Trigger, positions);
+        }
+        catch (Exception ex) {
+            _telemetry.CheckpointFailed(checkpoint.CheckpointId, checkpoint.Trigger, positions, ex);
+
+            if (_settings.Checkpoint.FailurePolicy == CheckpointFailurePolicy.FailProcessor || _settings.Debug)
+                throw;
         }
 
-        // OnComplete callback (throws on failure, preserving current behavior)
-        var ctx = WorkerContext.ForComplete(Progress);
+        #endregion
+
+        try {
+            await _gateway
+                .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.Empty))
+                .ConfigureAwait(false);
+        }
+        catch(Exception disconnectEx) {
+            errors.Add(new Exception("Failed to send disconnect message", disconnectEx));
+        }
 
         try {
             await _processor
-                .OnComplete(ctx)
+                .OnComplete(WorkerContext.ForComplete(Progress))
                 .ConfigureAwait(false);
-
-            Status = ProcessorWorkerStatus.Stopped;
-            _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed, cex?.Message);
-
-            ctx.Logger.LogInformation("*** Process stopped gracefully ***");
-        } catch (Exception completeEx) {
-            Status = ProcessorWorkerStatus.Error;
-            _telemetry.Error(completeEx);
-
-            ctx.Logger.LogInformation("***Process stopped due to exception ***");
-            throw;
+        } catch (Exception onCompleteEx) {
+            errors.Add(onCompleteEx);
         }
+
+        #region ->> Cleanup <<-
+
+        try {
+            await _gateway.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception gatewayEx) {
+            errors.Add(new Exception("Error detected during comms gateway disposal", gatewayEx));
+        }
+
+        try {
+            _tracker.Dispose();
+        }
+        catch (Exception trackerEx) {
+            errors.Add(new Exception("Error detected during position tracker disposal", trackerEx));
+        }
+
+        try {
+            if (_ownsClient)
+                await _client.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception clientEx) {
+            errors.Add(new Exception("Error detected during client disposal", clientEx));
+        }
+
+        #endregion
+
+        if (errors.Count > 0) {
+            Status = ProcessorWorkerStatus.Error;
+
+            var aex = new AggregateException("Errors detected during gracefull shutdown", errors).Flatten();
+
+            _telemetry.Error(aex);
+
+            if (_settings.Debug)
+                throw aex;
+        }
+
+        Status = ProcessorWorkerStatus.Stopped;
+
+        _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed, cex?.Message);
     }
 
     async ValueTask HandleError(CancellationTokenSource cts, Exception ex) {
         // Kill pump and timer immediately
         await cts.CancelAsync().ConfigureAwait(false);
+
+        List<Exception> errors = [ex];
 
         var progress = Progress;
         var throughput = progress.Throughput;
@@ -305,14 +372,13 @@ sealed class ProcessorWorker : IProcessorWorker {
             throughput.RecordsPerSecond
         );
 
-        // OnError callback — aggregate on failure
         try {
             await _processor
                 .OnError(WorkerContext.ForError(progress, ex))
                 .ConfigureAwait(false);
         }
-        catch (Exception uex) {
-            ex = new AggregateException(ex, uex).Flatten();
+        catch (Exception onErrorEx) {
+            errors.Add(onErrorEx);
         }
 
         // Send Disconnect (best-effort)
@@ -321,49 +387,196 @@ sealed class ProcessorWorker : IProcessorWorker {
                 .SendAsync(new Disconnect(DisconnectReason.Error, PartitionPositions.Empty))
                 .ConfigureAwait(false);
         }
-        catch {
-            // Swallow — protocol signaling, not critical
+        catch(Exception disconnectEx) {
+            errors.Add(new Exception("Failed to send disconnect message", disconnectEx));
         }
 
-        Status = ProcessorWorkerStatus.Error;
-        _telemetry.Error(ex);
-        throw ex;
-    }
-
-    async ValueTask Cleanup() {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1)
-            return;
-
-        var errors = new List<Exception>();
+        #region ->> Cleanup <<-
 
         try {
             await _gateway.DisposeAsync().ConfigureAwait(false);
         }
-        catch (Exception ex) {
-            errors.Add(ex);
+        catch (Exception gatewayEx) {
+            errors.Add(new Exception("Error detected during comms gateway disposal", gatewayEx));
         }
 
         try {
             _tracker.Dispose();
         }
-        catch (Exception ex) {
-            errors.Add(ex);
+        catch (Exception trackerEx) {
+            errors.Add(new Exception("Error detected during position tracker disposal", trackerEx));
         }
 
         try {
             if (_ownsClient)
                 await _client.DisposeAsync().ConfigureAwait(false);
         }
-        catch (Exception ex) {
-            errors.Add(ex);
+        catch (Exception clientEx) {
+            errors.Add(new Exception("Error detected during client disposal", clientEx));
         }
 
-        if (errors.Count > 0) {
-            var aggregate = new AggregateException("One or more errors during processor cleanup", errors);
-            _telemetry.Error(aggregate);
-            throw aggregate;
-        }
+        #endregion
+
+        Status = ProcessorWorkerStatus.Error;
+
+        var aex = new AggregateException("Errors detected during violent shutdown", errors).Flatten();
+
+        _telemetry.Error(aex);
+
+        throw aex;
     }
+
+    //   async ValueTask HandleStopped(CancellationTokenSource cts, OperationCanceledException? cex = null) {
+    //     // Kill pump and timer immediately (idempotent if already canceled by stoppingToken)
+    //     await cts.CancelAsync().ConfigureAwait(false);
+    //
+    //     List<Exception> errors = [];
+    //
+    //     var progress   = Progress;
+    //     var throughput = progress.Throughput;
+    //
+    //     _telemetry.Stopping(
+    //         throughput.TotalRecords,
+    //         throughput.Elapsed,
+    //         throughput.RecordsPerSecond);
+    //
+    //     // Final checkpoint flush (best-effort)
+    //     // Only attempt if we reached Processing state (partitions assigned, tracker initialized)
+    //     if (Status == ProcessorWorkerStatus.Processing) {
+    //         try {
+    //             var pendingFlush = _tracker.PrepareFlush();
+    //             var checkpointId = CheckpointId.New();
+    //
+    //             _telemetry.FinalCheckpoint(pendingFlush.Positions.Count);
+    //
+    //             var checkpoint = new Checkpoint(
+    //                 checkpointId,
+    //                 CheckpointTrigger.Shutdown,
+    //                 DateTimeOffset.UtcNow
+    //             );
+    //
+    //             // CancellationToken.None — cts is cancelled, stoppingToken may be cancelled
+    //             await _processor
+    //                 .OnCheckpoint((WorkerContext with { CancellationToken = CancellationToken.None }).ForCheckpoint(checkpoint))
+    //                 .ConfigureAwait(false);
+    //
+    //             var cleanPositions = pendingFlush.Positions
+    //                 .Where(x => x.Value.LogPosition != LogPosition.Earliest)
+    //                 .ToImmutableDictionary();
+    //
+    //             await _gateway
+    //                 .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.From(cleanPositions)))
+    //                 .ConfigureAwait(false);
+    //
+    //             pendingFlush.Execute();
+    //
+    //             _progress.TrackCheckpoint(checkpoint);
+    //         }
+    //         catch (Exception ex) {
+    //             // Best-effort: positions replay on restart (at-least-once guarantee preserved)
+    //             _telemetry.FinalCheckpointFailed(ex);
+    //
+    //             try {
+    //                 await _gateway
+    //                     .SendAsync(new Disconnect(DisconnectReason.Error, PartitionPositions.Empty))
+    //                     .ConfigureAwait(false);
+    //             }
+    //             catch(Exception disconnectEx) {
+    //                 errors.Add(new Exception(
+    //                                "Failed to send disconnect message. ", disconnectEx));
+    //             }
+    //         }
+    //     }
+    //     else {
+    //         try {
+    //             await _gateway
+    //                 .SendAsync(new Disconnect(DisconnectReason.Stopped, PartitionPositions.Empty))
+    //                 .ConfigureAwait(false);
+    //         }
+    //         catch(Exception disconnectEx) {
+    //             errors.Add(new Exception("Failed to send disconnect message.", disconnectEx));
+    //         }
+    //     }
+    //
+    //     try {
+    //         await _processor
+    //             .OnComplete(WorkerContext.ForComplete(Progress))
+    //             .ConfigureAwait(false);
+    //     } catch (Exception onCompleteEx) {
+    //         errors.Add(onCompleteEx);
+    //     }
+    //
+    //     #region ->> Cleanup <<-
+    //
+    //     try {
+    //         await _gateway.DisposeAsync().ConfigureAwait(false);
+    //     }
+    //     catch (Exception gatewayEx) {
+    //         errors.Add(new Exception("Error detected during comms gateway disposal", gatewayEx));
+    //     }
+    //
+    //     try {
+    //         _tracker.Dispose();
+    //     }
+    //     catch (Exception trackerEx) {
+    //         errors.Add(new Exception("Error detected during position tracker disposal", trackerEx));
+    //     }
+    //
+    //     try {
+    //         if (_ownsClient)
+    //             await _client.DisposeAsync().ConfigureAwait(false);
+    //     }
+    //     catch (Exception clientEx) {
+    //         errors.Add(new Exception("Error detected during client disposal", clientEx));
+    //     }
+    //
+    //     #endregion
+    //
+    //     if (errors.Count > 0) {
+    //         Status = ProcessorWorkerStatus.Error;
+    //         var aex = new AggregateException("Errors detected during gracefull shutdown", errors).Flatten();
+    //         _telemetry.Error(aex);
+    //     }
+    //
+    //     Status = ProcessorWorkerStatus.Stopped;
+    //
+    //     _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed, cex?.Message);
+    // }
+
+
+    // async ValueTask Cleanup() {
+    //     if (Interlocked.Exchange(ref _disposed, 1) == 1)
+    //         return;
+    //
+    //     var errors = new List<Exception>();
+    //
+    //     try {
+    //         await _gateway.DisposeAsync().ConfigureAwait(false);
+    //     }
+    //     catch (Exception ex) {
+    //         errors.Add(ex);
+    //     }
+    //
+    //     try {
+    //         _tracker.Dispose();
+    //     }
+    //     catch (Exception ex) {
+    //         errors.Add(ex);
+    //     }
+    //
+    //     try {
+    //         if (_ownsClient)
+    //             await _client.DisposeAsync().ConfigureAwait(false);
+    //     }
+    //     catch (Exception ex) {
+    //         errors.Add(ex);
+    //     }
+    //
+    //     if (errors.Count > 0) {
+    //         var aex = new AggregateException("Errors detected during cleanup phase", errors);
+    //         _telemetry.Error(aex);
+    //     }
+    // }
 }
 
 /// <summary>

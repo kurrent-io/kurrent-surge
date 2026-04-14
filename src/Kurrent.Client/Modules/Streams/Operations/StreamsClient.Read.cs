@@ -5,14 +5,13 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Legacy;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
-using static System.StringComparison;
 using static Kurrent.Client.Streams.StreamsClientV1Mapper;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
@@ -37,10 +36,7 @@ public partial class StreamsClient {
 
         var request = Requests.CreateInspectRecordRequest(position);
 
-        await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
-            .ConfigureAwait(false);
-
-        var message = await messages
+        var message = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -58,46 +54,6 @@ public partial class StreamsClient {
         }
 
         return record;
-
-        // try {
-        //     var request = Requests.CreateInspectRecordRequest(position);
-        //
-        //     await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
-        //         .ConfigureAwait(false);
-        //
-        //     var message = await messages
-        //         .FirstOrDefaultAsync(cancellationToken)
-        //         .ConfigureAwait(false);
-        //
-        //     if (message.Value is not Record record)
-        //         throw new LogPositionNotFoundException(position);
-        //
-        //     // Check if the source stream has been deleted or tombstoned
-        //     if (record.Position.Stream != StreamName.Unset) {
-        //         var streamInfo = await GetStreamInfo(record.Stream, cancellationToken).ConfigureAwait(false);
-        //
-        //         switch (streamInfo.State) {
-        //             case StreamState.Deleted:    throw new StreamDeletedException(record.Position.Stream);
-        //             case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
-        //         }
-        //     }
-        //
-        //     return record;
-        // }
-        // catch (Exception ex) {
-        //     throw ex.AsWellKnownException(
-        //         StreamTombstonedException.From,
-        //         StreamDeletedException.From,
-        //         LogPositionNotFoundException.From);
-        // }
-
-        // {
-        //     "$v": "3:-1:1:4",
-        //     "$c": 12961,
-        //     "$p": 12961,
-        //     "$o": "TicTacToe-bad03a1c87c6",
-        //     "$causedBy": "0197d630-9297-7000-9806-85795845c414"
-        // }
     }
 
     /// <summary>
@@ -125,10 +81,9 @@ public partial class StreamsClient {
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction, 1);
 
-            await using var messages = await ReadCore(request, 1, skipDecoding, RecordFilter.None, cancellationToken)
+            var message = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
+                .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
-
-            var message = await messages.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
             if (message.IsRecord)
                 return message.AsRecord;
@@ -137,201 +92,89 @@ public partial class StreamsClient {
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException();
-                // StreamNotFoundException.From,
-                // StreamDeletedException.From,
-                // StreamTombstonedException.From,
-                // LogPositionNotFoundException.From);
         }
     }
 
-    public ValueTask<RecordStream> ReadRecords(ReadOptions options) {
-        options.ValidateOptions().Unwrap();
+    public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest request, CancellationToken ct = default) {
+        request.EnsureValid();
 
-        var request = Requests.CreateReadLogRequest(options);
+        var grpcRequest = Requests.CreateReadLogRequest(request);
 
-        return ReadCore(
-            request, options.BufferCapacity,
-            options.SkipDecoding, options.Filter,
-            options.CancellationToken
-        );
+        return ReadCore(grpcRequest, request.SkipDecoding, request.Filter, ct);
     }
 
-    public ValueTask<RecordStream> ReadRecords(ReadStreamOptions options) {
-        options.ValidateOptions().Unwrap();
+    public IAsyncEnumerable<ReadRecordsResult> ReadStream(ReadStreamRequest request, CancellationToken ct = default) {
+        request.EnsureValid();
 
-        var request = Requests.CreateReadStreamRequest(options);
+        var grpcRequest = Requests.CreateReadStreamRequest(request);
 
-        return ReadCore(
-            request, options.BufferCapacity,
-            options.SkipDecoding, options.Filter,
-            options.CancellationToken
-        );
+        return ReadCore(grpcRequest, request.SkipDecoding, request.Filter, ct);
     }
 
-    //TODO SS: Consider spliting ReadCore into ReadLog and ReadStream. We can share the relay, but split logic.
-
-    async ValueTask<RecordStream> ReadCore(
-        ReadReq request, int bufferCapacity, bool skipDecoding,
-        IRecordFilter filter, CancellationToken cancellationToken
+    async IAsyncEnumerable<ReadRecordsResult> ReadCore(
+        ReadReq request, bool skipDecoding,
+        IRecordFilter filter, [EnumeratorCancellation] CancellationToken ct
     ) {
-        var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var stoppingToken = cancellator.Token;
 
-        var session = LegacyServiceClient.Read(request, cancellationToken: stoppingToken);
+        var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
 
-        try {
-            var advanced = await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false);
+        var sequencer = new SequenceGenerator();
 
-            // determine the actual stream state when not found (v1 protocol quirk)
-            if (session.ResponseStream.Current?.ContentCase is StreamNotFound) {
+        await foreach (var rsp in session.WithCancellation(ct).ConfigureAwait(false)) {
+            // v1 protocol bull: StreamNotFound is a message, not an exception (unlike 99.9% of other error cases)
+            // And we dont know if the stream is missing or deleted until we check the stream info.
+            // Meanwhile the stream state might have changed to deleted or tombstoned.
+            if (rsp.ContentCase is StreamNotFound) {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
 
-                var info = await GetStreamInfo(stream, stoppingToken).ConfigureAwait(false);
+                var info = await GetStreamInfo(stream, ct).ConfigureAwait(false);
 
+                // why are we throwing StreamNotFoundException on active?!
                 throw info.State switch {
                     StreamState.Missing    => new StreamNotFoundException(stream),
-                    StreamState.Deleted    => new StreamDeletedException(stream), // we cant read it. yet we can subscribe to it
+                    StreamState.Deleted    => new StreamDeletedException(stream),
                     StreamState.Tombstoned => new StreamTombstonedException(stream),
-
-                    // how is this even possible? Race condition between read and get info?
-                    // Maybe the stream was just created after we got the not found response?
-                    // We could retry the read probably but we will let the user handle it fro now
-                    StreamState.Active     => new StreamNotFoundException(stream)
+                    _                      => new StreamNotFoundException(stream)
                 };
             }
 
-            if (!advanced) {
-                throw new LogPositionNotFoundException(
-                    request.Options.All.Position?.CommitPosition ?? LogPosition.Unset,
-                    $"There is no record at the specified position"
-                );
+            ReadRecordsResult result;
+
+            switch (rsp.ContentCase) {
+                case CaughtUp:
+                    result = rsp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
+                    break;
+                case Event:
+                    result = await rsp.Event
+                        .MapToRecordAsync(
+                            sequencer.FetchNext(),
+                            SerializerProvider, MetadataDecoder,
+                            SchemaRegistryPolicy.NoRequirements,
+                            skipDecoding, ct)
+                        .ConfigureAwait(false);
+                    break;
+                default:
+                    continue;
             }
+
+            if (result.IsRecord && !filter.IsMatch(result))
+                continue;
+
+            yield return result;
         }
-        catch (RpcException rex) {
-            session.Dispose();
-            cancellator.Dispose();
 
-            // handle cancellation properly
-            if (rex.StatusCode == StatusCode.Cancelled)
-                throw new OperationCanceledException(rex.Message, rex);
-
-            // when stream is tombstoned an exception is thrown for some weird reason
-            if (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) { //StatusCode == StatusCode.FailedPrecondition && rex.Trailers.GetValue("exception") == "stream-deleted")) { //rex.Status.Detail.Contains("is deleted")
+        Exception TranslateError(RpcException rex) {
+            if (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) {
                 StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-                throw new StreamTombstonedException(stream);
+                return new StreamTombstonedException(stream);
             }
 
-            // when a position does not exist (targets a position between records in the same stream)
-            if (rex.StatusCode == StatusCode.Unknown && rex.Message.Contains("InvalidPosition >>", OrdinalIgnoreCase)) {
-                var details  = rex.Message.Split(">>").Last().Trim();
-
-                //FIXME SS: figure out how to handle LogPositionNotFoundException
-
-                // // just return Unset if the position is null (log read)
-                // throw request.Options.All.Position?.CommitPosition is { } pos
-                //     ? new LogPositionNotFoundException(pos, details)
-                //     : new LogPositionNotFoundException(LogPosition.Unset, details);
-
-                throw new LogPositionNotFoundException(
-                    request.Options.All.Position?.CommitPosition
-                 ?? LogPosition.Unset, details);
+            if (rex.IsLegacyError(LegacyErrorCodes.LogPositionNotFound)) {
+                var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Unset;
+                return new LogPositionNotFoundException(position, rex);
             }
 
-            // throw rex.AsWellKnownException(
-            //     StreamNotFoundException.From,
-            //     StreamDeletedException.From);
-
-            throw rex.AsWellKnownException();
-        }
-        catch (Exception ex) {
-            session.Dispose();
-            cancellator.Dispose();
-
-            throw ex.AsWellKnownException(
-                StreamNotFoundException.From,
-                StreamDeletedException.From,
-                StreamTombstonedException.From,
-                LogPositionNotFoundException.From);
-        }
-
-        var channelFactory = new Func<Channel<ReadRecordsResult>>(
-            () => StartMessageRelay(session, bufferCapacity, skipDecoding, filter, cancellator));
-
-        return new RecordStream(channelFactory);
-    }
-
-    Channel<ReadRecordsResult> StartMessageRelay(
-        AsyncServerStreamingCall<ReadResp> session, int bufferCapacity,
-        bool skipDecoding, IRecordFilter filter, CancellationTokenSource cancellator
-    ) {
-        var channel = Channel.CreateBounded<ReadRecordsResult>(
-            new BoundedChannelOptions(bufferCapacity) {
-                FullMode     = BoundedChannelFullMode.Wait,
-                SingleReader = true,
-                SingleWriter = true
-            }
-        );
-
-        var stoppingToken = cancellator.Token;
-
-        // start pumping messages
-        _ = Task.Run(PumpMessages, stoppingToken);
-
-        return channel;
-
-        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
-        async ValueTask PumpMessages() {
-            SequenceGenerator sequencer = new();
-
-            try {
-                // must continue from the cursor because we had to try to read
-                // the first entry to check if the stream existed or if access was granted
-                do {
-                    var rsp = session.ResponseStream.Current;
-
-                    ReadRecordsResult result;
-
-                    switch (rsp?.ContentCase) {
-                        case CaughtUp:
-                            result = rsp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
-                            break;
-                        case Event:
-                            result = await rsp.Event
-                                .MapToRecordAsync(
-                                    sequencer.FetchNext(),
-                                    SerializerProvider, MetadataDecoder,
-                                    SchemaRegistryPolicy.NoRequirements,
-                                    skipDecoding, stoppingToken)
-                                .ConfigureAwait(false);
-                            break;
-                        default:
-                            continue; // Skip irrelevant, no allocation
-                    }
-
-                    // apply client-side filter if present
-                    if (result.IsRecord && !filter.IsMatch(result))
-                        continue;
-
-                    // write to channel - backpressure via bounded channel
-                    await channel.Writer.WriteAsync(result, stoppingToken).ConfigureAwait(false);
-
-                } while (await session.ResponseStream.MoveNext(stoppingToken).ConfigureAwait(false));
-
-                channel.Writer.TryComplete();
-            }
-            catch (RpcException rex) when (rex.StatusCode == StatusCode.Cancelled) {
-                channel.Writer.TryComplete();
-            }
-            catch (OperationCanceledException) {
-                channel.Writer.TryComplete();
-            }
-            catch (Exception ex) {
-                channel.Writer.TryComplete(ex);
-            }
-            finally {
-                session.Dispose();
-                cancellator.Dispose();
-            }
+            return rex.AsWellKnownException();
         }
     }
 }
@@ -341,32 +184,28 @@ public static partial class StreamsClientExtensions {
         public ValueTask<Record> InspectRecord(LogPosition position, CancellationToken cancellationToken = default) =>
             client.InspectRecord(position, true, cancellationToken);
 
-        #region ->> Read Log <--
+        #region ->> Read Records <--
 
-        public ValueTask<RecordStream> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
+        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
             client.ReadRecords(
-                ReadLog.From(start)
-                    .WithCancellationToken(cancellationToken)
-                    .Build()
+                Streams.ReadRecords.From(start).Build(),
+                cancellationToken
             );
 
         #endregion
 
         #region ->> Read Streams <<-
 
-        public ValueTask<RecordStream> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
-            client.ReadRecords(
-                ReadStream.From(stream)
-                    .FromRevision(start)
-                    .WithCancellationToken(cancellationToken)
-                    .Build()
+        public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
+            client.ReadStream(
+                ReadStream.Name(stream).FromRevision(start).Build(),
+                cancellationToken
             );
 
-        public ValueTask<RecordStream> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
-            client.ReadRecords(
-                ReadStream.From(stream)
-                    .WithCancellationToken(cancellationToken)
-                    .Build()
+        public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
+            client.ReadStream(
+                ReadStream.Name(stream).Build(),
+                cancellationToken
             );
 
         public ValueTask<Record> ReadFirstStreamRecord(StreamName stream, bool skipDecoding, CancellationToken cancellationToken = default) =>

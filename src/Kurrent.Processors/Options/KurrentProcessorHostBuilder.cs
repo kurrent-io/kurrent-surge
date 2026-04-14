@@ -257,6 +257,29 @@ public sealed class KurrentProcessorHostBuilder {
         return this;
     }
 
+    /// <summary>
+    /// Indicates whether debug mode is enabled for the processor.
+    /// </summary>
+    /// <param name="enabled">A boolean value indicating whether debug mode should be enabled (true) or disabled (false).</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    /// <remarks>
+    /// <para><b>Default:</b> false</para>
+    /// <para><b>Importance:</b> High</para>
+    /// <para>
+    /// When set to true, all exceptions are re-thrown, and  additional
+    /// diagnostic and logging information may be generated, which can
+    /// help in troubleshooting and debugging processor behavior.
+    /// </para>
+    /// <para>
+    /// It is recommended to disable this setting in production environments
+    /// to minimize performance overhead and log verbosity.
+    /// </para>
+    /// </remarks>
+    public KurrentProcessorHostBuilder WithDebugMode(bool enabled) {
+        _settingsBuilder.WithDebugMode(enabled);
+        return this;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════════
     // Build
     // ═══════════════════════════════════════════════════════════════════════════════

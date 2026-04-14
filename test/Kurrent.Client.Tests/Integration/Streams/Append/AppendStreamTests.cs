@@ -232,7 +232,7 @@ public class AppendStreamTests {
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
         await Assert.That(info.Retention.MaxCount).IsEqualTo(maxCount);
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
 
         var records = await messages
@@ -264,7 +264,7 @@ public class AppendStreamTests {
         await Assert.That(info.Retention.HasMaxAge).IsTrue();
         await Assert.That(info.Retention.MaxAge).IsEqualTo(maxAge);
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
 
         var records = await messages
@@ -300,7 +300,7 @@ public class AppendStreamTests {
         var info = await Fixture.Client.Streams.GetStreamInfo(data.Stream, ct);
         await Assert.That(info.Retention).IsEqualTo(options);
 
-        await using var messages = await Fixture.Client.Streams
+        var messages = Fixture.Client.Streams
             .ReadStreamRecords(data.Stream, ct);
 
         var records = await messages

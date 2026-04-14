@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 
@@ -12,25 +10,9 @@ public interface ICheckpointStore {
     string ProcessorId { get; }
 
     /// <summary>
-    /// Loads the checkpoint for this processor.
+    /// Loads the latest checkpoint for this processor.
     /// </summary>
     ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Loads the checkpoint for this processor at the specified checkpoint.
-    /// </summary>
-    ValueTask<ProcessorCheckpoint> LoadAsync(CheckpointId checkpointId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Loads the checkpoint for this processor at the specified checkpoint,
-    /// resolving positions for the given partitions.
-    /// </summary>
-    ValueTask<ProcessorCheckpoint> LoadAsync(
-        CheckpointId checkpointId,
-        Partition[] partitions,
-        SubscriptionInitialPosition initialPosition,
-        CancellationToken ct = default
-    );
 
     /// <summary>
     /// Loads the latest checkpoint for this processor,
@@ -43,57 +25,49 @@ public interface ICheckpointStore {
     );
 
     /// <summary>
-    /// Stores checkpoint positions for the specified partitions, merging with existing positions.
+    /// Stores checkpoint positions for the specified partitions.
     /// </summary>
     /// <param name="workerId">The worker storing the checkpoint (for attribution).</param>
-    /// <param name="checkpointId">The checkpoint that triggered this checkpoint.</param>
+    /// <param name="checkpointId">The checkpoint barrier that triggered this store.</param>
     /// <param name="positions">Partition positions to checkpoint.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <exception cref="InvalidOperationException">Thrown when positions dictionary is empty.</exception>
-    /// <remarks>
-    /// <para>
-    /// Internally loads the current checkpoint state and merges the provided positions
-    /// with existing ones. Uses optimistic concurrency with automatic retry on conflicts.
-    /// </para>
-    /// <para>
-    /// Only the specified partitions are updated; other partitions retain their positions.
-    /// </para>
-    /// </remarks>
     ValueTask StoreAsync(
         string workerId,
-        CheckpointId checkpointId,
-        ImmutableDictionary<Partition, RecordPosition> positions,
+        string checkpointId,
+        PartitionPosition[] positions,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Resets specific partition positions. Selective reset — only the specified partitions are repositioned.
+    /// Empty positions = full reset (barrier, all prior state wiped).
+    /// </summary>
+    ValueTask ResetAsync(
+        string workerId,
+        string checkpointId,
+        PartitionPosition[] positions,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Resets all partitions to the same position.
+    /// </summary>
+    ValueTask ResetAsync(
+        string workerId,
+        string checkpointId,
+        RecordPosition position,
         CancellationToken ct = default
     );
 }
 
 /// <summary>
-/// Checkpoint data for a single partition.
+/// A partition and its record position.
 /// </summary>
-/// <param name="Position">The record position of the last processed record.</param>
-/// <param name="WorkerId">The worker that last checkpointed this partition.</param>
 [PublicAPI]
-public sealed record PartitionCheckpoint(RecordPosition Position, string WorkerId);
-
-// /// <summary>
-// /// Resolved start positions for creating a subscription.
-// /// </summary>
-// /// <param name="StartFrom">
-// /// The log position to start the subscription from.
-// /// This is the checkpoint checkpoint if one exists, otherwise resolved from initial position setting.
-// /// </param>
-// /// <param name="Partitions">
-// /// Per-partition record positions for internal tracking/filtering.
-// /// Merged from checkpoints and overrides.
-// /// </param>
-// [PublicAPI]
-// public sealed record SubscriptionStartPosition(
-//     LogPosition StartFrom,
-//     Dictionary<Partition, LogPosition>[] Partitions
-// );
+public readonly record struct PartitionPosition(Partition Partition, RecordPosition Position);
 
 /// <summary>
-/// Loaded checkpoint for a processor, with resolved positions for all assigned partitions.
+/// Loaded checkpoint for a processor, with resolved positions for all worker assigned partitions.
 /// </summary>
 [PublicAPI]
 public sealed record ProcessorCheckpoint {
@@ -103,15 +77,9 @@ public sealed record ProcessorCheckpoint {
     public static readonly ProcessorCheckpoint Empty = new();
 
     /// <summary>
-    /// Per-partition checkpoint data including position and worker attribution.
+    /// Per-partition positions.
     /// </summary>
-    public ImmutableDictionary<Partition, PartitionCheckpoint> Partitions { get; init; } =
-        ImmutableDictionary<Partition, PartitionCheckpoint>.Empty;
-
-    /// <summary>
-    /// The checkpoint ID that triggered the last checkpoint.
-    /// </summary>
-    public CheckpointId CheckpointId { get; init; } = CheckpointId.Unset;
+    public PartitionPosition[] Positions { get; init; } = [];
 
     /// <summary>
     /// UTC timestamp when the checkpoint was created.
@@ -119,19 +87,14 @@ public sealed record ProcessorCheckpoint {
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.MinValue;
 
     /// <summary>
-    /// Whether any checkpoint data exists.
-    /// </summary>
-    public bool HasCheckpoint => Timestamp != DateTimeOffset.MinValue
-                              && LowWatermark.LogPosition != LogPosition.Earliest
-                              && HighWatermark.LogPosition != LogPosition.Earliest;
-
-    /// <summary>
     /// The minimum position across all partitions (subscription start position).
     /// </summary>
-    public RecordPosition LowWatermark { get; init; } = RecordPosition.Earliest;
+    public RecordPosition LowWatermark =>
+        Positions.Length > 0 ? Positions.Min(p => p.Position) : RecordPosition.Unset;
 
     /// <summary>
     /// The maximum position across all partitions.
     /// </summary>
-    public RecordPosition HighWatermark { get; init; } = RecordPosition.Earliest;
+    public RecordPosition HighWatermark =>
+        Positions.Length > 0 ? Positions.Max(p => p.Position) : RecordPosition.Unset;
 }

@@ -17,6 +17,14 @@
     <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
   </ItemGroup>
 
+  <!-- AOT/Trimming Support -->
+  <!--  <PropertyGroup>-->
+  <!--    <IsTrimmable>true</IsTrimmable>-->
+  <!--    <IsAotCompatible>true</IsAotCompatible>-->
+  <!--    <PublishAot>true</PublishAot>-->
+  <!--    <PublishTrimmed>true</PublishTrimmed>-->
+  <!--  </PropertyGroup>-->
+
   <ItemGroup>
     <!-- Source Generators: Embed as analyzer, don't propagate as dependency -->
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
@@ -30,10 +38,12 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Processors.Tests" />
     <InternalsVisibleTo Include="Kurrent.Processors.Integration.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="HashDepot" />
+    <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="OpenTelemetry.Api" />
     <PackageReference Include="shortid" />
   </ItemGroup>
@@ -48,6 +58,8 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <EmbeddedResource Remove="Leases\**" />
+    <EmbeddedResource Remove="Locks\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,6 +71,13 @@
     <Compile Include="Gateway\.scratch\IWorkerSession.cs" />
     <Compile Include="Gateway\.scratch\LegacyGateway.cs" />
     <Compile Include="Gateway\.scratch\LegacyWorkerSession.cs" />
+    <Compile Remove="Leases\**" />
+    <Compile Remove="Locks\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Leases\**" />
+    <None Remove="Locks\**" />
   </ItemGroup>
 
   <!--

@@ -6,12 +6,12 @@ using static System.String;
 namespace Kurrent;
 
 [PublicAPI]
-public abstract class FluentOptionsValidator<TValidator, TOptions> : AbstractValidator<TOptions>, IOptionsValidator<TValidator, TOptions> where TOptions : class, IOptions where TValidator : IOptionsValidator<TValidator, TOptions>, new() {
+public abstract class FluentValidator<TValidator, T> : AbstractValidator<T>, IValidator<TValidator, T> where T : class where TValidator : IValidator<TValidator, T>, new() {
     public static readonly TValidator Instance = new TValidator();
 
-    public virtual string ErrorCode => $"INVALID_{nameof(TOptions).Underscore().ToUpperInvariant()}";
+    public virtual string ErrorCode => $"INVALID_{nameof(T).Underscore().ToUpperInvariant()}";
 
-    public ValidationResult ValidateOptions(TOptions instance) {
+    ValidationResult IValidator<TValidator, T>.Validate(T instance) {
         var validationResult = Validate(instance);
 
         // ignore warnings
@@ -26,10 +26,13 @@ public abstract class FluentOptionsValidator<TValidator, TOptions> : AbstractVal
         var problems = validationResult.Errors
             .Where(err => err.Severity == Severity.Error)
             .Select(err => IsNullOrWhiteSpace(err.PropertyName)
-                ? ValidationProblem.Create(err.ErrorCode,err.ErrorMessage)
-                : ValidationProblem.CreateForField(err.PropertyName, err.ErrorMessage, err.AttemptedValue, err.ErrorCode))
+                        ? ValidationProblem.Create(err.ErrorCode,err.ErrorMessage)
+                        : ValidationProblem.CreateForField(err.PropertyName, err.ErrorMessage, err.AttemptedValue, err.ErrorCode))
             .ToArray();
 
         return ValidationError.Create(ErrorCode, problems);
     }
 }
+
+
+

@@ -50,14 +50,7 @@ public class LogQueryBuilderTests {
     public async Task with_max_records_sets_limit() {
         var options = CreateBuilder().WithMaxRecords(100).Build();
 
-        await Assert.That(options.MaxRecords).IsEqualTo(100);
-    }
-
-    [Test]
-    public async Task with_buffer_capacity_sets_capacity() {
-        var options = CreateBuilder().WithBufferCapacity(500).Build();
-
-        await Assert.That(options.BufferCapacity).IsEqualTo(500);
+        await Assert.That(options.Limit).IsEqualTo(100);
     }
 
     [Test]
@@ -94,7 +87,6 @@ public class LogQueryBuilderTests {
         var result = builder
             .FromStart()
             .WithMaxRecords(10)
-            .WithBufferCapacity(500)
             .SkipDecoding();
 
         await Assert.That(result).IsEqualTo(builder);
@@ -106,14 +98,12 @@ public class LogQueryBuilderTests {
             .From(10)
             .Forward()
             .WithMaxRecords(50)
-            .WithBufferCapacity(200)
             .SkipDecoding()
             .Build();
 
         await Assert.That(options.Start).IsEqualTo(10);
         await Assert.That(options.Direction).IsEqualTo(ReadDirection.Forwards);
-        await Assert.That(options.MaxRecords).IsEqualTo(50);
-        await Assert.That(options.BufferCapacity).IsEqualTo(200);
+        await Assert.That(options.Limit).IsEqualTo(50);
         await Assert.That(options.SkipDecoding).IsTrue();
     }
 

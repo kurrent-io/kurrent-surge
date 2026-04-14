@@ -48,7 +48,8 @@ sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, I
         switch (evt.Value) {
             case RecordProcessedEvent e:
                 _recordsProcessed.Add(1, e.ProcessorId, e.WorkerId);
-                _recordDuration.Record(e.DurationMs, e.ProcessorId);
+                if (e.DurationMs is { } duration)
+                    _recordDuration.Record(duration, e.ProcessorId);
                 break;
 
             case CheckpointCompletedEvent e:

@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
 using Grpc.Net.Client.Configuration;
+using Kurrent.Validation;
 
 // Added for Timeout.InfiniteTimeSpan
 
@@ -24,7 +25,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientResilienceOptions : OptionsBase<KurrentClientResilienceOptions, KurrentClientResilienceOptionsValidator> {
+public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResilienceOptions, KurrentClientResilienceOptionsValidator> {
     /// <summary>
     /// The amount of time to wait after which a keepalive ping is sent on the transport.
     /// </summary>

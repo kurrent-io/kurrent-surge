@@ -4,13 +4,13 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
-/// Manages position tracking across multiple partitions. Not thread-safe.
+/// Manages position tracking across multiple partitions.
 /// </summary>
 [PublicAPI]
 public sealed class PartitionedPositionTracker : IDisposable {
     FrozenDictionary<Partition, PositionTracker> _trackers;
 
-    bool _disposed;
+    volatile bool _disposed;
 
     /// <summary>
     /// Creates a tracker with initial positions per partition.
@@ -23,25 +23,26 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// <summary>
     /// Creates a tracker with no initial partitions.
     /// </summary>
-    public PartitionedPositionTracker() : this(new Dictionary<Partition, RecordPosition>()) { }
+    public PartitionedPositionTracker() =>
+        _trackers = FrozenDictionary<Partition, PositionTracker>.Empty;
 
     /// <summary>
     /// Gets the last flushed (checkpointed) position for each partition.
     /// </summary>
-    public Dictionary<Partition, LogPosition> LastFlushedPositions =>
+    public Dictionary<Partition, RecordPosition> LastFlushedPositions =>
         _trackers.ToDictionary(
             x => x.Key,
-            x => x.Value.LastFlushedPosition.LogPosition
+            x => x.Value.LastFlushedPosition
         );
 
     /// <summary>
     /// Gets the last tracked (pending, not yet flushed) position for each partition.
     /// Returns <see cref="LogPosition.Unset"/> for partitions with no pending positions.
     /// </summary>
-    public Dictionary<Partition, LogPosition> LastTrackedPositions =>
+    public Dictionary<Partition, RecordPosition> LastTrackedPositions =>
         _trackers.ToDictionary(
             x => x.Key,
-            x => x.Value.Positions.LastOrDefault(RecordPosition.Unset).LogPosition
+            x => x.Value.Positions.LastOrDefault(RecordPosition.Unset)
         );
 
     /// <summary>
@@ -108,22 +109,18 @@ public sealed class PartitionedPositionTracker : IDisposable {
     public PendingPositionsFlush PrepareFlush() {
         ObjectDisposedException.ThrowIf(_disposed, this);
         return new PendingPositionsFlush(this, GetAllPendingPositions());
-    }
 
-    /// <summary>
-    /// Gets all pending positions for each partition.
-    /// Returns the last tracked position per partition, or last flushed position if no pending positions.
-    /// </summary>
-    Dictionary<Partition, RecordPosition> GetAllPendingPositions() =>
-        _trackers.ToDictionary(
-            x => x.Key,
-            x => {
-                var positions = x.Value.Positions;
-                return positions.Length > 0
-                    ? positions[^1]
-                    : x.Value.LastFlushedPosition;
-            }
-        );
+        Dictionary<Partition, RecordPosition> GetAllPendingPositions() =>
+            _trackers.ToDictionary(
+                x => x.Key,
+                x => {
+                    var positions = x.Value.Positions;
+                    return positions.Length > 0
+                        ? positions[^1]
+                        : x.Value.LastFlushedPosition;
+                }
+            );
+    }
 
     /// <summary>
     /// Flushes tracked positions up to the specified positions for each partition.
@@ -151,18 +148,16 @@ public sealed class PartitionedPositionTracker : IDisposable {
             if (_trackers.TryGetValue(partition, out var existing)) {
                 existing.Reset(position);
                 newTrackers[partition] = existing;
-            } else {
+            } else
                 newTrackers[partition] = new PositionTracker(position);
-            }
         }
 
         // Only scan for removed partitions if count decreased
-        if (newTrackers.Count < oldCount) {
+        if (newTrackers.Count < oldCount)
             foreach (var (partition, tracker) in _trackers) {
                 if (!newTrackers.ContainsKey(partition))
                     tracker.Dispose();
             }
-        }
 
         _trackers = newTrackers.ToFrozenDictionary();
     }

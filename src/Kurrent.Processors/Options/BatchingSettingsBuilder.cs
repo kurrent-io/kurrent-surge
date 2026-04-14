@@ -4,7 +4,7 @@ namespace Kurrent.Processors.Options;
 /// Fluent builder for <see cref="BatchingSettings"/>.
 /// </summary>
 [PublicAPI]
-public sealed class BatchingSettingsBuilder : OptionsBuilder<BatchingSettingsBuilder, BatchingSettings> {
+public sealed class BatchingSettingsBuilder : FluentBuilder<BatchingSettingsBuilder, BatchingSettings> {
     internal BatchingSettingsBuilder(BatchingSettings settings) : base(settings) { }
 
     /// <summary>

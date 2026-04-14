@@ -16,9 +16,6 @@ public class ReadStreamBenchmarks {
     [Params(100, 1000, 5000, 10000)]
     public int MessageCount { get; set; }
 
-    [Params(1000)]
-    public int BufferCapacity { get; set; }
-
     [Params(true, false)]
     public bool SkipDecoding { get; set; }
 
@@ -31,82 +28,51 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Baseline = true, Description = "Read stream")]
     public async Task<int> read_stream() {
-        var builder = ReadStream.From(_stream)
-            .WithBufferCapacity(BufferCapacity);
+        var builder = ReadStream.Name(_stream);
+
+        if (SkipDecoding)
+            builder.SkipDecoding();
+
+        var options = builder.Build();
+        var count   = 0;
+
+        await foreach (var msg in _fixture.Client.Streams.ReadStream(options))
+            count++;
+
+        return count;
+    }
+
+    [Benchmark(Description = "Read stream with LINQ")]
+    public async Task<int> read_stream_with_linq() {
+        var builder = ReadStream.Name(_stream);
 
         if (SkipDecoding)
             builder.SkipDecoding();
 
         var options = builder.Build();
 
-        var messages = await _fixture.Client.Streams
-            .ReadRecords(options)
+        return await _fixture.Client.Streams
+            .ReadStream(options)
+            .Where(m => m.IsRecord)
+            .CountAsync()
             .ConfigureAwait(false);
-
-        try {
-            var count = 0;
-
-            await foreach (var msg in messages)
-                count++;
-
-            return count;
-        }
-        finally {
-            await messages.DisposeAsync().ConfigureAwait(false);
-        }
-    }
-
-    [Benchmark(Description = "Read stream with LINQ")]
-    public async Task<int> read_stream_with_linq() {
-        var linqBuilder = ReadStream.From(_stream)
-            .WithBufferCapacity(BufferCapacity);
-
-        if (SkipDecoding)
-            linqBuilder.SkipDecoding();
-
-        var options = linqBuilder.Build();
-
-        var messages = await _fixture.Client.Streams
-            .ReadRecords(options)
-            .ConfigureAwait(false);
-
-        try {
-            return await messages
-                .Where(m => m.IsRecord)
-                .CountAsync()
-                .ConfigureAwait(false);
-        }
-        finally {
-            await messages.DisposeAsync().ConfigureAwait(false);
-        }
     }
 
     // [Benchmark(Description = "Read stream from $all")]
     public async Task<int> read_stream_from_log() {
-        var logBuilder = ReadLog.FromStart()
-            .WithFilter(RecordFilter.ByStream(_stream))
-            .WithBufferCapacity(BufferCapacity);
+        var builder = ReadRecords.FromStart()
+            .WithFilter(RecordFilter.ByStream(_stream));
 
         if (SkipDecoding)
-            logBuilder.SkipDecoding();
+            builder.SkipDecoding();
 
-        var options = logBuilder.Build();
+        var options = builder.Build();
+        var count   = 0;
 
-        var messages = await _fixture.Client.Streams
-            .ReadRecords(options)
-            .ConfigureAwait(false);
+        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options))
+            count++;
 
-        try {
-            var count = 0;
-
-            await foreach (var msg in messages)
-                count++;
-
-            return count;
-        }
-        finally {
-            await messages.DisposeAsync().ConfigureAwait(false);
-        }
+        return count;
     }
 
     [GlobalCleanup]

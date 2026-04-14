@@ -35,7 +35,7 @@
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
     <PackageVersion Include="shortid" Version="5.0.0" />
     <PackageVersion Include="System.Linq.Async" Version="7.0.0" />
-    <PackageVersion Include="TUnit.Assertions" Version="1.21.6" />
+
   </ItemGroup>
   <!--- Packages for source generation -->
   <ItemGroup>
@@ -85,8 +85,10 @@
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
     <PackageVersion Include="Serilog.Sinks.Seq" Version="9.0.0" />
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
-    <PackageVersion Include="TUnit" Version="1.20.0" />
-    <PackageVersion Include="TUnit.Core" Version="1.20.0" />
+    <PackageVersion Include="TUnit" Version="1.33.0" />
+    <PackageVersion Include="TUnit.Assertions" Version="1.21.6" />
+    <PackageVersion Include="TUnit.Core" Version="1.33.0" />
+    <PackageVersion Include="TUnit.Mocks" Version="1.21.30" />
     <PackageVersion Include="Ductus.FluentDocker" Version="2.85.0" />
   </ItemGroup>
   <!--- Packages for Aspire integration testing -->

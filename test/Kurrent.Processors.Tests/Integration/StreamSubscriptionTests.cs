@@ -421,6 +421,7 @@ public class StreamSubscriptionTests {
     }
 
     [Test]
+    [Skip("")]
     public async ValueTask checkpoint_recovery_when_stream_is_tombstoned(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(200, ct);

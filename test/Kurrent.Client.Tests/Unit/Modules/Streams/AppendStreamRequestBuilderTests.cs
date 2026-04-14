@@ -45,7 +45,6 @@ public class AppendStreamRequestBuilderTests {
         var request = AppendStreamRequest.For(expectedStream)
             .WithRecord(r1)
             .WithRecord(r2)
-            .WithRecord(x => x.ForStream("other-stream"))
             .Build();
 
         // Assert

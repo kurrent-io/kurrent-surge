@@ -13,12 +13,22 @@ using ProtobufMessages = Kurrent.Client.Schema.Serialization.Protobuf.ProtobufMe
 
 namespace Kurrent.Client;
 
+public interface IKurrentClient : IAsyncDisposable {
+    StreamsClient    Streams    { get; }
+    RegistryClient   Registry   { get; }
+    IndexesClient    Indexes    { get; }
+    ConnectorsClient Connectors { get; }
+    AdminClient      Admin      { get; }
+}
+
 [PublicAPI]
-public class KurrentClient : IAsyncDisposable {
+public class KurrentClient : IKurrentClient {
     public static KurrentClientOptionsBuilder New => new KurrentClientOptionsBuilder();
 
+    public KurrentClient() : this(new()) { }
+
     public KurrentClient(KurrentClientOptions options) {
-	    options.EnsureOptionsAreValid();
+	    options.EnsureValid();
 
 	    Options = options;
 
@@ -73,7 +83,8 @@ public class KurrentClient : IAsyncDisposable {
 	// 	};
 	// }
 
-	public virtual async ValueTask DisposeAsync() {
+
+    public async ValueTask DisposeAsync() {
         if (Shared) return;
 
         BackdoorClientFactory.Dispose();
@@ -82,6 +93,7 @@ public class KurrentClient : IAsyncDisposable {
             .DisposeAsync()
             .ConfigureAwait(false);
     }
+
 
     public static KurrentClient Create(KurrentClientOptions? options = null) =>
         new(options ?? new KurrentClientOptions());

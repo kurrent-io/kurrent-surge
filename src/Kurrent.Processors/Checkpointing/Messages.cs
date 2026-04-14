@@ -3,24 +3,25 @@ using System.Text.Json.Serialization;
 namespace Kurrent.Processors.Checkpointing;
 
 static partial class Contracts {
-    public record ProcessorCheckpoint {
+    /// <summary>
+    /// One or more partition positions checkpointed by a worker.
+    /// </summary>
+    public record PartitionsCheckpointed {
         [JsonPropertyName("prx_id")] public string ProcessorId { get; init; } = null!;
-
-        [JsonPropertyName("pstns")] public PartitionCheckpointed[] Checkpoints { get; init; } = [];
 
         [JsonPropertyName("wrk_id")] public string WorkerId { get; init; } = null!;
 
         [JsonPropertyName("ckpt_id")] public string CheckpointId { get; init; } = null!;
 
-        [JsonPropertyName("ckpt_rsn")] public string CheckpointReason { get; init; } = null!;
+        [JsonPropertyName("pstns")] public PartitionPosition[] Positions { get; init; } = [];
 
         [JsonPropertyName("ts")] public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.MinValue;
     }
 
     /// <summary>
-    /// A checkpointed position for a single partition.
+    /// Position data for a single partition within a checkpoint event.
     /// </summary>
-    public record PartitionCheckpointed {
+    public record PartitionPosition {
         [JsonPropertyName("prt")] public int Partition { get; init; }
 
         [JsonPropertyName("pos")] public long LogPosition { get; init; }
@@ -28,12 +29,6 @@ static partial class Contracts {
         [JsonPropertyName("str")] public string? Stream { get; init; }
 
         [JsonPropertyName("rev")] public int? StreamRevision { get; init; }
-
-        [JsonPropertyName("prx_id")] public string ProcessorId { get; init; } = null!;
-
-        [JsonPropertyName("wrk_id")] public string WorkerId { get; init; } = null!;
-
-        [JsonPropertyName("ts")] public DateTimeOffset Timestamp { get; init; }
 
         // examples:
         // [000] @123
@@ -43,5 +38,24 @@ static partial class Contracts {
             Stream is { } && StreamRevision is { }
                 ? $"[{Partition:000}] @{LogPosition} ({Stream} r{StreamRevision})"
                 : $"[{Partition:000}] @{LogPosition}";
+    }
+
+    /// <summary>
+    /// Checkpoint was reset to a specific position.
+    /// <para>
+    /// <c>Empty positions</c> - full reset (barrier, all prior events superseded).
+    /// <c>Positions present</c> - selective reset (those partitions repositioned, others unaffected).
+    /// </para>
+    /// </summary>
+    public record CheckpointReset {
+        [JsonPropertyName("prx_id")] public string ProcessorId { get; init; } = null!;
+
+        [JsonPropertyName("wrk_id")] public string WorkerId { get; init; } = null!;
+
+        [JsonPropertyName("ckpt_id")] public string CheckpointId { get; init; } = null!;
+
+        [JsonPropertyName("pstns")] public PartitionPosition[] Positions { get; init; } = [];
+
+        [JsonPropertyName("ts")] public DateTimeOffset Timestamp { get; init; }
     }
 }

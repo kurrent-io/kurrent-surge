@@ -17,68 +17,57 @@ sealed partial class WorkerTelemetry : TelemetrySource {
 
     public void Starting() {
         LogStarting(_processorId, _workerId);
-        Publish("WorkerStarting", new WorkerStartingEvent(_processorId, _workerId));
+        Publish(new WorkerStartingEvent(_processorId, _workerId));
     }
 
     public void RestoringState(int partitionCount) {
         LogRestoringState(_processorId, _workerId, partitionCount);
-        Publish("WorkerRestoringState", new WorkerRestoringStateEvent(_processorId, _workerId, partitionCount));
+        Publish(new WorkerRestoringStateEvent(_processorId, _workerId, partitionCount));
     }
 
     public void StateRestored(LogPosition startPosition, int partitionCount) {
         LogStateRestored(_processorId, _workerId, startPosition, partitionCount);
-        Publish("WorkerStateRestored", new WorkerStateRestoredEvent(_processorId, _workerId, startPosition, partitionCount));
+        Publish(new WorkerStateRestoredEvent(_processorId, _workerId, startPosition, partitionCount));
     }
 
     public void Processing(Guid sessionId) {
         LogProcessing(_processorId, _workerId, sessionId);
-        Publish("WorkerProcessing", new WorkerProcessingEvent(_processorId, _workerId, sessionId));
+        Publish(new WorkerProcessingEvent(_processorId, _workerId, sessionId));
     }
 
-    public void RecordProcessed(long totalRecords) =>
-        RecordProcessedWithTiming(totalRecords, 0);
-
-    internal void RecordProcessedWithTiming(long totalRecords, double elapsedMs) {
+    public void RecordProcessed(long totalRecords, double? elapsedMs = null) {
         LogRecordProcessed(_processorId, _workerId, totalRecords);
-        Publish("RecordProcessed", new RecordProcessedEvent(_processorId, _workerId, totalRecords, elapsedMs));
+        Publish(new RecordProcessedEvent(_processorId, _workerId, totalRecords));
     }
 
-    public void Checkpointing(CheckpointTrigger trigger, string checkpointId) {
-        LogCheckpointing(_processorId, _workerId, trigger, checkpointId);
-        Publish("WorkerCheckpointing", new WorkerCheckpointingEvent(_processorId, _workerId, trigger.ToString(), checkpointId));
+    public void CheckpointInitiated(string checkpointId, CheckpointTrigger trigger) {
+        LogCheckpointInitiated(_processorId, _workerId, checkpointId, trigger);
+        Publish(new CheckpointInitiatedEvent(_processorId, _workerId, trigger.ToString(), checkpointId));
     }
 
-    public void CheckpointComplete(CheckpointTrigger trigger, string checkpointId, PendingPositionsFlush positions) {
-        LogCheckpointComplete(_processorId, _workerId, trigger, checkpointId, positions);
-        Publish("CheckpointCompleted", new CheckpointCompletedEvent(
-            _processorId, _workerId, trigger.ToString(), checkpointId, positions.Positions.Count, 0));
+    public void CheckpointComplete(string checkpointId, CheckpointTrigger trigger, PartitionPositions positions) {
+        LogCheckpointComplete(_processorId, _workerId, checkpointId, trigger, positions);
+        Publish(new CheckpointCompletedEvent(_processorId, _workerId, trigger.ToString(), checkpointId, positions.Count, 0));
+    }
+
+    public void CheckpointFailed(string checkpointId, CheckpointTrigger trigger, PartitionPositions positions, Exception ex) {
+        LogCheckpointFailed(ex, _processorId, _workerId, checkpointId, trigger, positions, ex.Message);
+        Publish(new CheckpointFailedEvent(_processorId, _workerId, checkpointId, trigger.ToString(), ex.GetType().FullName ?? ex.GetType().Name, ex.Message));
     }
 
     public void Stopping(long totalRecords, TimeSpan duration, double recordsPerSecond) {
         LogStopping(_processorId, _workerId, totalRecords, duration, recordsPerSecond);
-        Publish("WorkerStopping", new WorkerStoppingEvent(_processorId, _workerId, totalRecords, duration, recordsPerSecond));
+        Publish(new WorkerStoppingEvent(_processorId, _workerId, totalRecords, duration, recordsPerSecond));
     }
 
     public void Stopped(long totalRecords, TimeSpan duration, string? reason = null) {
         LogStopped(_processorId, _workerId, reason is { } ? $": {reason}" : null);
-        Publish("WorkerStopped", new WorkerStoppedEvent(_processorId, _workerId, totalRecords, duration));
-    }
-
-    public void FinalCheckpoint(int partitionCount) {
-        LogFinalCheckpoint(_processorId, _workerId, partitionCount);
-        Publish("WorkerFinalCheckpoint", new WorkerFinalCheckpointEvent(_processorId, _workerId, partitionCount));
-    }
-
-    public void FinalCheckpointFailed(Exception ex) {
-        LogFinalCheckpointFailed(ex, _processorId, _workerId, ex.Message);
-        Publish("WorkerFinalCheckpointFailed", new WorkerFinalCheckpointFailedEvent(
-            _processorId, _workerId, ex.GetType().FullName ?? ex.GetType().Name, ex.Message));
+        Publish(new WorkerStoppedEvent(_processorId, _workerId, totalRecords, duration));
     }
 
     public void Error(Exception ex) {
         LogError(ex, _processorId, _workerId, ex.Message);
-        Publish("WorkerError", new WorkerErrorEvent(
-            _processorId, _workerId, ex.GetType().FullName ?? ex.GetType().Name, ex.Message));
+        Publish(new WorkerErrorEvent(_processorId, _workerId, ex.GetType().FullName ?? ex.GetType().Name, ex.Message));
     }
 
     public RecordScope TrackRecord() {
@@ -102,8 +91,8 @@ sealed partial class WorkerTelemetry : TelemetrySource {
     /// </summary>
     public struct RecordScope : IDisposable {
         readonly WorkerTelemetry? _diagnostics;
-        readonly long               _startTimestamp;
-        readonly Activity?          _activity;
+        readonly long             _startTimestamp;
+        readonly Activity?        _activity;
 
         bool _completed;
 
@@ -124,11 +113,11 @@ sealed partial class WorkerTelemetry : TelemetrySource {
             _completed = true;
 
             // Calculate elapsed time and delegate to WorkerDiagnostics
-            var elapsedMs = _startTimestamp != 0
+            double? elapsedMs = _startTimestamp != 0
                 ? Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds
-                : 0;
+                : null;
 
-            _diagnostics?.RecordProcessedWithTiming(totalRecords, elapsedMs);
+            _diagnostics?.RecordProcessed(totalRecords, elapsedMs);
 
             // Complete the tracing span
             if (_activity is not null) {
@@ -193,23 +182,20 @@ sealed partial class WorkerTelemetry : TelemetrySource {
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Record processed (total: {TotalRecords})")]
     partial void LogRecordProcessed(string processorId, string workerId, long totalRecords);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{WorkerId}] Checkpointing (trigger: {Trigger}, checkpointId: {CheckpointId})")]
-    partial void LogCheckpointing(string processorId, string workerId, CheckpointTrigger trigger, string checkpointId);
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{WorkerId}] Checkpoint {CheckpointId} ({Trigger}) initiated")]
+    partial void LogCheckpointInitiated(string processorId, string workerId, string checkpointId, CheckpointTrigger trigger);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Checkpoint completed (trigger: {Trigger}, checkpointId: {CheckpointId}, positions: [{Positions}])")]
-    partial void LogCheckpointComplete(string processorId, string workerId, CheckpointTrigger trigger, string checkpointId, PendingPositionsFlush positions);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Checkpoint {CheckpointId} ({Trigger}) completed (positions: [{Positions}])")]
+    partial void LogCheckpointComplete(string processorId, string workerId, string checkpointId, CheckpointTrigger trigger, PartitionPositions positions);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "[{ProcessorId}/{WorkerId}] Checkpoint {CheckpointId} ({Trigger}) failed: {Message}")]
+    partial void LogCheckpointFailed(Exception ex, string processorId, string workerId, string checkpointId, CheckpointTrigger trigger, PartitionPositions positions, string message);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Stopping ({TotalRecords} records in {Duration} | {RecordsPerSecond:F1} rec/s)")]
     partial void LogStopping(string processorId, string workerId, long totalRecords, TimeSpan duration, double recordsPerSecond);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Stopped Gracefully{Reason}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{WorkerId}] Stopped Gracefully {Reason}")]
     partial void LogStopped(string processorId, string workerId, string? reason = null);
-
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Final checkpoint ({PartitionCount} partitions)")]
-    partial void LogFinalCheckpoint(string processorId, string workerId, int partitionCount);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "[{ProcessorId}/{WorkerId}] Final checkpoint failed: {Message}")]
-    partial void LogFinalCheckpointFailed(Exception ex, string processorId, string workerId, string message);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "[{ProcessorId}/{WorkerId}] Error: {Message}")]
     partial void LogError(Exception ex, string processorId, string workerId, string message);

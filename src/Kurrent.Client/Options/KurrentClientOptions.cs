@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Net;
 using Grpc.Core.Interceptors;
 using Kurrent.Client.Streams;
+using Kurrent.Validation;
 using KurrentDB.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientOptions : OptionsBase<KurrentClientOptions, KurrentClientOptionsValidator> {
+public record KurrentClientOptions : SelfValidating<KurrentClientOptions, KurrentClientOptionsValidator> {
     public static KurrentClientOptionsBuilder Build => new();
 
     public static KurrentClientOptions Parse(string connectionString) =>

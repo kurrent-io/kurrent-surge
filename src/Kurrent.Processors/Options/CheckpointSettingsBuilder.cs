@@ -4,7 +4,7 @@ namespace Kurrent.Processors.Options;
 /// Fluent builder for <see cref="CheckpointSettings"/>.
 /// </summary>
 [PublicAPI]
-public sealed class CheckpointSettingsBuilder : OptionsBuilder<CheckpointSettingsBuilder, CheckpointSettings> {
+public sealed class CheckpointSettingsBuilder : FluentBuilder<CheckpointSettingsBuilder, CheckpointSettings> {
     internal CheckpointSettingsBuilder(CheckpointSettings settings) : base(settings) { }
 
     /// <summary>

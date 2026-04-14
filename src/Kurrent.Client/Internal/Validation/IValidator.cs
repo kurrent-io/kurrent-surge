@@ -1,9 +1,29 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Humanizer;
-using Kurrent.Client.Exceptions;
+using static System.String;
 
 namespace Kurrent.Validation;
+
+/// <summary>
+/// Defines the contract for a fluent validator that can validate instances of <typeparamref name="T"/>.
+/// </summary>
+/// <typeparam name="TValidator">The concrete validator type (CRTP). Must have a parameterless constructor.</typeparam>
+/// <typeparam name="T">The type of the object to be validated.</typeparam>
+public interface IValidator<TValidator, in T>
+    where T : class
+    where TValidator : IValidator<TValidator, T>, new() {
+
+    /// <summary>
+    /// Validates the given instance and returns a <see cref="ValidationResult"/>.
+    /// </summary>
+    ValidationResult Validate(T instance);
+
+    /// <summary>
+    /// Error code used to categorize validation failures for this type.
+    /// </summary>
+    string ErrorCode { get; }
+}
 
 public sealed partial record ValidationResult : IResultBase<Success, ValidationError>;
 
@@ -33,7 +53,7 @@ public record  ValidationError : ResultError {
 
         string BuildErrorMessage() {
             var arr = problems.Select(x => $"{Environment.NewLine} -- {x.FieldName}: {x.Message}");
-            return $"Validation failed: {string.Join(string.Empty, arr)}";
+            return $"Validation failed: {Join("", arr)}";
         }
     }
 
@@ -74,7 +94,7 @@ public readonly record struct ValidationProblem {
     /// <summary>
     /// Indicates whether this validation problem is associated with a specific field.
     /// </summary>
-    public bool HasPropertyName => !string.IsNullOrWhiteSpace(FieldName);
+    public bool HasPropertyName => !IsNullOrWhiteSpace(FieldName);
 
     /// <summary>
     /// Indicates whether this validation problem has an associated value.
@@ -94,7 +114,7 @@ public readonly record struct ValidationProblem {
             FieldName   = fieldName,
             Message   = message,
             AttemptedValue = attemptedValue!,
-            Code      = string.IsNullOrWhiteSpace(code) ? $"INVALID_{fieldName.Underscore().ToUpperInvariant()}" : code
+            Code      = IsNullOrWhiteSpace(code) ? $"INVALID_{fieldName.Underscore().ToUpperInvariant()}" : code
         };
     }
 
@@ -113,30 +133,4 @@ public readonly record struct ValidationProblem {
     }
 }
 
-public interface IValidator<in T> where T : class {
-    ValidationResult ValidateOptions(T instance);
-}
 
-// [StructLayout(LayoutKind.Sequential, Size = 1)]
-// public readonly struct ValidationSuccess;
-//
-// public static class Results {
-//     public static Success Success => default;
-//     public static Created Created => default;
-//     public static Deleted Deleted => default;
-//     public static Updated Updated => default;
-// }
-
-[PublicAPI]
-public class ValidationException : KurrentException {
-    public ValidationException(ErrorCode errorCode, string message, params ValidationProblem[] errors) : base(errorCode, message, null) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(message);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(errors.Length, 0);
-
-        ErrorCode = errorCode;
-        Errors    = errors;
-    }
-
-    public string              ErrorCode { get; }
-    public ValidationProblem[] Errors    { get; }
-}
