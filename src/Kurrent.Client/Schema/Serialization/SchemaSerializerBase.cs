@@ -38,7 +38,7 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 			return ReadOnlyMemory<byte>.Empty;
 
 		var policy = context.SchemaRegistryPolicy
-			.Resolve(Options.SchemaRegistration, context.Stream)
+			.Resolve(Options.SchemaRegistration, context.Stream, DataFormat)
 			.EnsureDataFormatCompliance(DataFormat);
 
 		var messageType = value.GetType();
@@ -82,7 +82,7 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 
 		try {
 			var policy = context.SchemaRegistryPolicy
-				.Resolve(Options.SchemaRegistration, context.Stream)
+				.Resolve(Options.SchemaRegistration, context.Stream, DataFormat)
 				.EnsureDataFormatCompliance(DataFormat);
 
 			var result = await SchemaManager

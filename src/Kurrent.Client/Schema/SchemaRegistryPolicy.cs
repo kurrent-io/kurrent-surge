@@ -37,14 +37,15 @@ public record SchemaRegistryPolicy {
 	/// </summary>
 	public SchemaDataFormat EnforcedDataFormat { get; init; } = SchemaDataFormat.Unspecified;
 
-	/// <summary>
-	/// Resolves the effective schema registry policy by considering both client-provided
-	/// options and the server's schema registry policy settings.
-	/// </summary>
-	/// <param name="options">The schema registration options provided by the client.</param>
-	/// <param name="stream">The stream identifier associated with the schema.</param>
-	/// <returns>A <see cref="ResolvedSchemaRegistryPolicy"/> object that encapsulates the resolved settings.</returns>
-	public ResolvedSchemaRegistryPolicy Resolve(SchemaRegistrationOptions options, string? stream) {
+    /// <summary>
+    /// Resolves the effective schema registry policy by considering both client-provided
+    /// options and the server's schema registry policy settings.
+    /// </summary>
+    /// <param name="options">The schema registration options provided by the client.</param>
+    /// <param name="stream">The stream identifier associated with the schema.</param>
+    /// <param name="serializerFormat">The data format used by the serializer, which may be considered in resolution if the server does not enforce a specific format.</param>
+    /// <returns>A <see cref="ResolvedSchemaRegistryPolicy"/> object that encapsulates the resolved settings.</returns>
+    public ResolvedSchemaRegistryPolicy Resolve(SchemaRegistrationOptions options, string? stream, SchemaDataFormat serializerFormat = SchemaDataFormat.Unspecified) {
 		// If schema registry is disabled on server, create a policy with local operations only
 		if (!Enabled)
 			return new(false, false, options.AutoMapMessages, SchemaDataFormat.Unspecified, options.SchemaNameStrategy, stream);
@@ -87,7 +88,11 @@ public record SchemaRegistryPolicy {
 			_ => false
 		};
 
-		return new(autoRegister, validate, options.AutoMapMessages, EnforcedDataFormat, options.SchemaNameStrategy, stream);
+		var dataFormat = EnforcedDataFormat != SchemaDataFormat.Unspecified
+			? EnforcedDataFormat
+			: serializerFormat;
+
+		return new(autoRegister, validate, options.AutoMapMessages, dataFormat, options.SchemaNameStrategy, stream);
 	}
 
 	// /// <summary>

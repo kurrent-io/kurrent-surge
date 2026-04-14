@@ -1,0 +1,74 @@
+using Kurrent.Client;
+using Kurrent.Client.Streams;
+
+namespace Connector.Management;
+
+public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService> logger) : BackgroundService {
+    static readonly string[] Currencies = ["USD", "EUR", "GBP"];
+    static readonly string[] Frequencies = ["monthly", "quarterly", "annual"];
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
+        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+
+        logger.LogInformation("Payment plan service started. Writing events to paymentPlan-* streams");
+
+        var planCounter = 0;
+
+        while (!stoppingToken.IsCancellationRequested) {
+            var planId   = $"pp-{++planCounter:D4}";
+            var stream   = $"paymentPlan-{planId}";
+            var currency = Currencies[Random.Shared.Next(Currencies.Length)];
+
+            await client.Streams.AppendStream(stream, [
+                AppendRecord.New
+                    .WithValue(new PaymentPlanCreated(
+                        planId,
+                        CustomerId: $"cust-{Random.Shared.Next(1, 100):D3}",
+                        Amount: Math.Round((Random.Shared.NextDouble() * 500) + 10, 2),
+                        currency,
+                        Frequency: Frequencies[Random.Shared.Next(Frequencies.Length)],
+                        CreatedAt: DateTimeOffset.UtcNow
+                    ))
+                    .Build()
+            ], stoppingToken);
+
+            logger.LogInformation("Wrote PaymentPlanCreated to {Stream} ({Currency} {Amount})",
+                stream, currency, planCounter);
+
+            if (Random.Shared.NextDouble() > 0.3) {
+                await client.Streams.AppendStream(stream, [
+                    AppendRecord.New
+                        .WithValue(new PaymentCollected(
+                            planId,
+                            InstallmentNumber: 1,
+                            Amount: Math.Round(Random.Shared.NextDouble() * 100 + 5, 2),
+                            currency,
+                            CollectedAt: DateTimeOffset.UtcNow
+                        ))
+                        .Build()
+                ], stoppingToken);
+
+                logger.LogInformation("Wrote PaymentCollected to {Stream}", stream);
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
+        }
+    }
+}
+
+public record PaymentPlanCreated(
+    string PlanId,
+    string CustomerId,
+    double Amount,
+    string Currency,
+    string Frequency,
+    DateTimeOffset CreatedAt
+);
+
+public record PaymentCollected(
+    string PlanId,
+    int InstallmentNumber,
+    double Amount,
+    string Currency,
+    DateTimeOffset CollectedAt
+);
