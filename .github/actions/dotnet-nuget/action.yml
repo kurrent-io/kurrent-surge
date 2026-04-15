@@ -17,27 +17,6 @@ description: >
     github — GitHub Packages (https://nuget.pkg.github.com/{owner}/index.json)
     nuget  — NuGet.org (https://api.nuget.org/v3/index.json)
 
-  Usage:
-    # Pack and push to GitHub Packages
-    - uses: ./.github/actions/dotnet-nuget
-      with:
-        version: ${{ env.VERSION }}
-        push-to: github
-
-    # Pack and push to both GitHub Packages and NuGet.org
-    - uses: ./.github/actions/dotnet-nuget
-      with:
-        version: ${{ env.VERSION }}
-        push-to: github nuget
-      env:
-        NUGET_API_KEY: ${{ secrets.NUGET_KEY }}
-
-    # Push pre-built packages only (skip pack)
-    - uses: ./.github/actions/dotnet-nuget
-      with:
-        pack: false
-        push-to: github
-
 inputs:
   push-to:
     description: >
@@ -106,7 +85,7 @@ runs:
       shell: bash
       run: |
         if [[ -z "$NUGET_API_KEY" ]]; then
-          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set it via env: NUGET_API_KEY: \${{ secrets.YOUR_KEY }}"
+          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set it via env: NUGET_API_KEY."
           exit 1
         fi
 
