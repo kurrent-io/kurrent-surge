@@ -273,10 +273,18 @@ public class AppendRecordsRequestBuilder {
             foreach (var (key, value) in _metadataOverrides)
                 builder.WithMetadata(key, value);
 
-            records.Add(builder.Build());
+            var record = builder.Build();
+
+            if (record.Stream == StreamName.Unset)
+                throw ValidationError.FromProblem(
+                    ErrorCode.FromType<AppendRecordsRequest>(),
+                    ErrorMessages.AppendRecordStreamRequired
+                ).GetOrCreateException();
+
+            records.Add(record);
         }
 
-        return new AppendRecordsRequest(records.MoveToImmutable(), [.._checks]).EnsureValid();
+        return new AppendRecordsRequest(records.MoveToImmutable(), [.._checks]);
     }
 }
 
