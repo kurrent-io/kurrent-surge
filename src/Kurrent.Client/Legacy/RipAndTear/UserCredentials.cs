@@ -9,10 +9,7 @@ namespace KurrentDB.Client;
 /// authorization to perform operations on the KurrentDB.
 /// </summary>
 public class UserCredentials {
-	public static readonly UserCredentials Empty = new UserCredentials {
-		Username = null,
-		Password = null
-	};
+	public static readonly UserCredentials Empty = new();
 
 	// ReSharper disable once InconsistentNaming
 	static readonly UTF8Encoding UTF8NoBom = new(false);
@@ -38,7 +35,7 @@ public class UserCredentials {
 	public UserCredentials(string bearerToken) =>
 		Authorization = new(Constants.Headers.BearerScheme, bearerToken);
 
-	AuthenticationHeaderValue Authorization { get; init; } = null!;
+	AuthenticationHeaderValue? Authorization { get; init; }
 
 	/// <summary>
 	/// The username
@@ -52,7 +49,7 @@ public class UserCredentials {
 
 	/// <inheritdoc />
 	public override string ToString() =>
-		Authorization.ToString();
+		Authorization?.ToString() ?? string.Empty;
 
 	/// <summary>
 	/// Implicitly convert a <see cref="UserCredentials"/> to a <see cref="string"/>.
