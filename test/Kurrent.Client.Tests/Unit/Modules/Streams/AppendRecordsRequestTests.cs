@@ -11,7 +11,7 @@ public class AppendRecordsRequestTests {
             []
         );
 
-        await Assert.That(request.EnsureValid).Throws<InvalidOperationException>();
+        await Assert.That(request.EnsureValid).Throws<ValidationException>();
     }
 
     [Test]

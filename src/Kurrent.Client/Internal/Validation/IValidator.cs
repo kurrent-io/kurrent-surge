@@ -61,7 +61,7 @@ public record  ValidationError : ResultError {
         Create(ErrorCode.From("VALIDATION_ERROR"), problems);
 
     public static ValidationError FromProblem(ErrorCode code, string message) =>
-        Create(ValidationProblem.Create(code, message));
+        Create(code, ValidationProblem.Create(code, message));
 }
 
 [PublicAPI]
