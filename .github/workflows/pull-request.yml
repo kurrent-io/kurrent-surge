@@ -94,9 +94,7 @@ jobs:
   validate:
     name: Validate PR Title
 
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","edited","ready_for_review"]'), github.event.action)
+    if: github.event_name == 'pull_request'
 
     runs-on: ubuntu-latest
 
