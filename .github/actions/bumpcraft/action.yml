@@ -241,7 +241,7 @@ runs:
             args+=(--ignore-height)
           fi
 
-          version=$(minver "${args[@]}")
+          version=$(dotnet minver "${args[@]}")
           tag="v${version%%-*}"
           bump=""
           parse_semver "$version"
