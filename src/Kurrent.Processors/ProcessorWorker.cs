@@ -113,15 +113,17 @@ sealed class ProcessorWorker : IProcessorWorker {
                     )
                     .ConfigureAwait(false);
             }
-
-            await HandleStopped(cancellator).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex) {
             await HandleStopped(cancellator, ex).ConfigureAwait(false);
+            return;
         }
         catch (Exception ex) {
             await HandleError(cancellator, ex).ConfigureAwait(false);
+            return;
         }
+
+        await HandleStopped(cancellator).ConfigureAwait(false);
     }
 
     async ValueTask HandleWorkOrder(WorkOrder workOrder) {
@@ -345,12 +347,11 @@ sealed class ProcessorWorker : IProcessorWorker {
         if (errors.Count > 0) {
             Status = ProcessorWorkerStatus.Error;
 
-            var aex = new AggregateException("Errors detected during gracefull shutdown", errors).Flatten();
+            var aex = new AggregateException("Errors detected during graceful shutdown", errors).Flatten();
 
             _telemetry.Error(aex);
 
-            if (_settings.Debug)
-                throw aex;
+            throw aex;
         }
 
         Status = ProcessorWorkerStatus.Stopped;

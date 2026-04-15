@@ -107,11 +107,11 @@ public class ProcessorWorkerLifecycleTests {
 
         var worker = CreateWorker(gateway: gateway, processor: processor, ownsClient: true, client: client);
 
-        // Act
+        // Act — HandleError wraps the original exception in AggregateException
         try {
             await worker.RunAsync(CancellationToken.None);
         }
-        catch (InvalidOperationException) {
+        catch (AggregateException) {
             // expected
         }
 
