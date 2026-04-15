@@ -63,14 +63,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Checkpointing\.scratch\CheckpointStoreAnotherAttempt.cs" />
-    <Compile Include="Checkpointing\.scratch\CheckpointStoreBackup.cs" />
-    <Compile Include="Checkpointing\.scratch\ICheckpointStore.Backup.cs" />
-    <Compile Include="Gateway\.scratch\backup_ProcessorWorker.cs" />
-    <Compile Include="Gateway\.scratch\ConnectSession.cs" />
-    <Compile Include="Gateway\.scratch\IWorkerSession.cs" />
-    <Compile Include="Gateway\.scratch\LegacyGateway.cs" />
-    <Compile Include="Gateway\.scratch\LegacyWorkerSession.cs" />
     <Compile Remove="Leases\**" />
     <Compile Remove="Locks\**" />
   </ItemGroup>
