@@ -70,6 +70,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
+        dotnet nuget remove source github 2>/dev/null || true
         dotnet nuget add source \
           --username ${{ github.actor }} \
           --password "$GITHUB_TOKEN" \
