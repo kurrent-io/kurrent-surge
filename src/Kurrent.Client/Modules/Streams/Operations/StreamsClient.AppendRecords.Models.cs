@@ -16,7 +16,7 @@ namespace Kurrent.Client.Streams;
 /// with optional consistency checks to ensure data integrity.
 /// </remarks>
 [PublicAPI]
-public record AppendRecordsRequest() {
+public record AppendRecordsRequest() : ValidatableRecord {
     /// <summary>
     /// Creates a builder for appending records across one or more streams,
     /// with optional consistency checks.
@@ -32,35 +32,51 @@ public record AppendRecordsRequest() {
         Checks  = checks;
     }
 
-    bool? IsValid { get; set; } // set to true/false after EnsureValid() is called to prevent multiple validations
-
-    // public AppendRecordsRequest Apply(Func<AppendRecordsRequest, AppendRecordsRequest> action) {
-    //     return action(this).EnsureValid();
-    // }
+    bool? IsValid { get; set; }
 
     /// <summary>
     /// Gets the records to be appended.
     /// </summary>
-    public required ImmutableArray<AppendRecord> Records { get; init; }
+    public required ImmutableArray<AppendRecord> Records {
+        get;
+        init {
+            field = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Gets the consistency checks to be performed before appending.
     /// </summary>
-    public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
+    public required ImmutableArray<ConsistencyCheck> Checks {
+        get;
+        init {
+            field = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// Validates all records meet their invariants and have a stream assigned.
     /// </summary>
-    public AppendRecordsRequest EnsureValid() {
+    public new AppendRecordsRequest EnsureValid() {
+        GetValidationResult().Unwrap();
+        return this;
+    }
+
+    protected override ValidationResult Validate() {
         foreach (var record in Records) {
             if (record.Stream == StreamName.Unset)
-                throw new InvalidOperationException(
-                    $"Record '{record.RecordId}' has no stream assigned. Set the stream on each record or use AppendToStream for single-stream appends.");
+                return ValidationError.FromProblem(
+                    ErrorCode.FromType<AppendRecordsRequest>(),
+                    ErrorMessages.AppendRecordStreamRequired);
 
-            record.EnsureValid();
+            var result = record.GetValidationResult();
+            if (!result.IsSuccess)
+                return result;
         }
 
-        return this;
+        return Results.Success;
     }
 }
 
@@ -257,18 +273,10 @@ public class AppendRecordsRequestBuilder {
             foreach (var (key, value) in _metadataOverrides)
                 builder.WithMetadata(key, value);
 
-            var record = builder.Build();
-
-            if (record.Stream == StreamName.Unset)
-                throw ValidationError.FromProblem(
-                    ErrorCode.FromType<AppendRecordsRequest>(),
-                    ErrorMessages.AppendRecordStreamRequired
-                ).GetOrCreateException();
-
-            records.Add(record);
+            records.Add(builder.Build());
         }
 
-        return new AppendRecordsRequest(records.MoveToImmutable(), [.._checks]);
+        return new AppendRecordsRequest(records.MoveToImmutable(), [.._checks]).EnsureValid();
     }
 }
 

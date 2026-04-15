@@ -7,7 +7,7 @@ namespace Kurrent.Client.Streams;
 #pragma warning disable CS8604
 
 [PublicAPI]
-public record AppendRecord {
+public record AppendRecord : ValidatableRecord {
     public static readonly AppendRecord None = new() {
         RecordId   = Guid.Empty,
         Value      = null!,
@@ -24,18 +24,36 @@ public record AppendRecord {
     /// <summary>
     /// The assigned record id.
     /// </summary>
-    public Guid RecordId { get; internal init; } = Guid.NewGuid();
+    public Guid RecordId {
+        get;
+        internal init {
+            field = value;
+            Invalidate();
+        }
+    } = Guid.NewGuid();
 
     /// <summary>
     /// The message payload.
     /// </summary>
     [MaybeNull]
-    public object Value { get; internal init; } = null!;
+    public object Value {
+        get;
+        internal init {
+            field = value;
+            Invalidate();
+        }
+    } = null!;
 
     /// <summary>
     /// Specifies the format of the schema associated with the message.
     /// </summary>
-    public SchemaDataFormat DataFormat { get; internal init; } = SchemaDataFormat.Json;
+    public SchemaDataFormat DataFormat {
+        get;
+        internal init {
+            field = value;
+            Invalidate();
+        }
+    } = SchemaDataFormat.Json;
 
     /// <summary>
     /// Optional metadata associated with the record.
@@ -45,7 +63,13 @@ public record AppendRecord {
     /// <summary>
     /// The stream to which this record will be appended.
     /// </summary>
-    public StreamName Stream { get; internal init; } = StreamName.Unset;
+    public StreamName Stream {
+        get;
+        internal init {
+            field = value;
+            Invalidate();
+        }
+    } = StreamName.Unset;
 
     /// <summary>
     /// When the record was created.
@@ -53,10 +77,15 @@ public record AppendRecord {
     public DateTimeOffset Timestamp { get; internal init; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Validates the record-level invariants of this <see cref="AppendRecord"/> instance and returns a <see cref="ValidationResult"/>
-    /// indicating whether the instance is valid or contains validation problems.
+    /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
+    /// Returns this instance for fluent chaining.
     /// </summary>
-    public ValidationResult Validate() {
+    public new AppendRecord EnsureValid() {
+        GetValidationResult().Unwrap();
+        return this;
+    }
+
+    protected override ValidationResult Validate() {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)
@@ -79,14 +108,6 @@ public record AppendRecord {
         return problems.Count > 0
             ? ValidationError.Create(ErrorCode.FromType<AppendRecord>(), [.. problems])
             : Results.Success;
-    }
-
-    /// <summary>
-    /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
-    /// </summary>
-    public AppendRecord EnsureValid() {
-        Validate().Unwrap();
-        return this;
     }
 }
 

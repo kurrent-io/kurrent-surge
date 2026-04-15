@@ -10,22 +10,11 @@ namespace Kurrent.Client.Streams;
 /// All records are assigned to the specified stream regardless of their individual Stream property.
 /// </summary>
 [PublicAPI]
-public record AppendStreamRequest() {
+public record AppendStreamRequest() : ValidatableRecord {
     /// <summary>
     /// Creates a builder for appending records to the specified stream.
     /// </summary>
     public static AppendStreamRequestBuilder For(StreamName stream) => new(stream);
-
-    // [method: SetsRequiredMembers]
-    // public AppendStreamRequest(
-    //     StreamName stream,
-    //     AppendRecord[] records,
-    //     ConsistencyCheck[] checks
-    // ) : this() {
-    //     Stream  = stream;
-    //     Records = [..records];
-    //     Checks  = [..checks];
-    // }
 
     [method: SetsRequiredMembers]
     public AppendStreamRequest(
@@ -41,34 +30,48 @@ public record AppendStreamRequest() {
     /// <summary>
     /// The target stream for all records.
     /// </summary>
-    public required StreamName Stream { get; init; }
+    public required StreamName Stream {
+        get;
+        init {
+            field = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// The records to append. All will be assigned to <see cref="Stream"/>.
     /// </summary>
-    public required ImmutableArray<AppendRecord> Records { get; init; }
+    public required ImmutableArray<AppendRecord> Records {
+        get;
+        init {
+            field = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
     /// The expected state of the stream before appending.
     /// </summary>
-    public required ExpectedStreamState ExpectedState { get; init; }
-
-    // /// <summary>
-    // /// Consistency checks to enforce before appending.
-    // /// </summary>
-    // public required ImmutableArray<ConsistencyCheck> Checks { get; init; }
+    public required ExpectedStreamState ExpectedState {
+        get;
+        init {
+            field = value;
+            Invalidate();
+        }
+    }
 
     /// <summary>
-    /// Validates all records meet their invariants and stamps the target stream on each,
-    /// while also filtering out irrelevant stream-state checks.
+    /// Validates all records meet their invariants and stamps the target stream on each.
     /// Returns a new request with the validated, stream-stamped records.
     /// </summary>
-    public AppendStreamRequest EnsureValid() {
+    public new AppendStreamRequest EnsureValid() {
+        GetValidationResult().Unwrap();
+
         var builder        = Records.ToBuilder();
         var recordsChanged = false;
 
-        for(var i = 0; i < builder.Count; i++) {
-            var record = builder[i].EnsureValid();
+        for (var i = 0; i < builder.Count; i++) {
+            var record = builder[i];
 
             if (record.Stream == Stream)
                 continue;
@@ -77,33 +80,25 @@ public record AppendStreamRequest() {
             recordsChanged = true;
         }
 
-        // var checksBuilder = Checks.ToBuilder();
-        // var checksChanged = false;
-        //
-        // for(var i = 0; i < checksBuilder.Count; i++) {
-        //     var check = checksBuilder[i];
-        //
-        //     if (check.Value is not StreamStateCheck ssc || ssc.ExpectedState == ExpectedStreamState.Any)
-        //         continue;
-        //
-        //     builder.RemoveAt(i);
-        //     checksChanged = true;
-        // }
-        //
-        // if (recordsChanged && checksChanged) {
-        //     return this with {
-        //         Records = builder.MoveToImmutable(),
-        //         Checks  = checksBuilder.MoveToImmutable()
-        //     };
-        // }
-
         if (recordsChanged)
             return this with { Records = builder.MoveToImmutable() };
 
-        // if (checksChanged)
-        //     return this with { Checks = checksBuilder.MoveToImmutable() };
-
         return this;
+    }
+
+    protected override ValidationResult Validate() {
+        if (Stream == StreamName.Unset)
+            return ValidationError.FromProblem(
+                ErrorCode.FromType<AppendStreamRequest>(),
+                ErrorMessages.AppendRecordStreamRequired);
+
+        foreach (var record in Records) {
+            var result = record.GetValidationResult();
+            if (!result.IsSuccess)
+                return result;
+        }
+
+        return Results.Success;
     }
 }
 
