@@ -47,7 +47,7 @@ jobs:
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
           -- --treenode-filter "/*/*/*/*[Category!=Integration]"
-          --disable-logo --adaptive-metrics --report-trx --coverage
+          --disable-logo --report-trx --coverage
 
       - name: Test containers setup
         if: github.event_name == 'merge_group'
@@ -69,7 +69,7 @@ jobs:
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
           -- --treenode-filter "/*/*/*/*[Category=Integration]"
-          --disable-logo --adaptive-metrics --report-trx --coverage --fail-fast
+          --disable-logo --report-trx --coverage --fail-fast
 
       - name: Version
         id: version
