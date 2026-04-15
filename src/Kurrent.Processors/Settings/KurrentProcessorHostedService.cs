@@ -8,38 +8,38 @@ namespace Kurrent.Processors.Options;
 /// </summary>
 /// <typeparam name="TProcessor">The processor type to host.</typeparam>
 internal sealed partial class KurrentProcessorHostedService<TProcessor>(
-    IProcessorWorker worker,
+    IDrone drone,
     ILogger<KurrentProcessorHostedService<TProcessor>> logger
 ) : BackgroundService
     where TProcessor : class, IRecordProcessor {
 
     /// <summary>
-    /// Gets the underlying processor worker. Internal for testing purposes.
+    /// Gets the underlying processor drone. Internal for testing purposes.
     /// </summary>
-    internal IProcessorWorker Worker => worker;
+    internal IDrone Drone => drone;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
-        LogStarting(worker.ProcessorId, worker.WorkerId);
+        LogStarting(drone.ProcessorId, drone.WorkerId);
 
         try {
-            await worker.RunAsync(stoppingToken).ConfigureAwait(false);
-            LogStopped(worker.ProcessorId, worker.WorkerId);
+            await drone.RunAsync(stoppingToken).ConfigureAwait(false);
+            LogStopped(drone.ProcessorId, drone.WorkerId);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) {
-            LogStopped(worker.ProcessorId, worker.WorkerId);
+            LogStopped(drone.ProcessorId, drone.WorkerId);
         }
         catch (Exception ex) {
-            LogFailed(ex, worker.ProcessorId, worker.WorkerId);
+            LogFailed(ex, drone.ProcessorId, drone.WorkerId);
             throw;
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Starting processor {ProcessorId} worker {WorkerId}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting processor {ProcessorId} drone {WorkerId}")]
     partial void LogStarting(string processorId, string workerId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} worker {WorkerId} stopped")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processor {ProcessorId} drone {WorkerId} stopped")]
     partial void LogStopped(string processorId, string workerId);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Processor {ProcessorId} worker {WorkerId} failed")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Processor {ProcessorId} drone {WorkerId} failed")]
     partial void LogFailed(Exception ex, string processorId, string workerId);
 }

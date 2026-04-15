@@ -166,7 +166,7 @@ public class StreamSubscriptionTests {
             .Build();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<KurrentWorkerException>(() => worker.RunAsync(ct));
+        var exception = await Assert.ThrowsAsync<DroneException>(() => worker.RunAsync(ct));
 
         await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
         await Assert.That(processor.Records.Length).IsEqualTo(0); // Callback throws before record is enqueued
@@ -189,7 +189,7 @@ public class StreamSubscriptionTests {
                 .WithFilter(RecordFilter.ByStream(data.Stream))
                 .WithInitialPosition(SubscriptionInitialPosition.Earliest)
                 .RunAsync(ct);
-        } catch (KurrentWorkerException) {
+        } catch (DroneException) {
             // Expected
         }
 

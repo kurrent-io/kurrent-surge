@@ -1,6 +1,8 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
@@ -64,7 +66,7 @@ public sealed class KurrentProcessorBuilder {
                 return processorFactory.CreateProcessor();
             }
             catch (Exception ex) {
-                throw new KurrentWorkerException("WORKER_CREATION_FAILED", "Failed to create record processor instance.", ex);
+                throw new DroneException("WORKER_CREATION_FAILED", "Failed to create record processor instance.", ex);
             }
         };
 
@@ -390,14 +392,14 @@ public sealed class KurrentProcessorBuilder {
     /// <summary>
     /// Builds a processor worker for runtime access and control.
     /// </summary>
-    /// <returns>An <see cref="IProcessorWorker"/> instance for monitoring and control.</returns>
+    /// <returns>An <see cref="IDrone"/> instance for monitoring and control.</returns>
     /// <remarks>
     /// <para>
     /// Use this method when you need access to worker state, metrics, or checkpoints during execution.
-    /// The returned worker must be started with <see cref="IProcessorWorker.RunAsync"/>.
+    /// The returned worker must be started with <see cref="IDrone.RunAsync"/>.
     /// </para>
     /// </remarks>
-    public IProcessorWorker Build() {
+    public IDrone Build() {
         var recordProcessor = GetProcessor();
 
         var settings = _settingsBuilder.Settings;
@@ -427,13 +429,14 @@ public sealed class KurrentProcessorBuilder {
         var ownsClient = ProvidedClient is null;
         var client     = ProvidedClient ?? new KurrentClient(options);
 
-        return new ProcessorWorker(
+        var source = new SubscriptionSource(client, settings, TimeProvider.System, ownsClient);
+
+        return new Drone(
             settings,
-            client,
+            source,
             recordProcessor,
             options.LoggerFactory,
-            TimeProvider.System,
-            ownsClient
+            TimeProvider.System
         );
     }
 

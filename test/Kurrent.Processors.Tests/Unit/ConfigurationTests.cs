@@ -773,7 +773,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // From service provider overload
         await Assert.That(settings.ProcessorId).IsEqualTo("sp-processor");
@@ -797,7 +797,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // Default values should be used
         await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000);
@@ -825,7 +825,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        return hostedService.Worker.Settings;
+        return hostedService.Drone.Settings;
     }
 
     [Test]
@@ -862,7 +862,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // ProcessorId should be auto-generated from processor type name (section name)
         await Assert.That(settings.ProcessorId).IsEqualTo("no_op_processor");
@@ -900,7 +900,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // Explicit ProcessorId in config should be used
         await Assert.That(settings.ProcessorId).IsEqualTo("my-custom-id");

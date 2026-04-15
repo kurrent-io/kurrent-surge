@@ -6,7 +6,7 @@ sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
             await inner.ProcessRecord(context).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) {
-            throw KurrentWorkerException.ProcessRecordFailed(ex);
+            throw DroneException.ProcessRecordFailed(ex);
         }
     }
 
@@ -15,7 +15,7 @@ sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
             await inner.OnCheckpoint(context).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) {
-            throw KurrentWorkerException.OnCheckpointFailed(ex);
+            throw DroneException.OnCheckpointFailed(ex);
         }
     }
 
@@ -24,7 +24,7 @@ sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
             await inner.OnError(context).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) {
-            throw KurrentWorkerException.OnErrorFailed(ex);
+            throw DroneException.OnErrorFailed(ex);
         }
     }
 
@@ -33,7 +33,7 @@ sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
             await inner.OnComplete(context).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException) {
-            throw KurrentWorkerException.OnCompleteFailed(ex);
+            throw DroneException.OnCompleteFailed(ex);
         }
     }
 }

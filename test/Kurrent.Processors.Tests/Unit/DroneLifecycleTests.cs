@@ -1,8 +1,6 @@
-using Kurrent.Client;
+using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
-using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using TUnit.Assertions.Enums;
@@ -14,17 +12,12 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 public class DroneLifecycleTests {
     static Drone CreateDrone(
-        Mock<ISubscriptionSource>? source          = null,
-        Mock<ICheckpointStore>?    checkpointStore = null,
-        IRecordProcessor?          processor       = null,
-        Mock<IKurrentClient>?      client          = null,
-        bool                       ownsClient      = true,
-        bool                       debug           = false
+        Mock<ISubscriptionSource>? source    = null,
+        IRecordProcessor?          processor = null,
+        bool                       debug     = false
     ) {
-        source          ??= EmptySource();
-        checkpointStore ??= EmptyCheckpointStore();
-        processor       ??= new NoOpProcessor();
-        client          ??= Mock.Of<IKurrentClient>();
+        source    ??= EmptySource();
+        processor ??= new NoOpProcessor();
 
         var settings = new ProcessorSettings {
             ProcessorId = "test-processor",
@@ -35,39 +28,26 @@ public class DroneLifecycleTests {
         return new Drone(
             settings,
             source.Object,
-            checkpointStore.Object,
             processor,
             NullLoggerFactory.Instance,
-            TimeProvider.System,
-            client.Object,
-            ownsClient
+            TimeProvider.System
         );
     }
 
     static Mock<ISubscriptionSource> EmptySource() {
         var source = Mock.Of<ISubscriptionSource>();
 
-        source.Subscribe(Any<IRecordFilter>(), Any<RecordPosition>(), Any<bool>(), Any<CancellationToken>())
+        source.Subscribe(Any<CancellationToken>())
             .Returns(AsyncEnumerable.Empty<SubscribeMessage>());
 
         return source;
     }
 
-    static Mock<ICheckpointStore> EmptyCheckpointStore() {
-        var store = Mock.Of<ICheckpointStore>();
-
-        store.LoadLatestAsync(Any<Partition[]>(), Any<SubscriptionInitialPosition>(), Any<CancellationToken>())
-            .Returns(ProcessorCheckpoint.Empty);
-
-        return store;
-    }
-
-
     static Mock<ISubscriptionSource> BlockingSource() {
         var source = Mock.Of<ISubscriptionSource>();
 
-        source.Subscribe(Any<IRecordFilter>(), Any<RecordPosition>(), Any<bool>(), Any<CancellationToken>())
-            .Returns((IRecordFilter _, RecordPosition _, bool _, CancellationToken ct)
+        source.Subscribe(Any<CancellationToken>())
+            .Returns((CancellationToken ct)
                 => new BlockingAsyncEnumerable<SubscribeMessage>(ct));
 
         return source;
@@ -76,7 +56,7 @@ public class DroneLifecycleTests {
     static Mock<ISubscriptionSource> FailingSource(Exception ex) {
         var source = Mock.Of<ISubscriptionSource>();
 
-        source.Subscribe(Any<IRecordFilter>(), Any<RecordPosition>(), Any<bool>(), Any<CancellationToken>())
+        source.Subscribe(Any<CancellationToken>())
             .Throws(ex);
 
         return source;
@@ -88,15 +68,13 @@ public class DroneLifecycleTests {
     public async ValueTask cleanup_runs_on_normal_completion() {
         // Arrange
         var source = EmptySource();
-        var client = Mock.Of<IKurrentClient>();
-        var drone  = CreateDrone(source: source, ownsClient: true, client: client);
+        var drone  = CreateDrone(source: source);
 
         // Act
         await drone.RunAsync(CancellationToken.None);
 
         // Assert
         source.DisposeAsync().WasCalled(Times.Once);
-        client.DisposeAsync().WasCalled(Times.Once);
     }
 
     [Test]
@@ -105,8 +83,7 @@ public class DroneLifecycleTests {
         // Arrange
         var cts    = new CancellationTokenSource();
         var source = BlockingSource();
-        var client = Mock.Of<IKurrentClient>();
-        var drone  = CreateDrone(source: source, ownsClient: true, client: client);
+        var drone  = CreateDrone(source: source);
 
         // Act — pre-cancelled token triggers graceful HandleStopped (no throw)
         await cts.CancelAsync();
@@ -114,15 +91,13 @@ public class DroneLifecycleTests {
 
         // Assert
         source.DisposeAsync().WasCalled(Times.Once);
-        client.DisposeAsync().WasCalled(Times.Once);
     }
 
     [Test]
     public async ValueTask cleanup_runs_on_processing_error() {
         // Arrange
         var source = FailingSource(new InvalidOperationException("connection failed"));
-        var client = Mock.Of<IKurrentClient>();
-        var drone  = CreateDrone(source: source, ownsClient: true, client: client);
+        var drone  = CreateDrone(source: source);
 
         // Act
         await Assert.That(async () => await drone.RunAsync(CancellationToken.None))
@@ -130,32 +105,29 @@ public class DroneLifecycleTests {
 
         // Assert
         source.DisposeAsync().WasCalled(Times.Once);
-        client.DisposeAsync().WasCalled(Times.Once);
     }
 
     [Test]
     public async ValueTask cleanup_disposes_all_resources_even_when_source_disposal_throws() {
         // Arrange
         var source = EmptySource();
-        var client = Mock.Of<IKurrentClient>();
 
         source.DisposeAsync().Throws(new ObjectDisposedException("source"));
 
-        var drone = CreateDrone(source: source, ownsClient: true, client: client);
+        var drone = CreateDrone(source: source);
 
         // Act — graceful shutdown absorbs disposal errors
         await drone.RunAsync(CancellationToken.None);
 
-        // Assert — client was still disposed despite source throwing
-        client.DisposeAsync().WasCalled(Times.Once);
+        // Assert — source disposal was attempted
+        source.DisposeAsync().WasCalled(Times.Once);
     }
 
     [Test]
     public async ValueTask cleanup_is_idempotent() {
         // Arrange
         var source = EmptySource();
-        var client = Mock.Of<IKurrentClient>();
-        var drone  = CreateDrone(source: source, ownsClient: true, client: client);
+        var drone  = CreateDrone(source: source);
 
         // Act — first call triggers cleanup via RunAsync
         await drone.RunAsync(CancellationToken.None);
@@ -165,7 +137,6 @@ public class DroneLifecycleTests {
             .Throws<InvalidOperationException>();
 
         source.DisposeAsync().WasCalled(Times.Once);
-        client.DisposeAsync().WasCalled(Times.Once);
     }
 
     #endregion
@@ -181,36 +152,6 @@ public class DroneLifecycleTests {
         // Act & Assert
         await Assert.That(async () => await drone.RunAsync(CancellationToken.None))
             .Throws<InvalidOperationException>();
-    }
-
-    #endregion
-
-    #region . client ownership .
-
-    [Test]
-    public async ValueTask client_not_disposed_when_not_owned() {
-        // Arrange
-        var client = Mock.Of<IKurrentClient>();
-        var drone  = CreateDrone(ownsClient: false, client: client);
-
-        // Act
-        await drone.RunAsync(CancellationToken.None);
-
-        // Assert
-        client.DisposeAsync().WasNeverCalled();
-    }
-
-    [Test]
-    public async ValueTask client_disposed_when_owned() {
-        // Arrange
-        var client = Mock.Of<IKurrentClient>();
-        var drone  = CreateDrone(ownsClient: true, client: client);
-
-        // Act
-        await drone.RunAsync(CancellationToken.None);
-
-        // Assert
-        client.DisposeAsync().WasCalled(Times.Once);
     }
 
     #endregion
@@ -289,37 +230,6 @@ public class DroneLifecycleTests {
 
     #endregion
 
-    #region . checkpoint on shutdown .
-
-    [Test]
-    public async ValueTask graceful_shutdown_skips_checkpoint_if_never_processing() {
-        // Arrange — empty source means we never reach Processing status
-        var store = EmptyCheckpointStore();
-        var drone = CreateDrone(checkpointStore: store);
-
-        // Act
-        await drone.RunAsync(CancellationToken.None);
-
-        // Assert — no checkpoint stored since we never processed anything
-        store.StoreAsync(Any<string>(), Any<string>(), Any<PartitionPosition[]>(), Any<CancellationToken>())
-            .WasNeverCalled();
-    }
-
-    [Test]
-    public async ValueTask checkpoint_store_is_loaded_on_startup() {
-        // Arrange
-        var store = EmptyCheckpointStore();
-        var drone = CreateDrone(checkpointStore: store);
-
-        // Act
-        await drone.RunAsync(CancellationToken.None);
-
-        // Assert
-        store.LoadLatestAsync(Any<Partition[]>(), Any<SubscriptionInitialPosition>(), Any<CancellationToken>()).WasCalled(Times.Once);
-    }
-
-    #endregion
-
     #region . error shutdown .
 
     [Test]
@@ -337,22 +247,6 @@ public class DroneLifecycleTests {
         await Assert.That(aex!.InnerExceptions).IsNotEmpty();
         await Assert.That(aex.InnerExceptions[0]).IsTypeOf<InvalidOperationException>();
         await Assert.That(aex.InnerExceptions[0].Message).IsEqualTo("original");
-    }
-
-    [Test]
-    public async ValueTask error_shutdown_does_not_checkpoint() {
-        // Arrange
-        var store  = EmptyCheckpointStore();
-        var source = FailingSource(new InvalidOperationException("boom"));
-        var drone  = CreateDrone(source: source, checkpointStore: store);
-
-        // Act
-        await Assert.That(async () => await drone.RunAsync(CancellationToken.None))
-            .Throws<AggregateException>();
-
-        // Assert
-        store.StoreAsync(Any<string>(), Any<string>(), Any<PartitionPosition[]>(), Any<CancellationToken>())
-            .WasNeverCalled();
     }
 
     [Test]
@@ -399,7 +293,7 @@ public class DroneLifecycleTests {
         var processor = Mock.Of<IRecordProcessor>();
 
         processor.OnComplete(Any<CompleteContext>())
-            .Throws(new KurrentWorkerException("TEST", "handler bug", new InvalidOperationException("inner")));
+            .Throws(new DroneException("TEST", "handler bug", new InvalidOperationException("inner")));
 
         var drone = CreateDrone(processor: processor.Object, debug: true);
 
@@ -417,7 +311,7 @@ public class DroneLifecycleTests {
         var processor = Mock.Of<IRecordProcessor>();
 
         processor.OnComplete(Any<CompleteContext>())
-            .Throws(new KurrentWorkerException("TEST", "handler bug", new InvalidOperationException("inner")));
+            .Throws(new DroneException("TEST", "handler bug", new InvalidOperationException("inner")));
 
         var drone = CreateDrone(processor: processor.Object, debug: false);
 
@@ -426,6 +320,29 @@ public class DroneLifecycleTests {
 
         // Assert — completed with Error status (handler failure accumulated, not thrown)
         await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Error);
+    }
+
+    #endregion
+
+    #region Test helpers
+
+    sealed class NoOpProcessor : IRecordProcessor {
+        public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
+    }
+
+    sealed class BlockingAsyncEnumerable<T>(CancellationToken ct) : IAsyncEnumerable<T> {
+        public async IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cancellationToken);
+
+            try {
+                await Task.Delay(Timeout.Infinite, linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) {
+                // Expected
+            }
+
+            yield break;
+        }
     }
 
     #endregion
