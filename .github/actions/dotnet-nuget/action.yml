@@ -70,13 +70,22 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        dotnet nuget remove source github 2>/dev/null || true
-        dotnet nuget add source \
-          --username ${{ github.actor }} \
-          --password "$GITHUB_TOKEN" \
-          --store-password-in-clear-text \
-          --name github \
-          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+        source_url="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+        if dotnet nuget list source | grep -q '\bgithub\b'; then
+          dotnet nuget update source github \
+            --username ${{ github.actor }} \
+            --password "$GITHUB_TOKEN" \
+            --store-password-in-clear-text \
+            --source "$source_url"
+        else
+          dotnet nuget add source \
+            --username ${{ github.actor }} \
+            --password "$GITHUB_TOKEN" \
+            --store-password-in-clear-text \
+            --name github \
+            "$source_url"
+        fi
 
         dotnet nuget push ${{ inputs.output }}/*.nupkg \
           --skip-duplicate \
@@ -88,7 +97,7 @@ runs:
       shell: bash
       run: |
         if [[ -z "$NUGET_API_KEY" ]]; then
-          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set it via env: NUGET_API_KEY."
+          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set NUGET_API_KEY as an environment variable in the calling workflow."
           exit 1
         fi
 

@@ -84,7 +84,7 @@ public class KurrentClient : IKurrentClient {
 	// }
 
 
-    public virtual async ValueTask DisposeAsync() {
+    public async ValueTask DisposeAsync() {
         if (Shared) return;
 
         BackdoorClientFactory.Dispose();

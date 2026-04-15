@@ -1,4 +1,3 @@
-using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Options;
@@ -9,12 +8,12 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 public class ProcessorWorkerLifecycleTests {
     static ProcessorWorker CreateWorker(
-        IProcessorGateway? gateway   = null,
-        IRecordProcessor?  processor = null,
-        KurrentClient?     client    = null,
+        IProcessorGateway? gateway    = null,
+        IRecordProcessor?  processor  = null,
+        IAsyncDisposable?  client     = null,
         bool               ownsClient = true
     ) {
-        client    ??= A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        client    ??= A.Fake<IAsyncDisposable>();
         processor ??= new NoOpProcessor();
         gateway   ??= EmptyGateway();
 
@@ -52,7 +51,7 @@ public class ProcessorWorkerLifecycleTests {
     public async Task cleanup_runs_on_normal_completion() {
         // Arrange
         var gateway = EmptyGateway();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client  = A.Fake<IAsyncDisposable>();
         var worker  = CreateWorker(gateway: gateway, ownsClient: true, client: client);
 
         // Act
@@ -68,7 +67,7 @@ public class ProcessorWorkerLifecycleTests {
         // Arrange
         var cts     = new CancellationTokenSource();
         var gateway = A.Fake<IProcessorGateway>();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client  = A.Fake<IAsyncDisposable>();
 
         A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
             .ReturnsLazily((ProcessorSettings _, CancellationToken ct) => new BlockingAsyncEnumerable<ProcessorControlMessage>(ct));
@@ -98,7 +97,7 @@ public class ProcessorWorkerLifecycleTests {
         // Arrange
         var processor = A.Fake<IRecordProcessor>();
         var gateway   = A.Fake<IProcessorGateway>();
-        var client    = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client    = A.Fake<IAsyncDisposable>();
 
         A.CallTo(() => processor.OnError(A<ErrorContext>._)).Returns(ValueTask.CompletedTask);
 
@@ -123,7 +122,7 @@ public class ProcessorWorkerLifecycleTests {
     public async Task cleanup_disposes_all_resources_even_when_gateway_disposal_throws() {
         // Arrange
         var gateway = EmptyGateway();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client  = A.Fake<IAsyncDisposable>();
 
         A.CallTo(() => gateway.DisposeAsync())
             .ThrowsAsync(new ObjectDisposedException("gateway"));
@@ -142,7 +141,7 @@ public class ProcessorWorkerLifecycleTests {
     public async Task cleanup_throws_aggregate_when_multiple_disposals_fail() {
         // Arrange
         var gateway = EmptyGateway();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client  = A.Fake<IAsyncDisposable>();
 
         A.CallTo(() => gateway.DisposeAsync())
             .ThrowsAsync(new ObjectDisposedException("gateway"));
@@ -163,7 +162,7 @@ public class ProcessorWorkerLifecycleTests {
     public async Task cleanup_is_idempotent() {
         // Arrange
         var gateway = EmptyGateway();
-        var client  = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client  = A.Fake<IAsyncDisposable>();
         var worker  = CreateWorker(gateway: gateway, ownsClient: true, client: client);
 
         // Act — first call triggers cleanup via RunAsync
@@ -200,7 +199,7 @@ public class ProcessorWorkerLifecycleTests {
     [Test]
     public async Task client_not_disposed_when_not_owned() {
         // Arrange
-        var client = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client = A.Fake<IAsyncDisposable>();
         var worker = CreateWorker(ownsClient: false, client: client);
 
         // Act
@@ -213,7 +212,7 @@ public class ProcessorWorkerLifecycleTests {
     [Test]
     public async Task client_disposed_when_owned() {
         // Arrange
-        var client = A.Fake<KurrentClient>(o => o.WithArgumentsForConstructor([new KurrentClientOptions()]));
+        var client = A.Fake<IAsyncDisposable>();
         var worker = CreateWorker(ownsClient: true, client: client);
 
         // Act

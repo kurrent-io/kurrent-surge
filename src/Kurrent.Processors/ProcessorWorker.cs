@@ -12,7 +12,7 @@ namespace Kurrent.Processors;
 
 sealed class ProcessorWorker : IProcessorWorker {
     readonly ProcessorSettings          _settings;
-    readonly KurrentClient              _client;
+    readonly IAsyncDisposable           _client;
     readonly IProcessorGateway          _gateway;
     readonly TimeProvider               _timeProvider;
     readonly WorkerTelemetry            _telemetry;
@@ -40,11 +40,11 @@ sealed class ProcessorWorker : IProcessorWorker {
         processor,
         loggerFactory,
         timeProvider,
-        ownsClient) { }
+        ownsClient && !client.Shared) { }
 
     internal ProcessorWorker(
         ProcessorSettings settings,
-        KurrentClient     client,
+        IAsyncDisposable  client,
         IProcessorGateway gateway,
         IRecordProcessor  processor,
         ILoggerFactory    loggerFactory,
@@ -54,7 +54,7 @@ sealed class ProcessorWorker : IProcessorWorker {
         _settings   = settings;
         _client     = client;
         _processor  = new SafeRecordProcessor(processor);
-        _ownsClient = ownsClient && !client.Shared;
+        _ownsClient = ownsClient;
 
         _gateway      = gateway;
         _timeProvider = timeProvider;
@@ -119,8 +119,8 @@ sealed class ProcessorWorker : IProcessorWorker {
             return;
         }
         catch (Exception ex) {
+            // HandleError always throws AggregateException after cleanup
             await HandleError(cancellator, ex).ConfigureAwait(false);
-            return;
         }
 
         await HandleStopped(cancellator).ConfigureAwait(false);
@@ -318,31 +318,7 @@ sealed class ProcessorWorker : IProcessorWorker {
             errors.Add(onCompleteEx);
         }
 
-        #region ->> Cleanup <<-
-
-        try {
-            await _gateway.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception gatewayEx) {
-            errors.Add(new Exception("Error detected during comms gateway disposal", gatewayEx));
-        }
-
-        try {
-            _tracker.Dispose();
-        }
-        catch (Exception trackerEx) {
-            errors.Add(new Exception("Error detected during position tracker disposal", trackerEx));
-        }
-
-        try {
-            if (_ownsClient)
-                await _client.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception clientEx) {
-            errors.Add(new Exception("Error detected during client disposal", clientEx));
-        }
-
-        #endregion
+        await DisposeResources(errors).ConfigureAwait(false);
 
         if (errors.Count > 0) {
             Status = ProcessorWorkerStatus.Error;
@@ -392,8 +368,18 @@ sealed class ProcessorWorker : IProcessorWorker {
             errors.Add(new Exception("Failed to send disconnect message", disconnectEx));
         }
 
-        #region ->> Cleanup <<-
+        await DisposeResources(errors).ConfigureAwait(false);
 
+        Status = ProcessorWorkerStatus.Error;
+
+        var aex = new AggregateException("Errors detected during violent shutdown", errors).Flatten();
+
+        _telemetry.Error(aex);
+
+        throw aex;
+    }
+
+    async ValueTask DisposeResources(List<Exception> errors) {
         try {
             await _gateway.DisposeAsync().ConfigureAwait(false);
         }
@@ -415,16 +401,6 @@ sealed class ProcessorWorker : IProcessorWorker {
         catch (Exception clientEx) {
             errors.Add(new Exception("Error detected during client disposal", clientEx));
         }
-
-        #endregion
-
-        Status = ProcessorWorkerStatus.Error;
-
-        var aex = new AggregateException("Errors detected during violent shutdown", errors).Flatten();
-
-        _telemetry.Error(aex);
-
-        throw aex;
     }
 
     //   async ValueTask HandleStopped(CancellationTokenSource cts, OperationCanceledException? cex = null) {
