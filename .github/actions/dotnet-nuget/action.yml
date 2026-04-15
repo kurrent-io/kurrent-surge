@@ -67,6 +67,8 @@ runs:
     - name: Push to GitHub Packages
       if: contains(inputs.push-to, 'github')
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         dotnet nuget add source \
           --username ${{ github.actor }} \
