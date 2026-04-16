@@ -1,35 +1,267 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Legacy;
+using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
+using Kurrent.Processors.Options;
 using Kurrent.Variant;
 using KurrentDB.Protocol.V1.Streams;
-using Kurrent.Client.Processors.Gateway.Messages;
-
 
 namespace Kurrent.Processors.Gateway;
 
 sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
-    readonly StreamsClient _streams;
+    readonly StreamsClient              _streams;
+    readonly ProcessorSettings          _settings;
+    readonly TimeProvider               _timeProvider;
+    readonly CheckpointStore _checkpointStore;
+    readonly PartitionedPositionTracker _tracker;
+    readonly HybridLogicalClock         _clock;
+    readonly KurrentClient              _client;
+    readonly bool                       _ownsClient;
 
-    internal SubscriptionSource(KurrentClient client) : base(client) =>
-        _streams = new StreamsClient(client);
+    readonly Dictionary<string, PendingPositionsFlush> _pendingFlushes = new();
 
-    public IAsyncEnumerable<SubscribeMessage> Subscribe(
-        IRecordFilter filter,
-        RecordPosition from,
-        bool skipDecoding,
-        CancellationToken ct
-    ) => _streams.Subscribe(SerializerProvider, MetadataDecoder, filter, from, skipDecoding, ct);
+    internal SubscriptionSource(
+        KurrentClient client,
+        ProcessorSettings settings,
+        TimeProvider timeProvider,
+        bool ownsClient = false
+    ) : base(client) {
+        _streams      = new StreamsClient(client);
+        _settings     = settings;
+        _timeProvider = timeProvider;
+        _client       = client;
+        _ownsClient   = ownsClient;
+        _clock        = new HybridLogicalClock(timeProvider);
+        _tracker      = new PartitionedPositionTracker();
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        _checkpointStore = new CheckpointStore(
+            settings.ProcessorId,
+            settings.MaxParallelism,
+            settings.Checkpoint.RetentionCount,
+            client.Streams,
+            TypeMapper
+        );
+    }
+
+    #region Subscribe
+
+    public async IAsyncEnumerable<SubscribeMessage> Subscribe(
+        [EnumeratorCancellation] CancellationToken ct
+    ) {
+        var partitions = Enumerable.Range(0, _settings.MaxParallelism)
+            .Select(Partition.From)
+            .ToArray();
+
+        RecordPosition startPosition;
+
+        if (_settings.Subscription.StartPosition is not { } explicitStart) {
+            var checkpoint = await _checkpointStore
+                .LoadLatestAsync(partitions, _settings.Subscription.InitialPosition, ct)
+                .ConfigureAwait(false);
+
+            startPosition = checkpoint.LowWatermark;
+
+            var positions = checkpoint.Positions
+                .ToImmutableDictionary(p => p.Partition, p => p.Position);
+
+            _tracker.Reset(positions);
+        }
+        else {
+            if (explicitStart.Stream.IsUnset) {
+                var record = await _streams
+                    .InspectRecord(explicitStart.LogPosition, ct)
+                    .ConfigureAwait(false);
+
+                explicitStart = RecordPosition.From(
+                    record.Position.LogPosition,
+                    record.Stream,
+                    record.Revision);
+            }
+
+            await _checkpointStore
+                .ResetAsync(
+                    _settings.WorkerId,
+                    CheckpointId.From(_clock.Now()),
+                    explicitStart,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            startPosition = _settings.Subscription.InitialPosition == SubscriptionInitialPosition.Earliest
+                ? RecordPosition.Earliest
+                : RecordPosition.Latest;
+
+            var positions = ImmutableDictionary<Partition, RecordPosition>.Empty
+                .Add(Partition.From(0), startPosition);
+
+            _tracker.Reset(positions);
+        }
+
+        var channel = Channel.CreateBounded<SubscribeMessage>(
+            new BoundedChannelOptions(_settings.Worker.BufferCapacity) {
+                FullMode     = BoundedChannelFullMode.Wait,
+                SingleReader = true,
+                SingleWriter = false
+            });
+
+        StartSubscriptionPump(startPosition, channel.Writer, ct);
+
+        await foreach (var msg in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+            // Snapshot positions at yield time for checkpoint messages
+            if (msg.Value is Checkpoint trigger && trigger.Positions.Count == 0) {
+                yield return SnapshotCheckpointMessage(trigger.Trigger);
+            }
+            // Calculate partition for records before yielding
+            else if (msg.Value is Record record) {
+                var partition = PartitionCalculator.XXHash
+                    .Calculate(record.Stream, _settings.MaxParallelism);
+
+                yield return record with {
+                    Position = record.Position with { Partition = Partition.From(partition) }
+                };
+            }
+            else {
+                yield return msg;
+            }
+        }
+
+        void StartSubscriptionPump(RecordPosition from, ChannelWriter<SubscribeMessage> writer, CancellationToken pumpCt) {
+            _ = Task.Run(async () => {
+                try {
+                    var subscription = _streams.Subscribe(
+                        SerializerProvider, MetadataDecoder,
+                        _settings.Subscription.Filter, from,
+                        _settings.Worker.SkipDecoding, pumpCt);
+
+                    var connectedHandled = false;
+
+                    await foreach (var msg in subscription.ConfigureAwait(false)) {
+                        await writer.WriteAsync(msg, pumpCt).ConfigureAwait(false);
+
+                        if (!connectedHandled && msg.Value is Connected) {
+                            connectedHandled = true;
+                            StartFlushTimer(writer, pumpCt);
+                        }
+                    }
+
+                    writer.TryComplete();
+                }
+                catch (OperationCanceledException) {
+                    writer.TryComplete();
+                }
+                catch (Exception ex) {
+                    writer.TryComplete(ex);
+                }
+            }, pumpCt);
+        }
+
+        void StartFlushTimer(ChannelWriter<SubscribeMessage> writer, CancellationToken timerCt) {
+            _ = Task.Run(async () => {
+                using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_settings.Checkpoint.Interval));
+
+                try {
+                    while (await timer.WaitForNextTickAsync(timerCt).ConfigureAwait(false)) {
+                        // Write a trigger marker with empty positions — will be filled at yield time
+                        var trigger = CreateCheckpointTrigger(CheckpointTrigger.Interval);
+                        await writer.WriteAsync(trigger, timerCt).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) {
+                    // Expected on shutdown
+                }
+            }, timerCt);
+        }
+    }
+
+    #endregion
+
+    #region Track & Checkpoint
+
+    public void Track(Record record) => _tracker.Track(record);
+
+    public async ValueTask<PartitionPositions> CompleteCheckpointAsync(
+        string checkpointId, CancellationToken ct = default
+    ) {
+        if (!_pendingFlushes.Remove(checkpointId, out var pendingFlush))
+            return PartitionPositions.Empty;
+
+        PartitionPositions positions = pendingFlush.Positions
+            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
+            .ToImmutableDictionary();
+
+        if (positions.Count == 0)
+            return PartitionPositions.Empty;
+
+        var partitionPositions = positions
+            .Select(kvp => new PartitionPosition(kvp.Key, kvp.Value))
+            .ToArray();
+
+        await _checkpointStore
+            .StoreAsync(_settings.WorkerId, checkpointId, partitionPositions, ct)
+            .ConfigureAwait(false);
+
+        pendingFlush.Execute();
+
+        return positions;
+    }
+
+    public Checkpoint CreateShutdownCheckpoint() =>
+        SnapshotCheckpointMessage(CheckpointTrigger.Shutdown);
+
+    #endregion
+
+    #region Internals
+
+    SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
+        var now = _clock.Now();
+
+        return new Checkpoint(
+            CheckpointId.From(now),
+            trigger,
+            now.DateTimeOffset,
+            PartitionPositions.Empty
+        );
+    }
+
+    Checkpoint SnapshotCheckpointMessage(CheckpointTrigger trigger) {
+        var now          = _clock.Now();
+        var checkpointId = CheckpointId.From(now);
+        var pendingFlush = _tracker.PrepareFlush();
+
+        _pendingFlushes[checkpointId] = pendingFlush;
+
+        PartitionPositions positions = pendingFlush.Positions
+            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
+            .ToImmutableDictionary();
+
+        return new Checkpoint(
+            checkpointId,
+            trigger,
+            now.DateTimeOffset,
+            positions
+        );
+    }
+
+    #endregion
+
+    public async ValueTask DisposeAsync() {
+        _tracker.Dispose();
+
+        if (_ownsClient)
+            await _client.DisposeAsync().ConfigureAwait(false);
+    }
 }
 
 public readonly record struct Connected(SessionId SessionId);

@@ -10,6 +10,7 @@ concurrency:
 
 env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   IS_DIRECT_PUSH: ${{ github.event.head_commit.committer.username != 'web-flow' }}
 
 jobs:

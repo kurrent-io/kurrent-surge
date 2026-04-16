@@ -23,7 +23,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </summary>
 /// <typeparam name="T">The type whose properties are accessed.</typeparam>
-internal sealed class PropertyMap<T> {
+public sealed class PropertyMap<T> {
     readonly FrozenDictionary<string, IPropertyAccessor<T>> _accessors;
 
 #if NET9_0_OR_GREATER
@@ -89,30 +89,48 @@ internal sealed class PropertyMap<T> {
     }
 
     /// <summary>
-    /// Attempts to extract a <see cref="decimal"/> value without boxing by pattern-matching the
-    /// accessor's concrete type. Returns <c>false</c> if the name is not registered or the accessor
-    /// does not produce a numeric type.
+    /// Looks up the accessor for <paramref name="name"/> and returns a <see cref="PropertyResult{T}"/>
+    /// that can be probed for typed values without boxing.
     /// </summary>
-    public bool TryGetDecimalValue(string name, T instance, out decimal result) {
-        if (_accessors.TryGetValue(name, out var accessor)) {
-            switch (accessor) {
-                case PropertyAccessor<T, long> a:
-                    result = a.GetTyped(instance);
-                    return true;
-                case PropertyAccessor<T, int> a:
-                    result = a.GetTyped(instance);
-                    return true;
-                case PropertyAccessor<T, decimal> a:
-                    result = a.GetTyped(instance);
-                    return true;
-                case PropertyAccessor<T, double> a:
-                    result = (decimal)a.GetTyped(instance);
-                    return true;
+    public PropertyResult<T> Find(string name, T instance) =>
+        _accessors.TryGetValue(name, out var accessor)
+            ? new PropertyResult<T>(accessor, instance)
+            : default;
+
+    /// <summary>
+    /// Looks up the accessor for <paramref name="name"/> with optional <paramref name="key"/> and
+    /// returns a <see cref="PropertyResult{T}"/> that can be probed for typed values without boxing.
+    /// When a keyed accessor is registered and a key is provided, the key is passed through.
+    /// </summary>
+    public PropertyResult<T> Find(string name, string? key, T instance) {
+        if (!_accessors.TryGetValue(name, out var accessor))
+            return default;
+
+        if (key is not null && accessor is IKeyedPropertyAccessor<T> keyed)
+            return new PropertyResult<T>(keyed, instance, key);
+
+        return new PropertyResult<T>(accessor, instance);
+    }
+
+    /// <summary>
+    /// Resolves a value using the registered accessors with dot-path fallback.
+    /// Tries <c>(name, key)</c> directly, then splits <paramref name="name"/> right-to-left on <c>'.'</c>
+    /// to find a registered prefix with the trailing segment as key.
+    /// </summary>
+    public object? Resolve(string name, string? key, T instance) {
+        var value = GetValue(name, key, instance);
+        if (value is not null) return value;
+
+        if (key is null) {
+            for (var i = name.Length - 1; i >= 0; i--) {
+                if (name[i] != '.') continue;
+
+                value = GetValue(name[..i], name[(i + 1)..], instance);
+                if (value is not null) return value;
             }
         }
 
-        result = 0;
-        return false;
+        return null;
     }
 
     /// <summary>
@@ -145,7 +163,7 @@ internal sealed class PropertyMap<T> {
     /// Mutable builder for registering property accessors before freezing into an immutable
     /// <see cref="PropertyMap{T}"/>. Supports fluent chaining via <see cref="Register{TValue}"/>.
     /// </summary>
-    internal sealed class Builder {
+    public sealed class Builder {
         readonly Dictionary<string, IPropertyAccessor<T>> _map = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
@@ -188,6 +206,53 @@ internal sealed class PropertyMap<T> {
         }
 
         public PropertyMap<T> Build() => new(_map.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
+    }
+}
+
+/// <summary>
+/// The result of a <see cref="PropertyMap{T}.Find(string, T)"/> lookup. A lightweight struct
+/// that holds a reference to the accessor and the instance, allowing the caller to probe for
+/// typed values without boxing via <see cref="Is{TValue}"/>.
+/// </summary>
+/// <typeparam name="T">The type whose properties are accessed.</typeparam>
+public readonly struct PropertyResult<T> {
+    readonly IPropertyAccessor<T>? _accessor;
+    readonly T _instance;
+    readonly string? _key;
+
+    internal PropertyResult(IPropertyAccessor<T> accessor, T instance, string? key = null) {
+        _accessor = accessor;
+        _instance = instance;
+        _key      = key;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> if the lookup matched a registered accessor.
+    /// </summary>
+    public bool HasValue => _accessor is not null;
+
+    /// <summary>
+    /// Returns the property value as <c>object?</c>. May box value types.
+    /// Returns <c>null</c> when <see cref="HasValue"/> is <c>false</c>.
+    /// </summary>
+    public object? Value =>
+        _key is not null && _accessor is IKeyedPropertyAccessor<T> keyed
+            ? keyed.Get(_instance, _key)
+            : _accessor?.Get(_instance);
+
+    /// <summary>
+    /// Probes the accessor for a specific return type without boxing.
+    /// Returns <c>true</c> and the typed value when the accessor's concrete type matches
+    /// <typeparamref name="TValue"/>; otherwise returns <c>false</c>.
+    /// </summary>
+    public bool Is<TValue>(out TValue result) {
+        if (_accessor is PropertyAccessor<T, TValue> typed) {
+            result = typed.GetTyped(_instance);
+            return true;
+        }
+
+        result = default!;
+        return false;
     }
 }
 

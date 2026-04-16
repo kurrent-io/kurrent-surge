@@ -1,6 +1,5 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
@@ -25,13 +24,6 @@ public class DroneIntegrationTests {
         SubscriptionInitialPosition initialPosition = SubscriptionInitialPosition.Latest,
         long checkpointInterval                     = 30_000
     ) {
-        var source = new SubscriptionSource(Fixture.Client);
-
-        var store = new EventSourcedCheckpointStore(
-            processorId, 1, 100,
-            Fixture.Client.Streams,
-            logger: TestkitExecutionContext.LoggerFactory.CreateLogger<EventSourcedCheckpointStore>());
-
         var settings = new ProcessorSettings {
             ProcessorId  = processorId,
             Subscription = new SubscriptionSettings {
@@ -45,9 +37,11 @@ public class DroneIntegrationTests {
             Worker = new WorkerSettings()
         };
 
+        var source = new SubscriptionSource(Fixture.Client, settings, TimeProvider.System);
+
         return new Drone(
-            settings, source, store, processor,
-            Fixture.LoggerFactory, TimeProvider.System, Fixture.Client);
+            settings, source, processor,
+            Fixture.LoggerFactory, TimeProvider.System);
     }
 
     #region . processing .
@@ -196,11 +190,11 @@ public class DroneIntegrationTests {
             data.Stream,
             SubscriptionInitialPosition.Earliest);
 
-        // Act & Assert — Drone wraps in AggregateException, inner is KurrentWorkerException
+        // Act & Assert — Drone wraps in AggregateException, inner is DroneException
         var aex = await Assert.That(async () => await drone.RunAsync(ct))
             .Throws<AggregateException>();
 
-        await Assert.That(aex!.InnerExceptions[0]).IsTypeOf<KurrentWorkerException>();
+        await Assert.That(aex!.InnerExceptions[0]).IsTypeOf<DroneException>();
         await Assert.That(processor.Records.Length).IsEqualTo(0);
     }
 

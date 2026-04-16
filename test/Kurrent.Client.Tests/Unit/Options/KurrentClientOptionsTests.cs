@@ -8,7 +8,7 @@ public class KurrentClientOptionsTests {
     public async Task default_options_should_be_valid() {
         var options = new KurrentClientOptions();
 
-        var validationResult = options.Validate();
+        var validationResult = options.RunValidation();
 
         await Assert.That(validationResult.IsSuccess).IsTrue();
     }
@@ -178,7 +178,7 @@ public class KurrentClientOptionsTests {
             ]
         };
 
-        var result = options.Validate();
+        var result = options.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -537,7 +537,7 @@ public class KurrentClientOptionsTests {
             ]
         };
 
-        var result = options.Validate();
+        var result = options.RunValidation();
         await Assert.That(result.IsSuccess).IsFalse();
     }
 
@@ -551,7 +551,7 @@ public class KurrentClientOptionsTests {
             ]
         };
 
-        var result = options.Validate();
+        var result = options.RunValidation();
         await Assert.That(result.IsSuccess).IsTrue();
     }
 
@@ -562,7 +562,7 @@ public class KurrentClientOptionsTests {
             Endpoints        = []
         };
 
-        var result = options.Validate();
+        var result = options.RunValidation();
         await Assert.That(result.IsSuccess).IsFalse();
     }
 

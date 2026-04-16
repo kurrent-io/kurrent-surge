@@ -3,6 +3,7 @@
 using System.Runtime.CompilerServices;
 using Bogus;
 using Kurrent.Client;
+using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Containers.KurrentDB;
 using Kurrent.Testing.Testkit;
@@ -42,6 +43,11 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     /// The Kurrent client used for testing.
     /// </summary>
     public KurrentClient Client => LazyClient.Value;
+
+    /// <summary>
+    /// The message type mapper for the test client.
+    /// </summary>
+    public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
 
     Lazy<KurrentClient> LazyClient { get; set; } = null!;
 

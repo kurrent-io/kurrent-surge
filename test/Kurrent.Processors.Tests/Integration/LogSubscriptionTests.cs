@@ -168,7 +168,7 @@ public class LogSubscriptionTests {
             .Build();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<KurrentWorkerException>(() => worker.RunAsync(ct));
+        var exception = await Assert.ThrowsAsync<DroneException>(() => worker.RunAsync(ct));
 
         await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
         await Assert.That(processor.Records.Length).IsEqualTo(0);
@@ -192,7 +192,7 @@ public class LogSubscriptionTests {
                 .WithFilterExpression($"properties.stream = '{data.Stream}'")
                 .StartFrom(lastPosition)
                 .RunAsync(ct);
-        } catch (KurrentWorkerException) {
+        } catch (DroneException) {
             // Expected
         }
 

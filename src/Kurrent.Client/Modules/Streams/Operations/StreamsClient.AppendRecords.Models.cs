@@ -16,7 +16,7 @@ namespace Kurrent.Client.Streams;
 /// with optional consistency checks to ensure data integrity.
 /// </remarks>
 [PublicAPI]
-public record AppendRecordsRequest() : ValidatableRecord {
+public record AppendRecordsRequest() : SelfValidating {
     /// <summary>
     /// Creates a builder for appending records across one or more streams,
     /// with optional consistency checks.
@@ -41,7 +41,7 @@ public record AppendRecordsRequest() : ValidatableRecord {
         get;
         init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     }
 
@@ -52,7 +52,7 @@ public record AppendRecordsRequest() : ValidatableRecord {
         get;
         init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     }
 
@@ -60,18 +60,18 @@ public record AppendRecordsRequest() : ValidatableRecord {
     /// Validates all records meet their invariants and have a stream assigned.
     /// </summary>
     public new AppendRecordsRequest EnsureValid() {
-        GetValidationResult().Unwrap();
+        Validate().Unwrap();
         return this;
     }
 
-    protected override ValidationResult Validate() {
+    public override ValidationResult RunValidation() {
         foreach (var record in Records) {
             if (record.Stream == StreamName.Unset)
                 return ValidationError.FromProblem(
                     ErrorCode.FromType<AppendRecordsRequest>(),
                     ErrorMessages.AppendRecordStreamRequired);
 
-            var result = record.GetValidationResult();
+            var result = record.Validate();
             if (!result.IsSuccess)
                 return result;
         }

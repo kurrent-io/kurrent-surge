@@ -15,18 +15,6 @@ public class AppendRecordTests {
     }
 
     [Test]
-    public async ValueTask ensure_valid_returns_self_for_fluent_chaining() {
-        var record = AppendRecord.New
-            .WithValue("test-payload")
-            .ForStream("test-stream")
-            .Build();
-
-        var result = record.EnsureValid();
-
-        await Assert.That(result).IsSameReferenceAs(record);
-    }
-
-    [Test]
     public async ValueTask ensure_valid_throws_when_record_id_is_empty() {
         var record = new AppendRecord {
             RecordId   = Guid.Empty,
@@ -35,7 +23,7 @@ public class AppendRecordTests {
             Stream     = "test-stream"
         };
 
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
+        var ex = Assert.Throws<ValidationException>(record.EnsureValid);
 
         await Assert.That(ex.Errors).Count().IsEqualTo(1);
         await Assert.That(ex.Errors[0].FieldName).IsEqualTo(nameof(AppendRecord.RecordId));
@@ -49,7 +37,7 @@ public class AppendRecordTests {
             Stream     = "test-stream"
         };
 
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
+        var ex = Assert.Throws<ValidationException>(record.EnsureValid);
 
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.Value));
     }
@@ -62,7 +50,7 @@ public class AppendRecordTests {
             Stream     = "test-stream"
         };
 
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
+        var ex = Assert.Throws<ValidationException>(record.EnsureValid);
 
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.DataFormat));
     }
@@ -75,7 +63,7 @@ public class AppendRecordTests {
             Stream     = "test-stream"
         };
 
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
+        var ex = Assert.Throws<ValidationException>(record.EnsureValid);
 
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.DataFormat));
     }
@@ -100,7 +88,7 @@ public class AppendRecordTests {
             Stream     = StreamName.Unset
         };
 
-        var ex = Assert.Throws<ValidationException>(() => record.EnsureValid());
+        var ex = Assert.Throws<ValidationException>(record.EnsureValid);
 
         await Assert.That(ex.Errors).Count().IsEqualTo(3);
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.RecordId));

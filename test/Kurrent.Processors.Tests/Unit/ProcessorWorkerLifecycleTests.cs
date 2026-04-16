@@ -39,7 +39,7 @@ public class ProcessorWorkerLifecycleTests {
         A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
             .Returns(AsyncEnumerable.Empty<ProcessorControlMessage>());
 
-        A.CallTo(() => gateway.SendAsync(A<WorkerMessage>._))
+        A.CallTo(() => gateway.SendAsync(A<DroneMessage>._))
             .Returns(ValueTask.CompletedTask);
 
         return gateway;
@@ -72,7 +72,7 @@ public class ProcessorWorkerLifecycleTests {
         A.CallTo(() => gateway.ConnectAsync(A<ProcessorSettings>._, A<CancellationToken>._))
             .ReturnsLazily((ProcessorSettings _, CancellationToken ct) => new BlockingAsyncEnumerable<ProcessorControlMessage>(ct));
 
-        A.CallTo(() => gateway.SendAsync(A<WorkerMessage>._))
+        A.CallTo(() => gateway.SendAsync(A<DroneMessage>._))
             .Returns(ValueTask.CompletedTask);
 
         var worker = CreateWorker(gateway: gateway, ownsClient: true, client: client);
