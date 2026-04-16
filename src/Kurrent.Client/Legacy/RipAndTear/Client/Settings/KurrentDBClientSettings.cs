@@ -54,9 +54,10 @@ class KurrentDBClientSettings {
         KurrentDBClientConnectivitySettings.Default;
 
     /// <summary>
-    /// The optional <see cref="UserCredentials"/> to use if none have been supplied to the operation.
+    /// The <see cref="UserCredentials"/> to use if none have been supplied to the operation.
+    /// Defaults to <see cref="UserCredentials.Empty"/> for anonymous access.
     /// </summary>
-    public UserCredentials? DefaultCredentials { get; set; } //= UserCredentials.Empty;
+    public UserCredentials DefaultCredentials { get; set; } = UserCredentials.Empty;
 
     /// <summary>
     /// The default deadline for calls. Will not be applied to reads or subscriptions.
