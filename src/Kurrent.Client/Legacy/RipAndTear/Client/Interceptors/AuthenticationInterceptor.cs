@@ -1,5 +1,6 @@
 // ReSharper disable InconsistentNaming
 
+using System.Diagnostics;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
@@ -56,7 +57,9 @@ class AuthenticationInterceptor(KurrentDBClientSettings Settings) : Interceptor 
         where TRequest : class
         where TResponse : class {
 
-        if (Settings.DefaultCredentials is null)
+        Debug.Assert(Settings.DefaultCredentials != null, "DefaultCredentials must not be null. Use UserCredentials.Empty for anonymous access.");
+
+        if (Settings.DefaultCredentials == UserCredentials.Empty)
 	        return context;
 
         var headers = context.Options.Headers ?? [];
