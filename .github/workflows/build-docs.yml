@@ -2,9 +2,9 @@ name: Build Production Site
 
 on:
   push:
-    branches: [release/*]
+    branches: [main, release/*]
     paths:
-      - '**.md'
+      - 'docs/**'
 
 jobs:
   dispatch:
