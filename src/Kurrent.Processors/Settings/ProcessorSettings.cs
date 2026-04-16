@@ -308,15 +308,6 @@ public enum CheckpointFailurePolicy {
 /// </remarks>
 [PublicAPI]
 public record WorkerSettings {
-    // /// <summary>
-    // /// Whether to throw an exception on processing failure or log and stop.
-    // /// </summary>
-    // /// <remarks>
-    // /// <para><b>Default:</b> false (log and stop)</para>
-    // /// <para><b>Importance:</b> Medium</para>
-    // /// </remarks>
-    // public bool ThrowOnFailure { get; init; }
-
     /// <summary>
     /// Number of records to buffer in memory.
     /// </summary>

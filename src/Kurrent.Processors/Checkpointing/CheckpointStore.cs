@@ -1,18 +1,25 @@
-using System.Collections.Immutable;
 using Kurrent.Client.Exceptions;
+using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
-/// Checkpoint store bound to a specific processor, using document-sourcing pattern.
+/// Event-sourced checkpoint store bound to a specific processor group.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Uses a single checkpoint stream per processor where all workers merge their
-/// partition checkpoints. Handles concurrent updates with optimistic concurrency
-/// and automatic retry.
+/// Stores one <see cref="Contracts.PartitionsCheckpointed"/> event per worker per checkpoint cycle,
+/// carrying all that worker's partition positions as an array.
+/// State is reconstructed by folding events backwards from the stream tail.
+/// </para>
+/// <para>
+/// A <see cref="Contracts.CheckpointReset"/> event acts as a barrier — all prior events are superseded.
+/// </para>
+/// <para>
+/// No fencing: all appends use <see cref="ExpectedStreamState.Any"/>.
+/// Workers are independent distributed processes writing to the same stream.
 /// </para>
 /// <para>
 /// Stream naming: <c>$processors/{processorId}/checkpoints</c>
@@ -23,6 +30,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     readonly StreamsClient _client;
     readonly ILogger       _logger;
     readonly int           _maxCount;
+    readonly int           _partitionCount;
     readonly StreamName    _stream;
     readonly TimeProvider  _time;
 
@@ -32,23 +40,47 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// Initializes a new instance of the <see cref="CheckpointStore"/> class.
     /// </summary>
     /// <param name="processorId">The processor group identifier this store is bound to.</param>
-    /// <param name="maxCount">Maximum number of checkpoint records to retain in the stream.</param>
+    /// <param name="partitionCount">Total number of partitions in the processor group.</param>
+    /// <param name="maxCount">
+    /// Retention count: actual KurrentDB MaxCount = maxCount * partitionCount.
+    /// Set to 0 to disable retention (stream grows unbounded).
+    /// Default: 1000.
+    /// </param>
     /// <param name="client">The streams client for KurrentDB operations.</param>
+    /// <param name="typeMapper">The type mapper for schema registration. Required for deserialization of checkpoint events.</param>
     /// <param name="time">Optional time provider for timestamps.</param>
     /// <param name="logger">Optional logger instance.</param>
     public CheckpointStore(
         string processorId,
+        int partitionCount,
         int maxCount,
         StreamsClient client,
+        MessageTypeMapper typeMapper,
         TimeProvider? time = null,
         ILogger<CheckpointStore>? logger = null
     ) {
-        ProcessorId = processorId;
-        _maxCount    = maxCount;
-        _client      = client;
-        _time        = time ?? TimeProvider.System;
-        _logger      = logger ?? NullLogger<CheckpointStore>.Instance;
-        _stream      = $"$processors/{processorId}/checkpoints";
+        ArgumentException.ThrowIfNullOrWhiteSpace(processorId);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(partitionCount, 0);
+        ArgumentNullException.ThrowIfNull(typeMapper);
+
+        ProcessorId     = processorId;
+        _partitionCount = partitionCount;
+        _maxCount       = maxCount;
+        _client         = client;
+        _time           = time ?? TimeProvider.System;
+        _logger         = logger ?? NullLogger<CheckpointStore>.Instance;
+        _stream         = $"$processors/{processorId}/checkpoints";
+
+        RegisterContractTypes(typeMapper);
+    }
+
+    /// <summary>
+    /// Registers checkpoint contract types with the given type mapper.
+    /// Call this if the client was configured separately from the checkpoint store.
+    /// </summary>
+    public static void RegisterContractTypes(MessageTypeMapper typeMapper) {
+        typeMapper.TryMap<Contracts.PartitionsCheckpointed>("Kurrent.Processors.Checkpointing.PartitionsCheckpointed");
+        typeMapper.TryMap<Contracts.CheckpointReset>("Kurrent.Processors.Checkpointing.CheckpointReset");
     }
 
     /// <summary>
@@ -79,22 +111,57 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         LogReady(ProcessorId, _stream);
     }
 
+    #region Load
+
     public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default) {
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
         try {
-            var record = await _client
-                .ReadLastStreamRecord(_stream, skipDecoding: false, ct)
-                .ConfigureAwait(false);
+            var readRequest = ReadStreamRequest.New.ForStream(_stream)
+                .FromEnd()
+                .Build();
 
-            if (record.Value is not ProcessorCheckpointState state || state.Partitions.IsEmpty) {
+            var recordStream = _client.ReadStream(readRequest, ct);
+
+            var partitions     = new Dictionary<int, Contracts.PartitionPosition>();
+            var latestTimestamp = DateTimeOffset.MinValue;
+
+            await foreach (var message in recordStream.ConfigureAwait(false)) {
+                if (!message.IsRecord)
+                    continue;
+
+                var value = message.AsRecord.Value;
+
+                if (value is Contracts.CheckpointReset reset) {
+                    if (latestTimestamp == DateTimeOffset.MinValue)
+                        latestTimestamp = reset.Timestamp;
+
+                    if (reset.Positions.Length == 0)
+                        break;
+
+                    foreach (var pos in reset.Positions)
+                        partitions.TryAdd(pos.Partition, pos);
+                }
+                else if (value is Contracts.PartitionsCheckpointed evt) {
+                    if (latestTimestamp == DateTimeOffset.MinValue)
+                        latestTimestamp = evt.Timestamp;
+
+                    foreach (var pos in evt.Positions)
+                        partitions.TryAdd(pos.Partition, pos);
+
+                    if (partitions.Count >= _partitionCount)
+                        break;
+                }
+            }
+
+            if (partitions.Count == 0) {
                 LogNoCheckpointFound(ProcessorId);
                 return ProcessorCheckpoint.Empty;
             }
 
-            var checkpoint = MapToCheckpoint(state);
+            var checkpoint = MapToCheckpoint(partitions, latestTimestamp);
 
-            LogLoaded(ProcessorId, checkpoint.Positions.Length, state.CheckpointId, FormatPositions(checkpoint));
+            LogLoaded(ProcessorId, checkpoint.Positions.Length, FormatPositions(checkpoint));
 
             return checkpoint;
         }
@@ -102,24 +169,6 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             LogNoCheckpointFound(ProcessorId);
             return ProcessorCheckpoint.Empty;
         }
-    }
-
-    static ProcessorCheckpoint MapToCheckpoint(ProcessorCheckpointState state) {
-        if (state.Partitions.IsEmpty)
-            return ProcessorCheckpoint.Empty;
-
-        var positions = state.Partitions
-            .Select(kvp => {
-                var partition = Partition.From(kvp.Key);
-                var position  = RecordPosition.FromLogPosition(kvp.Value.Position, partition);
-                return new PartitionPosition(partition, position);
-            })
-            .ToArray();
-
-        return new ProcessorCheckpoint {
-            Positions = positions,
-            Timestamp = state.Timestamp
-        };
     }
 
     public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(
@@ -132,6 +181,165 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         var checkpoint = await LoadLatestAsync(ct).ConfigureAwait(false);
 
+        return ResolvePartitions(checkpoint, partitions, initialPosition);
+    }
+
+    #endregion
+
+    #region Store
+
+    public async ValueTask StoreAsync(
+        string workerId,
+        string checkpointId,
+        PartitionPosition[] positions,
+        CancellationToken ct = default
+    ) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
+        ArgumentOutOfRangeException.ThrowIfZero(positions.Length, nameof(positions));
+
+        await EnsureReadyAsync(ct).ConfigureAwait(false);
+
+        var evt = new Contracts.PartitionsCheckpointed {
+            ProcessorId  = ProcessorId,
+            WorkerId     = workerId,
+            CheckpointId = checkpointId,
+            Timestamp    = _time.GetUtcNow(),
+            Positions = positions.Select(p => new Contracts.PartitionPosition {
+                Partition      = p.Partition.Value,
+                LogPosition    = p.Position.LogPosition,
+                Stream         = p.Position.Stream,
+                StreamRevision = p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision
+            }).ToArray()
+        };
+
+        var request = AppendStreamRequest.For(_stream)
+            .ExpectingState(ExpectedStreamState.Any)
+            .WithRecord(rec => rec
+                .WithValue(evt)
+                .WithMetadata("processor_id", ProcessorId)
+                .WithMetadata("worker_id", workerId))
+            .Build();
+
+        await _client.AppendStream(request, ct).ConfigureAwait(false);
+
+        LogStored(ProcessorId, workerId, positions.Length, FormatInputPositions(positions));
+    }
+
+    /// <summary>
+    /// Resets checkpoint positions.
+    /// Empty positions = full reset (barrier, all prior state wiped).
+    /// Positions present = selective reset (those partitions repositioned).
+    /// </summary>
+    public async ValueTask ResetAsync(
+        string workerId,
+        string checkpointId,
+        PartitionPosition[] positions,
+        CancellationToken ct = default
+    ) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
+
+        await EnsureReadyAsync(ct).ConfigureAwait(false);
+
+        // Resolve positions with unset streams from the database
+        for (var i = 0; i < positions.Length; i++) {
+            if (positions[i].Position.Stream.IsUnset) {
+                var record = await _client
+                    .InspectRecord(positions[i].Position.LogPosition, ct)
+                    .ConfigureAwait(false);
+
+                positions[i] = positions[i] with {
+                    Position = RecordPosition.From(
+                        record.Position.LogPosition,
+                        record.Stream,
+                        record.Revision,
+                        positions[i].Partition)
+                };
+            }
+        }
+
+        var evt = new Contracts.CheckpointReset {
+            ProcessorId  = ProcessorId,
+            WorkerId     = workerId,
+            CheckpointId = checkpointId,
+            Timestamp    = _time.GetUtcNow(),
+            Positions = positions.Select(p => new Contracts.PartitionPosition {
+                Partition      = p.Partition.Value,
+                LogPosition    = p.Position.LogPosition,
+                Stream         = p.Position.Stream,
+                StreamRevision = p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision
+            }).ToArray()
+        };
+
+        var request = AppendStreamRequest.For(_stream)
+            .ExpectingState(ExpectedStreamState.Any)
+            .WithRecord(rec => rec
+                .WithValue(evt)
+                .WithMetadata("processor_id", ProcessorId)
+                .WithMetadata("worker_id", workerId))
+            .Build();
+
+        await _client.AppendStream(request, ct).ConfigureAwait(false);
+
+        LogReset(ProcessorId, workerId, positions.Length);
+    }
+
+    /// <summary>
+    /// Resets all partitions to the same position, or performs a full wipe.
+    /// <see cref="RecordPosition.Unset"/> = full wipe (barrier, all prior state cleared).
+    /// Any other position = load current state and override all existing partitions to that position.
+    /// </summary>
+    public async ValueTask ResetAsync(
+        string workerId,
+        string checkpointId,
+        RecordPosition position,
+        CancellationToken ct = default
+    ) {
+        if (position.IsUnset) {
+            await ResetAsync(workerId, checkpointId, [], ct).ConfigureAwait(false);
+            return;
+        }
+
+        var current = await LoadLatestAsync(ct).ConfigureAwait(false);
+
+        var positions = current.Positions
+            .Select(p => p with { Position = position })
+            .ToArray();
+
+        await ResetAsync(workerId, checkpointId, positions, ct).ConfigureAwait(false);
+    }
+
+    #endregion
+
+    #region Mapping
+
+    static ProcessorCheckpoint MapToCheckpoint(
+        Dictionary<int, Contracts.PartitionPosition> events,
+        DateTimeOffset timestamp
+    ) {
+        var positions = events.Select(kvp => {
+            var partition = Partition.From(kvp.Key);
+            var evt       = kvp.Value;
+
+            var position = evt.Stream is not null && evt.StreamRevision is not null
+                ? RecordPosition.From(evt.LogPosition, evt.Stream, Revision.From(evt.StreamRevision.Value), partition)
+                : RecordPosition.FromLogPosition(evt.LogPosition, partition);
+
+            return new PartitionPosition(partition, position);
+        }).ToArray();
+
+        return new ProcessorCheckpoint {
+            Positions = positions,
+            Timestamp = timestamp
+        };
+    }
+
+    static ProcessorCheckpoint ResolvePartitions(
+        ProcessorCheckpoint checkpoint,
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition
+    ) {
         var defaultPos = initialPosition == SubscriptionInitialPosition.Earliest
             ? RecordPosition.Earliest
             : RecordPosition.Latest;
@@ -157,161 +365,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         };
     }
 
-    public async ValueTask StoreAsync(
-        string workerId,
-        string checkpointId,
-        PartitionPosition[] positions,
-        CancellationToken ct = default
-    ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
-        ArgumentOutOfRangeException.ThrowIfZero(positions.Length, nameof(positions));
-
-        await EnsureReadyAsync(ct).ConfigureAwait(false);
-
-        // Retry loop for optimistic concurrency conflicts
-        while (true) {
-            ct.ThrowIfCancellationRequested();
-
-            // 1. Load current checkpoint state
-            var (currentState, expectedState) = await LoadCurrentStateAsync(ct).ConfigureAwait(false);
-
-            // 2. Merge new positions with existing
-            var mergedState = MergePositions(currentState, workerId, checkpointId, positions);
-
-            // 3. Attempt to store with expected revision
-            var request = AppendStreamRequest.For(_stream)
-                .ExpectingState(expectedState)
-                .WithRecord(rec => rec
-                    .WithValue(mergedState)
-                    .WithMetadata("processor_id", ProcessorId)
-                    .WithMetadata("worker_id", workerId))
-                .Build();
-
-            try {
-                await _client.AppendStream(request, ct).ConfigureAwait(false);
-
-                LogStored(ProcessorId, workerId, positions.Length, FormatInputPositions(positions));
-                return;
-            }
-            catch (AppendConsistencyViolationException) {
-                LogConcurrencyConflict(ProcessorId, workerId);
-                continue;
-            }
-            catch (StreamAlreadyExistsException) {
-                LogConcurrencyConflict(ProcessorId, workerId);
-                continue;
-            }
-            catch (StreamRevisionConflictException) {
-                LogConcurrencyConflict(ProcessorId, workerId);
-                continue;
-            }
-        }
-    }
-
-    public ValueTask ResetAsync(string workerId, string checkpointId, PartitionPosition[] positions, CancellationToken ct = default) =>
-        throw new NotImplementedException();
-
-    public ValueTask ResetAsync(string workerId, string checkpointId, RecordPosition position, CancellationToken ct = default) =>
-        throw new NotImplementedException();
-
-    public async ValueTask ResetLegacyAsync(
-        string workerId,
-        string checkpointId,
-        LogPosition position,
-        CancellationToken ct = default
-    ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
-
-        if (position == LogPosition.Unset)
-            throw new ArgumentException("Invalid log position", nameof(position));
-
-        await EnsureReadyAsync(ct).ConfigureAwait(false);
-
-        var partitions = ImmutableDictionary.CreateBuilder<int, StoredPartitionCheckpoint>();
-        partitions.Add(0, new StoredPartitionCheckpoint(position, workerId));
-
-        // Retry loop for optimistic concurrency conflicts
-        while (true) {
-            ct.ThrowIfCancellationRequested();
-
-            var (_, expectedStreamState) = await LoadCurrentStateAsync(ct).ConfigureAwait(false);
-
-            var resetState = new ProcessorCheckpointState {
-                Partitions   = partitions.ToImmutable(),
-                CheckpointId = checkpointId,
-                ProcessorId  = ProcessorId,
-                LastWorkerId = workerId,
-                Timestamp    = _time.GetUtcNow()
-            };
-
-            var request = AppendStreamRequest.For(_stream)
-                .ExpectingState(expectedStreamState)
-                .WithRecord(rec => rec
-                    .WithValue(resetState)
-                    .WithMetadata("processor_id", ProcessorId)
-                    .WithMetadata("worker_id", workerId))
-                .Build();
-
-            try {
-                await _client.AppendStream(request, ct).ConfigureAwait(false);
-
-                LogStored(ProcessorId, workerId, 1, $"[0] {position}");
-                return;
-            }
-            catch (AppendConsistencyViolationException) {
-                LogConcurrencyConflict(ProcessorId, workerId);
-                continue;
-            }
-            catch (StreamAlreadyExistsException) {
-                LogConcurrencyConflict(ProcessorId, workerId);
-                continue;
-            }
-            catch (StreamRevisionConflictException) {
-                LogConcurrencyConflict(ProcessorId, workerId);
-                continue;
-            }
-        }
-    }
-
-    async ValueTask<(ProcessorCheckpointState State, ExpectedStreamState ExpectedStreamState)> LoadCurrentStateAsync(
-        CancellationToken ct
-    ) {
-        try {
-            var record = await _client
-                .ReadLastStreamRecord(_stream, skipDecoding: false, ct)
-                .ConfigureAwait(false);
-
-            if (record.Value is ProcessorCheckpointState state)
-                return (state, record.Position.Revision);
-
-            return (new ProcessorCheckpointState(), ExpectedStreamCondition.Exists);
-        }
-        catch (StreamNotFoundException) {
-            return (new ProcessorCheckpointState(), ExpectedStreamCondition.NoStream);
-        }
-    }
-
-    ProcessorCheckpointState MergePositions(
-        ProcessorCheckpointState current,
-        string workerId,
-        string checkpointId,
-        PartitionPosition[] newPositions
-    ) {
-        var partitionsBuilder = current.Partitions.ToBuilder();
-
-        foreach (var pp in newPositions)
-            partitionsBuilder[pp.Partition.Value] = new StoredPartitionCheckpoint(pp.Position.LogPosition, workerId);
-
-        return new ProcessorCheckpointState {
-            Partitions   = partitionsBuilder.ToImmutable(),
-            CheckpointId = checkpointId,
-            ProcessorId  = ProcessorId,
-            LastWorkerId = workerId,
-            Timestamp    = _time.GetUtcNow()
-        };
-    }
+    #endregion
 
     #region Formatting
 
@@ -337,38 +391,47 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     #region Logging
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "[{ProcessorId}] Retention not configured, checkpoint stream will grow unbounded")]
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "[{ProcessorId}] Retention not configured, checkpoint stream will grow unbounded"
+    )]
     partial void LogRetentionNotConfigured(string processorId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}] Retention configured with MaxCount={MaxCount}")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "[{ProcessorId}] Retention configured with MaxCount={MaxCount}"
+    )]
     partial void LogRetentionConfigured(string processorId, int maxCount);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}] Ready on {Stream}")]
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "[{ProcessorId}] Ready on {Stream}"
+    )]
     partial void LogReady(string processorId, StreamName stream);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}] Loaded {PartitionCount} partitions @ checkpoint {CheckpointId} :: {Positions}")]
-    partial void LogLoaded(string processorId, int partitionCount, string checkpointId, string positions);
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "[{ProcessorId}] Loaded {PartitionCount} partitions :: {Positions}"
+    )]
+    partial void LogLoaded(string processorId, int partitionCount, string positions);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Stored {PartitionCount} partitions: {Positions}")]
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "[{ProcessorId}/{WorkerId}] Stored {PartitionCount} partitions: {Positions}"
+    )]
     partial void LogStored(string processorId, string workerId, int partitionCount, string positions);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}] No checkpoint found")]
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "[{ProcessorId}] No checkpoint found"
+    )]
     partial void LogNoCheckpointFound(string processorId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Concurrency conflict, retrying...")]
-    partial void LogConcurrencyConflict(string processorId, string workerId);
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "[{ProcessorId}/{WorkerId}] Reset {PartitionCount} partitions"
+    )]
+    partial void LogReset(string processorId, string workerId, int partitionCount);
 
     #endregion
-
-    public sealed record StoredPartitionCheckpoint(long Position, string WorkerId);
-
-    public sealed record ProcessorCheckpointState {
-        public ImmutableDictionary<int, StoredPartitionCheckpoint> Partitions { get; init; } =
-            ImmutableDictionary<int, StoredPartitionCheckpoint>.Empty;
-
-        public DateTimeOffset Timestamp    { get; init; } = DateTimeOffset.MinValue;
-        public string         CheckpointId { get; init; } = "";
-        public string         ProcessorId  { get; init; } = "";
-        public string         LastWorkerId { get; init; } = "";
-    }
 }

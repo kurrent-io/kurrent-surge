@@ -3,7 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Diagnostics.Metrics;
+using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Diagnostics.Metrics;
+using Kurrent.Processors.Gateway;
 
 namespace Kurrent.Processors.Options;
 
@@ -279,14 +281,17 @@ public static class KurrentProcessorServiceCollectionExtensions {
         var processor     = sp.GetRequiredService<TProcessor>();
         var client        = BuildClient(registration, sp);
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var settings      = registration.Settings;
 
-        var worker = new ProcessorWorker(
-            registration.Settings,
-            client,
+        var source = new SubscriptionSource(client, settings, TimeProvider.System, registration.UseOwnClient);
+
+        var worker = new Drone(
+            settings,
+            source,
             processor,
             loggerFactory,
-            TimeProvider.System,
-            registration.UseOwnClient);
+            TimeProvider.System
+        );
 
         var logger = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
 

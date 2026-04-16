@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Checkpointing;
 
 namespace Kurrent.Processors;
 
 /// <summary>
 /// Tracks processing progress and computes metrics for a processing session.
+/// Push-based: the Drone feeds it explicitly at each step, no reference to the source.
 /// </summary>
 sealed class ProgressTracker {
     readonly TimeProvider   _timeProvider;
@@ -21,7 +21,8 @@ sealed class ProgressTracker {
     CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
     DateTimeOffset?   _lastCheckpointAt;
 
-    PartitionedPositionTracker? _partitionTracker;
+    readonly Dictionary<Partition, RecordPosition> _trackedPositions = new();
+    readonly Dictionary<Partition, RecordPosition> _flushedPositions = new();
 
     public ProgressTracker(TimeProvider timeProvider) {
         _timeProvider   = timeProvider;
@@ -30,27 +31,25 @@ sealed class ProgressTracker {
     }
 
     /// <summary>
-    /// Sets the partition tracker to use for position progress.
-    /// </summary>
-    /// <param name="tracker">The partition tracker containing position state.</param>
-    public void SetPartitionTracker(PartitionedPositionTracker tracker) =>
-        _partitionTracker = tracker;
-
-    /// <summary>
     /// Tracks a single record being processed.
     /// </summary>
-    public void TrackRecord() => _totalRecords++;
+    public void TrackRecord(RecordPosition position, Partition partition) {
+        _totalRecords++;
+        _trackedPositions[partition] = position;
+    }
 
     /// <summary>
-    /// Tracks a checkpoint completion.
+    /// Tracks a checkpoint completion with committed positions.
     /// </summary>
-    /// <param name="checkpoint">The checkpoint that completed.</param>
-    public void TrackCheckpoint(Checkpoint checkpoint) {
+    public void TrackCheckpoint(Checkpoint checkpoint, PartitionPositions positions) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint = _totalRecords;
         _lastCheckpointId        = checkpoint.CheckpointId;
         _lastCheckpointTrigger   = checkpoint.Trigger;
         _lastCheckpointAt        = checkpoint.Timestamp;
+
+        foreach (var (partition, position) in positions)
+            _flushedPositions[partition] = position;
     }
 
     /// <summary>
@@ -72,7 +71,6 @@ sealed class ProgressTracker {
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
                 RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
-                //LastCheckpointId:              _lastCheckpointId,
                 LastTrigger:                _lastCheckpointTrigger,
                 LastCheckpointAt:            _lastCheckpointAt
             );
@@ -84,16 +82,19 @@ sealed class ProgressTracker {
     }
 
     ImmutableDictionary<Partition, PartitionProgress> BuildPartitionProgress() {
-        if (_partitionTracker is null)
+        if (_flushedPositions.Count == 0 && _trackedPositions.Count == 0)
             return ImmutableDictionary<Partition, PartitionProgress>.Empty;
-
-        var tracked = _partitionTracker.LastTrackedPositions;
-        var flushed = _partitionTracker.LastFlushedPositions;
 
         var builder = ImmutableDictionary.CreateBuilder<Partition, PartitionProgress>();
 
-        foreach (var (partition, lastFlushed) in flushed) {
-            var lastTracked = tracked.GetValueOrDefault(partition, RecordPosition.Unset);
+        // Collect all known partitions
+        var allPartitions = new HashSet<Partition>(_flushedPositions.Keys);
+        foreach (var key in _trackedPositions.Keys)
+            allPartitions.Add(key);
+
+        foreach (var partition in allPartitions) {
+            var lastTracked = _trackedPositions.GetValueOrDefault(partition, RecordPosition.Unset);
+            var lastFlushed = _flushedPositions.GetValueOrDefault(partition, RecordPosition.Unset);
             builder.Add(partition, new PartitionProgress(lastTracked, lastFlushed));
         }
 

@@ -176,7 +176,7 @@ sealed class ReportCommand : Command<ReportSettings> {
         PropertyNameCaseInsensitive = true
     });
 
-    public override int Execute(CommandContext context, ReportSettings settings, CancellationToken cancellation = default) {
+    protected override int Execute(CommandContext context, ReportSettings settings, CancellationToken cancellation = default) {
         AnsiConsole.Write(new FigletText("benchmark-report").Color(Color.MediumPurple));
         AnsiConsole.MarkupLine("[grey]BenchmarkDotNet JSON → HTML dashboard[/]\n");
 

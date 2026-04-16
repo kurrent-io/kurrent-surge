@@ -551,6 +551,11 @@ wip/
 .certs-*/
 certs-*/
 
+# act (local GitHub Actions runner)
+.secrets
+.vars
+.actrc
+
 # Others
 docs/plans/
 benchmark-*.html

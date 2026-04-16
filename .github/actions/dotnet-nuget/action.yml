@@ -17,27 +17,6 @@ description: >
     github — GitHub Packages (https://nuget.pkg.github.com/{owner}/index.json)
     nuget  — NuGet.org (https://api.nuget.org/v3/index.json)
 
-  Usage:
-    # Pack and push to GitHub Packages
-    - uses: ./.github/actions/dotnet-nuget
-      with:
-        version: ${{ env.VERSION }}
-        push-to: github
-
-    # Pack and push to both GitHub Packages and NuGet.org
-    - uses: ./.github/actions/dotnet-nuget
-      with:
-        version: ${{ env.VERSION }}
-        push-to: github nuget
-      env:
-        NUGET_API_KEY: ${{ secrets.NUGET_KEY }}
-
-    # Push pre-built packages only (skip pack)
-    - uses: ./.github/actions/dotnet-nuget
-      with:
-        pack: false
-        push-to: github
-
 inputs:
   push-to:
     description: >
@@ -82,23 +61,15 @@ runs:
         -p:Version=${{ inputs.version }}
         ${{ inputs.pack-args }}
 
-    # Registers a temporary GitHub Packages source with actor credentials,
-    # then pushes all .nupkg files. --skip-duplicate avoids failures when
-    # re-running a workflow that already published a version.
     - name: Push to GitHub Packages
       if: contains(inputs.push-to, 'github')
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
-        dotnet nuget add source \
-          --username ${{ github.actor }} \
-          --password "$GITHUB_TOKEN" \
-          --store-password-in-clear-text \
-          --name github \
-          "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-
         dotnet nuget push ${{ inputs.output }}/*.nupkg \
           --skip-duplicate \
-          --source github \
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
           --api-key "$GITHUB_TOKEN"
 
     - name: Validate NuGet.org credentials
@@ -106,7 +77,7 @@ runs:
       shell: bash
       run: |
         if [[ -z "$NUGET_API_KEY" ]]; then
-          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set it via env: NUGET_API_KEY: \${{ secrets.YOUR_KEY }}"
+          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set NUGET_API_KEY as an environment variable in the calling workflow."
           exit 1
         fi
 

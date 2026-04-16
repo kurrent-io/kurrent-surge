@@ -10,7 +10,7 @@ namespace Kurrent.Client.Streams;
 /// All records are assigned to the specified stream regardless of their individual Stream property.
 /// </summary>
 [PublicAPI]
-public record AppendStreamRequest() : ValidatableRecord {
+public record AppendStreamRequest() : SelfValidating {
     /// <summary>
     /// Creates a builder for appending records to the specified stream.
     /// </summary>
@@ -34,7 +34,7 @@ public record AppendStreamRequest() : ValidatableRecord {
         get;
         init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     }
 
@@ -45,7 +45,7 @@ public record AppendStreamRequest() : ValidatableRecord {
         get;
         init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     }
 
@@ -56,7 +56,7 @@ public record AppendStreamRequest() : ValidatableRecord {
         get;
         init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     }
 
@@ -65,7 +65,7 @@ public record AppendStreamRequest() : ValidatableRecord {
     /// Returns a new request with the validated, stream-stamped records.
     /// </summary>
     public new AppendStreamRequest EnsureValid() {
-        GetValidationResult().Unwrap();
+        Validate().Unwrap();
 
         var builder        = Records.ToBuilder();
         var recordsChanged = false;
@@ -86,14 +86,14 @@ public record AppendStreamRequest() : ValidatableRecord {
         return this;
     }
 
-    protected override ValidationResult Validate() {
+    public override ValidationResult RunValidation() {
         if (Stream == StreamName.Unset)
             return ValidationError.FromProblem(
                 ErrorCode.FromType<AppendStreamRequest>(),
                 ErrorMessages.AppendRecordStreamRequired);
 
         foreach (var record in Records) {
-            var result = record.GetValidationResult();
+            var result = record.Validate();
             if (!result.IsSuccess)
                 return result;
         }

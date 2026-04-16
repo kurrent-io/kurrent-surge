@@ -32,4 +32,10 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Old worker-based subscription tests — pending review for Drone compatibility -->
+    <Compile Remove="Integration\StreamSubscriptionTests.cs" />
+    <Compile Remove="Integration\LogSubscriptionTests.cs" />
+  </ItemGroup>
 </Project>

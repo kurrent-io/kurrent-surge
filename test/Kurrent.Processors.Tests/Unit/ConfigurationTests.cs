@@ -291,7 +291,7 @@ public class ConfigurationTests {
             Worker         = new WorkerSettings { BufferCapacity = 1000 }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsTrue();
     }
@@ -303,7 +303,7 @@ public class ConfigurationTests {
             MaxParallelism = 1
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -315,7 +315,7 @@ public class ConfigurationTests {
             MaxParallelism = 0
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -327,7 +327,7 @@ public class ConfigurationTests {
             MaxParallelism = -1
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -339,7 +339,7 @@ public class ConfigurationTests {
             MaxParallelism = 32769
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -352,7 +352,7 @@ public class ConfigurationTests {
             Worker         = new WorkerSettings { BufferCapacity = 0 }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -365,7 +365,7 @@ public class ConfigurationTests {
             Worker         = new WorkerSettings { BufferCapacity = 10001 }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -378,7 +378,7 @@ public class ConfigurationTests {
             Batching       = new BatchingSettings { MaxSize = 0, Timeout = 100 }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -391,7 +391,7 @@ public class ConfigurationTests {
             Batching       = new BatchingSettings { MaxSize = 100, Timeout = 0 }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -404,7 +404,7 @@ public class ConfigurationTests {
             Checkpoint     = new CheckpointSettings { Interval = 0 }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsFalse();
     }
@@ -418,7 +418,7 @@ public class ConfigurationTests {
             Subscription   = new SubscriptionSettings { PartitionKeySelector = string.Empty }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         // Validation passes (warnings are ignored), but the warning is generated
         await Assert.That(result.IsSuccess).IsTrue();
@@ -432,7 +432,7 @@ public class ConfigurationTests {
             Subscription   = new SubscriptionSettings { PartitionKeySelector = "stream_id" }
         };
 
-        var result = settings.Validate();
+        var result = settings.RunValidation();
 
         await Assert.That(result.IsSuccess).IsTrue();
     }
@@ -773,7 +773,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // From service provider overload
         await Assert.That(settings.ProcessorId).IsEqualTo("sp-processor");
@@ -797,7 +797,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // Default values should be used
         await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000);
@@ -825,7 +825,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        return hostedService.Worker.Settings;
+        return hostedService.Drone.Settings;
     }
 
     [Test]
@@ -862,7 +862,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // ProcessorId should be auto-generated from processor type name (section name)
         await Assert.That(settings.ProcessorId).IsEqualTo("no_op_processor");
@@ -900,7 +900,7 @@ public class ConfigurationTests {
             .OfType<KurrentProcessorHostedService<NoOpProcessor>>()
             .Single();
 
-        var settings = hostedService.Worker.Settings;
+        var settings = hostedService.Drone.Settings;
 
         // Explicit ProcessorId in config should be used
         await Assert.That(settings.ProcessorId).IsEqualTo("my-custom-id");

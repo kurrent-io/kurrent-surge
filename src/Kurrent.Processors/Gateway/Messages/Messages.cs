@@ -124,7 +124,8 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 public readonly record struct Checkpoint(
     CheckpointId CheckpointId,
     CheckpointTrigger Trigger,
-    DateTimeOffset Timestamp
+    DateTimeOffset Timestamp,
+    PartitionPositions Positions
 );
 
 /// <summary>
@@ -140,7 +141,7 @@ public readonly partial record struct ProcessorControlMessage : IVariant<
 
 #endregion
 
-#region Outbound - Worker Messages
+#region Outbound - Drone Messages
 
 /// <summary>
 /// Worker signals it has recovered to a consistent state and is ready to receive records.
@@ -177,14 +178,14 @@ public readonly record struct Disconnect(
 );
 
 /// <summary>
-/// The messages a worker can send to the server. Outbound from worker to relay.
+/// The messages a drone can send to the server. Outbound from worker to relay.
 /// </summary>
 [PublicAPI]
-public readonly partial record struct WorkerMessage : IVariant<
+public readonly partial record struct DroneMessage : IVariant<
     WorkerReady,
     CheckpointComplete,
     Disconnect> {
-    public static readonly WorkerMessage None;
+    public static readonly DroneMessage None;
 }
 
 /// <summary>

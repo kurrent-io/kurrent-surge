@@ -10,7 +10,8 @@
   },
 
   "remoteEnv": {
-    "NUGET_AUTH_TOKEN": "${localEnv:NUGET_AUTH_TOKEN}"
+    "NUGET_AUTH_TOKEN": "${localEnv:NUGET_AUTH_TOKEN}",
+    "NuGetPackageSourceCredentials_GitHub": "Username=pat;Password=${localEnv:NUGET_AUTH_TOKEN}"
   },
   "secrets": {
     "NUGET_AUTH_TOKEN": {

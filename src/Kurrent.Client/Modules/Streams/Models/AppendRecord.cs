@@ -7,7 +7,7 @@ namespace Kurrent.Client.Streams;
 #pragma warning disable CS8604
 
 [PublicAPI]
-public record AppendRecord : ValidatableRecord {
+public record AppendRecord : SelfValidating {
     public static readonly AppendRecord None = new() {
         RecordId   = Guid.Empty,
         Value      = null!,
@@ -28,7 +28,7 @@ public record AppendRecord : ValidatableRecord {
         get;
         internal init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     } = Guid.NewGuid();
 
@@ -40,7 +40,7 @@ public record AppendRecord : ValidatableRecord {
         get;
         internal init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     } = null!;
 
@@ -51,7 +51,7 @@ public record AppendRecord : ValidatableRecord {
         get;
         internal init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     } = SchemaDataFormat.Json;
 
@@ -67,7 +67,7 @@ public record AppendRecord : ValidatableRecord {
         get;
         internal init {
             field = value;
-            Invalidate();
+            ResetValidation();
         }
     } = StreamName.Unset;
 
@@ -76,16 +76,7 @@ public record AppendRecord : ValidatableRecord {
     /// </summary>
     public DateTimeOffset Timestamp { get; internal init; } = DateTimeOffset.UtcNow;
 
-    /// <summary>
-    /// Validates this <see cref="AppendRecord"/> instance and throws a <see cref="ValidationException"/> if any validation problems are found.
-    /// Returns this instance for fluent chaining.
-    /// </summary>
-    public new AppendRecord EnsureValid() {
-        GetValidationResult().Unwrap();
-        return this;
-    }
-
-    protected override ValidationResult Validate() {
+    public override ValidationResult RunValidation() {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)
@@ -159,6 +150,9 @@ public class AppendRecordBuilder {
     public AppendRecordBuilder WithTimestamp(long timestamp) =>
         WithTimestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
 
-    public AppendRecord Build() => _appendRecord.EnsureValid();
+    public AppendRecord Build() {
+        _appendRecord.EnsureValid();
+        return _appendRecord;
+    }
 }
 

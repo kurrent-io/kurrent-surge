@@ -870,78 +870,6 @@ sealed record NullFilterValue : FilterValue {
 }
 
 /// <summary>
-/// A parsed column reference in a filter expression, consisting of a property name
-/// and an optional key for map-type columns (e.g., <c>properties['region']</c>).
-/// </summary>
-/// <param name="PropertyName">
-/// The column name as written in the expression. May be a canonical name, an alias,
-/// or a dot-path (e.g., <c>rec.position.stream</c>). Resolution is case-insensitive.
-/// </param>
-/// <param name="Key">
-/// Optional map key for keyed columns like <c>properties</c>/<c>metadata</c>.
-/// Populated from bracket notation (<c>props['key']</c>) or trailing dot segments
-/// (<c>rec.properties.key</c>).
-/// </param>
-public sealed record PropertyAccess(string PropertyName, string? Key = null) {
-    static readonly PropertyMap<Record> Columns = PropertyMap<Record>.Build(map =>
-        map.Register(r => r.Stream.Value,
-                "stream", "stream_name", "rec.stream", "rec.position.stream")
-           .Register(r => r.Schema.SchemaName.Value,
-                "schema", "schema_name", "event_type", "rec.schema", "rec.schema.name")
-           .Register(r => r.Stream.Category,
-                "category", "rec.category")
-           .Register(r => r.Timestamp,
-                "timestamp", "ts", "created_at", "created_ts", "rec.timestamp", "rec.ts", "rec.created_at")
-           .Register(r => r.Position.LogPosition.Value,
-                "position", "pos", "log_position", "rec.position", "rec.pos", "rec.log_position")
-           .Register(r => r.Revision.Value,
-                "revision", "stream_revision", "event_number", "rec.revision", "rec.position.streamrevision")
-           .Register(r => r.Id,
-                "id", "record_id", "rec.id")
-           .RegisterKeyed(ResolveProperty,
-                "properties", "props", "metadata", "rec.properties", "rec.props", "rec.metadata")
-    );
-
-    /// <summary>
-    /// Extracts the value this property references from a record.
-    /// </summary>
-    public object? Resolve(Record record) => Resolve(PropertyName, Key, record);
-
-    /// <summary>
-    /// Attempts to resolve this property as a <see cref="decimal"/> without boxing.
-    /// Returns <c>false</c> if the property is not registered or is not numeric.
-    /// </summary>
-    public bool TryResolveDecimal(Record record, out decimal result) =>
-        Columns.TryGetDecimalValue(PropertyName, record, out result);
-
-    static object? Resolve(string name, string? key, Record record) {
-        var value = Columns.GetValue(name, key, record);
-        if (value is not null) return value;
-
-        // dot-path without explicit key: split right-to-left to find a registered prefix
-        if (key is null) {
-            for (var i = name.Length - 1; i >= 0; i--) {
-                if (name[i] != '.') continue;
-
-                value = Columns.GetValue(name[..i], name[(i + 1)..], record);
-                if (value is not null) return value;
-            }
-        }
-
-        // strip field_ prefix (WebUI compat) and retry
-        if (name.StartsWith("field_", StringComparison.OrdinalIgnoreCase))
-            return Resolve(name[6..], key, record);
-
-        return null;
-    }
-
-    static object? ResolveProperty(Record record, string? key) =>
-        key is not null && record.Metadata.TryGetValue<object>(key, out var value)
-            ? value
-            : null;
-}
-
-/// <summary>
 /// Comparison operators supported in filter expressions.
 /// </summary>
 public enum ComparisonOperator {
@@ -982,7 +910,7 @@ public sealed class ComparisonExpression(PropertyAccess property, ComparisonOper
         }
 
         // fast path: numeric comparison without boxing
-        if (value is NumberFilterValue numValue && property.TryResolveDecimal(record, out var numLeft)) {
+        if (value is NumberFilterValue numValue && ExpressionFilterResolver.TryResolveDecimal(property, record, out var numLeft)) {
             var cmp = numLeft.CompareTo(numValue.Value);
             return op switch {
                 ComparisonOperator.Equal              => cmp == 0,
@@ -996,7 +924,7 @@ public sealed class ComparisonExpression(PropertyAccess property, ComparisonOper
         }
 
         // general path
-        var left  = property.Resolve(record);
+        var left  = ExpressionFilterResolver.Resolve(property, record);
         var right = value.GetValue();
 
         if (left is null || right is null) return false;
@@ -1070,7 +998,7 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
 
     /// <inheritdoc/>
     public bool IsMatch(Record record) {
-        var value = property.Resolve(record);
+        var value = ExpressionFilterResolver.Resolve(property, record);
         if (value is null) return false;
 
         var str     = value as string ?? value.ToString() ?? "";
@@ -1159,7 +1087,7 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
 /// </summary>
 file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFilterExpression {
     public bool IsMatch(Record record) {
-        var isNull = property.Resolve(record) is null;
+        var isNull = ExpressionFilterResolver.Resolve(property, record) is null;
         return negated ? !isNull : isNull;
     }
 }
@@ -1178,7 +1106,7 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
 
     /// <inheritdoc/>
     public bool IsMatch(Record record) {
-        var propValue = property.Resolve(record);
+        var propValue = ExpressionFilterResolver.Resolve(property, record);
         if (propValue is null) return false;
 
         // fast path: all-string set with O(1) lookup
@@ -1230,13 +1158,13 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
     public bool IsMatch(Record record) {
         // fast path: numeric range without boxing
         if (lower is NumberFilterValue lo && upper is NumberFilterValue hi
-            && property.TryResolveDecimal(record, out var numValue)) {
+            && ExpressionFilterResolver.TryResolveDecimal(property, record, out var numValue)) {
             var inRange = numValue >= lo.Value && numValue <= hi.Value;
             return negated ? !inRange : inRange;
         }
 
         // general path
-        var value = property.Resolve(record);
+        var value = ExpressionFilterResolver.Resolve(property, record);
         if (value is null) return false;
 
         var inRangeGeneral = ValueComparer.Compare(value, lower.GetValue()) >= 0 &&
@@ -1335,6 +1263,43 @@ file static class ValueComparer {
 
             default: return false;
         }
+    }
+}
+
+/// <summary>
+/// Resolves <see cref="PropertyAccess"/> values against <see cref="Record"/> instances
+/// using <see cref="RecordPropertyMap.Default"/>, with <c>field_</c> prefix stripping
+/// for WebUI backward compatibility.
+/// </summary>
+file static class ExpressionFilterResolver {
+    public static object? Resolve(PropertyAccess property, Record record) {
+        var value = RecordPropertyMap.Default.Resolve(property.PropertyName, property.Key, record);
+        if (value is not null) return value;
+
+        // strip field_ prefix (WebUI compat) and retry
+        if (property.PropertyName.StartsWith("field_", StringComparison.OrdinalIgnoreCase))
+            return RecordPropertyMap.Default.Resolve(property.PropertyName[6..], property.Key, record);
+
+        return null;
+    }
+
+    public static bool TryResolveDecimal(PropertyAccess property, Record record, out decimal result) {
+        var prop = RecordPropertyMap.Default.Find(property.PropertyName, record);
+
+        if (!prop.HasValue && property.PropertyName.StartsWith("field_", StringComparison.OrdinalIgnoreCase))
+            prop = RecordPropertyMap.Default.Find(property.PropertyName[6..], record);
+
+        return TryCoerceDecimal(prop, out result);
+    }
+
+    static bool TryCoerceDecimal(PropertyResult<Record> prop, out decimal result) {
+        if (prop.Is<decimal>(out result)) return true;
+        if (prop.Is<long>(out var l))     { result = l;           return true; }
+        if (prop.Is<int>(out var i))      { result = i;           return true; }
+        if (prop.Is<double>(out var d))   { result = (decimal)d;  return true; }
+
+        result = 0;
+        return false;
     }
 }
 
