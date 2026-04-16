@@ -5,8 +5,6 @@ on:
   pull_request:
     branches: [main]
     types: [opened, edited, synchronize, ready_for_review]
-  pull_request_target:
-    branches: [main]
   merge_group:
 
 # Cancel in-progress runs when a new commit is pushed to the same branch/PR.
@@ -23,7 +21,7 @@ jobs:
   ci:
     name: Build and Test
 
-    if: github.event_name != 'pull_request_target'
+    if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.action == 'synchronize'
 
     runs-on: ubuntu-latest
 
@@ -48,7 +46,7 @@ jobs:
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
           -- --treenode-filter "/*/*/*/*[Category!=Integration]"
-          --disable-logo --adaptive-metrics --report-trx --coverage
+          --disable-logo --report-trx --coverage
 
       - name: Test containers setup
         if: github.event_name == 'merge_group'
@@ -70,7 +68,7 @@ jobs:
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
           -- --treenode-filter "/*/*/*/*[Category=Integration]"
-          --disable-logo --adaptive-metrics --report-trx --coverage --fail-fast
+          --disable-logo --report-trx --coverage --fail-fast
 
       - name: Version
         id: version
@@ -99,9 +97,7 @@ jobs:
   validate:
     name: Validate PR Title
 
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","edited","ready_for_review"]'), github.event.action)
+    if: github.event_name == 'pull_request'
 
     runs-on: ubuntu-latest
 
@@ -116,16 +112,3 @@ jobs:
       - name: Validate and Label
         uses: ./.github/actions/conventional-commits
 
-  labeler:
-    name: Pull Request Labeler
-
-    if: github.event_name == 'pull_request_target'
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      pull-requests: write
-
-    steps:
-      - uses: actions/labeler@v6
