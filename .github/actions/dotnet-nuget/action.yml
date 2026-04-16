@@ -61,35 +61,15 @@ runs:
         -p:Version=${{ inputs.version }}
         ${{ inputs.pack-args }}
 
-    # Registers a temporary GitHub Packages source with actor credentials,
-    # then pushes all .nupkg files. --skip-duplicate avoids failures when
-    # re-running a workflow that already published a version.
     - name: Push to GitHub Packages
       if: contains(inputs.push-to, 'github')
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        source_url="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-
-        if dotnet nuget list source | grep -q '\bgithub\b'; then
-          dotnet nuget update source github \
-            --username ${{ github.actor }} \
-            --password "$GITHUB_TOKEN" \
-            --store-password-in-clear-text \
-            --source "$source_url"
-        else
-          dotnet nuget add source \
-            --username ${{ github.actor }} \
-            --password "$GITHUB_TOKEN" \
-            --store-password-in-clear-text \
-            --name github \
-            "$source_url"
-        fi
-
         dotnet nuget push ${{ inputs.output }}/*.nupkg \
           --skip-duplicate \
-          --source github \
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
           --api-key "$GITHUB_TOKEN"
 
     - name: Validate NuGet.org credentials
