@@ -14,6 +14,12 @@ public record ExpressionFilter : IRecordFilter {
     public string Expression { get; }
 
     /// <summary>
+    /// Returns <c>true</c> if the expression contains predicates that access the record's
+    /// JSON payload (<c>data</c> column). Used to validate that decoding is enabled.
+    /// </summary>
+    public bool QueriesData { get; }
+
+    /// <summary>
     /// The server-side filter extracted from the expression for optimization.
     /// This is used by the V1 mapper to send filtering to the server.
     /// </summary>
@@ -31,6 +37,7 @@ public record ExpressionFilter : IRecordFilter {
 
         _parsedExpression = ExpressionFilterParser.Parse(expression);
 
+        QueriesData  = _parsedExpression.QueriesData;
         ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
         TargetStream = ServerFilter.TargetStream != StreamName.Unset
             ? ServerFilter.TargetStream

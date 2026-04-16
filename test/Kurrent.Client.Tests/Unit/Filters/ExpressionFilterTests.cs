@@ -84,7 +84,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_timestamp_comparison() {
-        var filter = Parse("timestamp >= '2024-01-01T00:00:00Z'");
+        var filter = Parse("timestamp >= 1704067200000"); // 2024-01-01T00:00:00Z in unix millis
         var matchingRecord = _faker.With(
             timestamp: new DateTime(
                 2024, 6, 15,
@@ -159,7 +159,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_and_with_short_circuit() {
-        var filter = Parse("stream = 'never' AND properties.missing > 100");
+        var filter = Parse("stream = 'never' AND properties['missing'] > 100");
         var record = _faker.With("orders");
 
         await Assert.That(filter.IsMatch(record)).IsFalse();
@@ -167,7 +167,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_or_with_short_circuit() {
-        var filter = Parse("stream = 'orders' OR properties.missing > 100");
+        var filter = Parse("stream = 'orders' OR properties['missing'] > 100");
         var record = _faker.With("orders");
 
         await Assert.That(filter.IsMatch(record)).IsTrue();
@@ -263,7 +263,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_is_null_for_missing_property() {
-        var filter            = Parse("properties.correlationId IS NULL");
+        var filter            = Parse("properties['correlationId'] IS NULL");
         var recordWithoutProp = _faker.With();
         var recordWithProp    = _faker.With(metadata: new Metadata().With("correlationId", "abc"));
 
@@ -273,7 +273,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_is_not_null() {
-        var filter            = Parse("properties.userId IS NOT NULL");
+        var filter            = Parse("properties['userId'] IS NOT NULL");
         var recordWithProp    = _faker.With(metadata: new Metadata().With("userId", "user-123"));
         var recordWithoutProp = _faker.With();
 
@@ -349,7 +349,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_between_with_dates() {
-        var filter = Parse("timestamp BETWEEN '2024-01-01' AND '2024-12-31'");
+        var filter = Parse("timestamp BETWEEN 1704067200000 AND 1735603200000"); // 2024-01-01 to 2024-12-31 in unix millis
         var matching = _faker.With(
             timestamp: new DateTime(
                 2024, 6, 15,
@@ -407,7 +407,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_properties_dot_notation() {
-        var filter      = Parse("properties.amount > 100");
+        var filter      = Parse("properties['amount'] > 100");
         var matching    = _faker.With(metadata: new Metadata().With("amount", 150));
         var nonMatching = _faker.With(metadata: new Metadata().With("amount", 50));
 
@@ -417,7 +417,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_props_alias() {
-        var filter      = Parse("props.correlationId IS NOT NULL");
+        var filter      = Parse("props['correlationId'] IS NOT NULL");
         var matching    = _faker.With(metadata: new Metadata().With("correlationId", "abc-123"));
         var nonMatching = _faker.With();
 
@@ -427,7 +427,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_missing_property_as_null() {
-        var filter = Parse("properties.missing = 'value'");
+        var filter = Parse("properties['missing'] = 'value'");
         var record = _faker.With();
 
         await Assert.That(filter.IsMatch(record)).IsFalse();
@@ -439,7 +439,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task coerces_string_to_number_for_comparison() {
-        var filter   = Parse("properties.amount > 100");
+        var filter   = Parse("properties['amount'] > 100");
         var matching = _faker.With(metadata: new Metadata().With("amount", "150"));
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();
@@ -447,7 +447,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task coerces_number_to_string_for_comparison() {
-        var filter   = Parse("properties.code = '42'");
+        var filter   = Parse("properties['code'] = '42'");
         var matching = _faker.With(metadata: new Metadata().With("code", 42));
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();
@@ -455,7 +455,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task handles_boolean_property_values() {
-        var filter      = Parse("properties.active = true");
+        var filter      = Parse("properties['active'] = true");
         var matching    = _faker.With(metadata: new Metadata().With("active", true));
         var nonMatching = _faker.With(metadata: new Metadata().With("active", false));
 
@@ -472,9 +472,9 @@ public class ExpressionFilterTests {
         var filter = Parse(
             """
             stream = 'orders' AND
-            properties.amount > 100 AND
-            properties.region IN ('us-east', 'us-west') AND
-            properties.customerType != 'internal'
+            properties['amount'] > 100 AND
+            properties['region'] IN ('us-east', 'us-west') AND
+            properties['customerType'] != 'internal'
             """
         );
 
@@ -528,7 +528,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_event_type_alias() {
-        var filter      = Parse("event_type = 'OrderPlaced'");
+        var filter      = Parse("schema_name = 'OrderPlaced'");
         var matching    = _faker.With(schemaName: "OrderPlaced");
         var nonMatching = _faker.With(schemaName: "OrderShipped");
 
@@ -538,7 +538,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_event_number_alias() {
-        var filter      = Parse("event_number > 5");
+        var filter      = Parse("revision > 5");
         var matching    = _faker.With(streamRevision: 10);
         var nonMatching = _faker.With(streamRevision: 3);
 
@@ -558,7 +558,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_created_at_alias() {
-        var filter = Parse("created_at >= '2026-01-01'");
+        var filter = Parse("created_at >= 1767225600000"); // 2026-01-01 in unix millis
         var matching = _faker.With(
             timestamp: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc)
         );
@@ -572,8 +572,8 @@ public class ExpressionFilterTests {
     }
 
     [Test]
-    public async Task evaluates_created_ts_alias() {
-        var filter = Parse("created_ts >= '2026-01-01'");
+    public async Task evaluates_ts_alias() {
+        var filter = Parse("ts >= 1767225600000"); // 2026-01-01 in unix millis
         var matching = _faker.With(
             timestamp: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc)
         );
@@ -588,7 +588,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_metadata_alias() {
-        var filter      = Parse("metadata.region = 'us-east'");
+        var filter      = Parse("metadata['region'] = 'us-east'");
         var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
         var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
 
@@ -598,7 +598,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task evaluates_stream_name_alias() {
-        var filter      = Parse("stream_name = 'orders-99'");
+        var filter      = Parse("stream = 'orders-99'");
         var matching    = _faker.With("orders-99");
         var nonMatching = _faker.With("payments-1");
 
@@ -630,106 +630,11 @@ public class ExpressionFilterTests {
 
     #endregion
 
-    #region Rec Dot Notation Aliases
+    #region Property Access via Dot-Path Fallback
 
     [Test]
-    public async Task evaluates_rec_stream() {
-        var filter      = Parse("rec.stream = 'orders-99'");
-        var matching    = _faker.With("orders-99");
-        var nonMatching = _faker.With("payments-1");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_category() {
-        var filter      = Parse("rec.category = 'order'");
-        var matching    = _faker.With("order-abc123");
-        var nonMatching = _faker.With("payment-1");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_schema_name() {
-        var filter      = Parse("rec.schema.name = 'OrderPlaced'");
-        var matching    = _faker.With(schemaName: "OrderPlaced");
-        var nonMatching = _faker.With(schemaName: "OrderShipped");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_revision() {
-        var filter      = Parse("rec.revision > 5");
-        var matching    = _faker.With(streamRevision: 10);
-        var nonMatching = _faker.With(streamRevision: 3);
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_position_stream() {
-        var filter      = Parse("rec.position.stream = 'orders-99'");
-        var matching    = _faker.With("orders-99");
-        var nonMatching = _faker.With("payments-1");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_position_stream_revision() {
-        var filter      = Parse("rec.position.streamRevision > 5");
-        var matching    = _faker.With(streamRevision: 10);
-        var nonMatching = _faker.With(streamRevision: 3);
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_position_log_position() {
-        var filter      = Parse("rec.position.logPosition > 1000");
-        var matching    = _faker.With(position: 1500);
-        var nonMatching = _faker.With(position: 500);
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_timestamp() {
-        var filter = Parse("rec.timestamp >= '2026-01-01'");
-        var matching = _faker.With(
-            timestamp: new DateTime(2026, 6, 15, 0, 0, 0, DateTimeKind.Utc)
-        );
-
-        var nonMatching = _faker.With(
-            timestamp: new DateTime(2025, 6, 15, 0, 0, 0, DateTimeKind.Utc)
-        );
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_id() {
-        var filter = Parse("rec.id = '00000000-0000-0000-0000-000000000001'");
-        var record = _faker.With();
-
-        // rec.id resolves to a Guid, comparing against string
-        // This test verifies it resolves without error (match depends on generated ID)
-        _ = filter.IsMatch(record);
-    }
-
-    [Test]
-    public async Task evaluates_rec_properties_with_key() {
-        var filter      = Parse("rec.properties.region = 'us-east'");
+    public async Task evaluates_metadata_dot_path_key_access() {
+        var filter      = Parse("properties['region'] = 'us-east'");
         var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
         var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
 
@@ -805,11 +710,55 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region . JSON Access Notation .
+
+    [Test]
+    public async Task evaluates_nested_dot_notation() {
+        var filter      = Parse("metadata.region = 'us-east'");
+        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_arrow_text_string_comparison() {
+        var filter      = Parse("properties->>'region' = 'us-east'");
+        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_arrow_is_not_null() {
+        var filter            = Parse("properties->>'userId' IS NOT NULL");
+        var recordWithProp    = _faker.With(metadata: new Metadata().With("userId", "user-123"));
+        var recordWithoutProp = _faker.With();
+
+        await Assert.That(filter.IsMatch(recordWithProp)).IsTrue();
+        await Assert.That(filter.IsMatch(recordWithoutProp)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_arrow_numeric_comparison() {
+        var filter      = Parse("properties->>'amount' > 100");
+        var matching    = _faker.With(metadata: new Metadata().With("amount", "150"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("amount", "50"));
+
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
     #region Edge Cases
 
     [Test]
     public async Task handles_empty_string_comparison() {
-        var filter      = Parse("properties.tag = ''");
+        var filter      = Parse("properties['tag'] = ''");
         var matching    = _faker.With(metadata: new Metadata().With("tag", ""));
         var nonMatching = _faker.With(metadata: new Metadata().With("tag", "value"));
 
@@ -829,7 +778,7 @@ public class ExpressionFilterTests {
 
     [Test]
     public async Task handles_negative_numbers() {
-        var filter      = Parse("properties.offset < 0");
+        var filter      = Parse("properties['offset'] < 0");
         var matching    = _faker.With(metadata: new Metadata().With("offset", -10));
         var nonMatching = _faker.With(metadata: new Metadata().With("offset", 10));
 

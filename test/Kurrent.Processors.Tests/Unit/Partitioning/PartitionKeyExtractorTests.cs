@@ -92,7 +92,7 @@ public class PartitionKeyExtractorTests {
         var key = extractor.Extract(record);
 
         await Assert.That(key).IsNotNull();
-        await Assert.That(key!).Contains("2024-06-15");
+        await Assert.That(key).IsEqualTo("1718447400000");
     }
 
     [Test]
@@ -104,7 +104,7 @@ public class PartitionKeyExtractorTests {
         var key = extractor.Extract(record);
 
         await Assert.That(key).IsNotNull();
-        await Assert.That(key!).Contains("2024-06-15");
+        await Assert.That(key).IsEqualTo("1718447400000");
     }
 
     [Test]
@@ -142,7 +142,7 @@ public class PartitionKeyExtractorTests {
 
     [Test]
     public async Task extracts_id_alias_value() {
-        var extractor = PartitionKeyExtractor.Create("id");
+        var extractor = PartitionKeyExtractor.Create("record_id");
         var record    = _faker.With();
 
         var key = extractor.Extract(record);

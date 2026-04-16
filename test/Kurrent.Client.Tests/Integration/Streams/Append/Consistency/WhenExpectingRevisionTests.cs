@@ -14,7 +14,7 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).AtRevision(revision))
+            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
             .Build();
 
         // act
@@ -32,7 +32,7 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).AtRevision(revision))
+            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
             .Build();
 
         // act
@@ -51,7 +51,7 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).AtRevision(expectedRevision))
+            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, expectedRevision))
             .Build();
 
         // act
@@ -72,7 +72,7 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).AtRevision(revision))
+            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
             .Build();
 
         // act

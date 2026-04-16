@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Kurrent.Client.Streams;
 
 /// <summary>
@@ -9,24 +11,58 @@ public static class RecordPropertyMap {
     /// <summary>
     /// The standard property map for <see cref="Record"/> instances.
     /// </summary>
-    public static readonly PropertyMap<Record> Default = PropertyMap<Record>.Build(map =>
-        map.Register(r => r.Stream.Value,
-                "stream", "stream_name", "rec.stream", "rec.position.stream")
-           .Register(r => r.Schema.SchemaName.Value,
-                "schema", "schema_name", "event_type", "rec.schema", "rec.schema.name")
-           .Register(r => r.Stream.Category,
-                "category", "rec.category")
-           .Register(r => r.Timestamp,
-                "timestamp", "ts", "created_at", "created_ts", "rec.timestamp", "rec.ts", "rec.created_at")
-           .Register(r => r.Position.LogPosition.Value,
-                "position", "pos", "log_position", "rec.position", "rec.pos", "rec.log_position")
-           .Register(r => r.Revision.Value,
-                "revision", "stream_revision", "event_number", "rec.revision", "rec.position.streamrevision")
-           .Register(r => r.Id,
-                "id", "record_id", "rec.id")
-           .RegisterKeyed(ResolveMetadata,
-                "properties", "props", "metadata", "rec.properties", "rec.props", "rec.metadata")
+    public static readonly PropertyMap<Record> Default = PropertyMap<Record>.Build(
+        configure: map => map
+            .Register(
+                accessor: r => r.Id,
+                "record_id")
+            .Register(
+                accessor: r => r.Position.LogPosition.Value,
+                "log_position", "position", "pos")
+            .Register(
+                accessor: r => r.Stream.Category,
+                "category")
+            .Register(
+                accessor: r => r.Stream.Value,
+                "stream")
+            .Register(
+                accessor: r => r.Revision.Value,
+                "stream_revision", "revision")
+            .Register(
+                accessor: r => r.Schema.SchemaName.Value,
+                "schema_name", "schema")
+            .Register(
+                accessor: r => r.Schema.SchemaVersionId.Value,
+                "schema_id")
+            .Register(
+                accessor: r => r.Schema.SchemaFormat,
+                "schema_format")
+            .Register(
+                accessor: r => new DateTimeOffset(r.Timestamp, TimeSpan.Zero).ToUnixTimeMilliseconds(),
+                "created_at", "timestamp", "ts")
+            .RegisterKeyed(
+                ResolveData,
+                "data")
+            .RegisterKeyed(
+                ResolveMetadata,
+                "metadata", "properties", "props")
     );
+
+    static object? ResolveData(Record record, string? key) {
+        if (key is null) return null;
+
+        var node = record.JsonNode;
+        if (node is null) return null;
+
+        // navigate dot-separated path: "address.city" → node["address"]?["city"]
+        foreach (var segment in key.Split('.'))
+            node = node?[segment];
+
+        return node switch {
+            JsonValue v => v.ToString(),
+            _           => node?.ToJsonString()
+        };
+    }
 
     static object? ResolveMetadata(Record record, string? key) =>
         key is not null && record.Metadata.TryGetValue<object>(key, out var value)

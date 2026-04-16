@@ -1,8 +1,8 @@
 # Filter Expressions Specification
 
-**Version:** 1.2.0
+**Version:** 2.0.0
 **Status:** Implemented
-**Last Updated:** 2025-11-19
+**Last Updated:** 2026-04-15
 
 ## Overview
 
@@ -12,7 +12,7 @@ The syntax is designed to be compatible with DuckDB SQL, enabling future optimiz
 
 ### Goals
 
-1. **DuckDB Compatibility**: Syntax matches DuckDB SQL WHERE clause syntax (validated by automated tests)
+1. **DuckDB Compatibility**: Syntax matches DuckDB SQL WHERE clause syntax (validated by automated tests against real DuckDB)
 2. **Type Safety**: Automatic type coercion following SQL semantics
 3. **Performance**: Efficient evaluation for high-volume filtering scenarios
 4. **Extensibility**: Easy to add new operators and column support
@@ -44,7 +44,7 @@ public interface IFilterExpression {
 
 ```csharp
 // Create filter from expression
-var filter = RecordFilter.ByExpression("stream = 'orders' AND properties.amount > 100");
+var filter = RecordFilter.ByExpression("stream = 'orders' AND metadata['amount'] > 100");
 
 // Check if records match
 bool matches = filter.IsMatch(record);
@@ -64,23 +64,6 @@ if (filter is ExpressionFilter exprFilter) {
 - `RecordFilter.BySchemaPrefix(prefixes)` - Match schemas by prefix patterns
 - `RecordFilter.ByExpression(expression)` - Full expression with automatic server/client splitting
 
-### Usage Example
-
-```csharp
-var parser = new ExpressionFilterParser();
-var result = parser.Parse("stream = 'orders' AND properties['amount'] > 100");
-
-if (result.IsSuccess) {
-    var filter = result.Value;
-
-    foreach (var record in records) {
-        if (filter.IsMatch(record)) {
-            // Process matching record
-        }
-    }
-}
-```
-
 ---
 
 ## Schema
@@ -89,25 +72,31 @@ Filter expressions evaluate against records with the following virtual schema:
 
 ### Implemented Columns
 
-| Column            | Type     | Description                     | Aliases    |
-|-------------------|----------|---------------------------------|------------|
-| `record_id`       | GUID     | Unique record identifier        | `id`       |
-| `position`        | INT64    | Log position (commit position)  | `pos`      |
-| `timestamp`       | DATETIME | Record creation timestamp       | `ts`       |
-| `stream`          | STRING   | Stream name                     | -          |
-| `stream_revision` | INT64    | Revision within stream          | `revision` |
-| `schema_name`     | STRING   | Schema/event type name          | `schema`   |
-| `properties`      | MAP      | Custom metadata key-value pairs | `props`    |
+Matches the official `kdb.records` DuckDB schema:
+
+| Column            | Type    | Description                              | Aliases              |
+|-------------------|---------|------------------------------------------|----------------------|
+| `record_id`       | BLOB    | Unique record identifier                 | -                    |
+| `log_position`    | BIGINT  | Commit position in the transaction log   | `position`, `pos`    |
+| `created_at`      | BIGINT  | Record append time (Unix millis)         | `timestamp`, `ts`    |
+| `stream`          | VARCHAR | Stream name                              | -                    |
+| `stream_revision` | BIGINT  | Revision within stream                   | `revision`           |
+| `schema_name`     | VARCHAR | Schema/event type name                   | `schema`             |
+| `category`        | VARCHAR | Stream category (before first `-`)       | -                    |
+| `schema_id`       | VARCHAR | Schema version identifier                | -                    |
+| `schema_format`   | VARCHAR | Data format (json, protobuf, avro, bytes)| -                    |
+| `data`            | JSON    | Record payload (JSON format only)        | -                    |
+| `metadata`        | JSON    | Custom event metadata key-value pairs    | `properties`, `props`|
+
+All aliases are case-insensitive.
 
 ### Planned Columns (Not Yet Implemented)
 
-| Column          | Type   | Description                               | Aliases  |
-|-----------------|--------|-------------------------------------------|----------|
-| `sequence_id`   | UINT64 | Sequential number in operation context    | `seq`    |
-| `redacted`      | BOOL   | Whether record is redacted                | -        |
-| `schema_format` | STRING | Data format (json, protobuf, avro, bytes) | `format` |
-| `schema_id`     | GUID   | Schema version identifier                 | -        |
-| `data`          | JSON   | Record payload (JSON format only)         | -        |
+| Column          | Type    | Description                               | Aliases  |
+|-----------------|---------|-------------------------------------------|----------|
+| `sequence_id`   | UINT64  | Sequential number in operation context    | `seq`    |
+| `redacted`      | BOOL    | Whether record is redacted                | -        |
+| `deleted`       | BOOL    | Whether record is deleted                 | -        |
 
 ---
 
@@ -115,37 +104,69 @@ Filter expressions evaluate against records with the following virtual schema:
 
 ### Built-in Columns
 
-Direct column access using column name:
+Direct column access using column name or alias:
 
 ```sql
 stream = 'orders'
-timestamp >= '2024-01-01'
-position > 1000
+created_at >= 1704067200000
+log_position > 1000
+category = 'orders'
 ```
 
-### Custom Properties (Metadata)
+### Custom Metadata
 
-Two syntaxes supported for accessing custom metadata:
+Three syntaxes supported, all DuckDB compatible:
 
 **Bracket Notation** (preferred for keys with special characters):
 ```sql
-properties['userId'] = 'user-123'
-properties['order.total'] > 100
-props['correlationId'] IS NOT NULL
+metadata['userId'] = 'user-123'
+metadata['order.total'] > 100
 ```
 
 **Dot Notation** (convenient for simple keys):
 ```sql
-properties.userId = 'user-123'
-properties.amount > 100
-props.correlationId IS NOT NULL
+metadata.userId = 'user-123'
+metadata.amount > 100
 ```
 
-### Data Field Access (Not Yet Implemented)
+**Arrow Text Notation** (`->>`, extracts as text):
+```sql
+metadata->>'userId' = 'user-123'
+metadata->>'amount' > 100
+```
 
-Data field access for JSON payloads is planned for a future release. This will support:
-- Dot notation: `data.userId = 'user-123'`
-- Arrow notation: `data->>'userId' = 'user-123'`
+### JSON Payload Access (`data`)
+
+The `data` column provides access to the record's JSON payload when `schema_format` is JSON.
+Returns `null` for non-JSON records or when the record is not decoded.
+Nested paths work via dot notation:
+
+```sql
+data.address.city = 'NYC'
+data.user.profile.name = 'Alice'
+data.tags IS NOT NULL
+```
+
+Arrow text notation also works for top-level access:
+```sql
+data->>'region' = 'us-east'
+data->>'amount' > '100'
+```
+
+### Unsupported: `->` (Single Arrow)
+
+The `->` operator is not supported. It returns JSON type, which is only useful for chained
+traversal (`data->'a'->'b'`). Since `->>` and dot notation cover all filter use cases,
+there is no reason to add it.
+
+### Property Resolution
+
+Property access is resolved through `PropertyMap<T>` with the `DuckDb` path parser:
+
+1. **Direct lookup** — exact name match against registered aliases (case-insensitive)
+2. **Bracket notation** — `name['key']` extracts key from brackets
+3. **Dot notation** — `name.key` splits right-to-left on `.` to find registered prefix + key
+4. **Trim fallback** — strips configurable prefix/suffix and retries (used for `field_` WebUI compat)
 
 ---
 
@@ -153,24 +174,24 @@ Data field access for JSON payloads is planned for a future release. This will s
 
 ### Comparison Operators
 
-| Operator | Description             | Example                               |
-|----------|-------------------------|---------------------------------------|
-| `=`      | Equality                | `stream = 'orders'`                   |
-| `!=`     | Not equal               | `schema_name != 'SystemEvent'`        |
-| `<>`     | Not equal (alternative) | `stream <> 'test'`                    |
-| `>`      | Greater than            | `properties.amount > 100`             |
-| `<`      | Less than               | `properties.count < 50`               |
-| `>=`     | Greater than or equal   | `timestamp >= '2024-01-01T00:00:00Z'` |
-| `<=`     | Less than or equal      | `properties.score <= 95`              |
+| Operator | Description             | Example                                  |
+|----------|-------------------------|------------------------------------------|
+| `=`      | Equality                | `stream = 'orders'`                      |
+| `!=`     | Not equal               | `schema_name != 'SystemEvent'`           |
+| `<>`     | Not equal (alternative) | `stream <> 'test'`                       |
+| `>`      | Greater than            | `metadata['amount'] > 100`               |
+| `<`      | Less than               | `metadata['count'] < 50`                 |
+| `>=`     | Greater than or equal   | `created_at >= 1704067200000`            |
+| `<=`     | Less than or equal      | `metadata['score'] <= 95`                |
 
 ### Logical Operators
 
-| Operator | Description | Example                                                                    |
-|----------|-------------|----------------------------------------------------------------------------|
-| `AND`    | Logical AND | `stream = 'orders' AND schema_name = 'OrderCreated'`                       |
-| `OR`     | Logical OR  | `schema_name = 'OrderCreated' OR schema_name = 'OrderUpdated'`             |
-| `NOT`    | Logical NOT | `NOT (stream = 'test')`                                                    |
-| `()`     | Grouping    | `(stream = 'orders' OR stream = 'payments') AND properties.userId = '123'` |
+| Operator | Description | Example                                                                       |
+|----------|-------------|-------------------------------------------------------------------------------|
+| `AND`    | Logical AND | `stream = 'orders' AND schema_name = 'OrderCreated'`                          |
+| `OR`     | Logical OR  | `schema_name = 'OrderCreated' OR schema_name = 'OrderUpdated'`                |
+| `NOT`    | Logical NOT | `NOT (stream = 'test')`                                                       |
+| `()`     | Grouping    | `(stream = 'orders' OR stream = 'payments') AND metadata['userId'] = '123'`   |
 
 ### Pattern Matching Operators
 
@@ -184,15 +205,13 @@ Data field access for JSON payloads is planned for a future release. This will s
 **Pattern Wildcards**:
 - `%` - Matches any sequence of characters (including empty)
 - `_` - Matches any single character
-- `\%` - Literal percent sign
-- `\_` - Literal underscore
 
 ### Null Checking Operators
 
-| Operator      | Description                    | Example                            |
-|---------------|--------------------------------|------------------------------------|
-| `IS NULL`     | Check if value is null/missing | `properties.correlationId IS NULL` |
-| `IS NOT NULL` | Check if value exists          | `properties.userId IS NOT NULL`    |
+| Operator      | Description                    | Example                               |
+|---------------|--------------------------------|---------------------------------------|
+| `IS NULL`     | Check if value is null/missing | `metadata['correlationId'] IS NULL` |
+| `IS NOT NULL` | Check if value exists          | `metadata['userId'] IS NOT NULL`    |
 
 ### Set Membership Operators
 
@@ -205,8 +224,8 @@ Data field access for JSON payloads is planned for a future release. This will s
 
 | Operator      | Description                | Example                                           |
 |---------------|----------------------------|---------------------------------------------------|
-| `BETWEEN`     | Value in range (inclusive) | `timestamp BETWEEN '2024-01-01' AND '2024-12-31'` |
-| `NOT BETWEEN` | Value outside range        | `position NOT BETWEEN 100 AND 200`                |
+| `BETWEEN`     | Value in range (inclusive) | `created_at BETWEEN 1704067200000 AND 1735689600000` |
+| `NOT BETWEEN` | Value outside range        | `log_position NOT BETWEEN 100 AND 200`               |
 
 ---
 
@@ -226,11 +245,11 @@ From lowest to highest:
 Use parentheses to override precedence:
 ```sql
 -- Without parentheses: AND binds tighter than OR
-stream = 'orders' OR stream = 'payments' AND properties.amount > 100
--- Equivalent to: stream = 'orders' OR (stream = 'payments' AND properties.amount > 100)
+stream = 'orders' OR stream = 'payments' AND metadata['amount'] > 100
+-- Equivalent to: stream = 'orders' OR (stream = 'payments' AND metadata['amount'] > 100)
 
 -- With parentheses: explicit grouping
-(stream = 'orders' OR stream = 'payments') AND properties.amount > 100
+(stream = 'orders' OR stream = 'payments') AND metadata['amount'] > 100
 ```
 
 ---
@@ -245,7 +264,7 @@ stream = 'orders' OR stream = 'payments' AND properties.amount > 100
 
 ```sql
 stream = 'orders'
-properties.name = 'John O\'Reilly'
+metadata['name'] = 'John O\'Reilly'
 ```
 
 ### Numeric Literals
@@ -254,21 +273,19 @@ properties.name = 'John O\'Reilly'
 - Decimals: `99.99`, `-12.5`, `0.001`
 
 ```sql
-properties.amount > 100
-properties.rate >= 0.05
-position > 1000000
+metadata['amount'] > 100
+metadata['rate'] >= 0.05
+log_position > 1000000
 ```
 
 ### DateTime Literals
 
-- ISO 8601 format in single quotes
-- With timezone: `'2024-01-15T10:30:00+02:00'`
-- UTC: `'2024-01-15T10:30:00Z'`
-- Date only: `'2024-01-15'`
+- Unix milliseconds (integer): `1704067200000`
+- Stored as `BIGINT` in the schema; compare using integer literals
 
 ```sql
-timestamp >= '2024-01-01T00:00:00Z'
-timestamp BETWEEN '2024-01-01' AND '2024-12-31'
+created_at >= 1704067200000
+created_at BETWEEN 1704067200000 AND 1735689600000
 ```
 
 ### Boolean Literals
@@ -277,8 +294,8 @@ timestamp BETWEEN '2024-01-01' AND '2024-12-31'
 - Also accepts strings: `'true'`, `'false'`
 
 ```sql
-properties.isVip = true
-properties.active = 'true'
+metadata['isVip'] = true
+metadata['active'] = 'true'
 ```
 
 ### NULL
@@ -287,8 +304,8 @@ properties.active = 'true'
 - Use `IS NULL` / `IS NOT NULL` for comparison
 
 ```sql
-properties.correlationId IS NULL
-properties.userId IS NOT NULL
+metadata['correlationId'] IS NULL
+metadata['userId'] IS NOT NULL
 ```
 
 ---
@@ -309,20 +326,19 @@ The filter system performs automatic type coercion following SQL semantics:
 
 ```sql
 -- String '100' compared to integer 100: string is parsed as number
-properties.amount > 100  -- works if amount is stored as string "150"
+metadata['amount'] > 100  -- works if amount is stored as string "150"
 ```
 
 ### DateTime Comparisons
 
-- Automatic conversion between `DateTime` and `DateTimeOffset`
-- String literals parsed as ISO 8601
+- `created_at` is stored as Unix milliseconds (`BIGINT`); compare using integer literals
+- No string-to-date coercion — use numeric millis directly
 
 ### NULL Handling
 
 - `NULL = NULL` returns `false` (SQL standard)
 - `NULL IS NULL` returns `true`
 - Any comparison with `NULL` returns `false`
-- `IN` with `NULL` in set: uses tuple semantics (returns `NULL` if not found and set contains `NULL`)
 
 ---
 
@@ -342,6 +358,7 @@ Error parsing filter: syntax error at or near "TOKEN"
 | Unclosed string  | `stream = 'orders` | `syntax error at or near "'"`            |
 | Missing operand  | `stream =`         | `syntax error at or near "end of input"` |
 | Invalid operator | `stream == 'test'` | `syntax error at or near "="`            |
+| Single arrow     | `data->'field'`    | `Use '->>' instead of '->'`             |
 | Unknown column   | `invalid_col = 1`  | Evaluates to `NULL`, no parse error      |
 
 ---
@@ -355,10 +372,10 @@ Error parsing filter: syntax error at or near "TOKEN"
 stream = 'user-events'
 
 -- Multiple conditions
-stream = 'orders' AND properties.amount > 100
+stream = 'orders' AND metadata['amount'] > 100
 
 -- Complex grouping
-(stream = 'orders' OR stream = 'refunds') AND properties.userId = 'user-123'
+(stream = 'orders' OR stream = 'refunds') AND metadata['userId'] = 'user-123'
 ```
 
 ### Pattern Matching
@@ -378,36 +395,39 @@ stream LIKE 'order_'
 
 ```sql
 -- Specific range
-timestamp BETWEEN '2024-01-01T00:00:00Z' AND '2024-02-01T00:00:00Z'
+created_at BETWEEN 1704067200000 AND 1706745600000
 
 -- After date
-timestamp >= '2024-01-01'
+created_at >= 1704067200000
 
 -- Before date
-timestamp < '2024-12-31T23:59:59Z'
+created_at < 1735689600000
 ```
 
 ### Metadata Filtering
 
 ```sql
--- Check existence
-properties.correlationId IS NOT NULL
+-- Bracket notation
+metadata['correlationId'] IS NOT NULL
+metadata['userId'] = 'user-123' AND metadata['amount'] > 50
+metadata['region'] IN ('us-east', 'us-west', 'eu-west')
 
--- Multiple metadata conditions
-properties.userId = 'user-123' AND properties.amount > 50
+-- Dot notation
+metadata.correlationId IS NOT NULL
+metadata.userId = 'user-123'
 
--- Set membership
-properties.region IN ('us-east', 'us-west', 'eu-west')
+-- Arrow text notation
+metadata->>'userId' = 'user-123'
 ```
 
 ### Complex Business Logic
 
 ```sql
 stream = 'orders' AND
-properties.amount > 100 AND
-properties.region IN ('us-east', 'us-west') AND
-properties.customerType != 'internal' AND
-timestamp >= '2024-01-01'
+metadata['amount'] > 100 AND
+metadata['region'] IN ('us-east', 'us-west') AND
+metadata['customerType'] != 'internal' AND
+created_at >= 1704067200000
 ```
 
 ---
@@ -420,32 +440,36 @@ timestamp >= '2024-01-01'
 - No functions (`LOWER(stream) = 'orders'`)
 - No subqueries
 - No aggregations
-- Data field access not yet implemented
+- No `->` (single arrow) — use `->>` or dot notation instead
+- No array indexing (`data.items[0]`) — bracket notation is for string keys only
 - String comparisons are case-insensitive by default
+- String escaping uses `\'` (C-style), not `''` (SQL-standard) — expressions using `\'` work in our parser but not in DuckDB
+- `data` column not yet registered in `RecordPropertyMap` (parser supports the syntax, evaluator pending)
 
 ### Future Enhancements
 
-- Data field access (`data.field`, `data->>'field'`)
+- `data` column registration in `RecordPropertyMap` for JSON payload access
+- Array indexing (`data.items[0]`)
 - `GLOB` operator for shell-style pattern matching
 - `SIMILAR TO` for SQL standard regex
 - Custom functions (e.g., `LOWER`, `UPPER`, `TRIM`)
 - Arithmetic expressions
 - Configurable case sensitivity
-- Maximum nesting depth protection
+- SQL-standard string escaping (`''`)
 
 ---
 
 ## Performance Considerations
 
-1. **Index-optimizable filters**: Filters on `stream`, `schema_name`, `timestamp`, and `position` can potentially be optimized for server-side execution.
+1. **Index-optimizable filters**: Filters on `stream`, `schema_name`, `created_at`, and `log_position` can potentially be optimized for server-side execution.
 
-2. **Memory filtering**: Filters on `properties` require in-memory evaluation after records are retrieved.
+2. **Memory filtering**: Filters on `metadata` require in-memory evaluation after records are retrieved.
 
 3. **Pattern matching**: `LIKE`/`ILIKE` patterns are compiled to regex once per expression and cached.
 
 4. **Short-circuit evaluation**: `AND`/`OR` operators use short-circuit evaluation.
 
-5. **Parser efficiency**: `ExpressionFilterParser` is lightweight and can be instantiated per use or shared.
+5. **Zero-allocation property resolution**: `PropertyResult<T>` is a readonly struct. Numeric comparisons use `Is<T>()` to avoid boxing.
 
 ---
 
@@ -458,6 +482,37 @@ timestamp >= '2024-01-01'
 
 ---
 
+## Architecture
+
+### PropertyMap Resolution Pipeline
+
+```
+Expression string
+  → Tokenizer (lexical analysis)
+  → Pratt Parser (AST construction)
+  → PropertyAccess(name, key)
+  → ExpressionFilterResolver.Find(property, record)
+    → PropertyMap<Record>.Find(name, key, trimPrefix: "field_")
+      → Direct lookup (FrozenDictionary)
+      → IPathParser.TryParse (DuckDb: bracket then dot)
+      → TrimName fallback (prefix/suffix stripping)
+    → PropertyResult<Record>
+      → .Value (boxed) or .Is<T>() / .TryGetDecimal() (unboxed)
+```
+
+### Key Types
+
+| Type | Purpose |
+|---|---|
+| `PropertyMap<T>` | Immutable property resolution engine with pluggable path parsing |
+| `PropertyResult<T>` | Lightweight struct for zero-alloc typed property access |
+| `IPathParser` | Strategy for parsing property paths into (name, key) candidates |
+| `PathParsers.DuckDb` | Default parser: bracket + dot notation (DuckDB compatible) |
+| `RecordPropertyMap` | Pre-built `PropertyMap<Record>` with standard column aliases |
+| `ExpressionFilterResolver` | Thin wrapper adding `field_` prefix trim for WebUI compat |
+
+---
+
 ## Testing
 
 ### DuckDB Compatibility Validation
@@ -465,32 +520,50 @@ timestamp >= '2024-01-01'
 Filter expressions are validated against DuckDB to ensure syntax compatibility. The test creates an in-memory DuckDB database with a table schema matching `Record` fields:
 
 ```sql
-CREATE TABLE events (
-    record_id UUID,
-    stream VARCHAR,
-    schema_name VARCHAR,
-    timestamp TIMESTAMPTZ,
-    position BIGINT,
-    stream_revision BIGINT,
-    properties MAP(VARCHAR, VARCHAR)
+CREATE TABLE records (
+    log_position BIGINT NOT NULL,
+    commit_position BIGINT,
+    stream_revision BIGINT NOT NULL,
+    created_at BIGINT NOT NULL,
+    expires_at BIGINT,
+    stream VARCHAR NOT NULL,
+    stream_hash UBIGINT NOT NULL,
+    schema_name VARCHAR NOT NULL,
+    category VARCHAR NOT NULL,
+    deleted BOOLEAN NOT NULL,
+    schema_id VARCHAR,
+    schema_format VARCHAR NOT NULL,
+    record_id BLOB NOT NULL,
+    data JSON,
+    metadata JSON
 )
 ```
 
-Each expression is validated using `EXPLAIN SELECT * FROM events WHERE {expression}` to verify it produces valid DuckDB SQL without requiring actual data.
+Each expression is validated using `EXPLAIN SELECT * FROM records WHERE {expression}` to verify it produces valid DuckDB SQL without requiring actual data.
+
+### DuckDB Validated Syntax
+
+| Syntax | DuckDB Column Type | Example |
+|---|---|---|
+| Bracket notation | JSON | `metadata['region'] = 'us-east'` |
+| Dot notation | JSON | `metadata.region = 'us-east'`, `data.address.city = 'NYC'` |
+| Arrow text `->>` | JSON | `data->>'region' = 'us-east'` |
+| Arrow text with JSONPath | JSON | `data->>'$.region' = 'us-east'` |
 
 ### Test Coverage
 
-- **Parser tests**: Verify all syntax constructs parse correctly
-- **Analyzer tests**: Verify server/client filter splitting
-- **Evaluation tests**: Verify filter matching behavior
-- **DuckDB validation tests**: Verify expressions are valid DuckDB WHERE clauses
+- **Parser tests**: All syntax constructs parse correctly
+- **Evaluation tests**: Filter matching against Record instances
+- **DuckDB validation tests**: Expressions validated as real DuckDB SQL
+- **PropertyMap tests**: Path resolution, bracket/dot/trim, typed access, numeric coercion
+- **Server filter extractor tests**: Server/client filter splitting
 
 ---
 
 ## References
 
-- ADR: `.project/docs/adr/0001-filter-expression-parser-architecture.md`
-- Original Idea: `.project/reference/ideas/FilterExpressions.md`
 - [DuckDB Comparison Operators](https://duckdb.org/docs/sql/expressions/comparison_operators)
 - [DuckDB Pattern Matching](https://duckdb.org/docs/sql/functions/pattern_matching)
 - [DuckDB IN Operator](https://duckdb.org/docs/sql/expressions/in)
+- [DuckDB JSON Overview](https://duckdb.org/docs/current/data/json/overview)
+- [DuckDB JSON Functions](https://duckdb.org/docs/current/data/json/json_functions)

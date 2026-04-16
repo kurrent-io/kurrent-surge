@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Text;
 using BenchmarkDotNet.Attributes;
@@ -165,7 +166,7 @@ public class QueryExpressionNormalizerBenchmarks {
     Utf8QueryExpressionNormalizer     _utf8Normalizer         = null!;
     Utf8QueryExpressionNormalizerV2   _utf8NormalizerV2       = null!;
     Utf8QueryExpressionNormalizerV3   _utf8NormalizerV3       = null!;
-
+    Utf8QueryExpressionNormalizerV4   _utf8NormalizerV4       = null!;
 
     byte[] _utf8Input  = null!;
 
@@ -187,6 +188,7 @@ public class QueryExpressionNormalizerBenchmarks {
         _utf8Normalizer        = new Utf8QueryExpressionNormalizer(Shared.Options);
         _utf8NormalizerV2      = new Utf8QueryExpressionNormalizerV2(Shared.Options);
         _utf8NormalizerV3      = new Utf8QueryExpressionNormalizerV3(Shared.Options);
+        _utf8NormalizerV4      = new Utf8QueryExpressionNormalizerV4(Shared.Options);
 
         _utf8Input  = Encoding.UTF8.GetBytes(Scenario.Query);
     }
@@ -255,5 +257,11 @@ public class QueryExpressionNormalizerBenchmarks {
         finally {
             writer.Dispose();
         }
+    }
+
+    [Benchmark(Description = "UTF8 Native V4 (no DotNext)")]
+    public void Utf8NativeV4() {
+        var writer = new ArrayBufferWriter<byte>(BufferSize);
+        _utf8NormalizerV4.Normalize(_utf8Input, writer);
     }
 }

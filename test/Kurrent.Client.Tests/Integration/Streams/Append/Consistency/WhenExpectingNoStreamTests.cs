@@ -14,7 +14,7 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).DoesNotExist())
+            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act
@@ -32,7 +32,7 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).DoesNotExist())
+            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act
@@ -50,7 +50,7 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).DoesNotExist())
+            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act

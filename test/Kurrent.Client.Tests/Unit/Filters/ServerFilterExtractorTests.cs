@@ -315,7 +315,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task properties_filter_has_no_server_filter() {
-        var expr   = ParseExpression("properties.amount > 100");
+        var expr   = ParseExpression("properties['amount'] > 100");
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsEqualTo(RecordFilter.None);
@@ -345,7 +345,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task extracts_server_filter_with_properties() {
-        var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
+        var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
@@ -354,7 +354,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task extracts_schema_filter_with_properties() {
-        var expr   = ParseExpression("schema_name = 'OrderCreated' AND properties.userId = 'Users-123'");
+        var expr   = ParseExpression("schema_name = 'OrderCreated' AND properties['userId'] = 'Users-123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
@@ -363,7 +363,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task extracts_server_filter_with_multiple_client_predicates() {
-        var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties.amount > 100 AND timestamp >= '2024-01-01'");
+        var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100 AND timestamp >= '2024-01-01'");
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
@@ -467,15 +467,16 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task expression_filter_extracts_target_stream() {
-        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
+        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
 
         await Assert.That(filter.TargetStream.Value).IsEqualTo("Orders-ABC123");
-        await Assert.That(filter.Expression).IsEqualTo("stream = 'Orders-ABC123' AND properties.amount > 100");
+        await Assert.That(filter.Expression).IsEqualTo("stream = 'Orders-ABC123' AND properties['amount'] > 100");
     }
 
     [Test]
     public async Task expression_filter_matches_records_correctly() {
-        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND timestamp >= '2024-01-01'");
+        // 1704067200000 = 2024-01-01T00:00:00Z in unix millis
+        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND timestamp >= 1704067200000");
 
         var matching = new Record {
             Id       = Guid.NewGuid(),
@@ -547,7 +548,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task expression_filter_with_client_predicate_matches() {
-        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties.amount > 100");
+        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
 
         var matching = new Record {
             Id       = Guid.NewGuid(),

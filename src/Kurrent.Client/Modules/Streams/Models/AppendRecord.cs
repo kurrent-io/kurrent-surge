@@ -16,20 +16,16 @@ public record AppendRecord : SelfValidating {
         Stream     = StreamName.Unset
     };
 
-    public static AppendRecordBuilder New => new();
-
-    public static AppendRecordBuilder ToStream(StreamName stream) =>
-        new AppendRecordBuilder().ForStream(stream);
+    public static Builder New => new();
 
     /// <summary>
     /// The assigned record id.
     /// </summary>
     public Guid RecordId {
         get;
-        internal init {
-            field = value;
-            ResetValidation();
-        }
+        init
+        { field = value;
+          ResetValidation(); }
     } = Guid.NewGuid();
 
     /// <summary>
@@ -38,10 +34,9 @@ public record AppendRecord : SelfValidating {
     [MaybeNull]
     public object Value {
         get;
-        internal init {
-            field = value;
-            ResetValidation();
-        }
+        init
+        { field = value;
+          ResetValidation(); }
     } = null!;
 
     /// <summary>
@@ -49,110 +44,102 @@ public record AppendRecord : SelfValidating {
     /// </summary>
     public SchemaDataFormat DataFormat {
         get;
-        internal init {
-            field = value;
-            ResetValidation();
-        }
+        internal init
+        { field = value;
+          ResetValidation(); }
     } = SchemaDataFormat.Json;
 
     /// <summary>
     /// Optional metadata associated with the record.
     /// </summary>
-    public Metadata Metadata { get; internal init; } = new();
+    public Metadata Metadata { get; init; } = new();
 
     /// <summary>
     /// The stream to which this record will be appended.
     /// </summary>
     public StreamName Stream {
         get;
-        internal init {
-            field = value;
-            ResetValidation();
-        }
+        init
+        { field = value;
+          ResetValidation(); }
     } = StreamName.Unset;
 
     /// <summary>
     /// When the record was created.
     /// </summary>
-    public DateTimeOffset Timestamp { get; internal init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 
     public override ValidationResult RunValidation() {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)
-            problems.Add(
-                ValidationProblem.CreateForField(nameof(RecordId), ErrorMessages.AppendRecordRecordIdRequired, RecordId));
+            problems.Add(ValidationProblem.CreateForField(nameof(RecordId), ErrorMessages.AppendRecordRecordIdRequired, RecordId));
 
         if (Value is null)
-            problems.Add(
-                ValidationProblem.CreateForField(nameof(Value), ErrorMessages.AppendRecordValueRequired));
+            problems.Add(ValidationProblem.CreateForField(nameof(Value), ErrorMessages.AppendRecordValueRequired));
 
         if (DataFormat == SchemaDataFormat.Unspecified)
-            problems.Add(
-                ValidationProblem.CreateForField(nameof(DataFormat), ErrorMessages.AppendRecordDataFormatRequired, DataFormat));
+            problems.Add(ValidationProblem.CreateForField(nameof(DataFormat), ErrorMessages.AppendRecordDataFormatRequired, DataFormat));
 
-        if (Value is not null && Value.IsBytes() && DataFormat != SchemaDataFormat.Bytes)
+        if (Value is { } && Value.IsBytes() && DataFormat != SchemaDataFormat.Bytes)
             problems.Add(
-                ValidationProblem.CreateForField(nameof(DataFormat),
+                ValidationProblem.CreateForField(
+                    nameof(DataFormat),
                     ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
 
         return problems.Count > 0
             ? ValidationError.Create(ErrorCode.FromType<AppendRecord>(), [.. problems])
             : Results.Success;
     }
-}
 
-[PublicAPI]
-public class AppendRecordBuilder {
-    AppendRecord _appendRecord = new();
+    public class Builder {
+        AppendRecord _appendRecord = new();
 
-    internal AppendRecordBuilder FromRecord(AppendRecord record) {
-        _appendRecord = record;
-        return this;
-    }
+        internal Builder FromRecord(AppendRecord record) {
+            _appendRecord = record;
+            return this;
+        }
 
-    public AppendRecordBuilder ForStream(StreamName stream) {
-        _appendRecord = _appendRecord with { Stream = stream };
-        return this;
-    }
+        public Builder ForStream(StreamName stream) {
+            _appendRecord = _appendRecord with { Stream = stream };
+            return this;
+        }
 
-    public AppendRecordBuilder WithId(Guid recordId) {
-        _appendRecord = _appendRecord with { RecordId = recordId };
-        return this;
-    }
+        public Builder WithId(Guid recordId) {
+            _appendRecord = _appendRecord with { RecordId = recordId };
+            return this;
+        }
 
-    public AppendRecordBuilder WithValue(object recordValue) {
-        _appendRecord = _appendRecord with { Value = recordValue };
-        return this;
-    }
+        public Builder WithValue(object recordValue) {
+            _appendRecord = _appendRecord with { Value = recordValue };
+            return this;
+        }
 
-    public AppendRecordBuilder WithDataFormat(SchemaDataFormat dataFormat) {
-        _appendRecord = _appendRecord with { DataFormat = dataFormat };
-        return this;
-    }
+        public Builder WithDataFormat(SchemaDataFormat dataFormat) {
+            _appendRecord = _appendRecord with { DataFormat = dataFormat };
+            return this;
+        }
 
-    public AppendRecordBuilder WithMetadata(Metadata metadata) {
-        _appendRecord = _appendRecord with {
-            Metadata = metadata
-        };
+        public Builder WithMetadata(Metadata metadata) {
+            _appendRecord = _appendRecord with { Metadata = metadata };
+            return this;
+        }
 
-        return this;
-    }
+        public Builder WithMetadata<T>(string key, T value) =>
+            WithMetadata(_appendRecord.Metadata.With(key, value));
 
-    public AppendRecordBuilder WithMetadata<T>(string key, T value) =>
-        WithMetadata(_appendRecord.Metadata.With(key, value));
+        public Builder WithTimestamp(DateTimeOffset timestamp) {
+            _appendRecord = _appendRecord with { Timestamp = timestamp };
+            return this;
+        }
 
-    public AppendRecordBuilder WithTimestamp(DateTimeOffset timestamp) {
-        _appendRecord = _appendRecord with { Timestamp = timestamp };
-        return this;
-    }
+        public Builder WithTimestamp(long timestamp) =>
+            WithTimestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
 
-    public AppendRecordBuilder WithTimestamp(long timestamp) =>
-        WithTimestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
+        public AppendRecord Build() {
+            _appendRecord.EnsureValid();
 
-    public AppendRecord Build() {
-        _appendRecord.EnsureValid();
-        return _appendRecord;
+            return _appendRecord;
+        }
     }
 }
-

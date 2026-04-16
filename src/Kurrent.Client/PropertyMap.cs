@@ -3,6 +3,69 @@ using System.Collections.Frozen;
 namespace Kurrent.Client;
 
 /// <summary>
+/// Strategy for parsing property paths into (name, key) candidates.
+/// The implementation calls <c>tryResolve</c> for each candidate it produces;
+/// returns <c>true</c> as soon as a candidate matches.
+/// </summary>
+[PublicAPI]
+public interface IPathParser {
+    /// <summary>
+    /// Produces (name, key) candidates from <paramref name="path"/> and calls
+    /// <paramref name="tryResolve"/> for each. Returns <c>true</c> when a candidate matches.
+    /// </summary>
+    bool TryParse(string path, Func<string, string?, bool> tryResolve);
+}
+
+/// <summary>
+/// Built-in <see cref="IPathParser"/> implementations for <see cref="PropertyMap{T}"/>.
+/// </summary>
+[PublicAPI]
+public static class PathParsers {
+    /// <summary>
+    /// DuckDB-compatible path parser. Supports all property access patterns that are valid DuckDB SQL:
+    /// <list type="bullet">
+    ///   <item>Bracket notation: <c>properties['region']</c>, <c>properties["region"]</c></item>
+    ///   <item>Dot notation: <c>properties.region</c>, <c>data.address.city</c></item>
+    /// </list>
+    /// Bracket notation is tried first; dot notation splits right-to-left on <c>'.'</c>.
+    /// <para>
+    /// The <c>-&gt;</c> (single arrow) operator is not supported. It returns JSON type, which is only
+    /// useful for chained traversal (<c>data-&gt;'a'-&gt;'b'</c>). Since <c>-&gt;&gt;</c> and dot
+    /// notation cover all filter use cases, there is no reason to add it.
+    /// </para>
+    /// </summary>
+    public static readonly IPathParser DuckDb = new DuckDbParser();
+
+    sealed class DuckDbParser : IPathParser {
+        public bool TryParse(string path, Func<string, string?, bool> tryResolve) {
+            // bracket notation: name['key'] or name["key"]
+            var bracket = path.IndexOf('[');
+            if (bracket > 0) {
+                var name  = path[..bracket];
+                var inner = path.AsSpan(bracket + 1);
+
+                if (inner.Length >= 3 && inner[^1] == ']') {
+                    inner = inner[..^1];
+                    if (inner[0] is '\'' or '"' && inner[^1] == inner[0])
+                        inner = inner[1..^1];
+
+                    if (tryResolve(name, inner.ToString()))
+                        return true;
+                }
+            }
+
+            // dot notation: split right-to-left on '.'
+            for (var i = path.Length - 1; i >= 0; i--) {
+                if (path[i] == '.' && tryResolve(path[..i], path[(i + 1)..]))
+                    return true;
+            }
+
+            return false;
+        }
+    }
+}
+
+/// <summary>
 /// Immutable property map binding string aliases to typed property accessors over <typeparamref name="T"/>.
 /// Built once via <see cref="Build"/> with a <see cref="Builder"/>, then frozen into a
 /// <see cref="FrozenDictionary{TKey,TValue}"/> for O(1) case-insensitive lookup.
@@ -25,13 +88,15 @@ namespace Kurrent.Client;
 /// <typeparam name="T">The type whose properties are accessed.</typeparam>
 public sealed class PropertyMap<T> {
     readonly FrozenDictionary<string, IPropertyAccessor<T>> _accessors;
+    readonly IPathParser? _pathParser;
 
 #if NET9_0_OR_GREATER
     readonly FrozenDictionary<string, IPropertyAccessor<T>>.AlternateLookup<ReadOnlySpan<char>> _spanLookup;
 #endif
 
-    PropertyMap(FrozenDictionary<string, IPropertyAccessor<T>> accessors) {
-        _accessors = accessors;
+    PropertyMap(FrozenDictionary<string, IPropertyAccessor<T>> accessors, IPathParser? pathParser) {
+        _accessors  = accessors;
+        _pathParser = pathParser;
 
 #if NET9_0_OR_GREATER
         _spanLookup = accessors.GetAlternateLookup<ReadOnlySpan<char>>();
@@ -90,47 +155,72 @@ public sealed class PropertyMap<T> {
 
     /// <summary>
     /// Looks up the accessor for <paramref name="name"/> and returns a <see cref="PropertyResult{T}"/>
-    /// that can be probed for typed values without boxing.
+    /// that can be probed for typed values without boxing. Supports dot-path fallback and trim.
     /// </summary>
-    public PropertyResult<T> Find(string name, T instance) =>
-        _accessors.TryGetValue(name, out var accessor)
-            ? new PropertyResult<T>(accessor, instance)
-            : default;
+    public PropertyResult<T> Find(string name, T instance, string? trimPrefix = null, string? trimSuffix = null) =>
+        Find(name, null, instance, trimPrefix, trimSuffix);
 
     /// <summary>
     /// Looks up the accessor for <paramref name="name"/> with optional <paramref name="key"/> and
     /// returns a <see cref="PropertyResult{T}"/> that can be probed for typed values without boxing.
     /// When a keyed accessor is registered and a key is provided, the key is passed through.
+    /// When no key is provided, splits <paramref name="name"/> right-to-left on <c>'.'</c> to find
+    /// a registered prefix with the trailing segment as key (dot-path fallback).
+    /// When <paramref name="trimPrefix"/> or <paramref name="trimSuffix"/> is provided, retries
+    /// the full resolution with the affix stripped if nothing matched.
     /// </summary>
-    public PropertyResult<T> Find(string name, string? key, T instance) {
-        if (!_accessors.TryGetValue(name, out var accessor))
-            return default;
+    public PropertyResult<T> Find(string name, string? key, T instance, string? trimPrefix = null, string? trimSuffix = null) {
+        if (_accessors.TryGetValue(name, out var accessor))
+            return WrapResult(accessor, instance, key);
 
-        if (key is not null && accessor is IKeyedPropertyAccessor<T> keyed)
-            return new PropertyResult<T>(keyed, instance, key);
+        // path parser fallback: delegate produces (name, key) candidates
+        if (key is null && _pathParser is not null) {
+            IPropertyAccessor<T>? matched = null;
+            string? matchedKey = null;
 
-        return new PropertyResult<T>(accessor, instance);
-    }
-
-    /// <summary>
-    /// Resolves a value using the registered accessors with dot-path fallback.
-    /// Tries <c>(name, key)</c> directly, then splits <paramref name="name"/> right-to-left on <c>'.'</c>
-    /// to find a registered prefix with the trailing segment as key.
-    /// </summary>
-    public object? Resolve(string name, string? key, T instance) {
-        var value = GetValue(name, key, instance);
-        if (value is not null) return value;
-
-        if (key is null) {
-            for (var i = name.Length - 1; i >= 0; i--) {
-                if (name[i] != '.') continue;
-
-                value = GetValue(name[..i], name[(i + 1)..], instance);
-                if (value is not null) return value;
+            if (_pathParser.TryParse(name, (candidateName, candidateKey) => {
+                if (!_accessors.TryGetValue(candidateName, out var acc)) return false;
+                matched    = acc;
+                matchedKey = candidateKey;
+                return true;
+            }) && matched is not null) {
+                return WrapResult(matched, instance, matchedKey);
             }
         }
 
-        return null;
+        // trim fallback: strip prefix/suffix and retry without trim
+        var trimmed = TrimName(name, trimPrefix, trimSuffix);
+        if (trimmed is not null)
+            return Find(trimmed, key, instance);
+
+        return default;
+    }
+
+    /// <summary>
+    /// Resolves a value using the registered accessors with dot-path and trim fallback.
+    /// Convenience wrapper over <see cref="Find(string, string?, T, string?, string?)"/>
+    /// that returns the boxed value directly.
+    /// </summary>
+    public object? Resolve(string name, string? key, T instance, string? trimPrefix = null, string? trimSuffix = null) =>
+        Find(name, key, instance, trimPrefix, trimSuffix).Value;
+
+    static PropertyResult<T> WrapResult(IPropertyAccessor<T> accessor, T instance, string? key) =>
+        key is not null && accessor is IKeyedPropertyAccessor<T> keyed
+            ? new PropertyResult<T>(keyed, instance, key)
+            : new PropertyResult<T>(accessor, instance);
+
+    static string? TrimName(string name, string? prefix, string? suffix) {
+        if (prefix is null && suffix is null) return null;
+
+        ReadOnlySpan<char> span = name;
+
+        if (prefix is not null && span.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            span = span[prefix.Length..];
+
+        if (suffix is not null && span.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            span = span[..^suffix.Length];
+
+        return span.Length == name.Length ? null : span.ToString();
     }
 
     /// <summary>
@@ -165,6 +255,18 @@ public sealed class PropertyMap<T> {
     /// </summary>
     public sealed class Builder {
         readonly Dictionary<string, IPropertyAccessor<T>> _map = new(StringComparer.OrdinalIgnoreCase);
+
+        IPathParser? _pathParser = PathParsers.DuckDb;
+
+        /// <summary>
+        /// Sets the path parsing strategy used by <see cref="PropertyMap{T}.Find(string, string?, T, string?, string?)"/>
+        /// to derive (name, key) candidates from dot-paths or bracket notation.
+        /// Defaults to <see cref="PathParsers.DuckDb"/>. Pass <c>null</c> to disable path parsing.
+        /// </summary>
+        public Builder UsePathParser(IPathParser? parser) {
+            _pathParser = parser;
+            return this;
+        }
 
         /// <summary>
         /// Registers a typed property accessor under one or more alias names.
@@ -205,7 +307,7 @@ public sealed class PropertyMap<T> {
             return this;
         }
 
-        public PropertyMap<T> Build() => new(_map.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
+        public PropertyMap<T> Build() => new(_map.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase), _pathParser);
     }
 }
 
@@ -252,6 +354,24 @@ public readonly struct PropertyResult<T> {
         }
 
         result = default!;
+        return false;
+    }
+}
+
+/// <summary>
+/// Extension methods for <see cref="PropertyResult{T}"/> providing common type coercions.
+/// </summary>
+public static class PropertyResultExtensions {
+    /// <summary>
+    /// Attempts to extract a <see cref="decimal"/> value by probing for common numeric types
+    /// (<c>decimal</c>, <c>long</c>, <c>int</c>, <c>double</c>) without boxing.
+    /// </summary>
+    public static bool TryGetDecimal<T>(this PropertyResult<T> prop, out decimal result) {
+        if (prop.Is<decimal>(out result))              return true;
+        if (prop.Is<long>(out var l))   { result = l;           return true; }
+        if (prop.Is<int>(out var i))    { result = i;           return true; }
+        if (prop.Is<double>(out var d)) { result = (decimal)d;  return true; }
+        result = 0;
         return false;
     }
 }

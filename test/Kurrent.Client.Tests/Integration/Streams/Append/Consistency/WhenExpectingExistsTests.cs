@@ -14,7 +14,7 @@ public class WhenExpectingExistsTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).Exists())
+            .WithCheck(ConsistencyCheck.StreamExists(checkedStream))
             .Build();
 
         // act
@@ -32,7 +32,7 @@ public class WhenExpectingExistsTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).Exists())
+            .WithCheck(ConsistencyCheck.StreamExists(checkedStream))
             .Build();
 
         // act
@@ -53,7 +53,7 @@ public class WhenExpectingExistsTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).Exists())
+            .WithCheck(ConsistencyCheck.StreamExists(checkedStream))
             .Build();
 
         // act
@@ -74,7 +74,7 @@ public class WhenExpectingExistsTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).Exists())
+            .WithCheck(ConsistencyCheck.StreamExists(checkedStream))
             .Build();
 
         // act

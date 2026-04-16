@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
@@ -89,6 +91,14 @@ public record Record {
     /// Indicates whether the current <see cref="Record"/> instance has been successfully decoded.
     /// </summary>
     public bool IsDecoded => Value is { } && ValueType != Type.MissingType;
+
+    /// <summary>
+    /// Lazily-serialized JSON representation of <see cref="Value"/> for filter expression evaluation.
+    /// Returns <c>null</c> when the record is not decoded or the schema format is not JSON.
+    /// </summary>
+    internal JsonNode? JsonNode => IsDecoded && Schema.SchemaFormat == SchemaDataFormat.Json
+        ? field ??= JsonSerializer.SerializeToNode(Value)
+        : null;
 
     /// <summary>
     /// Indicates whether the current <see cref="Record"/> instance is unset.

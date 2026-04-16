@@ -9,8 +9,8 @@ namespace Kurrent.Client.Tests.Integration.Admin;
 [Category("Integration")]
 [Timeout(15_000)]
 [NotInParallel(nameof(ScavengeTests))]
-// [Skip("Scavenge tests are destructive and impact the shared test database, "
-//     + "and are not currently run in CI. They should be run manually when needed.")]
+[Skip("Scavenge tests are destructive and impact the shared test database, "
+    + "and are not currently run in CI. They should be run manually when needed.")]
 public class ScavengeTests {
     //TODO SS: Use Aspire instead of fluent docker to allow creating isolated databases for these tests, and remove the Skip attribute.
 

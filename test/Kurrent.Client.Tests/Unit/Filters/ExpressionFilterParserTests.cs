@@ -84,7 +84,7 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_complex_logical_expression_with_parentheses() {
-        var expression = ExpressionFilterParser.Parse("(stream = 'orders' OR stream = 'payments') AND properties.amount > 100");
+        var expression = ExpressionFilterParser.Parse("(stream = 'orders' OR stream = 'payments') AND properties['amount'] > 100");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -141,14 +141,14 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_is_null() {
-        var expression = ExpressionFilterParser.Parse("properties.correlationId IS NULL");
+        var expression = ExpressionFilterParser.Parse("properties['correlationId'] IS NULL");
 
         await Assert.That(expression).IsNotNull();
     }
 
     [Test]
     public async Task parses_is_not_null() {
-        var expression = ExpressionFilterParser.Parse("properties.userId IS NOT NULL");
+        var expression = ExpressionFilterParser.Parse("properties['userId'] IS NOT NULL");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -223,7 +223,7 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_properties_dot_notation() {
-        var expression = ExpressionFilterParser.Parse("properties.userId = 'user-123'");
+        var expression = ExpressionFilterParser.Parse("properties['userId'] = 'user-123'");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -237,7 +237,7 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_props_alias_dot_notation() {
-        var expression = ExpressionFilterParser.Parse("props.amount > 100");
+        var expression = ExpressionFilterParser.Parse("props['amount'] > 100");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -262,7 +262,7 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_string_with_escaped_quote() {
-        var expression = ExpressionFilterParser.Parse("properties.name = 'O\\'Reilly'");
+        var expression = ExpressionFilterParser.Parse("properties['name'] = 'O\\'Reilly'");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -276,14 +276,14 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_negative_integer_literals() {
-        var expression = ExpressionFilterParser.Parse("properties.offset = -10");
+        var expression = ExpressionFilterParser.Parse("properties['offset'] = -10");
 
         await Assert.That(expression).IsNotNull();
     }
 
     [Test]
     public async Task parses_decimal_literals() {
-        var expression = ExpressionFilterParser.Parse("properties.rate = 99.99");
+        var expression = ExpressionFilterParser.Parse("properties['rate'] = 99.99");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -304,14 +304,14 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_boolean_true() {
-        var expression = ExpressionFilterParser.Parse("properties.active = true");
+        var expression = ExpressionFilterParser.Parse("properties['active'] = true");
 
         await Assert.That(expression).IsNotNull();
     }
 
     [Test]
     public async Task parses_boolean_false() {
-        var expression = ExpressionFilterParser.Parse("properties.deleted = false");
+        var expression = ExpressionFilterParser.Parse("properties['deleted'] = false");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -343,7 +343,7 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_lowercase_is_null() {
-        var expression = ExpressionFilterParser.Parse("properties.key is null");
+        var expression = ExpressionFilterParser.Parse("properties['key'] is null");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -395,9 +395,9 @@ public class ExpressionFilterParserTests {
     public async Task parses_complex_business_logic_expression() {
         var expression = @"
             stream = 'orders' AND
-            properties.amount > 100 AND
-            properties.region IN ('us-east', 'us-west') AND
-            properties.customerType != 'internal' AND
+            properties['amount'] > 100 AND
+            properties['region'] IN ('us-east', 'us-west') AND
+            properties['customerType'] != 'internal' AND
             timestamp >= '2024-01-01'
         ";
 
@@ -573,7 +573,7 @@ public class ExpressionFilterParserTests {
 
     [Test]
     public async Task parses_metadata_dot_path_as_property_key() {
-        var expression = ExpressionFilterParser.Parse("metadata.region = 'us-east'");
+        var expression = ExpressionFilterParser.Parse("metadata['region'] = 'us-east'");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -611,22 +611,22 @@ public class ExpressionFilterParserTests {
     }
 
     [Test]
-    public async Task parses_created_ts_alias() {
-        var expression = ExpressionFilterParser.Parse("created_ts >= '2026-01-01'");
+    public async Task parses_ts_alias() {
+        var expression = ExpressionFilterParser.Parse("ts >= 1767225600000"); // 2026-01-01 in unix millis
 
         await Assert.That(expression).IsNotNull();
     }
 
     [Test]
     public async Task parses_metadata_alias() {
-        var expression = ExpressionFilterParser.Parse("metadata.region = 'us-east'");
+        var expression = ExpressionFilterParser.Parse("metadata['region'] = 'us-east'");
 
         await Assert.That(expression).IsNotNull();
     }
 
     [Test]
     public async Task parses_stream_name_alias() {
-        var expression = ExpressionFilterParser.Parse("stream_name = 'orders-99'");
+        var expression = ExpressionFilterParser.Parse("stream = 'orders-99'");
 
         await Assert.That(expression).IsNotNull();
     }
@@ -654,6 +654,61 @@ public class ExpressionFilterParserTests {
         var expression = ExpressionFilterParser.Parse("field_schema = 'OrderPlaced'");
 
         await Assert.That(expression).IsNotNull();
+    }
+
+    #endregion
+
+    #region . JSON Access Notation .
+
+    [Test]
+    public async Task parses_nested_dot_access() {
+        var expression = ExpressionFilterParser.Parse("data.address.city = 'NYC'");
+
+        await Assert.That(expression).IsNotNull();
+    }
+
+    [Test]
+    public async Task parses_deeply_nested_dot_access() {
+        var expression = ExpressionFilterParser.Parse("data.user.profile.settings.theme = 'dark'");
+
+        await Assert.That(expression).IsNotNull();
+    }
+
+    [Test]
+    public async Task parses_arrow_text_property_access() {
+        var expression = ExpressionFilterParser.Parse("properties->>'region' = 'us-east'");
+
+        await Assert.That(expression).IsNotNull();
+    }
+
+    [Test]
+    public async Task single_arrow_is_not_supported() {
+        var success = ExpressionFilterParser.TryParse("data->'tags' IS NOT NULL", out _, out _);
+
+        await Assert.That(success).IsFalse();
+    }
+
+    [Test]
+    public async Task parses_arrow_after_dot_segments() {
+        var expression = ExpressionFilterParser.Parse("rec.properties->>'userId' = 'user-123'");
+
+        await Assert.That(expression).IsNotNull();
+    }
+
+    [Test]
+    public async Task parses_arrow_in_complex_expression() {
+        var expression = ExpressionFilterParser.Parse("stream = 'orders' AND properties->>'amount' > 100");
+
+        await Assert.That(expression).IsNotNull();
+    }
+
+    [Test]
+    public async Task parses_negative_number_still_works() {
+        var expression = ExpressionFilterParser.Parse("position > -10");
+        var record     = _faker.With(position: 5);
+
+        await Assert.That(expression).IsNotNull();
+        await Assert.That(expression.IsMatch(record)).IsTrue();
     }
 
     #endregion

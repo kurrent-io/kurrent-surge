@@ -37,11 +37,11 @@ public partial class StreamsClient {
 
         var request = Requests.CreateInspectRecordRequest(position);
 
-        var message = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
+        var result = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        if (message.Value is not Record record)
+        if (result.Value is not Record record)
             throw new LogPositionNotFoundException(position);
 
         // Check if the source stream has been deleted or tombstoned
@@ -86,10 +86,9 @@ public partial class StreamsClient {
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            if (message.IsRecord)
-                return message.AsRecord;
-
-            throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
+            return message.IsRecord 
+                ? message.AsRecord 
+                : throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException();
@@ -232,7 +231,7 @@ public static partial class StreamsClientExtensions {
     }
 
     extension(IAsyncEnumerable<ReadRecordsResult> source) {
-        public ValueTask<List<Record>> ToRecordsList() =>
+        public ValueTask<List<Record>> ToListAsync() =>
             source.Where(msg => msg.IsRecord).Select(msg => msg.AsRecord).ToListAsync();
     }
 }

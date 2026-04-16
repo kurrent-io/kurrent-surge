@@ -97,7 +97,7 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
         var request = new ReadRecordsRequest {
             Direction    = ReadDirection.Backwards,
             Start        = LogPosition.Latest,
-            Limit   = 1,
+            Limit        = 1,
             SkipDecoding = true
         };
 
