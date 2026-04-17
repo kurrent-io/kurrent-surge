@@ -1,13 +1,9 @@
 #if NET10_0_OR_GREATER
 
-using Aspire.Hosting;
-using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using Bogus;
 using Kurrent.Client.Streams;
-using Kurrent.Testing;
-using Kurrent.Testing.Bogus;
 using Kurrent.Testing.Testkit;
-using Kurrent.Testing.TUnit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -23,9 +19,9 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    public ILogger Logger => TestContext.CurrentLogger;
+    public ILogger Logger => TestkitExecutionContext.Logger;
 
-    public ILoggerFactory LoggerFactory => TestContext.CurrentLoggerFactory;
+    public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
 
     public FakeTimeProvider Time { get; } = new();
 
@@ -64,7 +60,7 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
         ConnectionString = $"{uri.Scheme}://admin:changeit@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
 
         Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-            .WithLoggerFactory(new TestkitLoggerFactory())
+            .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
             .ConfigureSchema(schema => schema
                 .WithValidation(false)
                 .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))

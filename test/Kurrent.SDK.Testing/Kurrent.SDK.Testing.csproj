@@ -12,12 +12,19 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing.Datasets\Kurrent.Testing.Datasets.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" />
     <!-- <PackageReference Include="TUnit" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\scripts\certs\**\*">
+      <Link>certs\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
