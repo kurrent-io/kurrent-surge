@@ -53,13 +53,13 @@ namespace Kurrent.Processors.Options;
 /// </example>
 [PublicAPI]
 public sealed class KurrentProcessorBuilder {
-    string?                  _processorTypeName;
-    ProcessorSettingsBuilder _settingsBuilder;
+    string?                    _processorTypeName;
+    ProcessorOptions.Builder  _settingsBuilder;
 
     internal KurrentProcessorBuilder(IRecordProcessorFactory processorFactory, string? processorTypeName) {
         _processorTypeName = processorTypeName;
 
-        _settingsBuilder = new ProcessorSettingsBuilder();
+        _settingsBuilder = new ProcessorOptions.Builder();
 
         GetProcessor = () => {
             try {
@@ -336,7 +336,7 @@ public sealed class KurrentProcessorBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the checkpoint settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureCheckpointing(Action<CheckpointSettingsBuilder> configure) {
+    public KurrentProcessorBuilder ConfigureCheckpointing(Action<CheckpointOptions.Builder> configure) {
         _settingsBuilder.ConfigureCheckpointing(configure);
         return this;
     }
@@ -346,7 +346,7 @@ public sealed class KurrentProcessorBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the batching settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureBatching(Action<BatchingSettingsBuilder> configure) {
+    public KurrentProcessorBuilder ConfigureBatching(Action<BatchingOptions.Builder> configure) {
         _settingsBuilder.ConfigureBatching(configure);
         return this;
     }
@@ -356,7 +356,7 @@ public sealed class KurrentProcessorBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the subscription settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureSubscription(Action<SubscriptionSettingsBuilder> configure) {
+    public KurrentProcessorBuilder ConfigureSubscription(Action<SubscriptionOptions.Builder> configure) {
         _settingsBuilder.ConfigureSubscription(configure);
         return this;
     }
@@ -366,7 +366,7 @@ public sealed class KurrentProcessorBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the worker settings builder.</param>
     /// <returns>The runner instance for method chaining.</returns>
-    public KurrentProcessorBuilder ConfigureWorker(Action<WorkerSettingsBuilder> configure) {
+    public KurrentProcessorBuilder ConfigureWorker(Action<WorkerOptions.Builder> configure) {
         _settingsBuilder.ConfigureWorker(configure);
         return this;
     }

@@ -38,26 +38,26 @@ static class ProtocolMapper {
     /// </summary>
     static Value ToValue(object? source, bool treatByteArrayAsString = false) {
         if (IsNumber(source))
-            return new Value { NumberValue = Convert.ToDouble(source) };
+            return new() { NumberValue = Convert.ToDouble(source) };
 
         // somehow I need to check if the source is a collection or enumerable so I can map them to a list value
         if (source is IEnumerable and not string and not byte[] and not Metadata) {
             var values = ((IEnumerable)source).Cast<object?>().Select(val => ToValue(val, treatByteArrayAsString));
-            return new Value { ListValue = new ListValue { Values = { values } } };
+            return new() { ListValue = new() { Values = { values } } };
         }
 
         return source switch {
-            null       => new Value { NullValue   = NullValue.NullValue },
-            string x   => new Value { StringValue = x },
-            bool x     => new Value { BoolValue   = x },
-            Metadata x => new Value { StructValue = new Struct { Fields = { x.ToProperties() } } },
+            null       => new() { NullValue   = NullValue.NullValue },
+            string x   => new() { StringValue = x },
+            bool x     => new() { BoolValue   = x },
+            Metadata x => new() { StructValue = new() { Fields = { x.ToProperties() } } },
 
-            ReadOnlyMemory<byte> x => new Value { StringValue = Convert.ToBase64String(x.Span) },
-            Memory<byte> x         => new Value { StringValue = Convert.ToBase64String(x.Span) },
-            ArraySegment<byte> x   => new Value { StringValue = Convert.ToBase64String(x.Array ?? x.ToArray()) },
-            byte[] x               => new Value { StringValue = Convert.ToBase64String(x) },
+            ReadOnlyMemory<byte> x => new() { StringValue = Convert.ToBase64String(x.Span) },
+            Memory<byte> x         => new() { StringValue = Convert.ToBase64String(x.Span) },
+            ArraySegment<byte> x   => new() { StringValue = Convert.ToBase64String(x.Array ?? x.ToArray()) },
+            byte[] x               => new() { StringValue = Convert.ToBase64String(x) },
 
-            _ => new Value { StringValue = source.ToString() }
+            _ => new() { StringValue = source.ToString() }
         };
 
         static bool IsNumber(object? source) =>

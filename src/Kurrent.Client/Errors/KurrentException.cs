@@ -55,7 +55,7 @@ static class KurrentExceptionExtensions {
                 ? ErrorCode.From(errorInfo.Reason)
                 : ErrorCode.FromEnum(status.GetGrpcStatusCode());
 
-            ex = new KurrentException(code, status);
+            ex = new(code, status);
 
             return true;
         }

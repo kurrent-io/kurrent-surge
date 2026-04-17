@@ -37,7 +37,7 @@ class KurrentBackdoorClientFactory : IDisposable {
     Func<string, Uri>          ParseTargetNodeUri { get; }
 
     public HttpClient GetClient(Uri address) {
-        return new HttpClient(BackdoorHandler, disposeHandler: false) {
+        return new(BackdoorHandler, disposeHandler: false) {
             BaseAddress           = address,
             Timeout               = Timeout.InfiniteTimeSpan,
             DefaultRequestVersion = HttpVersion.Version20,
@@ -59,7 +59,7 @@ class KurrentBackdoorClientFactory : IDisposable {
     public void Dispose() => BackdoorHandler.Dispose();
 
     static Func<string, Uri> CreateTargetNodeUriParser(string httpUriScheme) =>
-        target => new Uri($"{httpUriScheme}://{target}");
+        target => new($"{httpUriScheme}://{target}");
 
     static ResiliencePipeline<HttpResponseMessage> CreateResiliencePipeline(KurrentClientResilienceOptions options, ILogger logger) {
         var httpResilienceOptions = new HttpStandardResilienceOptions {
@@ -150,7 +150,7 @@ class KurrentBackdoorClientFactory : IDisposable {
             // not sure if I need this check, so test test test...
             if (certificate is not X509Certificate2 peerCertificate) {
                 try {
-                    peerCertificate = new X509Certificate2(certificate);
+                    peerCertificate = new(certificate);
                 }
                 catch (Exception ex) {
                     Logger.LogError(

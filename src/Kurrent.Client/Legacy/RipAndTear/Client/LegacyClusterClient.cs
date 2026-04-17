@@ -26,7 +26,7 @@ class LegacyClusterClient : IAsyncDisposable {
         Dictionary<string, Func<RpcException, Exception>> exceptionMap,
         bool dontLoadServerCapabilities = false
     ) {
-        _cancellator  = new CancellationTokenSource();
+        _cancellator  = new();
         _channelCache = new(settings);
 
         var clientName    = AppVersionInfo.Current.ProductName ?? "KurrentDB .NET Client";
@@ -42,7 +42,7 @@ class LegacyClusterClient : IAsyncDisposable {
 
         var logger = settings.LoggerFactory.CreateLogger<SharingProvider>();
 
-        _channelInfoProvider = new SharingProvider<ReconnectionRequired, ChannelInfo>(
+        _channelInfoProvider = new(
             async (reconnectionRequired, _) => {
                 var channelInfo = reconnectionRequired switch {
                     ReconnectionRequired.Rediscover               => await channelSelector.SelectChannelAsync(token).ConfigureAwait(false),
@@ -52,7 +52,7 @@ class LegacyClusterClient : IAsyncDisposable {
                 var invoker = channelInfo.Channel.CreateCallInvoker().Intercept(ConfigureInterceptors());
 
                 if (dontLoadServerCapabilities)
-                    return new(channelInfo.Channel, channelInfo.Options, new ServerCapabilities(), invoker);
+                    return new(channelInfo.Channel, channelInfo.Options, new(), invoker);
 
                 ServerCapabilities capabilities = new();
 

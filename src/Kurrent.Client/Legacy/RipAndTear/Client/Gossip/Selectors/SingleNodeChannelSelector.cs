@@ -12,7 +12,7 @@ class SingleNodeChannelSelector : IChannelSelector {
 	public SingleNodeChannelSelector(KurrentDBClientSettings settings, ChannelCache channelCache) {
 		_channelCache = channelCache;
 		var uri = settings.ConnectivitySettings.Address!;
-		_endPoint = new DnsEndPoint(uri.Host, uri.Port);
+		_endPoint = new(uri.Host, uri.Port);
 		_log      = settings.LoggerFactory.CreateLogger<SingleNodeChannelSelector>();
 	}
 

@@ -21,7 +21,7 @@ using NuGet.Protocol.Core.Types;
 using NuGet.Versioning;
 using Spectre.Console;
 
-#region CLI
+#region ->> CLI <<-
 
 Option<string?> configOption = new("--config") {
     Description = "Explicit config file path (yml or json)"
@@ -116,7 +116,7 @@ return await root.Parse(args).InvokeAsync();
 // NOTE: All static local functions must precede type declarations (records/classes)
 // to satisfy the C# top-level programs ordering requirement (CS8803).
 
-#region Banner & Config display
+#region ->> Banner & Config display <<-
 
 static void PrintBanner(IAnsiConsole stderr) {
     stderr.Write(new FigletText("nuwrap").Color(Color.MediumPurple));
@@ -152,7 +152,7 @@ static void PrintConfig(NuWrapConfig config, IAnsiConsole stderr) {
 
 #endregion
 
-#region Config loading
+#region ->> Config loading <<-
 
 static NuWrapConfig LoadConfig(
     string?      configPath,
@@ -221,7 +221,7 @@ static List<string> MergeStrings(List<string> existing, string[]? additions) {
 
 #endregion
 
-#region Validation
+#region ->> Validation <<-
 
 static bool ValidateConfig(NuWrapConfig config, IAnsiConsole stderr) {
     var valid = true;
@@ -244,7 +244,7 @@ static bool ValidateConfig(NuWrapConfig config, IAnsiConsole stderr) {
 
 #endregion
 
-#region Auth resolution
+#region ->> Auth resolution <<-
 
 static (string? Token, bool IsApiKey) ResolveAuth(string url, IAnsiConsole stderr) {
     if (url.Contains("nuget.pkg.github.com"))
@@ -270,7 +270,7 @@ static SourceRepository BuildRepository(string url, IAnsiConsole stderr) {
 
 #endregion
 
-#region Source partitioning
+#region ->> Source partitioning <<-
 
 static (List<SourceConfig> feeds, List<FileInfo> files) PartitionSources(NuWrapConfig config, IAnsiConsole stderr) {
     // If no sources provided, fall back to push targets as implicit sources in order
@@ -298,7 +298,7 @@ static bool IsLocalPath(string url) =>
 
 #endregion
 
-#region Package resolution
+#region ->> Package resolution <<-
 
 static ResolvedPackage ParsePackageEntry(string entry) {
     var parts = entry.Split('@', 2);
@@ -309,7 +309,7 @@ static ResolvedPackage ParsePackageEntry(string entry) {
 
 #endregion
 
-#region NuGet operations
+#region ->> NuGet operations <<-
 
 static async Task<(NuGetVersion Version, string DownloadPath)?> DownloadLatestPreRelease(
     string packageId, SourceRepository repository, string tempDir) {
@@ -362,7 +362,7 @@ static async Task PushToFeed(string url, IEnumerable<FileInfo> packages, IAnsiCo
 
 #endregion
 
-#region Nuspec manipulation
+#region ->> Nuspec manipulation <<-
 
 static XDocument? LoadNuspec(ZipArchive zip) {
     var entry = zip.Entries.FirstOrDefault(e =>
@@ -384,7 +384,7 @@ static void StampNuspec(XDocument doc, XNamespace ns, string version, HashSet<st
 
 #endregion
 
-#region Stamping
+#region ->> Stamping <<-
 
 static async Task<StampResult> StampPackage(
     FileInfo pkg, string version, NuGetVersion targetVersion,
@@ -441,7 +441,7 @@ static string? ResolvePackageId(FileInfo nupkg) {
 
 #endregion
 
-#region Promotion run
+#region ->> Promotion run <<-
 
 static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVersion, IAnsiConsole stderr) {
     var (remoteFeeds, localFiles) = PartitionSources(config, stderr);
@@ -509,7 +509,7 @@ static async Task<int> RunPromotion(NuWrapConfig config, NuGetVersion targetVers
 
 #endregion
 
-#region Dry run
+#region ->> Dry run <<-
 
 static async Task<int> RunDryRun(NuWrapConfig config, NuGetVersion targetVersion, IAnsiConsole stderr) {
     var (remoteFeeds, localFiles) = PartitionSources(config, stderr);
@@ -596,7 +596,7 @@ static void PrintDryRunPlan(List<StampResult> results, NuWrapConfig config, IAns
 
 #endregion
 
-#region Summary
+#region ->> Summary <<-
 
 static void PrintSummary(List<StampResult> results, DirectoryInfo output, IAnsiConsole stderr) {
     stderr.WriteLine();
@@ -635,7 +635,7 @@ static Table BuildResultsTable(List<StampResult> results) =>
 
 // Type declarations follow all local functions (required ordering for top-level programs)
 
-#region Models
+#region ->> Models <<-
 
 record SourceConfig(string Url);
 record PushTarget(string Url);
@@ -657,7 +657,7 @@ record ResolvedPackage(string Id, NuGetVersion? PinnedVersion);
 
 #endregion
 
-#region SpectreConsole
+#region ->> SpectreConsole <<-
 
 static class SpectreConsole {
     public static IAnsiConsole CreateStderr(bool suppress = false) =>

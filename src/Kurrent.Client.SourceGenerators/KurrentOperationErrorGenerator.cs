@@ -82,7 +82,7 @@ public class KurrentOperationErrorGenerator : ISourceGenerator {
         }
     }
 
-    #region . Diagnostic Helpers .
+    #region ->> Diagnostic Helpers <<-
 
     static readonly DiagnosticDescriptor Starting = new(
         "KURRENT000",

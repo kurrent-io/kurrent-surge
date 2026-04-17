@@ -50,7 +50,7 @@ public readonly record struct Season : IComparable<Season>, IComparable {
 
     public override string ToString() => Name;
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(Season other) => StartDate.CompareTo(other.StartDate);
 

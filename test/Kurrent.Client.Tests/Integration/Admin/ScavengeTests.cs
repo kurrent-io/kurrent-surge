@@ -17,7 +17,7 @@ public class ScavengeTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-    #region Validation
+    #region ->> Validation <<-
 
     [Test]
     public async ValueTask start_scavenge_validates_thread_count(CancellationToken ct) {
@@ -49,7 +49,7 @@ public class ScavengeTests {
 
     #endregion
 
-    #region Commands
+    #region ->> Commands <<-
 
     [Test]
     public async ValueTask start_scavenge_returns_started_or_already_running(CancellationToken ct) {
@@ -132,7 +132,7 @@ public class ScavengeTests {
 
     #endregion
 
-    #region Queries
+    #region ->> Queries <<-
 
     [Test]
     [DependsOn(nameof(start_scavenge_returns_started_or_already_running))]

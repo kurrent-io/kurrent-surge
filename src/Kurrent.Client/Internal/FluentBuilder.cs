@@ -17,12 +17,23 @@ public abstract class FluentBuilder<TBuilder, TResult>
     protected FluentBuilder(TResult result) => Transforms.Add(_ => result);
 
     List<Func<TResult, TResult>> Transforms { get; } = [];
+    List<Func<TResult, TResult>> Overrides  { get; } = [];
 
     /// <summary>
     /// Applies a transformation and returns the same builder instance for chaining.
     /// </summary>
     public TBuilder With(Func<TResult, TResult> transformation) {
         Transforms.Add(transformation);
+        return (TBuilder)this;
+    }
+
+    /// <summary>
+    /// Applies a cross-cutting override that runs after all regular transformations.
+    /// Use for batch operations that must apply to the final accumulated state
+    /// regardless of call order.
+    /// </summary>
+    public TBuilder WithOverride(Func<TResult, TResult> transformation) {
+        Overrides.Add(transformation);
         return (TBuilder)this;
     }
 
@@ -61,13 +72,17 @@ public abstract class FluentBuilder<TBuilder, TResult>
     /// </summary>
     TBuilder WithInitialResult(TResult result) {
         Transforms.Clear();
+        Overrides.Clear();
         Transforms.Add(_ => result);
         return (TBuilder)this;
     }
 
     /// <summary>
-    /// Builds the final instance by applying all accumulated transformations.
+    /// Builds the final instance by applying all accumulated transformations,
+    /// followed by any cross-cutting overrides.
     /// </summary>
-    TResult GetResult() =>
-        Transforms.Aggregate(new TResult(), (result, transform) => transform(result));
+    TResult GetResult() {
+        var result = Transforms.Aggregate(new TResult(), (r, transform) => transform(r));
+        return Overrides.Aggregate(result, (r, transform) => transform(r));
+    }
 }

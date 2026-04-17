@@ -22,7 +22,7 @@ namespace Kurrent.Processors.Gateway;
 
 sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
     readonly StreamsClient              _streams;
-    readonly ProcessorSettings          _settings;
+    readonly ProcessorOptions          _settings;
     readonly TimeProvider               _timeProvider;
     readonly CheckpointStore _checkpointStore;
     readonly PartitionedPositionTracker _tracker;
@@ -34,7 +34,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
     internal SubscriptionSource(
         KurrentClient client,
-        ProcessorSettings settings,
+        ProcessorOptions settings,
         TimeProvider timeProvider,
         bool ownsClient = false
     ) : base(client) {
@@ -55,7 +55,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
         );
     }
 
-    #region Subscribe
+    #region ->> Subscribe <<-
 
     public async IAsyncEnumerable<SubscribeMessage> Subscribe(
         [EnumeratorCancellation] CancellationToken ct
@@ -187,7 +187,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
     #endregion
 
-    #region Track & Checkpoint
+    #region ->> Track & Checkpoint <<-
 
     public void Track(Record record) => _tracker.Track(record);
 
@@ -222,7 +222,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
     #endregion
 
-    #region Internals
+    #region ->> Internals <<-
 
     SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
         var now = _clock.Now();

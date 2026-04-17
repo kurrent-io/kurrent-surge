@@ -170,7 +170,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
         // if (revision == Revision.Unset)
         //     throw new ArgumentException("Revision cannot be Unset.", nameof(revision));
 
-        return new RecordPosition {
+        return new() {
             LogPosition    = logPosition,
             StreamPosition = new(stream, revision),
             Partition      = partition
@@ -180,7 +180,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     public static RecordPosition FromLogPosition(LogPosition logPosition, Partition partition = default) =>
         new() { LogPosition = logPosition, Partition = partition };
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(RecordPosition other) => LogPosition.CompareTo(other.LogPosition);
 

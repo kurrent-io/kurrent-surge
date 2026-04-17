@@ -1,4 +1,3 @@
-using FluentValidation;
 using Kurrent.Validation;
 
 namespace Kurrent.Client.Streams;
@@ -32,7 +31,8 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
     /// </summary>
     public bool SkipDecoding { get; init; }
     
-    public class Builder() : FluentBuilder<Builder, ReadRecordsRequest>(new()) {
+    public class Builder(ReadRecordsRequest request) : FluentBuilder<Builder, ReadRecordsRequest>(request) {
+        public Builder() : this(new()) { }
         /// <inheritdoc />
         protected override ReadRecordsRequest OnBuild(ReadRecordsRequest request) {
             request.EnsureValid();
@@ -82,12 +82,11 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
             With(request => request with { SkipDecoding = true });
     }
     
-    public class Validator : FluentValidator<Validator, ReadRecordsRequest> {
+    public class Validator : Validator<Validator, ReadRecordsRequest> {
         public Validator() {
             RuleFor(options => options.Limit)
-                .GreaterThanOrEqualTo(1)
-                .WithMessage("MaxRecords must be at least 1.")
-                .WithSeverity(Severity.Error);
+                .GreaterThanOrEqualTo(1L)
+                .WithMessage("MaxRecords must be at least 1.");
         }
     }
 }

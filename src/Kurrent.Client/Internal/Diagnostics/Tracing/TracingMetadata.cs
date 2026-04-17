@@ -19,8 +19,8 @@ readonly record struct TracingMetadata(
 		try {
 			return IsValid
 				? new ActivityContext(
-					ActivityTraceId.CreateFromString(new ReadOnlySpan<char>(TraceId!.ToCharArray())),
-					ActivitySpanId.CreateFromString(new ReadOnlySpan<char>(SpanId!.ToCharArray())),
+					ActivityTraceId.CreateFromString(new(TraceId!.ToCharArray())),
+					ActivitySpanId.CreateFromString(new(SpanId!.ToCharArray())),
 					ActivityTraceFlags.Recorded,
 					isRemote: isRemote
 				)

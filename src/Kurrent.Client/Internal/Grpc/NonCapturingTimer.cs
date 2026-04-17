@@ -23,7 +23,7 @@ static class NonCapturingTimer {
 				restoreFlow = true;
 			}
 
-			return new Timer(callback, state, dueTime, period);
+			return new(callback, state, dueTime, period);
 		}
 		finally {
 			// Restore the current ExecutionContext

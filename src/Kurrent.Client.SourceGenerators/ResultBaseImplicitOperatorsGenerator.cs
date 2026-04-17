@@ -198,7 +198,7 @@ public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
             .Replace("{EXCEPTION_OPERATORS}", exceptionOperatorsBuilder.ToString());
     }
 
-    #region . Diagnostics .
+    #region ->> Diagnostics <<-
 
     static readonly DiagnosticDescriptor ImplementationGenerated = new(
         "RESULT001",

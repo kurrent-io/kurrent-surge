@@ -156,19 +156,4 @@ public class AppendRecordsRequestBuilderTests {
 
     #endregion
 
-    #region ->> RecordsCount <<-
-
-    [Test]
-    public async ValueTask records_count_tracks_added_records() {
-        // Arrange & Act
-        var builder = AppendRecordsRequest.New()
-            .WithRecord(ValidRecord("stream-a"))
-            .WithRecord(ValidRecord("stream-b"))
-            .WithRecord(ValidRecord("stream-c"));
-
-        // Assert
-        await Assert.That(builder.RecordsCount).IsEqualTo(3);
-    }
-
-    #endregion
 }

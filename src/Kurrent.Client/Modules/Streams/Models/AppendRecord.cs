@@ -88,58 +88,41 @@ public record AppendRecord : SelfValidating {
                     ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
 
         return problems.Count > 0
-            ? ValidationError.Create(ErrorCode.FromType<AppendRecord>(), [.. problems])
+            ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])
             : Results.Success;
     }
 
-    public class Builder {
-        AppendRecord _appendRecord = new();
-
-        internal Builder FromRecord(AppendRecord record) {
-            _appendRecord = record;
-            return this;
+    public class Builder(AppendRecord record) : FluentBuilder<Builder, AppendRecord>(record) {
+        public Builder() : this(new()) { }
+        
+        /// <inheritdoc />
+        protected override AppendRecord OnBuild(AppendRecord record) {
+            record.EnsureValid();
+            return record;
         }
 
-        public Builder ForStream(StreamName stream) {
-            _appendRecord = _appendRecord with { Stream = stream };
-            return this;
-        }
+        public Builder ForStream(StreamName stream) =>
+            With(r => r with { Stream = stream });
 
-        public Builder WithId(Guid recordId) {
-            _appendRecord = _appendRecord with { RecordId = recordId };
-            return this;
-        }
+        public Builder WithId(Guid recordId) =>
+            With(r => r with { RecordId = recordId });
 
-        public Builder WithValue(object recordValue) {
-            _appendRecord = _appendRecord with { Value = recordValue };
-            return this;
-        }
+        public Builder WithValue(object recordValue) =>
+            With(r => r with { Value = recordValue });
 
-        public Builder WithDataFormat(SchemaDataFormat dataFormat) {
-            _appendRecord = _appendRecord with { DataFormat = dataFormat };
-            return this;
-        }
+        public Builder WithDataFormat(SchemaDataFormat dataFormat) =>
+            With(r => r with { DataFormat = dataFormat });
 
-        public Builder WithMetadata(Metadata metadata) {
-            _appendRecord = _appendRecord with { Metadata = metadata };
-            return this;
-        }
+        public Builder WithMetadata(Metadata metadata) =>
+            With(r => r with { Metadata = metadata });
 
         public Builder WithMetadata<T>(string key, T value) =>
-            WithMetadata(_appendRecord.Metadata.With(key, value));
+            With(r => r with { Metadata = r.Metadata.With(key, value) });
 
-        public Builder WithTimestamp(DateTimeOffset timestamp) {
-            _appendRecord = _appendRecord with { Timestamp = timestamp };
-            return this;
-        }
+        public Builder WithTimestamp(DateTimeOffset timestamp) =>
+            With(r => r with { Timestamp = timestamp });
 
         public Builder WithTimestamp(long timestamp) =>
             WithTimestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
-
-        public AppendRecord Build() {
-            _appendRecord.EnsureValid();
-
-            return _appendRecord;
-        }
     }
 }

@@ -4,7 +4,7 @@ namespace Kurrent.Client.Tests.Legacy;
 
 [Category("Legacy")]
 public class NewConnectionStringTests {
-    #region Basic Parsing Tests
+    #region ->> Basic Parsing Tests <<-
 
     [Test]
     [DirectSchemes]
@@ -129,7 +129,7 @@ public class NewConnectionStringTests {
 
     #endregion
 
-    #region Error Condition Tests
+    #region ->> Error Condition Tests <<-
 
     [Test]
     public void throws_on_null_connection_string() {
@@ -198,7 +198,7 @@ public class NewConnectionStringTests {
 
     #endregion
 
-    #region Discovery vs Direct Connection Tests
+    #region ->> Discovery vs Direct Connection Tests <<-
 
     [Test]
     public async ValueTask allows_single_host_for_direct_scheme() {
@@ -228,7 +228,7 @@ public class NewConnectionStringTests {
 
     #endregion
 
-    #region Comprehensive Parameter Parsing Tests
+    #region ->> Comprehensive Parameter Parsing Tests <<-
 
     [Test]
     [TlsBooleanValues]
@@ -285,7 +285,7 @@ public class NewConnectionStringTests {
 
     #endregion
 
-    #region Edge Case Tests
+    #region ->> Edge Case Tests <<-
 
     [Test]
     public async ValueTask handles_empty_path() {
@@ -358,7 +358,7 @@ public class NewConnectionStringTests {
 
     #endregion
 
-    #region Real-world Example Tests
+    #region ->> Real-world Example Tests <<-
 
     [Test]
     public async ValueTask parses_local_insecure_connection() {
@@ -436,7 +436,7 @@ public class NewConnectionStringTests {
 
     #endregion
 
-    #region Test Case Generators
+    #region ->> Test Case Generators <<-
 
     public class DirectSchemes : TestCaseGenerator<string> {
         protected override IEnumerable<string> Data() =>

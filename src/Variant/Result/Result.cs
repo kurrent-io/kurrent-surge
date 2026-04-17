@@ -58,7 +58,7 @@ public record Result<TValue, TError> : IResult<TValue, TError> where TError : IR
         error     = _error;
     }
 
-    #region . Implicit / Explicit conversions .
+    #region ->> Implicit / Explicit conversions <<-
 
     /// <summary>
     /// Implicitly converts a success value to a <see cref="Result{TValue,TError}"/>.
@@ -92,7 +92,7 @@ public record Result<TValue, TError> : IResult<TValue, TError> where TError : IR
 
     #endregion
 
-    #region . Factory Methods .
+    #region ->> Factory Methods <<-
 
     /// <summary>
     /// Creates a new <see cref="Result{TValue,TError}"/> representing a successful operation with the specified value.

@@ -15,7 +15,7 @@ public class ObjectGraphEquivalencyTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    #region Primitive & value type equivalence
+    #region ->> Primitive & value type equivalence <<-
 
     [Test]
     public async ValueTask equivalent_integers_pass() {
@@ -74,7 +74,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Null handling
+    #region ->> Null handling <<-
 
     [Test]
     [SuppressMessage("Usage", "TUnitAssertions0005:Assert.That(...) should not be used with a constant value")]
@@ -103,7 +103,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Simple object equivalence
+    #region ->> Simple object equivalence <<-
 
     [Test]
     public async ValueTask equivalent_objects_with_same_properties_pass() {
@@ -129,7 +129,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Nested object equivalence
+    #region ->> Nested object equivalence <<-
 
     [Test]
     public async ValueTask equivalent_nested_objects_pass() {
@@ -158,7 +158,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Collection equivalence
+    #region ->> Collection equivalence <<-
 
     [Test]
     public async ValueTask equivalent_lists_pass() {
@@ -207,7 +207,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Type mismatch
+    #region ->> Type mismatch <<-
 
     [Test]
     public async ValueTask different_types_fail() {
@@ -220,7 +220,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: StringComparison
+    #region ->> EquivalencyConfiguration: StringComparison <<-
 
     [Test]
     public async ValueTask case_insensitive_string_comparison_passes() {
@@ -246,7 +246,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: NumericTolerance
+    #region ->> EquivalencyConfiguration: NumericTolerance <<-
 
     [Test]
     public async ValueTask numeric_tolerance_passes_within_range() {
@@ -276,7 +276,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: IgnoreCollectionOrder
+    #region ->> EquivalencyConfiguration: IgnoreCollectionOrder <<-
 
     [Test]
     public async ValueTask ignore_collection_order_passes_for_reordered_lists() {
@@ -301,7 +301,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Excluding
+    #region ->> EquivalencyConfiguration: Excluding <<-
 
     [Test]
     public async ValueTask excluding_property_by_expression_ignores_difference() {
@@ -331,7 +331,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Custom comparer
+    #region ->> EquivalencyConfiguration: Custom comparer <<-
 
     [Test]
     public async ValueTask custom_comparer_is_used_for_type() {
@@ -364,7 +364,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: String normalization
+    #region ->> EquivalencyConfiguration: String normalization <<-
 
     [Test]
     public async ValueTask ignoring_newline_style_treats_crlf_and_lf_as_equal() {
@@ -426,7 +426,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: ComparingEnumsByName
+    #region ->> EquivalencyConfiguration: ComparingEnumsByName <<-
 
     [Test]
     public async ValueTask comparing_enums_by_name_passes_for_matching_names() {
@@ -455,7 +455,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Recursion control
+    #region ->> EquivalencyConfiguration: Recursion control <<-
 
     [Test]
     public async ValueTask excluding_nested_objects_compares_only_top_level_members() {
@@ -540,7 +540,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Circular reference handling
+    #region ->> Circular reference handling <<-
 
     [Test]
     public async ValueTask circular_references_do_not_stack_overflow() {
@@ -583,7 +583,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Value type semantics
+    #region ->> EquivalencyConfiguration: Value type semantics <<-
 
     [Test]
     public async ValueTask comparing_by_value_uses_equals_instead_of_members() {
@@ -670,7 +670,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Complex scenario: nested objects with config
+    #region ->> Complex scenario: nested objects with config <<-
 
     [Test]
     public async ValueTask complex_nested_comparison_with_config_passes() {
@@ -690,7 +690,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: ExcludingMembersNamed
+    #region ->> EquivalencyConfiguration: ExcludingMembersNamed <<-
 
     [Test]
     public async ValueTask excluding_members_named_skips_at_all_depths() {
@@ -734,7 +734,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Excluding by type
+    #region ->> EquivalencyConfiguration: Excluding by type <<-
 
     [Test]
     public async ValueTask excluding_by_type_skips_all_members_of_that_type() {
@@ -765,7 +765,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Including (whitelist mode)
+    #region ->> EquivalencyConfiguration: Including (whitelist mode) <<-
 
     [Test]
     public async ValueTask including_by_expression_compares_only_specified_members() {
@@ -823,7 +823,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: ExcludingMissingMembers
+    #region ->> EquivalencyConfiguration: ExcludingMissingMembers <<-
 
     [Test]
     public async ValueTask excluding_missing_members_compares_shared_members_only() {
@@ -884,7 +884,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region EquivalencyConfiguration: Per-path ordering
+    #region ->> EquivalencyConfiguration: Per-path ordering <<-
 
     [Test]
     public async ValueTask strict_ordering_globally_fails_for_reordered_collection() {
@@ -951,7 +951,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Complex object with all property types
+    #region ->> Complex object with all property types <<-
 
     [Test]
     public async ValueTask equivalent_complex_objects_pass() {
@@ -1118,7 +1118,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region . Other cases with implicit conversions .
+    #region ->> Other cases with implicit conversions <<-
 
     [Test]
     public async ValueTask equivalent_objects_with_implicit_conversions_pass() {
@@ -1265,7 +1265,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Helpers
+    #region ->> Helpers <<-
 
     static ComplexObject CloneComplexObject(ComplexObject source) {
         return new ComplexObject {
@@ -1295,7 +1295,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Fakers
+    #region ->> Fakers <<-
 
     static readonly Faker<AddressObject> AddressFaker = new Faker<AddressObject>()
         .StrictMode(true)
@@ -1322,7 +1322,7 @@ public class ObjectGraphEquivalencyTests {
 
     #endregion
 
-    #region Test fixtures
+    #region ->> Test fixtures <<-
 
     record SimpleRecord(string Name, int Age);
 
@@ -1448,7 +1448,7 @@ public class ObjectGraphEquivalencyTests {
 
         public static implicit operator Revision(long revision) => From(revision);
 
-        #region . relational members .
+        #region ->> relational members <<-
 
         public int CompareTo(Revision? other) {
             if (ReferenceEquals(this, other))

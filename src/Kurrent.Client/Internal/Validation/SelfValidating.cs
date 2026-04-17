@@ -21,35 +21,8 @@ public interface ISelfValidating {
     /// Thrown if the validation process indicates that the object is invalid.
     /// The exception type and message are determined by the specific validation errors.
     /// </exception>
-    void EnsureValid() => RunValidation().Unwrap();
+    void EnsureValid() => RunValidation().EnsureValid();
 }
-
-// /// <summary>
-// /// Provides a base class for self-validating records, implementing validation logic
-// /// using a specified validator type.
-// /// </summary>
-// /// <typeparam name="T">
-// /// The type of the inheriting class. This must be a class that implements
-// /// <see cref="ISelfValidating"/>.
-// /// </typeparam>
-// /// <typeparam name="TValidator">
-// /// The type of the validator to be used for validation. This must be
-// /// a class implementing <see cref="IValidator{TValidator,T}"/> and include a parameterless constructor.
-// /// </typeparam>
-// [PublicAPI]
-// public abstract record SelfValidating<T, TValidator> : ISelfValidating
-//     where TValidator : class, IValidator<TValidator, T>, new()
-//     where T : class, ISelfValidating {
-//
-//     static readonly TValidator Validator = new();
-//
-//     /// <inheritdoc/>
-//     public ValidationResult RunValidation() =>
-//         Validator.Validate((T)(object)this);
-//
-//     /// <inheritdoc/>
-//     public void EnsureValid() => RunValidation().Unwrap();
-// }
 
 /// <summary>
 /// Provides a base class for self-validating records, implementing validation logic
@@ -114,5 +87,5 @@ public abstract record SelfValidating : ISelfValidating {
     /// Thrown if the validation process indicates that the object is invalid.
     /// The exception type and message are determined by the specific validation errors.
     /// </exception>
-    public virtual void EnsureValid() => RunValidation().Unwrap();
+    public virtual void EnsureValid() => RunValidation().EnsureValid();
 }

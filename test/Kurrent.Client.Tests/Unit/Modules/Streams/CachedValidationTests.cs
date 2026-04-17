@@ -22,10 +22,10 @@ public class CachedValidationTests {
     [Test]
     public async ValueTask record_with_invalidates_cache() {
         var record = ValidRecord();
-        await Assert.That(record.Validate().IsSuccess).IsTrue();
+        await Assert.That(record.Validate().IsValid).IsTrue();
 
         var bad = record with { RecordId = Guid.Empty };
-        await Assert.That(bad.Validate().IsSuccess).IsFalse();
+        await Assert.That(bad.Validate().IsValid).IsFalse();
     }
 
     [Test]
@@ -40,7 +40,7 @@ public class CachedValidationTests {
         var r1 = bad.Validate();
         var r2 = bad.Validate();
 
-        await Assert.That(r1.IsSuccess).IsFalse();
+        await Assert.That(r1.IsValid).IsFalse();
         await Assert.That(ReferenceEquals(r1, r2)).IsTrue();
     }
 
@@ -58,7 +58,7 @@ public class CachedValidationTests {
         var r1 = request.Validate();
         var r2 = request.Validate();
 
-        await Assert.That(r1.IsSuccess).IsTrue();
+        await Assert.That(r1.IsValid).IsTrue();
         await Assert.That(ReferenceEquals(r1, r2)).IsTrue();
     }
 
@@ -77,7 +77,7 @@ public class CachedValidationTests {
         var r1 = request.Validate();
         var r2 = request.Validate();
 
-        await Assert.That(r1.IsSuccess).IsTrue();
+        await Assert.That(r1.IsValid).IsTrue();
         await Assert.That(ReferenceEquals(r1, r2)).IsTrue();
     }
 

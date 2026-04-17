@@ -3,6 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 using Humanizer;
 using static System.String;
 
+// ReSharper disable MemberCanBePrivate.Global
+
 namespace Kurrent.Validation;
 
 /// <summary>
@@ -25,43 +27,93 @@ public interface IValidator<TValidator, in T>
     string ErrorCode { get; }
 }
 
-public sealed partial record ValidationResult : IResultBase<Success, ValidationError>;
-
+/// <summary>
+/// Represents the outcome of a validation operation.
+/// Either valid (no problems) or invalid (one or more problems with an error code).
+/// </summary>
 [PublicAPI]
-[DebuggerDisplay("{ErrorCode} | {ErrorMessage}")]
-public record  ValidationError : ResultError {
-    public static readonly ValidationError None = new(ErrorCode.None, "");
+[DebuggerDisplay("{IsValid ? \"Valid\" : $\"Invalid ({Problems.Length} problems)\"}")]
+public sealed class ValidationResult {
+    /// <summary>
+    /// A singleton representing a successful validation result with no problems.
+    /// </summary>
+    public static readonly ValidationResult Valid = new();
 
-    public ValidationError(ErrorCode errorCode, string errorMessage, params ValidationProblem[] problems) {
+    ValidationResult() {
+        ErrorCode = ErrorCode.None;
+        Problems  = [];
+    }
+
+    ValidationResult(ErrorCode errorCode, string errorMessage, ValidationProblem[] problems) {
         ErrorCode    = errorCode;
         ErrorMessage = errorMessage;
         Problems     = problems;
     }
 
     /// <summary>
+    /// The error code categorizing this validation failure. <see cref="ErrorCode.None"/> when valid.
+    /// </summary>
+    public ErrorCode ErrorCode { get; }
+
+    /// <summary>
+    /// A human-readable summary of the validation errors.
+    /// </summary>
+    public string ErrorMessage { get; } = "";
+
+    /// <summary>
     /// The validation problems that occurred during the validation process.
     /// </summary>
-    public ValidationProblem[] Problems { get; private init; }
+    public ValidationProblem[] Problems { get; }
 
-    public override Exception GetOrCreateException() =>
-        new ValidationException(ErrorCode, ErrorMessage, Problems);
+    /// <summary>
+    /// Whether the validation passed with no error-level problems.
+    /// </summary>
+    public bool IsValid => Problems.Length == 0;
 
-    public static ValidationError Create(ErrorCode code, params ValidationProblem[] problems) {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(problems.Length, 0);
+    /// <summary>
+    /// Whether the validation failed.
+    /// </summary>
+    public bool IsInvalid => !IsValid;
 
-        return new ValidationError(code, BuildErrorMessage(), problems);
-
-        string BuildErrorMessage() {
-            var arr = problems.Select(x => $"{Environment.NewLine} -- {x.FieldName}: {x.Message}");
-            return $"Validation failed: {Join("", arr)}";
-        }
+    /// <summary>
+    /// Throws a <see cref="ValidationException"/> if the result is invalid.
+    /// </summary>
+    public void EnsureValid() {
+        if (IsInvalid)
+            throw new ValidationException(ErrorCode, ErrorMessage, Problems);
     }
 
-    public static ValidationError Create(params ValidationProblem[] problems) =>
-        Create(ErrorCode.From("VALIDATION_ERROR"), problems);
+    /// <summary>
+    /// Creates a failure result from an error code and one or more validation problems.
+    /// </summary>
+    public static ValidationResult Failure(ErrorCode code, params ValidationProblem[] problems) {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(problems.Length, 0);
+        return new(code, BuildErrorMessage(problems), problems);
+    }
 
-    public static ValidationError FromProblem(ErrorCode code, string message) =>
-        Create(code, ValidationProblem.Create(code, message));
+    /// <summary>
+    /// Creates a failure result from one or more validation problems, using a generic error code.
+    /// </summary>
+    public static ValidationResult Failure(params ValidationProblem[] problems) =>
+        Failure(ErrorCode.From("VALIDATION_FAILURE"), problems);
+
+    /// <summary>
+    /// Creates a failure result from a single problem message.
+    /// </summary>
+    public static ValidationResult FromProblem(ErrorCode code, string message) =>
+        Failure(code, ValidationProblem.Create(code, message));
+
+    public override string ToString() => IsValid ? "Valid" : ErrorMessage;
+
+    /// <summary>
+    /// Allows <c>return Results.Success</c> to implicitly convert.
+    /// </summary>
+    public static implicit operator ValidationResult(Success _) => Valid;
+
+    static string BuildErrorMessage(ValidationProblem[] problems) {
+        var arr = problems.Select(x => $"{Environment.NewLine} -- {x.FieldName}: {x.Message}");
+        return $"Validation failed: {Join("", arr)}";
+    }
 }
 
 [PublicAPI]
@@ -92,6 +144,11 @@ public readonly record struct ValidationProblem {
     public object AttemptedValue { get; private init; }
 
     /// <summary>
+    /// The severity of this validation problem. Defaults to <see cref="RuleSeverity.Error"/> (enum value 0).
+    /// </summary>
+    public RuleSeverity Severity { get; internal init; }
+
+    /// <summary>
     /// Indicates whether this validation problem is associated with a specific field.
     /// </summary>
     public bool HasPropertyName => !IsNullOrWhiteSpace(FieldName);
@@ -106,15 +163,19 @@ public readonly record struct ValidationProblem {
     /// <summary>
     /// Creates a new <see cref="ValidationProblem"/> for a specific field.
     /// </summary>
-    public static ValidationProblem CreateForField(string fieldName, string message, object? attemptedValue = null, string? code = null) {
+    public static ValidationProblem CreateForField(
+        string fieldName, string message,
+        object? attemptedValue = null, string? code = null,
+        RuleSeverity severity = RuleSeverity.Error) {
         ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
 
-        return new ValidationProblem {
-            FieldName   = fieldName,
-            Message   = message,
+        return new() {
+            FieldName      = fieldName,
+            Message        = message,
             AttemptedValue = attemptedValue!,
-            Code      = IsNullOrWhiteSpace(code) ? $"INVALID_{fieldName.Underscore().ToUpperInvariant()}" : code
+            Code           = IsNullOrWhiteSpace(code) ? $"INVALID_{fieldName.Underscore().ToUpperInvariant()}" : code,
+            Severity       = severity
         };
     }
 
@@ -126,11 +187,9 @@ public readonly record struct ValidationProblem {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
 
-        return new ValidationProblem {
+        return new() {
             Code    = code,
             Message = message
         };
     }
 }
-
-

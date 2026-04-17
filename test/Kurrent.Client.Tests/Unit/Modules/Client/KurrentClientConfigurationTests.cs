@@ -12,7 +12,7 @@ namespace Kurrent.Client.Tests.Modules.Client;
 [Category("Client")]
 [Category("Configuration")]
 public class KurrentClientConfigurationTests {
-    #region FromConfiguration Tests
+    #region ->> FromConfiguration Tests <<-
 
     [Test]
     public async Task from_configuration_loads_connection_string() {
@@ -28,7 +28,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration)
             .Build();
 
@@ -64,7 +64,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration)
             .Build();
 
@@ -93,7 +93,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration)
             .Build();
 
@@ -120,7 +120,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration)
             .Build();
 
@@ -142,7 +142,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration)
             .Build();
 
@@ -169,7 +169,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration)
             .ConfigureResilience(r => r with { Deadline = TimeSpan.FromMinutes(2) })
             .Build();
@@ -192,7 +192,7 @@ public class KurrentClientConfigurationTests {
 
         var configuration = BuildJsonConfiguration(json);
 
-        var options = KurrentClientOptionsBuilder.Create()
+        var options = KurrentClientOptions.Builder.Create()
             .FromConfiguration(configuration, "MyCustomClient")
             .Build();
 
@@ -204,7 +204,7 @@ public class KurrentClientConfigurationTests {
 
     #endregion
 
-    #region Service Collection Extension Tests
+    #region ->> Service Collection Extension Tests <<-
 
     [Test]
     public async Task add_kurrent_client_parameterless_uses_configuration() {
@@ -320,7 +320,7 @@ public class KurrentClientConfigurationTests {
 
     #endregion
 
-    #region Helpers
+    #region ->> Helpers <<-
 
     static IConfiguration BuildJsonConfiguration(string json) {
         var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));

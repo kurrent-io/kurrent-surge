@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
 using Grpc.Net.Client.Configuration;
+using Humanizer;
 using Kurrent.Validation;
 
 // Added for Timeout.InfiniteTimeSpan
@@ -25,7 +26,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResilienceOptions, KurrentClientResilienceOptionsValidator> {
+public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResilienceOptions, KurrentClientResilienceOptions.Validator> {
     /// <summary>
     /// The amount of time to wait after which a keepalive ping is sent on the transport.
     /// </summary>
@@ -409,5 +410,56 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
             StatusCode.DeadlineExceeded, // Server took too long to respond
             StatusCode.ResourceExhausted // Server overloaded
         ];
+    }
+
+    public class Validator : Validator<Validator, KurrentClientResilienceOptions> {
+        public Validator() {
+            // KeepAliveInterval validation
+            RuleFor(options => options.KeepAliveInterval)
+                .Must(interval => interval == Timeout.InfiniteTimeSpan || interval >= TimeSpan.FromSeconds(1),
+                    "KeepAliveInterval must be at least 1 second or Timeout.InfiniteTimeSpan.");
+
+            // KeepAliveTimeout validation
+            When(options => options.KeepAliveTimeout != Timeout.InfiniteTimeSpan && options.KeepAliveInterval != Timeout.InfiniteTimeSpan, () => {
+                RuleFor(options => options.KeepAliveTimeout)
+                    .LessThan(options => options.KeepAliveInterval)
+                    .WithMessage("KeepAliveTimeout must be less than KeepAliveInterval.");
+            });
+
+            // RetryOptions validation
+            When(options => options.Retry.Enabled, () => {
+                // MaxAttempts validation
+                RuleFor(options => options.Retry.MaxAttempts)
+                    .Must(attempts => attempts > 0 || attempts == -1,
+                        "When retry is enabled, MaxAttempts must be greater than 0 or -1 for infinite retries.");
+
+                // BackoffMultiplier validation
+                RuleFor(options => options.Retry.BackoffMultiplier)
+                    .GreaterThanOrEqualTo(1.0)
+                    .WithMessage("BackoffMultiplier must be greater than or equal to 1.0.");
+
+                // InitialBackoff validation
+                RuleFor(options => options.Retry.InitialBackoff)
+                    .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(10))
+                    .WithMessage("InitialBackoff must be at least 10ms.");
+
+                // RetryableStatusCodes validation
+                RuleFor(options => options.Retry.RetryableStatusCodes)
+                    .Must(codes => codes.Length > 0, "RetryableStatusCodes cannot be empty when retry is enabled.");
+            });
+
+            // Deadline consistency warning
+            When(options =>
+                options.Deadline.HasValue &&
+                options.Deadline.Value != Timeout.InfiniteTimeSpan &&
+                options.KeepAliveTimeout != Timeout.InfiniteTimeSpan, () =>
+            {
+                RuleFor(options => options.Deadline)
+                    .Must((options, deadline) => deadline!.Value >= options.KeepAliveTimeout,
+                        "Deadline is less than KeepAliveTimeout.")
+                    .WithMessage(options => $"Deadline ({options.Deadline!.Value.Humanize()}) is less than KeepAliveTimeout ({options.KeepAliveTimeout.Humanize()}). This may result in operations failing before keepalive detection occurs.")
+                    .WithSeverity(RuleSeverity.Warning);
+            });
+        }
     }
 }

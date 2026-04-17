@@ -33,7 +33,7 @@ static class StreamsClientV1Mapper {
         }
 
         public static Contracts.ReadReq CreateInspectRecordRequest(LogPosition position) {
-            return new Contracts.ReadReq {
+            return new() {
                 Options = new() {
                     UuidOption    = DefaultUuidOptions,
                     ControlOption = DefaultControlOption,
@@ -49,7 +49,7 @@ static class StreamsClientV1Mapper {
         }
 
         public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction, long? count = null) {
-            return new Contracts.ReadReq {
+            return new() {
                 Options = new() {
                     UuidOption    = DefaultUuidOptions,
                     ControlOption = DefaultControlOption,
@@ -70,7 +70,7 @@ static class StreamsClientV1Mapper {
         }
         
         public static Contracts.ReadReq CreateReadLastStreamEventRequest(StreamName stream, long? count = null) {
-            return new Contracts.ReadReq {
+            return new() {
                 Options = new() {
                     UuidOption    = DefaultUuidOptions,
                     ControlOption = DefaultControlOption,
@@ -85,7 +85,7 @@ static class StreamsClientV1Mapper {
         public static Contracts.ReadReq CreateReadFirstStreamEventRequest(StreamName stream, long? count = null) {
             // if scavenged, the first event might not be the one with revision 0,
             // so we need to read from the start until we find the first non null event.
-            return new Contracts.ReadReq {
+            return new() {
                 Options = new() {
                     UuidOption    = DefaultUuidOptions,
                     ControlOption = DefaultControlOption,
@@ -250,13 +250,13 @@ static class StreamsClientV1Mapper {
         var schemaName   = SchemaName.From(recordedEvent.Metadata[Constants.Metadata.Type]);
 
         var metadata = await metadataDecoder
-            .Decode(recordedEvent.CustomMetadata.Memory, new MetadataDecoderContext(stream, schemaName, schemaFormat))
+            .Decode(recordedEvent.CustomMetadata.Memory, new(stream, schemaName, schemaFormat))
             .ConfigureAwait(false);
 
         var schema = metadata.ExtractSchemaInfo();
 
         var link = readEvent.Link is { } linkEvent
-            ? new Link {
+            ? new() {
                 Name     = linkEvent.Metadata[Constants.Metadata.Type],
                 Position = (long)linkEvent.CommitPosition,
                 Revision = (long)linkEvent.StreamRevision,

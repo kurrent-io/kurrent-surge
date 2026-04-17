@@ -59,7 +59,7 @@ public record Revision : IComparable<Revision>, IComparable {
 
     public static implicit operator Revision(string? revision) => Parse(revision);
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(Revision? other) {
         if (ReferenceEquals(this, other)) return 0;

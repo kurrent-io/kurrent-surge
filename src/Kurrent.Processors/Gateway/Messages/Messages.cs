@@ -41,7 +41,7 @@ public readonly record struct CheckpointId(string Value) {
 	public static implicit operator string(CheckpointId id) => id.Value;
 }
 
-#region Inbound - Control Messages
+#region ->> Inbound - Control Messages <<-
 
 /// <summary>
 /// Sent when partitions are assigned to this worker.
@@ -141,7 +141,7 @@ public readonly partial record struct ProcessorControlMessage : IVariant<
 
 #endregion
 
-#region Outbound - Drone Messages
+#region ->> Outbound - Drone Messages <<-
 
 /// <summary>
 /// Worker signals it has recovered to a consistent state and is ready to receive records.
@@ -214,7 +214,7 @@ public enum CheckpointTrigger {
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Triggered automatically by the server based on <see cref="CheckpointSettings.Interval"/>.
+    /// Triggered automatically by the server based on <see cref="CheckpointOptions.Interval"/>.
     /// This is the primary mechanism for regular checkpointing.
     /// </para>
     /// <para>Frequency: Periodic (every interval milliseconds).</para>

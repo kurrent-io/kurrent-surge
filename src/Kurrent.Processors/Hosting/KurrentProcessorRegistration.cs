@@ -8,7 +8,7 @@ namespace Kurrent.Processors.Options;
 /// </summary>
 /// <typeparam name="TProcessor">The processor type being registered.</typeparam>
 internal sealed record KurrentProcessorRegistration<TProcessor>(
-    ProcessorSettings Settings,
+    ProcessorOptions Settings,
     string? ConnectionString,
     Func<KurrentClientOptions, KurrentClientOptions>? ClientConfigure,
     bool UseOwnClient

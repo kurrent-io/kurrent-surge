@@ -15,7 +15,7 @@ public partial class AdminClient {
 
     readonly Dictionary<string, ScavengeSummary> _scavengeCache = new();
 
-    #region Commands
+    #region ->> Commands <<-
 
     public async ValueTask<ScavengeResponse> StartScavenge(
         int threadCount = 1,
@@ -28,7 +28,7 @@ public partial class AdminClient {
         try {
             var response = await AdminServiceClient
                 .StartScavengeAsync(
-                    new StartScavengeReq {
+                    new() {
                         Options = new() {
                             ThreadCount    = threadCount,
                             StartFromChunk = startFromChunk
@@ -54,7 +54,7 @@ public partial class AdminClient {
         try {
             var response = await AdminServiceClient
                 .StopScavengeAsync(
-                    new StopScavengeReq {
+                    new() {
                         Options = new() { ScavengeId = scavengeId }
                     },
                     cancellationToken: cancellationToken
@@ -70,7 +70,7 @@ public partial class AdminClient {
                 try {
                     var details = await GetScavengeDetails(scavengeId, cancellationToken).ConfigureAwait(false);
                     if (details.State != ScavengeState.Running)
-                        return new ScavengeResponse(scavengeId, ScavengeResponseStatus.StopRequested);
+                        return new(scavengeId, ScavengeResponseStatus.StopRequested);
                 }
                 catch {
                     // Detail stream doesn't exist either — truly not found
@@ -92,7 +92,7 @@ public partial class AdminClient {
 
     #endregion
 
-    #region Queries
+    #region ->> Queries <<-
 
     public async ValueTask<ScavengeSummary?> GetLatestScavenge(CancellationToken cancellationToken = default) {
         await foreach (var summary in ListScavenges(cancellationToken).ConfigureAwait(false))
@@ -186,7 +186,7 @@ public partial class AdminClient {
                     details = details with {
                         NodeEndpoint  = started.NodeEndpoint,
                         StartedAt     = record.Timestamp,
-                        Configuration = new ScavengeConfiguration {
+                        Configuration = new() {
                             Threads        = started.Threads ?? 1,
                             StartFromChunk = started.StartFromChunk ?? 0,
                             MergeChunks    = started.MergeChunks ?? true
@@ -239,7 +239,7 @@ public partial class AdminClient {
 
     #endregion
 
-    #region Internals
+    #region ->> Internals <<-
 
     static ScavengeResponse MapScavengeResponse(ScavengeResp response) =>
         new(

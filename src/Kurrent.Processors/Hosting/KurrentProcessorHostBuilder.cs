@@ -27,7 +27,7 @@ namespace Kurrent.Processors.Options;
 /// </example>
 [PublicAPI]
 public sealed class KurrentProcessorHostBuilder {
-    ProcessorSettingsBuilder                          _settingsBuilder = new();
+    ProcessorOptions.Builder                         _settingsBuilder = new();
     string?                                           _connectionString;
     Func<KurrentClientOptions, KurrentClientOptions>? _clientConfigure;
     bool                                              _useOwnClient;
@@ -178,7 +178,7 @@ public sealed class KurrentProcessorHostBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the checkpoint settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder Checkpointing(Action<CheckpointSettingsBuilder> configure) {
+    public KurrentProcessorHostBuilder Checkpointing(Action<CheckpointOptions.Builder> configure) {
         _settingsBuilder.ConfigureCheckpointing(configure);
         return this;
     }
@@ -188,7 +188,7 @@ public sealed class KurrentProcessorHostBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the batching settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder ConfigureBatching(Action<BatchingSettingsBuilder> configure) {
+    public KurrentProcessorHostBuilder ConfigureBatching(Action<BatchingOptions.Builder> configure) {
         _settingsBuilder.ConfigureBatching(configure);
         return this;
     }
@@ -198,7 +198,7 @@ public sealed class KurrentProcessorHostBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the subscription settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder ConfigureSubscription(Action<SubscriptionSettingsBuilder> configure) {
+    public KurrentProcessorHostBuilder ConfigureSubscription(Action<SubscriptionOptions.Builder> configure) {
         _settingsBuilder.ConfigureSubscription(configure);
         return this;
     }
@@ -208,7 +208,7 @@ public sealed class KurrentProcessorHostBuilder {
     /// </summary>
     /// <param name="configure">Action to configure the worker settings builder.</param>
     /// <returns>The builder instance for method chaining.</returns>
-    public KurrentProcessorHostBuilder ConfigureWorker(Action<WorkerSettingsBuilder> configure) {
+    public KurrentProcessorHostBuilder ConfigureWorker(Action<WorkerOptions.Builder> configure) {
         _settingsBuilder.ConfigureWorker(configure);
         return this;
     }

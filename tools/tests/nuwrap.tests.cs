@@ -27,7 +27,7 @@ public class NuWrapTests {
             .ExecuteBufferedAsync();
     }
 
-    #region CLI validation
+    #region ->> CLI validation <<-
 
     [Test]
     public async Task help_exits_zero_and_lists_options() {
@@ -72,7 +72,7 @@ public class NuWrapTests {
 
     #endregion
 
-    #region Config loading
+    #region ->> Config loading <<-
 
     [Test]
     public async Task config_file_loads_version_and_force() {
@@ -128,7 +128,7 @@ public class NuWrapTests {
 
     #endregion
 
-    #region Dry run
+    #region ->> Dry run <<-
 
     [Test]
     public async Task dry_run_with_local_source_shows_plan() {
@@ -172,7 +172,7 @@ public class NuWrapTests {
 
     #endregion
 
-    #region Stamping
+    #region ->> Stamping <<-
 
     [Test]
     public async Task stamps_version_in_nuspec() {
@@ -251,7 +251,7 @@ public class NuWrapTests {
 
     #endregion
 
-    #region Push
+    #region ->> Push <<-
 
     [Test]
     public async Task push_copies_stamped_packages_to_local_directory() {
@@ -284,7 +284,7 @@ public class NuWrapTests {
 
     #endregion
 
-    #region Error cases
+    #region ->> Error cases <<-
 
     [Test]
     public async Task rejects_downgrade_without_force() {
@@ -335,7 +335,7 @@ public class NuWrapTests {
 
     #endregion
 
-    #region Helpers
+    #region ->> Helpers <<-
 
     static async Task<FileInfo> CreateFixtureNupkg(
         string id, string version, string directory,

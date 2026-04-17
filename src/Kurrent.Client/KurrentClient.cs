@@ -23,7 +23,7 @@ public interface IKurrentClient : IAsyncDisposable {
 
 [PublicAPI]
 public class KurrentClient : IKurrentClient {
-    public static KurrentClientOptionsBuilder New => new KurrentClientOptionsBuilder();
+    public static KurrentClientOptions.Builder New => new();
 
     public KurrentClient() : this(new()) { }
 
@@ -32,11 +32,11 @@ public class KurrentClient : IKurrentClient {
 
 	    Options = options;
 
-        LegacyCallInvoker     = new KurrentDBLegacyCallInvoker(options);
-        BackdoorClientFactory = new KurrentBackdoorClientFactory(LegacyCallInvoker, options);
+        LegacyCallInvoker     = new(options);
+        BackdoorClientFactory = new(LegacyCallInvoker, options);
 
         var schemaManager = new SchemaManager(
-	        new RegistryClient(this),
+	        new(this),
 	        NJsonSchemaExporter.Instance,
 	        options.Schema.Mapper);
 
@@ -49,11 +49,11 @@ public class KurrentClient : IKurrentClient {
 	        new ProtobufSchemaSerializer(options.Schema.Protobuf, schemaManager)
         ]);
 
-        Registry                = new RegistryClient(this);
-        Streams                 = new StreamsClient(this);
-        Indexes                 = new IndexesClient(this);
-        Connectors              = new ConnectorsClient(this);
-        Admin                   = new AdminClient(this);
+        Registry   = new(this);
+        Streams    = new(this);
+        Indexes    = new(this);
+        Connectors = new(this);
+        Admin      = new(this);
         // PersistentSubscriptions = new PersistentSubscriptionsClient(this);
         // Projections             = new ProjectionsClient(this);
         // Users                   = new UsersClient(this);

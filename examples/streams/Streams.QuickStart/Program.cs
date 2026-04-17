@@ -47,7 +47,7 @@ record OrderShipped(string OrderId, string TrackingNumber, DateTimeOffset Shippe
 //     .WriteTo.Console()
 //     .CreateLogger();
 //
-// var options = KurrentClientOptionsBuilder
+// var options = KurrentClientOptions.Builder
 //     .FromConnectionString("kurrentdb://admin:changeit@localhost:2113?tls=false")
 //     .WithLoggerFactory(new SerilogLoggerFactory())
 //     .Build();

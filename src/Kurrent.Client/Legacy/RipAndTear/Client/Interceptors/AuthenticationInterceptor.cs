@@ -66,7 +66,7 @@ class AuthenticationInterceptor(KurrentDBClientSettings Settings) : Interceptor 
 
         if (context.Options.Headers is null) {
             var callOptions = context.Options.WithHeaders(headers);
-            context = new ClientInterceptorContext<TRequest, TResponse>(context.Method, context.Host, callOptions);
+            context = new(context.Method, context.Host, callOptions);
         }
 
         var authHeader = Settings.OperationOptions

@@ -17,7 +17,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurityOptions, KurrentClientSecurityOptionsValidator> {
+public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurityOptions, KurrentClientSecurityOptions.Validator> {
     /// <summary>
     /// Transport layer security settings.
     /// </summary>
@@ -111,4 +111,37 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
             Transport      = TransportSecurity.Standard, // Always use TLS with password authentication
             Authentication = new BasicCredentials(username, password)
         };
+
+    public class Validator : Validator<Validator, KurrentClientSecurityOptions> {
+        public Validator() {
+            // Transport security validation
+            When(options => options.Authentication.IsBasicCredentials, () => {
+                RuleFor(options => options.Transport.IsEnabled)
+                    .Equal(true)
+                    .WithMessage("Using basic authentication without TLS is not secure.")
+                    .WithSeverity(RuleSeverity.Warning);
+            });
+
+            // Certificate path validation for Authentication
+            When(options => options.Authentication.IsFileCertificateCredentials, () => {
+                RuleFor(options => options.Authentication.AsFileCertificateCredentials.CertificatePath)
+                    .Must(Path.IsPathRooted, "Relative certificate path may not resolve correctly at runtime.")
+                    .WithMessage(options => $"Relative certificate path may not resolve correctly at runtime: {options.Authentication.AsFileCertificateCredentials.CertificatePath}")
+                    .WithSeverity(RuleSeverity.Warning);
+
+                RuleFor(options => options.Authentication.AsFileCertificateCredentials.KeyPath)
+                    .Must(Path.IsPathRooted, "Relative key path may not resolve correctly at runtime.")
+                    .WithMessage(options => $"Relative key path may not resolve correctly at runtime: {options.Authentication.AsFileCertificateCredentials.KeyPath}")
+                    .WithSeverity(RuleSeverity.Warning);
+            });
+
+            // Certificate path validation for Transport
+            When(options => options.Transport.IsFileCertificateTls, () => {
+                RuleFor(options => options.Transport.AsFileCertificateTls.CaPath)
+                    .Must(Path.IsPathRooted, "Relative certificate path may not resolve correctly at runtime.")
+                    .WithMessage(options => $"Relative certificate path may not resolve correctly at runtime: {options.Transport.AsFileCertificateTls.CaPath}")
+                    .WithSeverity(RuleSeverity.Warning);
+            });
+        }
+    }
 }

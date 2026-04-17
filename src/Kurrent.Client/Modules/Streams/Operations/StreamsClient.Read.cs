@@ -191,7 +191,7 @@ public static partial class StreamsClientExtensions {
         public ValueTask<Record> InspectRecord(LogPosition position, CancellationToken cancellationToken = default) =>
             client.InspectRecord(position, true, cancellationToken);
 
-        #region ->> Read Records <--
+        #region ->> Read Records <<-
 
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
             client.ReadRecords(

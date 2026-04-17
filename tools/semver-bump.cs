@@ -104,7 +104,7 @@ root.Subcommands.Add(bumpCommand);
 
 return await root.Parse(args).InvokeAsync();
 
-#region Models
+#region ->> Models <<-
 
 public enum BumpType { Major = 1, Minor = 2, Patch = 3 }
 
@@ -196,7 +196,7 @@ public record SemVerBumpResult {
 
 #endregion
 
-#region Output
+#region ->> Output <<-
 
 static class SpectreConsole {
     public static IAnsiConsole CreateStderr(bool suppress = false) =>

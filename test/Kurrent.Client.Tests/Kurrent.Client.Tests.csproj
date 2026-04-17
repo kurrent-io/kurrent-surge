@@ -20,7 +20,6 @@
   <ItemGroup>
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FakeItEasy" />
-    <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="NodaTime.Testing" />
     <PackageReference Include="TUnit" />

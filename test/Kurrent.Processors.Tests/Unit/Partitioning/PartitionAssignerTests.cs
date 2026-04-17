@@ -10,7 +10,7 @@ public class PartitionAssignerTests {
     // Use RangeStrategy for deterministic testing (contiguous ranges)
     readonly PartitionAssigner _assigner = new(RangeStrategy.Instance);
 
-    #region . GetPartition .
+    #region ->> GetPartition <<-
 
     [Test]
     public async Task get_partition_returns_value_in_valid_range() {
@@ -99,7 +99,7 @@ public class PartitionAssignerTests {
 
     #endregion
 
-    #region . Distribute .
+    #region ->> Distribute <<-
 
     [Test]
     public async Task distribute_evenly_with_exact_division() {
@@ -213,7 +213,7 @@ public class PartitionAssignerTests {
 
     #endregion
 
-    #region . Rebalancing .
+    #region ->> Rebalancing <<-
 
     [Test]
     public async Task rebalance_returns_no_changes_for_same_workers() {
@@ -322,7 +322,7 @@ public class PartitionAssignerTests {
 
     #endregion
 
-    #region . Hash Consistency .
+    #region ->> Hash Consistency <<-
 
     [Test]
     public async Task hash_is_consistent_for_known_values() {
@@ -355,7 +355,7 @@ public class PartitionAssignerTests {
 
     #endregion
 
-    #region . Scaling Scenarios .
+    #region ->> Scaling Scenarios <<-
 
     [Test]
     public async Task scaling_from_1_to_4_workers_distributes_evenly() {

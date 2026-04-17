@@ -10,7 +10,7 @@ static class X509Certificates {
 	public static X509Certificate2 CreateFromPemFile(string certPemFilePath, string keyPemFilePath) {
 		try {
 			using var certificate = X509Certificate2.CreateFromPemFile(certPemFilePath, keyPemFilePath);
-			return new X509Certificate2(certificate.Export(X509ContentType.Pfx));
+			return new(certificate.Export(X509ContentType.Pfx));
 		} catch (Exception ex) {
 			throw new CryptographicException($"Failed to load private key: {ex.Message}");
 		}

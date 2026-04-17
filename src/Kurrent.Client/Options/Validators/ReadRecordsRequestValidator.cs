@@ -1,3 +1,0 @@
-namespace Kurrent.Client;
-
-

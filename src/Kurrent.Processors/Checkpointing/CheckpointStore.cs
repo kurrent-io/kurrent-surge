@@ -111,7 +111,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
         LogReady(ProcessorId, _stream);
     }
 
-    #region Load
+    #region ->> Load <<-
 
     public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default) {
         await EnsureReadyAsync(ct).ConfigureAwait(false);
@@ -186,7 +186,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     #endregion
 
-    #region Store
+    #region ->> Store <<-
 
     public async ValueTask StoreAsync(
         string workerId,
@@ -312,7 +312,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     #endregion
 
-    #region Mapping
+    #region ->> Mapping <<-
 
     static ProcessorCheckpoint MapToCheckpoint(
         Dictionary<int, Contracts.PartitionPosition> events,
@@ -367,7 +367,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     #endregion
 
-    #region Formatting
+    #region ->> Formatting <<-
 
     static string FormatPositions(ProcessorCheckpoint checkpoint) {
         var positions = checkpoint.Positions
@@ -389,7 +389,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     #endregion
 
-    #region Logging
+    #region ->> Logging <<-
 
     [LoggerMessage(
         Level = LogLevel.Warning,

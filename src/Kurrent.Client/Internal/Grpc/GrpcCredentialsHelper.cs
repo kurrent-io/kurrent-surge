@@ -45,7 +45,7 @@ public static class GrpcCredentialsHelper {
 					.ReadAllTextAsync(userKeyFile, cancellationToken)
 					.ConfigureAwait(false);
 
-				clientKeyCertPair = new KeyCertificatePair(clientCertPem, clientKeyPem);
+				clientKeyCertPair = new(clientCertPem, clientKeyPem);
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException) {
 				throw new IOException($"Error reading client certificate or key file: {ex.Message}", ex);
@@ -70,7 +70,7 @@ public static class GrpcCredentialsHelper {
 		// If rootCaPem remains null after this, SslCredentials will use the system trust store.
 		// If verificationCallback remains null, default validation (using rootCaPem or system store) occurs.
 
-		return new SslCredentials(rootCaPem, clientKeyCertPair, verifyPeerCallback: !tlsVerifyCert ? _ => true : null);
+		return new(rootCaPem, clientKeyCertPair, verifyPeerCallback: !tlsVerifyCert ? _ => true : null);
 	}
 
 	/// <summary>

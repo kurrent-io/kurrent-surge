@@ -21,7 +21,7 @@ public static class KurrentClientServiceCollectionExtensions {
         public IServiceCollection AddKurrentClient() {
             services.TryAddSingleton(sp => {
                 var configuration = sp.GetService<IConfiguration>();
-                var builder       = KurrentClientOptionsBuilder.Create();
+                var builder       = KurrentClientOptions.Builder.Create();
 
                 if (configuration is not null)
                     builder.FromConfiguration(configuration);
@@ -63,10 +63,10 @@ public static class KurrentClientServiceCollectionExtensions {
         /// </summary>
         /// <param name="configure">Action to configure the client options builder.</param>
         /// <returns>The service collection for method chaining.</returns>
-        public IServiceCollection AddKurrentClient(Action<KurrentClientOptionsBuilder> configure) {
+        public IServiceCollection AddKurrentClient(Action<KurrentClientOptions.Builder> configure) {
             services.TryAddSingleton(sp => {
                 var configuration = sp.GetService<IConfiguration>();
-                var builder       = KurrentClientOptionsBuilder.Create();
+                var builder       = KurrentClientOptions.Builder.Create();
 
                 // 1. Bind from configuration first (base settings)
                 if (configuration is not null)
@@ -87,10 +87,10 @@ public static class KurrentClientServiceCollectionExtensions {
         /// </summary>
         /// <param name="configure">Action to configure the client with access to the service provider.</param>
         /// <returns>The service collection for method chaining.</returns>
-        public IServiceCollection AddKurrentClient(Action<KurrentClientOptionsBuilder, IServiceProvider> configure) {
+        public IServiceCollection AddKurrentClient(Action<KurrentClientOptions.Builder, IServiceProvider> configure) {
             services.TryAddSingleton(sp => {
                 var configuration = sp.GetService<IConfiguration>();
-                var builder       = KurrentClientOptionsBuilder.Create();
+                var builder       = KurrentClientOptions.Builder.Create();
 
                 if (configuration is { })
                     builder.FromConfiguration(configuration);

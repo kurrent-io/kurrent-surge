@@ -4,7 +4,7 @@ namespace Kurrent.Client.Registry;
 
 public static partial class RegistryClientExtensions {
     extension(RegistryClient client) {
-        #region CreateSchema
+        #region ->> CreateSchema <<-
 
         public ValueTask<SchemaVersionDescriptor> CreateSchema(
             SchemaName schemaName, string schemaDefinition, SchemaDataFormat dataFormat,
@@ -13,7 +13,7 @@ public static partial class RegistryClientExtensions {
 
         #endregion
 
-        #region GetSchemaVersion
+        #region ->> GetSchemaVersion <<-
 
         public ValueTask<SchemaVersion> GetSchemaVersion(
             SchemaName schemaName, CancellationToken cancellationToken = default
@@ -21,7 +21,7 @@ public static partial class RegistryClientExtensions {
 
         #endregion
 
-        #region ListSchemas
+        #region ->> ListSchemas <<-
 
         public ValueTask<IReadOnlyList<Schema>> ListSchemas(
             CancellationToken cancellationToken

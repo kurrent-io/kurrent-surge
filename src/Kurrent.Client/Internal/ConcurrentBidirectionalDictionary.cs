@@ -325,7 +325,7 @@ class ConcurrentBidirectionalDictionary<TKey, TValue> : IDictionary<TKey, TValue
     /// <returns><c>true</c> if the dictionary contains an element with the specified value; otherwise, <c>false</c>.</returns>
     public bool ContainsValue(TValue value) => _reverse.ContainsKey(value);
 
-    #region . explicit interface implementations .
+    #region ->> explicit interface implementations <<-
 
     void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item) => Add(item.Key, item.Value);
 
@@ -389,7 +389,7 @@ class ConcurrentBidirectionalDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
     #endregion
 
-    #region . IDisposable .
+    #region ->> IDisposable <<-
 
     bool _disposed;
 

@@ -4,7 +4,7 @@ namespace EventSourcing;
 
 [PublicAPI]
 static partial class PipeExtensions {
-    #region Asynchronous Then Extensions for Task
+    #region ->> Asynchronous Then Extensions for Task <<-
 
     /// <summary>
     /// Chains the next asynchronous task to execute after the current task completes.
@@ -52,7 +52,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Synchronous Then Extensions for Task
+    #region ->> Synchronous Then Extensions for Task <<-
 
     /// <summary>
     /// Chains the next synchronous action to execute after the current task completes.
@@ -124,7 +124,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Asynchronous OnError Extensions for Task
+    #region ->> Asynchronous OnError Extensions for Task <<-
 
     /// <summary>
     /// Handles errors that occur during the execution of the initial task by executing the specified asynchronous error handler.
@@ -192,7 +192,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Synchronous OnError Extensions for Task
+    #region ->> Synchronous OnError Extensions for Task <<-
 
     /// <summary>
     /// Handles errors that occur during the execution of the initial task by executing the specified action.
@@ -222,7 +222,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Finally Extensions for Task
+    #region ->> Finally Extensions for Task <<-
 
     /// <summary>
     /// Executes a final action regardless of whether the preceding task succeeded or failed.
@@ -276,7 +276,7 @@ static partial class PipeExtensions {
 }
 
 static partial class PipeExtensions {
-    #region Asynchronous Then Extensions for ValueTask
+    #region ->> Asynchronous Then Extensions for ValueTask <<-
 
     /// <summary>
     /// Chains the next asynchronous task to execute after the current ValueTask completes.
@@ -348,7 +348,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Synchronous Then Extensions for ValueTask
+    #region ->> Synchronous Then Extensions for ValueTask <<-
 
     /// <summary>
     /// Chains the next synchronous action to execute after the current ValueTask completes.
@@ -438,7 +438,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Asynchronous OnError Extensions for ValueTask
+    #region ->> Asynchronous OnError Extensions for ValueTask <<-
 
     /// <summary>
     /// Handles errors that occur during the execution of the initial ValueTask by executing the specified asynchronous error handler.
@@ -526,7 +526,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Synchronous OnError Extensions for ValueTask
+    #region ->> Synchronous OnError Extensions for ValueTask <<-
 
     /// <summary>
     /// Handles errors that occur during the execution of the initial ValueTask by executing the specified action.
@@ -571,7 +571,7 @@ static partial class PipeExtensions {
 
     #endregion
 
-    #region Finally Extensions for ValueTask
+    #region ->> Finally Extensions for ValueTask <<-
 
     /// <summary>
     /// Executes a final action regardless of whether the preceding ValueTask succeeded or failed.

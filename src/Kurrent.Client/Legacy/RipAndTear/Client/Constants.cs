@@ -55,7 +55,7 @@ static class Constants {
 		public const string ConnectionName = "connection-name";
 		public const string RequiresLeader = "requires-leader";
 
-		#region Client Metrics
+		#region ->> Client Metrics <<-
 
 		/// <summary>
 		/// Name of the client (e.g., dotnet, java, go, python, rust, nodejs)

@@ -48,7 +48,7 @@ static class Shared {
 
     public static NormalizerScenario[] Scenarios() {
         return [
-            #region 1 column, 1 table
+            #region ->> 1 column, 1 table <<-
 
             new NormalizerScenario("1c1t-select", """SELECT schema FROM records"""),
 
@@ -92,7 +92,7 @@ static class Shared {
 
             #endregion
 
-            #region 8 columns, 1 table
+            #region ->> 8 columns, 1 table <<-
 
             new NormalizerScenario(
                 "8c1t-select",

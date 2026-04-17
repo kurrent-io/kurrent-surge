@@ -221,7 +221,7 @@ public sealed class CapturedException(ExceptionDispatchInfo dispatchInfo) : Exce
 
     public Exception SourceException => dispatchInfo.SourceException;
 
-    #region . overrides that delegate to captured ex .
+    #region ->> overrides that delegate to captured ex <<-
 
     public override string      Message    => dispatchInfo.SourceException.Message;
     public override string?     StackTrace => dispatchInfo.SourceException.StackTrace;

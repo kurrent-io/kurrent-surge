@@ -19,7 +19,7 @@ readonly struct HashCode {
 	/// </summary>
 	public HashCode Combine<T>(T value) {
 		unchecked {
-			return new HashCode((_value * 31) ^ (value?.GetHashCode() ?? 0));
+			return new((_value * 31) ^ (value?.GetHashCode() ?? 0));
 		}
 	}
 
@@ -28,7 +28,7 @@ readonly struct HashCode {
 	/// </summary>
 	public HashCode Combine(int value) {
 		unchecked {
-			return new HashCode((_value * 31) ^ value);
+			return new((_value * 31) ^ value);
 		}
 	}
 
@@ -37,7 +37,7 @@ readonly struct HashCode {
 	/// </summary>
 	public HashCode Combine(string? value) {
 		unchecked {
-			return new HashCode((_value * 31) ^ (value?.GetHashCode() ?? 0));
+			return new((_value * 31) ^ (value?.GetHashCode() ?? 0));
 		}
 	}
 

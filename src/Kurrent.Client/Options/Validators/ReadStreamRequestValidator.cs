@@ -1,1 +1,0 @@
-namespace Kurrent.Client.Streams;

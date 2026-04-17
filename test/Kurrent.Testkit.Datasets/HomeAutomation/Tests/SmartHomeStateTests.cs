@@ -50,7 +50,7 @@ public class SmartHomeStateTests {
             WattsPerBrightnessUnit = 0.6
         };
 
-    #region Execute produces correct events
+    #region ->> Execute produces correct events <<-
 
     [Test]
     public async Task execute_record_temperature_produces_temperature_reading() {
@@ -90,7 +90,7 @@ public class SmartHomeStateTests {
 
     #endregion
 
-    #region Apply updates state
+    #region ->> Apply updates state <<-
 
     [Test]
     public async Task apply_temperature_reading_updates_current_temperature() {
@@ -142,7 +142,7 @@ public class SmartHomeStateTests {
 
     #endregion
 
-    #region Battery drain
+    #region ->> Battery drain <<-
 
     [Test]
     public async Task battery_drains_on_battery_powered_device() {
@@ -179,7 +179,7 @@ public class SmartHomeStateTests {
 
     #endregion
 
-    #region Error handling
+    #region ->> Error handling <<-
 
     [Test]
     public async Task execute_rejects_unknown_device_id() {

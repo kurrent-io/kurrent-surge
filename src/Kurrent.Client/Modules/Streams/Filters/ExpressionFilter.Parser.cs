@@ -156,7 +156,7 @@ public interface IFilterExpression {
     bool QueriesData => FilterExpressionInspector.QueriesData(this);
 }
 
-#region . Tokenizer .
+#region ->> Tokenizer <<-
 
 /// <summary>
 /// Token types produced by <see cref="FilterTokenizer"/>.
@@ -291,37 +291,37 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         switch (ch) {
             case '(':
                 Advance();
-                return new Token(TokenType.LeftParen, "(", start);
+                return new(TokenType.LeftParen, "(", start);
 
             case ')':
                 Advance();
-                return new Token(TokenType.RightParen, ")", start);
+                return new(TokenType.RightParen, ")", start);
 
             case '[':
                 Advance();
-                return new Token(TokenType.LeftBracket, "[", start);
+                return new(TokenType.LeftBracket, "[", start);
 
             case ']':
                 Advance();
-                return new Token(TokenType.RightBracket, "]", start);
+                return new(TokenType.RightBracket, "]", start);
 
             case ',':
                 Advance();
-                return new Token(TokenType.Comma, ",", start);
+                return new(TokenType.Comma, ",", start);
 
             case '.':
                 Advance();
-                return new Token(TokenType.Dot, ".", start);
+                return new(TokenType.Dot, ".", start);
 
             case '=':
                 Advance();
-                return new Token(TokenType.Equal, "=", start);
+                return new(TokenType.Equal, "=", start);
 
             case '!':
                 Advance();
                 if (Current == '=') {
                     Advance();
-                    return new Token(TokenType.NotEqual, "!=", start);
+                    return new(TokenType.NotEqual, "!=", start);
                 }
 
                 return Token.Error("Expected '=' after '!'", start);
@@ -330,31 +330,31 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
                 Advance();
                 if (Current == '=') {
                     Advance();
-                    return new Token(TokenType.LessOrEqual, "<=", start);
+                    return new(TokenType.LessOrEqual, "<=", start);
                 }
 
                 if (Current == '>') {
                     Advance();
-                    return new Token(TokenType.NotEqual, "<>", start);
+                    return new(TokenType.NotEqual, "<>", start);
                 }
 
-                return new Token(TokenType.LessThan, "<", start);
+                return new(TokenType.LessThan, "<", start);
 
             case '>':
                 Advance();
                 if (Current == '=') {
                     Advance();
-                    return new Token(TokenType.GreaterOrEqual, ">=", start);
+                    return new(TokenType.GreaterOrEqual, ">=", start);
                 }
 
-                return new Token(TokenType.GreaterThan, ">", start);
+                return new(TokenType.GreaterThan, ">", start);
 
             case '-':
                 if (_position + 1 < _input.Length && _input[_position + 1] == '>') {
                     Advance(); Advance();
                     if (!IsAtEnd && Current == '>') {
                         Advance();
-                        return new Token(TokenType.ArrowText, "->>", start);
+                        return new(TokenType.ArrowText, "->>", start);
                     }
 
                     // -> is not supported; ->> and dot notation cover all filter use cases
@@ -390,7 +390,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
             // no escapes — direct substring
             var value = _input[valueStart.._position];
             Advance();
-            return new Token(TokenType.String, value, start);
+            return new(TokenType.String, value, start);
         }
 
         if (IsAtEnd) return Token.Error("Unterminated string literal", start);
@@ -413,7 +413,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         if (IsAtEnd) return Token.Error("Unterminated string literal", start);
 
         Advance();
-        return new Token(TokenType.String, sb.ToString(), start);
+        return new(TokenType.String, sb.ToString(), start);
     }
 
     Token ReadNumber() {
@@ -440,7 +440,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         }
 #endif
 
-        return new Token(TokenType.Number, _input[start.._position], start);
+        return new(TokenType.Number, _input[start.._position], start);
     }
 
     Token ReadIdentifierOrKeyword() {
@@ -455,7 +455,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         var value = new string(span);
 
         return KeywordLookup.TryGetValue(span, out var keywordType)
-            ? new Token(keywordType, value, start)
+            ? new(keywordType, value, start)
             : new Token(TokenType.Identifier, value, start);
 #else
         while (!IsAtEnd && (char.IsLetterOrDigit(Current) || Current == '_')) Advance();
@@ -482,7 +482,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
 #endregion
 
-#region . Pratt Parser .
+#region ->> Pratt Parser <<-
 
 /// <summary>
 /// Internal exception thrown by the parser when it encounters an unexpected token.
@@ -644,7 +644,7 @@ file sealed class PrattParser(List<Token> tokens) {
     IndexExpression ParseIndexExpression() {
         Expect(TokenType.Equal, "=");
         var name = Expect(TokenType.String, "index name");
-        return new IndexExpression(name.Value);
+        return new(name.Value);
     }
 
     /// <summary>
@@ -686,7 +686,7 @@ file sealed class PrattParser(List<Token> tokens) {
                 break;
         }
 
-        return new PropertyAccess(name, key);
+        return new(name, key);
     }
 
     /// <summary>
@@ -858,7 +858,7 @@ file sealed class PrattParser(List<Token> tokens) {
 
 #endregion
 
-#region . AST Nodes .
+#region ->> AST Nodes <<-
 
 /// <summary>
 /// Base class for typed literal values in filter expressions.
@@ -1115,7 +1115,7 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
         if (caseInsensitive)
             options |= RegexOptions.IgnoreCase;
 
-        return new Regex(result.ToString(), options);
+        return new(result.ToString(), options);
 
         static bool IsRegexMetaChar(char ch) =>
             ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
@@ -1220,7 +1220,7 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
 
 #endregion
 
-#region . Utilities .
+#region ->> Utilities <<-
 
 /// <summary>
 /// Cross-type value comparator for filter evaluation. Comparison priority:

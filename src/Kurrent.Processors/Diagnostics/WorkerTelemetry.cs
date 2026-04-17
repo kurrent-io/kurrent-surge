@@ -165,7 +165,7 @@ sealed partial class WorkerTelemetry : TelemetrySource {
         }
     }
 
-    #region Logging
+    #region ->> Logging <<-
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{WorkerId}] Starting")]
     partial void LogStarting(string processorId, string workerId);

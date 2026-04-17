@@ -102,7 +102,7 @@ readonly struct Uuid : IEquatable<Uuid> {
 	/// <returns><see cref="UUID"/></returns>
 	internal UUID ToDto() =>
 		new() {
-			Structured = new UUID.Types.Structured {
+			Structured = new() {
 				LeastSignificantBits = LeastSignificantBits,
 				MostSignificantBits  = MostSignificantBits
 			}
@@ -161,7 +161,7 @@ readonly struct Uuid : IEquatable<Uuid> {
 		data.Slice(6, 2).Reverse();
 		data[8..].Reverse();
 
-		return new Guid(data);
+		return new(data);
 	}
 
 	static bool TryWriteBytes(Span<byte> destination, long value) {

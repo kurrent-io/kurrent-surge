@@ -204,7 +204,7 @@ public partial class ConnectorsClient {
         };
 
         if (logPosition.HasValue) {
-            request.StartFrom = new Contracts.StartFromPosition {
+            request.StartFrom = new() {
                 LogPosition = logPosition.Value
             };
         }
@@ -244,7 +244,7 @@ public partial class ConnectorsClient {
         };
 
         if (logPosition.HasValue) {
-            request.StartFrom = new Contracts.StartFromPosition {
+            request.StartFrom = new() {
                 LogPosition = logPosition.Value
             };
         }

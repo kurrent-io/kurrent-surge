@@ -1,7 +1,7 @@
 namespace Kurrent;
 
 public static partial class FunctionalResult {
-    #region . Sync .
+    #region ->> Sync <<-
 
     public static Result<TValue, TError> Inspect<TValue, TError> (
         this Result<TValue, TError> result,
@@ -38,7 +38,7 @@ public static partial class FunctionalResult {
 
     #endregion
 
-    #region . Async .
+    #region ->> Async <<-
 
     public static async ValueTask<Result<TValue, TError>> InspectAsync<TValue, TError>(
         this ValueTask<Result<TValue, TError>> result,

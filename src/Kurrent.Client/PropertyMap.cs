@@ -206,7 +206,7 @@ public sealed class PropertyMap<T> {
 
     static PropertyResult<T> WrapResult(IPropertyAccessor<T> accessor, T instance, string? key) =>
         key is not null && accessor is IKeyedPropertyAccessor<T> keyed
-            ? new PropertyResult<T>(keyed, instance, key)
+            ? new(keyed, instance, key)
             : new PropertyResult<T>(accessor, instance);
 
     static string? TrimName(string name, string? prefix, string? suffix) {

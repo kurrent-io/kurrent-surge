@@ -72,6 +72,10 @@
     <None Remove="Locks\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Hosting\" />
+  </ItemGroup>
+
   <!--
     Embed internal project-reference DLLs into the NuGet package.
 

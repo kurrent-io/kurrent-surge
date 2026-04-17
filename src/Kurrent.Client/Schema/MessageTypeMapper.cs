@@ -1,4 +1,5 @@
 using Kurrent.Client.Registry;
+using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Schema;
@@ -208,4 +209,66 @@ public class MessageTypeMapper {
 		TryGetMessageType(schemaName, out var messageType)
 			? messageType
 			: throw new MessageTypeResolutionException(schemaName);
+
+    /// <summary>
+    /// A builder for configuring message type mappings.
+    /// </summary>
+    public class Builder {
+        MessageTypeMapper   Mapper       { get; }      = new();
+        ISchemaNameStrategy NameStrategy { get; set; } = new MessageSchemaNameStrategy();
+
+        /// <summary>
+        /// Sets the naming strategy to use for automatic schema name generation.
+        /// </summary>
+        public Builder WithStrategy(ISchemaNameStrategy strategy) {
+            NameStrategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+            return this;
+        }
+
+        /// <summary>
+        /// Maps a message type to a schema name.
+        /// </summary>
+        public Builder Map<T>(string? schemaName = null) {
+            var type = typeof(T);
+            var name = schemaName ?? NameStrategy.GenerateSchemaName(type);
+            Mapper.TryMap(name, type);
+            return this;
+        }
+
+        /// <summary>
+        /// Attempts to map a message type to a schema name.
+        /// </summary>
+        public Builder TryMap<T>(string? schemaName = null) {
+            var type = typeof(T);
+            var name = schemaName ?? NameStrategy.GenerateSchemaName(type);
+            Mapper.TryMap(name, type);
+            return this;
+        }
+
+        // /// <summary>
+        // /// Automatically maps all message types in the specified namespace.
+        // /// </summary>
+        // public Builder AutoMap(string namespacePrefix) {
+        //     Mapper.AutoMap(namespacePrefix, NameStrategy);
+        //     return this;
+        // }
+        //
+        // /// <summary>
+        // /// Automatically maps all message types in the specified namespace.
+        // /// </summary>
+        // public Builder AutoMap<T>(string namespacePrefix) {
+        //     Mapper.AutoMapMessagesOf<T>(namespacePrefix, NameStrategy);
+        //     return this;
+        // }
+        //
+        // /// <summary>
+        // /// Automatically maps all Protobuf message types in the specified namespace.
+        // /// </summary>
+        // public Builder AutoMapProtobuf(string namespacePrefix) {
+        //     Mapper.AutoMapProtobufMessages(namespacePrefix, NameStrategy);
+        //     return this;
+        // }
+
+        internal MessageTypeMapper Build() => Mapper;
+    }
 }

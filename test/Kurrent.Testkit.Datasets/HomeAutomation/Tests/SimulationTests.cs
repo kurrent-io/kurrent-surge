@@ -43,7 +43,7 @@ public class SimulationTests {
         return events;
     }
 
-    #region Basic operation
+    #region ->> Basic operation <<-
 
     [Test]
     public async Task simulation_produces_events() {
@@ -84,7 +84,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Infinite mode
+    #region ->> Infinite mode <<-
 
     [Test]
     public async Task infinite_mode_runs_until_cancelled() {
@@ -105,7 +105,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Event quality
+    #region ->> Event quality <<-
 
     [Test]
     public async Task events_have_increasing_timestamps() {
@@ -136,7 +136,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Season effects
+    #region ->> Season effects <<-
 
     [Test]
     public async Task winter_produces_lower_temperatures() {
@@ -170,7 +170,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Weather effects
+    #region ->> Weather effects <<-
 
     [Test]
     public async Task stormy_weather_produces_higher_humidity_than_sunny() {
@@ -219,7 +219,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Battery
+    #region ->> Battery <<-
 
     [Test]
     public async Task battery_depletes_over_time_on_battery_devices() {

@@ -32,7 +32,7 @@ class NodeSelector(NodePreference nodePreference) {
 
 	public DnsEndPoint SelectNode(ClusterMessages.ClusterInfo clusterInfo) {
 		if (clusterInfo.Members.Length == 0)
-			throw new Exception("No nodes in cluster info.");
+			throw new("No nodes in cluster info.");
 
 		lock (_random) {
 			var node = clusterInfo.Members
@@ -42,7 +42,7 @@ class NodeSelector(NodePreference nodePreference) {
 				.FirstOrDefault();
 
 			if (node is null)
-				throw new Exception("No nodes are in a connectable state.");
+				throw new("No nodes are in a connectable state.");
 
 			return node.EndPoint;
 		}

@@ -27,10 +27,10 @@ public sealed class Utf8QueryExpressionNormalizerV3 : IUtf8QueryExpressionNormal
             ? Encoding.UTF8.GetBytes(prefix)
             : null;
 
-        _columnLookup = new Utf8ReplacementLookup(options.ColumnReplacements);
-        _tableLookup  = new Utf8ReplacementLookup(options.TableReplacements);
+        _columnLookup = new(options.ColumnReplacements);
+        _tableLookup  = new(options.TableReplacements);
 
-        Vector<byte> keyBytes = new Vector<byte>(128);
+        Vector<byte> keyBytes = new(128);
 
         // Worst-case growth: every input byte is a 1-byte key replaced by the longest value.
         // Precompute max(ceil(valueLen / keyLen)) across all entries. Minimum factor is 1 (no shrinkage).
@@ -380,7 +380,7 @@ public sealed class Utf8QueryExpressionNormalizerV3 : IUtf8QueryExpressionNormal
         }
     }
 
-    #region Replacement
+    #region ->> Replacement <<-
 
     void ApplyColumnReplacement(ReadOnlySpan<byte> ident, Span<byte> dest, ref int pos) {
         if (_columnLookup.TryGetValue(ident, out var replacement)) {
@@ -406,7 +406,7 @@ public sealed class Utf8QueryExpressionNormalizerV3 : IUtf8QueryExpressionNormal
 
     #endregion
 
-    #region Double-quoted identifiers
+    #region ->> Double-quoted identifiers <<-
 
     void HandleDoubleQuotedIdentifier(ReadOnlySpan<byte> query, ref int i, Span<byte> dest, ref int pos, ref ScannerState state) {
         var start = i;
@@ -509,7 +509,7 @@ public sealed class Utf8QueryExpressionNormalizerV3 : IUtf8QueryExpressionNormal
 
     #endregion
 
-    #region Skip regions
+    #region ->> Skip regions <<-
 
     static void SkipLineComment(ReadOnlySpan<byte> q, ref int i, Span<byte> dest, ref int pos) {
         dest[pos++] = (byte)'-';
@@ -753,7 +753,7 @@ public sealed class Utf8QueryExpressionNormalizerV3 : IUtf8QueryExpressionNormal
 
     #endregion
 
-    #region Helpers
+    #region ->> Helpers <<-
 
     static void Copy(ReadOnlySpan<byte> src, Span<byte> dest, ref int pos) {
         src.CopyTo(dest[pos..]);

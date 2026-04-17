@@ -8,7 +8,7 @@ namespace Kurrent.Processors.Tests.Partitioning;
 public class PartitionKeyExtractorTests {
     readonly RecordFaker _faker = new();
 
-    #region . Factory Methods .
+    #region ->> Factory Methods <<-
 
     [Test]
     public async Task create_returns_none_for_empty_expression() {
@@ -31,7 +31,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Built-in Property Extraction .
+    #region ->> Built-in Property Extraction <<-
 
     [Test]
     public async Task extracts_stream_value() {
@@ -153,7 +153,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Metadata Property Extraction .
+    #region ->> Metadata Property Extraction <<-
 
     [Test]
     public async Task extracts_properties_bracket_notation() {
@@ -230,7 +230,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Expression Property .
+    #region ->> Expression Property <<-
 
     [Test]
     public async Task preserves_original_expression() {
@@ -246,7 +246,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Parser Edge Cases .
+    #region ->> Parser Edge Cases <<-
 
     [Test]
     public async Task handles_whitespace_around_expression() {
@@ -305,7 +305,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Case Insensitivity .
+    #region ->> Case Insensitivity <<-
 
     [Test]
     public async Task property_names_are_case_insensitive() {
@@ -337,7 +337,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Determinism .
+    #region ->> Determinism <<-
 
     [Test]
     public async Task extraction_is_deterministic() {
@@ -363,7 +363,7 @@ public class PartitionKeyExtractorTests {
 
     #endregion
 
-    #region . Integration with PartitionCalculator .
+    #region ->> Integration with PartitionCalculator <<-
 
     [Test]
     public async Task extracted_key_works_with_partition_calculator() {
