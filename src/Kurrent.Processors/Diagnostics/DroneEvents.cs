@@ -1,38 +1,38 @@
 namespace Kurrent.Processors.Diagnostics;
 
 /// <summary>
-/// Event raised when a worker is starting up.
+/// Event raised when a drone is starting up.
 /// </summary>
-public readonly record struct WorkerStartingEvent(
+public readonly record struct DroneStartingEvent(
     string ProcessorId,
-    string WorkerId
+    string DroneId
 );
 
 /// <summary>
-/// Event raised when a worker is restoring state from checkpoints.
+/// Event raised when a drone is restoring state from checkpoints.
 /// </summary>
-public readonly record struct WorkerRestoringStateEvent(
+public readonly record struct DroneRestoringStateEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     int PartitionCount
 );
 
 /// <summary>
-/// Event raised when a worker has finished restoring state.
+/// Event raised when a drone has finished restoring state.
 /// </summary>
-public readonly record struct WorkerStateRestoredEvent(
+public readonly record struct DroneStateRestoredEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     ulong StartPosition,
     int PartitionCount
 );
 
 /// <summary>
-/// Event raised when a worker begins processing records.
+/// Event raised when a drone begins processing records.
 /// </summary>
-public readonly record struct WorkerProcessingEvent(
+public readonly record struct DroneProcessingEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     Guid SessionId
 );
 
@@ -41,7 +41,7 @@ public readonly record struct WorkerProcessingEvent(
 /// </summary>
 public readonly record struct RecordProcessedEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     long TotalRecords,
     double? DurationMs = null
 );
@@ -51,7 +51,7 @@ public readonly record struct RecordProcessedEvent(
 /// </summary>
 public readonly record struct CheckpointInitiatedEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     string Trigger,
     string CheckpointId
 );
@@ -61,7 +61,7 @@ public readonly record struct CheckpointInitiatedEvent(
 /// </summary>
 public readonly record struct CheckpointCompletedEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     string Trigger,
     string CheckpointId,
     int PartitionCount,
@@ -73,7 +73,7 @@ public readonly record struct CheckpointCompletedEvent(
 /// </summary>
 public readonly record struct CheckpointFailedEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     string Trigger,
     string CheckpointId,
     string ExceptionType,
@@ -81,32 +81,32 @@ public readonly record struct CheckpointFailedEvent(
 );
 
 /// <summary>
-/// Event raised when a worker is stopping.
+/// Event raised when a drone is stopping.
 /// </summary>
-public readonly record struct WorkerStoppingEvent(
+public readonly record struct DroneStoppingEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     long TotalRecords,
     TimeSpan Duration,
     double RecordsPerSecond
 );
 
 /// <summary>
-/// Event raised when a worker has stopped cleanly.
+/// Event raised when a drone has stopped cleanly.
 /// </summary>
-public readonly record struct WorkerStoppedEvent(
+public readonly record struct DroneStoppedEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     long TotalRecords,
     TimeSpan Duration
 );
 
 /// <summary>
-/// Event raised when a worker has stopped due to an error.
+/// Event raised when a drone has stopped due to an error.
 /// </summary>
-public readonly record struct WorkerErrorEvent(
+public readonly record struct DroneErrorEvent(
     string ProcessorId,
-    string WorkerId,
+    string DroneId,
     string ExceptionType,
     string Message
 );

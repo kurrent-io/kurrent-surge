@@ -5,8 +5,6 @@ using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;
 
-#if NET10_0_OR_GREATER
-
 /// <summary>
 /// V3: Linear-scan lookup + generic IBufferWriter — single GetSpan, direct indexed writes, single Advance.
 /// No double-buffering, no per-write overhead.
@@ -863,5 +861,3 @@ public sealed class Utf8QueryExpressionNormalizerV3 : IUtf8QueryExpressionNormal
 
     #endregion
 }
-
-#endif

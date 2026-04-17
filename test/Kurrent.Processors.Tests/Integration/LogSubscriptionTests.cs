@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Sdk.TestKit.Fixtures;
 using TUnit.Assertions.Enums;
 
@@ -27,12 +28,13 @@ public class LogSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression($"properties.stream = '{data.Stream}'")
-            .StartFrom(lastPosition)
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                      = processorId;
+            opts.Subscription.Filter    = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         for (var i = 0; i < processor.Records.Length; i++)
@@ -55,12 +57,13 @@ public class LogSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId($"log-sub-{data.Stream}")
-            .WithFilterExpression($"properties.stream = '{data.Stream}'")
-            .StartFrom(lastPosition)
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = $"log-sub-{data.Stream}";
+            opts.Subscription.Filter = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         await Assert.That(processor.Records).Count().IsEqualTo(data.Records.Length);
@@ -85,12 +88,13 @@ public class LogSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression($"properties.stream = '{data.Stream}'")
-            .StartFrom(lastPosition)
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         await Assert.That(recordCount).IsEqualTo(processor.Records.Length);
@@ -107,14 +111,15 @@ public class LogSubscriptionTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         // Act
-        var worker = KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression($"properties.stream = '{data.Stream}'")
-            .StartFrom(lastPosition)
-            .Build();
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+            opts.Subscribe.Use(processor);
+        }).Build();
 
-        var task = worker.RunAsync(cancellator.Token);
+        var task = drone.RunAsync(cancellator.Token);
 
         await cancellator.CancelAsync();
 
@@ -137,12 +142,13 @@ public class LogSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression($"properties.stream = '{data.Stream}'")
-            .StartFrom(lastPosition)
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         await Assert.That(processor.Complete).IsNotNull();
@@ -160,15 +166,16 @@ public class LogSubscriptionTests {
             OnProcessRecord = _ => throw new InvalidOperationException("Process failed")
         };
 
-        var worker = KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression($"properties.stream = '{data.Stream}'")
-            .StartFrom(lastPosition)
-            .Build();
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+            opts.Subscribe.Use(processor);
+        }).Build();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<DroneException>(() => worker.RunAsync(ct));
+        var exception = await Assert.ThrowsAsync<DroneException>(() => drone.RunAsync(ct));
 
         await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
         await Assert.That(processor.Records.Length).IsEqualTo(0);
@@ -186,12 +193,13 @@ public class LogSubscriptionTests {
 
         // Act
         try {
-            await KurrentProcessors.Create(processor)
-                .UseClient(Fixture.Client)
-                .WithProcessorId(processorId)
-                .WithFilterExpression($"properties.stream = '{data.Stream}'")
-                .StartFrom(lastPosition)
-                .RunAsync(ct);
+            // TODO: StartFrom(lastPosition) not yet supported on new API
+            await KurrentProcessor.Create(opts => {
+                opts.Connection(Fixture.Client);
+                opts.ProcessorId                   = processorId;
+                opts.Subscription.Filter = new ExpressionFilter($"properties.stream = '{data.Stream}'");
+                opts.Subscribe.Use(processor);
+            }).RunAsync(ct);
         } catch (DroneException) {
             // Expected
         }
@@ -220,13 +228,14 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .StartFrom(lastPosition)
-            .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         await Task.Delay(200, ct);
 
@@ -240,12 +249,13 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Checkpointing(c => c.Interval(60000L).Timeout(60000L));
+            opts.Subscribe.Use(processor2);
+        }).RunAsync(ct);
 
         // Assert
         var totalProcessedRecords = processor1.Records.Length + processor2.Records.Length;
@@ -277,13 +287,14 @@ public class LogSubscriptionTests {
             }
         };
 
-        await KurrentProcessors.Create(processorOne)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(filter)
-            .StartFrom(lastPosition)
-            .ConfigureWorker(x => x.SkipDecoding())
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId          = processorId;
+            opts.Subscription.Filter  = filter;
+            opts.SkipDecoding         = true;
+            opts.Subscribe.Use(processorOne);
+        }).RunAsync(ct);
 
         // Phase 2: Resume from checkpoint, process remaining records
         var processorTwo = new TestRecordProcessor {
@@ -295,12 +306,13 @@ public class LogSubscriptionTests {
             }
         };
 
-        await KurrentProcessors.Create(processorTwo)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(filter)
-            .ConfigureWorker(x => x.SkipDecoding())
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId          = processorId;
+            opts.Subscription.Filter  = filter;
+            opts.SkipDecoding         = true;
+            opts.Subscribe.Use(processorTwo);
+        }).RunAsync(ct);
 
         // Assert - All records processed across both runs
         var streamRecordIds    = data.Records.Select(x => x.RecordId).ToList();
@@ -333,16 +345,15 @@ public class LogSubscriptionTests {
                 return ValueTask.CompletedTask;
             };
 
-            var builder = KurrentProcessors.Create(processor)
-                .UseClient(Fixture.Client)
-                .WithProcessorId(processorId)
-                .WithFilterExpression(filter)
-                .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000));
+            // TODO: StartFrom(lastPosition) for phase == 0 not yet supported on new API
+            await KurrentProcessor.Create(opts => {
+                opts.Connection(Fixture.Client);
+                opts.ProcessorId                   = processorId;
+                opts.Subscription.Filter = new ExpressionFilter(filter);
+                opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+                opts.Subscribe.Use(processor);
+            }).RunAsync(ct);
 
-            if (phase == 0)
-                builder.StartFrom(lastPosition);
-
-            await builder.RunAsync(ct);
             await Task.Delay(200, ct);
         }
 
@@ -357,12 +368,13 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor3)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Checkpointing(c => c.Interval(60000L).Timeout(60000L));
+            opts.Subscribe.Use(processor3);
+        }).RunAsync(ct);
 
         // Assert
         var allProcessedIds = processors
@@ -395,13 +407,14 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .StartFrom(lastPosition)
-            .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         await Task.Delay(200, ct);
 
@@ -411,14 +424,15 @@ public class LogSubscriptionTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(2000);
 
-        var worker = KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
-            .Build();
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Checkpointing(c => c.Interval(60000L).Timeout(60000L));
+            opts.Subscribe.Use(processor2);
+        }).Build();
 
-        var task = worker.RunAsync(cancellator.Token);
+        var task = drone.RunAsync(cancellator.Token);
 
         await Assert.That(task).IsNotCompletedSuccessfully();
 
@@ -444,12 +458,13 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .StartFrom(lastPosition)
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         // Tombstone the stream between phases
         await Fixture.Client.Streams.Tombstone(data.Stream, ct);
@@ -465,11 +480,12 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Subscribe.Use(processor2);
+        }).RunAsync(ct);
 
         // Assert — all records processed across both phases
         var allProcessedIds = processor1.Records
@@ -502,12 +518,13 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .StartFrom(lastPosition)
-            .RunAsync(ct);
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         // Soft delete the stream between phases
         await Fixture.Client.Streams.Delete(data.Stream, ct);
@@ -523,11 +540,12 @@ public class LogSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.Subscribe.Use(processor2);
+        }).RunAsync(ct);
 
         // Assert — all records processed across both phases
         var allProcessedIds = processor1.Records
@@ -566,15 +584,16 @@ public class LogSubscriptionTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(3000);
 
-        var worker = KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilterExpression(filter)
-            .StartFrom(lastPosition)
-            .ConfigureWorker(x => x.SkipDecoding())
-            .Build();
+        // TODO: StartFrom(lastPosition) not yet supported on new API
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                   = processorId;
+            opts.Subscription.Filter = new ExpressionFilter(filter);
+            opts.SkipDecoding                  = true;
+            opts.Subscribe.Use(processor);
+        }).Build();
 
-        var task = worker.RunAsync(cancellator.Token);
+        var task = drone.RunAsync(cancellator.Token);
         await Assert.That(task).IsNotCompletedSuccessfully();
 
         // Assert — scavenge removed the tombstoned events from $all

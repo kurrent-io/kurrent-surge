@@ -4,12 +4,12 @@ namespace Kurrent.Processors.Checkpointing;
 
 public static partial class Contracts {
     /// <summary>
-    /// One or more partition positions checkpointed by a worker.
+    /// One or more partition positions checkpointed by a drone.
     /// </summary>
     public record PartitionsCheckpointed {
         [JsonPropertyName("prx_id")] public string ProcessorId { get; init; } = null!;
 
-        [JsonPropertyName("wrk_id")] public string WorkerId { get; init; } = null!;
+        [JsonPropertyName("drn_id")] public string DroneId { get; init; } = null!;
 
         [JsonPropertyName("ckpt_id")] public string CheckpointId { get; init; } = null!;
 
@@ -50,7 +50,7 @@ public static partial class Contracts {
     public record CheckpointReset {
         [JsonPropertyName("prx_id")] public string ProcessorId { get; init; } = null!;
 
-        [JsonPropertyName("wrk_id")] public string WorkerId { get; init; } = null!;
+        [JsonPropertyName("drn_id")] public string DroneId { get; init; } = null!;
 
         [JsonPropertyName("ckpt_id")] public string CheckpointId { get; init; } = null!;
 

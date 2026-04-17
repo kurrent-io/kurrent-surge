@@ -4,19 +4,19 @@ using System.Diagnostics.Metrics;
 namespace Kurrent.Processors.Diagnostics.Metrics;
 
 /// <summary>
-/// Observes worker diagnostic events and records metrics.
-/// Register via DI to enable observability for processor workers.
+/// Observes drone diagnostic events and records metrics.
+/// Register via DI to enable observability for processor drones.
 /// </summary>
 /// <remarks>
 /// Call <see cref="Start"/> after construction to begin listening for events.
 /// </remarks>
-sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, IDisposable {
+sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, IDisposable {
     readonly RecordDurationHistogram     _recordDuration;
     readonly CheckpointDurationHistogram _checkpointDuration;
     readonly CheckpointsCompletedCounter _checkpointsCompleted;
     readonly RecordsProcessedCounter     _recordsProcessed;
-    readonly WorkersConnectedCounter     _workersConnected;
-    readonly WorkerErrorsCounter         _workerErrors;
+    readonly DronesConnectedCounter      _dronesConnected;
+    readonly DroneErrorsCounter          _droneErrors;
 
     IDisposable? _listenerSubscription;
     IDisposable? _sourceSubscription;
@@ -25,14 +25,14 @@ sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, I
     /// Creates a new instance of the observer.
     /// </summary>
     /// <param name="meterFactory">Factory to create the meter for metrics.</param>
-    public WorkerMetricsObserver(IMeterFactory meterFactory) {
+    public DroneMetricsObserver(IMeterFactory meterFactory) {
         var meter = meterFactory.Create("Kurrent.Client.Processors");
         _recordsProcessed     = ProcessorMetrics.CreateRecordsProcessed(meter);
         _recordDuration       = ProcessorMetrics.CreateRecordDuration(meter);
         _checkpointsCompleted = ProcessorMetrics.CreateCheckpointsCompleted(meter);
         _checkpointDuration   = ProcessorMetrics.CreateCheckpointDuration(meter);
-        _workersConnected     = ProcessorMetrics.CreateWorkersConnected(meter);
-        _workerErrors         = ProcessorMetrics.CreateWorkerErrors(meter);
+        _dronesConnected      = ProcessorMetrics.CreateDronesConnected(meter);
+        _droneErrors          = ProcessorMetrics.CreateDroneErrors(meter);
     }
 
     /// <inheritdoc />
@@ -47,22 +47,22 @@ sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, I
         // This observer only records metrics.
         switch (evt.Value) {
             case RecordProcessedEvent e:
-                _recordsProcessed.Add(1, e.ProcessorId, e.WorkerId);
+                _recordsProcessed.Add(1, e.ProcessorId, e.DroneId);
                 if (e.DurationMs is { } duration)
                     _recordDuration.Record(duration, e.ProcessorId);
                 break;
 
             case CheckpointCompletedEvent e:
-                _checkpointsCompleted.Add(1, e.ProcessorId, e.WorkerId);
+                _checkpointsCompleted.Add(1, e.ProcessorId, e.DroneId);
                 _checkpointDuration.Record(e.DurationMs, e.ProcessorId);
                 break;
 
-            case WorkerProcessingEvent e:
-                _workersConnected.Add(1, e.ProcessorId);
+            case DroneProcessingEvent e:
+                _dronesConnected.Add(1, e.ProcessorId);
                 break;
 
-            case WorkerErrorEvent e:
-                _workerErrors.Add(1, e.ProcessorId);
+            case DroneErrorEvent e:
+                _droneErrors.Add(1, e.ProcessorId);
                 break;
         }
     }
@@ -74,15 +74,15 @@ sealed class WorkerMetricsObserver : IObserver<KeyValuePair<string, object?>>, I
     public void OnError(Exception error) { }
 
     /// <summary>
-    /// Starts listening for worker diagnostic events.
+    /// Starts listening for drone diagnostic events.
     /// </summary>
     /// <returns>This instance for method chaining.</returns>
-    public WorkerMetricsObserver Start() {
+    public DroneMetricsObserver Start() {
         _listenerSubscription = DiagnosticListener.AllListeners.Subscribe(new ListenerObserver(this));
         return this;
     }
 
-    sealed class ListenerObserver(WorkerMetricsObserver parent) : IObserver<DiagnosticListener> {
+    sealed class ListenerObserver(DroneMetricsObserver parent) : IObserver<DiagnosticListener> {
         public void OnNext(DiagnosticListener listener) {
             if (listener.Name == TelemetryConstants.SourceName)
                 parent._sourceSubscription = listener.Subscribe(parent);

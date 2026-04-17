@@ -55,7 +55,7 @@ sealed class ProgressTracker {
     /// <summary>
     /// Computes current progress snapshot.
     /// </summary>
-    public WorkerProgress Progress {
+    public DroneProgress Progress {
         get {
             var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
 
@@ -77,7 +77,7 @@ sealed class ProgressTracker {
 
             var partitions = BuildPartitionProgress();
 
-            return new WorkerProgress(throughput, checkpoint, partitions);
+            return new DroneProgress(throughput, checkpoint, partitions);
         }
     }
 

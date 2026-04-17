@@ -30,12 +30,13 @@ public class StreamSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         for (var i = 0; i < processor.Records.Length; i++)
@@ -57,12 +58,13 @@ public class StreamSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId($"log-sub-{data.Stream}")
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = $"log-sub-{data.Stream}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         await Assert.That(processor.Records).Count().IsEqualTo(data.Records.Length);
@@ -86,12 +88,13 @@ public class StreamSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert - Each record was processed individually, total count matches
         await Assert.That(recordCount).IsEqualTo(processor.Records.Length);
@@ -107,14 +110,15 @@ public class StreamSubscriptionTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         // Act
-        var worker = KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .Build();
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor);
+        }).Build();
 
-        var task = worker.RunAsync(cancellator.Token);
+        var task = drone.RunAsync(cancellator.Token);
 
         await cancellator.CancelAsync();
 
@@ -136,12 +140,13 @@ public class StreamSubscriptionTests {
         };
 
         // Act
-        await KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor);
+        }).RunAsync(ct);
 
         // Assert
         await Assert.That(processor.Complete).IsNotNull();
@@ -158,15 +163,16 @@ public class StreamSubscriptionTests {
             OnProcessRecord = _ => throw new InvalidOperationException("Process failed")
         };
 
-        var worker = KurrentProcessors.Create(processor)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .Build();
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor);
+        }).Build();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<DroneException>(() => worker.RunAsync(ct));
+        var exception = await Assert.ThrowsAsync<DroneException>(() => drone.RunAsync(ct));
 
         await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
         await Assert.That(processor.Records.Length).IsEqualTo(0); // Callback throws before record is enqueued
@@ -183,12 +189,13 @@ public class StreamSubscriptionTests {
 
         // Act
         try {
-            await KurrentProcessors.Create(processor)
-                .UseClient(Fixture.Client)
-                .WithProcessorId(processorId)
-                .WithFilter(RecordFilter.ByStream(data.Stream))
-                .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-                .RunAsync(ct);
+            await KurrentProcessor.Create(opts => {
+                opts.Connection(Fixture.Client);
+                opts.ProcessorId                  = processorId;
+                opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+                opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+                opts.Subscribe.Use(processor);
+            }).RunAsync(ct);
         } catch (DroneException) {
             // Expected
         }
@@ -215,13 +222,14 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         // Wait for checkpoint to be persisted
         await Task.Delay(200, ct);
@@ -236,12 +244,13 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId          = processorId;
+            opts.Subscription.Filter  = RecordFilter.ByStream(data.Stream);
+            opts.Checkpointing(c => c.Interval(60000L).Timeout(60000L));
+            opts.Subscribe.Use(processor2);
+        }).RunAsync(ct);
 
         // Assert - All records processed across both runs with tolerance for checkpoint timing
         var totalProcessedRecords = processor1.Records.Length + processor2.Records.Length;
@@ -274,13 +283,14 @@ public class StreamSubscriptionTests {
             }
         };
 
-        await KurrentProcessors.Create(processorOne)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .ConfigureWorker(x => x.SkipDecoding())
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.SkipDecoding                 = true;
+            opts.Subscribe.Use(processorOne);
+        }).RunAsync(ct);
 
         // Phase 2: Resume from same processor ID, should process remaining records
         var processorTwo = new TestRecordProcessor();
@@ -292,13 +302,14 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processorTwo)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .ConfigureWorker(x => x.SkipDecoding())
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.SkipDecoding                 = true;
+            opts.Subscribe.Use(processorTwo);
+        }).RunAsync(ct);
 
         // Assert - All records processed across both runs
         var streamRecordIds    = data.Records.Select(x => x.RecordId).ToList();
@@ -329,16 +340,15 @@ public class StreamSubscriptionTests {
                 return ValueTask.CompletedTask;
             };
 
-            var builder = KurrentProcessors.Create(processor)
-                .UseClient(Fixture.Client)
-                .WithProcessorId(processorId)
-                .WithFilter(RecordFilter.ByStream(data.Stream))
-                .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000));
-
-            if (phase == 0)
-                builder.WithInitialPosition(SubscriptionInitialPosition.Earliest);
-
-            await builder.RunAsync(ct);
+            await KurrentProcessor.Create(opts => {
+                opts.Connection(Fixture.Client);
+                opts.ProcessorId          = processorId;
+                opts.Subscription.Filter  = RecordFilter.ByStream(data.Stream);
+                opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+                if (phase == 0)
+                    opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+                opts.Subscribe.Use(processor);
+            }).RunAsync(ct);
             await Task.Delay(200, ct);
         }
 
@@ -353,12 +363,13 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor3)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId          = processorId;
+            opts.Subscription.Filter  = RecordFilter.ByStream(data.Stream);
+            opts.Checkpointing(c => c.Interval(60000L).Timeout(60000L));
+            opts.Subscribe.Use(processor3);
+        }).RunAsync(ct);
 
         // Assert - All unique records across all 3 phases
         var allProcessedIds = processors
@@ -389,13 +400,14 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         await Task.Delay(200, ct);
 
@@ -405,14 +417,15 @@ public class StreamSubscriptionTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(2000);
 
-        var worker = KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .ConfigureCheckpointing(c => c.Interval(60000).Timeout(60000))
-            .Build();
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId          = processorId;
+            opts.Subscription.Filter  = RecordFilter.ByStream(data.Stream);
+            opts.Checkpointing(c => c.Interval(60000L).Timeout(60000L));
+            opts.Subscribe.Use(processor2);
+        }).Build();
 
-        var task = worker.RunAsync(cancellator.Token);
+        var task = drone.RunAsync(cancellator.Token);
 
         await Assert.That(task).IsNotCompletedSuccessfully();
 
@@ -437,13 +450,14 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            // .ConfigureCheckpointing(c => c.Interval(100).Timeout(60000))
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            // opts.Checkpointing(c => c.Interval(100L).Timeout(60000L));
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         // Tombstone the stream between phases
         var pos = await Fixture.Client.Streams.Tombstone(data.Stream, ct);
@@ -468,14 +482,15 @@ public class StreamSubscriptionTests {
 
         var processor2 = new TestRecordProcessor();
 
-        var worker = KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .Build();
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId         = processorId;
+            opts.Subscription.Filter = RecordFilter.ByStream(data.Stream);
+            opts.Subscribe.Use(processor2);
+        }).Build();
 
         // Act & Assert — expect error due to tombstoned stream
-        await Assert.That(async () => await worker.RunAsync(stoppingToken))
+        await Assert.That(async () => await drone.RunAsync(stoppingToken))
             .Throws<StreamTombstonedException>();
     }
 
@@ -495,12 +510,13 @@ public class StreamSubscriptionTests {
             return ValueTask.CompletedTask;
         };
 
-        await KurrentProcessors.Create(processor1)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-            .RunAsync(ct);
+        await KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId                  = processorId;
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Subscribe.Use(processor1);
+        }).RunAsync(ct);
 
         // Soft delete the stream between phases
         await Fixture.Client.Streams.Delete(data.Stream, ct);
@@ -512,13 +528,14 @@ public class StreamSubscriptionTests {
 
         using var cancellator = CancellationTokenSource.CreateShortLived(2000, ct);
 
-        var worker = KurrentProcessors.Create(processor2)
-            .UseClient(Fixture.Client)
-            .WithProcessorId(processorId)
-            .WithFilter(RecordFilter.ByStream(data.Stream))
-            .Build();
+        var drone = KurrentProcessor.Create(opts => {
+            opts.Connection(Fixture.Client);
+            opts.ProcessorId         = processorId;
+            opts.Subscription.Filter = RecordFilter.ByStream(data.Stream);
+            opts.Subscribe.Use(processor2);
+        }).Build();
 
-        var task = worker.RunAsync(cancellator.Token);
+        var task = drone.RunAsync(cancellator.Token);
 
         // Assert
         using var _ = Assert.Multiple();

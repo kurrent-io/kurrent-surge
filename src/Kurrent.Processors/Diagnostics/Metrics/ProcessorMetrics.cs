@@ -4,13 +4,13 @@ using Microsoft.Extensions.Diagnostics.Metrics;
 namespace Kurrent.Processors.Diagnostics.Metrics;
 
 /// <summary>
-/// Source-generated metrics for workers.
+/// Source-generated metrics for drones.
 /// </summary>
 internal static partial class ProcessorMetrics {
     /// <summary>
     /// Creates a counter for records processed.
     /// </summary>
-    [Counter<long>("processor_id", "worker_id", Name = "kurrent_processor_records_processed")]
+    [Counter<long>("processor_id", "drone_id", Name = "kurrent_processor_records_processed")]
     public static partial RecordsProcessedCounter CreateRecordsProcessed(Meter meter);
 
     /// <summary>
@@ -22,7 +22,7 @@ internal static partial class ProcessorMetrics {
     /// <summary>
     /// Creates a counter for checkpoints completed.
     /// </summary>
-    [Counter<long>("processor_id", "worker_id", Name = "kurrent_processor_checkpoints_completed")]
+    [Counter<long>("processor_id", "drone_id", Name = "kurrent_processor_checkpoints_completed")]
     public static partial CheckpointsCompletedCounter CreateCheckpointsCompleted(Meter meter);
 
     /// <summary>
@@ -32,14 +32,14 @@ internal static partial class ProcessorMetrics {
     public static partial CheckpointDurationHistogram CreateCheckpointDuration(Meter meter);
 
     /// <summary>
-    /// Creates a counter for workers connected.
+    /// Creates a counter for drones connected.
     /// </summary>
-    [Counter<long>("processor_id", Name = "kurrent_processor_workers_connected")]
-    public static partial WorkersConnectedCounter CreateWorkersConnected(Meter meter);
+    [Counter<long>("processor_id", Name = "kurrent_processor_drones_connected")]
+    public static partial DronesConnectedCounter CreateDronesConnected(Meter meter);
 
     /// <summary>
-    /// Creates a counter for worker errors.
+    /// Creates a counter for drone errors.
     /// </summary>
-    [Counter<long>("processor_id", Name = "kurrent_processor_worker_errors")]
-    public static partial WorkerErrorsCounter CreateWorkerErrors(Meter meter);
+    [Counter<long>("processor_id", Name = "kurrent_processor_drone_errors")]
+    public static partial DroneErrorsCounter CreateDroneErrors(Meter meter);
 }

@@ -3,8 +3,6 @@ using System.Text;
 
 namespace Kurrent.Client.Streams;
 
-#if NET10_0_OR_GREATER
-
 /// <summary>
 /// V4: V3 engine (single GetSpan, direct indexed writes, single Advance) targeting
 /// <see cref="IBufferWriter{T}"/> — no DotNext dependency.
@@ -852,5 +850,3 @@ public sealed class Utf8QueryExpressionNormalizerV4 : IUtf8QueryExpressionNormal
 
     #endregion
 }
-
-#endif

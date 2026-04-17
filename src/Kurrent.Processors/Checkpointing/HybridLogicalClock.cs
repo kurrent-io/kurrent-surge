@@ -15,11 +15,7 @@ public sealed class HybridLogicalClock {
     /// </summary>
     public static readonly TimeSpan DefaultMaxOffset = TimeSpan.FromMinutes(1);
 
-#if NET9_0_OR_GREATER
     readonly Lock         _lock = new();
-#else
-    readonly object       _lock = new();
-#endif
     readonly TimeProvider _timeProvider;
     readonly TimeSpan     _maxOffset;
 

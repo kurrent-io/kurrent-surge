@@ -1,13 +1,12 @@
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Models;
 
 namespace Kurrent.Client.Processors.Partitioning;
 
 /// <summary>
-/// The manifest of partition distribution across workers, including change tracking.
+/// The manifest of partition distribution across drones, including change tracking.
 /// </summary>
 /// <remarks>
-/// A manifest captures both the current state (which worker owns which partitions)
+/// A manifest captures both the current state (which drone owns which partitions)
 /// and the delta from the previous state (what moved where). This enables efficient
 /// rebalancing by knowing exactly which partitions need state transfer.
 /// </remarks>
@@ -17,14 +16,14 @@ public sealed record DistributionManifest {
     /// Empty manifest representing no distribution (initial state).
     /// </summary>
     public static readonly DistributionManifest Empty = new(
-        new Dictionary<WorkerId, PartitionAssignment>(),
+        new Dictionary<string, PartitionAssignment>(),
         []
     );
 
     /// <summary>
-    /// Per-worker partition assignments with change tracking.
+    /// Per-drone partition assignments with change tracking.
     /// </summary>
-    public IReadOnlyDictionary<WorkerId, PartitionAssignment> Assignments { get; }
+    public IReadOnlyDictionary<string, PartitionAssignment> Assignments { get; }
 
     /// <summary>
     /// Partition transfers that occurred during this distribution.
@@ -32,7 +31,7 @@ public sealed record DistributionManifest {
     public PartitionTransfer[] Transfers { get; }
 
     /// <summary>
-    /// Returns true if no partitions are assigned to any worker.
+    /// Returns true if no partitions are assigned to any drone.
     /// </summary>
     public bool IsEmpty => Assignments.Count == 0;
 
@@ -49,10 +48,10 @@ public sealed record DistributionManifest {
     /// <summary>
     /// Creates a new distribution manifest.
     /// </summary>
-    /// <param name="assignments">Per-worker partition assignments.</param>
+    /// <param name="assignments">Per-drone partition assignments.</param>
     /// <param name="transfers">Partition transfers from previous state.</param>
     public DistributionManifest(
-        IReadOnlyDictionary<WorkerId, PartitionAssignment> assignments,
+        IReadOnlyDictionary<string, PartitionAssignment> assignments,
         PartitionTransfer[] transfers
     ) {
         Assignments = assignments;
@@ -60,23 +59,23 @@ public sealed record DistributionManifest {
     }
 
     /// <summary>
-    /// Gets the assignment for a specific worker, or <see cref="PartitionAssignment.Empty"/> if not found.
+    /// Gets the assignment for a specific drone, or <see cref="PartitionAssignment.Empty"/> if not found.
     /// </summary>
-    public PartitionAssignment this[WorkerId workerId] =>
-        Assignments.TryGetValue(workerId, out var assignment) ? assignment : PartitionAssignment.Empty;
+    public PartitionAssignment this[string droneId] =>
+        Assignments.TryGetValue(droneId, out var assignment) ? assignment : PartitionAssignment.Empty;
 }
 
 /// <summary>
-/// Per-worker partition assignment with change tracking.
+/// Per-drone partition assignment with change tracking.
 /// </summary>
 /// <remarks>
-/// Tracks which partitions a worker kept from the previous distribution,
+/// Tracks which partitions a drone kept from the previous distribution,
 /// which it gained, and which it lost. This enables efficient state transfer
 /// during rebalancing.
 /// </remarks>
 /// <param name="Kept">Partitions retained from the previous assignment.</param>
-/// <param name="Gained">Partitions newly assigned to this worker.</param>
-/// <param name="Lost">Partitions removed from this worker.</param>
+/// <param name="Gained">Partitions newly assigned to this drone.</param>
+/// <param name="Lost">Partitions removed from this drone.</param>
 [PublicAPI]
 public sealed record PartitionAssignment(
     Partition[] Kept,
@@ -89,7 +88,7 @@ public sealed record PartitionAssignment(
     public static readonly PartitionAssignment Empty = new([], [], []);
 
     /// <summary>
-    /// All partitions currently assigned to this worker (kept + gained).
+    /// All partitions currently assigned to this drone (kept + gained).
     /// </summary>
     public Partition[] All => [..Kept, ..Gained];
 
@@ -105,14 +104,14 @@ public sealed record PartitionAssignment(
 }
 
 /// <summary>
-/// Describes a transfer of partitions from one worker to another.
+/// Describes a transfer of partitions from one drone to another.
 /// </summary>
-/// <param name="From">The worker losing the partitions (<see cref="WorkerId.Unset"/> if partitions are new).</param>
-/// <param name="To">The worker gaining the partitions.</param>
+/// <param name="From">The drone losing the partitions (<c>string.Empty</c> if partitions are new).</param>
+/// <param name="To">The drone gaining the partitions.</param>
 /// <param name="Partitions">The partitions being transferred.</param>
 [PublicAPI]
 public sealed record PartitionTransfer(
-    WorkerId From,
-    WorkerId To,
+    string From,
+    string To,
     Partition[] Partitions
 );

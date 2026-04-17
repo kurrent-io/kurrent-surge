@@ -13,7 +13,7 @@ namespace Kurrent.Client.Processors.Gateway.Messages;
 /// </summary>
 /// <remarks>
 /// Checkpoint IDs are coordination tokens, not positions.
-/// Workers use these IDs to identify which checkpoint they're responding to.
+/// Drones use these IDs to identify which checkpoint they're responding to.
 /// </remarks>
 [PublicAPI]
 public readonly record struct CheckpointId(string Value) {
@@ -44,8 +44,8 @@ public readonly record struct CheckpointId(string Value) {
 #region ->> Inbound - Control Messages <<-
 
 /// <summary>
-/// Sent when partitions are assigned to this worker.
-/// Worker MUST respond with <see cref="WorkerReady"/> before the server sends records.
+/// Sent when partitions are assigned to this drone.
+/// Drone MUST respond with <see cref="DroneReady"/> before the server sends records.
 /// </summary>
 [PublicAPI]
 public readonly record struct WorkOrder(
@@ -55,7 +55,7 @@ public readonly record struct WorkOrder(
 
 /// <summary>
 /// A batch of records to process.
-/// Only sent after worker acknowledges with <see cref="WorkerReady"/>.
+/// Only sent after drone acknowledges with <see cref="DroneReady"/>.
 /// </summary>
 [PublicAPI]
 public readonly record struct RecordBatch : IReadOnlyList<Record> {
@@ -129,7 +129,7 @@ public readonly record struct Checkpoint(
 );
 
 /// <summary>
-/// Messages sent from the Processor Controller (server) to the worker.
+/// Messages sent from the Processor Controller (server) to the drone.
 /// </summary>
 [PublicAPI]
 public readonly partial record struct ProcessorControlMessage : IVariant<
@@ -144,18 +144,18 @@ public readonly partial record struct ProcessorControlMessage : IVariant<
 #region ->> Outbound - Drone Messages <<-
 
 /// <summary>
-/// Worker signals it has recovered to a consistent state and is ready to receive records.
+/// Drone signals it has recovered to a consistent state and is ready to receive records.
 /// Sent in response to <see cref="WorkOrder"/>.
 /// A <see cref="Record"/> will not be sent until this message is received.
 /// </summary>
 /// <param name="Positions">Partition to record position mapping after recovery.</param>
 [PublicAPI]
-public readonly record struct WorkerReady(
+public readonly record struct DroneReady(
     PartitionPositions Positions
 );
 
 /// <summary>
-/// Worker has completed checkpoint - positions are ready for persistence.
+/// Drone has completed checkpoint - positions are ready for persistence.
 /// </summary>
 /// <param name="CheckpointId">The checkpoint ID this completion responds to.</param>
 /// <param name="Positions">Partition to record position mapping.</param>
@@ -166,10 +166,10 @@ public readonly record struct CheckpointComplete(
 );
 
 /// <summary>
-/// Worker requests disconnect.
+/// Drone requests disconnect.
 /// For graceful shutdown, includes final positions so relay can persist without checkpoint round-trip.
 /// </summary>
-/// <param name="Reason">Why the worker is disconnecting.</param>
+/// <param name="Reason">Why the drone is disconnecting.</param>
 /// <param name="Positions">Optional: final checkpoint positions of all partitions for graceful shutdown.</param>
 [PublicAPI]
 public readonly record struct Disconnect(
@@ -178,11 +178,11 @@ public readonly record struct Disconnect(
 );
 
 /// <summary>
-/// The messages a drone can send to the server. Outbound from worker to relay.
+/// The messages a drone can send to the server. Outbound from drone to relay.
 /// </summary>
 [PublicAPI]
 public readonly partial record struct DroneMessage : IVariant<
-    WorkerReady,
+    DroneReady,
     CheckpointComplete,
     Disconnect> {
     public static readonly DroneMessage None;
@@ -205,7 +205,7 @@ public enum CheckpointTrigger {
     Unspecified = 0,
 
     /// <summary>
-    /// Checkpoint triggered on rebalancing events to ensure a consistent state across workers.
+    /// Checkpoint triggered on rebalancing events to ensure a consistent state across drones.
     /// </summary>
     Rebalance = 1,
 
@@ -235,7 +235,7 @@ public enum CheckpointTrigger {
     /// <para>
     /// This ensures that after processing a potentially large historical backlog,
     /// the state is checkpointed before live processing begins. Prevents replaying
-    /// the entire history if the worker crashes shortly after going live.
+    /// the entire history if the drone crashes shortly after going live.
     /// </para>
     /// <para>Frequency: Once per processor lifecycle (at catch-up completion).</para>
     /// <para>Auto-deleted: Yes (subject to retention count).</para>
@@ -258,7 +258,7 @@ public enum CheckpointTrigger {
     Savepoint = 5,
 
     /// <summary>
-    /// Checkpoint triggered by graceful worker shutdown to persist final state.
+    /// Checkpoint triggered by graceful drone shutdown to persist final state.
     /// </summary>
     Shutdown = 6,
 
@@ -269,7 +269,7 @@ public enum CheckpointTrigger {
 }
 
 /// <summary>
-/// Reason why the worker is requesting to be disconnected.
+/// Reason why the drone is requesting to be disconnected.
 /// </summary>
 [PublicAPI]
 public enum DisconnectReason {
@@ -281,7 +281,7 @@ public enum DisconnectReason {
     Stopped = 1,
 
     /// <summary>
-    /// Worker encountered an error and must disconnect.
+    /// Drone encountered an error and must disconnect.
     /// If and when restarted, it will do so in a consistent state.
     /// </summary>
     Error = 2

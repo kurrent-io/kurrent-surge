@@ -104,7 +104,7 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// </summary>
     /// <remarks>
     /// Snapshots ALL pending positions at the moment of call (no position filtering).
-    /// This enables distributed checkpoint coordination across workers.
+    /// This enables distributed checkpoint coordination across drones.
     /// </remarks>
     public PendingPositionsFlush PrepareFlush() {
         ObjectDisposedException.ThrowIf(_disposed, this);

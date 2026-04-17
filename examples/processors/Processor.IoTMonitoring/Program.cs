@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.IoTMonitoring;
 using Serilog;
 
@@ -11,9 +12,8 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var processor = new TemperatureMonitorProcessor();
-
-await KurrentProcessors.Create(processor)
-    .WithFilterExpression("schema_name = 'SensorReading'")
-    .ConnectTo("kurrentdb://localhost:2113")
-    .RunWithGracefulShutdownAsync();
+await KurrentProcessor.Create(opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = new ExpressionFilter("schema_name = 'SensorReading'");
+    opts.Subscribe.Use(new TemperatureMonitorProcessor());
+}).RunWithGracefulShutdownAsync();

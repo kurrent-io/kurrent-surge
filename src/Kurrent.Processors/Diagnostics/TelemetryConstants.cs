@@ -14,12 +14,12 @@ static class TelemetryConstants {
     public const string Version = "0.9.0";
 
     /// <summary>
-    /// Shared diagnostic listener for all workers.
+    /// Shared diagnostic listener for all drones.
     /// </summary>
     public static readonly DiagnosticListener Listener = new(SourceName);
 
     /// <summary>
-    /// Shared activity source for all workers.
+    /// Shared activity source for all drones.
     /// </summary>
     public static readonly ActivitySource Activities = new(SourceName, Version);
 }

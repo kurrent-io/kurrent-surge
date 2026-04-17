@@ -6,8 +6,6 @@ using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;
 
-#if NET9_0_OR_GREATER
-
 public interface IUtf8QueryExpressionNormalizerV2 {
     void Normalize(ReadOnlySpan<byte> query, IBufferWriter<byte> writer);
 }
@@ -179,5 +177,3 @@ enum ScannerState {
     /// </summary>
     AfterCast
 }
-
-#endif

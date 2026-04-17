@@ -247,7 +247,6 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
             ["FALSE"]   = TokenType.False,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-#if NET9_0_OR_GREATER
     static readonly FrozenDictionary<string, TokenType>.AlternateLookup<ReadOnlySpan<char>> KeywordLookup =
         Keywords.GetAlternateLookup<ReadOnlySpan<char>>();
 
@@ -259,7 +258,6 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
     static readonly SearchValues<char> DigitChars =
         SearchValues.Create("0123456789");
-#endif
 
     char Current => _position < _input.Length ? _input[_position] : '\0';
     bool IsAtEnd => _position >= _input.Length;
@@ -420,7 +418,6 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         var start = _position;
         if (Current == '-') Advance();
 
-#if NET9_0_OR_GREATER
         var remaining = _input.AsSpan(_position);
         var idx = remaining.IndexOfAnyExcept(DigitChars);
         _position += idx < 0 ? remaining.Length : idx;
@@ -431,14 +428,6 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
             idx = remaining.IndexOfAnyExcept(DigitChars);
             _position += idx < 0 ? remaining.Length : idx;
         }
-#else
-        while (!IsAtEnd && char.IsDigit(Current)) Advance();
-
-        if (!IsAtEnd && Current == '.' && _position + 1 < _input.Length && char.IsDigit(_input[_position + 1])) {
-            Advance();
-            while (!IsAtEnd && char.IsDigit(Current)) Advance();
-        }
-#endif
 
         return new(TokenType.Number, _input[start.._position], start);
     }
@@ -446,7 +435,6 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
     Token ReadIdentifierOrKeyword() {
         var start = _position;
 
-#if NET9_0_OR_GREATER
         var remaining = _input.AsSpan(_position);
         var idx = remaining.IndexOfAnyExcept(IdentifierChars);
         _position += idx < 0 ? remaining.Length : idx;
@@ -457,24 +445,15 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         return KeywordLookup.TryGetValue(span, out var keywordType)
             ? new(keywordType, value, start)
             : new Token(TokenType.Identifier, value, start);
-#else
-        while (!IsAtEnd && (char.IsLetterOrDigit(Current) || Current == '_')) Advance();
-        var value = _input[start.._position];
-        return new Token(GetKeywordType(value), value, start);
-#endif
     }
 
     static TokenType GetKeywordType(string value) =>
         Keywords.TryGetValue(value, out var type) ? type : TokenType.Identifier;
 
     void SkipWhitespace() {
-#if NET9_0_OR_GREATER
         var remaining = _input.AsSpan(_position);
         var idx = remaining.IndexOfAnyExcept(WhitespaceChars);
         _position += idx < 0 ? remaining.Length : idx;
-#else
-        while (!IsAtEnd && char.IsWhiteSpace(Current)) Advance();
-#endif
     }
 
     void Advance() => _position++;

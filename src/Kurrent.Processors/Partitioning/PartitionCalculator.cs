@@ -8,7 +8,7 @@ namespace Kurrent.Client.Processors.Partitioning;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Partitions provide a fixed intermediate layer between keys and workers. Keys are mapped
+/// Partitions provide a fixed intermediate layer between keys and drones. Keys are mapped
 /// to partitions deterministically, ensuring the same key always routes to the same partition.
 /// </para>
 /// <para>
@@ -53,7 +53,7 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     /// <remarks>
     /// <para>
     /// The same key always maps to the same partition for a given maxParallelism.
-    /// This ensures state locality: all records with the same key are processed by the same worker.
+    /// This ensures state locality: all records with the same key are processed by the same drone.
     /// </para>
     /// </remarks>
     public int Calculate(string key, int maxParallelism) {

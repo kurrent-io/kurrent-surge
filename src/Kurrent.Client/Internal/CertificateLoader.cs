@@ -44,20 +44,12 @@ static class CertificateLoader {
         //     ? X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet
         //     : X509KeyStorageFlags.EphemeralKeySet;
 
-        #if NET9_0_OR_GREATER
         return X509CertificateLoader.LoadPkcs12(File.ReadAllBytes(certPath), password, X509KeyStorageFlags.EphemeralKeySet);
-        #else
-        return new X509Certificate2(certPath, password, X509KeyStorageFlags.EphemeralKeySet);
-        #endif
     }
 
     static X509Certificate2 LoadFromPem(string certPath, string? keyPath, string? password) {
         if (IsNullOrEmpty(keyPath))
-        #if NET9_0_OR_GREATER
         return X509CertificateLoader.LoadCertificateFromFile(certPath);
-        #else
-        return X509Certificate2.CreateFromPemFile(certPath);
-        #endif
 
         return IsNullOrEmpty(password)
             ? X509Certificate2.CreateFromPemFile(certPath, keyPath)

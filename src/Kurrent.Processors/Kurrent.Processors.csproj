@@ -74,6 +74,7 @@
 
   <ItemGroup>
     <Folder Include="Hosting\" />
+    <Folder Include="Options\" />
   </ItemGroup>
 
   <!--

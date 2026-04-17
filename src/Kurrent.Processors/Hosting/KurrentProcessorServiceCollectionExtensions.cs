@@ -46,11 +46,10 @@ public static class KurrentProcessorServiceCollectionExtensions {
     ///     .WithFilter("schema_name = 'PlayerTransferred'")
     /// );
     ///
-    /// // With checkpoint and batching configuration
+    /// // With checkpoint configuration
     /// builder.Services.AddKurrentProcessor&lt;AnalyticsProcessor&gt;(config => config
     ///     .WithFilter("schema_name IN ('OrderPlaced', 'OrderShipped')")
-    ///     .ConfigureCheckpoint(c => c with { Interval = 10_000, Threshold = 100 })
-    ///     .ConfigureBatching(b => b with { MaxSize = 50 })
+    ///     .Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)))
     /// );
     ///
     /// // With dedicated client
@@ -285,7 +284,7 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
         var source = new SubscriptionSource(client, settings, TimeProvider.System, registration.UseOwnClient);
 
-        var worker = new Drone(
+        var drone = new Drone(
             settings,
             source,
             processor,
@@ -295,13 +294,13 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
         var logger = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
 
-        return new KurrentProcessorHostedService<TProcessor>(worker, logger);
+        return new KurrentProcessorHostedService<TProcessor>(drone, logger);
     }
 
     static void EnsureDiagnosticsRegistered(IServiceCollection services) {
         services.TryAddSingleton(sp => {
             var meterFactory = sp.GetRequiredService<IMeterFactory>();
-            return new WorkerMetricsObserver(meterFactory).Start();
+            return new DroneMetricsObserver(meterFactory).Start();
         });
     }
 

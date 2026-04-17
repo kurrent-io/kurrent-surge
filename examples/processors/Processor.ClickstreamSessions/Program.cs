@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.ClickstreamSessions;
 using Serilog;
 
@@ -11,9 +12,8 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var processor = new SessionAnalyticsProcessor();
-
-await KurrentProcessors.Create(processor)
-    .ConnectTo("kurrentdb://localhost:2113")
-    .WithFilterExpression("schema = 'Processor.ClickstreamSessions.Events.PageView'")
-    .RunWithGracefulShutdownAsync();
+await KurrentProcessor.Create(opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = new ExpressionFilter("schema = 'Processor.ClickstreamSessions.Events.PageView'");
+    opts.Subscribe.Use(new SessionAnalyticsProcessor());
+}).RunWithGracefulShutdownAsync();

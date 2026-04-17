@@ -4,8 +4,6 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Tests.Filters;
 
-#if NET9_0_OR_GREATER
-
 [Category("Filters")]
 [Category("QueryExpressionNormalizer")]
 public class Utf8TranscodingNormalizerTests {
@@ -109,5 +107,3 @@ public class Utf8TranscodingNormalizerTests {
 
     #endregion
 }
-
-#endif

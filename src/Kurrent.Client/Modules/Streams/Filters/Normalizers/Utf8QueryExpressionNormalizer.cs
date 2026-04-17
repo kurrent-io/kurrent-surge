@@ -4,8 +4,6 @@ using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;
 
-#if NET10_0_OR_GREATER
-
 public sealed class Utf8QueryExpressionNormalizer : IUtf8QueryExpressionNormalizer {
     static readonly SearchValues<byte> IdentifierPartBytes =
         SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"u8);
@@ -943,5 +941,3 @@ public sealed class AsciiByteComparer :
 
     public int GetHashCode(byte[] obj) => GetHashCode(obj.AsSpan());
 }
-
-#endif

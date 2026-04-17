@@ -20,20 +20,20 @@
       PublicKeyToken=b77a5c561934e089
     </value>
   </resheader>
-  <!-- Worker Callback Exceptions -->
-  <data name="Worker_ProcessRecordFailed" xml:space="preserve">
+  <!-- Drone Callback Exceptions -->
+  <data name="Drone_ProcessRecordFailed" xml:space="preserve">
     <value>An error occurred while processing a record.</value>
     <comment>The exception message for when IRecordProcessor.ProcessRecord callback throws an exception.</comment>
   </data>
-  <data name="Worker_OnCheckpointFailed" xml:space="preserve">
+  <data name="Drone_OnCheckpointFailed" xml:space="preserve">
     <value>An error occurred during checkpoint handling.</value>
     <comment>The exception message for when IRecordProcessor.OnCheckpoint callback throws an exception.</comment>
   </data>
-  <data name="Worker_OnErrorFailed" xml:space="preserve">
+  <data name="Drone_OnErrorFailed" xml:space="preserve">
     <value>An error occurred in the error handler.</value>
     <comment>The exception message for when IRecordProcessor.OnError callback throws an exception.</comment>
   </data>
-  <data name="Worker_OnCompleteFailed" xml:space="preserve">
+  <data name="Drone_OnCompleteFailed" xml:space="preserve">
     <value>An error occurred in the completion handler.</value>
     <comment>The exception message for when IRecordProcessor.OnComplete callback throws an exception.</comment>
   </data>

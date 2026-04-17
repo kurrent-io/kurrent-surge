@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.WordCount;
 using Serilog;
 
@@ -11,9 +12,8 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var processor = new WordCountProcessor();
-
-await KurrentProcessors.Create(processor)
-    .WithFilterExpression("schema_name = 'TextSubmitted'")
-    .ConnectTo("kurrentdb://localhost:2113")
-    .RunWithGracefulShutdownAsync();
+await KurrentProcessor.Create(opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = new ExpressionFilter("schema_name = 'TextSubmitted'");
+    opts.Subscribe.Use(new WordCountProcessor());
+}).RunWithGracefulShutdownAsync();

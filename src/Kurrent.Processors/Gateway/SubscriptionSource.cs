@@ -22,9 +22,9 @@ namespace Kurrent.Processors.Gateway;
 
 sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
     readonly StreamsClient              _streams;
-    readonly ProcessorOptions          _settings;
+    readonly ProcessorOptions           _settings;
     readonly TimeProvider               _timeProvider;
-    readonly CheckpointStore _checkpointStore;
+    readonly CheckpointStore            _checkpointStore;
     readonly PartitionedPositionTracker _tracker;
     readonly HybridLogicalClock         _clock;
     readonly KurrentClient              _client;
@@ -92,7 +92,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
             await _checkpointStore
                 .ResetAsync(
-                    _settings.WorkerId,
+                    _settings.DroneId,
                     CheckpointId.From(_clock.Now()),
                     explicitStart,
                     ct
@@ -110,7 +110,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
         }
 
         var channel = Channel.CreateBounded<SubscribeMessage>(
-            new BoundedChannelOptions(_settings.Worker.BufferCapacity) {
+            new BoundedChannelOptions(_settings.BufferCapacity) {
                 FullMode     = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false
@@ -143,7 +143,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
                     var subscription = _streams.Subscribe(
                         SerializerProvider, MetadataDecoder,
                         _settings.Subscription.Filter, from,
-                        _settings.Worker.SkipDecoding, pumpCt);
+                        _settings.SkipDecoding, pumpCt);
 
                     var connectedHandled = false;
 
@@ -169,7 +169,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
         void StartFlushTimer(ChannelWriter<SubscribeMessage> writer, CancellationToken timerCt) {
             _ = Task.Run(async () => {
-                using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_settings.Checkpoint.Interval));
+                using var timer = new PeriodicTimer(_settings.Checkpoint.Interval);
 
                 try {
                     while (await timer.WaitForNextTickAsync(timerCt).ConfigureAwait(false)) {
@@ -209,7 +209,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
             .ToArray();
 
         await _checkpointStore
-            .StoreAsync(_settings.WorkerId, checkpointId, partitionPositions, ct)
+            .StoreAsync(_settings.DroneId, checkpointId, partitionPositions, ct)
             .ConfigureAwait(false);
 
         pendingFlush.Execute();

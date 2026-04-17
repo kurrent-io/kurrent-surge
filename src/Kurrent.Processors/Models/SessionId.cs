@@ -1,12 +1,12 @@
 namespace Kurrent.Processors.Models;
 
 /// <summary>
-/// Represents a unique session identifier assigned by the server when a worker connects.
+/// Represents a unique session identifier assigned by the server when a drone connects.
 /// </summary>
 [PublicAPI]
 public readonly record struct SessionId {
     /// <summary>
-    /// Represents an unset session (e.g., worker never connected).
+    /// Represents an unset session (e.g., drone never connected).
     /// </summary>
     public static readonly SessionId Unset = new(Guid.Empty);
 

@@ -16,12 +16,12 @@ public interface IDrone {
     /// The unique identifier of this drone instance.
     /// Could have been automatically generated if not provided in settings.
     /// </summary>
-    string WorkerId { get; }
+    string DroneId { get; }
 
     /// <summary>
     /// Current lifecycle status of the processor drone.
     /// </summary>
-    ProcessorWorkerStatus Status { get; }
+    DroneStatus Status { get; }
 
     /// <summary>
     /// The configuration settings used by this processor drone.
@@ -39,7 +39,7 @@ public interface IDrone {
 /// Defines the lifecycle status of a processor drone.
 /// </summary>
 [PublicAPI]
-public enum ProcessorWorkerStatus {
+public enum DroneStatus {
     /// <summary>
     /// Fallback value for serialization and protocol compatibility.
     /// </summary>

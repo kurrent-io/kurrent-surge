@@ -1,5 +1,4 @@
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Models;
 
 namespace Kurrent.Client.Processors.Partitioning;
 
@@ -9,20 +8,20 @@ namespace Kurrent.Client.Processors.Partitioning;
 /// <remarks>
 /// <para>
 /// This strategy keeps existing partition assignments stable and only redistributes
-/// orphaned partitions (from removed workers or newly added partitions) to the
-/// least-loaded workers. This minimizes state transfer during scaling operations.
+/// orphaned partitions (from removed drones or newly added partitions) to the
+/// least-loaded drones. This minimizes state transfer during scaling operations.
 /// </para>
 /// <para>
-/// <b>Best for:</b> Production rebalancing when workers join or leave, scenarios
+/// <b>Best for:</b> Production rebalancing when drones join or leave, scenarios
 /// where minimizing partition movement is more important than perfectly balanced loads.
 /// </para>
 /// <para>
 /// <b>Algorithm:</b>
 /// <list type="number">
-///   <item>Existing workers keep their current partitions</item>
-///   <item>Orphaned partitions (from removed workers) are collected</item>
+///   <item>Existing drones keep their current partitions</item>
+///   <item>Orphaned partitions (from removed drones) are collected</item>
 ///   <item>New partitions (if maxParallelism increased) are collected</item>
-///   <item>Orphaned/new partitions are distributed to least-loaded workers</item>
+///   <item>Orphaned/new partitions are distributed to least-loaded drones</item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -38,54 +37,54 @@ public sealed class StickyStrategy : IDistributionStrategy {
     /// <inheritdoc />
     public DistributionManifest Distribute(
         DistributionManifest current,
-        WorkerId[] workers,
+        string[] drones,
         int maxParallelism
     ) {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxParallelism, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxParallelism, 32768);
 
-        if (workers.Length == 0)
+        if (drones.Length == 0)
             return DistributionManifest.Empty;
 
-        var workerSet = new HashSet<WorkerId>(workers);
-        var transferGroups = new Dictionary<(WorkerId from, WorkerId to), List<Partition>>();
+        var droneSet = new HashSet<string>(drones);
+        var transferGroups = new Dictionary<(string from, string to), List<Partition>>();
 
-        // Track partitions per worker: kept partitions and load for balancing
-        var workerKept = new Dictionary<WorkerId, List<Partition>>();
-        var workerGained = new Dictionary<WorkerId, List<Partition>>();
-        var workerLost = new Dictionary<WorkerId, List<Partition>>();
+        // Track partitions per drone: kept partitions and load for balancing
+        var droneKept = new Dictionary<string, List<Partition>>();
+        var droneGained = new Dictionary<string, List<Partition>>();
+        var droneLost = new Dictionary<string, List<Partition>>();
 
-        foreach (var worker in workers) {
-            workerKept[worker] = [];
-            workerGained[worker] = [];
-            workerLost[worker] = [];
+        foreach (var drone in drones) {
+            droneKept[drone] = [];
+            droneGained[drone] = [];
+            droneLost[drone] = [];
         }
 
         // Collect orphaned partitions and determine kept partitions
-        var orphanedPartitions = new List<(Partition partition, WorkerId previousOwner)>();
+        var orphanedPartitions = new List<(Partition partition, string previousOwner)>();
         var assignedPartitions = new HashSet<Partition>();
 
-        foreach (var (workerId, assignment) in current.Assignments) {
-            if (workerSet.Contains(workerId)) {
-                // Worker still exists - keep its partitions
+        foreach (var (droneId, assignment) in current.Assignments) {
+            if (droneSet.Contains(droneId)) {
+                // Drone still exists - keep its partitions
                 foreach (var partition in assignment.All) {
                     if (partition.Value < maxParallelism) {
-                        workerKept[workerId].Add(partition);
+                        droneKept[droneId].Add(partition);
                         assignedPartitions.Add(partition);
                     } else {
                         // Partition no longer exists (maxParallelism decreased)
-                        workerLost[workerId].Add(partition);
+                        droneLost[droneId].Add(partition);
                     }
                 }
             } else {
-                // Worker removed - its partitions are orphaned
-                workerLost[workerId] = [];
+                // Drone removed - its partitions are orphaned
+                droneLost[droneId] = [];
                 foreach (var partition in assignment.All) {
                     if (partition.Value < maxParallelism) {
-                        orphanedPartitions.Add((partition, workerId));
+                        orphanedPartitions.Add((partition, droneId));
                         assignedPartitions.Add(partition); // Track to avoid double-counting as "new"
                     }
-                    workerLost[workerId].Add(partition);
+                    droneLost[droneId].Add(partition);
                 }
             }
         }
@@ -94,31 +93,31 @@ public sealed class StickyStrategy : IDistributionStrategy {
         for (var i = 0; i < maxParallelism; i++) {
             var partition = Partition.From(i);
             if (!assignedPartitions.Contains(partition))
-                orphanedPartitions.Add((partition, WorkerId.Unset));
+                orphanedPartitions.Add((partition, string.Empty));
         }
 
-        // Distribute orphaned partitions to least-loaded workers
+        // Distribute orphaned partitions to least-loaded drones
         foreach (var (partition, previousOwner) in orphanedPartitions) {
-            var leastLoadedWorker = GetLeastLoadedWorker(workers, workerKept, workerGained);
-            workerGained[leastLoadedWorker].Add(partition);
-            AddToGroup(transferGroups, (previousOwner, leastLoadedWorker), partition);
+            var leastLoadedDrone = GetLeastLoadedDrone(drones, droneKept, droneGained);
+            droneGained[leastLoadedDrone].Add(partition);
+            AddToGroup(transferGroups, (previousOwner, leastLoadedDrone), partition);
         }
 
         // Build assignments
-        var newAssignments = new Dictionary<WorkerId, PartitionAssignment>();
+        var newAssignments = new Dictionary<string, PartitionAssignment>();
 
-        foreach (var worker in workers) {
-            newAssignments[worker] = new PartitionAssignment(
-                [..workerKept[worker]],
-                [..workerGained[worker]],
-                workerLost.TryGetValue(worker, out var lost) ? [..lost] : []
+        foreach (var drone in drones) {
+            newAssignments[drone] = new PartitionAssignment(
+                [..droneKept[drone]],
+                [..droneGained[drone]],
+                droneLost.TryGetValue(drone, out var lost) ? [..lost] : []
             );
         }
 
-        // Include removed workers with their losses
-        foreach (var (workerId, _) in current.Assignments) {
-            if (!workerSet.Contains(workerId) && workerLost.TryGetValue(workerId, out var lost)) {
-                newAssignments[workerId] = new PartitionAssignment([], [], [..lost]);
+        // Include removed drones with their losses
+        foreach (var (droneId, _) in current.Assignments) {
+            if (!droneSet.Contains(droneId) && droneLost.TryGetValue(droneId, out var lost)) {
+                newAssignments[droneId] = new PartitionAssignment([], [], [..lost]);
             }
         }
 
@@ -129,29 +128,29 @@ public sealed class StickyStrategy : IDistributionStrategy {
         return new DistributionManifest(newAssignments, transferArray);
     }
 
-    static WorkerId GetLeastLoadedWorker(
-        WorkerId[] workers,
-        Dictionary<WorkerId, List<Partition>> kept,
-        Dictionary<WorkerId, List<Partition>> gained
+    static string GetLeastLoadedDrone(
+        string[] drones,
+        Dictionary<string, List<Partition>> kept,
+        Dictionary<string, List<Partition>> gained
     ) {
-        WorkerId leastLoaded = workers[0];
-        var minLoad = kept[leastLoaded].Count + gained[leastLoaded].Count;
+        string leastLoadedDrone = drones[0];
+        var minLoad = kept[leastLoadedDrone].Count + gained[leastLoadedDrone].Count;
 
-        for (var i = 1; i < workers.Length; i++) {
-            var worker = workers[i];
-            var load = kept[worker].Count + gained[worker].Count;
+        for (var i = 1; i < drones.Length; i++) {
+            var drone = drones[i];
+            var load = kept[drone].Count + gained[drone].Count;
             if (load < minLoad) {
                 minLoad = load;
-                leastLoaded = worker;
+                leastLoadedDrone = drone;
             }
         }
 
-        return leastLoaded;
+        return leastLoadedDrone;
     }
 
     static void AddToGroup(
-        Dictionary<(WorkerId from, WorkerId to), List<Partition>> groups,
-        (WorkerId from, WorkerId to) key,
+        Dictionary<(string from, string to), List<Partition>> groups,
+        (string from, string to) key,
         Partition partition
     ) {
         if (!groups.TryGetValue(key, out var list))

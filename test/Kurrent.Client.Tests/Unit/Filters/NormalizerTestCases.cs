@@ -3,8 +3,6 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Tests.Filters;
 
-#if NET9_0_OR_GREATER
-
 public sealed record NormalizerTestCase(int Id, string Query, string Expected) {
     public override string ToString() => $"#{Id}";
 }
@@ -191,5 +189,3 @@ static class NormalizerTestCases {
 
     #endregion
 }
-
-#endif

@@ -4,8 +4,6 @@ using static System.StringComparison;
 
 namespace Kurrent.Client.Streams;
 
-#if NET9_0_OR_GREATER
-
 /// <summary>
 /// Single-pass, zero-allocation scanner that rewrites SQL-like query expressions by replacing
 /// column and table identifiers according to configurable replacement maps.
@@ -926,5 +924,3 @@ ref struct ScanWriter(Span<char> buffer) {
     /// </summary>
     public ReadOnlySpan<char> Result => _buffer[..Written];
 }
-
-#endif

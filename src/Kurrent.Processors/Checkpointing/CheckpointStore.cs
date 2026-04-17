@@ -10,8 +10,8 @@ namespace Kurrent.Processors.Checkpointing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Stores one <see cref="Contracts.PartitionsCheckpointed"/> event per worker per checkpoint cycle,
-/// carrying all that worker's partition positions as an array.
+/// Stores one <see cref="Contracts.PartitionsCheckpointed"/> event per drone per checkpoint cycle,
+/// carrying all that drone's partition positions as an array.
 /// State is reconstructed by folding events backwards from the stream tail.
 /// </para>
 /// <para>
@@ -19,7 +19,7 @@ namespace Kurrent.Processors.Checkpointing;
 /// </para>
 /// <para>
 /// No fencing: all appends use <see cref="ExpectedStreamState.Any"/>.
-/// Workers are independent distributed processes writing to the same stream.
+/// Drones are independent distributed processes writing to the same stream.
 /// </para>
 /// <para>
 /// Stream naming: <c>$processors/{processorId}/checkpoints</c>
@@ -189,12 +189,12 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     #region ->> Store <<-
 
     public async ValueTask StoreAsync(
-        string workerId,
+        string droneId,
         string checkpointId,
         PartitionPosition[] positions,
         CancellationToken ct = default
     ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(droneId);
         ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
         ArgumentOutOfRangeException.ThrowIfZero(positions.Length, nameof(positions));
 
@@ -202,7 +202,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         var evt = new Contracts.PartitionsCheckpointed {
             ProcessorId  = ProcessorId,
-            WorkerId     = workerId,
+            DroneId      = droneId,
             CheckpointId = checkpointId,
             Timestamp    = _time.GetUtcNow(),
             Positions = positions.Select(p => new Contracts.PartitionPosition {
@@ -218,12 +218,12 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             .WithRecord(rec => rec
                 .WithValue(evt)
                 .WithMetadata("processor_id", ProcessorId)
-                .WithMetadata("worker_id", workerId))
+                .WithMetadata("drone_id", droneId))
             .Build();
 
         await _client.AppendStream(request, ct).ConfigureAwait(false);
 
-        LogStored(ProcessorId, workerId, positions.Length, FormatInputPositions(positions));
+        LogStored(ProcessorId, droneId, positions.Length, FormatInputPositions(positions));
     }
 
     /// <summary>
@@ -232,12 +232,12 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// Positions present = selective reset (those partitions repositioned).
     /// </summary>
     public async ValueTask ResetAsync(
-        string workerId,
+        string droneId,
         string checkpointId,
         PartitionPosition[] positions,
         CancellationToken ct = default
     ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(droneId);
         ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
 
         await EnsureReadyAsync(ct).ConfigureAwait(false);
@@ -261,7 +261,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
         var evt = new Contracts.CheckpointReset {
             ProcessorId  = ProcessorId,
-            WorkerId     = workerId,
+            DroneId      = droneId,
             CheckpointId = checkpointId,
             Timestamp    = _time.GetUtcNow(),
             Positions = positions.Select(p => new Contracts.PartitionPosition {
@@ -277,12 +277,12 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             .WithRecord(rec => rec
                 .WithValue(evt)
                 .WithMetadata("processor_id", ProcessorId)
-                .WithMetadata("worker_id", workerId))
+                .WithMetadata("drone_id", droneId))
             .Build();
 
         await _client.AppendStream(request, ct).ConfigureAwait(false);
 
-        LogReset(ProcessorId, workerId, positions.Length);
+        LogReset(ProcessorId, droneId, positions.Length);
     }
 
     /// <summary>
@@ -291,13 +291,13 @@ public sealed partial class CheckpointStore : ICheckpointStore {
     /// Any other position = load current state and override all existing partitions to that position.
     /// </summary>
     public async ValueTask ResetAsync(
-        string workerId,
+        string droneId,
         string checkpointId,
         RecordPosition position,
         CancellationToken ct = default
     ) {
         if (position.IsUnset) {
-            await ResetAsync(workerId, checkpointId, [], ct).ConfigureAwait(false);
+            await ResetAsync(droneId, checkpointId, [], ct).ConfigureAwait(false);
             return;
         }
 
@@ -307,7 +307,7 @@ public sealed partial class CheckpointStore : ICheckpointStore {
             .Select(p => p with { Position = position })
             .ToArray();
 
-        await ResetAsync(workerId, checkpointId, positions, ct).ConfigureAwait(false);
+        await ResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
     }
 
     #endregion
@@ -417,9 +417,9 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     [LoggerMessage(
         Level = LogLevel.Debug,
-        Message = "[{ProcessorId}/{WorkerId}] Stored {PartitionCount} partitions: {Positions}"
+        Message = "[{ProcessorId}/{DroneId}] Stored {PartitionCount} partitions: {Positions}"
     )]
-    partial void LogStored(string processorId, string workerId, int partitionCount, string positions);
+    partial void LogStored(string processorId, string droneId, int partitionCount, string positions);
 
     [LoggerMessage(
         Level = LogLevel.Debug,
@@ -429,9 +429,9 @@ public sealed partial class CheckpointStore : ICheckpointStore {
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "[{ProcessorId}/{WorkerId}] Reset {PartitionCount} partitions"
+        Message = "[{ProcessorId}/{DroneId}] Reset {PartitionCount} partitions"
     )]
-    partial void LogReset(string processorId, string workerId, int partitionCount);
+    partial void LogReset(string processorId, string droneId, int partitionCount);
 
     #endregion
 }

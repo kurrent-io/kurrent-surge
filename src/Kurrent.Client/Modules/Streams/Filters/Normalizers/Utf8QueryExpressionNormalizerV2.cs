@@ -4,8 +4,6 @@ using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;
 
-#if NET10_0_OR_GREATER
-
 /// <summary>
 /// V2: Linear-scan lookup (Utf8ReplacementLookup) + direct BufferWriterSlim writes (no double-buffering).
 /// </summary>
@@ -833,5 +831,3 @@ public sealed class Utf8QueryExpressionNormalizerV2 : IUtf8QueryExpressionNormal
         }
     }
 }
-
-#endif

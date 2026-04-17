@@ -4,8 +4,6 @@ using DotNext.Buffers;
 
 namespace Kurrent.Client.Streams;
 
-#if NET9_0_OR_GREATER
-
 public sealed class Utf8TranscodingNormalizer(LegacyQueryExpressionNormalizer inner) : IUtf8QueryExpressionNormalizer {
     const int StackThreshold = 4096;
 
@@ -49,5 +47,3 @@ public sealed class Utf8TranscodingNormalizer(LegacyQueryExpressionNormalizer in
         }
     }
 }
-
-#endif

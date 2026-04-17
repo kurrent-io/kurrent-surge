@@ -20,11 +20,8 @@ try {
             options.Schema.Mapper.Map<PartitionsCheckpointed>("Kurrent.Processors.Checkpointing.PartitionsCheckpointed");
             return options;
         })
-        .ConfigureSubscription(x => x.InitialPosition(SubscriptionInitialPosition.Latest)
-                                   .FilterExpression("stream like 'player-%'"))
-        // .WithFilter("schema_name IN ('PlayerTransferred', 'PlayerRegistered')")
-        // .WithFilter("stream like 'player-%'")
-
+        .WithInitialPosition(SubscriptionInitialPosition.Latest)
+        .WithFilter("stream like 'player-%'")
         .Checkpointing(x => x.Interval(TimeSpan.FromDays(1))));
 
     var app = builder.Build();

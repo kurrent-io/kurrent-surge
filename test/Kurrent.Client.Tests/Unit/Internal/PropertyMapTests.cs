@@ -358,8 +358,6 @@ public class PropertyMapTests {
 
     #endregion
 
-#if NET9_0_OR_GREATER
-
     #region . Span-Based GetValue .
 
     [Test]
@@ -394,8 +392,6 @@ public class PropertyMapTests {
     }
 
     #endregion
-
-#endif
 
     #region . Find and PropertyResult .
 

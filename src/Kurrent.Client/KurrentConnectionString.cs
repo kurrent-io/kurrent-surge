@@ -36,10 +36,11 @@ public record KurrentConnectionString {
     internal const string UserCertFile         = nameof(UserCertFile);
     internal const string UserKeyFile          = nameof(UserKeyFile);
 
-    internal const           string   DefaultDirectScheme    = "kurrentdb";
-    internal const           string   DefaultDiscoveryScheme = "kurrentdb+discover";
-    internal static readonly string[] DiscoverySchemes       = [DefaultDiscoveryScheme, "esdb+discover", "eventstore+discover"];
-    internal static readonly string[] AllSchemes             = [DefaultDirectScheme, "esdb", "eventstore", ..DiscoverySchemes];
+    const string DefaultDirectScheme    = "kurrentdb";
+    const string DefaultDiscoveryScheme = "kurrentdb+discover";
+
+    internal static readonly string[] DiscoverySchemes = [DefaultDiscoveryScheme, "esdb+discover", "eventstore+discover"];
+    internal static readonly string[] AllSchemes       = [DefaultDirectScheme, "esdb", "eventstore", ..DiscoverySchemes];
 
     KurrentConnectionString(
         string connectionString, string scheme, (string User, string Password)? userInfo, DnsEndPoint[] hosts,
@@ -52,12 +53,57 @@ public record KurrentConnectionString {
         Options          = options;
     }
 
-    public string                          ConnectionString { get; }
-    public string                          Scheme           { get; }
-    public (string User, string Password)? UserInfo         { get; }
-    public DnsEndPoint[]                   Hosts            { get; }
-    public Dictionary<string, string>      Options          { get; }
+    /// <summary>
+    /// Gets the original connection string passed to the <see cref="KurrentConnectionString"/> instance.
+    /// This property preserves the exact string supplied during initialization, allowing it to be used for troubleshooting,
+    /// debugging, or recreating the connection settings.
+    /// </summary>
+    public string ConnectionString { get; }
 
+    /// <summary>
+    /// Gets the scheme component of the connection string associated with the <see cref="KurrentConnectionString"/> instance.
+    /// This property identifies the communication protocol or access mechanism
+    /// used for connecting to the target resource (e.g., "http", "https", "tcp").
+    /// </summary>
+    public string Scheme { get; }
+
+    /// <summary>
+    /// Gets the user information, including the username and password, associated with the connection string.
+    /// This property returns a tuple containing the user and password components if present, or null if no user credentials
+    /// were specified in the connection string.
+    /// </summary>
+    public (string User, string Password)? UserInfo { get; }
+
+    /// <summary>
+    /// Retrieves the collection of hosts associated with the current connection.
+    /// Each host is represented as a <see cref="DnsEndPoint"/> instance, specifying
+    /// the hostname and port details for communication with the Kurrent database cluster.
+    /// </summary>
+    public DnsEndPoint[] Hosts   { get; }
+
+    /// <summary>
+    /// Gets the collection of key-value pairs representing additional options or parameters
+    /// specified in the connection string. These options provide the ability to configure
+    /// or extend the behavior of the connection beyond standard properties.
+    /// </summary>
+    public Dictionary<string, string> Options { get; }
+
+    /// <summary>
+    /// Parses the provided connection string and returns an instance of the <see cref="KurrentConnectionString"/> class.
+    /// </summary>
+    /// <param name="connectionString">
+    /// A string specifying the connection string to be parsed. Must not be null, empty, or whitespace.
+    /// </param>
+    /// <returns>
+    /// A new instance of the <see cref="KurrentConnectionString"/> class, initialized with the values
+    /// extracted from the given connection string.
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown if the <paramref name="connectionString"/> is null, empty, or consists only of whitespace.
+    /// </exception>
+    /// <exception cref="InvalidConnectionStringException">
+    /// Thrown if the format of the connection string is invalid or required components are missing.
+    /// </exception>
     public static KurrentConnectionString Parse(string connectionString) {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 

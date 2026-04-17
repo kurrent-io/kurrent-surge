@@ -42,11 +42,7 @@ static class KurrentDBLegacySettingsConverter {
                     throw new CryptographicException("Failed to load certificate. File was not found.");
 
                 try {
-                    #if NET9_0_OR_GREATER
                     connectivitySettings.TlsCaFile = X509CertificateLoader.LoadCertificateFromFile(caPath);
-                    #else
-                    connectivitySettings.TlsCaFile = new X509Certificate2(caPath);
-                    #endif
                 }
                 catch (CryptographicException) {
                     throw new CryptographicException("Failed to load certificate. Invalid file format.");

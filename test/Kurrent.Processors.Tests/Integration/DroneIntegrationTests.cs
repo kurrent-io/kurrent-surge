@@ -31,10 +31,8 @@ public class DroneIntegrationTests {
                 InitialPosition = initialPosition
             },
             Checkpoint = new CheckpointOptions {
-                Interval = checkpointInterval,
-                Timeout  = 60_000
-            },
-            Worker = new WorkerOptions()
+                Interval = Duration.FromMilliseconds(checkpointInterval)
+            }
         };
 
         var source = new SubscriptionSource(Fixture.Client, settings, TimeProvider.System);
@@ -444,7 +442,7 @@ public class DroneIntegrationTests {
         await drone.RunAsync(ct);
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Stopped);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
     }
 
     [Test]
@@ -465,7 +463,7 @@ public class DroneIntegrationTests {
             .Throws<AggregateException>();
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
     #endregion
