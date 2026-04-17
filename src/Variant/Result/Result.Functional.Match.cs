@@ -1,7 +1,7 @@
 namespace Kurrent;
 
 public static partial class FunctionalResult {
-    #region . Sync .
+    #region ->> Sync <<-
 
     public static TResult Match<TValue, TError, TResult>(
         this Result<TValue, TError> result,
@@ -20,7 +20,7 @@ public static partial class FunctionalResult {
 
     #endregion
 
-    #region . Async .
+    #region ->> Async <<-
 
     public static async ValueTask<TResult> MatchAsync<TValue, TError, TResult>(
         this ValueTask<Result<TValue, TError>> result,

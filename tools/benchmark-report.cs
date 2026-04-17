@@ -3,6 +3,7 @@
 #:package Spectre.Console.Cli@0.*
 #:property ToolCommandName=benchmark-report
 
+
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json;

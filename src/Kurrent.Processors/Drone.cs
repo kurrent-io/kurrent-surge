@@ -19,7 +19,7 @@ sealed class Drone : IDrone {
     WorkerContext WorkerContext { get; set; }
 
     public Drone(
-        ProcessorSettings settings,
+        ProcessorOptions settings,
         ISubscriptionSource source,
         IRecordProcessor processor,
         ILoggerFactory loggerFactory,
@@ -46,7 +46,7 @@ sealed class Drone : IDrone {
     public string ProcessorId => Settings.ProcessorId;
     public string WorkerId    => Settings.WorkerId;
 
-    public ProcessorSettings Settings { get; }
+    public ProcessorOptions Settings { get; }
 
     public ProcessorWorkerStatus Status { get; private set; } = ProcessorWorkerStatus.Starting;
 

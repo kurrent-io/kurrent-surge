@@ -26,7 +26,7 @@ public interface IDrone {
     /// <summary>
     /// The configuration settings used by this processor drone.
     /// </summary>
-    ProcessorSettings Settings { get; }
+    ProcessorOptions Settings { get; }
 
     /// <summary>
     /// Runs the processor drone asynchronously until cancellation is requested.

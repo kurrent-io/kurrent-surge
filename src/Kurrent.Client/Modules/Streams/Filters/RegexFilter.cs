@@ -20,7 +20,7 @@ public abstract record RegexFilter : IRecordFilter {
             ? $"^{escaped[0]}$"
             : $"^({string.Join("|", escaped)})$";
 
-        Regex = new Regex(pattern, RegexOptions.Compiled);
+        Regex = new(pattern, RegexOptions.Compiled);
     }
 
     /// <summary>

@@ -9,7 +9,7 @@ public interface ISubscriptionSource : IAsyncDisposable {
     /// position tracker, opens the subscription, and yields records and checkpoint
     /// triggers. Records are yielded with partitions already calculated. Checkpoint
     /// messages carry snapshotted positions. The source starts a periodic checkpoint
-    /// timer after connection. All config comes from ProcessorSettings at construction.
+    /// timer after connection. All config comes from ProcessorOptions at construction.
     /// </summary>
     IAsyncEnumerable<SubscribeMessage> Subscribe(CancellationToken ct);
 

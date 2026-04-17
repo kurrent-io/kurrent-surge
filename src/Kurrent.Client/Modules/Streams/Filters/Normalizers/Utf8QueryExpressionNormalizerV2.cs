@@ -24,8 +24,8 @@ public sealed class Utf8QueryExpressionNormalizerV2 : IUtf8QueryExpressionNormal
             ? Encoding.UTF8.GetBytes(prefix)
             : null;
 
-        _columnLookup = new Utf8ReplacementLookup(options.ColumnReplacements);
-        _tableLookup  = new Utf8ReplacementLookup(options.TableReplacements);
+        _columnLookup = new(options.ColumnReplacements);
+        _tableLookup  = new(options.TableReplacements);
     }
 
     public void Normalize(ReadOnlySpan<byte> query, ref BufferWriterSlim<byte> writer) {

@@ -19,55 +19,55 @@ public class ConfigurationTests {
 
     [Test]
     public async Task default_processor_id_is_empty() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.ProcessorId).IsEqualTo(string.Empty);
     }
 
     [Test]
     public async Task default_worker_id_is_not_empty() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.WorkerId).IsNotNull().And.IsNotEmpty();
     }
 
     [Test]
     public async Task default_buffer_capacity_is_1000() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Worker.BufferCapacity).IsEqualTo(1000);
     }
 
     [Test]
     public async Task default_batching_max_size_is_200() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Batching.MaxSize).IsEqualTo(200);
     }
 
     [Test]
     public async Task default_batching_timeout_is_250() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Batching.Timeout).IsEqualTo(250);
     }
 
     [Test]
     public async Task default_checkpoint_interval_is_30000() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(30000);
     }
 
     [Test]
     public async Task default_checkpoint_timeout_is_30000() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Checkpoint.Timeout).IsEqualTo(30000);
     }
 
     [Test]
     public async Task default_initial_position_is_latest() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Latest);
     }
 
     [Test]
     public async Task default_skip_decoding_is_false() {
-        var settings = new ProcessorSettings();
+        var settings = new ProcessorOptions();
         await Assert.That(settings.Worker.SkipDecoding).IsFalse();
     }
 
@@ -285,156 +285,156 @@ public class ConfigurationTests {
 
     [Test]
     public async Task valid_configuration_passes_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "valid-processor",
             MaxParallelism = 1,
-            Worker         = new WorkerSettings { BufferCapacity = 1000 }
+            Worker         = new WorkerOptions { BufferCapacity = 1000 }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]
     public async Task empty_processor_id_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = string.Empty,
             MaxParallelism = 1
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_max_parallelism_zero_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 0
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_max_parallelism_negative_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = -1
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_max_parallelism_exceeds_limit_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 32769
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_buffer_capacity_zero_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            Worker         = new WorkerSettings { BufferCapacity = 0 }
+            Worker         = new WorkerOptions { BufferCapacity = 0 }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_buffer_capacity_exceeds_limit_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            Worker         = new WorkerSettings { BufferCapacity = 10001 }
+            Worker         = new WorkerOptions { BufferCapacity = 10001 }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_batching_max_size_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            Batching       = new BatchingSettings { MaxSize = 0, Timeout = 100 }
+            Batching       = new BatchingOptions { MaxSize = 0, Timeout = 100 }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_batching_timeout_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            Batching       = new BatchingSettings { MaxSize = 100, Timeout = 0 }
+            Batching       = new BatchingOptions { MaxSize = 100, Timeout = 0 }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task invalid_checkpoint_interval_fails_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            Checkpoint     = new CheckpointSettings { Interval = 0 }
+            Checkpoint     = new CheckpointOptions { Interval = 0 }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
     public async Task max_parallelism_without_partition_key_passes_with_warning() {
         // PartitionKeySelector is a warning, not an error, for backward compatibility
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 4,
-            Subscription   = new SubscriptionSettings { PartitionKeySelector = string.Empty }
+            Subscription   = new SubscriptionOptions { PartitionKeySelector = string.Empty }
         };
 
         var result = settings.RunValidation();
 
         // Validation passes (warnings are ignored), but the warning is generated
-        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]
     public async Task max_parallelism_with_partition_key_passes_validation() {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 4,
-            Subscription   = new SubscriptionSettings { PartitionKeySelector = "stream_id" }
+            Subscription   = new SubscriptionOptions { PartitionKeySelector = "stream_id" }
         };
 
         var result = settings.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]
@@ -571,7 +571,7 @@ public class ConfigurationTests {
             """;
 
         var configuration = BuildJsonConfiguration(json);
-        var settings = ResolveProcessorSettings(configuration);
+        var settings = ResolveProcessorOptions(configuration);
 
         await Assert.That(settings.ProcessorId).IsEqualTo("config-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(8);
@@ -612,7 +612,7 @@ public class ConfigurationTests {
             """;
 
         var configuration = BuildJsonConfiguration(json);
-        var settings = ResolveProcessorSettings(configuration);
+        var settings = ResolveProcessorOptions(configuration);
 
         await Assert.That(settings.ProcessorId).IsEqualTo("camel-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(4);
@@ -645,7 +645,7 @@ public class ConfigurationTests {
             """;
 
         var configuration = BuildJsonConfiguration(json);
-        var settings = ResolveProcessorSettings(configuration, configure: c => c
+        var settings = ResolveProcessorOptions(configuration, configure: c => c
             .WithProcessorId("fallback-processor")
             .WithMaxParallelism(1)
         );
@@ -675,7 +675,7 @@ public class ConfigurationTests {
             """;
 
         var configuration = BuildJsonConfiguration(json);
-        var settings = ResolveProcessorSettings(configuration, configure: c => c
+        var settings = ResolveProcessorOptions(configuration, configure: c => c
             .WithProcessorId("fluent-processor")
             .WithMaxParallelism(4)
         );
@@ -698,7 +698,7 @@ public class ConfigurationTests {
             """;
 
         var configuration = BuildJsonConfiguration(json);
-        var settings = ResolveProcessorSettings(configuration, configure: c => c
+        var settings = ResolveProcessorOptions(configuration, configure: c => c
             .WithProcessorId("test-processor")
             .WithMaxParallelism(1)
         );
@@ -731,7 +731,7 @@ public class ConfigurationTests {
             """;
 
         var configuration = BuildJsonConfiguration(json);
-        var settings = ResolveProcessorSettings(configuration);
+        var settings = ResolveProcessorOptions(configuration);
 
         await Assert.That(settings.Subscription.FilterExpression).IsEqualTo("stream_id LIKE 'orders-%'");
         await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
@@ -811,7 +811,7 @@ public class ConfigurationTests {
             .Build();
     }
 
-    static ProcessorSettings ResolveProcessorSettings(
+    static ProcessorOptions ResolveProcessorOptions(
         IConfiguration configuration,
         Action<KurrentProcessorHostBuilder>? configure = null) {
         var services = new ServiceCollection();

@@ -56,7 +56,7 @@ public class ModelTests {
         await Assert.That(info.BatteryLevel).IsNull();
     }
 
-    #region Device Faker Tests
+    #region ->> Device Faker Tests <<-
 
     [Test]
     public async Task thermostat_faker_generates_valid_device() {

@@ -14,9 +14,8 @@ public record AppendStreamRequest() : SelfValidating {
     /// <summary>
     /// Creates a builder for appending records to the specified stream.
     /// </summary>
-    public static AppendStreamRequestBuilder For(StreamName stream) => new(stream);
+    public static Builder For(StreamName stream) => new(stream);
 
-    [method: SetsRequiredMembers]
     public AppendStreamRequest(
         StreamName stream,
         ImmutableArray<AppendRecord> records,
@@ -30,42 +29,42 @@ public record AppendStreamRequest() : SelfValidating {
     /// <summary>
     /// The target stream for all records.
     /// </summary>
-    public required StreamName Stream {
+    public StreamName Stream {
         get;
         init {
             field = value;
             ResetValidation();
         }
-    }
+    } = StreamName.Unset;
 
     /// <summary>
     /// The records to append. All will be assigned to <see cref="Stream"/>.
     /// </summary>
-    public required ImmutableArray<AppendRecord> Records {
+    public ImmutableArray<AppendRecord> Records {
         get;
         init {
             field = value;
             ResetValidation();
         }
-    }
+    } = [];
 
     /// <summary>
     /// The expected state of the stream before appending.
     /// </summary>
-    public required ExpectedStreamState ExpectedState {
+    public ExpectedStreamState ExpectedState {
         get;
         init {
             field = value;
             ResetValidation();
         }
-    }
+    } = ExpectedStreamState.Any;
 
     /// <summary>
     /// Validates all records meet their invariants and stamps the target stream on each.
     /// Returns a new request with the validated, stream-stamped records.
     /// </summary>
     public new AppendStreamRequest EnsureValid() {
-        Validate().Unwrap();
+        Validate().EnsureValid();
 
         var builder        = Records.ToBuilder();
         var recordsChanged = false;
@@ -88,17 +87,77 @@ public record AppendStreamRequest() : SelfValidating {
 
     public override ValidationResult RunValidation() {
         if (Stream == StreamName.Unset)
-            return ValidationError.FromProblem(
+            return ValidationResult.FromProblem(
                 ErrorCode.FromType<AppendStreamRequest>(),
                 ErrorMessages.AppendRecordStreamRequired);
 
         foreach (var record in Records) {
             var result = record.Validate();
-            if (!result.IsSuccess)
+            if (result.IsInvalid)
                 return result;
         }
 
         return Results.Success;
+    }
+    
+    /// <summary>
+    /// Builds an <see cref="AppendStreamRequest"/> where all records target a single stream.
+    /// </summary>
+    public class Builder(AppendStreamRequest request) : FluentBuilder<Builder, AppendStreamRequest>(request) {
+        public Builder() : this(new AppendStreamRequest()) { }
+        public Builder(StreamName stream) : this(new AppendStreamRequest { Stream = stream }) { }
+
+        /// <inheritdoc />
+        protected override AppendStreamRequest OnBuild(AppendStreamRequest request) {
+            if (request.Records.Length == 0)
+                throw new ValidationException(
+                    ErrorCode.FromType<AppendStreamRequest>(),
+                    ErrorMessages.AppendRecordsRequestEmpty,
+                    ValidationProblem.Create(ErrorCode.FromType<AppendStreamRequest>(), ErrorMessages.AppendRecordsRequestEmpty));
+
+            return request;
+        }
+
+        public Builder ExpectingState(ExpectedStreamState expectedState) {
+            if (expectedState.Value is Revision revision && revision == Revision.Unset)
+                return this;
+
+            if (expectedState == ExpectedStreamState.Any)
+                return this;
+
+            return With(r => r with { ExpectedState = expectedState });
+        }
+
+        #region ->> Records <<-
+
+        public Builder WithRecord(AppendRecord record) =>
+            With(r => r with { Records = r.Records.Add(record with { Stream = r.Stream }) });
+
+        public Builder WithRecord(Action<AppendRecord.Builder> build) =>
+            With(r => {
+                var builder = new AppendRecord.Builder();
+                build(builder);
+                return r with { Records = r.Records.Add(builder.ForStream(r.Stream).Build()) };
+            });
+
+        public Builder WithRecord<T>(T value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
+            With(r => r with {
+                Records = r.Records.Add(
+                    AppendRecord.New.ForStream(r.Stream).WithValue(value).WithDataFormat(dataFormat).Build())
+            });
+
+        public Builder WithRecord<T>(T value, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
+            With(r => r with {
+                Records = r.Records.Add(
+                    AppendRecord.New.ForStream(r.Stream).WithValue(value).WithMetadata(metadata).WithDataFormat(dataFormat).Build())
+            });
+
+        public Builder WithRecords(IEnumerable<AppendRecord> records) =>
+            With(r => r with {
+                Records = r.Records.AddRange(records.Select(rec => rec with { Stream = r.Stream }))
+            });
+
+        #endregion
     }
 }
 
@@ -129,75 +188,5 @@ public record AppendStreamResponse2(StreamPosition StreamPosition, LogPosition L
 
 public record AppendStreamResponse3(RecordPosition Position) {
     public static AppendStreamResponse3 Unset { get; } = new(RecordPosition.Unset);
-}
-
-/// <summary>
-/// Builds an <see cref="AppendStreamRequest"/> where all records target a single stream.
-/// </summary>
-[PublicAPI]
-public class AppendStreamRequestBuilder {
-    readonly StreamName                _stream;
-    readonly List<AppendRecordBuilder> _builders = [];
-
-    ExpectedStreamState _expectedState = ExpectedStreamState.Any;
-
-    internal AppendStreamRequestBuilder(StreamName stream) => _stream = stream;
-
-    public int RecordsCount => _builders.Count;
-
-    public AppendStreamRequestBuilder ExpectingState(ExpectedStreamState expectedState) {
-        if (expectedState.Value is Revision revision && revision == Revision.Unset)
-            return this;
-
-        if (expectedState == ExpectedStreamState.Any)
-            return this;
-
-        _expectedState = expectedState;
-        return this;
-    }
-
-    #region ->> Records <<-
-
-    public AppendStreamRequestBuilder WithRecord(AppendRecord record) {
-        _builders.Add(AppendRecord.New.FromRecord(record).ForStream(_stream));
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord(Action<AppendRecordBuilder> build) {
-        var builder = AppendRecord.New;
-        build(builder);
-        _builders.Add(builder.ForStream(_stream));
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord<T>(T value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull {
-        _builders.Add(AppendRecord.New.ForStream(_stream).WithValue(value).WithDataFormat(dataFormat));
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecord<T>(T value, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull {
-        _builders.Add(AppendRecord.New.ForStream(_stream).WithValue(value).WithMetadata(metadata).WithDataFormat(dataFormat));
-        return this;
-    }
-
-    public AppendStreamRequestBuilder WithRecords(IEnumerable<AppendRecord> records) {
-        foreach (var record in records)
-            _builders.Add(AppendRecord.New.FromRecord(record).ForStream(_stream));
-        return this;
-    }
-
-    #endregion
-
-    public AppendStreamRequest Build() {
-        if (_builders.Count == 0)
-            throw ValidationError.FromProblem(
-                ErrorCode.FromType<AppendStreamRequest>(),
-                ErrorMessages.AppendRecordsRequestEmpty
-            ).GetOrCreateException();
-
-        var records = ImmutableArray.CreateRange(_builders.Select(b => b.Build()));
-
-        return new AppendStreamRequest(_stream, records, _expectedState);
-    }
 }
 

@@ -10,7 +10,7 @@ public class KurrentClientOptionsTests {
 
         var validationResult = options.RunValidation();
 
-        await Assert.That(validationResult.IsSuccess).IsTrue();
+        await Assert.That(validationResult.IsValid).IsTrue();
     }
 
     [Test]
@@ -180,7 +180,7 @@ public class KurrentClientOptionsTests {
 
         var result = options.RunValidation();
 
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
@@ -538,7 +538,7 @@ public class KurrentClientOptionsTests {
         };
 
         var result = options.RunValidation();
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     [Test]
@@ -552,7 +552,7 @@ public class KurrentClientOptionsTests {
         };
 
         var result = options.RunValidation();
-        await Assert.That(result.IsSuccess).IsTrue();
+        await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]
@@ -563,7 +563,7 @@ public class KurrentClientOptionsTests {
         };
 
         var result = options.RunValidation();
-        await Assert.That(result.IsSuccess).IsFalse();
+        await Assert.That(result.IsValid).IsFalse();
     }
 
     #endregion

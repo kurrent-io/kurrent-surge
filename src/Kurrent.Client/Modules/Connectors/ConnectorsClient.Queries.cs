@@ -32,7 +32,7 @@ public partial class ConnectorsClient {
             request.IncludeConfiguration = options.IncludeConfiguration;
             request.ShowDeleted          = options.ShowDeleted;
 
-            request.Paging = new Queries.Paging {
+            request.Paging = new() {
                 Page     = options.Page,
                 PageSize = options.PageSize
             };
@@ -43,7 +43,7 @@ public partial class ConnectorsClient {
                 .ListAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return new ConnectorListResult {
+            return new() {
                 Items     = response.Items.Select(MapConnector).ToList(),
                 TotalSize = response.TotalSize
             };
@@ -72,7 +72,7 @@ public partial class ConnectorsClient {
                 .GetSettingsAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return new ConnectorSettingsResult {
+            return new() {
                 Settings           = MapSettings(response.Settings),
                 SettingsUpdateTime = response.SettingsUpdateTime?.ToDateTimeOffset() ?? default
             };
@@ -107,7 +107,7 @@ public partial class ConnectorsClient {
                 .GetConfigurationAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return new ConnectorConfigurationResult {
+            return new() {
                 Configuration           = response.Configuration,
                 ConfigurationUpdateTime = response.ConfigurationUpdateTime?.ToDateTimeOffset() ?? default
             };

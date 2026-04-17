@@ -55,7 +55,7 @@ public readonly record struct Money : IComparable<Money>, IComparable {
 
     public override string ToString() => Currency.Format(Amount);
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(Money other) => Amount.CompareTo(other.Amount);
 

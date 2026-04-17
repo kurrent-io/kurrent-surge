@@ -118,7 +118,7 @@ public record KurrentConnectionString {
             options      = ParseParameters(connectionString[currentIndex..]);
         }
 
-        return new KurrentConnectionString(
+        return new(
             connectionString, scheme, userInfo,
             hosts, options
         );
@@ -152,7 +152,7 @@ public record KurrentConnectionString {
                     var token = hostToken.Split(Colon, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
                     var endpoint = token.Length switch {
-                        1 => new DnsEndPoint(token[0], DefaultPort),
+                        1 => new(token[0], DefaultPort),
                         2 => int.TryParse(token[1], out var port) && port is > 0 and <= 65535
                             ? new DnsEndPoint(token[0], port)
                             : throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost),

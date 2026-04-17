@@ -34,7 +34,7 @@ static class ActivityExtensions {
 		if (!string.IsNullOrWhiteSpace(exception.Message))
 			tags.Add(TelemetryTags.Exception.Message, ex.Message);
 
-		activity.AddEvent(new ActivityEvent(TelemetryTags.Exception.EventName, default, tags));
+		activity.AddEvent(new(TelemetryTags.Exception.EventName, default, tags));
 
 		return activity;
 	}

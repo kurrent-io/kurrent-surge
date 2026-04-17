@@ -4,7 +4,7 @@ namespace Kurrent.Client.Connectors;
 
 public static partial class ConnectorsClientExtensions {
     extension(ConnectorsClient client) {
-        #region Create
+        #region ->> Create <<-
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
@@ -25,7 +25,7 @@ public static partial class ConnectorsClientExtensions {
 
         #endregion
 
-        #region Start
+        #region ->> Start <<-
 
         public ValueTask<Success> Start(
             ConnectorId connectorId,
@@ -34,7 +34,7 @@ public static partial class ConnectorsClientExtensions {
 
         #endregion
 
-        #region Reset
+        #region ->> Reset <<-
 
         public ValueTask<Success> Reset(
             ConnectorId connectorId,

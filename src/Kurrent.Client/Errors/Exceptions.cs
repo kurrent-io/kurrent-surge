@@ -88,7 +88,7 @@ static class ExceptionExtensions {
             var errorInfo = status?.GetDetail<ErrorInfo>();
 
             // create status fallback
-            status ??= new Status {
+            status ??= new() {
                 Code    = (int)rex.StatusCode,
                 Message = rex.Message
             };

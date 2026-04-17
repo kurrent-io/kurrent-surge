@@ -85,7 +85,7 @@ public partial record SchemaUrn {
 		if (schemaVersionId.HasValue)
 			urn += $"{Separator}{schemaVersionId.Value:D}";
 
-		return new SchemaUrn {
+		return new() {
 			Namespace   = ns,
 			MessageName = messageName,
 			SchemaGuid  = schemaVersionId,

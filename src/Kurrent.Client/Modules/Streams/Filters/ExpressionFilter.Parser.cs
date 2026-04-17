@@ -147,9 +147,16 @@ public interface IFilterExpression {
     /// <param name="record">The record to evaluate.</param>
     /// <returns><c>true</c> if the record matches; otherwise, <c>false</c>.</returns>
     bool IsMatch(Record record);
+
+    /// <summary>
+    /// Returns <c>true</c> if the expression tree contains any predicate that accesses the
+    /// <c>data</c> column (record payload). Used to validate that decoding is enabled when
+    /// filters reference JSON payload fields.
+    /// </summary>
+    bool QueriesData => FilterExpressionInspector.QueriesData(this);
 }
 
-#region . Tokenizer .
+#region ->> Tokenizer <<-
 
 /// <summary>
 /// Token types produced by <see cref="FilterTokenizer"/>.
@@ -187,6 +194,9 @@ file enum TokenType {
     // Set and range operators
     In,
     Between,
+
+    // JSON access operator
+    ArrowText, // ->> (extract as text, DuckDB compatible)
 
     // Delimiters
     LeftParen,
@@ -281,37 +291,37 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         switch (ch) {
             case '(':
                 Advance();
-                return new Token(TokenType.LeftParen, "(", start);
+                return new(TokenType.LeftParen, "(", start);
 
             case ')':
                 Advance();
-                return new Token(TokenType.RightParen, ")", start);
+                return new(TokenType.RightParen, ")", start);
 
             case '[':
                 Advance();
-                return new Token(TokenType.LeftBracket, "[", start);
+                return new(TokenType.LeftBracket, "[", start);
 
             case ']':
                 Advance();
-                return new Token(TokenType.RightBracket, "]", start);
+                return new(TokenType.RightBracket, "]", start);
 
             case ',':
                 Advance();
-                return new Token(TokenType.Comma, ",", start);
+                return new(TokenType.Comma, ",", start);
 
             case '.':
                 Advance();
-                return new Token(TokenType.Dot, ".", start);
+                return new(TokenType.Dot, ".", start);
 
             case '=':
                 Advance();
-                return new Token(TokenType.Equal, "=", start);
+                return new(TokenType.Equal, "=", start);
 
             case '!':
                 Advance();
                 if (Current == '=') {
                     Advance();
-                    return new Token(TokenType.NotEqual, "!=", start);
+                    return new(TokenType.NotEqual, "!=", start);
                 }
 
                 return Token.Error("Expected '=' after '!'", start);
@@ -320,29 +330,46 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
                 Advance();
                 if (Current == '=') {
                     Advance();
-                    return new Token(TokenType.LessOrEqual, "<=", start);
+                    return new(TokenType.LessOrEqual, "<=", start);
                 }
 
                 if (Current == '>') {
                     Advance();
-                    return new Token(TokenType.NotEqual, "<>", start);
+                    return new(TokenType.NotEqual, "<>", start);
                 }
 
-                return new Token(TokenType.LessThan, "<", start);
+                return new(TokenType.LessThan, "<", start);
 
             case '>':
                 Advance();
                 if (Current == '=') {
                     Advance();
-                    return new Token(TokenType.GreaterOrEqual, ">=", start);
+                    return new(TokenType.GreaterOrEqual, ">=", start);
                 }
 
-                return new Token(TokenType.GreaterThan, ">", start);
+                return new(TokenType.GreaterThan, ">", start);
+
+            case '-':
+                if (_position + 1 < _input.Length && _input[_position + 1] == '>') {
+                    Advance(); Advance();
+                    if (!IsAtEnd && Current == '>') {
+                        Advance();
+                        return new(TokenType.ArrowText, "->>", start);
+                    }
+
+                    // -> is not supported; ->> and dot notation cover all filter use cases
+                    return Token.Error("Use '->>' instead of '->'", start);
+                }
+
+                if (_position + 1 < _input.Length && char.IsDigit(_input[_position + 1]))
+                    return ReadNumber();
+
+                return Token.Error("Unexpected character '-'", start);
 
             case '\'': return ReadString();
         }
 
-        if (char.IsDigit(ch) || (ch == '-' && _position + 1 < _input.Length && char.IsDigit(_input[_position + 1])))
+        if (char.IsDigit(ch))
             return ReadNumber();
 
         if (char.IsLetter(ch) || ch == '_')
@@ -363,7 +390,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
             // no escapes — direct substring
             var value = _input[valueStart.._position];
             Advance();
-            return new Token(TokenType.String, value, start);
+            return new(TokenType.String, value, start);
         }
 
         if (IsAtEnd) return Token.Error("Unterminated string literal", start);
@@ -386,7 +413,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         if (IsAtEnd) return Token.Error("Unterminated string literal", start);
 
         Advance();
-        return new Token(TokenType.String, sb.ToString(), start);
+        return new(TokenType.String, sb.ToString(), start);
     }
 
     Token ReadNumber() {
@@ -413,7 +440,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         }
 #endif
 
-        return new Token(TokenType.Number, _input[start.._position], start);
+        return new(TokenType.Number, _input[start.._position], start);
     }
 
     Token ReadIdentifierOrKeyword() {
@@ -428,7 +455,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         var value = new string(span);
 
         return KeywordLookup.TryGetValue(span, out var keywordType)
-            ? new Token(keywordType, value, start)
+            ? new(keywordType, value, start)
             : new Token(TokenType.Identifier, value, start);
 #else
         while (!IsAtEnd && (char.IsLetterOrDigit(Current) || Current == '_')) Advance();
@@ -455,7 +482,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
 
 #endregion
 
-#region . Pratt Parser .
+#region ->> Pratt Parser <<-
 
 /// <summary>
 /// Internal exception thrown by the parser when it encounters an unexpected token.
@@ -617,16 +644,16 @@ file sealed class PrattParser(List<Token> tokens) {
     IndexExpression ParseIndexExpression() {
         Expect(TokenType.Equal, "=");
         var name = Expect(TokenType.String, "index name");
-        return new IndexExpression(name.Value);
+        return new(name.Value);
     }
 
     /// <summary>
-    /// Parses a column reference with optional key access. Supports three forms:
+    /// Parses a column reference with optional key access. Supports:
     /// <list type="bullet">
     ///   <item>Simple identifier: <c>stream</c></item>
-    ///   <item>Bracket key access: <c>properties['region']</c></item>
-    ///   <item>Dot-path: <c>rec.properties.region</c> — all segments are joined into the name.
-    ///     Resolution splits name from key at resolve time using the column registry.</item>
+    ///   <item>Dot-path name: <c>rec.properties</c> — segments joined into the name</item>
+    ///   <item>Bracket key: <c>properties['region']</c> or <c>rec.properties['region']</c></item>
+    ///   <item>Arrow key: <c>properties->>'region'</c> or <c>rec.properties->'region'</c></item>
     /// </list>
     /// </summary>
     PropertyAccess ParsePropertyAccess() {
@@ -634,13 +661,8 @@ file sealed class PrattParser(List<Token> tokens) {
         var     name       = identifier.Value;
         string? key        = null;
 
-        if (Peek().Type == TokenType.LeftBracket) {
-            Advance();
-            var keyToken = Expect(TokenType.String, "string key");
-            key = keyToken.Value;
-            Expect(TokenType.RightBracket, "]");
-        }
-        else if (Peek().Type == TokenType.Dot) {
+        // join dot segments into the name
+        if (Peek().Type == TokenType.Dot) {
             var segments = new List<string> { name };
             while (Peek().Type == TokenType.Dot) {
                 Advance();
@@ -651,7 +673,20 @@ file sealed class PrattParser(List<Token> tokens) {
             name = string.Join(".", segments);
         }
 
-        return new PropertyAccess(name, key);
+        // key accessor: bracket ['key'] or arrow ->>'key'
+        switch (Peek().Type) {
+            case TokenType.LeftBracket:
+                Advance();
+                key = Expect(TokenType.String, "string key").Value;
+                Expect(TokenType.RightBracket, "]");
+                break;
+            case TokenType.ArrowText:
+                Advance();
+                key = Expect(TokenType.String, "string key").Value;
+                break;
+        }
+
+        return new(name, key);
     }
 
     /// <summary>
@@ -823,7 +858,7 @@ file sealed class PrattParser(List<Token> tokens) {
 
 #endregion
 
-#region . AST Nodes .
+#region ->> AST Nodes <<-
 
 /// <summary>
 /// Base class for typed literal values in filter expressions.
@@ -910,7 +945,7 @@ public sealed class ComparisonExpression(PropertyAccess property, ComparisonOper
         }
 
         // fast path: numeric comparison without boxing
-        if (value is NumberFilterValue numValue && ExpressionFilterResolver.TryResolveDecimal(property, record, out var numLeft)) {
+        if (value is NumberFilterValue numValue && ExpressionFilterResolver.Find(property, record).TryGetDecimal(out var numLeft)) {
             var cmp = numLeft.CompareTo(numValue.Value);
             return op switch {
                 ComparisonOperator.Equal              => cmp == 0,
@@ -959,6 +994,9 @@ public sealed class AndExpression(IFilterExpression left, IFilterExpression righ
 /// Logical OR disjunction. Short-circuits: if left is true, right is not evaluated.
 /// </summary>
 file sealed class OrExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
+    public IFilterExpression Left  => left;
+    public IFilterExpression Right => right;
+
     public bool IsMatch(Record record) => left.IsMatch(record) || right.IsMatch(record);
 }
 
@@ -966,6 +1004,8 @@ file sealed class OrExpression(IFilterExpression left, IFilterExpression right) 
 /// Logical NOT negation.
 /// </summary>
 file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
+    public IFilterExpression Inner => inner;
+
     public bool IsMatch(Record record) => !inner.IsMatch(record);
 }
 
@@ -1075,7 +1115,7 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
         if (caseInsensitive)
             options |= RegexOptions.IgnoreCase;
 
-        return new Regex(result.ToString(), options);
+        return new(result.ToString(), options);
 
         static bool IsRegexMetaChar(char ch) =>
             ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
@@ -1086,6 +1126,8 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
 /// AST node for <c>property IS [NOT] NULL</c>.
 /// </summary>
 file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFilterExpression {
+    public PropertyAccess Property => property;
+
     public bool IsMatch(Record record) {
         var isNull = ExpressionFilterResolver.Resolve(property, record) is null;
         return negated ? !isNull : isNull;
@@ -1155,10 +1197,12 @@ public sealed record IndexExpression(string IndexName) : IFilterExpression {
 /// AST node for <c>property [NOT] BETWEEN lower AND upper</c> (inclusive range).
 /// </summary>
 file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, FilterValue upper, bool negated) : IFilterExpression {
+    public PropertyAccess Property => property;
+
     public bool IsMatch(Record record) {
         // fast path: numeric range without boxing
         if (lower is NumberFilterValue lo && upper is NumberFilterValue hi
-            && ExpressionFilterResolver.TryResolveDecimal(property, record, out var numValue)) {
+            && ExpressionFilterResolver.Find(property, record).TryGetDecimal(out var numValue)) {
             var inRange = numValue >= lo.Value && numValue <= hi.Value;
             return negated ? !inRange : inRange;
         }
@@ -1176,7 +1220,7 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
 
 #endregion
 
-#region . Utilities .
+#region ->> Utilities <<-
 
 /// <summary>
 /// Cross-type value comparator for filter evaluation. Comparison priority:
@@ -1267,40 +1311,44 @@ file static class ValueComparer {
 }
 
 /// <summary>
+/// Walks an <see cref="IFilterExpression"/> AST to answer structural questions.
+/// Lives in the parser file so it can match on <c>file</c>-scoped AST node types.
+/// </summary>
+static class FilterExpressionInspector {
+    /// <summary>
+    /// Returns <c>true</c> if any node in the tree references the <c>data</c> column.
+    /// </summary>
+    public static bool QueriesData(IFilterExpression expression) =>
+        expression switch {
+            ComparisonExpression e => IsDataProperty(e.Property),
+            LikeExpression e      => IsDataProperty(e.Property),
+            InExpression e        => IsDataProperty(e.Property),
+            IsNullExpression e    => IsDataProperty(e.Property),
+            BetweenExpression e   => IsDataProperty(e.Property),
+            AndExpression e       => QueriesData(e.Left) || QueriesData(e.Right),
+            OrExpression e        => QueriesData(e.Left) || QueriesData(e.Right),
+            NotExpression e       => QueriesData(e.Inner),
+            _                     => false
+        };
+
+    static bool IsDataProperty(PropertyAccess property) =>
+        property.PropertyName.Equals("data", StringComparison.OrdinalIgnoreCase)
+        || property.PropertyName.StartsWith("data.", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
 /// Resolves <see cref="PropertyAccess"/> values against <see cref="Record"/> instances
-/// using <see cref="RecordPropertyMap.Default"/>, with <c>field_</c> prefix stripping
+/// using <see cref="RecordPropertyMap.Default"/>, with <c>field_</c> prefix trimming
 /// for WebUI backward compatibility.
 /// </summary>
 file static class ExpressionFilterResolver {
-    public static object? Resolve(PropertyAccess property, Record record) {
-        var value = RecordPropertyMap.Default.Resolve(property.PropertyName, property.Key, record);
-        if (value is not null) return value;
+    const string FieldPrefix = "field_";
 
-        // strip field_ prefix (WebUI compat) and retry
-        if (property.PropertyName.StartsWith("field_", StringComparison.OrdinalIgnoreCase))
-            return RecordPropertyMap.Default.Resolve(property.PropertyName[6..], property.Key, record);
+    public static PropertyResult<Record> Find(PropertyAccess property, Record record) =>
+        RecordPropertyMap.Default.Find(property.PropertyName, property.Key, record, trimPrefix: FieldPrefix);
 
-        return null;
-    }
-
-    public static bool TryResolveDecimal(PropertyAccess property, Record record, out decimal result) {
-        var prop = RecordPropertyMap.Default.Find(property.PropertyName, record);
-
-        if (!prop.HasValue && property.PropertyName.StartsWith("field_", StringComparison.OrdinalIgnoreCase))
-            prop = RecordPropertyMap.Default.Find(property.PropertyName[6..], record);
-
-        return TryCoerceDecimal(prop, out result);
-    }
-
-    static bool TryCoerceDecimal(PropertyResult<Record> prop, out decimal result) {
-        if (prop.Is<decimal>(out result)) return true;
-        if (prop.Is<long>(out var l))     { result = l;           return true; }
-        if (prop.Is<int>(out var i))      { result = i;           return true; }
-        if (prop.Is<double>(out var d))   { result = (decimal)d;  return true; }
-
-        result = 0;
-        return false;
-    }
+    public static object? Resolve(PropertyAccess property, Record record) =>
+        Find(property, record).Value;
 }
 
 #endregion

@@ -14,7 +14,7 @@ public class WhenExpectingTombstonedTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).IsTombstoned())
+            .WithCheck(ConsistencyCheck.StreamIsTombstoned(checkedStream))
             .Build();
 
         // act
@@ -32,7 +32,7 @@ public class WhenExpectingTombstonedTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).IsTombstoned())
+            .WithCheck(ConsistencyCheck.StreamIsTombstoned(checkedStream))
             .Build();
 
         // act
@@ -53,7 +53,7 @@ public class WhenExpectingTombstonedTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).IsTombstoned())
+            .WithCheck(ConsistencyCheck.StreamIsTombstoned(checkedStream))
             .Build();
 
         // act
@@ -74,7 +74,7 @@ public class WhenExpectingTombstonedTests : AppendConsistencyTestBase {
 
         var req = AppendRecordsRequest.New()
             .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.Stream(checkedStream).IsTombstoned())
+            .WithCheck(ConsistencyCheck.StreamIsTombstoned(checkedStream))
             .Build();
 
         // act

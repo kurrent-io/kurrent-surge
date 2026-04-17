@@ -17,7 +17,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOptions, KurrentClientGossipOptionsValidator> {
+public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOptions, KurrentClientGossipOptions.Validator> {
     /// <summary>
     /// The maximum number of times to attempt node discovery.
     /// </summary>
@@ -95,4 +95,34 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
         Timeout             = TimeSpan.FromSeconds(5),
         ReadPreference      = NodePreference.Random
     };
+
+    public class Validator : Validator<Validator, KurrentClientGossipOptions> {
+        public Validator() {
+            // MaxDiscoverAttempts validation
+            RuleFor(options => options.MaxDiscoverAttempts)
+                .Must(attempts => attempts is > 0 or -1, "MaxDiscoverAttempts must be greater than 0 or -1 for infinite retries.");
+
+            // DiscoveryInterval validation
+            RuleFor(options => options.DiscoveryInterval)
+                .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(10))
+                .WithMessage("DiscoveryInterval must be at least 10ms.");
+
+            RuleFor(options => options.DiscoveryInterval)
+                .LessThanOrEqualTo(TimeSpan.FromSeconds(60))
+                .WithMessage("DiscoveryInterval must not exceed 60 seconds.");
+
+            // Timeout validation
+            RuleFor(options => options.Timeout)
+                .GreaterThan(options => options.DiscoveryInterval)
+                .WithMessage("Timeout must be greater than DiscoveryInterval.");
+
+            RuleFor(options => options.Timeout)
+                .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(100))
+                .WithMessage("Timeout must be at least 100ms.");
+
+            RuleFor(options => options.Timeout)
+                .Must(timeout => timeout <= TimeSpan.FromSeconds(60), "Timeout exceeds 60 seconds. This may result in delayed failure detection.")
+                .WithSeverity(RuleSeverity.Warning);
+        }
+    }
 }

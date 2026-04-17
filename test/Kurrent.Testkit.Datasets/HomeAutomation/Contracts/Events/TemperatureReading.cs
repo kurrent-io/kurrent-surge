@@ -20,22 +20,22 @@ public record TemperatureReading : IHomeAutomationEvent {
     public required long            Timestamp   { get; init; }
 }
 
-#region Door events
+#region ->> Door events <<-
 
 #endregion
 
-#region Light events
+#region ->> Light events <<-
 
 #endregion
 
-#region Smoke events
+#region ->> Smoke events <<-
 
 #endregion
 
-#region Water events
+#region ->> Water events <<-
 
 #endregion
 
-#region Window events
+#region ->> Window events <<-
 
 #endregion

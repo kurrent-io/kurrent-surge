@@ -16,7 +16,7 @@ public class AppendRecordsTests {
     [Arguments<int>(11)]
     public async ValueTask creates_multiple_streams(int streams, CancellationToken ct) {
         // Arrange
-        var builder = new AppendRecordsRequestBuilder();
+        var builder = new AppendRecordsRequest.Builder();
 
         foreach (var i in Enumerable.Range(0, streams)) {
             var data = await Fixture.TestData.GenerateSet(ct);
@@ -44,7 +44,7 @@ public class AppendRecordsTests {
 
         var req = seededStreams
             .Aggregate(
-                new AppendRecordsRequestBuilder(), (builder, seededStream) => builder
+                new AppendRecordsRequest.Builder(), (builder, seededStream) => builder
                     .WithRecords(seededStream.Records.Take(1)) // just append the first record again...
                     .WithChecks(ConsistencyCheck.StreamAtRevision(seededStream.Stream, seededStream.Revision)))
             .Build();

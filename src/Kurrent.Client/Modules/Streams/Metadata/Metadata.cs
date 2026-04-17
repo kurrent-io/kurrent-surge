@@ -35,7 +35,7 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>>, IEquatable<M
             _ => items.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase)
         };
 
-    public static Metadata New => new Metadata();
+    public static Metadata New => new();
 
     public static Metadata Create(Dictionary<string, object?> items) => new(items);
 
@@ -80,7 +80,7 @@ public class Metadata : IEnumerable<KeyValuePair<string, object?>>, IEquatable<M
 	///     .Lock();
 	/// </code>
 	/// </example>
-	public Metadata CreateUnlockedCopy() => new Metadata(this);
+	public Metadata CreateUnlockedCopy() => new(this);
 
     Metadata ThrowIfLocked() =>
         IsLocked ? throw new InvalidOperationException("Cannot modify locked metadata. Use CreateUnlockedCopy() to obtain a mutable copy.") : this;

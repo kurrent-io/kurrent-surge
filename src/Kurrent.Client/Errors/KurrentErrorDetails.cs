@@ -48,7 +48,7 @@ public record ResourceInfo {
     public static ResourceInfo From(string type, string id) {
         ArgumentException.ThrowIfNullOrWhiteSpace(type);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        return new ResourceInfo(type, id);
+        return new(type, id);
     }
 
     public override string ToString() => this != None ? $"{Type}('{Id}')" : "";
@@ -84,7 +84,7 @@ public record NodeInfo {
         if (!Guid.TryParse(nodeId, out var id))
             throw new ArgumentException("NodeId must be a valid GUID.", nameof(nodeId));
 
-        return new NodeInfo(new DnsEndPoint(host, port), id);
+        return new(new(host, port), id);
     }
 
     public static NodeInfo From(DnsEndPoint endpoint, Guid nodeId) => new(endpoint, nodeId);

@@ -1,7 +1,7 @@
 namespace Kurrent;
 
 public static class Result {
-	#region . Factory Methods .
+	#region ->> Factory Methods <<-
 
 	/// <summary>
 	/// Creates a new <see cref="Result{TValue,TError}"/> representing a successful operation with the specified value.
@@ -27,7 +27,7 @@ public static class Result {
 
 	#endregion
 
-	#region . Try .
+	#region ->> Try <<-
 
 	/// <summary>
 	/// Executes the function and converts any thrown exceptions to Result errors.
@@ -211,7 +211,7 @@ public static class Result {
 
 	#endregion
 
-	#region . Try (Fluent API) .
+	#region ->> Try (Fluent API) <<-
 
 	/// <summary>
 	/// Executes the function and converts any thrown exceptions to ExceptionError for fluent error mapping.
@@ -325,7 +325,7 @@ public static class Result {
 
 	#endregion
 
-	#region . ToResult .
+	#region ->> ToResult <<-
 
 	public static Result<Success, TError> ToResult<TError>(
 		this Action operation,

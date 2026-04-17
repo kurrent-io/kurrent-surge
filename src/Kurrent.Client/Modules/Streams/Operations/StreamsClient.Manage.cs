@@ -81,7 +81,7 @@ public partial class StreamsClient {
             };
         }
         catch (StreamTombstonedException ex) {
-            return new StreamInfo { Stream = stream, State = StreamState.Tombstoned };
+            return new() { Stream = stream, State = StreamState.Tombstoned };
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException();

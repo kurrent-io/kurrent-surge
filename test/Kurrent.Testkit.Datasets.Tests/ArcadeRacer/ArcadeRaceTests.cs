@@ -28,7 +28,7 @@ public class ArcadeRaceTests {
         return race;
     }
 
-    #region Start
+    #region ->> Start <<-
 
     [Test]
     public async Task start_emits_race_started() {
@@ -41,7 +41,7 @@ public class ArcadeRaceTests {
 
     #endregion
 
-    #region SimulateLap
+    #region ->> SimulateLap <<-
 
     [Test]
     public async Task simulate_lap_emits_lap_completed_per_car() {
@@ -107,7 +107,7 @@ public class ArcadeRaceTests {
 
     #endregion
 
-    #region CheckIncident
+    #region ->> CheckIncident <<-
 
     [Test]
     public async Task check_incident_returns_empty_when_no_incident() {
@@ -171,7 +171,7 @@ public class ArcadeRaceTests {
 
     #endregion
 
-    #region CheckWeather
+    #region ->> CheckWeather <<-
 
     [Test]
     public async Task check_weather_toggles_between_sunny_and_rainy() {
@@ -192,7 +192,7 @@ public class ArcadeRaceTests {
 
     #endregion
 
-    #region Finish
+    #region ->> Finish <<-
 
     [Test]
     public async Task finish_emits_single_race_finished_event() {

@@ -6,7 +6,7 @@ namespace Kurrent.Variant.Tests.Result;
 public class ResultStaticMethodsTests {
     Faker Faker { get; } = new();
 
-    #region . Sync .
+    #region ->> Sync <<-
 
     [Test]
     public async Task try_returns_success_when_function_succeeds() {
@@ -38,7 +38,7 @@ public class ResultStaticMethodsTests {
 
     #endregion
 
-    #region . Async .
+    #region ->> Async <<-
 
     [Test]
     public async Task try_async_returns_success_when_async_function_succeeds() {

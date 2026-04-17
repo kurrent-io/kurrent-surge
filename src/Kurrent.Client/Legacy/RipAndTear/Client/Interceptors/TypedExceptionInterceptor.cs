@@ -16,7 +16,7 @@ class TypedExceptionInterceptor : Interceptor {
 			// 	 throw ex;
 
             if (rex is { StatusCode: StatusCode.Unavailable, Status.Detail: "Deadline Exceeded" })
-                throw new RpcException(new Status(StatusCode.DeadlineExceeded, rex.Status.Detail, rex.Status.DebugException), rex.Trailers);
+                throw new RpcException(new(StatusCode.DeadlineExceeded, rex.Status.Detail, rex.Status.DebugException), rex.Trailers);
 
             throw rex;
         };
@@ -31,7 +31,7 @@ class TypedExceptionInterceptor : Interceptor {
 	) {
 		var response = continuation(request, context);
 
-		return new AsyncServerStreamingCall<TResponse>(
+		return new(
 			response.ResponseStream.Apply(ConvertRpcException),
 			response.ResponseHeadersAsync,
 			response.GetStatus,
@@ -46,7 +46,7 @@ class TypedExceptionInterceptor : Interceptor {
 	) {
 		var response = continuation(context);
 
-		return new AsyncClientStreamingCall<TRequest, TResponse>(
+		return new(
 			response.RequestStream.Apply(ConvertRpcException),
 			response.ResponseAsync.Apply(ConvertRpcException),
 			response.ResponseHeadersAsync,
@@ -63,7 +63,7 @@ class TypedExceptionInterceptor : Interceptor {
 	) {
 		var response = continuation(request, context);
 
-		return new AsyncUnaryCall<TResponse>(
+		return new(
 			response.ResponseAsync.Apply(ConvertRpcException),
 			response.ResponseHeadersAsync,
 			response.GetStatus,
@@ -78,7 +78,7 @@ class TypedExceptionInterceptor : Interceptor {
 	) {
 		var response = continuation(context);
 
-		return new AsyncDuplexStreamingCall<TRequest, TResponse>(
+		return new(
 			response.RequestStream,
 			response.ResponseStream.Apply(ConvertRpcException),
 			response.ResponseHeadersAsync,

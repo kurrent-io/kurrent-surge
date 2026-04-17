@@ -20,7 +20,7 @@ public readonly record struct SchemaCompatibilityError() {
     internal static SchemaCompatibilityError FromProto(Contracts.SchemaCompatibilityError error) {
 		ArgumentNullException.ThrowIfNull(error);
 
-		return new SchemaCompatibilityError {
+		return new() {
             Kind         = (SchemaCompatibilityErrorKind)error.Kind,
             Details      = error.Details,
             PropertyPath = error.PropertyPath,

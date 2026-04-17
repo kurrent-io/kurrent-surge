@@ -104,7 +104,7 @@ static class KurrentDBConnectionStringConverter {
         };
 
         if (connectionString.UserInfo.HasValue)
-            settings.DefaultCredentials = new UserCredentials(connectionString.UserInfo.Value.User, connectionString.UserInfo.Value.Password);
+            settings.DefaultCredentials = new(connectionString.UserInfo.Value.User, connectionString.UserInfo.Value.Password);
 
         var typedOptions = new Dictionary<string, object>(StringComparer.InvariantCultureIgnoreCase);
         foreach (var kv in connectionString.Options) {
@@ -220,7 +220,7 @@ static class KurrentDBConnectionStringConverter {
                 return handler;
 
             if (settings.ConnectivitySettings.ClientCertificate is not null)
-                handler.SslOptions.ClientCertificates = new X509CertificateCollection {
+                handler.SslOptions.ClientCertificates = new() {
                     settings.ConnectivitySettings.ClientCertificate
                 };
 

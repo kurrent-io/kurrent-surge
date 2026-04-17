@@ -1,7 +1,7 @@
 namespace Kurrent;
 
 public static partial class FunctionalResult {
-    #region . Sync .
+    #region ->> Sync <<-
 
     public static void Switch<TValue, TError>(
         this Result<TValue, TError> result,
@@ -23,7 +23,7 @@ public static partial class FunctionalResult {
     }
     #endregion
 
-    #region . Async .
+    #region ->> Async <<-
 
     public static async ValueTask SwitchAsync<TValue, TError>(
         this ValueTask<Result<TValue, TError>> result,

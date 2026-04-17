@@ -9,15 +9,15 @@ namespace Kurrent.Client.Tests.Integration.Admin;
 [Category("Integration")]
 [Timeout(15_000)]
 [NotInParallel(nameof(ScavengeTests))]
-// [Skip("Scavenge tests are destructive and impact the shared test database, "
-//     + "and are not currently run in CI. They should be run manually when needed.")]
+[Skip("Scavenge tests are destructive and impact the shared test database, "
+    + "and are not currently run in CI. They should be run manually when needed.")]
 public class ScavengeTests {
     //TODO SS: Use Aspire instead of fluent docker to allow creating isolated databases for these tests, and remove the Skip attribute.
 
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-    #region Validation
+    #region ->> Validation <<-
 
     [Test]
     public async ValueTask start_scavenge_validates_thread_count(CancellationToken ct) {
@@ -49,7 +49,7 @@ public class ScavengeTests {
 
     #endregion
 
-    #region Commands
+    #region ->> Commands <<-
 
     [Test]
     public async ValueTask start_scavenge_returns_started_or_already_running(CancellationToken ct) {
@@ -132,7 +132,7 @@ public class ScavengeTests {
 
     #endregion
 
-    #region Queries
+    #region ->> Queries <<-
 
     [Test]
     [DependsOn(nameof(start_scavenge_returns_started_or_already_running))]

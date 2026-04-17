@@ -119,23 +119,20 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// <summary>
     /// Read the full event history for a SKU as a list.
     /// </summary>
-    public async ValueTask<List<Record>> GetHistory(string sku) =>
-        await client.Streams.ReadStreamRecords(StreamFor(sku))
-            .Where(msg => msg.IsRecord)
-            .Select(msg => msg.AsRecord)
-            .ToListAsync();
+    public ValueTask<List<Record>> GetHistory(string sku) => 
+        client.Streams.ReadStreamRecords(StreamFor(sku)).ToListAsync();
 
     /// <summary>
     /// Get the first event in a SKU stream (when this SKU was first tracked).
     /// </summary>
-    public async ValueTask<Record> GetFirstEvent(string sku) =>
-        await client.Streams.ReadFirstStreamRecord(StreamFor(sku));
+    public ValueTask<Record> GetFirstEvent(string sku) => 
+        client.Streams.ReadFirstStreamRecord(StreamFor(sku));
 
     /// <summary>
     /// Get the most recent event in a SKU stream.
     /// </summary>
-    public async ValueTask<Record> GetLatestEvent(string sku) =>
-        await client.Streams.ReadLastStreamRecord(StreamFor(sku));
+    public ValueTask<Record> GetLatestEvent(string sku) => 
+        client.Streams.ReadLastStreamRecord(StreamFor(sku));
 
     /// <summary>
     /// Read events from a known revision onwards — catch-up from a checkpoint.
@@ -172,7 +169,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
             .WithFilterExpression("stream like 'inventory-%'")
             .Build();
 
-        return await client.Streams.ReadRecords(req).ToRecordsList();
+        return await client.Streams.ReadRecords(req).ToListAsync();
     }
 
     static StreamName StreamFor(string sku) => $"inventory-{sku}";

@@ -29,7 +29,7 @@ public readonly record struct SequenceId : IComparable<SequenceId>, IComparable 
 
 	public override string ToString() => Value.ToString();
 
-	#region . relational members .
+	#region ->> relational members <<-
 
 	public int CompareTo(SequenceId other) => Value.CompareTo(other.Value);
 

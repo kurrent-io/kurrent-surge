@@ -38,8 +38,8 @@ public sealed class QueryExpressionNormalizer : IQueryExpressionNormalizer {
 
     public QueryExpressionNormalizer(NormalizerOptions options) {
         _forbiddenTablePrefix = options.ForbiddenTablePrefix;
-        _columnLookup         = new CharReplacementLookup(options.ColumnReplacements);
-        _tableLookup          = new CharReplacementLookup(options.TableReplacements);
+        _columnLookup         = new(options.ColumnReplacements);
+        _tableLookup          = new(options.TableReplacements);
     }
 
     public void Normalize(ReadOnlySpan<char> query, ref BufferWriterSlim<char> writer) {

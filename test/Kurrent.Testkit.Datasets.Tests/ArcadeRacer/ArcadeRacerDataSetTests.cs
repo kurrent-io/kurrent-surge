@@ -11,7 +11,7 @@ namespace Kurrent.Testkit.Datasets.Tests.ArcadeRacer;
 public class ArcadeRacerDataSetTests {
     static readonly ArcadeRacerDataSet DS = ArcadeRacerDataSet.Instance;
 
-    #region RaceCar
+    #region ->> RaceCar <<-
 
     [Test]
     public async Task car_has_non_empty_name() {
@@ -55,7 +55,7 @@ public class ArcadeRacerDataSetTests {
 
     #endregion
 
-    #region Circuit
+    #region ->> Circuit <<-
 
     [Test]
     public async Task circuit_has_non_empty_name_and_country() {
@@ -74,7 +74,7 @@ public class ArcadeRacerDataSetTests {
 
     #endregion
 
-    #region RaceConditions
+    #region ->> RaceConditions <<-
 
     [Test]
     public async Task conditions_generates_valid_values() {
@@ -85,7 +85,7 @@ public class ArcadeRacerDataSetTests {
 
     #endregion
 
-    #region Static Instance
+    #region ->> Static Instance <<-
 
     [Test]
     public async Task static_instance_is_reusable() {

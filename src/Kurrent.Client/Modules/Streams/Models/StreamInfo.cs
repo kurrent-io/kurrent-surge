@@ -26,7 +26,7 @@ public record StreamInfo {
     /// </summary>
     public Revision InfoRevision { get; init; } = Revision.Unset;
 
-    #region Configuration
+    #region ->> Configuration <<-
 
     /// <summary>
     /// The retention configuration for the stream.
@@ -45,7 +45,7 @@ public record StreamInfo {
 
     #endregion
 
-    #region First record
+    #region ->> First record <<-
 
     /// <summary>
     /// The revision of the first record in the stream.
@@ -64,7 +64,7 @@ public record StreamInfo {
 
     #endregion
 
-    #region Last record
+    #region ->> Last record <<-
 
     /// <summary>
     /// The revision of the last record in the stream.
@@ -361,7 +361,7 @@ class StreamMetadataJsonConverter : JsonConverter<StreamMetadata> {
 
         stream.Position = 0;
 
-        return new StreamMetadata {
+        return new() {
             MaxCount       = maxCount,
             MaxAge         = maxAge,
             TruncateBefore = truncateBefore,
@@ -447,7 +447,7 @@ class StreamAclJsonConverter : JsonConverter<StreamAcl> {
             }
         }
 
-        return new StreamAcl {
+        return new() {
             ReadRoles      = read ?? [],
             WriteRoles     = write ?? [],
             DeleteRoles    = delete ?? [],

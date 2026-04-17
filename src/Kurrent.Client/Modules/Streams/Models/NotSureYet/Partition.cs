@@ -35,7 +35,7 @@ public readonly record struct Partition : IComparable<Partition>, IComparable {
 
     public static implicit operator Partition(int partition) => From(partition);
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(Partition other) => Value.CompareTo(other.Value);
 

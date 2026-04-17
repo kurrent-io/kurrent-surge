@@ -36,7 +36,7 @@ internal static class ServerFilterExtractor {
         return RecordFilter.None;
     }
 
-    #region Stream Filter Extraction
+    #region ->> Stream Filter Extraction <<-
 
     static bool TryExtractStreamFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
         var regexPatterns   = new List<string>();
@@ -97,7 +97,7 @@ internal static class ServerFilterExtractor {
 
     #endregion
 
-    #region Category Filter Extraction
+    #region ->> Category Filter Extraction <<-
 
     static bool TryExtractCategoryFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
         foreach (var conjunct in conjuncts) {
@@ -117,7 +117,7 @@ internal static class ServerFilterExtractor {
 
     #endregion
 
-    #region Index Filter Extraction
+    #region ->> Index Filter Extraction <<-
 
     static bool TryExtractIndexFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
         foreach (var conjunct in conjuncts) {
@@ -133,7 +133,7 @@ internal static class ServerFilterExtractor {
 
     #endregion
 
-    #region Schema Filter Extraction
+    #region ->> Schema Filter Extraction <<-
 
     static bool TryExtractSchemaFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
         foreach (var conjunct in conjuncts) {
@@ -154,7 +154,7 @@ internal static class ServerFilterExtractor {
 
     #endregion
 
-    #region Helpers
+    #region ->> Helpers <<-
 
     static List<IFilterExpression> FlattenAnd(IFilterExpression expr) {
         var result = new List<IFilterExpression>();

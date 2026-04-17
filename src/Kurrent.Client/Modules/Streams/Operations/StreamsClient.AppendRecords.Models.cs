@@ -21,9 +21,9 @@ public record AppendRecordsRequest() : SelfValidating {
     /// Creates a builder for appending records across one or more streams,
     /// with optional consistency checks.
     /// </summary>
-    public static AppendRecordsRequestBuilder New() => new();
+    public static Builder New() =>
+        new();
 
-    [method: SetsRequiredMembers]
     public AppendRecordsRequest(
         ImmutableArray<AppendRecord> records,
         ImmutableArray<ConsistencyCheck> checks
@@ -32,51 +32,117 @@ public record AppendRecordsRequest() : SelfValidating {
         Checks  = checks;
     }
 
-    bool? IsValid { get; set; }
-
     /// <summary>
     /// Gets the records to be appended.
     /// </summary>
-    public required ImmutableArray<AppendRecord> Records {
-        get;
-        init {
-            field = value;
-            ResetValidation();
-        }
-    }
+    public ImmutableArray<AppendRecord> Records {
+        get; init { field = value; ResetValidation(); }
+    } = [];
 
     /// <summary>
     /// Gets the consistency checks to be performed before appending.
     /// </summary>
-    public required ImmutableArray<ConsistencyCheck> Checks {
-        get;
-        init {
-            field = value;
-            ResetValidation();
-        }
-    }
+    public ImmutableArray<ConsistencyCheck> Checks {
+        get; init { field = value; ResetValidation(); }
+    } = [];
 
     /// <summary>
     /// Validates all records meet their invariants and have a stream assigned.
     /// </summary>
     public new AppendRecordsRequest EnsureValid() {
-        Validate().Unwrap();
+        Validate().EnsureValid();
         return this;
     }
 
     public override ValidationResult RunValidation() {
         foreach (var record in Records) {
             if (record.Stream == StreamName.Unset)
-                return ValidationError.FromProblem(
+                return ValidationResult.FromProblem(
                     ErrorCode.FromType<AppendRecordsRequest>(),
                     ErrorMessages.AppendRecordStreamRequired);
 
             var result = record.Validate();
-            if (!result.IsSuccess)
+
+            if (result.IsInvalid)
                 return result;
         }
 
         return Results.Success;
+    }
+
+    /// <summary>
+    /// Builds an <see cref="AppendRecordsRequest"/> where each record carries its own stream assignment.
+    /// </summary>
+    public class Builder(AppendRecordsRequest request) : FluentBuilder<Builder, AppendRecordsRequest>(request) {
+        public Builder() : this(new AppendRecordsRequest()) { }
+
+        /// <inheritdoc />
+        protected override AppendRecordsRequest OnBuild(AppendRecordsRequest request) {
+            if (request.Records.Length == 0)
+                throw new ValidationException(
+                    ErrorCode.FromType<AppendRecordsRequest>(),
+                    ErrorMessages.AppendRecordsRequestEmpty,
+                    ValidationProblem.Create(ErrorCode.FromType<AppendRecordsRequest>(), ErrorMessages.AppendRecordsRequestEmpty));
+
+            foreach (var record in request.Records) {
+                if (record.Stream == StreamName.Unset)
+                    throw new ValidationException(
+                        ErrorCode.FromType<AppendRecordsRequest>(),
+                        ErrorMessages.AppendRecordStreamRequired,
+                        ValidationProblem.Create(ErrorCode.FromType<AppendRecordsRequest>(), ErrorMessages.AppendRecordStreamRequired));
+            }
+
+            return request;
+        }
+
+        #region ->> Consistency Checks <<-
+
+        public Builder WithCheck(ConsistencyCheck check) =>
+            With(r => r with { Checks = r.Checks.Add(check) });
+
+        public Builder WithChecks(params ConsistencyCheck[] checks) =>
+            With(r => r with { Checks = r.Checks.AddRange(checks) });
+
+        #endregion
+
+        #region ->> Records <<-
+
+        public Builder WithRecord(AppendRecord record) =>
+            With(r => r with { Records = r.Records.Add(record) });
+
+        public Builder WithRecord(AppendRecord.Builder builder) =>
+            With(r => r with { Records = r.Records.Add(builder.Build()) });
+
+        public Builder WithRecord(Action<AppendRecord.Builder> configure) =>
+            With(r => {
+                var builder = new AppendRecord.Builder();
+                configure(builder);
+                return r with { Records = r.Records.Add(builder.Build()) };
+            });
+
+        public Builder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
+            With(r => r with { Records = r.Records.Add(AppendRecord.New.WithValue(value).WithDataFormat(dataFormat).Build()) });
+
+        public Builder WithRecord<T>(T value, StreamName stream, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
+            With(r => r with { Records = r.Records.Add(AppendRecord.New.ForStream(stream).WithValue(value).WithDataFormat(dataFormat).Build()) });
+
+        public Builder WithRecords(params AppendRecord[] records) =>
+            With(r => r with { Records = r.Records.AddRange(records) });
+
+        public Builder WithRecords(IEnumerable<AppendRecord> records) =>
+            With(r => r with { Records = r.Records.AddRange(records) });
+
+        #endregion
+
+        #region ->> Batch Overrides <<-
+
+        public Builder WithDataFormat(SchemaDataFormat dataFormat) =>
+            WithOverride(r => r with { Records = r.Records.Select(rec => rec with { DataFormat = dataFormat }).ToImmutableArray() });
+
+        public Builder WithMetadata(string key, object value) =>
+            WithOverride(r => r with { Records = r.Records.Select(rec => rec with { Metadata = rec.Metadata.With(key, value) }).ToImmutableArray() });
+
+        #endregion
     }
 }
 
@@ -87,7 +153,7 @@ public record AppendRecordsRequest() : SelfValidating {
 [method: SetsRequiredMembers]
 public record AppendRecordsResponse(StreamPosition[] Revisions, LogPosition Position) {
     public required StreamPosition[] Revisions { get; init; } = Revisions;
-    public required LogPosition Position { get; init; } = Position;
+    public required LogPosition      Position  { get; init; } = Position;
 }
 
 /// <summary>
@@ -98,59 +164,20 @@ public record AppendRecordsResponse(StreamPosition[] Revisions, LogPosition Posi
 public readonly partial record struct ConsistencyCheck : IVariant<StreamStateCheck, QueryPredicateCheck> {
     public static readonly ConsistencyCheck None = new();
 
-    /// <summary>
-    /// Starts building a stream state check for the specified stream.
-    /// </summary>
-    /// <param name="stream">The stream name to check.</param>
-    public static StreamStateCheckBuilder Stream(StreamName stream) => new(stream);
-
     public static StreamStateCheck StreamAtRevision(StreamName stream, Revision revision) =>
-        new StreamStateCheck(stream, revision);
+        new(stream, revision);
 
     public static StreamStateCheck StreamExists(StreamName stream) =>
-        new StreamStateCheck(stream, ExpectedStreamState.Exists);
+        new(stream, ExpectedStreamState.Exists);
 
     public static StreamStateCheck StreamDoesNotExist(StreamName stream) =>
-        new StreamStateCheck(stream, ExpectedStreamState.NoStream);
+        new(stream, ExpectedStreamState.NoStream);
 
     public static StreamStateCheck StreamIsDeleted(StreamName stream) =>
-        new StreamStateCheck(stream, ExpectedStreamState.Deleted);
+        new(stream, ExpectedStreamState.Deleted);
 
     public static StreamStateCheck StreamIsTombstoned(StreamName stream) =>
-        new StreamStateCheck(stream, ExpectedStreamState.Tombstoned);
-}
-
-/// <summary>
-/// Fluent builder for constructing a <see cref="StreamStateCheck"/> against a specific stream.
-/// </summary>
-[PublicAPI]
-public readonly struct StreamStateCheckBuilder(StreamName stream) {
-    /// <summary>
-    /// The stream must be at the specified revision.
-    /// </summary>
-    /// <param name="revision">The exact revision the stream is expected to be at.</param>
-    public StreamStateCheck AtRevision(Revision revision) => new(stream, revision);
-
-    /// <summary>
-    /// The stream must exist.
-    /// </summary>
-    public StreamStateCheck Exists() => new(stream, ExpectedStreamCondition.Exists);
-
-    /// <summary>
-    /// The stream must not exist. A soft-deleted stream satisfies this check
-    /// because its data has been removed and it can be recreated.
-    /// </summary>
-    public StreamStateCheck DoesNotExist() => new(stream, ExpectedStreamCondition.NoStream);
-
-    /// <summary>
-    /// The stream must be in a soft-deleted state.
-    /// </summary>
-    public StreamStateCheck IsDeleted() => new(stream, ExpectedStreamCondition.Deleted);
-
-    /// <summary>
-    /// The stream must be in a tombstoned (hard-deleted) state.
-    /// </summary>
-    public StreamStateCheck IsTombstoned() => new(stream, ExpectedStreamCondition.Tombstoned);
+        new(stream, ExpectedStreamState.Tombstoned);
 }
 
 /// <summary>
@@ -168,123 +195,3 @@ public readonly record struct QueryPredicateCheck(string Expression) {
     /// </summary>
     public required string Expression { get; init; } = Expression;
 }
-
-
-/// <summary>
-/// Builds an <see cref="AppendRecordsRequest"/> where each record carries its own stream assignment.
-/// </summary>
-[PublicAPI]
-public class AppendRecordsRequestBuilder {
-    readonly List<AppendRecordBuilder>  _builders          = [];
-    readonly List<ConsistencyCheck>     _checks            = [];
-    readonly Dictionary<string, object> _metadataOverrides = [];
-
-    SchemaDataFormat? _dataFormatOverride;
-
-    internal AppendRecordsRequestBuilder() { }
-
-    public int RecordsCount => _builders.Count;
-
-    #region Consistency Checks
-
-    public AppendRecordsRequestBuilder WithCheck(ConsistencyCheck check) {
-        _checks.Add(check);
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithChecks(params ConsistencyCheck[] checks) {
-        foreach (var check in checks)
-            _checks.Add(check);
-        return this;
-    }
-
-    #endregion
-
-    #region Records
-
-    public AppendRecordsRequestBuilder WithRecord(AppendRecord record) {
-        _builders.Add(new AppendRecordBuilder().FromRecord(record));
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithRecord(AppendRecordBuilder builder) {
-        _builders.Add(builder);
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithRecord(Action<AppendRecordBuilder> configure) {
-        var builder = new AppendRecordBuilder();
-        configure(builder);
-        _builders.Add(builder);
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) {
-        _builders.Add(AppendRecord.New.WithValue(value).WithDataFormat(dataFormat));
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithRecord<T>(T value, StreamName stream, SchemaDataFormat dataFormat = SchemaDataFormat.Json) {
-        _builders.Add(AppendRecord.New.ForStream(stream).WithValue(value).WithDataFormat(dataFormat));
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithRecords(params AppendRecord[] records) {
-        foreach (var record in records)
-            _builders.Add(new AppendRecordBuilder().FromRecord(record));
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithRecords(IEnumerable<AppendRecord> records) {
-        foreach (var record in records)
-            _builders.Add(new AppendRecordBuilder().FromRecord(record));
-        return this;
-    }
-
-    #endregion
-
-    #region Batch Overrides
-
-    public AppendRecordsRequestBuilder WithDataFormat(SchemaDataFormat dataFormat) {
-        _dataFormatOverride = dataFormat;
-        return this;
-    }
-
-    public AppendRecordsRequestBuilder WithMetadata(string key, object value) {
-        _metadataOverrides[key] = value;
-        return this;
-    }
-
-    #endregion
-
-    public AppendRecordsRequest Build() {
-        if (_builders.Count == 0)
-            throw ValidationError.FromProblem(
-                ErrorCode.FromType<AppendRecordsRequest>(),
-                ErrorMessages.AppendRecordsRequestEmpty
-            ).GetOrCreateException();
-
-        var records = ImmutableArray.CreateBuilder<AppendRecord>(_builders.Count);
-
-        foreach (var builder in _builders) {
-            if (_dataFormatOverride.HasValue)
-                builder.WithDataFormat(_dataFormatOverride.Value);
-
-            foreach (var (key, value) in _metadataOverrides)
-                builder.WithMetadata(key, value);
-
-            var record = builder.Build();
-
-            if (record.Stream == StreamName.Unset)
-                throw ValidationError.FromProblem(
-                    ErrorCode.FromType<AppendRecordsRequest>(),
-                    ErrorMessages.AppendRecordStreamRequired
-                ).GetOrCreateException();
-
-            records.Add(record);
-        }
-
-        return new AppendRecordsRequest(records.MoveToImmutable(), [.._checks]);
-    }
-}
-

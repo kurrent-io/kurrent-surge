@@ -7,7 +7,7 @@ public class ConditionalAssertionTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    #region . suffix When on Assertion<T> .
+    #region ->> suffix When on Assertion<T> <<-
 
     [Test]
     public async ValueTask suffix_when_true_evaluates_passing_assertion() {
@@ -54,7 +54,7 @@ public class ConditionalAssertionTests {
 
     #endregion
 
-    #region . branch When on IAssertionSource<T> .
+    #region ->> branch When on IAssertionSource<T> <<-
 
     [Test]
     public async ValueTask branch_when_true_evaluates_passing_assertion() {
@@ -92,7 +92,7 @@ public class ConditionalAssertionTests {
 
     #endregion
 
-    #region . When + Otherwise .
+    #region ->> When + Otherwise <<-
 
     [Test]
     public async ValueTask otherwise_executes_when_condition_is_false() {
@@ -153,7 +153,7 @@ public class ConditionalAssertionTests {
 
     #endregion
 
-    #region . predicate When on IAssertionSource<T> .
+    #region ->> predicate When on IAssertionSource<T> <<-
 
     [Test]
     public async ValueTask predicate_when_matching_evaluates_passing_assertion() {
@@ -207,7 +207,7 @@ public class ConditionalAssertionTests {
 
     #endregion
 
-    #region . realistic scenarios .
+    #region ->> realistic scenarios <<-
 
     [Test]
     [Arguments(true)]

@@ -14,7 +14,5 @@ public class ValidationException : KurrentException {
 
     public string ErrorCode { get; }
 
-    public ValidationProblem[] Errors    { get; }
+    public ValidationProblem[] Errors { get; }
 }
-
-

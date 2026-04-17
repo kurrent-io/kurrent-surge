@@ -1,7 +1,7 @@
 namespace Kurrent;
 
 public static partial class FunctionalResult {
-    #region . Sync .
+    #region ->> Sync <<-
 
     public static Result<TNewValue, TError> Bind<TValue, TNewValue, TError>(
         this Result<TValue, TError> result,
@@ -17,7 +17,7 @@ public static partial class FunctionalResult {
 
     #endregion
 
-    #region . Async .
+    #region ->> Async <<-
 
     public static async ValueTask<Result<TNewValue, TError>> BindAsync<TValue, TNewValue, TError>(
         this ValueTask<Result<TValue, TError>> result,

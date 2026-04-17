@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
@@ -17,7 +20,12 @@ public record Record {
         Decoder = decoder ?? NoOpRecordDecoder.Instance;
 
     IRecordDecoder Decoder { get; }
-
+    
+    /// <summary>
+    /// Indicates whether the current <see cref="Record"/> instance is unset.
+    /// </summary>
+    public bool IsUnset => this == None;
+    
 	/// <summary>
     /// The unique identifier of the record.
     /// </summary>
@@ -89,12 +97,7 @@ public record Record {
     /// Indicates whether the current <see cref="Record"/> instance has been successfully decoded.
     /// </summary>
     public bool IsDecoded => Value is { } && ValueType != Type.MissingType;
-
-    /// <summary>
-    /// Indicates whether the current <see cref="Record"/> instance is unset.
-    /// </summary>
-    public bool IsUnset => this == None;
-
+    
     /// <summary>
     /// Represents the stream associated with the record.
     /// </summary>
@@ -104,25 +107,42 @@ public record Record {
     /// Represents the revision of a stream at a specific point in time.
     /// </summary>
     public Revision Revision => Position.Revision;
-    //
-    // /// <summary>
-    // /// Represents the classification or grouping of an item.
-    // /// </summary>
-    // public StreamCategory Category => Stream.Category;
+    
+    /// <summary>
+    /// Represents the classification or grouping of an item.
+    /// </summary>
+    public string Category => Stream.Category;
 
+    
+    /// <summary>
+    /// Lazily-serialized JSON representation of <see cref="Value"/> for filter expression evaluation.
+    /// Returns <c>null</c> when the record is not decoded or the schema format is not JSON.
+    /// </summary>
+    internal JsonNode? JsonNode => IsDecoded && Schema.SchemaFormat == SchemaDataFormat.Json
+        ? field ??= JsonSerializer.SerializeToNode(Value)
+        : null;
+    
 	/// <summary>
 	/// Attempts to decode the record's data asynchronously.
 	/// </summary>
 	public ValueTask<bool> TryDecode(CancellationToken cancellationToken = default) =>
         Decoder.Decode(this, cancellationToken);
-
+    
+    /// <summary>
+    /// Returns the decoded value cast to <typeparamref name="T"/> with zero overhead for reference types.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public T As<T>() {
+        var msg = Value!;
+        return typeof(T).IsValueType ? (T)msg : Unsafe.As<object, T>(ref msg);
+    }
+    
     public override string ToString() => $"{Schema.SchemaName} {Revision}@{Stream} - {Position}";
 
 	string ToDebugString() =>
 		$"Record: Id={Id}, Position={Position}, Stream={Stream}, Revision={Revision}, " +
 		$"Value={Value ?? "Not Decoded"}, ValueType={ValueType}";
 
-    public T As<T>() where T : class => (T)Value!;
 }
 
 public readonly record struct Link() {

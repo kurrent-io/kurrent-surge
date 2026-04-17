@@ -11,7 +11,7 @@ static class EnumExtensions {
         public string Description {
             get {
                 // Get or create the value dictionary for this enum type
-                var valueCache = Cache.GetOrAdd(typeof(T), _ => new ConcurrentDictionary<Enum, string>());
+                var valueCache = Cache.GetOrAdd(typeof(T), _ => new());
 
                 // Cast once to avoid multiple boxing operations
                 Enum enumValue = source;

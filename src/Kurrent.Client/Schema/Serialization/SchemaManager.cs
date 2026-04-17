@@ -14,7 +14,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 
 	ConcurrentDictionary<Type, List<SchemaVersionDescriptor>> CompatibleVersions { get; } = new();
 
-	#region . Serialize .
+	#region ->> Serialize <<-
 
 	public async ValueTask<(SchemaName SchemaName, SchemaVersionId SchemaVersionId)> RegisterOrValidateSchema(Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
 		if (policy is { AutoRegisterSchemas: true, DataFormat: SchemaDataFormat.Json })
@@ -74,7 +74,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 
 	#endregion
 
-	#region . Deserialize .
+	#region ->> Deserialize <<-
 
 	public async ValueTask<(Type MessageType, SchemaVersionId SchemaVersionId)> ValidateAndEnsureSchemaCompatibility(RecordSchemaInfo schemaInfo, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
         var messageType = TypeMapper.GetOrResolveMessageType(schemaInfo.SchemaName);
@@ -229,7 +229,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 				.ConfigureAwait(false);
 
 			// its impossible to update because we start by checking the cache
-			CompatibleVersions.TryAdd(messageType, [new SchemaVersionDescriptor(schemaVersionId, 0)]);
+			CompatibleVersions.TryAdd(messageType, [new(schemaVersionId, 0)]);
 			return schemaVersionId;
 		}
 		catch (SchemaIncompatibleException incompatible) {

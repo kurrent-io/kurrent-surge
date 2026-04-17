@@ -29,7 +29,7 @@ partial class StreamsProtocolMapper {
         try {
             var context = new SchemaSerializationContext {
                 Stream               = source.Stream,
-                RecordSchema         = new RecordSchemaInfo { SchemaFormat = source.DataFormat },
+                RecordSchema         = new() { SchemaFormat = source.DataFormat },
                 SchemaRegistryPolicy = RegistryPolicy,
                 CancellationToken    = ct
             };
@@ -52,7 +52,7 @@ partial class StreamsProtocolMapper {
             // UnsafeWrap constructs a new ByteString from the given bytes.
             // The bytes are not copied, and must not be modified while the
             // ByteString is in use.
-            return new Contracts.AppendRecord {
+            return new() {
                 RecordId   = source.RecordId.ToString(),
                 Data       = UnsafeByteOperations.UnsafeWrap(data),
                 Schema     = schema,
@@ -68,7 +68,7 @@ partial class StreamsProtocolMapper {
     public Contracts.ConsistencyCheck ToContract(ConsistencyCheck source) {
         var result = new Contracts.ConsistencyCheck {
             StreamState = source.Value switch {
-                StreamStateCheck check => new Contracts.ConsistencyCheck.Types.StreamStateCheck { Stream = check.Stream, ExpectedState = check.ExpectedState.ToWireValue() },
+                StreamStateCheck check => new() { Stream = check.Stream, ExpectedState = check.ExpectedState.ToWireValue() },
                 _                      => throw new ArgumentException($"Unsupported consistency check type: {source.Value.GetType().Name}")
             }
         };
@@ -98,6 +98,6 @@ partial class StreamsProtocolMapper {
             .Select(x => new StreamPosition(x.Stream, x.Revision))
             .ToArray();
 
-        return new AppendRecordsResponse(revisions, source.Position);
+        return new(revisions, source.Position);
     }
 }

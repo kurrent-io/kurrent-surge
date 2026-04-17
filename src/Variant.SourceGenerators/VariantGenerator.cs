@@ -248,9 +248,9 @@ public class VariantGenerator : ISourceGenerator {
         sb.AppendLine($"{indent}{code}");
     }
 
-    #region . Method Generators .
+    #region ->> Method Generators <<-
 
-    #region . Switch Method Generators .
+    #region ->> Switch Method Generators <<-
     static void GenerateSwitchMethods(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
         sb.AppendLine();
         sb.AppendLine($"{indent}#region . Switch .");
@@ -390,7 +390,7 @@ public class VariantGenerator : ISourceGenerator {
 
     #endregion
 
-    #region . Match Method Generators .
+    #region ->> Match Method Generators <<-
 
     static void GenerateMatchMethods(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
         sb.AppendLine();
@@ -551,7 +551,7 @@ public class VariantGenerator : ISourceGenerator {
 
     #endregion
 
-    #region . Helper Methods .
+    #region ->> Helper Methods <<-
 
     static string GetCleanTypeName(ITypeSymbol typeSymbol) {
         switch (typeSymbol.SpecialType) {
@@ -706,7 +706,7 @@ public class VariantGenerator : ISourceGenerator {
 
     #endregion
 
-    #region . Diagnostic Helpers .
+    #region ->> Diagnostic Helpers <<-
 
     static readonly DiagnosticDescriptor SwitchMethodsGenerated = new(
         "VARIANT002",

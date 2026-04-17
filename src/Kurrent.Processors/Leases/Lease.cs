@@ -96,7 +96,7 @@ public readonly record struct LeaseVersion : IComparable<LeaseVersion>, ICompara
 
     public override string ToString() => Value.ToString();
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(LeaseVersion other) => Value.CompareTo(other.Value);
 

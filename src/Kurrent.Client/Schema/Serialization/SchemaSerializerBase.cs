@@ -10,7 +10,7 @@ public record SchemaSerializerOptions {
 	/// <summary>
 	/// Configuration options for schema registration, validation, and type mapping behaviors.
 	/// </summary>
-	public SchemaRegistrationOptions SchemaRegistration { get; init; } = new SchemaRegistrationOptions();
+	public SchemaRegistrationOptions SchemaRegistration { get; init; } = new();
 
 	/// <summary>
 	/// Specifies whether only schemas explicitly mapped to a .NET type should be consumed during

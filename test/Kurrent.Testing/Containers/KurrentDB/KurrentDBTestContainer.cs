@@ -113,6 +113,7 @@ public static class KurrentDBConfiguration {
         ["KURRENTDB_NODE_PORT"]                      = "2113",
         ["KURRENTDB_INSECURE"]                       = "true",
         ["KURRENTDB_USER_CERTIFICATES__ENABLED"]     = "false",
+        ["KURRENTDB_SECONDARY_INDEXING__ENABLED"]    = "true",
         ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = "http://host.docker.internal:4317", // or 18889?
         ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "true",
         // ["OTEL_LOG_LEVEL"]                           = "debug"

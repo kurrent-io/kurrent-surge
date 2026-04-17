@@ -19,7 +19,7 @@ public class DroneLifecycleTests {
         source    ??= EmptySource();
         processor ??= new NoOpProcessor();
 
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId = "test-processor",
             WorkerId    = "test-worker",
             Debug       = debug

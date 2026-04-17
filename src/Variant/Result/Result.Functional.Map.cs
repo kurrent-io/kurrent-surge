@@ -1,7 +1,7 @@
 namespace Kurrent;
 
 public static partial class FunctionalResult {
-    #region . Sync .
+    #region ->> Sync <<-
     public static Result<TNewValue, TError> Map<TValue, TNewValue, TError>(
         this Result<TValue, TError> result,
         TNewValue newValue)
@@ -36,7 +36,7 @@ public static partial class FunctionalResult {
 
     #endregion
 
-    #region . Async .
+    #region ->> Async <<-
 
     public static async ValueTask<Result<TNewValue, TError>> MapAsync<TValue, TNewValue, TError>(
         this ValueTask<Result<TValue, TError>> result,

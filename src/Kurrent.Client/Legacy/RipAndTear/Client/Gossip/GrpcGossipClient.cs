@@ -9,7 +9,7 @@ class GrpcGossipClient(KurrentDBClientSettings settings) : IGossipClient {
     public async ValueTask<ClusterMessages.ClusterInfo> GetAsync(ChannelBase channel, CancellationToken ct) {
         var client = new Gossip.GossipClient(channel);
 
-        using var call = client.ReadAsync(new Empty(), KurrentDBCallOptions.CreateNonStreaming(settings, ct));
+        using var call = client.ReadAsync(new(), KurrentDBCallOptions.CreateNonStreaming(settings, ct));
 
         var result = await call.ResponseAsync.ConfigureAwait(false);
 
@@ -20,7 +20,7 @@ class GrpcGossipClient(KurrentDBClientSettings settings) : IGossipClient {
                         Uuid.FromDto(x.InstanceId),
                         (ClusterMessages.VNodeState)x.State,
                         x.IsAlive,
-                        new DnsEndPoint(x.HttpEndPoint.Address, (int)x.HttpEndPoint.Port)
+                        new(x.HttpEndPoint.Address, (int)x.HttpEndPoint.Port)
                     )
                 ).ToArray()
         );

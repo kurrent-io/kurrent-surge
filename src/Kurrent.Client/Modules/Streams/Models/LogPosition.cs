@@ -70,7 +70,7 @@ public readonly partial record struct LogPosition : IComparable<LogPosition>, IC
     [GeneratedRegex(@"^C:(?<commit>[0-9]*)\/P:(?<prepare>[0-9]*)$")]
     public static partial Regex LogPositionRegex();
 
-    #region . relational members .
+    #region ->> relational members <<-
 
     public int CompareTo(LogPosition other) => Value.CompareTo(other.Value);
 

@@ -7,7 +7,7 @@ public class AppendRecordsRequestBuilderTests {
     static AppendRecord ValidRecord(string stream = "test-stream") =>
         AppendRecord.New.WithValue("payload").ForStream(stream).Build();
 
-    #region Build Validation
+    #region ->> Build Validation <<-
 
     [Test]
     public void build_throws_when_no_records_added() {
@@ -44,12 +44,12 @@ public class AppendRecordsRequestBuilderTests {
 
     #endregion
 
-    #region Consistency Checks
+    #region ->> Consistency Checks <<-
 
     [Test]
     public async ValueTask with_check_adds_consistency_check() {
         // Arrange
-        var check = ConsistencyCheck.Stream("my-stream").Exists();
+        var check = ConsistencyCheck.StreamExists("my-stream");
 
         // Act
         var request = AppendRecordsRequest.New()
@@ -68,8 +68,8 @@ public class AppendRecordsRequestBuilderTests {
     [Test]
     public async ValueTask with_checks_adds_multiple_consistency_checks() {
         // Arrange
-        var check1 = ConsistencyCheck.Stream("stream-a").Exists();
-        var check2 = ConsistencyCheck.Stream("stream-b").DoesNotExist();
+        var check1 = ConsistencyCheck.StreamExists("stream-a");
+        var check2 = ConsistencyCheck.StreamDoesNotExist("stream-b");
 
         // Act
         var request = AppendRecordsRequest.New()
@@ -83,7 +83,7 @@ public class AppendRecordsRequestBuilderTests {
 
     #endregion
 
-    #region Batch Overrides
+    #region ->> Batch Overrides <<-
 
     [Test]
     public async ValueTask with_data_format_overrides_all_records() {
@@ -123,7 +123,7 @@ public class AppendRecordsRequestBuilderTests {
 
     #endregion
 
-    #region WithRecord Overloads
+    #region ->> WithRecord Overloads <<-
 
     [Test]
     public async ValueTask with_record_action_overload() {
@@ -156,19 +156,4 @@ public class AppendRecordsRequestBuilderTests {
 
     #endregion
 
-    #region RecordsCount
-
-    [Test]
-    public async ValueTask records_count_tracks_added_records() {
-        // Arrange & Act
-        var builder = AppendRecordsRequest.New()
-            .WithRecord(ValidRecord("stream-a"))
-            .WithRecord(ValidRecord("stream-b"))
-            .WithRecord(ValidRecord("stream-c"));
-
-        // Assert
-        await Assert.That(builder.RecordsCount).IsEqualTo(3);
-    }
-
-    #endregion
 }

@@ -61,8 +61,7 @@ public class AppendRecordBuilderTests {
             .Build();
 
         // Act
-        var copy = new AppendRecordBuilder()
-            .FromRecord(original)
+        var copy = new AppendRecord.Builder(original)
             .Build();
 
         // Assert

@@ -10,7 +10,7 @@ namespace Kurrent.Testkit.Datasets.Tests.ArcadeRacer;
 [Category("ArcadeRacer")]
 public class SimulationTests {
 
-    #region Pre-computed (Simulate)
+    #region ->> Pre-computed (Simulate) <<-
 
     [Test]
     public async Task simulate_returns_completed_race() {
@@ -71,7 +71,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Streaming
+    #region ->> Streaming <<-
 
     [Test]
     public async Task streaming_produces_events() {
@@ -172,7 +172,7 @@ public class SimulationTests {
 
     #endregion
 
-    #region Conditions
+    #region ->> Conditions <<-
 
     [Test]
     public async Task race_with_night_and_rain_has_incidents() {

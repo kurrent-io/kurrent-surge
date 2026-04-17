@@ -24,17 +24,17 @@ public class DroneIntegrationTests {
         SubscriptionInitialPosition initialPosition = SubscriptionInitialPosition.Latest,
         long checkpointInterval                     = 30_000
     ) {
-        var settings = new ProcessorSettings {
+        var settings = new ProcessorOptions {
             ProcessorId  = processorId,
-            Subscription = new SubscriptionSettings {
+            Subscription = new SubscriptionOptions {
                 Filter          = RecordFilter.ByStream(stream),
                 InitialPosition = initialPosition
             },
-            Checkpoint = new CheckpointSettings {
+            Checkpoint = new CheckpointOptions {
                 Interval = checkpointInterval,
                 Timeout  = 60_000
             },
-            Worker = new WorkerSettings()
+            Worker = new WorkerOptions()
         };
 
         var source = new SubscriptionSource(Fixture.Client, settings, TimeProvider.System);
@@ -44,7 +44,7 @@ public class DroneIntegrationTests {
             Fixture.LoggerFactory, TimeProvider.System);
     }
 
-    #region . processing .
+    #region ->> processing <<-
 
     [Test]
     public async ValueTask records_are_processed(CancellationToken ct) {
@@ -126,7 +126,7 @@ public class DroneIntegrationTests {
 
     #endregion
 
-    #region . stop and cancel .
+    #region ->> stop and cancel <<-
 
     [Test]
     public async ValueTask processor_stops_on_user_request(CancellationToken ct) {
@@ -175,7 +175,7 @@ public class DroneIntegrationTests {
 
     #endregion
 
-    #region . error handling .
+    #region ->> error handling <<-
 
     [Test]
     public async ValueTask processor_handles_exceptions_and_stops_processing(CancellationToken ct) {
@@ -221,7 +221,7 @@ public class DroneIntegrationTests {
 
     #endregion
 
-    #region . checkpoint recovery .
+    #region ->> checkpoint recovery <<-
 
     [Test]
     public async ValueTask complete_lifecycle_with_checkpoint_recovery(CancellationToken ct) {
@@ -421,7 +421,7 @@ public class DroneIntegrationTests {
 
     #endregion
 
-    #region . status .
+    #region ->> status <<-
 
     [Test]
     public async ValueTask status_is_stopped_after_graceful_shutdown(CancellationToken ct) {

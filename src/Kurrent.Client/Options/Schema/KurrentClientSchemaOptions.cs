@@ -37,7 +37,7 @@ namespace Kurrent.Client;
 /// </code>
 /// </example>
 [PublicAPI]
-public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOptions, KurrentClientSchemaOptionsValidator> {
+public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOptions, KurrentClientSchemaOptions.Validator> {
 	/// <summary>
 	/// Whether schemas should be automatically registered.
 	/// </summary>
@@ -205,4 +205,6 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 		AutoRegister = false,
 		PreValidate     = false
 	};
+
+    public class Validator : Validator<Validator, KurrentClientSchemaOptions> { }
 }

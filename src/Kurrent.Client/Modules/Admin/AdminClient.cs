@@ -8,7 +8,7 @@ namespace Kurrent.Client.Admin;
 public partial class AdminClient {
     internal AdminClient(KurrentClient client) {
         Client             = client;
-        AdminServiceClient = new OperationsServiceClient(client.LegacyCallInvoker);
+        AdminServiceClient = new(client.LegacyCallInvoker);
     }
 
     KurrentClient Client { get; }
@@ -44,7 +44,7 @@ public partial class AdminClient {
 
         try {
             await AdminServiceClient
-                .SetNodePriorityAsync(new SetNodePriorityReq { Priority = nodePriority }, cancellationToken: cancellationToken)
+                .SetNodePriorityAsync(new() { Priority = nodePriority }, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {

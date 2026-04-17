@@ -117,7 +117,7 @@ partial class LeaderNotFoundInterceptor : Interceptor {
 		}
 	}
 
-	#region Logging
+	#region ->> Logging <<-
 
 	[LoggerMessage(Level = LogLevel.Warning, Message = "Leader changed to {Host}:{Port}, refreshing cluster info...")]
 	static partial void LogLeaderChanged(ILogger logger, string host, int port);

@@ -17,7 +17,7 @@ static class ChannelFactoryExtensions {
 
         var httpClient = settings.CreateHttpClient(address);
 
-        options = new GrpcChannelOptions {
+        options = new() {
             ServiceConfig = settings.RetrySettings.IsEnabled
                 ? new() { MethodConfigs = { settings.RetrySettings.GetRetryMethodConfig() } }
                 : null,
@@ -61,7 +61,7 @@ static class ChannelFactoryExtensions {
             }
 
             if (settings.ConnectivitySettings.ClientCertificate is not null) {
-                handler.SslOptions.ClientCertificates = new X509CertificateCollection {
+                handler.SslOptions.ClientCertificates = new() {
                     settings.ConnectivitySettings.ClientCertificate
                 };
             }

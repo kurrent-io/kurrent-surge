@@ -1,4 +1,3 @@
-using FluentValidation;
 using Kurrent.Validation;
 
 namespace Kurrent.Client.Streams;
@@ -11,88 +10,14 @@ namespace Kurrent.Client.Streams;
 //     /// <summary>
 //     /// Start building read request for the specified stream.
 //     /// </summary>
-//     public static ReadStreamRequestBuilder Name(StreamName stream) =>
-//         new ReadStreamRequestBuilder()
+//     public static ReadStreamRequest.Builder Name(StreamName stream) =>
+//         new ReadStreamRequest.Builder()
 //             .ForStream(stream);
 // }
 
-/// <summary>
-/// Fluent builder for constructing <see cref="ReadStreamRequest"/> instances.
-/// </summary>
 [PublicAPI]
-public class ReadStreamRequestBuilder : FluentBuilder<ReadStreamRequestBuilder, ReadStreamRequest> {
-    public ReadStreamRequestBuilder() : base(new ReadStreamRequest()) { }
-
-    /// <inheritdoc />
-    protected override ReadStreamRequest OnBuild(ReadStreamRequest request) {
-        request.EnsureValid();
-        return request;
-    }
-
-    /// <summary>
-    /// Set the stream to read from.
-    /// </summary>
-    public ReadStreamRequestBuilder ForStream(StreamName stream) =>
-        With(request => request with { Stream = stream });
-
-    /// <summary>
-    /// Start from the beginning of the stream (forwards).
-    /// </summary>
-    public ReadStreamRequestBuilder FromStart() =>
-        With(request => request with { Start = Revision.Min, Direction = ReadDirection.Forwards });
-
-    /// <summary>
-    /// Start from the end of the stream (backwards).
-    /// </summary>
-    public ReadStreamRequestBuilder FromEnd() =>
-        With(request => request with { Start = Revision.Max, Direction = ReadDirection.Backwards });
-
-    /// <summary>
-    /// Start reading from a specific stream revision.
-    /// </summary>
-    public ReadStreamRequestBuilder FromRevision(Revision revision) =>
-        With(request => request with { Start = revision });
-
-    /// <summary>
-    /// Read forwards (toward newer records).
-    /// </summary>
-    public ReadStreamRequestBuilder Forward() =>
-        With(request => request with { Direction = ReadDirection.Forwards });
-
-    /// <summary>
-    /// Read backwards (toward older records).
-    /// </summary>
-    public ReadStreamRequestBuilder Backwards() =>
-        With(request => request with { Direction = ReadDirection.Backwards });
-
-    /// <summary>
-    /// Limit the number of records returned.
-    /// </summary>
-    public ReadStreamRequestBuilder WithMaxRecords(long maxRecords) =>
-        With(request => request with { Limit = maxRecords });
-
-    /// <summary>
-    /// Apply a record filter.
-    /// </summary>
-    public ReadStreamRequestBuilder WithFilter(IRecordFilter filter) =>
-        With(request => request with { Filter = filter });
-
-    /// <summary>
-    /// Apply a filter expression. Sugar for <c>RecordFilter.ByExpression(...)</c>.
-    /// </summary>
-    public ReadStreamRequestBuilder WithFilterExpression(string expression) =>
-        With(request => request with { Filter = RecordFilter.ByExpression(expression) });
-
-    /// <summary>
-    /// Skip record data deserialization.
-    /// </summary>
-    public ReadStreamRequestBuilder SkipDecoding() =>
-        With(request => request with { SkipDecoding = true });
-}
-
-[PublicAPI]
-public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRequestValidator> {
-    public static ReadStreamRequestBuilder New => new();
+public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRequest.Validator> {
+    public static Builder New => new();
 
     /// <summary>
     /// Name of the stream to read from.
@@ -115,53 +40,115 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
 
     /// <summary>Skip record data deserialization for performance-critical scenarios.</summary>
     public bool SkipDecoding { get; init; }
-}
 
-public class ReadStreamRequestValidator : FluentValidator<ReadStreamRequestValidator, ReadStreamRequest> {
-    public ReadStreamRequestValidator() {
-        RuleFor(options => options.Limit)
-            .GreaterThanOrEqualTo(1)
-            .WithMessage("MaxRecords must be at least 1.")
-            .WithSeverity(Severity.Error);
+    /// <summary>
+    /// Fluent builder for constructing <see cref="ReadStreamRequest"/> instances.
+    /// </summary>
+    [PublicAPI]
+    public class Builder(ReadStreamRequest request) : FluentBuilder<Builder, ReadStreamRequest>(request) {
+        public Builder() : this(new()) { }
 
-        RuleFor(options => options.Stream)
-            .Must(stream => stream != StreamName.Unset)
-            .WithMessage("Stream name must be specified when reading from a specific stream.")
-            .WithSeverity(Severity.Error);
+        /// <inheritdoc />
+        protected override ReadStreamRequest OnBuild(ReadStreamRequest request) {
+            request.EnsureValid();
+            return request;
+        }
 
-        RuleFor(options => options.Stream)
-            .Must(stream => !stream.Value.Equals("$all", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Stream name cannot be '$all' when reading from a specific stream.")
-            .WithSeverity(Severity.Error);
+        /// <summary>
+        /// Set the stream to read from.
+        /// </summary>
+        public Builder ForStream(StreamName stream) =>
+            With(request => request with { Stream = stream });
 
-        RuleFor(options => options.Start)
-            .Must(start => start != Revision.Unset)
-            .WithMessage("Start revision cannot be Unset when reading from a specific stream. Specify a valid revision.")
-            .WithSeverity(Severity.Error);
+        /// <summary>
+        /// Start from the beginning of the stream (forwards).
+        /// </summary>
+        public Builder FromStart() =>
+            With(request => request with { Start = Revision.Min, Direction = ReadDirection.Forwards });
 
-        RuleFor(options => options.Start)
-            .Must(start => start >= Revision.Min)
-            .WithMessage("Start revision cannot be less than Min.")
-            .WithSeverity(Severity.Error);
+        /// <summary>
+        /// Start from the end of the stream (backwards).
+        /// </summary>
+        public Builder FromEnd() =>
+            With(request => request with { Start = Revision.Max, Direction = ReadDirection.Backwards });
 
-        RuleFor(options => options.Start)
-            .Must(start => start <= Revision.Max)
-            .WithMessage("Start revision cannot be greater than Max.")
-            .WithSeverity(Severity.Error);
+        /// <summary>
+        /// Start reading from a specific stream revision.
+        /// </summary>
+        public Builder FromRevision(Revision revision) =>
+            With(request => request with { Start = revision });
 
-        When(options => options.Direction == ReadDirection.Forwards, () => {
+        /// <summary>
+        /// Read forwards (toward newer records).
+        /// </summary>
+        public Builder Forward() =>
+            With(request => request with { Direction = ReadDirection.Forwards });
+
+        /// <summary>
+        /// Read backwards (toward older records).
+        /// </summary>
+        public Builder Backwards() =>
+            With(request => request with { Direction = ReadDirection.Backwards });
+
+        /// <summary>
+        /// Limit the number of records returned.
+        /// </summary>
+        public Builder WithMaxRecords(long maxRecords) =>
+            With(request => request with { Limit = maxRecords });
+
+        /// <summary>
+        /// Apply a record filter.
+        /// </summary>
+        public Builder WithFilter(IRecordFilter filter) =>
+            With(request => request with { Filter = filter });
+
+        /// <summary>
+        /// Apply a filter expression. Sugar for <c>RecordFilter.ByExpression(...)</c>.
+        /// </summary>
+        public Builder WithFilterExpression(string expression) =>
+            With(request => request with { Filter = RecordFilter.ByExpression(expression) });
+
+        /// <summary>
+        /// Skip record data deserialization.
+        /// </summary>
+        public Builder SkipDecoding() =>
+            With(request => request with { SkipDecoding = true });
+    }
+
+    public class Validator : Validator<Validator, ReadStreamRequest> {
+        public Validator() {
+            RuleFor(options => options.Limit)
+                .GreaterThanOrEqualTo(1L)
+                .WithMessage("MaxRecords must be at least 1.");
+
+            RuleFor(options => options.Stream)
+                .Must(stream => stream != StreamName.Unset, "Stream name must be specified when reading from a specific stream.");
+
+            RuleFor(options => options.Stream)
+                .Must(stream => !stream.Value.Equals("$all", StringComparison.OrdinalIgnoreCase),
+                    "Stream name cannot be '$all' when reading from a specific stream.");
+
             RuleFor(options => options.Start)
-                .Must(start => start != Revision.Max)
-                .WithMessage("Start revision cannot be Max when reading forwards.")
-                .WithSeverity(Severity.Error);
-        });
+                .Must(start => start != Revision.Unset,
+                    "Start revision cannot be Unset when reading from a specific stream. Specify a valid revision.");
 
-        When(options => options.Filter.TargetStream != StreamName.Unset, () => {
-            RuleFor(options => options)
-                .Must(opts => opts.Filter.TargetStream == opts.Stream)
-                .WithMessage("Filter target stream does not match the specified stream to read from.")
-                .WithSeverity(Severity.Error);
-        });
+            RuleFor(options => options.Start)
+                .Must(start => start >= Revision.Min, "Start revision cannot be less than Min.");
+
+            RuleFor(options => options.Start)
+                .Must(start => start <= Revision.Max, "Start revision cannot be greater than Max.");
+
+            When(options => options.Direction == ReadDirection.Forwards, () => {
+                RuleFor(options => options.Start)
+                    .Must(start => start != Revision.Max, "Start revision cannot be Max when reading forwards.");
+            });
+
+            When(options => options.Filter.TargetStream != StreamName.Unset, () => {
+                RuleFor(options => options.Filter.TargetStream)
+                    .Must((opts, targetStream) => targetStream == opts.Stream,
+                        "Filter target stream does not match the specified stream to read from.");
+            });
+        }
     }
 }
 

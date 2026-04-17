@@ -37,7 +37,7 @@ public interface IRecordProcessor {
     /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
     /// </summary>
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
-
+    
     /// <summary>
     /// Called when the worker encounters an unrecoverable error.
     /// <remarks>
@@ -160,24 +160,6 @@ public enum StopProcessingTrigger {
     StopBeforeTrack,
     StopAfterTrack,
 }
-
-// record StopProcessingRequest(StopProcessingTrigger Trigger, string? Reason = null) {
-//     public static readonly StopProcessingRequest Unspecified = new(StopProcessingTrigger.Unspecified);
-//
-//     public static StopProcessingRequest BeforeTrack(string? reason = null) =>
-//         new(StopProcessingTrigger.StopBeforeTrack, reason);
-//
-//     public static StopProcessingRequest AfterTrack(string? reason = null) =>
-//         new(StopProcessingTrigger.StopAfterTrack, reason);
-// }
-//
-// internal enum StopProcessingTrigger {
-//     Unspecified,
-//     StopBeforeTrack,
-//     StopAfterTrack,
-// }
-
-
 
 /// <summary>
 /// Context provided when a checkpoint is signaled.

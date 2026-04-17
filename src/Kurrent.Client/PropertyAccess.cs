@@ -52,7 +52,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
         }
     }
 
-    #region . Parser .
+    #region ->> Parser <<-
 
     ref struct Parser(string input) {
         int _position;
@@ -82,7 +82,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
                 throw new ArgumentException(
                     $"Unexpected token '{Current}' at position {_position}", nameof(input));
 
-            return new PropertyAccess(identifier, key);
+            return new(identifier, key);
         }
 
         string ReadIdentifier() {
@@ -147,7 +147,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
                 buffer[len++] = span[i];
             }
 
-            return new string(buffer[..len]);
+            return new(buffer[..len]);
         }
 
         string ReadDotKey() {
