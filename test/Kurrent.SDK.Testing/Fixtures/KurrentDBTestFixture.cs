@@ -10,7 +10,7 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Kurrent.SDK.Testing.Fixtures;
 
-public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
+public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
     KurrentDBTestCluster? _cluster;
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
@@ -28,9 +28,11 @@ public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
 
     public string AnonymousConnectionString { get; private set; } = string.Empty;
 
+    protected abstract void ConfigureNode(KurrentDBNodeOptions opts);
+
     public async Task InitializeAsync() {
         _cluster = await new KurrentDBTestClusterBuilder()
-            .AddNode()
+            .AddNode(ConfigureNode)
             .BuildAsync()
             .ConfigureAwait(false);
 
@@ -50,7 +52,15 @@ public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
         if (Client is { } client)
             await client.DisposeAsync();
 
-        if (_cluster is { }  cluster)
+        if (_cluster is { } cluster)
             await cluster.DisposeAsync();
     }
+}
+
+public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
+    protected override void ConfigureNode(KurrentDBNodeOptions opts) => opts.Secure = true;
+}
+
+public sealed class KurrentDBInsecureTestFixture : KurrentDBTestFixture {
+    protected override void ConfigureNode(KurrentDBNodeOptions opts) { }
 }

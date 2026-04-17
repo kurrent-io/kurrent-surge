@@ -7,8 +7,8 @@ public class KurrentDBNodeOptions {
     public string  ResourceName { get; set; } = "kurrentdb";
     public bool    Secure       { get; set; }
     public string? CertsPath    { get; set; }
-    public string  Image        { get; set; } = KurrentDBContainerImageTags.Latest.Image;
-    public string  Tag          { get; set; } = KurrentDBContainerImageTags.Latest.Tag;
+    public string  Image        { get; set; } = KurrentDBContainerImageTags.Nightly.Image;
+    public string  Tag          { get; set; } = KurrentDBContainerImageTags.Nightly.Tag;
 }
 
 public sealed class KurrentDBTestClusterBuilder {
