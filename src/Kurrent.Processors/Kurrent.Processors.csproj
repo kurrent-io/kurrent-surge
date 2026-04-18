@@ -38,14 +38,13 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Processors.Tests" />
     <InternalsVisibleTo Include="Kurrent.Processors.Integration.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="HashDepot" />
     <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="OpenTelemetry.Api" />
-    <PackageReference Include="shortid" />
   </ItemGroup>
 
   <ItemGroup>

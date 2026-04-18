@@ -369,7 +369,6 @@ public class KurrentOperationErrorGenerator : ISourceGenerator {
             stringBuilder.AppendLine("using System.Diagnostics.CodeAnalysis;");
             stringBuilder.AppendLine("using System.Runtime.CompilerServices;");
             stringBuilder.AppendLine("using System.Reflection;");
-            stringBuilder.AppendLine("using Humanizer;");
             stringBuilder.AppendLine("using Google.Rpc;");
             stringBuilder.AppendLine("using Google.Rpc.Exceptions;");
             stringBuilder.AppendLine("using Kurrent;");

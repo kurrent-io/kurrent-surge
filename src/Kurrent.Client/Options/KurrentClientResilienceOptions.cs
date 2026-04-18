@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
 using Grpc.Net.Client.Configuration;
-using Humanizer;
 using Kurrent.Validation;
 
 // Added for Timeout.InfiniteTimeSpan
@@ -457,7 +456,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
                 RuleFor(options => options.Deadline)
                     .Must((options, deadline) => deadline!.Value >= options.KeepAliveTimeout,
                         "Deadline is less than KeepAliveTimeout.")
-                    .WithMessage(options => $"Deadline ({options.Deadline!.Value.Humanize()}) is less than KeepAliveTimeout ({options.KeepAliveTimeout.Humanize()}). This may result in operations failing before keepalive detection occurs.")
+                    .WithMessage(options => $"Deadline ({options.Deadline!.Value:g}) is less than KeepAliveTimeout ({options.KeepAliveTimeout:g}). This may result in operations failing before keepalive detection occurs.")
                     .WithSeverity(RuleSeverity.Warning);
             });
         }

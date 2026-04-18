@@ -35,12 +35,7 @@ public record Record {
     /// The precise position of the record in the global transaction log and optionaly within its stream.
     /// </summary>
     public RecordPosition Position { get; init; } = RecordPosition.Unset;
-
-	/// <summary>
-	/// The revision of the index associated with the record.
-	/// </summary>
-	public Revision IndexRevision { get; init; } = Revision.Unset;
-
+    
 	/// <summary>
 	/// Represents the index link associated with the record.
 	/// </summary>

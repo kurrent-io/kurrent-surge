@@ -1,0 +1,132 @@
+using Kurrent.Client;
+using Kurrent.Client.Processors.Partitioning;
+using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Options;
+using Kurrent.Processors.Partitioning;
+
+namespace Kurrent.Processors.Hive;
+
+/// <summary>
+/// Runs N <see cref="IDrone"/>s in parallel, each owning a partition slice, against a single
+/// shared gRPC subscription (the <see cref="MasterSubscriptionSource"/>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// A Hive is a plain process, not a hosted service. Call <see cref="RunAsync"/> to start and
+/// cancel the token to stop — cancelling cascades through the master subscription and each drone.
+/// </para>
+/// <para>
+/// Partition assignment is static for v1: <see cref="PartitionAssigner"/> runs once at startup.
+/// No leases, no locks, no rebalancing.
+/// </para>
+/// </remarks>
+[PublicAPI]
+public sealed class Hive : IAsyncDisposable {
+    readonly HiveOptions _options;
+
+    readonly List<LocalPartitionedSource> _sources = [];
+    readonly List<IDrone>                 _drones  = [];
+
+    MasterSubscriptionSource? _master;
+    CheckpointStore?          _checkpointStore;
+    KurrentClient?            _client;
+    int                       _started;
+
+    public Hive(HiveOptions options) {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.DroneCount, 1);
+
+        _options = options;
+    }
+
+    /// <summary>
+    /// Materialized drones (empty until <see cref="RunAsync"/> is called).
+    /// </summary>
+    public IReadOnlyList<IDrone> Drones => _drones;
+
+    public async Task RunAsync(CancellationToken ct = default) {
+        if (Interlocked.Exchange(ref _started, 1) == 1)
+            throw new InvalidOperationException(
+                "This hive has already been started. Create a new instance to run again.");
+
+        var processorOptions = _options.ProcessorOptions;
+
+        if (processorOptions.ProvidedClient is not null)
+            throw new InvalidOperationException(
+                "Hive owns the client lifecycle. Configure a connection string instead of passing a pre-built KurrentClient.");
+
+        if (_options.DroneCount > processorOptions.MaxParallelism)
+            throw new InvalidOperationException(
+                $"DroneCount ({_options.DroneCount}) cannot exceed MaxParallelism ({processorOptions.MaxParallelism}).");
+
+        var processorTemplate = processorOptions.Subscribe.ResolveProcessor();
+        if (string.IsNullOrWhiteSpace(processorOptions.ProcessorId))
+            processorOptions.ProcessorId = processorTemplate.GetType().Name.ToSnakeCase();
+
+        processorOptions.EnsureValid();
+
+        _client = processorOptions.BuildClient();
+
+        _checkpointStore = new CheckpointStore(
+            processorOptions.ProcessorId,
+            processorOptions.MaxParallelism,
+            processorOptions.Checkpoint.RetentionCount,
+            _client.Streams,
+            _client.Options.Schema.Mapper);
+
+        var droneIds = Enumerable.Range(0, _options.DroneCount)
+            .Select(_ => $"{processorOptions.ProcessorId}-{Guid.NewGuid().ToString("N")[^8..]}")
+            .ToArray();
+
+        var manifest = _options.Assigner.Distribute(
+            DistributionManifest.Empty, droneIds, processorOptions.MaxParallelism);
+
+        _master = new MasterSubscriptionSource(
+            _client, processorOptions, _checkpointStore, TimeProvider.System);
+
+        foreach (var droneId in droneIds) {
+            var partitions = manifest[droneId].All;
+
+            var source = new LocalPartitionedSource(
+                _master, droneId, partitions, processorOptions, _checkpointStore, TimeProvider.System);
+            _sources.Add(source);
+
+            var droneOptions = processorOptions with { DroneId = droneId };
+            var droneProcessor = processorOptions.Subscribe.ResolveProcessor();
+
+            var drone = new Drone(
+                droneOptions, source, droneProcessor,
+                _client.Options.LoggerFactory, TimeProvider.System);
+
+            _drones.Add(drone);
+        }
+
+        await _master.InitializeAsync(ct).ConfigureAwait(false);
+
+        var allTasks = new List<Task> { _master.RunAsync(ct) };
+        allTasks.AddRange(_drones.Select(d => d.RunAsync(ct)));
+
+        try {
+            await Task.WhenAll(allTasks).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    public async ValueTask DisposeAsync() {
+        try {
+            foreach (var source in _sources) {
+                try { await source.DisposeAsync().ConfigureAwait(false); }
+                catch { }
+            }
+
+            if (_master is not null)
+                try { await _master.DisposeAsync().ConfigureAwait(false); }
+                catch { }
+        }
+        finally {
+            if (_client is not null)
+                await _client.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+}

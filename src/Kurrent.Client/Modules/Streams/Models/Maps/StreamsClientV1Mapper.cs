@@ -236,7 +236,6 @@ static class StreamsClientV1Mapper {
     ) {
         var recordedEvent = readEvent.Event;
 
-        // first parse all info
         var stream    = StreamName.From(recordedEvent.StreamIdentifier);
         var recordId  = Uuid.FromDto(recordedEvent.Id).ToGuid();
         var revision  = Revision.From((long)recordedEvent.StreamRevision);
@@ -263,19 +262,13 @@ static class StreamsClientV1Mapper {
                 Stream   = StreamName.From(linkEvent.StreamIdentifier!),
             }
             : Link.Unset;
-
-        // var indexRevision = readEvent.HasCommitPosition
-        //     ? Revision.From((long)readEvent.CommitPosition)
-        //     : link.Revision == Revision.Unset ? revision : link.Revision;
-
+        
         // create a decoder
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);
 
         // and we are done
         var record = new Record(decoder) {
             Id             = recordId,
-            // Stream         = stream,
-            // Revision = revision,
             Position  = RecordPosition.From(position, stream, revision),
             Sequence  = sequenceId,
             Timestamp = timestamp,
@@ -283,9 +276,6 @@ static class StreamsClientV1Mapper {
             Metadata  = metadata,
             Schema    = schema,
             Link      = link
-
-            // // what? not sure...
-            // IndexRevision  = indexRevision
         };
 
         // now decode the record if required

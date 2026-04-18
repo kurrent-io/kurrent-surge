@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Humanizer;
+using Kurrent.Client;
 using static System.String;
 
 // ReSharper disable MemberCanBePrivate.Global

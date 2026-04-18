@@ -33,11 +33,11 @@ public class ServerFilterExtractorTests {
                 RecordFilter.ByStream(OrdersStream)
             );
 
-            // Multiple streams - reads from $all with filter
+            // Multiple streams - reads from $all with filter (derived regex, no TargetStream)
             yield return new(
                 "Multiple streams (IN)",
                 $"stream IN ('{OrdersStream}', '{PaymentsStream}')",
-                RecordFilter.ByStream(OrdersStream, PaymentsStream)
+                RecordFilter.ByStreamPattern($"^({OrdersStream}|{PaymentsStream})$")
             );
 
             // Category prefix - common pattern for filtering by aggregate type

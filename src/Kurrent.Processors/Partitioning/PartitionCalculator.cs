@@ -40,11 +40,6 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     public static readonly PartitionCalculator XXHash = new(HashGenerators.FromBytes.XXHash);
 
     /// <summary>
-    /// Instance using MurmurHash3 (industry standard used by Kafka, Flink, Cassandra).
-    /// </summary>
-    public static readonly PartitionCalculator MurmurHash3 = new(HashGenerators.FromBytes.MurmurHash3);
-
-    /// <summary>
     /// Calculates the partition number for a given key.
     /// </summary>
     /// <param name="key">The partition key (e.g., stream ID, customer ID).</param>

@@ -207,17 +207,14 @@ Filters reduce the set of records returned from a read. They are applied client-
 ### By stream name
 
 ```csharp
-// Exact match — one or more streams
-RecordFilter.ByStream("order-123", "order-456")
-
-// Prefix match
-RecordFilter.ByStreamPrefix("order-")
+// Exact match — single stream
+RecordFilter.ByStream("order-123")
 
 // Category match (stream names follow the convention "category-id")
 RecordFilter.ByCategory("order")
 
-// Regex pattern
-RecordFilter.ByStreamPattern(@"order-\d+")
+// Regex pattern (not for index streams; use ByCategory/BySchema/ByUserIndex instead)
+RecordFilter.ByStreamPattern(@"^order-\d+$")
 ```
 
 ### By event type (schema)

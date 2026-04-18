@@ -236,14 +236,14 @@ builder.WithWorkerId(Environment.MachineName);
 Filter records server-side to reduce data transfer:
 
 ```csharp
-// Filter by specific streams
-builder.WithFilter(RecordFilter.ByStream("orders-123", "orders-456"));
+// Filter by a single stream
+builder.WithFilter(RecordFilter.ByStream("orders-123"));
 
-// Filter by stream prefix
-builder.WithFilter(RecordFilter.ByStreamPrefix("orders-"));
+// Filter by stream pattern
+builder.WithFilter(RecordFilter.ByStreamPattern(@"^orders-\d+$"));
 
 // Filter by schema (event type)
-builder.WithFilter(RecordFilter.BySchema("OrderPlaced", "OrderShipped"));
+builder.WithFilter(RecordFilter.BySchema("OrderPlaced"));
 
 // Filter by expression
 builder.WithFilterExpression("schema_name = 'OrderPlaced'");

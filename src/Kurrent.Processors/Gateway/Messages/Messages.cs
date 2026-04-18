@@ -20,7 +20,7 @@ public readonly record struct CheckpointId(string Value) {
 	public static readonly CheckpointId Unset = new(string.Empty);
 
 	/// <summary>Creates a new unique checkpoint ID.</summary>
-	public static CheckpointId New() => new(PunyId.New());
+	public static CheckpointId New() => new(Guid.NewGuid().ToString());
 
     public static CheckpointId From(string value) {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);

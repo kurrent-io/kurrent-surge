@@ -34,7 +34,7 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// <summary>
     /// Unique identifier for the processor group. Used for checkpoint coordination.
     /// When not set, auto-derived from the processor type name.
-    /// Setting this auto-derives <see cref="DroneId"/> as <c>{ProcessorId}-{PunyId}</c>
+    /// Setting this auto-derives <see cref="DroneId"/> as <c>{ProcessorId}-{short-guid}</c>
     /// unless DroneId was already assigned.
     /// </summary>
     public string ProcessorId {
@@ -42,13 +42,13 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
         set {
             field = value;
             if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(DroneId))
-                DroneId = $"{value}-{PunyId.New()}";
+                DroneId = $"{value}-{Guid.NewGuid().ToString("N")[^8..]}";
         }
     } = "";
 
     /// <summary>
     /// Unique identifier for this drone instance within the processor group.
-    /// When left blank, auto-derived from <see cref="ProcessorId"/> as <c>{ProcessorId}-{PunyId}</c>.
+    /// When left blank, auto-derived from <see cref="ProcessorId"/> as <c>{ProcessorId}-{short-guid}</c>.
     /// Use a consistent value (e.g., machine name) for sticky partitioning.
     /// </summary>
     public string DroneId { get; set; } = "";
