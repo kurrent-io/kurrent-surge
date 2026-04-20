@@ -12,8 +12,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-await KurrentProcessor.Create(opts => {
+await KurrentProcessor.Create(new FraudDetectionProcessor(), opts => {
     opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = new ExpressionFilter("schema like 'Transaction'");
-    opts.Subscribe.Use(new FraudDetectionProcessor());
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema like 'Transaction'");
 }).RunWithGracefulShutdownAsync();

@@ -1,5 +1,6 @@
 using Dapper;
-using Kurrent.Processors.Options;
+using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;
@@ -21,10 +22,11 @@ try {
     builder.Services.AddNpgsqlDataSource(connectionString);
 
     // Register processor as hosted service
-    builder.Services.AddKurrentProcessor<ClubSpendingProcessor>(config => config
-        .UseClient("kurrentdb://localhost:2113")
-        .WithFilter($"schema = {nameof(PlayerTransferred)}")
-    );
+    builder.Services.AddSingleton<ClubSpendingProcessor>();
+    builder.Services.AddKurrentProcessor<ClubSpendingProcessor>(opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.Subscription.Filter = RecordFilter.ByExpression($"schema = {nameof(PlayerTransferred)}");
+    });
 
     var app = builder.Build();
 

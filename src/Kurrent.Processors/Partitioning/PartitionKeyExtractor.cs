@@ -75,7 +75,9 @@ file sealed class PropertyPathExtractor(string expression, PropertyAccess proper
     public string? Extract(Record record) {
         ArgumentNullException.ThrowIfNull(record);
 
-        var value = RecordPropertyMap.Default.Resolve(property.PropertyName, property.Key, record);
+        var value = RecordPropertyMap.Default.
+            Resolve(property.PropertyName, property.Key, record);
+        
         return value switch {
             null        => null,
             string s    => s,

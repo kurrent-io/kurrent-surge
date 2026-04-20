@@ -32,11 +32,13 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
     readonly Dictionary<string, PendingPositionsFlush> _pendingFlushes = new();
 
+    // ownsClient is an internal concern — drones built by the runner always own their client.
+    // Integration tests pass ownsClient: false when sharing a fixture-scoped client across tests.
     internal SubscriptionSource(
         KurrentClient client,
         ProcessorOptions settings,
         TimeProvider timeProvider,
-        bool ownsClient = false
+        bool ownsClient = true
     ) : base(client) {
         _streams      = new StreamsClient(client);
         _settings     = settings;

@@ -1,4 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Aspire.AppHost.Sdk/13.2.2">
+    <PropertyGroup>
+        <IsAspireHost>false</IsAspireHost>
+        <NoWarn>$(NoWarn);ASPIRE002</NoWarn>
+    </PropertyGroup>
+    
   <PropertyGroup>
     <RootNamespace>Sdk.TestKit</RootNamespace>
   </PropertyGroup>
@@ -7,5 +12,9 @@
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
     <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" />
   </ItemGroup>
 </Project>

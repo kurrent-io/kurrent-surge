@@ -14,7 +14,7 @@ public class CheckpointOptionsBuilderTests {
         var settings = new CheckpointOptions();
 
         // Assert
-        await Assert.That(settings.Interval).IsEqualTo(Duration.FromMilliseconds(30000));
+        await Assert.That(settings.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
     }
 
     [Test]
@@ -41,7 +41,7 @@ public class CheckpointOptionsBuilderTests {
             .Interval(60000L);
 
         // Assert
-        await Assert.That(settings.Interval).IsEqualTo(Duration.FromMilliseconds(60000));
+        await Assert.That(settings.Interval).IsEqualTo(TimeSpan.FromMilliseconds(60000));
     }
 
     #endregion
@@ -59,7 +59,7 @@ public class CheckpointOptionsBuilderTests {
             .Interval(interval);
 
         // Assert
-        await Assert.That(settings.Interval).IsEqualTo(Duration.FromMilliseconds(60000));
+        await Assert.That(settings.Interval).IsEqualTo(TimeSpan.FromMilliseconds(60000));
     }
 
     #endregion
@@ -73,10 +73,10 @@ public class CheckpointOptionsBuilderTests {
 
         // Act
         new CheckpointOptions.Builder(settings)
-            .FailurePolicy(CheckpointFailurePolicy.FailProcessor);
+            .FailurePolicy(CheckpointFailurePolicy.Fail);
 
         // Assert
-        await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.FailProcessor);
+        await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Fail);
     }
 
     #endregion
@@ -92,12 +92,12 @@ public class CheckpointOptionsBuilderTests {
         new CheckpointOptions.Builder(settings)
             .Interval(5000L)
             .RetentionCount(5)
-            .FailurePolicy(CheckpointFailurePolicy.FailProcessor);
+            .FailurePolicy(CheckpointFailurePolicy.Fail);
 
         // Assert
-        await Assert.That(settings.Interval).IsEqualTo(Duration.FromMilliseconds(5000));
+        await Assert.That(settings.Interval).IsEqualTo(TimeSpan.FromMilliseconds(5000));
         await Assert.That(settings.RetentionCount).IsEqualTo(5);
-        await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.FailProcessor);
+        await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Fail);
     }
 
     #endregion

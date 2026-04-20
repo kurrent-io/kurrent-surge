@@ -1,5 +1,6 @@
 using Kurrent.Client;
-using Kurrent.Processors.Options;
+using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;
@@ -31,14 +32,13 @@ try {
     var redis = await ConnectionMultiplexer.ConnectAsync(redisConn);
     builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 
-    // Register shared Kurrent client
-    builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-
     // Register processor as hosted service
-    builder.Services.AddKurrentProcessor<TransferAnalyticsProcessor>(config => config
-        .WithFilter("schema_name IN ('PlayerRegistered', 'PlayerTransferred')")
-        .Checkpointing(c => c.Interval(10_000))
-    );
+    builder.Services.AddSingleton<TransferAnalyticsProcessor>();
+    builder.Services.AddKurrentProcessor<TransferAnalyticsProcessor>(opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
+        opts.Checkpointing(c => c.Interval(10_000));
+    });
 
     // Health checks
     builder.Services.AddHealthChecks()

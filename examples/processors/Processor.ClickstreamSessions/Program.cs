@@ -12,8 +12,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-await KurrentProcessor.Create(opts => {
+await KurrentProcessor.Create(new SessionAnalyticsProcessor(), opts => {
     opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = new ExpressionFilter("schema = 'Processor.ClickstreamSessions.Events.PageView'");
-    opts.Subscribe.Use(new SessionAnalyticsProcessor());
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'Processor.ClickstreamSessions.Events.PageView'");
 }).RunWithGracefulShutdownAsync();

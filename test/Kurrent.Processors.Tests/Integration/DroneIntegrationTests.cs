@@ -31,7 +31,7 @@ public class DroneIntegrationTests {
                 InitialPosition = initialPosition
             },
             Checkpoint = new CheckpointOptions {
-                Interval = Duration.FromMilliseconds(checkpointInterval)
+                Interval = TimeSpan.FromMilliseconds(checkpointInterval)
             }
         };
 

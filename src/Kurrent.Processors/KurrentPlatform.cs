@@ -9,19 +9,22 @@ namespace Kurrent.Processors;
 /// </summary>
 /// <example>
 /// <code>
-/// await KurrentPlatform.Processor(opts => {
+/// await KurrentPlatform.Processor(new OrderProcessor(), opts => {
 ///     opts.Connection("kurrentdb://localhost:2113");
-///     opts.Subscribe.Use(new OrderProcessor());
 /// }).RunAsync(ct);
 /// </code>
 /// </example>
 [PublicAPI]
 public static class KurrentPlatform {
     /// <summary>
-    /// Creates and configures a processor.
+    /// Creates and configures a processor from a prebuilt <see cref="IRecordProcessor"/>.
     /// </summary>
-    /// <param name="configure">Action to configure the processor options.</param>
-    /// <returns>A runner with <c>Build()</c>, <c>RunAsync()</c>, and <c>RunWithGracefulShutdownAsync()</c> methods.</returns>
-    public static KurrentProcessorRunner Processor(Action<ProcessorOptions> configure) =>
-        KurrentProcessor.Create(configure);
+    public static KurrentProcessor CreateProcessor(IRecordProcessor processor, Action<ProcessorOptions>? configure = null) =>
+        KurrentProcessor.Create(processor, configure);
+
+    /// <summary>
+    /// Creates and configures a processor using an inline <see cref="MessageProcessor"/>.
+    /// </summary>
+    public static KurrentProcessor Processor(Action<MessageProcessor> handlers, Action<ProcessorOptions>? configure = null) =>
+        KurrentProcessor.Create(handlers, configure);
 }

@@ -24,6 +24,28 @@ public record SubscriptionOptions {
     /// Path to extract partition key. Required when parallelism > 1.
     /// Reserved for partitioned processing — not yet exposed as a public knob.
     /// </summary>
+    /// <remarks>
+    ///
+    /// Three syntaxes supported, all DuckDB compatible:<br />
+    /// 
+    /// **Bracket Notation** (preferred for keys with special characters):<br />
+    /// ```sql
+    ///     metadata['userId'] = 'user-123'
+    /// metadata['order.total'] > 100
+    /// ```
+    /// 
+    /// **Dot Notation** (convenient for simple keys):<br />
+    /// ```sql
+    ///     metadata.userId = 'user-123'
+    /// metadata.amount > 100
+    /// ```
+    /// 
+    /// **Arrow Text Notation** (`->>`, extracts as text):<br />
+    /// ```sql
+    ///     metadata->>'userId' = 'user-123'
+    /// metadata->>'amount' > 100
+    /// ```
+    /// </remarks>
     internal string PartitionKeySelector { get; set; } = string.Empty;
 
     /// <summary>

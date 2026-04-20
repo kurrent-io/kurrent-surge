@@ -3,6 +3,7 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using Bogus;
 using Kurrent.Client.Streams;
 using Kurrent.Testing;
 using Kurrent.Testing.Bogus;

@@ -8,26 +8,28 @@ namespace Kurrent.Processors;
 [PublicAPI]
 public interface IDrone {
     /// <summary>
+    /// Configuration options for the processor drone. Provides access to various
+    /// settings and parameters such as processor and drone identifiers, buffer capacity,
+    /// debugging features, parallelism, and advanced subscription or checkpointing behaviors.
+    /// </summary>
+    ProcessorOptions Options { get; }
+    
+    /// <summary>
+    /// Current lifecycle status of the processor drone.
+    /// </summary>
+    DroneStatus Status { get; }
+    
+    /// <summary>
     /// Unique identifier of the processor being executed.
     /// </summary>
-    string ProcessorId { get; }
+    string ProcessorId => Options.ProcessorId;
 
     /// <summary>
     /// The unique identifier of this drone instance.
     /// Could have been automatically generated if not provided in settings.
     /// </summary>
-    string DroneId { get; }
-
-    /// <summary>
-    /// Current lifecycle status of the processor drone.
-    /// </summary>
-    DroneStatus Status { get; }
-
-    /// <summary>
-    /// The configuration settings used by this processor drone.
-    /// </summary>
-    ProcessorOptions Settings { get; }
-
+    string DroneId => Options.DroneId;
+    
     /// <summary>
     /// Runs the processor drone asynchronously until cancellation is requested.
     /// </summary>

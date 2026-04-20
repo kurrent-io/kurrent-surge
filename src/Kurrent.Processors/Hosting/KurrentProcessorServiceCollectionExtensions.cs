@@ -1,345 +1,198 @@
+using System.Diagnostics.Metrics;
 using Kurrent.Client;
+using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Processors.Diagnostics.Metrics;
+using Kurrent.Processors.Hosting;
+using Kurrent.Processors.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using System.Diagnostics.Metrics;
-using Kurrent.Processors.Checkpointing;
-using Kurrent.Processors.Diagnostics.Metrics;
-using Kurrent.Processors.Gateway;
 
-namespace Kurrent.Processors.Options;
+namespace Kurrent.Processors;
 
 /// <summary>
 /// Extension methods for registering Kurrent processors with dependency injection.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Every call registers a dedicated <see cref="DroneService{TProcessor}"/>. Each processor
+/// owns its own <see cref="Client.KurrentClient"/> — client instances are never shared across
+/// processors. Duplicate <c>AddKurrentProcessor&lt;T&gt;</c> calls for the same <c>T</c> are no-ops
+/// (first-wins) — deduped by <c>DroneService&lt;T&gt;</c>'s closed type.
+/// </para>
+/// <para>
+/// <b>Processor resolution:</b>
+/// </para>
+/// <list type="bullet">
+/// <item>Instance overloads use the supplied instance directly.</item>
+/// <item>Factory overloads invoke the supplied factory once per drone at host startup.</item>
+/// <item>Bare overloads (no factory, no instance) resolve <typeparamref name="TProcessor"/> via
+/// <c>sp.GetRequiredService&lt;TProcessor&gt;()</c> at drone startup — the user is responsible
+/// for registering the processor in DI.</item>
+/// </list>
+/// <para>
+/// <b>ClientOptions resolution</b> (when <c>opts.Connection(...)</c> is not called in the configure lambda):
+/// <see cref="Client.KurrentClientOptions"/> registered in DI → <c>ConnectionStrings:{ProcessorId}</c>
+/// → <c>ConnectionStrings:Default</c> → <c>Kurrent:Client</c> section → throw.
+/// </para>
+/// <para>
+/// <b>AOT:</b> all overloads use closed generic types at the callsite and perform no
+/// <c>ActivatorUtilities</c>-based reflection, so the extension surface is native-AOT safe.
+/// </para>
+/// </remarks>
 [PublicAPI]
 public static class KurrentProcessorServiceCollectionExtensions {
+    #region ->> Bare overloads (user must register TProcessor in DI) <<-
+
     /// <summary>
-    /// Registers a processor as a hosted service.
+    /// Registers a processor as a hosted service. <typeparamref name="TProcessor"/> must be
+    /// registered separately via <c>services.AddSingleton&lt;TProcessor&gt;()</c> or equivalent —
+    /// it is resolved at drone startup via <c>sp.GetRequiredService&lt;TProcessor&gt;()</c>.
     /// </summary>
-    /// <typeparam name="TProcessor">
-    /// The processor type implementing <see cref="IRecordProcessor"/>.
-    /// Must have a public constructor for DI resolution.
-    /// </typeparam>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configure">
-    /// Optional configuration for the processor's hosting options.
-    /// </param>
-    /// <returns>The service collection for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// The processor is registered as a singleton and will be resolved from DI,
-    /// allowing constructor injection of dependencies like <c>ILogger&lt;T&gt;</c>,
-    /// database connections, etc.
-    /// </para>
-    /// <para>
-    /// If no client is configured via <see cref="KurrentProcessorHostBuilder.UseClient(string)"/>
-    /// or <see cref="KurrentProcessorHostBuilder.ConfigureClient"/>, the processor will use
-    /// the shared client registered via <see cref="KurrentClientServiceCollectionExtensions.AddKurrentClient"/>.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// // Simple registration with shared client
-    /// builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-    /// builder.Services.AddKurrentProcessor&lt;TransferProcessor&gt;(config => config
-    ///     .WithFilter("schema_name = 'PlayerTransferred'")
-    /// );
-    ///
-    /// // With checkpoint configuration
-    /// builder.Services.AddKurrentProcessor&lt;AnalyticsProcessor&gt;(config => config
-    ///     .WithFilter("schema_name IN ('OrderPlaced', 'OrderShipped')")
-    ///     .Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)))
-    /// );
-    ///
-    /// // With dedicated client
-    /// builder.Services.AddKurrentProcessor&lt;SecureProcessor&gt;(config => config
-    ///     .UseClient("kurrentdb://secure-cluster:2113")
-    ///     .WithFilter("stream_id LIKE 'secure-%'")
-    /// );
-    /// </code>
-    /// </example>
     public static IServiceCollection AddKurrentProcessor<TProcessor>(
         this IServiceCollection services,
-        Action<KurrentProcessorHostBuilder>? configure = null)
-        where TProcessor : class, IRecordProcessor {
-        // Idempotent - skip if this processor type is already registered
-        if (services.Any(d => d.ServiceType == typeof(KurrentProcessorRegistrationMarker<TProcessor>))) {
-            return services;
-        }
-        services.AddSingleton<KurrentProcessorRegistrationMarker<TProcessor>>();
-
-        // Register processor if not already registered
-        services.TryAddSingleton<TProcessor>();
-
-        return RegisterHostedService<TProcessor>(services, configure);
-    }
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        services.AddKurrentProcessor<TProcessor>(
+            static sp => sp.GetRequiredService<TProcessor>(),
+            (opts, _) => configure?.Invoke(opts));
 
     /// <summary>
-    /// Registers a processor using a factory delegate for custom instantiation.
+    /// Registers a processor as a hosted service with <see cref="IServiceProvider"/>-aware configure.
+    /// <typeparamref name="TProcessor"/> must be registered separately in DI.
     /// </summary>
-    /// <typeparam name="TProcessor">
-    /// The processor type implementing <see cref="IRecordProcessor"/>.
-    /// </typeparam>
-    /// <param name="services">The service collection.</param>
-    /// <param name="processorFactory">
-    /// Factory function to create the processor instance.
-    /// Receives the <see cref="IServiceProvider"/> for resolving dependencies.
-    /// </param>
-    /// <param name="configure">
-    /// Optional configuration for the processor's hosting options.
-    /// </param>
-    /// <returns>The service collection for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Use this overload when you need custom instantiation logic, such as
-    /// passing specific constructor arguments or configuring the processor
-    /// before registration.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// builder.Services.AddKurrentProcessor&lt;PlayerCacheProcessor&gt;(
-    ///     sp => new PlayerCacheProcessor(
-    ///         sp.GetRequiredService&lt;IConnectionMultiplexer&gt;(),
-    ///         sp.GetRequiredService&lt;ILogger&lt;PlayerCacheProcessor&gt;&gt;()
-    ///     ),
-    ///     config => config.WithFilter("schema_name LIKE 'Player%'")
-    /// );
-    /// </code>
-    /// </example>
+    public static IServiceCollection AddKurrentProcessor<TProcessor>(
+        this IServiceCollection services,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor =>
+        services.AddKurrentProcessor<TProcessor>(
+            static sp => sp.GetRequiredService<TProcessor>(),
+            configure);
+
+    #endregion
+
+    #region ->> Factory overloads <<-
+
+    /// <summary>
+    /// Registers a processor as a hosted service using a factory. The factory is invoked once
+    /// per drone at host startup; the processor type is not added to the DI container.
+    /// </summary>
     public static IServiceCollection AddKurrentProcessor<TProcessor>(
         this IServiceCollection services,
         Func<IServiceProvider, TProcessor> processorFactory,
-        Action<KurrentProcessorHostBuilder>? configure = null)
-        where TProcessor : class, IRecordProcessor {
-        // Idempotent - skip if this processor type is already registered
-        if (services.Any(d => d.ServiceType == typeof(KurrentProcessorRegistrationMarker<TProcessor>))) {
-            return services;
-        }
-        services.AddSingleton<KurrentProcessorRegistrationMarker<TProcessor>>();
-
-        // Register processor via factory
-        services.AddSingleton(processorFactory);
-
-        return RegisterHostedService<TProcessor>(services, configure);
-    }
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        services.AddKurrentProcessor(processorFactory, (opts, _) => configure?.Invoke(opts));
 
     /// <summary>
-    /// Registers multiple processors with shared connection settings.
+    /// Registers a processor as a hosted service using a factory with <see cref="IServiceProvider"/>-aware configure.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configure">
-    /// Configuration for the processors builder, which allows setting
-    /// a shared connection and adding multiple processors.
-    /// </param>
-    /// <returns>The service collection for method chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// This is a convenience method for registering multiple processors that
-    /// share the same KurrentDB connection.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// builder.Services.AddKurrentProcessors(kurrent => kurrent
-    ///     .ConnectTo("kurrentdb://localhost:2113")
-    ///     .AddProcessor&lt;TransferProcessor&gt;(c => c.WithFilter("schema_name = 'PlayerTransferred'"))
-    ///     .AddProcessor&lt;PlayerCacheProcessor&gt;(c => c.WithFilter("schema_name LIKE 'Player%'"))
-    /// );
-    /// </code>
-    /// </example>
-    public static IServiceCollection AddKurrentProcessors(
-        this IServiceCollection services,
-        Action<KurrentProcessorsBuilder> configure) {
-        var builder = new KurrentProcessorsBuilder(services);
-        configure(builder);
-        return services;
-    }
-
-    /// <summary>
-    /// Registers a processor with access to <see cref="IServiceProvider"/> during configuration.
-    /// </summary>
-    /// <typeparam name="TProcessor">
-    /// The processor type implementing <see cref="IRecordProcessor"/>.
-    /// Must have a public constructor for DI resolution.
-    /// </typeparam>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configure">
-    /// Configuration delegate that receives both the builder and the service provider.
-    /// Use this overload when configuration depends on other registered services.
-    /// </param>
-    /// <returns>The service collection for method chaining.</returns>
-    /// <example>
-    /// <code>
-    /// builder.Services.AddKurrentProcessor&lt;MyProcessor&gt;((config, sp) => {
-    ///     var settings = sp.GetRequiredService&lt;IOptions&lt;MySettings&gt;&gt;().Value;
-    ///     config.WithFilter(settings.FilterExpression);
-    /// });
-    /// </code>
-    /// </example>
-    public static IServiceCollection AddKurrentProcessor<TProcessor>(
-        this IServiceCollection services,
-        Action<KurrentProcessorHostBuilder, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor {
-        // Idempotent - skip if this processor type is already registered
-        if (services.Any(d => d.ServiceType == typeof(KurrentProcessorRegistrationMarker<TProcessor>))) {
-            return services;
-        }
-        services.AddSingleton<KurrentProcessorRegistrationMarker<TProcessor>>();
-
-        // Register processor if not already registered
-        services.TryAddSingleton<TProcessor>();
-
-        return RegisterHostedService<TProcessor>(services, configure);
-    }
-
-    /// <summary>
-    /// Registers a processor using a factory delegate with access to <see cref="IServiceProvider"/> during configuration.
-    /// </summary>
-    /// <typeparam name="TProcessor">
-    /// The processor type implementing <see cref="IRecordProcessor"/>.
-    /// </typeparam>
-    /// <param name="services">The service collection.</param>
-    /// <param name="processorFactory">
-    /// Factory function to create the processor instance.
-    /// Receives the <see cref="IServiceProvider"/> for resolving dependencies.
-    /// </param>
-    /// <param name="configure">
-    /// Configuration delegate that receives both the builder and the service provider.
-    /// Use this overload when configuration depends on other registered services.
-    /// </param>
-    /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddKurrentProcessor<TProcessor>(
         this IServiceCollection services,
         Func<IServiceProvider, TProcessor> processorFactory,
-        Action<KurrentProcessorHostBuilder, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor {
-        // Idempotent - skip if this processor type is already registered
-        if (services.Any(d => d.ServiceType == typeof(KurrentProcessorRegistrationMarker<TProcessor>))) {
-            return services;
-        }
-        services.AddSingleton<KurrentProcessorRegistrationMarker<TProcessor>>();
-
-        // Register processor via factory
-        services.AddSingleton(processorFactory);
-
-        return RegisterHostedService<TProcessor>(services, configure);
-    }
-
-    static IServiceCollection RegisterHostedService<TProcessor>(
-        IServiceCollection services,
-        Action<KurrentProcessorHostBuilder>? configure)
+        Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor {
         EnsureDiagnosticsRegistered(services);
 
-        services.AddHostedService<KurrentProcessorHostedService<TProcessor>>(sp => {
-            // Configuration deferred to resolution time
+        services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
             var configuration = sp.GetService<IConfiguration>();
-            var builder = new KurrentProcessorHostBuilder();
+            var options       = new ProcessorOptions();
 
-            // 1. Bind from config FIRST (base settings)
-            builder.BindFromConfiguration(configuration, typeof(TProcessor).Name);
+            // 1. Bind config under Kurrent:Processors:{TypeName} first (base settings).
+            if (configuration is not null)
+                options.FromConfiguration(configuration, typeof(TProcessor).Name);
 
-            // 2. Apply user's configuration SECOND (overrides)
-            configure?.Invoke(builder);
+            // 2. Apply user configuration (overrides).
+            configure(options, sp);
 
-            var registration = builder.Build<TProcessor>();
-            return CreateHostedService<TProcessor>(registration, sp);
+            // 3. Ensure ProcessorId is set before resolving connection strings by id.
+            if (string.IsNullOrWhiteSpace(options.ProcessorId))
+                options.ProcessorId = typeof(TProcessor).Name.ToSnakeCase();
+
+            // 4. If still no connection, resolve from DI + IConfiguration as a fallback chain.
+            if (options.ClientOptions is null)
+                ResolveClientOptions(options, sp, configuration);
+
+            // 4. Resolve the processor instance — factory fires once, at host startup.
+            var processor = processorFactory(sp);
+
+            // 5. Build the drone eagerly so connection/validation errors surface at host startup.
+            var drone  = new KurrentProcessor(options, processor).Build();
+            var logger = sp.GetRequiredService<ILogger<DroneService<TProcessor>>>();
+            return new DroneService<TProcessor>(drone, logger);
         });
 
         return services;
     }
 
-    static IServiceCollection RegisterHostedService<TProcessor>(
-        IServiceCollection services,
-        Action<KurrentProcessorHostBuilder, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor {
-        EnsureDiagnosticsRegistered(services);
+    #endregion
 
-        services.AddHostedService<KurrentProcessorHostedService<TProcessor>>(sp => {
-            // Configuration deferred to resolution time with IServiceProvider access
-            var configuration = sp.GetService<IConfiguration>();
-            var builder = new KurrentProcessorHostBuilder();
+    #region ->> Instance overloads <<-
 
-            // 1. Bind from config FIRST (base settings)
-            builder.BindFromConfiguration(configuration, typeof(TProcessor).Name);
+    /// <summary>
+    /// Registers a processor as a hosted service using a pre-built instance. The same instance
+    /// is handed to the drone at startup; the processor type is not added to the DI container.
+    /// </summary>
+    public static IServiceCollection AddKurrentProcessor<TProcessor>(
+        this IServiceCollection services,
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        services.AddKurrentProcessor(_ => instance, configure);
 
-            // 2. Apply user's configuration SECOND (overrides)
-            configure(builder, sp);
+    /// <summary>
+    /// Registers a processor as a hosted service using a pre-built instance with
+    /// <see cref="IServiceProvider"/>-aware configure.
+    /// </summary>
+    public static IServiceCollection AddKurrentProcessor<TProcessor>(
+        this IServiceCollection services,
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor =>
+        services.AddKurrentProcessor(_ => instance, configure);
 
-            var registration = builder.Build<TProcessor>();
-            return CreateHostedService<TProcessor>(registration, sp);
-        });
-
-        return services;
-    }
-
-    static KurrentProcessorHostedService<TProcessor> CreateHostedService<TProcessor>(KurrentProcessorRegistration<TProcessor> registration, IServiceProvider sp)
-        where TProcessor : class, IRecordProcessor {
-        var processor     = sp.GetRequiredService<TProcessor>();
-        var client        = BuildClient(registration, sp);
-        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-        var settings      = registration.Settings;
-
-        var source = new SubscriptionSource(client, settings, TimeProvider.System, registration.UseOwnClient);
-
-        var drone = new Drone(
-            settings,
-            source,
-            processor,
-            loggerFactory,
-            TimeProvider.System
-        );
-
-        var logger = sp.GetRequiredService<ILogger<KurrentProcessorHostedService<TProcessor>>>();
-
-        return new KurrentProcessorHostedService<TProcessor>(drone, logger);
-    }
+    #endregion
 
     static void EnsureDiagnosticsRegistered(IServiceCollection services) {
-        services.TryAddSingleton(sp => {
+        services.TryRegister(sp => {
             var meterFactory = sp.GetRequiredService<IMeterFactory>();
             return new DroneMetricsObserver(meterFactory).Start();
         });
     }
 
-    static KurrentClient BuildClient<TProcessor>(
-        KurrentProcessorRegistration<TProcessor> registration,
-        IServiceProvider sp)
-        where TProcessor : IRecordProcessor {
-
-        if (registration.UseOwnClient) {
-            if (registration.ConnectionString is not null && registration.ClientConfigure is not null) {
-                var options = KurrentClientOptions.Parse(registration.ConnectionString);
-                return new KurrentClient(registration.ClientConfigure(options));
-            }
-
-            if (registration.ConnectionString is not null) {
-                return KurrentClient.Create(registration.ConnectionString);
-            }
-
-            if (registration.ClientConfigure is not null) {
-                return new KurrentClient(registration.ClientConfigure(new KurrentClientOptions()));
-            }
+    /// <summary>
+    /// Fallback resolution chain for <see cref="KurrentClientOptions"/> when the user did
+    /// not call <c>opts.Connection(...)</c> in their configure delegate:
+    /// <list type="number">
+    /// <item>Cloned <see cref="KurrentClientOptions"/> registered in the service provider.</item>
+    /// <item><c>ConnectionStrings:{ProcessorId}</c>.</item>
+    /// <item><c>ConnectionStrings:Default</c>.</item>
+    /// <item><c>Kurrent:Client</c> configuration section.</item>
+    /// </list>
+    /// If none resolve, <see cref="KurrentProcessor.Build"/> throws.
+    /// </summary>
+    static void ResolveClientOptions(ProcessorOptions options, IServiceProvider services, IConfiguration? configuration) {
+        var templateOptions = services.GetService<KurrentClientOptions>();
+        if (templateOptions is not null) {
+            options.Connection(templateOptions with { });
+            return;
         }
 
-        // Try to use shared client from DI
-        var sharedClient = sp.GetService<KurrentClient>();
-        if (sharedClient is not null) {
-            return sharedClient;
+        if (configuration is null)
+            return;
+
+        var connectionString = configuration.GetConnectionString(options.ProcessorId)
+                            ?? configuration.GetConnectionString("Default");
+
+        if (!string.IsNullOrWhiteSpace(connectionString)) {
+            options.Connection(connectionString);
+            return;
         }
 
-        throw new InvalidOperationException(
-            $"No KurrentClient configured for processor {typeof(TProcessor).Name}. " +
-            $"Either call AddKurrentClient() to register a shared client, " +
-            $"or use UseClient()/ConfigureClient() in AddKurrentProcessor<{typeof(TProcessor).Name}>()."
-        );
+        var clientSection = configuration.GetSection("Kurrent:Client");
+        if (clientSection.Exists()) {
+            var builder = KurrentClientOptions.Builder.Create();
+            builder.FromConfiguration(configuration);
+            options.Connection(builder.Build());
+        }
     }
 }
-
-/// <summary>
-/// Internal marker to track registered processor types and prevent duplicate registrations.
-/// </summary>
-internal sealed class KurrentProcessorRegistrationMarker<TProcessor>
-    where TProcessor : IRecordProcessor;

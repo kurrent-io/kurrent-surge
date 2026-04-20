@@ -7,25 +7,19 @@ using Microsoft.Extensions.Configuration;
 namespace Kurrent.Processors.Options;
 
 /// <summary>
-/// Configuration for a Kurrent processor. Configured via a lambda passed to
-/// <see cref="KurrentProcessor.Create"/> or <see cref="KurrentPlatform.Processor"/>.
+/// Configuration for a Kurrent processor. Pure data — processor wiring lives on the
+/// <see cref="KurrentProcessor"/> itself, not on options.
 /// </summary>
 /// <example>
 /// <code>
-/// KurrentProcessor.Create(opts => {
+/// KurrentProcessor.Create(new OrderProcessor(), opts => {
 ///     opts.Connection("kurrentdb://localhost:2113");
-///     opts.ProcessorId = "order-processor";
-///
-///     opts.Subscription.Filter = RecordFilter.ByStream("orders");
+///     opts.ProcessorId                  = "order-processor";
+///     opts.Subscription.Filter          = RecordFilter.ByStream("orders");
 ///     opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-///
 ///     opts.Checkpointing(c => c
 ///         .Interval(TimeSpan.FromSeconds(10))
 ///         .FailurePolicy(CheckpointFailurePolicy.FailProcessor));
-///
-///     opts.Subscribe
-///         .Process&lt;OrderPlaced&gt;(async (msg, ctx) => { /* ... */ })
-///         .Process&lt;OrderShipped&gt;((msg, ctx) => { /* sync */ });
 /// }).RunAsync(ct);
 /// </code>
 /// </example>
@@ -84,63 +78,34 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// </summary>
     public CheckpointOptions Checkpoint { get; init; } = new();
 
-    /// <summary>
-    /// Processor registration. Use <c>Process&lt;T&gt;()</c> for inline typed handlers
-    /// or <c>Use()</c> to provide a processor instance or factory.
-    /// </summary>
-    public SubscribeOptions Subscribe { get; init; } = new();
-
     #region ->> Connection <<-
 
-    internal string?                                           ConnectionString { get; private set; }
-    internal KurrentClient?                                    ProvidedClient   { get; private set; }
-    internal Func<KurrentClientOptions, KurrentClientOptions>? ClientConfigure  { get; private set; }
-    internal bool OwnsClient => ProvidedClient is null;
+    /// <summary>
+    /// Client options used to build the drone's <see cref="KurrentClient"/>. Set via
+    /// one of the <see cref="Connection(string)"/> overloads. The drone always builds
+    /// and owns its own <see cref="KurrentClient"/> — client instances are never shared.
+    /// </summary>
+    public KurrentClientOptions? ClientOptions { get; private set; }
 
     /// <summary>
-    /// Sets the KurrentDB connection string.
+    /// Sets the KurrentDB connection string. Parsed immediately into <see cref="ClientOptions"/>.
     /// </summary>
-    public void Connection(string connectionString) {
-        ConnectionString = connectionString;
-        ProvidedClient   = null;
-    }
+    public void Connection(string connectionString) =>
+        ClientOptions = KurrentClientOptions.Parse(connectionString);
 
     /// <summary>
-    /// Uses an existing <see cref="KurrentClient"/> instance.
-    /// The caller owns the client lifecycle — it will NOT be disposed by the processor.
+    /// Sets a connection string and applies additional options configuration. The connection
+    /// string is parsed immediately and the configure delegate runs against the parsed options.
     /// </summary>
-    public void Connection(KurrentClient client) {
-        ProvidedClient   = client;
-        ConnectionString = null;
-    }
+    public void Connection(string connectionString, Func<KurrentClientOptions, KurrentClientOptions> configure) =>
+        ClientOptions = configure(KurrentClientOptions.Parse(connectionString));
 
     /// <summary>
-    /// Sets a connection string with additional options configuration.
+    /// Sets the client options directly. The drone will use these options when building
+    /// its <see cref="KurrentClient"/>.
     /// </summary>
-    public void Connection(string connectionString, Func<KurrentClientOptions, KurrentClientOptions> configure) {
-        ConnectionString = connectionString;
-        ClientConfigure  = configure;
-        ProvidedClient   = null;
-    }
-
-    internal KurrentClient BuildClient() {
-        if (ProvidedClient is not null)
-            return ProvidedClient;
-
-        if (ConnectionString is not null) {
-            var clientOptions = KurrentClientOptions.Parse(ConnectionString);
-
-            if (ClientConfigure is not null)
-                clientOptions = ClientConfigure(clientOptions);
-
-            return new KurrentClient(clientOptions);
-        }
-
-        throw new InvalidOperationException(
-            "No connection configured. Call Connection() to set a connection string or provide a KurrentClient instance.");
-    }
-
-    internal bool HasConnection => ProvidedClient is not null || ConnectionString is not null;
+    public void Connection(KurrentClientOptions clientOptions) =>
+        ClientOptions = clientOptions;
 
     #endregion
 
@@ -205,7 +170,7 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
                 .WithMessage("BufferCapacity must be between 1 and 10000.");
 
             RuleFor(o => o.Checkpoint.Interval)
-                .GreaterThan(Duration.Zero)
+                .GreaterThan(TimeSpan.Zero)
                 .WithMessage("Checkpoint.Interval must be greater than zero.");
 
             RuleFor(o => o.Checkpoint.RetentionCount)
@@ -218,24 +183,16 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
 
             RuleFor(o => o.Subscription.InitialPosition)
                 .IsInEnum()
-                .WithMessage("Subscription.InitialPosition must be a valid SubscriptionInitialPosition value.");
+                .WithMessage($"Subscription.InitialPosition must be one of: {string.Join(", ", Enum.GetNames<SubscriptionInitialPosition>())}.");
 
-            RuleFor(o => o.Subscribe)
-                .Must(s => s.HasProcessor,
-                    "No processor configured. Call Subscribe.Process<T>() to register handlers " +
-                    "or Subscribe.Use() to provide a processor instance or factory.");
+            RuleFor(o => o.ClientOptions)
+                .Must(clientOptions => clientOptions is not null,
+                    "No connection configured. Call Connection() to set a connection string or provide client options.");
 
-            RuleFor(o => o)
-                .Must(o => o.HasConnection,
-                    "No connection configured. Call Connection() to set a connection string " +
-                    "or provide a KurrentClient instance.");
-
-            When(o => o.MaxParallelism > 1, () => {
-                RuleFor(o => o.Subscription.PartitionKeySelector)
+            When(o => o.MaxParallelism > 1,
+                () => RuleFor(o => o.Subscription.PartitionKeySelector)
                     .NotEmpty()
-                    .WithMessage("PartitionKeySelector is recommended when MaxParallelism is greater than 1.")
-                    .WithSeverity(RuleSeverity.Warning);
-            });
+                    .WithMessage("Subscription.PartitionKeySelector is required when MaxParallelism is greater than 1."));
         }
     }
 

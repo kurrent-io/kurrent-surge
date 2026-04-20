@@ -1,412 +1,472 @@
-# gRPC Balancer Migration — Replacing the Legacy Channel Stack
+# gRPC Channel Stack Replacement — Ultimate Implementation Plan
 
 - **Date:** 2026-04-18
-- **Status:** Draft, awaiting approval
-- **Author:** Sergio (design), Claude (drafting)
+- **Status:** Validated draft, awaiting sign-off
+- **Author:** Sergio (design), Claude (drafting and validation)
 - **Scope:** `src/Kurrent.Client` — channel construction, discovery, leader routing, interceptor chain
 - **Target TFMs:** net8.0, net9.0, net10.0 (net8.0 minimum)
+- **Supersedes:** this file's prior draft from earlier today (validation revisions folded in)
 
 ## 1. Goal
 
-Replace `KurrentDBLegacyCallInvoker`, `LegacyClusterClient`, `SharingProvider`, `ChannelCache`, the whole `Legacy/RipAndTear/Client/Gossip/Selectors` tree, `KurrentDBClientSettings`, and `KurrentDBLegacySettingsConverter` with a single `GrpcChannel` built on `Grpc.Net.Client`'s native balancer API, driven by a custom `PollingResolver` and one small `LeaderRedirectInterceptor`.
+Replace the entire legacy gRPC channel stack (`KurrentDBLegacyCallInvoker`, `LegacyClusterClient`, `SharingProvider`, `ChannelCache`, the `Gossip/` tree, the legacy settings records, the legacy converter) with a single `GrpcChannel` built on `Grpc.Net.Client`'s native balancer API, driven by a custom `PollingResolver` and one `LeaderRedirectInterceptor` that handles both V2 protobuf `NotLeaderNodeErrorDetails` and V1 trailer-based `not-leader` responses.
 
-The new stack must **retain every operational capability of the current code** — specifically seed resolution, gossip-based cluster discovery, `NodePreference` filtering, leader redirect handling on write failures, auth injection, keep-alive, TLS options, user-supplied interceptors, and deadlines. This document enumerates every capability, where it currently lives, and where it lands in the new design.
+Greenfield — no backwards-compat obligations. Delete everything that isn't required for the new stack. Only proto-interop helpers that are used outside the channel stack survive (relocated out of `Legacy/`).
 
-## 2. Non-Goals
+## 2. Decisions (confirmed)
 
-- Changing the public `KurrentClient` or module APIs.
-- Changing `KurrentClientOptions`, `KurrentConnectionString`, or any connection-string parameter.
-- Rewriting the V1 or V2 protocol definitions.
-- Adding a DI-integrated `IHttpClientFactory` story (out of scope, can follow).
-- Moving `ServerCapabilities` (explicitly out per user direction — capability probing is not in use).
-
-## 3. Motivation
-
-### 3.1 Why the current stack is a bottleneck
-
-- **Sync-over-async on every call.** `KurrentDBLegacyCallInvoker.WithChannelInfoInvoker` does `Task.Run(...).GetAwaiter().GetResult()` inside every one of `AsyncUnaryCall`, `BlockingUnaryCall`, `AsyncClientStreamingCall`, `AsyncServerStreamingCall`, `AsyncDuplexStreamingCall`. Every single gRPC call goes through a thread-pool hop and two blocking awaits. Under reconnection it blocks one thread per concurrent call for the full gossip loop.
-- **~200-line `SharingProvider` coordination primitive** solving a problem the balancer API now solves natively (deduplicate concurrent reconnection, publish the current channel).
-- **Dead code.** `TypedExceptionInterceptor` is never instantiated (`LegacyClusterClient` always passes `exceptionMap: []`). `ForceRefresh` is unreachable (only caller is commented out). `ChannelOptions` property has no external readers. `GossipTimeout` is populated but never consumed. `LegacyClusterClient.CreateWithExceptionMapping()` is commented out. `ServerCapabilities.SupportsSchemaRegistry` is never set.
-- **Sharp edges.** `Random(0)` constant-seeded shuffle in `ChannelCache.cs:15`. Fire-and-forget `DisposeChannelsAsync` at `ChannelCache.cs:76`. Re-entrant `_lock` in `ChannelCache.UpdateCache → CreateChannel`. Flat 100 ms retry with no backoff/jitter — floods seeds under partition. `LeaderNotFoundInterceptor` does not override `BlockingUnaryCall` so sync callers never trigger leader-change reconnection. `KurrentDBClientRetrySettings.InitialBackoff = TimeSpan.FromSeconds(250)` looks like a ms-vs-s bug.
-- **Two parallel option records.** `KurrentClientOptions` → `ConvertToLegacySettings` → `KurrentDBClientSettings`. The legacy record only exists because `LegacyClusterClient` consumes it. Removing the legacy layer lets us delete the converter and the legacy record.
-
-### 3.2 What the server gives us (and why that changes the design)
-
-- **V2 writes always set `requireLeader: true`.** `KurrentDB.Api.V2/Modules/Streams/StreamsService.cs:124, :286`. The server does not read the `requires-leader` header on V2 — there is no way to opt into V1-style TCP forwarding for V2 writes. On a non-leader node, V2 writes **always** deny.
-- **Denial carries a rich structured payload.** `ApiCallback.cs:98` maps `NotHandled(NotLeader)` to `ApiErrors.NotLeaderNode(leaderId, leaderHttp)`, which at `ApiErrors.cs:291-309` returns `RpcException` with:
-  - `Status.Code` = `FAILED_PRECONDITION` (via `ServerError.NotLeaderNode = 5`, from `proto/kurrent/rpc/errors.proto`).
-  - `Status.Details` containing `Kurrent.Rpc.NotLeaderNodeErrorDetails { CurrentLeader = { NodeId, Host, Port } }` (`proto/kurrent/rpc/errors.proto`).
-- **V1 writes still support TCP-level forwarding** when the client sets `requires-leader=false` (`ClusterVNodeController.cs:829-838`). We will continue to inject `requires-leader` based on `NodePreference`. This preserves V1 behavior exactly.
-- **Gossip RPC has no leader check.** Any node answers (`KurrentDB.Core/Services/Transport/Grpc/Gossip.Read.cs:26`). Seeds do not need to be pre-filtered to the leader.
-- **Reads with `requires-leader=false` served locally by any node.** Data may be slightly stale; no error. Preserved.
-- **Persistent subscription Connect/Create/Update/Delete always deny on non-leader**, no forwarding path (`ClusterVNodeController.cs:773-826`). Requires leader-redirect to succeed.
-- **Additional server error codes.** `ServerError.ServerNotReady = 7` → `UNAVAILABLE`, `ServerOverloaded = 8` → `UNAVAILABLE`, `LeaderForwardingTimeout = 9` → `DEADLINE_EXCEEDED`. These want retry on the client side, matching today's implicit behavior (current code does not handle them explicitly — this is an improvement the new design will pick up for free via gRPC's built-in retry policy on `Unavailable`).
-
-**Consequence:** the server already tells the client exactly which node to retry against, via a typed proto payload. We do not need `NodePreference.Leader` filtering up-front at connection time — the first write can go to any node and the server redirect covers the rest. Gossip remains useful for bootstrapping a multi-seed connection and (later, optionally) for spreading reads across replicas.
-
-## 4. Current State Inventory (the capability audit)
-
-### 4.1 Callers of `KurrentDBLegacyCallInvoker`
-
-Single shared-singleton pattern. One invoker instance per `KurrentClient`, passed to every gRPC stub:
-
-| Caller | File:Line |
-|---|---|
-| Construction | `src/Kurrent.Client/KurrentClient.cs:35` |
-| `LegacyCallInvoker` property | `KurrentClient.cs:65` |
-| `KurrentBackdoorClientFactory` param | `KurrentBackdoorClientFactory.cs:18, 34, 57` |
-| `StreamsServiceClient`, `LegacyStreamsServiceClient` | `Modules/Streams/StreamsClient.cs:13, 14` |
-| `SchemaRegistryServiceClient` | `Modules/Registry/RegistryClient.cs:15` |
-| `IndexesServiceClient` | `Modules/Indexes/IndexesClient.cs:11` |
-| `ConnectorsCommandServiceClient`, `ConnectorsQueryServiceClient` | `Modules/Connectors/ConnectorsClient.cs:8, 9` |
-| `OperationsServiceClient` (Admin) | `Modules/Admin/AdminClient.cs:11` |
-| DisposeAsync | `KurrentClient.cs:92` |
-
-### 4.2 Capability inventory (every concrete behavior today)
-
-| # | Capability | Where (legacy) | Notes |
-|---|---|---|---|
-| C1 | Parse connection string to options | `KurrentConnectionString.cs` → `ToClientOptions()` | Modern side, already correct |
-| C2 | Validate endpoints, schemes | `KurrentClientOptions.Validator` | Modern side, already correct |
-| C3 | Resolve seeds from connection string | `KurrentDBClientConnectivitySettings.GossipSeeds` | Populated by converter |
-| C4 | Single-node vs discovery mode dispatch | `LegacyClusterClient` ctor `IsSingleNode` branch | Direct vs Discover scheme |
-| C5 | Gossip RPC call to retrieve cluster members | `GrpcGossipClient.GetAsync` | Uses `EventStore.Client.Gossip` stub, V1 |
-| C6 | Parse cluster members into `MemberInfo` / `VNodeState` | `ClusterMessage.cs` | Direct integer cast of state enum |
-| C7 | Filter and sort cluster members by `NodePreference` | `NodeSelector.SelectNode`, `NodePreferenceComparers` | Drops 11 unusable states; random tie-break |
-| C8 | Cycle seeds in random order | `GossipChannelSelector.DiscoverAsync` + `ChannelCache.GetRandomOrderSnapshot` | `Random(0)` seed bug |
-| C9 | Retry gossip across seeds with `MaxDiscoverAttempts` | `GossipChannelSelector.DiscoverAsync` | Flat `DiscoveryInterval`, no backoff |
-| C10 | Throw `DiscoveryException` when all seeds fail | `GossipChannelSelector.cs:74` | Propagates through `SharingProvider` |
-| C11 | Re-seed from connection string on each outer attempt | `GossipChannelSelector.cs:64` | Protects against cache drift |
-| C12 | Update channel cache from gossip response | `ChannelCache.UpdateCache` | Disposes evicted channels |
-| C13 | Key channels by `DnsEndPoint` | `ChannelCache.DnsEndPointEqualityComparer` | Host case-insensitive |
-| C14 | Build `GrpcChannel` with TLS, keep-alive, `SocketsHttpHandler` | `ChannelFactoryExtensions.CreateChannel` | Also enables HTTP/2 multi-connection |
-| C15 | Apply `TransportSecurity` (None/Insecure/Standard/Certificate) | `KurrentClientSecurityOptions` → converter → channel options | Certificate loads root CA |
-| C16 | Apply client cert for mTLS | `ClientCredentials.Certificate` → `ClientCertificate` | |
-| C17 | Inject `Authorization` header (basic or per-call) | `AuthenticationInterceptor` | Per-call, blocks on credential delegate |
-| C18 | Inject `requires-leader` header per call | `HeadersInterceptor` constructed at `LegacyClusterClient.cs:81-83` | Value derived from `NodePreference` |
-| C19 | Inject client identity headers (name, version, connection-name) | `HeadersInterceptor` at `LegacyClusterClient.cs:85-89` | One-shot per channel |
-| C20 | Detect `NotLeader` and reconnect | `LeaderNotFoundInterceptor` → `TriggerReconnect(NewLeader)` | V1 trailer-based detection |
-| C21 | Deduplicate concurrent reconnection requests | `SharingProvider.OnBroken` CAS loop | |
-| C22 | Cache current `ChannelInfo` across calls | `SharingProvider._currentBox` | |
-| C23 | Retry gossip factory on failure with delay | `SharingProvider.FillBoxAsync` catch | `DiscoveryInterval` flat |
-| C24 | Apply user-supplied `Interceptors` | `LegacyClusterClient.cs:96-98` | |
-| C25 | Apply `DefaultDeadline` to calls | Threaded via `KurrentDBCallOptions` | Set in converter |
-| C26 | Keep-alive interval/timeout on HTTP/2 | `ChannelFactoryExtensions` → `SocketsHttpHandler.KeepAlivePing*` | |
-| C27 | Force-refresh on demand | `KurrentDBLegacyCallInvoker.ForceRefresh` | Currently unreachable — caller commented out |
-| C28 | Fetch server capabilities | `GrpcServerCapabilitiesClient.GetAsync` | **Explicitly out of scope — not in use** |
-| C29 | Dispose all channels on client dispose | `KurrentDBLegacyCallInvoker.DisposeAsync` → `LegacyClusterClient.DisposeAsync` → `ChannelCache.DisposeAsync` | Via `SharingProvider.Dispose` |
-| C30 | Logger factory propagation | Settings → `SharingProvider`/selector loggers | |
-
-## 5. New Architecture
-
-### 5.1 Shape
-
-```
-KurrentClientOptions
-    │
-    ├─► KurrentClientChannelFactory.Create(options)  [static, ~40 lines]
-    │       │
-    │       ├─ register KurrentResolverFactory on scheme "kurrentdb+discover"
-    │       │     (single-node uses built-in static/dns resolver)
-    │       │
-    │       ├─ build SocketsHttpHandler (TLS + keepalive + mTLS)
-    │       │
-    │       ├─ build GrpcChannelOptions:
-    │       │     Credentials              = TLS or Insecure
-    │       │     HttpHandler              = SocketsHttpHandler above
-    │       │     ServiceConfig            = { LoadBalancing: pick_first,
-    │       │                                 RetryPolicy: on UNAVAILABLE }
-    │       │     UnsafeUseInsecureChannelCallCredentials = true (basic auth over TLS & plain)
-    │       │
-    │       └─ GrpcChannel.ForAddress(uri, options)
-    │
-    └─► GrpcChannel  (single instance per KurrentClient)
-            │
-            └─ channel.Intercept(
-                  RequiresLeaderHeaderInterceptor,     // C18
-                  ClientIdentityHeaderInterceptor,     // C19
-                  LeaderRedirectInterceptor,           // C20 (new, payload-driven)
-                  AuthenticationInterceptor,           // C17 (kept, unchanged)
-                  ...user-supplied interceptors        // C24
-              )
-            │
-            └─► every module's gRPC stub constructed from the intercepted invoker
-```
-
-Every module (`StreamsClient`, `RegistryClient`, `IndexesClient`, `ConnectorsClient`, `AdminClient`, `KurrentBackdoorClientFactory`) takes the intercepted `CallInvoker` directly. No custom `CallInvoker` subclass.
-
-### 5.2 KurrentResolver (PollingResolver subclass)
-
-Handles scheme `kurrentdb+discover://`. Registered via `ResolverFactory` on channel construction.
-
-**Responsibilities:**
-- Own a list of current cluster `BalancerAddress` entries.
-- On initial `ResolveAsync`: iterate seed endpoints, call `Kurrent.Grpc.V1.Gossip/Read`, parse `MemberInfo[]`, filter via `NodeSelector`/`NodePreferenceComparers` (C7 — reused verbatim), publish result.
-- On periodic refresh (`PollingResolver` base): same, with `MinimumRefreshInterval = Gossip.DiscoveryInterval` (C23).
-- On `Refresh()` triggered by interceptor: use stashed leader hint (see 5.3) to bias the next resolve.
-- Public method: `HintLeader(Host, Port)` — sets a one-shot bias that the next resolve will prefer.
-- Errors: when all seeds fail for `MaxDiscoverAttempts`, publish `ResolverResult.ForFailure(Status.Unavailable(...))`. The balancer surfaces this to callers as `RpcException(Unavailable)` (C10 equivalent, but routed through idiomatic gRPC types instead of `DiscoveryException`).
-
-**Single-node mode** (`KurrentConnectionScheme.Direct`): we do NOT register `KurrentResolverFactory`. We use the built-in `StaticResolverFactory` with the single endpoint (C4 preserved). No gossip, no `NodePreference`.
-
-**NodePreference semantics (C7 preserved):** the resolver returns **one** selected address on every resolve — the node picked by the filter + comparer. `pick_first` then keeps a single live subchannel there. This matches current behavior exactly (today's `GossipChannelSelector` also picks one).
-
-**Future extension (not in this change):** returning N addresses with `round_robin` for multi-node read fan-out. Out of scope here — would be a follow-up when reads want to balance.
-
-### 5.3 LeaderRedirectInterceptor (~60 lines, payload-driven)
-
-Replaces `LeaderNotFoundInterceptor`. Does two things:
-
-1. **On every faulted call**: inspect `RpcException`. If `StatusCode == FailedPrecondition` AND `ex.GetRpcStatus()?.GetDetail<NotLeaderNodeErrorDetails>()` is non-null, read `CurrentLeader.Host` and `CurrentLeader.Port`, call `resolver.HintLeader(host, port)`, then `resolver.Refresh()`.
-2. **Also handle V1 trailer-based NotLeader** (`rex.IsLegacyError("not-leader")` with `leader-endpoint-host`/`leader-endpoint-port`) for backward compatibility with V1 server responses. The modern and legacy detection paths coexist inside one interceptor.
-
-**Does it retry the call?** No, matching today's `LeaderNotFoundInterceptor` behavior (C20). The failing call still throws to the caller; the next call lands on the new leader once the resolver updates. Callers wanting transparent retry compose Polly or gRPC `ServiceConfig.RetryPolicy` externally.
-
-**Streams:** overrides `AsyncUnaryCall`, `AsyncClientStreamingCall`, `AsyncServerStreamingCall`, `AsyncDuplexStreamingCall`, AND `BlockingUnaryCall` (fixing a current bug in `LeaderNotFoundInterceptor` — C20+).
-
-### 5.4 Interceptor chain (ordered, applied once at channel construction)
-
-| Order | Interceptor | Purpose | Retention source |
-|---|---|---|---|
-| 1 | `RequiresLeaderHeaderInterceptor` | Injects `requires-leader: true|false` based on `NodePreference` | C18 — split out from legacy `HeadersInterceptor` for clarity |
-| 2 | `ClientIdentityHeaderInterceptor` | Injects `kurrentdb-client-name`, `-version`, `-connection-name` | C19 — split from legacy headers interceptor |
-| 3 | `LeaderRedirectInterceptor` | Payload + trailer leader redirect → resolver hint + refresh | C20 replacement |
-| 4 | `AuthenticationInterceptor` | Per-call `Authorization` header from `ClientCredentials` | C17 — kept as-is, already works |
-| 5 | `options.Interceptors[]` | User-supplied | C24 |
-
-`TypedExceptionInterceptor` is **NOT** included — current code passes empty map and never instantiates it. Dead code.
-
-### 5.5 Channel construction detail
-
-`KurrentClientChannelFactory.Create(KurrentClientOptions options)`:
-
-```
-uri = options.ConnectionScheme switch {
-    Direct   => new Uri($"{HttpUriScheme}://{Endpoints[0].Host}:{Endpoints[0].Port}"),
-    Discover => new Uri($"kurrentdb+discover://{ConnectionName}")   // scheme triggers KurrentResolverFactory
-};
-
-handler = new SocketsHttpHandler {
-    PooledConnectionIdleTimeout     = Timeout.InfiniteTimeSpan,
-    KeepAlivePingDelay              = Resilience.KeepAliveInterval,   // C26
-    KeepAlivePingTimeout            = Resilience.KeepAliveTimeout,    // C26
-    KeepAlivePingPolicy             = HttpKeepAlivePingPolicy.Always,
-    EnableMultipleHttp2Connections  = true,
-    SslOptions                      = BuildSslOptions(options.Security),   // C15, C16
-};
-
-channelOptions = new GrpcChannelOptions {
-    Credentials         = options.Security.Transport.IsEnabled ? ChannelCredentials.SecureSsl : ChannelCredentials.Insecure,
-    HttpHandler         = handler,
-    LoggerFactory       = options.LoggerFactory,                       // C30
-    ServiceConfig       = new ServiceConfig {
-        LoadBalancingConfigs = { new PickFirstConfig() },
-        MethodConfigs = {
-            new MethodConfig {
-                Names = { MethodName.Default },
-                RetryPolicy = new RetryPolicy {
-                    MaxAttempts       = 3,
-                    InitialBackoff    = TimeSpan.FromMilliseconds(200),
-                    MaxBackoff        = TimeSpan.FromSeconds(2),
-                    BackoffMultiplier = 2.0,
-                    RetryableStatusCodes = { StatusCode.Unavailable }   // server_not_ready, overloaded
-                }
-            }
-        }
-    },
-    ResolverFactoryRegistrations = { new KurrentResolverFactory(options) },  // only on Discover
-    UnsafeUseInsecureChannelCallCredentials = true                           // permit basic auth over plain HTTP (dev)
-};
-
-return GrpcChannel.ForAddress(uri, channelOptions);
-```
-
-### 5.6 Lifecycle
-
-- `KurrentClient` owns the channel and disposes it on `DisposeAsync` (C29).
-- Channel disposal shuts down all subchannels cleanly (built-in).
-- Resolver disposes via `IAsyncDisposable` (C29 subset).
-- User-supplied `ClientCredentials` delegates are held only by `AuthenticationInterceptor` (no change from today).
-
-## 6. Capability Mapping (C1-C30 → new home)
-
-| # | Capability | New home | Status |
-|---|---|---|---|
-| C1 | Parse connection string | `KurrentConnectionString.ToClientOptions()` | Unchanged |
-| C2 | Validate options | `KurrentClientOptions.Validator` | Unchanged |
-| C3 | Resolve seeds | `KurrentResolverFactory` consumes `Endpoints` directly | Kept, simpler path |
-| C4 | Single-node vs discovery dispatch | Scheme switch in `KurrentClientChannelFactory` | Kept, clearer |
-| C5 | Gossip RPC | `KurrentResolver.ResolveAsync` → same `Gossip/Read` RPC | **File kept**: `GrpcGossipClient.cs` reused |
-| C6 | Parse cluster members | `ClusterMessage.cs` | **Kept verbatim** |
-| C7 | NodePreference filter/sort | `NodeSelector.cs`, `NodePreferenceComparers.cs` | **Kept verbatim**, called from resolver |
-| C8 | Seed shuffle | `KurrentResolver` with a proper `Random.Shared.Next` | Kept, constant-seed bug fixed |
-| C9 | MaxDiscoverAttempts loop | `KurrentResolver` | Kept, exponential backoff added (improvement) |
-| C10 | DiscoveryException on exhaustion | `ResolverResult.ForFailure(Status.Unavailable)` | Replaced with idiomatic gRPC surface; `DiscoveryException` type deleted |
-| C11 | Re-seed from connection string | Resolver holds `Endpoints` reference | Kept |
-| C12 | Update channel cache from gossip | **Removed**: balancer owns subchannels | Superseded by `pick_first`; no cache needed |
-| C13 | Channel keying | **Removed**: balancer-internal | |
-| C14 | GrpcChannel construction | `KurrentClientChannelFactory.Create` | Consolidated |
-| C15 | TransportSecurity modes | `BuildSslOptions(Security.Transport)` in factory | Kept |
-| C16 | mTLS client cert | `BuildSslOptions(Security.Authentication)` | Kept |
-| C17 | Authentication header | `AuthenticationInterceptor` | **Kept as-is** |
-| C18 | requires-leader header | `RequiresLeaderHeaderInterceptor` | Kept, split from legacy headers bundle |
-| C19 | Client identity headers | `ClientIdentityHeaderInterceptor` | Kept, split from legacy headers bundle |
-| C20 | Leader redirect detection | `LeaderRedirectInterceptor` | Upgraded: reads protobuf payload first (V2), falls back to V1 trailers; also covers `BlockingUnaryCall` (current bug fix) |
-| C21 | Deduplicate reconnect | Balancer subchannel state machine | Built-in |
-| C22 | Cache current channel | `GrpcChannel` (single instance) | Built-in |
-| C23 | Retry gossip with delay | `PollingResolver.MinimumRefreshInterval` + exponential retry in resolver loop | Kept, semantics clearer |
-| C24 | User interceptors | `channel.Intercept(... options.Interceptors)` | Kept |
-| C25 | DefaultDeadline | Consumer-side `CallOptions.Deadline` computed from `Resilience.Deadline` — **existing mechanism unchanged**, does not live in channel stack | Kept |
-| C26 | Keep-alive | `SocketsHttpHandler.KeepAlivePing*` | Kept |
-| C27 | Force refresh | Expose `KurrentClient.RefreshCluster()` → `resolver.Refresh()` | Kept and actually reachable (today's is dead) |
-| C28 | ServerCapabilities | **Explicitly out of scope per user direction** | Drop caller from `ClientModuleBase`, delete `GrpcServerCapabilitiesClient` |
-| C29 | Dispose | `GrpcChannel.Dispose()` + resolver | Kept |
-| C30 | Logger factory | `GrpcChannelOptions.LoggerFactory` + resolver logger | Kept |
-
-**Every capability is preserved or explicitly excluded with reason.** No silent loss.
-
-## 7. File-by-File Disposition
-
-### 7.1 Delete (with reason)
-
-| File | Why |
-|---|---|
-| `Legacy/KurrentDBLegacyCallInvoker.cs` | Replaced by raw `GrpcChannel` + interceptor chain. Removes sync-over-async. |
-| `Legacy/RipAndTear/Client/LegacyClusterClient.cs` | Functionality moved to `KurrentResolver` + channel factory. |
-| `Legacy/RipAndTear/Client/Gossip/SharingProvider.cs` | Balancer owns the equivalent state machine. |
-| `Legacy/RipAndTear/Client/Gossip/ChannelCache.cs` | Balancer manages subchannels. `Random(0)` bug goes away with it. |
-| `Legacy/RipAndTear/Client/Gossip/ReconnectionRequired.cs` | No longer needed — resolver's `Refresh()` + `HintLeader` replaces the DU. |
-| `Legacy/RipAndTear/Client/Gossip/Selectors/IChannelSelector.cs` | Interface no longer needed. |
-| `Legacy/RipAndTear/Client/Gossip/Selectors/ChannelSelector.cs` | Base class no longer needed. |
-| `Legacy/RipAndTear/Client/Gossip/Selectors/GossipChannelSelector.cs` | Loop moves into `KurrentResolver.ResolveAsync`. |
-| `Legacy/RipAndTear/Client/Gossip/Selectors/SingleNodeChannelSelector.cs` | Built-in `StaticResolverFactory` covers it. |
-| `Legacy/RipAndTear/Client/Gossip/ChannelFactoryExtensions.cs` | Folded into `KurrentClientChannelFactory`. |
-| `Legacy/RipAndTear/Client/Gossip/SingleNodeHttpHandler.cs` | Scheme-rewrite hack no longer needed — channel URI is authoritative. |
-| `Legacy/RipAndTear/Client/Gossip/GrpcServerCapabilitiesClient.cs` | C28 out of scope. |
-| `Legacy/RipAndTear/Client/Gossip/IServerCapabilitiesClient.cs` | C28 out of scope. |
-| `Legacy/RipAndTear/Client/Gossip/ServerCapabilities.cs` | C28 out of scope. |
-| `Legacy/RipAndTear/Client/Exceptions/DiscoveryException.cs` | Replaced by idiomatic `RpcException(Unavailable)`. |
-| `Legacy/RipAndTear/Client/Interceptors/LeaderNotFoundInterceptor.cs` | Replaced by `LeaderRedirectInterceptor`. |
-| `Legacy/RipAndTear/Client/Interceptors/TypedExceptionInterceptor.cs` | Never instantiated today — dead code. |
-| `Legacy/RipAndTear/Client/Settings/KurrentDBClientSettings.cs` | No more legacy settings record. |
-| `Legacy/RipAndTear/Client/Settings/KurrentDBClientConnectivitySettings.cs` | Ditto. |
-| `Legacy/RipAndTear/Client/Settings/KurrentDBClientOperationOptions.cs` | `BatchAppendSize` never configurable, `ThrowOnAppendFailure` not used. |
-| `Legacy/RipAndTear/Client/Settings/KurrentDBClientRetrySettings.cs` | Replaced by `ServiceConfig.RetryPolicy` + consumer-side Polly. `InitialBackoff = 250s` bug deleted with it. |
-| `Legacy/RipAndTear/Client/KurrentDBCallOptions.cs` | If deadline wiring is here, fold into per-module call sites. (Verify during implementation.) |
-| `Legacy/KurrentDBLegacySettingsConverter.cs` | No more legacy settings record to convert to. |
-
-### 7.2 Keep (with reason and new location if moved)
-
-| File | Reason | Moved? |
+| # | Decision | Answer |
 |---|---|---|
-| `Legacy/RipAndTear/Client/Gossip/NodeSelector.cs` | C7 — preference filter/sort is correct and reusable | Move to `Internal/Cluster/` |
-| `Legacy/RipAndTear/Client/Gossip/NodePreferenceComparers.cs` | C7 — idem | Move to `Internal/Cluster/` |
-| `Legacy/RipAndTear/Client/Gossip/NodePreference.cs` | Public API referenced by `KurrentClientGossipOptions.ReadPreference` | Move to `Options/` |
-| `Legacy/RipAndTear/Client/Gossip/GrpcGossipClient.cs` | C5 — still the gossip RPC client | Move to `Internal/Cluster/` |
-| `Legacy/RipAndTear/Client/Gossip/IGossipClient.cs` | Abstraction used by tests | Move to `Internal/Cluster/` |
-| `Legacy/RipAndTear/Client/Gossip/ClusterMessage.cs` | C6 — V1 proto projection | Move to `Internal/Cluster/` |
-| `Legacy/RipAndTear/Client/Gossip/EndPointExtensions.cs` | Helpers for gossip | Move to `Internal/Cluster/` |
-| `Legacy/RipAndTear/Client/Interceptors/AuthenticationInterceptor.cs` | C17 — works as-is | Move to `Internal/Interceptors/` |
-| `Legacy/RipAndTear/Client/Constants.cs` | Header constants still used | Move to `Internal/Constants.cs`; prune dead headers (`OsName`, `OsVersion`, `RuntimeName`, `RuntimeVersion`, `HostArchitecture` — unused) and dead legacy error codes |
-| `Legacy/RipAndTear/UserCredentials.cs`, `Uuid.cs`, `HashCode.cs`, `TaskExtensions.cs`, `EpochExtensions.cs`, `X509Certificates.cs`, `StreamIdentifier.cs` | Used by V1 proto plumbing still referenced by legacy streams RPC stub | Keep in `Legacy/` folder (out of scope for this change) |
+| D1 | `ServerCapabilities` probe + accessor | **Delete entirely.** No module reads any capability flag today; only consumer (`KurrentClient.cs:82`) is commented out. |
+| D2 | Public `KurrentClient.RefreshCluster()` | **Do not add.** Resolver self-refreshes; interceptor triggers refresh on leader redirect; external triggers unnecessary. |
+| D3 | V1 trailer fallback in new interceptor | **Keep.** `StreamsClient` reads/subscriptions/manage (V1 legacy stub) and `AdminClient` (V1 Operations) still emit V1 trailers. Also covers future revival of PersistentSubs/Projections/Users. |
+| D4 | `NodePreference` surfaces from legacy namespace | **Relocate to public `Kurrent.Client` namespace.** Already exposed via `KurrentClientGossipOptions.ReadPreference`. |
+| D5 | Proto-interop helpers (`Uuid`, `EpochExtensions`, `StreamIdentifier`, `Metadata` constants, legacy error codes + extensions) | **Relocate, don't delete.** Load-bearing in V1 proto mappers in both `Kurrent.Client` and `Kurrent.Processors`. |
 
-### 7.3 Add
+## 3. Motivation — grounded in validated reality
+
+### 3.1 What's actually broken today (not just overbuilt)
+
+These are not hypothetical — they are verified in the current code:
+
+- **Sync-over-async on every gRPC call.** `KurrentDBLegacyCallInvoker.WithChannelInfoInvoker` (`KurrentDBLegacyCallInvoker.cs:121-124`) executes `Task.Run(...).GetAwaiter().GetResult()` on every `AsyncUnaryCall`, `BlockingUnaryCall`, `AsyncClientStreamingCall`, `AsyncServerStreamingCall`, `AsyncDuplexStreamingCall`. Under reconnection, one thread blocks per concurrent call.
+
+- **Every call calls `Connect()` unconditionally** (`KurrentDBLegacyCallInvoker.cs:128`). No "already connected" fast path. Every call acquires `_stateLock` (`KurrentDBLegacyCallInvoker.cs:146`).
+
+- **`HeadersInterceptor` is silently broken — `requires-leader` and identity headers are NEVER sent.** Two defects in `AddHeaders`:
+  - `HeadersInterceptor.cs:77` — `if (context.Options.Headers is null) return;` — every module passes only a `CancellationToken`, so `CallOptions.Headers` is null by default. Bailout on every call.
+  - `HeadersInterceptor.cs:82-84` — `skipOperation = _operations.Length > 0 && !_operations.Contains(...) || _isExcludeList` — both overloads pass `isExcludeList: true`, making `skipOperation` always `true`. Even past the null guard, nothing would be injected.
+  - **Consequence:** the server sees no `requires-leader` header, no client-name, no client-version, no connection-name on any call. V1 server defaults `requires-leader` to `false` (`ServiceBase.cs:57-63`), so reads always land on whatever node the balancer picked — works by accident.
+
+- **`DefaultDeadline` never reaches business RPCs.** `KurrentDBCallOptions.CreateNonStreaming` wires deadline (`KurrentDBCallOptions.cs:17-28`), but its only consumers are `GrpcGossipClient` and `GrpcServerCapabilitiesClient`. Every module call (e.g. `StreamsClient.AppendRecords.cs:27`) passes `cancellationToken: ct` with no `CallOptions` and no deadline.
+
+- **`LeaderNotFoundInterceptor` detects only V1 trailers** — V2 writes that fail with `FailedPrecondition + NotLeaderNodeErrorDetails` are never detected today. Leader detection is broken for V2 write traffic.
+
+- **`LeaderNotFoundInterceptor` does not override `BlockingUnaryCall`** — sync callers silently miss leader changes.
+
+- **Dead code in the channel stack:**
+  - `TypedExceptionInterceptor` — never instantiated (`exceptionMap.Count == 0` always true at `LegacyClusterClient.cs:96`).
+  - `LegacyClusterClient.ResolverScheme` property (`LegacyClusterClient.cs:76, 106`) — zero consumers.
+  - `KurrentDBLegacyCallInvoker.ForceRefresh` (`KurrentDBLegacyCallInvoker.cs:98`) — only caller commented out at `KurrentClient.cs:78-84`.
+  - `KurrentDBLegacyCallInvoker.ChannelOptions` property — zero external readers.
+  - `SingleNodeHttpHandler.cs` — defined, never registered anywhere.
+  - `Gossip/Selectors/ChannelSelector.cs` — never instantiated; `LegacyClusterClient.cs:37-39` constructs concrete selectors inline.
+  - `Legacy/SystemConstants.cs`, `Legacy/SystemStreams.cs` — 100% commented out.
+  - `ServerCapabilities.SupportsSchemaRegistry` — field exists, never set.
+
+- **Bugs baked in:**
+  - `Random(0)` constant-seeded shuffle in `ChannelCache.cs:15` and `NodeSelector.cs:24` — "random" is deterministic across processes.
+  - `KurrentDBClientRetrySettings.InitialBackoff = TimeSpan.FromSeconds(250)` (`KurrentDBClientRetrySettings.cs:23`) — live, applied to every channel's `ServiceConfig.RetryPolicy` via `ChannelFactoryExtensions.cs:22`. 250-second initial backoff is almost certainly a ms/s unit bug.
+  - Fire-and-forget `DisposeChannelsAsync` in `ChannelCache.cs:76` — shutdown errors silently discarded.
+  - `ChannelCache.UpdateCache` calls `CreateChannel` while holding `_lock` (`ChannelCache.cs:81`) — works only because C# `lock` is thread-reentrant.
+  - `AuthenticationInterceptor` blocks on credential delegate (`.GetAwaiter().GetResult()` at `AuthenticationInterceptor.cs:74`).
+
+### 3.2 Why the server gives us a clean redirect
+
+Evidence from `/Users/sergio/dev/kurrent/kurrentdb/src`:
+
+- **V2 writes hard-code `requireLeader: true`** (`KurrentDB.Api.V2/Modules/Streams/StreamsService.cs:124, 286`). The server does not read the `requires-leader` header on V2. On a non-leader node, V2 writes always deny — no forwarding opt-out possible.
+
+- **Denial carries a rich protobuf payload.** `ApiCallback.cs:98` → `ApiErrors.NotLeaderNode(leaderId, leaderHttp)` → at `ApiErrors.cs:291-309` returns `RpcException` with status `FailedPrecondition` (via `ServerError.NotLeaderNode = 5` in `proto/kurrent/rpc/errors.proto`) and `Status.Details` carrying `Kurrent.Rpc.NotLeaderNodeErrorDetails { CurrentLeader = { Host, Port, NodeId } }`. No trailer parsing — `RpcException.GetRpcStatus().GetDetail<NotLeaderNodeErrorDetails>()` just works.
+
+- **V1 still emits trailer-based redirects.** `RpcExceptions.LeaderInfo()` (`KurrentDB.Core/Services/Transport/Grpc/RpcExceptions.cs:25`) returns `StatusCode.NotFound` with trailers `exception=not-leader`, `leader-endpoint-host`, `leader-endpoint-port`. Called from V1 Streams (Append, BatchAppend, Delete, Read), V1 PersistentSubscriptions, V1 Operations (via `TryHandleNotHandled`), and all V1 enumerators.
+
+- **V1 writes with `requires-leader=false` are transparently forwarded** via internal TCP (`ClusterVNodeController.cs:829-838`). V2 does NOT forward. V1 persistent subscriptions and admin operations do NOT forward.
+
+- **Gossip RPC has no leader check** — any node answers (`Gossip.Read.cs:26`). Seeds do not need to be leader-filtered.
+
+- **There is no V2 gossip RPC.** Only `event_store.client.gossip.Gossip/Read` exists. The V1 gossip stub stays.
+
+- **SDK module → NotLeader flavor table:**
+
+| SDK Module | Proto Service | NotLeader flavor |
+|---|---|---|
+| `StreamsClient` (Append, BatchAppend) | V2 `KurrentDB.Protocol.V2.Streams.StreamsService` | V2 payload |
+| `StreamsClient` (Read, Subscribe, Manage) | V1 legacy stub | V1 trailer |
+| `AdminClient` | V1 `Operations` | V1 trailer |
+| `IndexesClient` | V2 | V2 payload |
+| `ConnectorsClient` | V2 | V2 payload (no redirect path observed server-side) |
+| `RegistryClient` | V2 Schema Registry | None — server has no `NotLeader` emission in Schema Registry |
+| (future) `PersistentSubscriptionsClient` | V1 | V1 trailer |
+| (future) `ProjectionsClient` | V1 | V1 trailer |
+| (future) `UsersClient` | V1 | V1 trailer |
+
+→ **The new interceptor must handle both V2 payload and V1 trailer. Not optional.**
+
+## 4. Capability Inventory — validated
+
+Re-validated against the code. Corrections from the previous draft are noted inline.
+
+| # | Capability | Current location | Validated status | New home |
+|---|---|---|---|---|
+| C1 | Parse connection string | `KurrentConnectionString.cs` → `ToClientOptions()` | Correct | Unchanged (modern side) |
+| C2 | Validate options | `KurrentClientOptions.Validator` | Correct | Unchanged (modern side) |
+| C3 | Resolve seeds from `Endpoints[]` | `KurrentClientOptions.Endpoints` | Correct | `KurrentResolver` consumes directly |
+| C4 | Single-node vs discovery dispatch | `LegacyClusterClient.cs:37` `IsSingleNode` | Correct | URI scheme switch in `KurrentClientChannelFactory` |
+| C5 | Gossip RPC call | `GrpcGossipClient.GetAsync` | Correct | Reused verbatim in `KurrentResolver.ResolveAsync` |
+| C6 | Parse cluster members | `ClusterMessage.cs` direct enum cast | Correct | Reused verbatim |
+| C7 | NodePreference filter/sort | `NodeSelector.SelectNode` + `NodePreferenceComparers` | Correct; `Random(0)` bug at `NodeSelector.cs:24` | Reused; constant-seed bug fixed |
+| C8 | Seed shuffle | `ChannelCache.GetRandomOrderSnapshot` | Correct; same `Random(0)` bug at `ChannelCache.cs:15` | Resolver uses `Random.Shared` |
+| C9 | `MaxDiscoverAttempts` loop | `GossipChannelSelector.cs:33` | Correct | `KurrentResolver` retry loop |
+| C10 | Exhaustion → `DiscoveryException` | `GossipChannelSelector.cs:74` | Correct | Replaced with `ResolverResult.ForFailure(Status.Unavailable)` |
+| C11 | Re-seed cache from static `GossipSeeds` | `GossipChannelSelector.cs:64` | Correct (not a DNS re-lookup, just cache reset) | Resolver re-reads `options.Endpoints` |
+| C12 | Channel cache update from gossip | `ChannelCache.UpdateCache` | Correct | **Removed.** Balancer owns subchannels |
+| C13 | Channel keying by `DnsEndPoint` | `ChannelCache.cs:101-128` | Correct | **Removed.** Balancer-internal |
+| C14 | Build `GrpcChannel` with TLS, keep-alive, HTTP/2 | `ChannelFactoryExtensions.CreateChannel` | Correct | Consolidated into `KurrentClientChannelFactory.Create` |
+| C15 | `TransportSecurity` modes | `KurrentClientSecurityOptions` | Correct | Applied in `BuildSslOptions` |
+| C16 | mTLS client cert | `ClientCredentials.Certificate` | Correct; uses `X509Certificates.CreateFromPemFile` helper at `RipAndTear/X509Certificates.cs` | Replaced with built-in `X509Certificate2.CreateFromPemFile` (.NET 6+) |
+| C17 | Authentication header | `AuthenticationInterceptor` | Correct and works | Rewritten (dropping the sync `.GetAwaiter().GetResult()` on the credential delegate is a nice-to-have but not required) |
+| C18 | `requires-leader` header per call | `HeadersInterceptor` via `LegacyClusterClient.cs:81-83` | **BROKEN — never sent** (two defects, see §3.1) | New `RequiresLeaderHeaderInterceptor` — actually works |
+| C19 | Client identity headers (name/version/connection-name) | `HeadersInterceptor` via `LegacyClusterClient.cs:85-89` | **BROKEN — never sent** | New `ClientIdentityHeaderInterceptor` — actually works |
+| C20 | Leader redirect | `LeaderNotFoundInterceptor` | Partially works: V1 trailer only; V2 payload silently ignored; `BlockingUnaryCall` not covered | New `LeaderRedirectInterceptor` handles V2 payload + V1 trailer + `BlockingUnaryCall` |
+| C21 | Deduplicate concurrent reconnects | `SharingProvider.OnBroken` CAS | Correct | **Removed.** Balancer subchannel state machine handles it |
+| C22 | Cache current channel | `SharingProvider._currentBox` | Correct | **Removed.** Single `GrpcChannel` instance |
+| C23 | Retry gossip on failure | `SharingProvider.FillBoxAsync` catch+delay | Flat delay, no backoff | `PollingResolver.MinimumRefreshInterval` + exponential retry inside resolver |
+| C24 | User-supplied interceptors | `LegacyClusterClient.cs:96-97` | Correct | `channel.Intercept(..., options.Interceptors)` |
+| C25 | `DefaultDeadline` applied | `KurrentDBCallOptions` at `KurrentDBCallOptions.cs:17-28` | **BROKEN for business RPCs** — only gossip/capability probes honor it | **New work item**: wire `options.Resilience.Deadline` at every module call site via `CallOptions.WithDeadline(...)`. Not strictly part of the channel stack but must ship together to avoid regression. |
+| C26 | Keep-alive | `SocketsHttpHandler.KeepAlivePing*` | Correct | Same |
+| C27 | Force refresh | `KurrentDBLegacyCallInvoker.ForceRefresh` | Dead (caller commented out) | **Removed — D2 decision.** No public API |
+| C28 | `ServerCapabilities` | `GrpcServerCapabilitiesClient` → exposed via `ClientModuleBase.cs:29` | Dead (no reader) | **Removed — D1 decision** |
+| C29 | Dispose cascade | `KurrentDBLegacyCallInvoker.DisposeAsync` → `LegacyClusterClient.DisposeAsync` → `ChannelCache.DisposeAsync` | Correct; `ChannelCache.cs:76` fire-and-forget bug | `GrpcChannel.Dispose()` + resolver `IAsyncDisposable` |
+| C30 | Logger factory | Threaded through selectors, `SharingProvider`, `ChannelCache` | Correct | `GrpcChannelOptions.LoggerFactory` + resolver logger |
+
+### 4.1 Capabilities the spec previously missed (now accounted for)
+
+- **`TypedExceptionInterceptor` `Unavailable + "Deadline Exceeded"` remap** (`TypedExceptionInterceptor.cs:18-19`) — never fires today (interceptor never instantiated). Do not migrate. Modern server doesn't emit this pattern.
+- **`LegacyClusterClient.ResolverScheme` public property** — dead. Drop with the file.
+- **Env headers** (`OsName`, `OsVersion`, `RuntimeName`, `RuntimeVersion`, `HostArchitecture`) — defined in `Constants.cs:73-94`, never passed to any interceptor. Not a real capability. Drop.
+- **`KurrentBackdoorClientFactory.GetBackdoorClient()`** — defined at `ClientModuleBase.cs:33-34`, zero callers in `src/`. If kept, update to use `channel.Target` directly. **Candidate for deletion** (see §6.4).
+
+## 5. Target Architecture
+
+```
+KurrentClientOptions                                                 [public, unchanged]
+    │
+    └─► KurrentClientChannelFactory.Create(options)                  [new, ~80 lines]
+            │
+            ├─ BuildSslOptions(Security.Transport, Security.Authentication)
+            │   └─ SocketsHttpHandler { KeepAlive*, SslOptions, EnableMultipleHttp2Connections }
+            │
+            ├─ ServiceConfig {
+            │     LoadBalancingConfigs: [ PickFirstConfig ],
+            │     MethodConfigs: [{ Names: Default, RetryPolicy on Unavailable (3 attempts, exp backoff) }]
+            │   }
+            │
+            ├─ Discover scheme: register KurrentResolverFactory(options) for "kurrentdb+discover"
+            │   Direct scheme:   use GrpcChannel.ForAddress(https://host:port) — no resolver needed
+            │
+            └─► GrpcChannel.ForAddress(uri, channelOptions)
+                    │
+                    └─► channel.Intercept(
+                          RequiresLeaderHeaderInterceptor(NodePreference),     // C18, fixed
+                          ClientIdentityHeaderInterceptor(ConnectionName),     // C19, fixed
+                          LeaderRedirectInterceptor(resolver),                 // C20, V2+V1
+                          AuthenticationInterceptor(Security.Authentication),  // C17
+                          ...options.Interceptors                              // C24
+                        )
+                    │
+                    └─► CallInvoker passed to every module's gRPC stub
+```
+
+### 5.1 `KurrentResolver : PollingResolver`
+
+Registered for scheme `kurrentdb+discover://`. Responsibilities:
+
+- Maintain the current set of seeds (initial: `options.Endpoints`).
+- Hold an optional `_leaderHint` (`DnsEndPoint?`) set by the interceptor.
+- On `ResolveAsync(listener, ct)`:
+  - **If `_leaderHint` is set** (one-shot): resolve to just that endpoint, clear the hint.
+  - Else: iterate seeds in random order (`Random.Shared`), call V1 gossip on each until one responds, apply `NodeSelector.SelectNode(members, NodePreference)`, publish the result as `ResolverResult.ForResult([BalancerAddress(picked)])`.
+  - On exhaustion after `MaxDiscoverAttempts` × seeds: `listener(ResolverResult.ForFailure(new Status(StatusCode.Unavailable, "...")))`.
+- `MinimumRefreshInterval = Gossip.DiscoveryInterval`.
+- Backoff between discovery attempts: `ExponentialBackoff(base: 100ms, cap: Gossip.Timeout)`, not the flat 100ms of today.
+- Per-seed gossip call deadline: `Gossip.Timeout` (finally honored).
+- `HintLeader(DnsEndPoint)` public method callable by the interceptor. Stores hint + calls `Refresh()`.
+- Logger: `ILogger<KurrentResolver>` via `options.LoggerFactory`.
+- `DisposeAsync`: disposes gossip channels it opened to seeds.
+
+**NodePreference semantics**: resolver returns **one** picked address. `pick_first` keeps one live subchannel there. Matches today. Multi-address `round_robin` is a future extension (out of scope).
+
+**Single-node** (`KurrentConnectionScheme.Direct`): no custom resolver. `GrpcChannel.ForAddress($"https://{host}:{port}")` with the static address goes through the built-in DNS resolver. Simpler, fewer moving parts.
+
+### 5.2 `LeaderRedirectInterceptor`
+
+Detection order on every faulted call:
+
+1. **V2 payload** (preferred path):
+   ```csharp
+   if (ex.StatusCode == StatusCode.FailedPrecondition
+       && ex.GetRpcStatus()?.GetDetail<NotLeaderNodeErrorDetails>() is { CurrentLeader: { } leader })
+       resolver.HintLeader(new DnsEndPoint(leader.Host, leader.Port));
+   ```
+
+2. **V1 trailer** (fallback for V1 stubs):
+   ```csharp
+   if (ex.StatusCode == StatusCode.NotFound
+       && ex.Trailers.GetValue("exception") == "not-leader"
+       && ex.Trailers.GetValue("leader-endpoint-host") is { } host
+       && ex.Trailers.GetValue("leader-endpoint-port") is { } port)
+       resolver.HintLeader(new DnsEndPoint(host, int.Parse(port)));
+   ```
+
+**Direct-mode (single node)**: no resolver, no hint — the interceptor logs the redirect and gives up. The error propagates unchanged. Acceptable because single-node mode is explicit user choice.
+
+**Does not retry the original call.** The failing call still throws. Next call on the channel picks up the new leader after resolver refresh.
+
+**Covers all five `CallInvoker` overrides** including `BlockingUnaryCall` (fixes today's gap).
+
+### 5.3 Other interceptors
+
+- **`RequiresLeaderHeaderInterceptor`**: inject `requires-leader: true|false` based on `options.Gossip.ReadPreference == NodePreference.Leader`. Creates a new `Metadata` if `context.Options.Headers` is null (fixes today's bug). No exclude-list shenanigans.
+
+- **`ClientIdentityHeaderInterceptor`**: inject `kurrentdb-client-name`, `kurrentdb-client-version`, `kurrentdb-connection-name`. Same null-safe approach. One-shot (values computed once at interceptor construction).
+
+- **`AuthenticationInterceptor`**: rewritten clean — holds a `ClientCredentials` snapshot, produces header synchronously for basic/bearer. No `GetAwaiter().GetResult()` on a delegate. If future auth flows need async token refresh, that's a follow-up.
+
+### 5.4 Deadline wiring (C25 regression fix)
+
+Every module call site that today passes only a `CancellationToken` will be updated to pass a `CallOptions` built from `options.Resilience.Deadline`:
+
+```csharp
+var callOptions = new CallOptions(cancellationToken: ct)
+    .WithDeadline(deadline);
+```
+
+This is mechanical across the module files (`StreamsClient.AppendRecords.cs`, `.Read.cs`, etc.). Produce a small helper on `ClientModuleBase` — `protected CallOptions BuildCallOptions(CancellationToken ct)` — and use it everywhere.
+
+## 6. File Disposition — complete manifest
+
+### 6.1 Delete outright
+
+| File | Reason |
+|---|---|
+| `Legacy/KurrentDBLegacyCallInvoker.cs` | Replaced by raw `GrpcChannel` + interceptor chain |
+| `Legacy/KurrentDBLegacySettingsConverter.cs` | No more legacy settings record to target |
+| `Legacy/SystemConstants.cs` | 100% commented-out dead file |
+| `Legacy/SystemStreams.cs` | 100% commented-out dead file |
+| `Legacy/RipAndTear/Client/LegacyClusterClient.cs` | Replaced by `KurrentResolver` + channel factory |
+| `Legacy/RipAndTear/Client/KurrentDBCallOptions.cs` | Only consumed by gossip + capabilities plumbing (both going) |
+| `Legacy/RipAndTear/Client/Constants.cs` | Whole file goes (see §6.3 for which constants survive and where) |
+| `Legacy/RipAndTear/Client/Settings/KurrentDBClientSettings.cs` | No more legacy settings record |
+| `Legacy/RipAndTear/Client/Settings/KurrentDBClientConnectivitySettings.cs` | Ditto |
+| `Legacy/RipAndTear/Client/Settings/KurrentDBClientOperationOptions.cs` | `BatchAppendSize` unconfigurable, `ThrowOnAppendFailure` unused |
+| `Legacy/RipAndTear/Client/Settings/KurrentDBClientRetrySettings.cs` | Replaced by `ServiceConfig.RetryPolicy`. Kills `InitialBackoff = 250s` bug |
+| `Legacy/RipAndTear/Client/Interceptors/LeaderNotFoundInterceptor.cs` | Replaced by `LeaderRedirectInterceptor` |
+| `Legacy/RipAndTear/Client/Interceptors/AuthenticationInterceptor.cs` | Rewritten clean in new location |
+| `Legacy/RipAndTear/Client/Interceptors/TypedExceptionInterceptor.cs` | Never instantiated today |
+| `Legacy/RipAndTear/Client/Exceptions/DiscoveryException.cs` | Replaced by idiomatic `RpcException(Unavailable)` |
+| `Legacy/RipAndTear/Client/Gossip/SharingProvider.cs` | Balancer owns the equivalent state machine |
+| `Legacy/RipAndTear/Client/Gossip/ChannelCache.cs` | Balancer owns subchannels; kills `Random(0)` + re-entrant lock + fire-and-forget dispose |
+| `Legacy/RipAndTear/Client/Gossip/ChannelFactoryExtensions.cs` | Folded into `KurrentClientChannelFactory` |
+| `Legacy/RipAndTear/Client/Gossip/ChannelInfo.cs` | Internal DTO no longer needed |
+| `Legacy/RipAndTear/Client/Gossip/ReconnectionRequired.cs` | DU replaced by resolver `HintLeader` + `Refresh` |
+| `Legacy/RipAndTear/Client/Gossip/SingleNodeHttpHandler.cs` | Never registered; dead file |
+| `Legacy/RipAndTear/Client/Gossip/ServerCapabilities.cs` | D1 — delete entirely |
+| `Legacy/RipAndTear/Client/Gossip/GrpcServerCapabilitiesClient.cs` | D1 |
+| `Legacy/RipAndTear/Client/Gossip/IServerCapabilitiesClient.cs` | D1 |
+| `Legacy/RipAndTear/Client/Gossip/Selectors/ChannelSelector.cs` | Dead — never instantiated |
+| `Legacy/RipAndTear/Client/Gossip/Selectors/IChannelSelector.cs` | Replaced by resolver |
+| `Legacy/RipAndTear/Client/Gossip/Selectors/GossipChannelSelector.cs` | Replaced by `KurrentResolver` |
+| `Legacy/RipAndTear/Client/Gossip/Selectors/SingleNodeChannelSelector.cs` | Single-node path uses plain `GrpcChannel.ForAddress` |
+| `Legacy/RipAndTear/HashCode.cs` | Replace uses with `System.HashCode.Combine` (.NET 6+) |
+| `Legacy/RipAndTear/UserCredentials.cs` | Only consumed by legacy stack files, all going |
+| `Legacy/RipAndTear/X509Certificates.cs` | Replace uses with built-in `X509Certificate2.CreateFromPemFile` |
+
+### 6.2 Relocate (keep, move out of `Legacy/`)
+
+These are used outside the channel stack and survive:
+
+| Source | Destination | Why |
+|---|---|---|
+| `Legacy/RipAndTear/Uuid.cs` | `Core/Uuid.cs` (or folded into `Internal/Proto/`) | Used by `StreamsClientV1Mapper.cs:240` (Kurrent.Client) and processors V1 mapper. Switch internal impl to `System.HashCode.Combine` after relocation. |
+| `Legacy/RipAndTear/EpochExtensions.cs` | `Internal/Proto/EpochExtensions.cs` | Used by `StreamsClientV1Mapper.cs:244` and processors V1 mapper |
+| `Legacy/RipAndTear/StreamIdentifier.cs` | `Internal/Proto/StreamIdentifierExtensions.cs` | Partial class extending generated proto type; used by all stream mappers |
+| `Legacy/KurrentDBLegacyErrorCodes.cs` | `Internal/Errors/LegacyErrorCodes.cs` | 7 live call sites in stream/processors code |
+| `Legacy/KurrentDBLegacyExceptionExtensions.cs` | `Internal/Errors/LegacyExceptionExtensions.cs` | Heavily used outside channel stack |
+| `Legacy/RipAndTear/Client/Gossip/NodePreference.cs` | `Options/NodePreference.cs` | Public-facing enum (D4) |
+| `Legacy/RipAndTear/Client/Gossip/NodeSelector.cs` | `Internal/Cluster/NodeSelector.cs` | Pure filter/sort; reused by resolver. Fix `Random(0)` → `Random.Shared`. |
+| `Legacy/RipAndTear/Client/Gossip/NodePreferenceComparers.cs` | `Internal/Cluster/NodePreferenceComparers.cs` | Used by `NodeSelector` |
+| `Legacy/RipAndTear/Client/Gossip/ClusterMessage.cs` | `Internal/Cluster/ClusterMessage.cs` | V1 gossip proto projection |
+| `Legacy/RipAndTear/Client/Gossip/GrpcGossipClient.cs` | `Internal/Cluster/GossipClient.cs` | Gossip RPC stub wrapper; reused by resolver |
+| `Legacy/RipAndTear/Client/Gossip/IGossipClient.cs` | `Internal/Cluster/IGossipClient.cs` | Test seam |
+| `Legacy/RipAndTear/Client/Gossip/EndPointExtensions.cs` | Delete unused `ToHttpUrl`; fold `ToUri` into resolver or inline | Mixed |
+| `Legacy/RipAndTear/TaskExtensions.cs` | Delete | Only consumer is `LegacyClusterClient`; other `WithCancellation` uses in module code hit the runtime `IAsyncEnumerable` overload, not this one |
+| `Metadata` constants (`Type`, `Created`, `ContentType`) from `Constants.cs` | `Internal/Proto/ProtoMetadataKeys.cs` | Used by V1 mappers |
+
+### 6.3 Constants.cs — line-by-line disposition
+
+| Block | Disposition |
+|---|---|
+| `Constants.LegacyErrorCodes` nested class | Delete entirely. Zero external references. |
+| `Constants.Metadata.{Type, Created, ContentType}` | Relocate to `Internal/Proto/ProtoMetadataKeys.cs`. Used by mappers. |
+| `Constants.Headers.{Authorization, BasicScheme, BearerScheme}` | Inline into new `AuthenticationInterceptor` |
+| `Constants.Headers.RequiresLeader` | Inline into `RequiresLeaderHeaderInterceptor` |
+| `Constants.Headers.{ClientName, ClientVersion, ConnectionName}` | Inline into `ClientIdentityHeaderInterceptor` |
+| `Constants.Headers.{OsName, OsVersion, RuntimeName, RuntimeVersion, HostArchitecture}` | Delete. Never wired. |
+
+### 6.4 `KurrentBackdoorClientFactory` decision
+
+`KurrentBackdoorClientFactory.GetBackdoorClient()` has zero callers in `src/`. `ClientModuleBase.GetBackdoorClient()` (`ClientModuleBase.cs:33-34`) is defined but never invoked. The factory builds `HttpClient` for a hypothetical HTTP backdoor not currently used.
+
+**Option A (recommended): delete it.** If backdoor HTTP becomes needed later, reintroduce with a plain `HttpClient` constructed from `channel.Target` — much simpler than the current factory (which has its own Polly pipeline and cert validation logic replicating `SocketsHttpHandler` config).
+
+**Option B: keep it, switch `Invoker.ChannelTarget` → `channel.Target`.** Preserves latent capability at the cost of ~150 lines of unused code.
+
+**Default: Option A** unless Sergio wants to preserve it.
+
+### 6.5 Add
 
 | File | Purpose |
 |---|---|
-| `Internal/Channel/KurrentClientChannelFactory.cs` | Builds the `GrpcChannel` from `KurrentClientOptions`. |
-| `Internal/Cluster/KurrentResolver.cs` | `PollingResolver` subclass doing gossip + NodePreference. |
-| `Internal/Cluster/KurrentResolverFactory.cs` | Registered for the `kurrentdb+discover` scheme. |
-| `Internal/Interceptors/LeaderRedirectInterceptor.cs` | Payload-driven leader redirect. |
-| `Internal/Interceptors/RequiresLeaderHeaderInterceptor.cs` | Split from legacy headers bundle. |
-| `Internal/Interceptors/ClientIdentityHeaderInterceptor.cs` | Split from legacy headers bundle. |
+| `Internal/Channel/KurrentClientChannelFactory.cs` | Builds `GrpcChannel` from `KurrentClientOptions` |
+| `Internal/Cluster/KurrentResolver.cs` | `PollingResolver` with gossip + NodePreference + leader hint |
+| `Internal/Cluster/KurrentResolverFactory.cs` | Registered for `kurrentdb+discover` scheme |
+| `Internal/Interceptors/LeaderRedirectInterceptor.cs` | V2 payload + V1 trailer + all 5 CallInvoker overrides |
+| `Internal/Interceptors/RequiresLeaderHeaderInterceptor.cs` | Clean, null-safe |
+| `Internal/Interceptors/ClientIdentityHeaderInterceptor.cs` | Clean, null-safe |
+| `Internal/Interceptors/AuthenticationInterceptor.cs` | Rewritten, no sync-over-async delegate call |
+| `Internal/Proto/ProtoMetadataKeys.cs` | `Type`, `Created`, `ContentType` constants |
 
-## 8. Settings / Connection String Mapping
+## 7. Connection String / Options Mapping (no change to public surface)
 
-Every connection-string parameter (from `KurrentConnectionString.ToClientOptions()`) continues to be supported. No changes to the parser or options surface.
+Every parameter from `KurrentConnectionString.ToClientOptions()` continues to be honored. Same table as before, confirmed:
 
-| Connection string param | KurrentClientOptions path | New consumer |
+| Param | Path in `KurrentClientOptions` | New consumer |
 |---|---|---|
 | scheme (`kurrentdb[+discover]`, aliases) | `ConnectionScheme` | `KurrentClientChannelFactory` |
-| `host:port[,host:port...]` | `Endpoints[]` | `KurrentResolver` seeds |
+| host:port list | `Endpoints[]` | `KurrentResolver` seeds (Discover) or URL (Direct) |
 | `user:pass@` | `Security.Authentication = ClientCredentials.Basic(...)` | `AuthenticationInterceptor` |
 | `ConnectionName` | `ConnectionName` | `ClientIdentityHeaderInterceptor` |
-| `Tls`, `TlsVerifyCert`, `TlsCaFile` | `Security.Transport` | `BuildSslOptions` in factory |
-| `UserCertFile`, `UserKeyFile` | `Security.Authentication = ClientCredentials.Certificate(...)` | `BuildSslOptions` in factory |
-| `KeepAliveInterval`, `KeepAliveTimeout` | `Resilience.KeepAliveInterval`, `KeepAliveTimeout` | `SocketsHttpHandler` |
-| `DefaultDeadline` | `Resilience.Deadline` | consumer-side `CallOptions` (unchanged) |
+| `Tls`, `TlsVerifyCert`, `TlsCaFile` | `Security.Transport` | `BuildSslOptions` |
+| `UserCertFile`, `UserKeyFile` | `Security.Authentication = ClientCredentials.Certificate(...)` | `BuildSslOptions` (using stdlib `X509Certificate2.CreateFromPemFile`) |
+| `KeepAliveInterval`, `KeepAliveTimeout` | `Resilience.KeepAliveInterval`, `.KeepAliveTimeout` | `SocketsHttpHandler.KeepAlivePing*` |
+| `DefaultDeadline` | `Resilience.Deadline` | Consumer-side `CallOptions.WithDeadline` (**new work — see §5.4**) |
 | `MaxDiscoverAttempts` | `Gossip.MaxDiscoverAttempts` | `KurrentResolver` |
 | `DiscoveryInterval` | `Gossip.DiscoveryInterval` | `KurrentResolver.MinimumRefreshInterval` |
-| `GossipTimeout` | `Gossip.Timeout` | `KurrentResolver` — **newly consumed** (was dead in legacy, now honored as per-seed gossip call deadline) |
-| `NodePreference` | `Gossip.ReadPreference` | `NodeSelector` in resolver |
+| `GossipTimeout` | `Gossip.Timeout` | **Now load-bearing** — per-seed gossip call deadline |
+| `NodePreference` | `Gossip.ReadPreference` | `NodeSelector` in resolver + `RequiresLeaderHeaderInterceptor` |
 
-**Note on improvements:** `GossipTimeout` becomes load-bearing (small capability gain, not a regression). `InitialBackoff = 250s` legacy bug removed. `Random(0)` shuffle bug removed.
+## 8. Implementation Plan — phased
 
-## 9. Error Surface (before/after)
+Seven phases, each compilable and testable on its own. Single branch, single PR, commits per phase.
 
-| Scenario | Today | After |
+### Phase 1 — Relocate load-bearing helpers out of `Legacy/` (no behavior change)
+
+Pure file moves + namespace renames. Everything still compiles against the legacy stack.
+
+- Move files per §6.2 table.
+- Update namespaces and `using` statements across the solution.
+- Fix `Uuid` impl to use `System.HashCode.Combine`.
+- Fix `X509Certificates` usages to use `X509Certificate2.CreateFromPemFile`.
+- Split `Constants.cs`: keep `Metadata.{Type,Created,ContentType}` relocated; delete the rest (but keep a temporary reference in the legacy interceptors until Phase 4).
+- Run full test suite → green.
+
+**Deliverable:** `Legacy/` folder now contains only channel-stack and its dependencies.
+
+### Phase 2 — Build the new channel stack (additive, not yet wired)
+
+- Add `KurrentClientChannelFactory`, `KurrentResolver[Factory]`, 4 new interceptors (`LeaderRedirect`, `RequiresLeaderHeader`, `ClientIdentityHeader`, `AuthenticationInterceptor`).
+- Unit tests for each, using TUnit + Faker per project conventions.
+- Nothing in `KurrentClient.cs` changes yet.
+
+**Deliverable:** new code exists, tested in isolation, not wired into `KurrentClient`.
+
+### Phase 3 — Wire `KurrentClient` to the new stack
+
+- `KurrentClient.cs` ctor: replace `new KurrentDBLegacyCallInvoker(options)` with `KurrentClientChannelFactory.Create(options)` → `channel.Intercept(...).CreateCallInvoker()`.
+- Dispose order: `await channel.DisposeAsync()` (resolver disposes via channel).
+- Drop `LegacyCallInvoker` property. Modules still want a `CallInvoker`, so expose `internal CallInvoker CallInvoker { get; }` instead.
+- Update `ClientModuleBase` to consume `CallInvoker` (not `LegacyCallInvoker.ServerCapabilities`) — drop `ServerCapabilities` accessor.
+- Update `KurrentBackdoorClientFactory` per §6.4 decision.
+- **Full integration test suite** against real containers (single-node + cluster). Leader-kill scenario. Mixed V1/V2 traffic.
+
+**Deliverable:** production path uses new stack end-to-end. Legacy stack files still on disk but unreferenced.
+
+### Phase 4 — Delete the legacy stack
+
+- Delete every file in §6.1.
+- Remove references from `.csproj` if any explicit `<Compile Include=...>`.
+- Grep for any stragglers — should be zero.
+- Rebuild + full test suite.
+
+**Deliverable:** `Legacy/` folder contains only proto-interop and error-code relocations; if those also moved in Phase 1, `Legacy/` is empty and can be deleted.
+
+### Phase 5 — Wire deadlines (C25 fix)
+
+- Add `ClientModuleBase.BuildCallOptions(ct)` helper that combines deadline from `options.Resilience.Deadline` with the passed `CancellationToken`.
+- Sweep all module call sites. Replace `cancellationToken: ct` with `BuildCallOptions(ct)`.
+- Integration test: verify `DefaultDeadline=500ms` actually times out a hanging request.
+
+**Deliverable:** `DefaultDeadline` now load-bearing.
+
+### Phase 6 — Final cleanup
+
+- Remove `Legacy/` folder if empty.
+- Audit namespace consistency.
+- Update `CLAUDE.md` layout notes if any.
+- Verify no `KurrentDB.Client`-namespaced types outside intentional legacy-aliased spots.
+
+### Phase 7 — Docs + commit hygiene
+
+- Update any architecture/onboarding docs referencing the old stack.
+- One PR, multiple commits, clean history per phase.
+- Tag the PR with `breaking: internal` — the public surface is unchanged but internals are a different universe.
+
+## 9. Testing
+
+Per project conventions (TUnit + TestDataSource + Faker, AAA comments, integration over containers via FluentDocker):
+
+### 9.1 Unit tests
+
+- `KurrentResolver` — happy path, seed exhaustion, leader hint, `NodePreference` variants, gossip RPC failures.
+- `LeaderRedirectInterceptor` — V2 payload extraction, V1 trailer extraction, ignores non-leader errors, covers `BlockingUnaryCall`, calls `resolver.HintLeader + Refresh` exactly once per failure, does not retry.
+- `RequiresLeaderHeaderInterceptor` — null headers collection handled; value derived from `NodePreference`.
+- `ClientIdentityHeaderInterceptor` — null headers collection handled; values from options.
+- `AuthenticationInterceptor` — Basic, Bearer, certificate, no-auth paths.
+- `NodeSelector` with `Random.Shared` — distribution sanity + preference filter correctness.
+
+### 9.2 Integration tests (container)
+
+- Single-node: connect, write, read, subscribe, TLS + insecure matrix.
+- Cluster: kill leader mid-write → client recovers, next write lands on new leader, no manual intervention.
+- V1-only operations (`StreamsClient.Read`, `AdminClient.Scavenge`): verify V1 trailer redirect path works on cluster.
+- V2-only operations (`StreamsClient.AppendRecords`): verify V2 payload redirect.
+- Mixed traffic: interleaved V1 reads + V2 writes on a single `KurrentClient` → all land correctly.
+- Deadline: configure `DefaultDeadline=500ms`, hang a request on server, verify client throws `DeadlineExceeded` (validates Phase 5).
+- User-supplied interceptor: still invoked.
+- `AuthenticationInterceptor`: mTLS against real certs.
+
+### 9.3 Deleted tests
+
+- Anything that targets `SharingProvider`, `ChannelCache`, `GossipChannelSelector`, `LegacyClusterClient` internals directly. `NodeSelectorTests` survives (tests preference logic, not channel mechanics).
+
+## 10. Risks
+
+| Risk | Likelihood | Mitigation |
 |---|---|---|
-| All seeds fail during discovery | `DiscoveryException(maxAttempts)` wrapped in user exception | `RpcException(StatusCode.Unavailable, "discovery failed: <detail>")` |
-| Leader election in progress (no leader yet) | Same `DiscoveryException` or eventual success after retry | Same — resolver keeps polling |
-| V1 write to follower, `requires-leader=false` | Server TCP-forwards to leader, write succeeds (transparent) | Unchanged — header interceptor still sets `false` when `NodePreference != Leader` |
-| V1 write to follower, `requires-leader=true` | `RpcException(NotFound)` + trailers `not-leader`, `leader-endpoint-host/port` → legacy interceptor reconnects | Same trailers path still handled in `LeaderRedirectInterceptor` (fallback) |
-| V2 write to follower | `RpcException(FailedPrecondition)` + `NotLeaderNodeErrorDetails` protobuf payload | `LeaderRedirectInterceptor` extracts `CurrentLeader.Host/Port`, hints resolver, refreshes |
-| Server overloaded / not ready | `RpcException(Unavailable)` → caller retries manually today | Same exception, but `ServiceConfig.RetryPolicy` now retries automatically up to 3 times (improvement) |
-| Forwarding timeout | `RpcException(DeadlineExceeded)` | Unchanged |
-| BlockingUnaryCall hits NotLeader | **Leader change not detected today** (bug) | Handled by new interceptor |
+| `PollingResolver` + `SocketsHttpHandler` interaction on net8.0 | Low | `Grpc.Net.Client 2.76.0` well past bug cutoff. Integration tests on all three TFMs. |
+| V1 trailer path regresses during migration | Medium | Phase 3 integration test covers V1 `StreamsClient.Read` on a 3-node cluster with leader kill. |
+| Resolver leader hint race (two failures, two hints) | Low | Last-hint wins; next poll re-validates via gossip. Self-correcting. |
+| Deleting `KurrentBackdoorClientFactory` breaks latent consumer | Low | Grep confirms zero `src/` callers. If a caller emerges, reintroduce with 10 lines. |
+| `RetryPolicy` on `Unavailable` retries non-idempotent writes | Very low | KurrentDB writes are idempotent via expected-revision consistency checks. `FailedPrecondition` is never retried. |
+| Moving `Uuid` breaks binary compat for Kurrent.Processors | Low — same monorepo, rebuild together | Single-PR migration, both projects rebuild. |
+| Someone un-comments PS/Projections/Users after migration | Medium (it will happen eventually) | V1 trailer path already supported. No additional work needed on channel stack. |
 
-## 10. Migration Plan
+## 11. Open Questions
 
-Single PR, mechanical order:
+1. **`KurrentBackdoorClientFactory` — delete (Option A) or keep with minor rewire (Option B)?** Default recommendation: A (delete). Sergio's call.
+2. **Phase 5 (deadlines) in same PR or follow-up?** It's mechanical but touches every module file. If we want this PR to stay under ~30 files changed, Phase 5 could be a follow-up. Default: same PR, it's a correctness fix that's been silently broken.
+3. **Is there appetite to replace `AuthenticationInterceptor` with `CallCredentials`** (the gRPC-native per-call metadata mechanism)? Cleaner, composable with `ChannelCredentials`. Adds ~20 lines, removes interceptor. Out of scope unless wanted.
 
-1. **Add new files** (`KurrentClientChannelFactory`, `KurrentResolver[Factory]`, 3 interceptors). Tests for each.
-2. **Move kept files** to `Internal/Cluster/` and `Internal/Interceptors/`. Update namespaces. Fix references.
-3. **Wire `KurrentClient.cs`** to use `KurrentClientChannelFactory.Create(options)` instead of `new KurrentDBLegacyCallInvoker(options)`. Pass `channel.Intercept(...).CreateCallInvoker()` to every module ctor.
-4. **Update `KurrentBackdoorClientFactory`** to read `channel.Target` directly instead of `invoker.ChannelTarget`.
-5. **Run the full test suite** (unit + integration). Integration tests hit a real container — this is the meaningful validation.
-6. **Delete the legacy files** listed in 7.1. Remove from `.csproj` if explicitly listed.
-7. **Prune `Constants.cs`** of unused headers and dead error codes.
-8. **Update `ClientModuleBase`** to drop the `ServerCapabilities` accessor (C28).
+## 12. Ready Checklist
 
-No gradual rollout. Greenfield project, single branch, one PR.
-
-## 11. Testing Strategy
-
-- **Unit tests** (TUnit, mocks):
-  - `KurrentResolver.ResolveAsync` — happy path (gossip succeeds), all-seeds-fail path, leader-hint path, `NodePreference` variants.
-  - `LeaderRedirectInterceptor` — V2 payload path, V1 trailer path, non-leader error ignored, resolver hint is called.
-  - Header interceptors — header presence, values from options.
-- **Integration tests** (real KurrentDB container via FluentDocker):
-  - Single-node connect, basic auth, mTLS.
-  - Multi-node cluster: write lands on leader transparently, reads respect `NodePreference`, leader kill triggers resolver refresh and subsequent calls succeed on the new leader.
-  - V1 and V2 RPCs both exercised (streams V2 append + legacy reads).
-  - Server restart — reconnect works without manual intervention.
-  - User-supplied `Interceptors` still invoked.
-- **Delete obsolete tests** that target `SharingProvider`, `ChannelCache`, `GossipChannelSelector` directly. Behavior is now covered end-to-end.
-
-## 12. Risks
-
-| Risk | Mitigation |
-|---|---|
-| `GrpcChannel` + `PollingResolver` interaction with `HttpHandler` on older .NET versions | Targeting net8.0 minimum; grpc-dotnet 2.76 balancer API is mature. Integration tests on all three TFMs. |
-| `LeaderRedirectInterceptor` race: two concurrent writes both fail, both hint different (stale) leaders | Resolver stores last-hint and always re-validates via next poll. If the second hint is also stale, another redirect arrives — self-correcting. |
-| `ServiceConfig.RetryPolicy` retries writes unsafely | Writes to KurrentDB are idempotent at the consistency-check level (expected revision). `Unavailable` retry is safe. No retry on `FailedPrecondition`. |
-| Loss of sync-call leader redirect semantics (C20 gap) | Actually a gain — new interceptor also covers `BlockingUnaryCall`. |
-| `KurrentClientChannelFactory` hard-codes `pick_first` | Future work: switch to `round_robin` when the resolver returns multi-node lists. Documented, not done here. |
-| Resolver-side gossip uses V1 RPC — if V1 stub ever retires | V1 gossip RPC is load-bearing server-side (any node can serve). Retirement would require server V2 gossip first. Out of scope. |
-
-## 13. Open Questions
-
-1. **Polly integration at the consumer module level?** Currently out of scope — `ServiceConfig.RetryPolicy` covers `Unavailable`. If we want user-tunable retry semantics, we add a `KurrentClientResilienceOptions.RetryPolicy` knob later and translate to `ServiceConfig` at channel-build time. Non-blocking for this change.
-2. **Expose `KurrentClient.RefreshCluster()` publicly?** Resurrects C27. Cheap, useful, and zero cost if unused. Default: yes, add it.
-3. **`kurrentdb+discover` scheme collision risk.** `GrpcChannel.ForAddress` treats schemes as URL schemes. Registering a custom `ResolverFactory` for `kurrentdb+discover` is standard. Single-node uses regular `https://` or `http://`. Confirmed supported by grpc-dotnet 2.76.
-
-## 14. Approval Required
-
-Please confirm:
-- Full capability list C1-C30 is complete (add any I missed).
-- File deletion list in §7.1 is acceptable.
-- C28 (`ServerCapabilities`) is genuinely out of scope — we delete the probe and the accessor.
-- Open question 2 — add public `RefreshCluster()` method.
-
-Once approved, implementation tracked under task #1 (resolver + interceptor), cleanup under task #3.
+- [x] D1-D5 decisions recorded
+- [x] Every current capability validated (C1-C30) with corrections folded in
+- [x] Every file in `Legacy/` assigned to delete/relocate/keep with reason
+- [x] Active today-broken capabilities (C18, C19, C20 V2 path, C25) called out as bugs fixed, not migrated
+- [x] V1 trailer fallback justified with module-level evidence
+- [x] Phased migration plan with compile-green gates between phases
+- [x] Test plan aligned with project conventions
+- [x] Risks enumerated
+- [ ] Sergio sign-off on §11 open questions
+- [ ] Start Phase 1 (blocked on sign-off)

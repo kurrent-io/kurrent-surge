@@ -12,8 +12,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-await KurrentProcessor.Create(opts => {
+await KurrentProcessor.Create(new WordCountProcessor(), opts => {
     opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = new ExpressionFilter("schema_name = 'TextSubmitted'");
-    opts.Subscribe.Use(new WordCountProcessor());
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'TextSubmitted'");
 }).RunWithGracefulShutdownAsync();

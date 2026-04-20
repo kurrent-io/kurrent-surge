@@ -19,21 +19,21 @@ sealed class Drone : IDrone {
     DroneContext DroneContext { get; set; }
 
     public Drone(
-        ProcessorOptions settings,
+        ProcessorOptions options,
         ISubscriptionSource source,
         IRecordProcessor processor,
         ILoggerFactory loggerFactory,
         TimeProvider timeProvider
     ) {
-        Settings   = settings;
+        Options   = options;
+        
         _source    = source;
+        
         _processor = new SafeRecordProcessor(processor);
+        _progress  = new ProgressTracker(timeProvider);
+        _logger    = loggerFactory.CreateLogger<Drone>();
 
-        _progress = new ProgressTracker(timeProvider);
-
-        _logger = loggerFactory.CreateLogger<Drone>();
-
-        _telemetry = new DroneTelemetry(_logger, settings.ProcessorId, settings.DroneId);
+        _telemetry = new DroneTelemetry(_logger, options.ProcessorId, options.DroneId);
 
         DroneContext = new DroneContext {
             ProcessorId = ProcessorId,
@@ -43,10 +43,10 @@ sealed class Drone : IDrone {
         };
     }
 
-    public string ProcessorId => Settings.ProcessorId;
-    public string DroneId     => Settings.DroneId;
+    public string ProcessorId => Options.ProcessorId;
+    public string DroneId     => Options.DroneId;
 
-    public ProcessorOptions Settings { get; }
+    public ProcessorOptions Options { get; }
 
     public DroneStatus Status { get; private set; } = DroneStatus.Starting;
 
@@ -133,7 +133,7 @@ sealed class Drone : IDrone {
                 var ctx = DroneContext.ForCheckpoint(checkpoint.Positions, checkpoint);
                 await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
             }
-            catch (Exception ex) when (!Settings.Debug) {
+            catch (Exception ex) when (!Options.Debug) {
                 _logger.LogWarning(ex, "[{ProcessorId}/{DroneId}] User OnCheckpoint handler failed", ProcessorId, DroneId);
             }
 
@@ -146,7 +146,7 @@ sealed class Drone : IDrone {
         catch (Exception ex) {
             _telemetry.CheckpointFailed(checkpoint.CheckpointId, checkpoint.Trigger, checkpoint.Positions, ex);
 
-            if (Settings.Checkpoint.FailurePolicy == CheckpointFailurePolicy.FailProcessor)
+            if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
                 throw;
         }
     }
@@ -177,7 +177,7 @@ sealed class Drone : IDrone {
                 var ctx = DroneContext.ForCheckpoint(checkpoint.Positions, checkpoint);
                 await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
             }
-            catch (Exception ex) when (!Settings.Debug) {
+            catch (Exception ex) when (!Options.Debug) {
                 _logger.LogWarning(ex, "[{ProcessorId}/{DroneId}] User OnCheckpoint handler failed during shutdown", ProcessorId, DroneId);
             }
 
@@ -205,14 +205,14 @@ sealed class Drone : IDrone {
                 .OnComplete(DroneContext.ForComplete(Progress))
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (!Settings.Debug) {
+        catch (Exception ex) when (!Options.Debug) {
             errors.Add(ex);
         }
 
         await Cleanup(errors).ConfigureAwait(false);
 
         // Final status — checkpoint policy can escalate to error
-        if (checkpointFailed && Settings.Checkpoint.FailurePolicy == CheckpointFailurePolicy.FailProcessor) {
+        if (checkpointFailed && Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail) {
             Status = DroneStatus.Error;
 
             var aex = new AggregateException("Checkpoint failed during shutdown", errors).Flatten();

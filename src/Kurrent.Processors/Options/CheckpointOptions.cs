@@ -7,9 +7,10 @@ namespace Kurrent.Processors.Options;
 public record CheckpointOptions {
     /// <summary>
     /// Time between automatic checkpoints. Default: 30 seconds.
-    /// In JSON config, specify as milliseconds: <c>"Interval": 30000</c>.
+    /// In JSON config, specify as milliseconds (<c>"Interval": 30000</c>) or TimeSpan format
+    /// (<c>"Interval": "00:00:30"</c>).
     /// </summary>
-    public Duration Interval { get; set; } = Duration.FromSeconds(30);
+    public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Number of completed checkpoints to retain. Default: 3.
@@ -24,10 +25,9 @@ public record CheckpointOptions {
     /// <summary>
     /// Convenience builder with fluent chaining and ms/TimeSpan overloads.
     /// </summary>
-    [PublicAPI]
     public sealed class Builder(CheckpointOptions options) {
-        public Builder Interval(long milliseconds) { options.Interval = Duration.FromMilliseconds(milliseconds); return this; }
-        public Builder Interval(TimeSpan interval) { options.Interval = new Duration(interval); return this; }
+        public Builder Interval(long milliseconds) { options.Interval = TimeSpan.FromMilliseconds(milliseconds); return this; }
+        public Builder Interval(TimeSpan interval) { options.Interval = interval; return this; }
         public Builder RetentionCount(int count)   { options.RetentionCount = count; return this; }
         public Builder FailurePolicy(CheckpointFailurePolicy policy) { options.FailurePolicy = policy; return this; }
     }
@@ -46,5 +46,5 @@ public enum CheckpointFailurePolicy {
     /// <summary>
     /// Stop all processing. Requires manual intervention to resume.
     /// </summary>
-    FailProcessor = 1
+    Fail = 1
 }

@@ -13,6 +13,7 @@
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>
     <!-- Embed source generator DLLs into analyzers/dotnet/cs/ during pack -->
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>
+    <RootNamespace>Kurrent</RootNamespace>
   </PropertyGroup>
 
   <!-- AOT/Trimming Support -->
@@ -38,7 +39,7 @@
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" />
+<!--    <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" />-->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" /> <!-- for the backdoor client -->
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
@@ -74,7 +75,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Client" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Client.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Processors" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.SDK.Testing" />
