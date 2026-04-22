@@ -7,8 +7,8 @@ namespace Kurrent.Client.Tests.Secure;
 [Category("Integration")]
 [Category("Cluster")]
 public class ClusterTests {
-    [ClassDataSource<KurrentDBSecureClusterTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBSecureClusterTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBClusterTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBClusterTestFixture Fixture { get; [UsedImplicitly] init; }
 
     // Appending requires a leader. If gossip or TLS handshake between nodes
     // is broken, the client never resolves a leader and this call hangs/fails.

@@ -63,15 +63,30 @@ public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable
     }
 }
 
+/// <summary>
+/// Single-node secure fixture. Use for tests that specifically exercise TLS, user
+/// authentication, or certificate handling. Prefer <see cref="KurrentDBInsecureTestFixture"/>
+/// unless the test requires a secure transport.
+/// </summary>
 public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
     protected override void ConfigureNode(KurrentDBNodeOptions opts) => opts.Secure = true;
 }
 
+/// <summary>
+/// Single-node insecure fixture. Use as the default for tests that exercise client
+/// operations (reads, writes, subscriptions) and do not depend on TLS, auth, or
+/// cluster semantics. Fastest to spin up.
+/// </summary>
 public sealed class KurrentDBInsecureTestFixture : KurrentDBTestFixture {
     protected override void ConfigureNode(KurrentDBNodeOptions opts) { }
 }
 
-public sealed class KurrentDBSecureClusterTestFixture : KurrentDBTestFixture {
+/// <summary>
+/// Three-node secure cluster fixture. Use for tests that depend on cluster semantics
+/// such as gossip, leader discovery, node preference, or failover. Slowest to spin up;
+/// avoid unless the test actually needs multiple nodes.
+/// </summary>
+public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture {
     protected override int NodeCount => 3;
     protected override void ConfigureNode(KurrentDBNodeOptions opts) => opts.Secure = true;
 }
