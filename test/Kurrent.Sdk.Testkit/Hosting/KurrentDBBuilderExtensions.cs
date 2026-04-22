@@ -24,6 +24,7 @@ public static class KurrentDBBuilderExtensions {
         string tag = KurrentDBContainerImageTags.Latest.Tag
     ) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(image);
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
         var resource = new KurrentDBResource(name);
@@ -47,7 +48,6 @@ public static class KurrentDBBuilderExtensions {
             .AddResource(resource)
             .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
             .WithImage(image, tag)
-            //.WithImageRegistry(KurrentDBContainerImageTags.Registry)
             .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Insecure))
             .WithHealthCheck(healthCheckKey);
     }
@@ -69,22 +69,11 @@ public static class KurrentDBBuilderExtensions {
     }
 
     internal static string? GetCertsHostPath(IDistributedApplicationBuilder builder) =>
-        builder.Resources.OfType<ContainerResource>()
-            .FirstOrDefault(r => r.Name == CertGenResourceName)
-            ?.Annotations.OfType<ContainerMountAnnotation>()
-            .FirstOrDefault(a => a.Target == CertGenTargetFolder)
-            ?.Source;
+        FindCertGenResource(builder)?.HostPath;
 
     static CertGenResource AddOrGetCertGenResource(IDistributedApplicationBuilder builder) {
-        var existing = builder.Resources.OfType<ContainerResource>()
-            .FirstOrDefault(r => r.Name == CertGenResourceName);
-
-        if (existing is not null) {
-            var mount = existing.Annotations.OfType<ContainerMountAnnotation>()
-                .First(a => a.Target == CertGenTargetFolder);
-
-            return new CertGenResource(builder.CreateResourceBuilder(existing), mount.Source!);
-        }
+        if (FindCertGenResource(builder) is { } existing)
+            return new CertGenResource(builder.CreateResourceBuilder(existing.Resource), existing.HostPath);
 
         var hostPath = Path.Combine(Path.GetTempPath(), $"kurrentdb-testkit-certs-{Guid.NewGuid():N}");
         Directory.CreateDirectory(hostPath);
@@ -97,6 +86,18 @@ public static class KurrentDBBuilderExtensions {
             .WithBindMount(hostPath, CertGenTargetFolder);
 
         return new CertGenResource(resource, hostPath);
+    }
+
+    static (ContainerResource Resource, string HostPath)? FindCertGenResource(IDistributedApplicationBuilder builder) {
+        var resource = builder.Resources.OfType<ContainerResource>()
+            .FirstOrDefault(r => r.Name == CertGenResourceName);
+
+        if (resource is null) return null;
+
+        var mount = resource.Annotations.OfType<ContainerMountAnnotation>()
+            .First(a => a.Target == CertGenTargetFolder);
+
+        return (resource, mount.Source!);
     }
 
     readonly record struct CertGenResource(IResourceBuilder<ContainerResource> Resource, string HostPath);
