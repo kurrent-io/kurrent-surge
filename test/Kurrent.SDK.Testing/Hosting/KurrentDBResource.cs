@@ -1,7 +1,6 @@
 namespace Aspire.Hosting.ApplicationModel;
 
-public class KurrentDBResource(string name, bool secure = false)
-    : ContainerResource(name), IResourceWithConnectionString {
+public class KurrentDBResource(string name, bool secure = false) : ContainerResource(name), IResourceWithConnectionString {
     internal const string HttpEndpointName = "http";
     internal const int    DefaultHttpPort  = 2113;
 

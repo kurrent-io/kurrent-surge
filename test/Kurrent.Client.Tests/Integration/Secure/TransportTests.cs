@@ -5,30 +5,26 @@ namespace Kurrent.Client.Tests.Secure;
 
 [Category("Secure")]
 [Category("Integration")]
-public class SecureConnectionTests {
+public class TransportTests {
     [ClassDataSource<KurrentDBSecureTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBSecureTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    public async ValueTask connects_and_appends_over_tls(CancellationToken ct) {
-        // Arrange
-        var stream = $"secure-test-{Guid.NewGuid():N}";
+    public async ValueTask appends_over_tls(CancellationToken ct) {
+        var stream = $"secure-append-{Guid.NewGuid():N}";
 
         var req = AppendStreamRequest.For(stream)
             .WithRecord(new TestEvent("hello from TLS", DateTimeOffset.UtcNow))
             .ExpectingState(ExpectedStreamState.NoStream)
             .Build();
 
-        // Act
         var result = await Fixture.Client.Streams.AppendStream(req, ct);
 
-        // Assert
         await Assert.That(result.Revision).IsEqualTo(0);
     }
 
     [Test]
     public async ValueTask reads_back_over_tls(CancellationToken ct) {
-        // Arrange
         var stream = $"secure-read-{Guid.NewGuid():N}";
 
         var appendReq = AppendStreamRequest.For(stream)
@@ -39,14 +35,12 @@ public class SecureConnectionTests {
 
         await Fixture.Client.Streams.AppendStream(appendReq, ct);
 
-        // Act
         var records = await Fixture.Client.Streams
             .ReadStreamRecords(stream, cancellationToken: ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        // Assert
         await Assert.That(records).Count().IsEqualTo(2);
     }
 
