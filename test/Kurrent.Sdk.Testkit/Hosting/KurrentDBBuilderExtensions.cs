@@ -13,15 +13,9 @@ public static class KurrentDBBuilderExtensions {
     const string CertGenImage        = "docker.eventstore.com/eventstore-utils/es-gencert-cli";
     const string CertGenTag          = "latest";
     const string CertGenTargetFolder = "/certs";
+    const string CertGenScriptTarget = "/scripts/gencert.sh";
 
-    const string CertGenScript =
-        """
-        es-gencert-cli create-ca -out /certs/ca -force \
-         && es-gencert-cli create-node -ca-certificate /certs/ca/ca.crt -ca-key /certs/ca/ca.key -out /certs/node -ip-addresses 127.0.0.1 -dns-names localhost -force \
-         && es-gencert-cli create-user -username admin -ca-certificate /certs/ca/ca.crt -ca-key /certs/ca/ca.key -out /certs/user-admin -force \
-         && find /certs -type f -exec chmod 666 {} + \
-         && find /certs -type d -exec chmod 777 {} +
-        """;
+    static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "Hosting", "gencert.sh");
 
     public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
         this IDistributedApplicationBuilder builder,
@@ -98,7 +92,8 @@ public static class KurrentDBBuilderExtensions {
         var resource = builder
             .AddContainer(CertGenResourceName, CertGenImage, CertGenTag)
             .WithEntrypoint("/bin/sh")
-            .WithArgs("-c", CertGenScript)
+            .WithArgs(CertGenScriptTarget)
+            .WithBindMount(CertGenScriptSource, CertGenScriptTarget, true)
             .WithBindMount(hostPath, CertGenTargetFolder);
 
         return new CertGenResource(resource, hostPath);

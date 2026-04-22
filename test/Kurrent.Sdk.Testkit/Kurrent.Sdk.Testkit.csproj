@@ -19,4 +19,8 @@
     <ItemGroup>
         <PackageReference Include="Aspire.Hosting.Testing" />
     </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Hosting/gencert.sh" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
 </Project>
