@@ -1,5 +1,5 @@
 using Google.Rpc;
-using Humanizer;
+using Kurrent.Client;
 using Kurrent.GoogleRpc;
 
 namespace Kurrent.Client.Errors;

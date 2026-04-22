@@ -192,11 +192,7 @@ static class KurrentDBConnectionStringConverter {
                 throw new InvalidSettingException("Failed to load certificate. File was not found.");
 
             try {
-#if NET9_0_OR_GREATER
                 settings.ConnectivitySettings.TlsCaFile = X509CertificateLoader.LoadCertificateFromFile(tlsCaFilePath);
-#else
-                settings.ConnectivitySettings.TlsCaFile = new X509Certificate2(tlsCaFilePath);
-#endif
             }
             catch (CryptographicException) {
                 throw new InvalidSettingException("Failed to load certificate. Invalid file format.");

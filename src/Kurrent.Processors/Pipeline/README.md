@@ -16,7 +16,7 @@
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  RUNTIME (ProcessorWorker)                                                  │
+│  RUNTIME (Drone)                                                            │
 │                                                                             │
 │  ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐     │
 │  │ IRecordProcessor│ ───► │   ICollector    │ ───► │ SinkCoordinator │     │
@@ -53,14 +53,14 @@ public class OrderProcessor : IRecordProcessor<OrderEvent> {
 **Startup - configure sinks:**
 
 ```csharp
-var worker = KurrentProcessors
+var drone = KurrentProcessors
     .Create<OrderEvent>(new OrderProcessor())
     .ConnectTo("esdb://localhost:2113")
     .AddSink(new KafkaSink<OrderEvent>(options))              // at-least-once
     .AddSink(new KafkaTransactionalSink<OrderEvent>(txnOpts)) // exactly-once
     .Build();
 
-await worker.RunAsync();
+await drone.RunAsync();
 ```
 
 ## What Happens on Checkpoint
@@ -94,7 +94,7 @@ Continue processing
 ```
 ├── IRecordProcessor.cs          # User implements this
 ├── KurrentProcessorBuilder.cs   # Configure sinks at startup
-├── ProcessorWorker.cs           # Runtime orchestration (coordinates sinks)
+├── Drone.cs                     # Runtime orchestration (coordinates sinks)
 ├── Contexts.cs                  # ProcessRecordsContext<T>, etc.
 ├── Types.cs                     # Record, LogPosition, etc.
 └── Sinks/

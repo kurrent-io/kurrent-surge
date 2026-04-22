@@ -53,7 +53,7 @@ public class CheckpointStoreTests {
         var barrierId   = PunyId.New();
 
 		// Act
-		await store.StoreAsync("worker-1", barrierId, positions, ct);
+		await store.StoreAsync("drone-1", barrierId, positions, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -71,7 +71,7 @@ public class CheckpointStoreTests {
         var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
 
 		// Act
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -89,8 +89,8 @@ public class CheckpointStoreTests {
         var positions2  = CheckpointTestHelpers.Positions((1, 2500), (2, 3000));
 
 		// Act
-		await store.StoreAsync("worker-1", PunyId.New(), positions1, ct);
-		await store.StoreAsync("worker-1", PunyId.New(), positions2, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions1, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions2, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -106,7 +106,7 @@ public class CheckpointStoreTests {
 	#region Concurrency
 
 	[Test]
-	public async ValueTask concurrent_stores_from_different_workers_merge_correctly(CancellationToken ct) {
+	public async ValueTask concurrent_stores_from_different_drones_merge_correctly(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-concurrent");
         var store1      = CreateStore(processorId);
@@ -115,8 +115,8 @@ public class CheckpointStoreTests {
         var positions2  = CheckpointTestHelpers.Positions((1, 2000));
 
 		// Act
-		var task1 = store1.StoreAsync("worker-1", PunyId.New(), positions1, ct).AsTask();
-		var task2 = store2.StoreAsync("worker-2", PunyId.New(), positions2, ct).AsTask();
+		var task1 = store1.StoreAsync("drone-1", PunyId.New(), positions1, ct).AsTask();
+		var task2 = store2.StoreAsync("drone-2", PunyId.New(), positions2, ct).AsTask();
 		await Task.WhenAll(task1, task2);
 
 		var checkpoint = await store1.LoadLatestAsync(ct);
@@ -132,17 +132,17 @@ public class CheckpointStoreTests {
 	[Arguments(2)]
 	[Arguments(5)]
 	[Arguments(10)]
-	public async ValueTask high_contention_stores_all_succeed(int workerCount, CancellationToken ct) {
+	public async ValueTask high_contention_stores_all_succeed(int droneCount, CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-contention");
-		var stores = Enumerable.Range(0, workerCount)
-			.Select(_ => CreateStore(processorId, partitionCount: workerCount))
+		var stores = Enumerable.Range(0, droneCount)
+			.Select(_ => CreateStore(processorId, partitionCount: droneCount))
 			.ToArray();
 
 		// Act
 		var tasks = stores.Select((store, i) => {
 			var positions = CheckpointTestHelpers.Positions((i, (i + 1) * 1000));
-			return store.StoreAsync($"worker-{i}", PunyId.New(), positions, ct).AsTask();
+			return store.StoreAsync($"drone-{i}", PunyId.New(), positions, ct).AsTask();
 		}).ToArray();
 
 		await Task.WhenAll(tasks);
@@ -151,8 +151,8 @@ public class CheckpointStoreTests {
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
-		await Assert.That(byPartition.Count).IsEqualTo(workerCount);
-		for (var i = 0; i < workerCount; i++) {
+		await Assert.That(byPartition.Count).IsEqualTo(droneCount);
+		for (var i = 0; i < droneCount; i++) {
 			await Assert
                 .That(byPartition[Partition.From(i)].Position.LogPosition.Value)
                 .IsEqualTo((i + 1) * 1000);
@@ -170,7 +170,7 @@ public class CheckpointStoreTests {
 
         // Act & Assert
 		await Assert
-            .That(async () => await store.StoreAsync("worker-1", PunyId.New(), [], ct))
+            .That(async () => await store.StoreAsync("drone-1", PunyId.New(), [], ct))
             .ThrowsExactly<ArgumentOutOfRangeException>();
 	}
 
@@ -182,12 +182,12 @@ public class CheckpointStoreTests {
         var positions   = CheckpointTestHelpers.Positions((0, 1000));
 
 		// Act
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 		var checkpoint1 = await store.LoadLatestAsync(ct);
 
 		await Task.Delay(100, ct);
 
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 		var checkpoint2 = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -207,7 +207,7 @@ public class CheckpointStoreTests {
         var streamName  = $"$processors/{processorId}/checkpoints";
 
         // Act
-		await store.StoreAsync("worker-1", PunyId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
+		await store.StoreAsync("drone-1", PunyId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Assert
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
@@ -223,7 +223,7 @@ public class CheckpointStoreTests {
         var streamName  = $"$processors/{processorId}/checkpoints";
 
         // Act
-		await store.StoreAsync("worker-1", PunyId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
+		await store.StoreAsync("drone-1", PunyId.New(), CheckpointTestHelpers.Positions((0, 1000)), ct);
 
 		// Assert
 		var info = await Fixture.Client.Streams.GetStreamInfo(streamName, ct);
@@ -241,7 +241,7 @@ public class CheckpointStoreTests {
         var store       = CreateStore(processorId);
         var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 3000));
 
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 
 		var partitions = new[] { Partition.From(0), Partition.From(1), Partition.From(2) };
 
@@ -263,7 +263,7 @@ public class CheckpointStoreTests {
         var store       = CreateStore(processorId);
         var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000), (2, 3000));
 
-        await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+        await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 
 		var partitions = new[] { Partition.From(0), Partition.From(2) };
 
@@ -306,10 +306,10 @@ public class CheckpointStoreTests {
 		var store       = CreateStore(processorId);
 		var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
 
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 
 		// Act — full wipe (empty positions = barrier)
-		await store.ResetAsync("worker-1", PunyId.New(), [], ct);
+		await store.ResetAsync("drone-1", PunyId.New(), [], ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -327,10 +327,10 @@ public class CheckpointStoreTests {
 		);
 		var resetPositions = CheckpointTestHelpers.PositionsWithStream((1, 500, stream, 0));
 
-		await store.StoreAsync("worker-1", PunyId.New(), initialPos, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), initialPos, ct);
 
 		// Act — selective reset: only partition 1 repositioned
-		await store.ResetAsync("worker-1", PunyId.New(), resetPositions, ct);
+		await store.ResetAsync("drone-1", PunyId.New(), resetPositions, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert — partition 1 was reset, others preserved
@@ -347,10 +347,10 @@ public class CheckpointStoreTests {
 		var store       = CreateStore(processorId);
 		var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
 
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 
 		// Act — RecordPosition.Unset = full wipe
-		await store.ResetAsync("worker-1", PunyId.New(), RecordPosition.Unset, ct);
+		await store.ResetAsync("drone-1", PunyId.New(), RecordPosition.Unset, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -370,10 +370,10 @@ public class CheckpointStoreTests {
 			(2, seeded.Position.Value + 300, seeded.Stream, 2)
 		);
 
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 
 		// Act — reset all partitions to the seeded position
-		await store.ResetAsync("worker-1", PunyId.New(), resetToPosition, ct);
+		await store.ResetAsync("drone-1", PunyId.New(), resetToPosition, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert — all partitions at the reset position
@@ -392,11 +392,11 @@ public class CheckpointStoreTests {
 		var oldPositions = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
 		var newPositions = CheckpointTestHelpers.Positions((0, 5000));
 
-		await store.StoreAsync("worker-1", PunyId.New(), oldPositions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), oldPositions, ct);
 
 		// Act — wipe then store new data
-		await store.ResetAsync("worker-1", PunyId.New(), [], ct);
-		await store.StoreAsync("worker-1", PunyId.New(), newPositions, ct);
+		await store.ResetAsync("drone-1", PunyId.New(), [], ct);
+		await store.StoreAsync("drone-1", PunyId.New(), newPositions, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert — only the post-wipe data is visible
@@ -420,7 +420,7 @@ public class CheckpointStoreTests {
 		);
 
 		// Act
-		await store.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
 		var checkpoint = await store.LoadLatestAsync(ct);
 
 		// Assert
@@ -444,7 +444,7 @@ public class CheckpointStoreTests {
 		var store1      = CreateStore(processorId);
 		var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
 
-		await store1.StoreAsync("worker-1", PunyId.New(), positions, ct);
+		await store1.StoreAsync("drone-1", PunyId.New(), positions, ct);
 
 		// Act — load with a fresh store instance (no prior write in this instance)
 		var store2     = CreateStore(processorId);

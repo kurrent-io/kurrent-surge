@@ -27,12 +27,12 @@ interface ICheckpointStore {
     /// <summary>
     /// Stores checkpoint positions for the specified partitions.
     /// </summary>
-    /// <param name="workerId">The worker storing the checkpoint (for attribution).</param>
+    /// <param name="droneId">The drone storing the checkpoint (for attribution).</param>
     /// <param name="checkpointId">The checkpoint barrier that triggered this store.</param>
     /// <param name="positions">Partition positions to checkpoint.</param>
     /// <param name="ct">Cancellation token.</param>
     ValueTask StoreAsync(
-        string workerId,
+        string droneId,
         string checkpointId,
         PartitionPosition[] positions,
         CancellationToken ct = default
@@ -43,7 +43,7 @@ interface ICheckpointStore {
     /// Empty positions = full reset (barrier, all prior state wiped).
     /// </summary>
     ValueTask ResetAsync(
-        string workerId,
+        string droneId,
         string checkpointId,
         PartitionPosition[] positions,
         CancellationToken ct = default
@@ -53,7 +53,7 @@ interface ICheckpointStore {
     /// Resets all partitions to the same position.
     /// </summary>
     ValueTask ResetAsync(
-        string workerId,
+        string droneId,
         string checkpointId,
         RecordPosition position,
         CancellationToken ct = default
@@ -67,7 +67,7 @@ interface ICheckpointStore {
 public readonly record struct PartitionPosition(Partition Partition, RecordPosition Position);
 
 /// <summary>
-/// Loaded checkpoint for a processor, with resolved positions for all worker assigned partitions.
+/// Loaded checkpoint for a processor, with resolved positions for all drone assigned partitions.
 /// </summary>
 [PublicAPI]
 public sealed record ProcessorCheckpoint {

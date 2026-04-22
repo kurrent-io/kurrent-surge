@@ -8,7 +8,7 @@ namespace Kurrent.Client.Processors.Partitioning;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Partitions provide a fixed intermediate layer between keys and workers. Keys are mapped
+/// Partitions provide a fixed intermediate layer between keys and drones. Keys are mapped
 /// to partitions deterministically, ensuring the same key always routes to the same partition.
 /// </para>
 /// <para>
@@ -40,11 +40,6 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     public static readonly PartitionCalculator XXHash = new(HashGenerators.FromBytes.XXHash);
 
     /// <summary>
-    /// Instance using MurmurHash3 (industry standard used by Kafka, Flink, Cassandra).
-    /// </summary>
-    public static readonly PartitionCalculator MurmurHash3 = new(HashGenerators.FromBytes.MurmurHash3);
-
-    /// <summary>
     /// Calculates the partition number for a given key.
     /// </summary>
     /// <param name="key">The partition key (e.g., stream ID, customer ID).</param>
@@ -53,7 +48,7 @@ public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     /// <remarks>
     /// <para>
     /// The same key always maps to the same partition for a given maxParallelism.
-    /// This ensures state locality: all records with the same key are processed by the same worker.
+    /// This ensures state locality: all records with the same key are processed by the same drone.
     /// </para>
     /// </remarks>
     public int Calculate(string key, int maxParallelism) {

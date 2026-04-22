@@ -23,7 +23,3 @@ public interface IRecordProcessorFactory {
     /// <returns>A new processor instance to handle the read operation.</returns>
     IRecordProcessor CreateProcessor();
 }
-
-class PassthroughRecordProcessorFactory(IRecordProcessor processor) : IRecordProcessorFactory {
-    public IRecordProcessor CreateProcessor() => processor;
-}

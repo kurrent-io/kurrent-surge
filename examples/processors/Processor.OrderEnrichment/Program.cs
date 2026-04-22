@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.OrderEnrichment;
 using Serilog;
 
@@ -11,9 +12,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var processor = new OrderEnrichmentProcessor();
-
-await KurrentProcessors.Create(processor)
-    .WithFilterExpression("schema_name IN ('OrderPlaced', 'CustomerUpdated', 'ProductUpdated')")
-    .ConnectTo("kurrentdb://localhost:2113")
-    .RunWithGracefulShutdownAsync();
+await KurrentProcessor.Create(new OrderEnrichmentProcessor(), opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('OrderPlaced', 'CustomerUpdated', 'ProductUpdated')");
+}).RunWithGracefulShutdownAsync();

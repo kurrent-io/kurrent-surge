@@ -73,14 +73,15 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     }
 
     public async ValueTask DisposeAsync() {
-        if (LazyClient.IsValueCreated) {
-            try {
-                await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex) {
-                Logger.LogError(ex, "Failed to dispose of Client");
-                throw;
-            }
+        if (LazyClient is not { IsValueCreated: true })
+            return;
+
+        try {
+            await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            Logger.LogError(ex, "Failed to dispose of Client");
+            throw;
         }
     }
 

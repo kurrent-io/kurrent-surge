@@ -8,12 +8,12 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public sealed record StreamFilter : RegexFilter {
     /// <summary>
-    /// Creates a filter that matches any of the specified stream names exactly.
-    /// When a single stream is provided, TargetStream is set for optimized reading.
+    /// Creates a filter that matches a single stream name exactly.
+    /// TargetStream is set so request-shaping can route through direct stream reads
+    /// (or through the index dispatch path when the name is an <c>$idx-*</c> stream).
     /// </summary>
-    public StreamFilter(string[] streams) : base(streams) {
-        if (streams.Length == 1)
-            TargetStream = streams[0];
+    public StreamFilter(string stream) : base(stream) {
+        TargetStream = stream;
     }
 
     /// <summary>

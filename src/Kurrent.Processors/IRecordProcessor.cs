@@ -37,12 +37,12 @@ public interface IRecordProcessor {
     /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
     /// </summary>
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
-    
+
     /// <summary>
-    /// Called when the worker encounters an unrecoverable error.
+    /// Called when the drone encounters an unrecoverable error.
     /// <remarks>
     /// <para>
-    /// This method is invoked before the worker transitions to <see cref="ProcessorWorkerStatus.Error"/>.
+    /// This method is invoked before the drone transitions to <see cref="DroneStatus.Error"/>.
     /// Use it for error reporting, metrics, or cleanup.
     /// </para>
     /// </remarks>
@@ -53,10 +53,10 @@ public interface IRecordProcessor {
     ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
 
     /// <summary>
-    /// Called when the worker completes gracefully (including cancellation).
+    /// Called when the drone completes gracefully (including cancellation).
     /// <remarks>
     /// <para>
-    /// This method is invoked before the worker transitions to <see cref="ProcessorWorkerStatus.Stopped"/>.
+    /// This method is invoked before the drone transitions to <see cref="DroneStatus.Stopped"/>.
     /// Use it for final reporting or cleanup.
     /// </para>
     /// </remarks>
@@ -67,19 +67,19 @@ public interface IRecordProcessor {
     ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
 }
 
-public record WorkerContext {
-    public static readonly WorkerContext None = new WorkerContext();
+public record DroneContext {
+    public static readonly DroneContext None = new DroneContext();
 
     public ProcessorId       ProcessorId       { get; init; } = ProcessorId.Unset;
-    public WorkerId          WorkerId          { get; init; } = WorkerId.Unset;
+    public string            DroneId           { get; init; } = string.Empty;
     public SessionId         SessionId         { get; init; } = SessionId.Unset;
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
-    public ProcessRecordContext ForProcessRecord(WorkerProgress progress, Record record) =>
+    public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record) =>
         new() {
             ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
+            DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
@@ -90,7 +90,7 @@ public record WorkerContext {
     public CheckpointContext ForCheckpoint(PartitionPositions positions, Checkpoint checkpoint) =>
         new() {
             ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
+            DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
@@ -100,10 +100,10 @@ public record WorkerContext {
             Timestamp         = checkpoint.Timestamp
         };
 
-    public ErrorContext ForError(WorkerProgress progress, Exception error) =>
+    public ErrorContext ForError(DroneProgress progress, Exception error) =>
         new() {
             ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
+            DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
@@ -111,10 +111,10 @@ public record WorkerContext {
             Error             = error
         };
 
-    public CompleteContext ForComplete(WorkerProgress progress) =>
+    public CompleteContext ForComplete(DroneProgress progress) =>
         new() {
             ProcessorId       = ProcessorId,
-            WorkerId          = WorkerId,
+            DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
@@ -126,9 +126,9 @@ public record WorkerContext {
 /// Context provided when a record is available for processing.
 /// </summary>
 [PublicAPI]
-public record ProcessRecordContext : WorkerContext {
-    public required Record         Record   { get; init; }
-    public required WorkerProgress Progress { get; init; }
+public record ProcessRecordContext : DroneContext {
+    public required Record        Record   { get; init; }
+    public required DroneProgress Progress { get; init; }
 
     /// <summary>
     /// Signals that processing should stop immediately.
@@ -165,7 +165,7 @@ public enum StopProcessingTrigger {
 /// Context provided when a checkpoint is signaled.
 /// </summary>
 [PublicAPI]
-public record CheckpointContext : WorkerContext {
+public record CheckpointContext : DroneContext {
     public required PartitionPositions Positions    { get; init; }
     public required string             CheckpointId { get; init; }
     public required CheckpointTrigger  Trigger      { get; init; }
@@ -173,20 +173,20 @@ public record CheckpointContext : WorkerContext {
 }
 
 /// <summary>
-/// Context provided when the worker encounters an unrecoverable error.
+/// Context provided when the drone encounters an unrecoverable error.
 /// </summary>
 [PublicAPI]
-public record ErrorContext : WorkerContext {
-    public required WorkerProgress Progress { get; init; }
-    public required Exception      Error    { get; init; }
+public record ErrorContext : DroneContext {
+    public required DroneProgress Progress { get; init; }
+    public required Exception     Error    { get; init; }
 }
 
 /// <summary>
-/// Context provided when the worker completes gracefully.
+/// Context provided when the drone completes gracefully.
 /// </summary>
 [PublicAPI]
-public record CompleteContext : WorkerContext {
-    public required WorkerProgress Progress { get; init; }
+public record CompleteContext : DroneContext {
+    public required DroneProgress Progress { get; init; }
 }
 
 /// <summary>
@@ -196,7 +196,7 @@ public record CompleteContext : WorkerContext {
 /// <param name="Checkpoint">Checkpoint progress information.</param>
 /// <param name="Partitions">Per-partition position progress.</param>
 [PublicAPI]
-public readonly record struct WorkerProgress(
+public readonly record struct DroneProgress(
     ThroughputMetrics Throughput,
     CheckpointProgress Checkpoint,
     ImmutableDictionary<Partition, PartitionProgress> Partitions
@@ -241,7 +241,7 @@ public readonly record struct WorkerProgress(
     /// <summary>
     /// Empty progress with no records processed and no checkpoints.
     /// </summary>
-    public static readonly WorkerProgress Empty = new(
+    public static readonly DroneProgress Empty = new(
         ThroughputMetrics.Empty,
         CheckpointProgress.Empty,
         ImmutableDictionary<Partition, PartitionProgress>.Empty

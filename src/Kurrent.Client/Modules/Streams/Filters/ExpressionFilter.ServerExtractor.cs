@@ -103,7 +103,7 @@ internal static class ServerFilterExtractor {
         foreach (var conjunct in conjuncts) {
             if (conjunct is ComparisonExpression { Op: ComparisonOperator.Equal, Value: StringFilterValue sv } comp
                 && IsCategoryProperty(comp.Property.PropertyName)) {
-                filter = new StreamFilter([$"$idx-ce-{sv.Value}"]);
+                filter = new StreamFilter($"$idx-ce-{sv.Value}");
                 return true;
             }
         }
@@ -122,7 +122,7 @@ internal static class ServerFilterExtractor {
     static bool TryExtractIndexFilter(List<IFilterExpression> conjuncts, out IRecordFilter filter) {
         foreach (var conjunct in conjuncts) {
             if (conjunct is IndexExpression { IndexName: var name }) {
-                filter = new StreamFilter([$"$idx-user-{name}"]);
+                filter = new StreamFilter($"$idx-user-{name}");
                 return true;
             }
         }
@@ -139,7 +139,7 @@ internal static class ServerFilterExtractor {
         foreach (var conjunct in conjuncts) {
             if (conjunct is ComparisonExpression { Op: ComparisonOperator.Equal, Value: StringFilterValue sv } comp
                 && IsSchemaProperty(comp.Property.PropertyName)) {
-                filter = new StreamFilter([$"$idx-et-{sv.Value}"]);
+                filter = new StreamFilter($"$idx-et-{sv.Value}");
                 return true;
             }
         }

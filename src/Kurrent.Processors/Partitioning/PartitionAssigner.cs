@@ -1,16 +1,15 @@
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Partitioning;
 
 /// <summary>
-/// Assigns partitions to workers using a configurable distribution strategy.
+/// Assigns partitions to drones using a configurable distribution strategy.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This is the main entry point for partition distribution. It combines key-to-partition
-/// mapping (via <see cref="PartitionCalculator"/>) with worker assignment (via <see cref="IDistributionStrategy"/>).
+/// mapping (via <see cref="PartitionCalculator"/>) with drone assignment (via <see cref="IDistributionStrategy"/>).
 /// </para>
 /// <para>
 /// The default strategy is <see cref="StickyStrategy"/>, which minimizes partition movement
@@ -25,13 +24,13 @@ namespace Kurrent.Processors.Partitioning;
 /// // Default behavior (sticky strategy)
 /// var manifest = PartitionAssigner.Default.Distribute(
 ///     DistributionManifest.Empty,
-///     workers,
+///     drones,
 ///     maxParallelism: 128
 /// );
 ///
 /// // With range strategy for deterministic testing
 /// var rangeAssigner = new PartitionAssigner(RangeStrategy.Instance);
-/// var manifest = rangeAssigner.Distribute(DistributionManifest.Empty, workers, 128);
+/// var manifest = rangeAssigner.Distribute(DistributionManifest.Empty, drones, 128);
 ///
 /// // Key-to-partition mapping
 /// var partition = PartitionAssigner.Default.GetPartition("customer-123", maxParallelism: 128);
@@ -50,7 +49,7 @@ public sealed class PartitionAssigner {
     /// <summary>
     /// Creates a partition assigner with the specified distribution strategy.
     /// </summary>
-    /// <param name="strategy">The strategy to use for distributing partitions to workers.</param>
+    /// <param name="strategy">The strategy to use for distributing partitions to drones.</param>
     /// <param name="calculator">Optional partition calculator for key-to-partition mapping. Defaults to <see cref="PartitionCalculator.XXHash"/>.</param>
     public PartitionAssigner(IDistributionStrategy strategy, PartitionCalculator? calculator = null) {
         _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
@@ -65,21 +64,21 @@ public sealed class PartitionAssigner {
     /// <returns>A <see cref="Partition"/> with value in range [0, maxParallelism).</returns>
     /// <remarks>
     /// The same key always maps to the same partition for a given maxParallelism.
-    /// This ensures state locality: all records with the same key are processed by the same worker.
+    /// This ensures state locality: all records with the same key are processed by the same drone.
     /// </remarks>
     public Partition GetPartition(string key, int maxParallelism) =>
         _calculator.Calculate(key, maxParallelism);
 
     /// <summary>
-    /// Distributes partitions across workers using the configured strategy.
+    /// Distributes partitions across drones using the configured strategy.
     /// </summary>
     /// <param name="current">The current distribution manifest (use <see cref="DistributionManifest.Empty"/> for initial distribution).</param>
-    /// <param name="workers">The workers to distribute partitions to.</param>
+    /// <param name="drones">The drones to distribute partitions to.</param>
     /// <param name="maxParallelism">The total number of partitions to distribute (1 to 32768).</param>
     /// <returns>A new manifest with updated assignments and transfer information.</returns>
     public DistributionManifest Distribute(
         DistributionManifest current,
-        WorkerId[] workers,
+        string[] drones,
         int maxParallelism
-    ) => _strategy.Distribute(current, workers, maxParallelism);
+    ) => _strategy.Distribute(current, drones, maxParallelism);
 }

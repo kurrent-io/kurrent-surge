@@ -21,7 +21,7 @@ public interface ICollector {
 /// Internal runtime component that coordinates sinks.
 /// <para>
 /// Implements <see cref="ICollector"/> for user code, and provides
-/// checkpoint coordination methods for the <c>ProcessorWorker</c>.
+/// checkpoint coordination methods for the <c>Drone</c>.
 /// </para>
 /// </summary>
 sealed class SinkCoordinator : ICollector {

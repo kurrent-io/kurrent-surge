@@ -1,5 +1,5 @@
-using Kurrent.Client;
-using Kurrent.Processors.Options;
+using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.WithRedisCache;
 using Serilog;
 using StackExchange.Redis;
@@ -19,13 +19,12 @@ try {
     var redis = await ConnectionMultiplexer.ConnectAsync(redisConnection);
     builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 
-    // Register shared Kurrent client
-    builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-
     // Register processor as hosted service
-    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>(config => config
-        .WithFilter("schema_name IN ('PlayerRegistered', 'PlayerTransferred')")
-    );
+    builder.Services.AddSingleton<PlayerCacheProcessor>();
+    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>(opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
+    });
 
     var app = builder.Build();
 

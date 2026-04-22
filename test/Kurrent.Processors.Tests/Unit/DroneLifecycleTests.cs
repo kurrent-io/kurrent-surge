@@ -21,7 +21,7 @@ public class DroneLifecycleTests {
 
         var settings = new ProcessorOptions {
             ProcessorId = "test-processor",
-            WorkerId    = "test-worker",
+            DroneId     = "test-drone",
             Debug       = debug
         };
 
@@ -195,7 +195,7 @@ public class DroneLifecycleTests {
         await drone.RunAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Stopped);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
     }
 
     [Test]
@@ -209,7 +209,7 @@ public class DroneLifecycleTests {
             .Throws<AggregateException>();
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
     [Test]
@@ -225,7 +225,7 @@ public class DroneLifecycleTests {
         await drone.RunAsync(CancellationToken.None);
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
     #endregion
@@ -319,7 +319,7 @@ public class DroneLifecycleTests {
         await drone.RunAsync(CancellationToken.None);
 
         // Assert — completed with Error status (handler failure accumulated, not thrown)
-        await Assert.That(drone.Status).IsEqualTo(ProcessorWorkerStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
     #endregion

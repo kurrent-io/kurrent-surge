@@ -16,7 +16,7 @@ public class MessageProcessorTests {
 		// Arrange
 		var captured = (OrderPlaced?)null;
 
-		var processor = new MessageProcessor()
+        IRecordProcessor processor = new MessageProcessor()
 			.Process<OrderPlaced>((msg, _) => {
 				captured = msg;
 				return ValueTask.CompletedTask;
@@ -26,7 +26,7 @@ public class MessageProcessorTests {
 		var context = CreateContext(message);
 
 		// Act
-		await ((IRecordProcessor)processor).ProcessRecord(context);
+		await processor.ProcessRecord(context);
 
 		// Assert
 		await Assert.That(captured).IsNotNull();
@@ -287,61 +287,6 @@ public class MessageProcessorTests {
 
 	#endregion
 
-	#region . class-based handler .
-
-	[Test]
-	public async ValueTask dispatches_to_class_based_handler() {
-		// Arrange
-		var handler   = new OrderPlacedHandler();
-		var processor = new MessageProcessor().Process<OrderPlaced>(handler);
-		var message   = new OrderPlaced("CLASS-1", 42m);
-		var context   = CreateContext(message);
-
-		// Act
-		await ((IRecordProcessor)processor).ProcessRecord(context);
-
-		// Assert
-		await Assert.That(handler.Received).Count().IsEqualTo(1);
-		await Assert.That(handler.Received[0].OrderId).IsEqualTo("CLASS-1");
-	}
-
-	[Test]
-	public async ValueTask class_based_handler_receives_context() {
-		// Arrange
-		var handler   = new OrderPlacedHandler();
-		var processor = new MessageProcessor().Process<OrderPlaced>(handler);
-		var message   = new OrderPlaced("CLASS-2", 10m);
-		var context   = CreateContext(message);
-
-		// Act
-		await ((IRecordProcessor)processor).ProcessRecord(context);
-
-		// Assert
-		await Assert.That(handler.LastContext).IsNotNull();
-		await Assert.That(handler.LastContext!.ProcessorId).IsEqualTo("test-processor");
-	}
-
-	[Test]
-	public async ValueTask class_based_and_delegate_handlers_coexist() {
-		// Arrange
-		var classHandler = new OrderPlacedHandler();
-		var delegateCalled = false;
-
-		var processor = new MessageProcessor()
-			.Process<OrderPlaced>(classHandler)
-			.Process<OrderShipped>((_, _) => { delegateCalled = true; });
-
-		// Act
-		await ((IRecordProcessor)processor).ProcessRecord(CreateContext(new OrderPlaced("A", 1)));
-		await ((IRecordProcessor)processor).ProcessRecord(CreateContext(new OrderShipped("B", "T")));
-
-		// Assert
-		await Assert.That(classHandler.Received).Count().IsEqualTo(1);
-		await Assert.That(delegateCalled).IsTrue();
-	}
-
-	#endregion
-
 	#region . lifecycle hooks .
 
 	[Test]
@@ -355,7 +300,7 @@ public class MessageProcessorTests {
 
 		var ctx = new CheckpointContext {
 			ProcessorId  = "test-processor",
-			WorkerId     = "test-worker",
+			DroneId      = "test-drone",
 			Positions    = [],
 			CheckpointId = "cp-1",
 			Trigger      = CheckpointTrigger.Interval,
@@ -379,8 +324,8 @@ public class MessageProcessorTests {
 
 		var ctx = new ErrorContext {
 			ProcessorId = "test-processor",
-			WorkerId    = "test-worker",
-			Progress    = WorkerProgress.Empty,
+			DroneId     = "test-drone",
+			Progress    = DroneProgress.Empty,
 			Error       = new InvalidOperationException("boom")
 		};
 
@@ -402,8 +347,8 @@ public class MessageProcessorTests {
 
 		var ctx = new CompleteContext {
 			ProcessorId = "test-processor",
-			WorkerId    = "test-worker",
-			Progress    = WorkerProgress.Empty
+			DroneId     = "test-drone",
+			Progress    = DroneProgress.Empty
 		};
 
 		// Act
@@ -420,16 +365,16 @@ public class MessageProcessorTests {
 
 		// Act & Assert — should not throw
 		await processor.OnCheckpoint(new CheckpointContext {
-			ProcessorId = "test", WorkerId = "test",
+			ProcessorId = "test", DroneId = "test",
 			Positions = [], CheckpointId = "cp", Trigger = CheckpointTrigger.Interval, Timestamp = DateTimeOffset.UtcNow
 		});
 		await processor.OnError(new ErrorContext {
-			ProcessorId = "test", WorkerId = "test",
-			Progress = WorkerProgress.Empty, Error = new Exception()
+			ProcessorId = "test", DroneId = "test",
+			Progress = DroneProgress.Empty, Error = new Exception()
 		});
 		await processor.OnComplete(new CompleteContext {
-			ProcessorId = "test", WorkerId = "test",
-			Progress = WorkerProgress.Empty
+			ProcessorId = "test", DroneId = "test",
+			Progress = DroneProgress.Empty
 		});
 	}
 
@@ -481,24 +426,13 @@ public class MessageProcessorTests {
 	static ProcessRecordContext CreateContext(Record record) =>
 		new() {
 			ProcessorId = "test-processor",
-			WorkerId    = "test-worker",
+			DroneId     = "test-drone",
 			Record      = record,
-			Progress    = WorkerProgress.Empty
+			Progress    = DroneProgress.Empty
 		};
 
 	record OrderPlaced(string OrderId, decimal Amount);
 	record OrderShipped(string OrderId, string TrackingNumber);
-
-	class OrderPlacedHandler : IMessageHandler<OrderPlaced> {
-		public List<OrderPlaced> Received { get; } = [];
-		public ProcessRecordContext? LastContext { get; private set; }
-
-		public ValueTask Handle(OrderPlaced message, ProcessRecordContext context) {
-			Received.Add(message);
-			LastContext = context;
-			return ValueTask.CompletedTask;
-		}
-	}
 
 	class TestOrderProcessor : MessageProcessor {
 		public List<OrderPlaced> ProcessedOrders { get; } = [];

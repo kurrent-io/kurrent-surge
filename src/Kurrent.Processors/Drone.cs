@@ -10,57 +10,57 @@ namespace Kurrent.Processors;
 sealed class Drone : IDrone {
     readonly ISubscriptionSource _source;
     readonly IRecordProcessor    _processor;
-    readonly WorkerTelemetry     _telemetry;
+    readonly DroneTelemetry      _telemetry;
     readonly ProgressTracker     _progress;
     readonly ILogger             _logger;
 
     int _started;
 
-    WorkerContext WorkerContext { get; set; }
+    DroneContext DroneContext { get; set; }
 
     public Drone(
-        ProcessorOptions settings,
+        ProcessorOptions options,
         ISubscriptionSource source,
         IRecordProcessor processor,
         ILoggerFactory loggerFactory,
         TimeProvider timeProvider
     ) {
-        Settings   = settings;
+        Options   = options;
+        
         _source    = source;
+        
         _processor = new SafeRecordProcessor(processor);
+        _progress  = new ProgressTracker(timeProvider);
+        _logger    = loggerFactory.CreateLogger<Drone>();
 
-        _progress = new ProgressTracker(timeProvider);
+        _telemetry = new DroneTelemetry(_logger, options.ProcessorId, options.DroneId);
 
-        _logger = loggerFactory.CreateLogger<Drone>();
-
-        _telemetry = new WorkerTelemetry(_logger, settings.ProcessorId, settings.WorkerId);
-
-        WorkerContext = new WorkerContext {
+        DroneContext = new DroneContext {
             ProcessorId = ProcessorId,
-            WorkerId    = WorkerId,
+            DroneId     = DroneId,
             SessionId   = SessionId.Unset,
             Logger      = _logger
         };
     }
 
-    public string ProcessorId => Settings.ProcessorId;
-    public string WorkerId    => Settings.WorkerId;
+    public string ProcessorId => Options.ProcessorId;
+    public string DroneId     => Options.DroneId;
 
-    public ProcessorOptions Settings { get; }
+    public ProcessorOptions Options { get; }
 
-    public ProcessorWorkerStatus Status { get; private set; } = ProcessorWorkerStatus.Starting;
+    public DroneStatus Status { get; private set; } = DroneStatus.Starting;
 
-    public WorkerProgress Progress => _progress.Progress;
+    public DroneProgress Progress => _progress.Progress;
 
     public async Task RunAsync(CancellationToken stoppingToken) {
         if (Interlocked.Exchange(ref _started, 1) == 1)
             throw new InvalidOperationException("This drone has already been started. Create a new instance to run again.");
 
-        Status = ProcessorWorkerStatus.Starting;
+        Status = DroneStatus.Starting;
 
         _telemetry.Starting();
 
-        WorkerContext = WorkerContext with { CancellationToken = stoppingToken };
+        DroneContext = DroneContext with { CancellationToken = stoppingToken };
 
         try {
             await foreach (var msg in _source.Subscribe(stoppingToken).ConfigureAwait(false)) {
@@ -86,8 +86,8 @@ sealed class Drone : IDrone {
     #region ->> Message Handlers <<-
 
     ValueTask HandleConnected(Connected connected) {
-        WorkerContext = WorkerContext with { SessionId = connected.SessionId };
-        Status = ProcessorWorkerStatus.Processing;
+        DroneContext = DroneContext with { SessionId = connected.SessionId };
+        Status = DroneStatus.Processing;
         _telemetry.Processing(connected.SessionId);
         return ValueTask.CompletedTask;
     }
@@ -96,7 +96,7 @@ sealed class Drone : IDrone {
         using var scope = _telemetry.TrackRecord();
 
         // Partition already calculated by the source before yielding
-        var ctx = WorkerContext.ForProcessRecord(Progress, record);
+        var ctx = DroneContext.ForProcessRecord(Progress, record);
 
         await _processor
             .ProcessRecord(ctx)
@@ -130,11 +130,11 @@ sealed class Drone : IDrone {
         try {
             // 1. User hook — positions come from the message, snapshotted at yield time
             try {
-                var ctx = WorkerContext.ForCheckpoint(checkpoint.Positions, checkpoint);
+                var ctx = DroneContext.ForCheckpoint(checkpoint.Positions, checkpoint);
                 await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
             }
-            catch (Exception ex) when (!Settings.Debug) {
-                _logger.LogWarning(ex, "[{ProcessorId}/{WorkerId}] User OnCheckpoint handler failed", ProcessorId, WorkerId);
+            catch (Exception ex) when (!Options.Debug) {
+                _logger.LogWarning(ex, "[{ProcessorId}/{DroneId}] User OnCheckpoint handler failed", ProcessorId, DroneId);
             }
 
             // 2. Complete — source persists and advances tracker
@@ -146,7 +146,7 @@ sealed class Drone : IDrone {
         catch (Exception ex) {
             _telemetry.CheckpointFailed(checkpoint.CheckpointId, checkpoint.Trigger, checkpoint.Positions, ex);
 
-            if (Settings.Checkpoint.FailurePolicy == CheckpointFailurePolicy.FailProcessor)
+            if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
                 throw;
         }
     }
@@ -167,18 +167,18 @@ sealed class Drone : IDrone {
 
         #region ->> Checkpoint <<-
 
-        if (Status == ProcessorWorkerStatus.Processing) {
+        if (Status == DroneStatus.Processing) {
             var checkpoint = _source.CreateShutdownCheckpoint();
 
             _telemetry.CheckpointInitiated(checkpoint.CheckpointId, checkpoint.Trigger);
 
             // User OnCheckpoint — best-effort in production, throws in Debug
             try {
-                var ctx = WorkerContext.ForCheckpoint(checkpoint.Positions, checkpoint);
+                var ctx = DroneContext.ForCheckpoint(checkpoint.Positions, checkpoint);
                 await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
             }
-            catch (Exception ex) when (!Settings.Debug) {
-                _logger.LogWarning(ex, "[{ProcessorId}/{WorkerId}] User OnCheckpoint handler failed during shutdown", ProcessorId, WorkerId);
+            catch (Exception ex) when (!Options.Debug) {
+                _logger.LogWarning(ex, "[{ProcessorId}/{DroneId}] User OnCheckpoint handler failed during shutdown", ProcessorId, DroneId);
             }
 
             // Persist — best-effort, independent of user handler
@@ -202,18 +202,18 @@ sealed class Drone : IDrone {
         // User OnComplete — best-effort in production, throws in Debug
         try {
             await _processor
-                .OnComplete(WorkerContext.ForComplete(Progress))
+                .OnComplete(DroneContext.ForComplete(Progress))
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (!Settings.Debug) {
+        catch (Exception ex) when (!Options.Debug) {
             errors.Add(ex);
         }
 
         await Cleanup(errors).ConfigureAwait(false);
 
         // Final status — checkpoint policy can escalate to error
-        if (checkpointFailed && Settings.Checkpoint.FailurePolicy == CheckpointFailurePolicy.FailProcessor) {
-            Status = ProcessorWorkerStatus.Error;
+        if (checkpointFailed && Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail) {
+            Status = DroneStatus.Error;
 
             var aex = new AggregateException("Checkpoint failed during shutdown", errors).Flatten();
             _telemetry.Error(aex);
@@ -221,13 +221,13 @@ sealed class Drone : IDrone {
         }
 
         if (errors.Count > 0) {
-            Status = ProcessorWorkerStatus.Error;
+            Status = DroneStatus.Error;
 
             var aex = new AggregateException("Errors during graceful shutdown", errors).Flatten();
             _telemetry.Error(aex);
         }
         else {
-            Status = ProcessorWorkerStatus.Stopped;
+            Status = DroneStatus.Stopped;
         }
 
         _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed, cex?.Message);
@@ -245,7 +245,7 @@ sealed class Drone : IDrone {
         // If the error handler itself fails, both exceptions surface in the aggregate.
         try {
             await _processor
-                .OnError(WorkerContext.ForError(progress, ex))
+                .OnError(DroneContext.ForError(progress, ex))
                 .ConfigureAwait(false);
         }
         catch (Exception onErrorEx) {
@@ -254,7 +254,7 @@ sealed class Drone : IDrone {
 
         await Cleanup(errors).ConfigureAwait(false);
 
-        Status = ProcessorWorkerStatus.Error;
+        Status = DroneStatus.Error;
 
         var aex = new AggregateException("Fatal error in processor drone", errors).Flatten();
         _telemetry.Error(aex);

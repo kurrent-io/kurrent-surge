@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.FraudDetection;
 using Serilog;
 
@@ -11,9 +12,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var processor = new FraudDetectionProcessor();
-
-await KurrentProcessors.Create(processor)
-    .WithFilterExpression("schema like 'Transaction'")
-    .ConnectTo("kurrentdb://localhost:2113")
-    .RunWithGracefulShutdownAsync();
+await KurrentProcessor.Create(new FraudDetectionProcessor(), opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema like 'Transaction'");
+}).RunWithGracefulShutdownAsync();

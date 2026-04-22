@@ -90,17 +90,13 @@ public sealed class PropertyMap<T> {
     readonly FrozenDictionary<string, IPropertyAccessor<T>> _accessors;
     readonly IPathParser? _pathParser;
 
-#if NET9_0_OR_GREATER
     readonly FrozenDictionary<string, IPropertyAccessor<T>>.AlternateLookup<ReadOnlySpan<char>> _spanLookup;
-#endif
 
     PropertyMap(FrozenDictionary<string, IPropertyAccessor<T>> accessors, IPathParser? pathParser) {
         _accessors  = accessors;
         _pathParser = pathParser;
 
-#if NET9_0_OR_GREATER
         _spanLookup = accessors.GetAlternateLookup<ReadOnlySpan<char>>();
-#endif
     }
 
     /// <summary>
@@ -234,7 +230,6 @@ public sealed class PropertyMap<T> {
     /// </summary>
     public int Count => _accessors.Count;
 
-#if NET9_0_OR_GREATER
     /// <summary>
     /// Returns the property value for the given name (as span), or <c>null</c> if not registered.
     /// Avoids string allocation. May box value types.
@@ -247,7 +242,6 @@ public sealed class PropertyMap<T> {
     /// </summary>
     public bool HasProperty(ReadOnlySpan<char> name) =>
         _spanLookup.ContainsKey(name);
-#endif
 
     /// <summary>
     /// Mutable builder for registering property accessors before freezing into an immutable

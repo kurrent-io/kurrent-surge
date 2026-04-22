@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
-using Humanizer;
+using Kurrent.Client;
 
 namespace Kurrent.Validation;
 

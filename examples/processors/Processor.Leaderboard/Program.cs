@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Kurrent.Client;
-using Kurrent.Processors.Options;
+using Kurrent.Client.Streams;
+using Kurrent.Processors;
 using Processor.Leaderboard;
 using Serilog;
 using StackExchange.Redis;
@@ -20,13 +20,12 @@ try {
     var redis = await ConnectionMultiplexer.ConnectAsync(redisConnection);
     builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 
-    // Register shared Kurrent client
-    builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
-
     // Register processor as hosted service
-    builder.Services.AddKurrentProcessor<LeaderboardProcessor>(config => config
-        .WithFilter("schema_name IN ('ScoreSubmitted', 'PlayerJoined')")
-    );
+    builder.Services.AddSingleton<LeaderboardProcessor>();
+    builder.Services.AddKurrentProcessor<LeaderboardProcessor>(opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('ScoreSubmitted', 'PlayerJoined')");
+    });
 
     var app = builder.Build();
 
