@@ -94,6 +94,12 @@ public record Record {
     public Type ValueType { get; internal set; } = Type.MissingType;
 
     /// <summary>
+    /// The name of the record's type. Returns the CLR type name when decoded,
+    /// otherwise falls back to the wire-level schema name.
+    /// </summary>
+    public string TypeName => IsDecoded ? ValueType.Name : Schema.SchemaName.Value;
+
+    /// <summary>
     /// Indicates whether the current <see cref="Record"/> instance has been successfully decoded.
     /// </summary>
     public bool IsDecoded => Value is { } && ValueType != Type.MissingType;

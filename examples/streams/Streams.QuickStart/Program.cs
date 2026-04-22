@@ -26,8 +26,7 @@ Log.Information("Appended {} events to {Stream} at revision {Revision}", req.Rec
 // Read them back
 await foreach (var message in client.Streams.ReadStreamRecords(stream)) {
     message.Switch(
-        record => Log.Information("[{Revision}] {Type}: {@Value}",
-            record.Revision, record.ValueType.Name, record.Value),
+        record => Log.Information(record.ToString()),
         _ => { });
 }
 
