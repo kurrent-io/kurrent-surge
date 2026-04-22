@@ -81,11 +81,25 @@ public static class KurrentDBBuilderExtensions {
         var resource = builder
             .AddContainer(CertGenResourceName, CertGenImage, CertGenTag)
             .WithEntrypoint("/bin/sh")
-            .WithArgs(CertGenScriptTarget)
+            .WithArgs(ctx => {
+                ctx.Args.Add(CertGenScriptTarget);
+                ctx.Args.Add(BuildCertificateDnsNames(builder));
+            })
             .WithBindMount(CertGenScriptSource, CertGenScriptTarget, true)
             .WithBindMount(hostPath, CertGenTargetFolder);
 
         return new CertGenResource(resource, hostPath);
+    }
+
+    static string BuildCertificateDnsNames(IDistributedApplicationBuilder builder) {
+        var names = new List<string> { "localhost" };
+
+        names.AddRange(builder.Resources
+            .OfType<KurrentDBResource>()
+            .Where(r => r.Secure)
+            .Select(r => r.Name));
+
+        return string.Join(",", names.Distinct(StringComparer.OrdinalIgnoreCase));
     }
 
     static (ContainerResource Resource, string HostPath)? FindCertGenResource(IDistributedApplicationBuilder builder) {

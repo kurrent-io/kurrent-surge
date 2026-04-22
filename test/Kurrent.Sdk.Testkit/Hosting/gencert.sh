@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+DNS_NAMES="${1:-localhost}"
+
 es-gencert-cli create-ca -out /certs/ca -force
 
 es-gencert-cli create-node \
@@ -8,7 +10,7 @@ es-gencert-cli create-node \
     -ca-key /certs/ca/ca.key \
     -out /certs/node \
     -ip-addresses 127.0.0.1 \
-    -dns-names localhost \
+    -dns-names "$DNS_NAMES" \
     -force
 
 es-gencert-cli create-user \

@@ -20,7 +20,9 @@ public sealed class KurrentDBTestClusterBuilder {
     }
 
     public KurrentDBTestClusterBuilder AddNode(Action<KurrentDBNodeOptions> configure) {
-        var options = new KurrentDBNodeOptions();
+        var options = new KurrentDBNodeOptions {
+            ResourceName = $"kurrentdb{(_nodes.Count == 0 ? "" : $"-{_nodes.Count}")}"
+        };
         configure(options);
         _nodes.Add(options);
         return this;
@@ -38,14 +40,24 @@ public sealed class KurrentDBTestClusterBuilder {
         if (_nodes.Count == 0)
             AddNode();
 
+        var secureCluster = _nodes.Any(n => n.Secure);
+        foreach (var node in _nodes)
+            node.Secure = secureCluster;
+
         var builder = DistributedApplicationTestingBuilder.Create();
 
+        var resources = new List<IResourceBuilder<KurrentDBResource>>(_nodes.Count);
         foreach (var node in _nodes) {
             var resource = builder.AddKurrentDB(node.ResourceName, node.Image, node.Tag);
 
             if (node.Secure)
                 resource.WithSecureMode();
+
+            resources.Add(resource);
         }
+
+        if (_nodes.Count > 1)
+            ConfigureClusterTopology(resources);
 
         var app           = await builder.BuildAsync(ct);
         var notifications = app.Services.GetRequiredService<ResourceNotificationService>();
@@ -81,6 +93,32 @@ public sealed class KurrentDBTestClusterBuilder {
         var certsDirectory = KurrentDBBuilderExtensions.GetCertsHostPath(builder);
 
         return new KurrentDBTestCluster(app, connectionStrings, anonymousConnectionStrings, certsDirectory);
+    }
+
+    static void ConfigureClusterTopology(IReadOnlyList<IResourceBuilder<KurrentDBResource>> nodes) {
+        var clusterSize = nodes.Count.ToString();
+
+        for (var i = 0; i < nodes.Count; i++) {
+            var self  = nodes[i];
+            var peers = nodes.Where((_, j) => j != i).ToArray();
+
+            var gossipSeed = string.Join(
+                ",",
+                peers.Select(p => $"{p.Resource.Name}:{KurrentDBResource.DefaultHttpPort}")
+            );
+
+            self
+                .WithEnvironment("KURRENTDB_CLUSTER_SIZE", clusterSize)
+                .WithEnvironment("KURRENTDB_DISCOVER_VIA_DNS", "false")
+                .WithEnvironment("KURRENTDB_GOSSIP_SEED", gossipSeed)
+                .WithEnvironment("KURRENTDB_NODE_HOST_ADVERTISE_AS", self.Resource.Name)
+                .WithEnvironment("KURRENTDB_REPLICATION_HOST_ADVERTISE_AS", self.Resource.Name)
+                .WithEnvironment("KURRENTDB_ADVERTISE_HOST_TO_CLIENT_AS", "localhost")
+                .WithEnvironment(
+                    "KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS",
+                    ReferenceExpression.Create($"{self.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)}")
+                );
+        }
     }
 
     KurrentDBTestCluster BuildFromExistingInstance() {
