@@ -11,7 +11,7 @@ public class CertValidationTests {
 
     [Test]
     public async ValueTask rejects_server_when_ca_does_not_match(CancellationToken ct) {
-        var wrongCa = Path.Combine(AppContext.BaseDirectory, "certs", "user-admin", "user-admin.crt");
+        var wrongCa = Path.Combine(Fixture.CertsDirectory!, "user-admin", "user-admin.crt");
 
         var cs = Fixture.ConnectionString.Replace(
             "tlsVerifyCert=false",

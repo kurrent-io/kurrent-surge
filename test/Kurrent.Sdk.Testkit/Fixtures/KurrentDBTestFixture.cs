@@ -28,6 +28,8 @@ public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable
 
     public string AnonymousConnectionString { get; private set; } = string.Empty;
 
+    public string? CertsDirectory { get; private set; }
+
     protected abstract void ConfigureNode(KurrentDBNodeOptions opts);
 
     public async Task InitializeAsync() {
@@ -38,6 +40,7 @@ public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable
 
         ConnectionString          = _cluster.AuthenticatedConnectionString;
         AnonymousConnectionString = _cluster.AnonymousConnectionString;
+        CertsDirectory            = _cluster.CertsDirectory;
 
         Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
             .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)

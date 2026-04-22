@@ -4,11 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Kurrent.Sdk.Testkit.Hosting;
 
 public class KurrentDBNodeOptions {
-    public string  ResourceName { get; set; } = "kurrentdb";
-    public bool    Secure       { get; set; }
-    public string? CertsPath    { get; set; }
-    public string  Image        { get; set; } = KurrentDBContainerImageTags.Nightly.Image;
-    public string  Tag          { get; set; } = KurrentDBContainerImageTags.Nightly.Tag;
+    public string ResourceName { get; set; } = "kurrentdb";
+    public bool   Secure       { get; set; }
+    public string Image        { get; set; } = KurrentDBContainerImageTags.Nightly.Image;
+    public string Tag          { get; set; } = KurrentDBContainerImageTags.Nightly.Tag;
 }
 
 public sealed class KurrentDBTestClusterBuilder {
@@ -45,7 +44,7 @@ public sealed class KurrentDBTestClusterBuilder {
             var resource = builder.AddKurrentDB(node.ResourceName, node.Image, node.Tag);
 
             if (node.Secure)
-                resource.WithSecureMode(node.CertsPath ?? DefaultCertsPath);
+                resource.WithSecureMode();
         }
 
         var app           = await builder.BuildAsync(ct);
@@ -79,10 +78,10 @@ public sealed class KurrentDBTestClusterBuilder {
             anonymousConnectionStrings[node.ResourceName] = baseCs;
         }
 
-        return new KurrentDBTestCluster(app, connectionStrings, anonymousConnectionStrings);
-    }
+        var certsDirectory = KurrentDBBuilderExtensions.GetCertsHostPath(builder);
 
-    static string DefaultCertsPath => Path.Combine(AppContext.BaseDirectory, "certs");
+        return new KurrentDBTestCluster(app, connectionStrings, anonymousConnectionStrings, certsDirectory);
+    }
 
     KurrentDBTestCluster BuildFromExistingInstance() {
         var cs   = _existingConnectionString!;
@@ -100,6 +99,6 @@ public sealed class KurrentDBTestClusterBuilder {
         builder.AddConnectionString(name);
         var app = builder.Build();
 
-        return new KurrentDBTestCluster(app, connectionStrings, anonymousConnectionStrings);
+        return new KurrentDBTestCluster(app, connectionStrings, anonymousConnectionStrings, certsDirectory: null);
     }
 }

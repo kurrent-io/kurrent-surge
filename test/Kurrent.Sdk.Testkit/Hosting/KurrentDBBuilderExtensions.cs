@@ -9,6 +9,20 @@ public static class KurrentDBBuilderExtensions {
     const string DataTargetFolder  = "/var/lib/kurrentdb";
     const string CertsTargetFolder = "/etc/kurrentdb/certs";
 
+    const string CertGenResourceName = "kurrentdb-certs";
+    const string CertGenImage        = "docker.eventstore.com/eventstore-utils/es-gencert-cli";
+    const string CertGenTag          = "latest";
+    const string CertGenTargetFolder = "/certs";
+
+    const string CertGenScript =
+        """
+        es-gencert-cli create-ca -out /certs/ca -force \
+         && es-gencert-cli create-node -ca-certificate /certs/ca/ca.crt -ca-key /certs/ca/ca.key -out /certs/node -ip-addresses 127.0.0.1 -dns-names localhost -force \
+         && es-gencert-cli create-user -username admin -ca-certificate /certs/ca/ca.crt -ca-key /certs/ca/ca.key -out /certs/user-admin -force \
+         && find /certs -type f -exec chmod 666 {} + \
+         && find /certs -type d -exec chmod 777 {} +
+        """;
+
     public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name,
@@ -45,19 +59,52 @@ public static class KurrentDBBuilderExtensions {
     }
 
     public static IResourceBuilder<KurrentDBResource> WithSecureMode(
-        this IResourceBuilder<KurrentDBResource> builder,
-        string certsPath
+        this IResourceBuilder<KurrentDBResource> builder
     ) {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(certsPath);
+
+        var certGen = AddOrGetCertGenResource(builder.ApplicationBuilder);
 
         builder.Resource.Secure = true;
 
         return builder
             .WithEndpoint(KurrentDBResource.HttpEndpointName, endpoint => endpoint.UriScheme = "https")
-            .WithBindMount(certsPath, CertsTargetFolder, true)
-            .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Secure));
+            .WithBindMount(certGen.HostPath, CertsTargetFolder, true)
+            .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Secure))
+            .WaitForCompletion(certGen.Resource);
     }
+
+    internal static string? GetCertsHostPath(IDistributedApplicationBuilder builder) =>
+        builder.Resources.OfType<ContainerResource>()
+            .FirstOrDefault(r => r.Name == CertGenResourceName)
+            ?.Annotations.OfType<ContainerMountAnnotation>()
+            .FirstOrDefault(a => a.Target == CertGenTargetFolder)
+            ?.Source;
+
+    static CertGenResource AddOrGetCertGenResource(IDistributedApplicationBuilder builder) {
+        var existing = builder.Resources.OfType<ContainerResource>()
+            .FirstOrDefault(r => r.Name == CertGenResourceName);
+
+        if (existing is not null) {
+            var mount = existing.Annotations.OfType<ContainerMountAnnotation>()
+                .First(a => a.Target == CertGenTargetFolder);
+
+            return new CertGenResource(builder.CreateResourceBuilder(existing), mount.Source!);
+        }
+
+        var hostPath = Path.Combine(Path.GetTempPath(), $"kurrentdb-testkit-certs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(hostPath);
+
+        var resource = builder
+            .AddContainer(CertGenResourceName, CertGenImage, CertGenTag)
+            .WithEntrypoint("/bin/sh")
+            .WithArgs("-c", CertGenScript)
+            .WithBindMount(hostPath, CertGenTargetFolder);
+
+        return new CertGenResource(resource, hostPath);
+    }
+
+    readonly record struct CertGenResource(IResourceBuilder<ContainerResource> Resource, string HostPath);
 
     public static IResourceBuilder<KurrentDBResource> WithDataVolume(
         this IResourceBuilder<KurrentDBResource> builder,

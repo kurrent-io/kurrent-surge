@@ -12,11 +12,13 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
     internal KurrentDBTestCluster(
         DistributedApplication     app,
         Dictionary<string, string> connectionStrings,
-        Dictionary<string, string> anonymousConnectionStrings
+        Dictionary<string, string> anonymousConnectionStrings,
+        string?                    certsDirectory
     ) {
         _app                        = app;
         _connectionStrings          = connectionStrings;
         _anonymousConnectionStrings = anonymousConnectionStrings;
+        CertsDirectory              = certsDirectory;
 
         var defaultName = connectionStrings.Keys.First();
 
@@ -28,9 +30,14 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
 
     public string AnonymousConnectionString { get; }
 
+    public string? CertsDirectory { get; }
+
     public async ValueTask DisposeAsync() {
         await _app.StopAsync();
         await _app.DisposeAsync();
+
+        if (CertsDirectory is { } certsDirectory && Directory.Exists(certsDirectory))
+            Directory.Delete(certsDirectory, recursive: true);
     }
 
     public string GetConnectionString(string resourceName) =>

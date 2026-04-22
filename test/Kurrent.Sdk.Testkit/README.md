@@ -89,12 +89,12 @@ await cluster.DisposeAsync();
 
 ```csharp
 var cluster = await new KurrentDBTestClusterBuilder()
-    .AddNode(opts => {
-        opts.Secure = true;
-        opts.CertsPath = "/path/to/certs";
-    })
+    .AddNode(opts => opts.Secure = true)
     .BuildAsync();
 ```
+
+Certs are generated on the fly by an `es-gencert-cli` container that runs to completion before the KurrentDB
+container starts. The generated directory is exposed via `cluster.CertsDirectory` and removed on dispose.
 
 ### Multiple nodes
 
@@ -104,7 +104,6 @@ var cluster = await new KurrentDBTestClusterBuilder()
     .AddNode(opts => {
         opts.ResourceName = "secondary";
         opts.Secure = true;
-        opts.CertsPath = "../../certs";
     })
     .BuildAsync();
 
@@ -138,7 +137,7 @@ var cluster = await new KurrentDBTestClusterBuilder()
 | Method                       | Description                                                         |
 |------------------------------|---------------------------------------------------------------------|
 | `AddKurrentDB(name, image?)` | Add a KurrentDB container with insecure defaults. Image is optional |
-| `WithSecureMode(certsPath)`  | Apply secure config + cert bind mount. Sets `tls=true`              |
+| `WithSecureMode()`           | Provision an `es-gencert-cli` container, bind-mount the certs, set `tls=true` |
 | `WithDataVolume(name?)`      | Attach a named volume to `/var/lib/kurrentdb`                       |
 | `WithDataBindMount(source)`  | Bind mount a host directory to `/var/lib/kurrentdb`                 |
 
@@ -157,9 +156,10 @@ var cluster = await new KurrentDBTestClusterBuilder()
 |--------------------------------------|------------------------------------------------------|
 | `AuthenticatedConnectionString`      | Default node connection string with `admin:changeit` |
 | `AnonymousConnectionString`          | Default node connection string without credentials   |
+| `CertsDirectory`                     | Host path of generated certs when any node is secure |
 | `GetConnectionString(name)`          | Named node authenticated connection string           |
 | `GetAnonymousConnectionString(name)` | Named node anonymous connection string               |
-| `DisposeAsync()`                     | Stop and dispose the Aspire application              |
+| `DisposeAsync()`                     | Stop the Aspire application and delete generated certs |
 
 ### `KurrentDBTestFixture`
 

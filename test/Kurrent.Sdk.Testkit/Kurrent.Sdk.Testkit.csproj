@@ -19,11 +19,4 @@
     <ItemGroup>
         <PackageReference Include="Aspire.Hosting.Testing" />
     </ItemGroup>
-
-    <ItemGroup>
-        <Content Include="..\..\scripts\certs\**\*">
-            <Link>certs\%(RecursiveDir)%(FileName)%(Extension)</Link>
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
 </Project>
