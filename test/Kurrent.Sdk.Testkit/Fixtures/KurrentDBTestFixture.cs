@@ -1,14 +1,14 @@
 using Bogus;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.SDK.Testing.Hosting;
+using Kurrent.Sdk.Testkit.Hosting;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using TUnit.Core.Interfaces;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
-namespace Kurrent.SDK.Testing.Fixtures;
+namespace Kurrent.Sdk.Testkit.Fixtures;
 
 public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
     KurrentDBTestCluster? _cluster;

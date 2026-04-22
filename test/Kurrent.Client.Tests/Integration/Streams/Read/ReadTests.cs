@@ -2,7 +2,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;

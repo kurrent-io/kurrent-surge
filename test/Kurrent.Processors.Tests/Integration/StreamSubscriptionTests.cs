@@ -3,7 +3,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Microsoft.Extensions.Logging;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;

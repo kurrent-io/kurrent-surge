@@ -1,16 +1,14 @@
-using Aspire.Hosting;
-using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kurrent.SDK.Testing.Hosting;
+namespace Kurrent.Sdk.Testkit.Hosting;
 
 public class KurrentDBNodeOptions {
     public string  ResourceName { get; set; } = "kurrentdb";
     public bool    Secure       { get; set; }
     public string? CertsPath    { get; set; }
-    public string  Image        { get; set; } = KurrentDBContainerImageTags.Latest.Image;
-    public string  Tag          { get; set; } = KurrentDBContainerImageTags.Latest.Tag;
+    public string  Image        { get; set; } = KurrentDBContainerImageTags.Nightly.Image;
+    public string  Tag          { get; set; } = KurrentDBContainerImageTags.Nightly.Tag;
 }
 
 public sealed class KurrentDBTestClusterBuilder {
@@ -46,10 +44,8 @@ public sealed class KurrentDBTestClusterBuilder {
         foreach (var node in _nodes) {
             var resource = builder.AddKurrentDB(node.ResourceName, node.Image, node.Tag);
 
-            if (node.Secure) {
-                var certsPath = node.CertsPath ?? Path.GetFullPath("../../certs");
-                resource.WithSecureMode(certsPath);
-            }
+            if (node.Secure)
+                resource.WithSecureMode(node.CertsPath ?? DefaultCertsPath);
         }
 
         var app           = await builder.BuildAsync(ct);
@@ -85,6 +81,8 @@ public sealed class KurrentDBTestClusterBuilder {
 
         return new KurrentDBTestCluster(app, connectionStrings, anonymousConnectionStrings);
     }
+
+    static string DefaultCertsPath => Path.Combine(AppContext.BaseDirectory, "certs");
 
     KurrentDBTestCluster BuildFromExistingInstance() {
         var cs   = _existingConnectionString!;

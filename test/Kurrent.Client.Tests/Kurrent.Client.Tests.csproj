@@ -8,7 +8,6 @@
     <ProjectReference Include="..\..\src\Variant\Variant.csproj"/>
     <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj"/>
     <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj"/>
-    <ProjectReference Include="..\Kurrent.SDK.Testing\Kurrent.SDK.Testing.csproj"/>
   </ItemGroup>
 
   <ItemGroup>

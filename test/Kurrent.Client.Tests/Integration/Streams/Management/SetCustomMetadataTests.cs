@@ -1,6 +1,6 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;

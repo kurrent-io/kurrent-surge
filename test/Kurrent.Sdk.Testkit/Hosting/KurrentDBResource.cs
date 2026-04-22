@@ -1,7 +1,6 @@
 namespace Aspire.Hosting.ApplicationModel;
 
-public class KurrentDBResource(string name, bool secure = false)
-    : ContainerResource(name), IResourceWithConnectionString {
+public class KurrentDBResource(string name, bool secure = false) : ContainerResource(name), IResourceWithConnectionString {
     internal const string HttpEndpointName = "http";
     internal const int    DefaultHttpPort  = 2113;
 
@@ -15,10 +14,11 @@ public class KurrentDBResource(string name, bool secure = false)
 
     public ReferenceExpression UriExpression => ConnectionStringExpression;
 
-    public ReferenceExpression ConnectionStringExpression =>
-        ReferenceExpression.Create(
-            $"kurrentdb://{PrimaryEndpoint.Property(EndpointProperty.Host)}:{PrimaryEndpoint.Property(EndpointProperty.Port)}?tls={Secure.ToString().ToLowerInvariant()}"
-        );
+    public ReferenceExpression ConnectionStringExpression => Secure
+        ? ReferenceExpression.Create(
+            $"kurrentdb://{PrimaryEndpoint.Property(EndpointProperty.Host)}:{PrimaryEndpoint.Property(EndpointProperty.Port)}?tls=true&tlsVerifyCert=false")
+        : ReferenceExpression.Create(
+            $"kurrentdb://{PrimaryEndpoint.Property(EndpointProperty.Host)}:{PrimaryEndpoint.Property(EndpointProperty.Port)}?tls=false");
 
     IEnumerable<KeyValuePair<string, ReferenceExpression>> IResourceWithConnectionString.GetConnectionProperties() {
         yield return new KeyValuePair<string, ReferenceExpression>("Host", ReferenceExpression.Create($"{Host}"));

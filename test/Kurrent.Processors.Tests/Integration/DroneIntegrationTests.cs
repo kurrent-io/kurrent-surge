@@ -5,7 +5,7 @@ using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;

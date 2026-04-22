@@ -28,7 +28,6 @@
     <Project Path="test\Variant.Tests\Variant.Tests.csproj" />
   </Folder>
   <Folder Name="/Testkit/">
-    <Project Path="test/Kurrent.SDK.Testing/Kurrent.SDK.Testing.csproj" />
     <Project Path="test/Kurrent.Testkit.Datasets.Tests/Kurrent.Testkit.Datasets.Tests.csproj" />
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
     <Project Path="test\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />

@@ -1,6 +1,4 @@
-using Aspire.Hosting;
-
-namespace Kurrent.SDK.Testing.Hosting;
+namespace Kurrent.Sdk.Testkit.Hosting;
 
 public sealed class KurrentDBTestCluster : IAsyncDisposable {
     const string DefaultUsername = "admin";

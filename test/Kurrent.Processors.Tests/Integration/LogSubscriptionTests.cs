@@ -1,6 +1,6 @@
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;

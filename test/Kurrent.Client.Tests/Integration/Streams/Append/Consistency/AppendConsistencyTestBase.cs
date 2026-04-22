@@ -1,5 +1,5 @@
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Streams;
 

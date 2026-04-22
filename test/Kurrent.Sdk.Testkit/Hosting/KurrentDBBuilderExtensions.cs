@@ -1,5 +1,4 @@
-using Aspire.Hosting.ApplicationModel;
-using Kurrent.SDK.Testing.Hosting;
+using Kurrent.Sdk.Testkit.Hosting;
 using Kurrent.Testing.Containers.KurrentDB;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -55,6 +54,7 @@ public static class KurrentDBBuilderExtensions {
         builder.Resource.Secure = true;
 
         return builder
+            .WithEndpoint(KurrentDBResource.HttpEndpointName, endpoint => endpoint.UriScheme = "https")
             .WithBindMount(certsPath, CertsTargetFolder, true)
             .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Secure));
     }
@@ -82,7 +82,11 @@ public static class KurrentDBBuilderExtensions {
         EnvironmentCallbackContext context,
         IReadOnlyDictionary<string, string?> variables
     ) {
-        foreach (var (key, value) in variables)
-            context.EnvironmentVariables[key] = value ?? string.Empty;
+        foreach (var (key, value) in variables) {
+            if (value is not null)
+                context.EnvironmentVariables[key] = value;
+            else
+                context.EnvironmentVariables.Remove(key);
+        }
     }
 }

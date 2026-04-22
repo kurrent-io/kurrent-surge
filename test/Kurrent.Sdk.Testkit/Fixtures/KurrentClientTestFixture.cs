@@ -1,22 +1,20 @@
-// ReSharper disable ArrangeTypeMemberModifiers
-
 using System.Runtime.CompilerServices;
 using Bogus;
 using Kurrent.Client;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Containers.KurrentDB;
+using Kurrent.Sdk.Testkit.Hosting;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Testing.ArcadeRacer;
 using TUnit.Core.Interfaces;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
-namespace Sdk.TestKit.Fixtures;
+namespace Kurrent.Sdk.Testkit.Fixtures;
 
 public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposable {
-    [ClassDataSource<KurrentDBTestContainer>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestContainer KurrentDB { get; [UsedImplicitly] init; }
+    KurrentDBTestCluster? _cluster;
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
@@ -24,69 +22,56 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     [ClassDataSource<ArcadeRacerTestDataSource>(Shared = SharedType.PerTestSession)]
     public required ITestDataSource TestData { get; [UsedImplicitly] init; }
 
-    /// <summary>
-    /// The logger used for logging in tests.
-    /// </summary>
     public ILogger Logger => TestkitExecutionContext.Logger;
 
-    /// <summary>
-    /// The logger factory used for creating loggers in tests.
-    /// </summary>
     public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
 
-    /// <summary>
-    /// Time provider used for simulating and controlling time in tests.
-    /// </summary>
-    public FakeTimeProvider Time { get; } = new FakeTimeProvider();
+    public FakeTimeProvider Time { get; } = new();
 
-    /// <summary>
-    /// The Kurrent client used for testing.
-    /// </summary>
     public KurrentClient Client => LazyClient.Value;
 
-    /// <summary>
-    /// The message type mapper for the test client.
-    /// </summary>
     public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
+
+    public string ConnectionString { get; private set; } = string.Empty;
 
     Lazy<KurrentClient> LazyClient { get; set; } = null!;
 
-    public Task InitializeAsync() {
-        LazyClient = new Lazy<KurrentClient>(() => {
-            var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
+    public async Task InitializeAsync() {
+        _cluster = await new KurrentDBTestClusterBuilder()
+            .AddNode()
+            .BuildAsync()
+            .ConfigureAwait(false);
+
+        ConnectionString = _cluster.AuthenticatedConnectionString;
+
+        LazyClient = new Lazy<KurrentClient>(() =>
+            KurrentClientOptions.Parse(ConnectionString).GetBuilder()
                 .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
                 .ConfigureSchema(schema => schema
                     .WithValidation(false)
                     .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience);
-
-            return builder.CreateClient();
-        });
-
-        if(!KurrentDB.Enabled) {
-            Logger.LogWarning(
-                "KurrentDB container is disabled. Expecting localhost:2113 to be available. Connection string: {ConnectionString}",
-                KurrentDB.AuthenticatedConnectionString);
-        }
-
-        return Task.CompletedTask;
+                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
+                .CreateClient()
+        );
     }
 
     public async ValueTask DisposeAsync() {
-        if (LazyClient is not { IsValueCreated: true })
-            return;
+        if (LazyClient is { IsValueCreated: true }) {
+            try {
+                await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) {
+                Logger.LogError(ex, "Failed to dispose of Client");
+                throw;
+            }
+        }
 
-        try {
-            await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex) {
-            Logger.LogError(ex, "Failed to dispose of Client");
-            throw;
-        }
+        if (_cluster is { } cluster)
+            await cluster.DisposeAsync();
     }
 
     public KurrentClient GetNewClient() =>
-        KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
+        KurrentClientOptions.Parse(ConnectionString).GetBuilder()
             .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
             .ConfigureSchema(schema => schema
                 .WithValidation(false)

@@ -3,7 +3,7 @@ using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Processors.Tests;
 

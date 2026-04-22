@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Kurrent.SDK.Testing.Hosting;
+namespace Kurrent.Sdk.Testkit.Hosting;
 
 public class KurrentDBHealthCheck(string connectionString) : IHealthCheck {
     static readonly HttpClient Http = CreateHttpClient(); //TODO: fix the slop

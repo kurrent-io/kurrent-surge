@@ -1,5 +1,5 @@
 using Kurrent.Client.Streams;
-using Kurrent.SDK.Testing.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Secure;
 

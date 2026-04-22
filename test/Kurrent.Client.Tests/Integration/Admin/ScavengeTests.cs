@@ -1,6 +1,6 @@
 using Kurrent.Client.Admin;
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Integration.Admin;

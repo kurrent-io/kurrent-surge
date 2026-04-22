@@ -1,4 +1,4 @@
-namespace Kurrent.SDK.Testing.Hosting;
+namespace Kurrent.Sdk.Testkit.Hosting;
 
 public static class KurrentDBContainerImageTags {
     public const string Registry = "docker.kurrent.io";

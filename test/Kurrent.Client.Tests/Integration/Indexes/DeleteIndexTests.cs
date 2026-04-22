@@ -1,6 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Indexes;
 
