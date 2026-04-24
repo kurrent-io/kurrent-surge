@@ -1,85 +1,110 @@
 using Aspire.Hosting.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Kurrent.Sdk.Testkit.Hosting;
 
 /// <summary>
-/// Thin harness over <see cref="DistributedApplicationTestingBuilder"/>. Callers pass a
-/// configure callback that composes whatever KurrentDB topology they want; the harness
-/// owns lifecycle (build, start, wait until healthy, extract connection strings, clean
-/// up cert directories on dispose). Topology decisions belong to the caller.
+/// Thin harness over <see cref="DistributedApplicationTestingBuilder"/>. Spins up a
+/// KurrentDB topology (single node by default; cluster + TLS via <see cref="KurrentDBTopology"/>)
+/// and optionally a user-side <see cref="IHost"/> with services bound to the cluster's
+/// connection string under <c>ConnectionStrings:kurrentdb</c>.
 /// </summary>
 public sealed class KurrentDBTestCluster : IAsyncDisposable {
+    const string ResourceName = "kurrentdb";
+
     readonly DistributedApplication _app;
-    readonly IReadOnlyList<string>  _certsDirectories;
+    readonly IHost?                 _userHost;
 
     KurrentDBTestCluster(
         DistributedApplication app,
-        string                 authenticated,
-        string                 anonymous,
-        IReadOnlyList<string>  certsDirectories
+        IHost? userHost,
+        string authenticated,
+        string anonymous,
+        string? certsDirectory
     ) {
         _app                          = app;
-        _certsDirectories             = certsDirectories;
+        _userHost                     = userHost;
         AuthenticatedConnectionString = authenticated;
         AnonymousConnectionString     = anonymous;
+        CertsDirectory                = certsDirectory;
     }
 
     public string  AuthenticatedConnectionString { get; }
     public string  AnonymousConnectionString     { get; }
-    public string? CertsDirectory                => _certsDirectories.FirstOrDefault();
+    public string? CertsDirectory                { get; }
+
+    /// <summary>
+    /// Service provider for the user-side host built from <c>configureServices</c>. Throws if
+    /// no <c>configureServices</c> callback was supplied to <see cref="StartAsync"/>.
+    /// </summary>
+    public IServiceProvider Services =>
+        _userHost?.Services ?? throw new InvalidOperationException("No user services were configured. Pass a configureServices callback to StartAsync to enable Services.");
 
     public static async Task<KurrentDBTestCluster> StartAsync(
-        Action<IResourceBuilder<KurrentDBResource>>? configure = null,
-        CancellationToken ct = default
+        KurrentDBTopology?          topology = null,
+        Action<IServiceCollection>? configureServices = null,
+        CancellationToken           ct = default
     ) {
         var builder = DistributedApplicationTestingBuilder.Create();
-        var seed    = builder.AddKurrentDB("kurrentdb");
-        configure?.Invoke(seed);
-
-        var nodes   = builder.Resources.OfType<KurrentDBResource>().ToArray();
-        var primary = nodes.Single(n => n.IsPrimary);
+        var entry   = builder.AddKurrentDB(ResourceName, topology).Resource;
 
         var app = await builder.BuildAsync(ct);
         await app.StartAsync(ct);
 
-        var notifications = app.Services.GetRequiredService<ResourceNotificationService>();
-        foreach (var node in nodes)
-            await WaitUntilHealthy(notifications, node.Name, ct);
+        await WaitUntilHealthy(app, builder.Resources.OfType<KurrentDBResource>(), ct);
 
-        var anonymous     = await primary.ConnectionStringExpression.GetValueAsync(ct).ConfigureAwait(false)
-                         ?? throw new InvalidOperationException($"Connection string for primary '{primary.Name}' was null.");
-        var authenticated = await primary.AuthenticatedConnectionStringExpression.GetValueAsync(ct).ConfigureAwait(false)
-                         ?? throw new InvalidOperationException($"Authenticated connection string for primary '{primary.Name}' was null.");
+        var anonymous = await entry.ConnectionStringExpression.GetValueAsync(ct).ConfigureAwait(false)
+                     ?? throw new InvalidOperationException($"Connection string for '{entry.Name}' was null.");
+        var authenticated = await entry.AuthenticatedConnectionStringExpression.GetValueAsync(ct).ConfigureAwait(false)
+                     ?? throw new InvalidOperationException($"Authenticated connection string for '{entry.Name}' was null.");
 
-        var certsDirectories = nodes
-            .Select(n => n.CertsHostPath)
-            .OfType<string>()
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        var userHost = configureServices is null
+            ? null
+            : await StartUserHost(authenticated, configureServices, ct);
 
-        return new KurrentDBTestCluster(app, authenticated, anonymous, certsDirectories);
+        return new KurrentDBTestCluster(app, userHost, authenticated, anonymous, entry.CertsHostPath);
+    }
+
+    static async ValueTask<IHost> StartUserHost(
+        string connectionString, Action<IServiceCollection> configure, CancellationToken ct
+    ) {
+        var hostBuilder = Host.CreateApplicationBuilder();
+        hostBuilder.Configuration[$"ConnectionStrings:{ResourceName}"] = connectionString;
+        configure(hostBuilder.Services);
+
+        var host = hostBuilder.Build();
+        await host.StartAsync(ct);
+        return host;
     }
 
     public async ValueTask DisposeAsync() {
+        if (_userHost is not null) {
+            await _userHost.StopAsync();
+            _userHost.Dispose();
+        }
+
         await _app.StopAsync();
         await _app.DisposeAsync();
 
-        foreach (var path in _certsDirectories)
-            if (Directory.Exists(path))
-                Directory.Delete(path, recursive: true);
+        if (CertsDirectory is not null && Directory.Exists(CertsDirectory))
+            Directory.Delete(CertsDirectory, recursive: true);
     }
 
-    static async Task WaitUntilHealthy(ResourceNotificationService notifications, string resourceName, CancellationToken ct) {
+    static async Task WaitUntilHealthy(
+        DistributedApplication app, IEnumerable<KurrentDBResource> resources, CancellationToken ct
+    ) {
+        var notifications = app.Services.GetRequiredService<ResourceNotificationService>();
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromMinutes(2));
 
         try {
-            await notifications.WaitForResourceHealthyAsync(resourceName, cts.Token);
+            await Task.WhenAll(resources.Select(r =>
+                notifications.WaitForResourceHealthyAsync(r.Name, cts.Token)));
         }
         catch (OperationCanceledException ex) when (!ct.IsCancellationRequested) {
-            throw new TimeoutException(
-                $"KurrentDB resource '{resourceName}' did not become healthy within 2 minutes.", ex);
+            throw new TimeoutException("KurrentDB cluster did not become healthy within 2 minutes.", ex);
         }
     }
 }

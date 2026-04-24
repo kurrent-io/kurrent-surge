@@ -1,22 +1,20 @@
 namespace Aspire.Hosting.ApplicationModel;
 
-public sealed class KurrentDBResource(string name, bool secure = false) : ContainerResource(name), IResourceWithConnectionString {
-    internal const string HttpEndpointName  = "http";
-    internal const int    DefaultHttpPort   = 2113;
-    internal const string DefaultUserName   = "admin";
-    internal const string DefaultPassword   = "changeit";
+public sealed class KurrentDBResource : ContainerResource, IResourceWithConnectionString {
+    internal const string HttpEndpointName = "http";
+    internal const int    DefaultHttpPort  = 2113;
 
-    public bool    Secure        { get; internal set; } = secure;
-    public bool    IsPrimary     { get; internal set; } = true;
-    public string  UserName      { get; set; }          = DefaultUserName;
-    public string  Password      { get; set; }          = DefaultPassword;
-    public string? CertsHostPath { get; internal set; }
+    public KurrentDBResource(string name, KurrentDBTopology? topology = null) : base(name) {
+        Topology = topology ?? new KurrentDBTopology();
+    }
 
-    /// <summary>
-    /// Shared by-reference list of every node in this cluster (primary first). <c>null</c>
-    /// for standalone single-node resources.
-    /// </summary>
-    internal List<KurrentDBResource>? Cluster { get; set; }
+    public KurrentDBTopology Topology { get; }
+
+    public bool   Secure   => Topology.Secure;
+    public string UserName => Topology.UserName;
+    public string Password => Topology.Password;
+
+    internal string? CertsHostPath { get; set; }
 
     public EndpointReference PrimaryEndpoint => field ??= new EndpointReference(this, HttpEndpointName);
 
@@ -32,4 +30,16 @@ public sealed class KurrentDBResource(string name, bool secure = false) : Contai
             ? ReferenceExpression.Create($"kurrentdb://{UserName}:{Password}@{host}:{port}?{tls}")
             : ReferenceExpression.Create($"kurrentdb://{host}:{port}?{tls}");
     }
+}
+
+/// <summary>
+/// Immutable topology description consumed once by <c>AddKurrentDB</c>. Set
+/// <see cref="NodeCount"/> &gt; 1 to spin up a cluster; set <see cref="Secure"/>
+/// to enable TLS across every node.
+/// </summary>
+public sealed record KurrentDBTopology {
+    public int    NodeCount { get; init; } = 1;
+    public bool   Secure    { get; init; }
+    public string UserName  { get; init; } = "admin";
+    public string Password  { get; init; } = "changeit";
 }

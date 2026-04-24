@@ -16,10 +16,15 @@ public static class KurrentDBBuilderExtensions {
 
     static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "Hosting", "gencert.sh");
 
-    /// <summary>Registers a KurrentDB node.</summary>
+    /// <summary>
+    /// Registers a KurrentDB topology in one pass. Set <see cref="KurrentDBTopology.NodeCount"/>
+    /// for clusters and <see cref="KurrentDBTopology.Secure"/> for TLS. Returns the entry node;
+    /// peers are named <c>{name}-2</c>, <c>{name}-3</c>, etc.
+    /// </summary>
     public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name,
+        KurrentDBTopology? topology = null,
         string image = KurrentDBContainerImageTags.Nightly.Image,
         string tag = KurrentDBContainerImageTags.Nightly.Tag
     ) {
@@ -27,7 +32,72 @@ public static class KurrentDBBuilderExtensions {
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
-        var resource = new KurrentDBResource(name);
+        topology ??= new KurrentDBTopology();
+        ArgumentOutOfRangeException.ThrowIfLessThan(topology.NodeCount, 1);
+
+        var nodeNames = BuildNodeNames(name, topology.NodeCount);
+
+        IResourceBuilder<ContainerResource>? certGen = null;
+        string? certsHostPath = null;
+        if (topology.Secure)
+            (certGen, certsHostPath) = EnsureCertGenResource(builder, nodeNames);
+
+        var gossipSeeds = string.Join(",", nodeNames.Select(n => $"{n}:{KurrentDBResource.DefaultHttpPort}"));
+
+        IResourceBuilder<KurrentDBResource>? entry = null;
+        foreach (var nodeName in nodeNames) {
+            var resource = new KurrentDBResource(nodeName, topology) { CertsHostPath = certsHostPath };
+
+            var node = builder.AddResource(resource)
+                .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
+                .WithImage(image, tag)
+                .WithKurrentEnvironment(topology)
+                .WithSecureMode(topology, certsHostPath, certGen)
+                .WithClusterMode(topology, gossipSeeds)
+                .WithHealthMonitor(builder);
+
+            entry ??= node;
+        }
+
+        return entry!;
+    }
+
+    static string[] BuildNodeNames(string name, int count) =>
+        count == 1
+            ? [name]
+            : Enumerable.Range(1, count).Select(i => i == 1 ? name : $"{name}-{i}").ToArray();
+
+    static IResourceBuilder<KurrentDBResource> WithKurrentEnvironment(
+        this IResourceBuilder<KurrentDBResource> node,
+        KurrentDBTopology topology
+    ) =>
+        node.WithEnvironment(ctx => ApplyEnvironmentVariables(
+            ctx, topology.Secure ? KurrentDBConfiguration.Secure : KurrentDBConfiguration.Insecure));
+
+    static IResourceBuilder<KurrentDBResource> WithSecureMode(
+        this IResourceBuilder<KurrentDBResource> node,
+        KurrentDBTopology topology,
+        string? certsHostPath,
+        IResourceBuilder<ContainerResource>? certGen
+    ) =>
+        !topology.Secure ? node :
+        node.WithEndpoint(KurrentDBResource.HttpEndpointName, ep => ep.UriScheme = "https")
+            .WithBindMount(certsHostPath!, CertsTargetFolder, isReadOnly: true)
+            .WaitForCompletion(certGen!);
+
+    static IResourceBuilder<KurrentDBResource> WithClusterMode(
+        this IResourceBuilder<KurrentDBResource> node,
+        KurrentDBTopology topology,
+        string gossipSeeds
+    ) =>
+        topology.NodeCount <= 1 ? node :
+        node.WithEnvironment(ctx => ApplyClusterEnvironment(ctx, node.Resource, gossipSeeds, topology.NodeCount));
+
+    static IResourceBuilder<KurrentDBResource> WithHealthMonitor(
+        this IResourceBuilder<KurrentDBResource> node,
+        IDistributedApplicationBuilder builder
+    ) {
+        var resource = node.Resource;
 
         string? connectionString = null;
         builder.Eventing.Subscribe<ConnectionStringAvailableEvent>(resource, async (_, ct) => {
@@ -36,86 +106,11 @@ public static class KurrentDBBuilderExtensions {
                                 $"ConnectionStringAvailableEvent fired for '{resource.Name}' with a null connection string.");
         });
 
-        var healthCheckKey = $"{name}_check";
+        var healthCheckKey = $"{resource.Name}_check";
         builder.Services.AddHealthChecks()
             .Add(new HealthCheckRegistration(healthCheckKey, _ => new KurrentDBHealthCheck(connectionString!), null, null, null));
 
-        return builder
-            .AddResource(resource)
-            .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
-            .WithImage(image, tag)
-            .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Insecure))
-            .WithHealthCheck(healthCheckKey);
-    }
-
-    /// <summary>Expands this node into a <paramref name="size"/>-node cluster.</summary>
-    public static IResourceBuilder<KurrentDBResource> WithClusterSize(
-        this IResourceBuilder<KurrentDBResource> primary,
-        int size
-    ) {
-        ArgumentOutOfRangeException.ThrowIfLessThan(size, 1);
-        if (size == 1) return primary;
-
-        var cluster = new List<KurrentDBResource> { primary.Resource };
-        primary.Resource.Cluster = cluster;
-
-        for (var i = 2; i <= size; i++) {
-            var peer = primary.ApplicationBuilder.AddKurrentDB($"{primary.Resource.Name}-{i}");
-            peer.Resource.IsPrimary = false;
-            peer.Resource.Cluster   = cluster;
-            cluster.Add(peer.Resource);
-
-            if (primary.Resource.Secure)
-                peer.WithSecureMode();
-        }
-
-        var gossipSeeds = string.Join(",", cluster.Select(n => $"{n.Name}:{KurrentDBResource.DefaultHttpPort}"));
-        var clusterSize = cluster.Count;
-
-        foreach (var node in cluster)
-            Configure(primary.ApplicationBuilder.CreateResourceBuilder(node));
-
-        return primary;
-
-        void Configure(IResourceBuilder<KurrentDBResource> node) =>
-            node.WithEnvironment(ctx => {
-                ctx.EnvironmentVariables["KURRENTDB_CLUSTER_SIZE"]                    = clusterSize.ToString();
-                ctx.EnvironmentVariables["KURRENTDB_DISCOVER_VIA_DNS"]                = "false";
-                ctx.EnvironmentVariables["KURRENTDB_GOSSIP_SEED"]                     = gossipSeeds;
-                ctx.EnvironmentVariables["KURRENTDB_NODE_HOST_ADVERTISE_AS"]          = node.Resource.Name;
-                ctx.EnvironmentVariables["KURRENTDB_REPLICATION_HOST_ADVERTISE_AS"]   = node.Resource.Name;
-                ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_HOST_TO_CLIENT_AS"]     = "localhost";
-                ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] =
-                    ReferenceExpression.Create($"{node.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)}");
-            });
-    }
-
-    /// <summary>Enables TLS; propagates across the cluster in any call order.</summary>
-    public static IResourceBuilder<KurrentDBResource> WithSecureMode(
-        this IResourceBuilder<KurrentDBResource> builder,
-        bool enabled = true
-    ) {
-        if (!enabled) return builder;
-
-        var nodes = builder.Resource.Cluster ?? [builder.Resource];
-        foreach (var node in nodes)
-            Apply(builder.ApplicationBuilder.CreateResourceBuilder(node));
-
-        return builder;
-
-        static void Apply(IResourceBuilder<KurrentDBResource> node) {
-            if (node.Resource.Secure) return;
-
-            var certGen = AddOrGetCertGenResource(node.ApplicationBuilder);
-            node.Resource.Secure        = true;
-            node.Resource.CertsHostPath = certGen.HostPath;
-
-            node
-                .WithEndpoint(KurrentDBResource.HttpEndpointName, endpoint => endpoint.UriScheme = "https")
-                .WithBindMount(certGen.HostPath, CertsTargetFolder, isReadOnly: true)
-                .WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, KurrentDBConfiguration.Secure))
-                .WaitForCompletion(certGen.Resource);
-        }
+        return node.WithHealthCheck(healthCheckKey);
     }
 
     static void ApplyEnvironmentVariables(
@@ -130,7 +125,26 @@ public static class KurrentDBBuilderExtensions {
         }
     }
 
-    static (IResourceBuilder<ContainerResource> Resource, string HostPath) AddOrGetCertGenResource(IDistributedApplicationBuilder builder) {
+    static void ApplyClusterEnvironment(
+        EnvironmentCallbackContext context,
+        KurrentDBResource resource,
+        string gossipSeeds,
+        int clusterSize
+    ) {
+        context.EnvironmentVariables["KURRENTDB_CLUSTER_SIZE"]                  = clusterSize.ToString();
+        context.EnvironmentVariables["KURRENTDB_DISCOVER_VIA_DNS"]              = "false";
+        context.EnvironmentVariables["KURRENTDB_GOSSIP_SEED"]                   = gossipSeeds;
+        context.EnvironmentVariables["KURRENTDB_NODE_HOST_ADVERTISE_AS"]        = resource.Name;
+        context.EnvironmentVariables["KURRENTDB_REPLICATION_HOST_ADVERTISE_AS"] = resource.Name;
+        context.EnvironmentVariables["KURRENTDB_ADVERTISE_HOST_TO_CLIENT_AS"]   = "localhost";
+        context.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] =
+            ReferenceExpression.Create($"{resource.PrimaryEndpoint.Property(EndpointProperty.Port)}");
+    }
+
+    static (IResourceBuilder<ContainerResource> Builder, string HostPath) EnsureCertGenResource(
+        IDistributedApplicationBuilder builder,
+        IReadOnlyList<string> secureNodeNames
+    ) {
         var existing = builder.Resources.OfType<ContainerResource>()
             .FirstOrDefault(r => r.Name == CertGenResourceName);
 
@@ -148,7 +162,7 @@ public static class KurrentDBBuilderExtensions {
             .WithEntrypoint("/bin/sh")
             .WithArgs(ctx => {
                 ctx.Args.Add(CertGenScriptTarget);
-                ctx.Args.Add(BuildCertificateDnsNames(builder));
+                ctx.Args.Add(BuildCertificateDnsNames(builder, secureNodeNames));
             })
             .WithBindMount(CertGenScriptSource, CertGenScriptTarget, true)
             .WithBindMount(hostPath, CertGenTargetFolder);
@@ -156,10 +170,12 @@ public static class KurrentDBBuilderExtensions {
         return (resource, hostPath);
     }
 
-    static string BuildCertificateDnsNames(IDistributedApplicationBuilder builder) =>
+    static string BuildCertificateDnsNames(IDistributedApplicationBuilder builder, IReadOnlyList<string> secureNodeNames) =>
         string.Join(",", builder.Resources
             .OfType<KurrentDBResource>()
             .Where(r => r.Secure)
             .Select(r => r.Name)
+            .Concat(secureNodeNames)
+            .Distinct(StringComparer.Ordinal)
             .Prepend("localhost"));
 }

@@ -73,7 +73,7 @@ public sealed class KurrentDBInsecureTestFixture : KurrentDBTestFixture {
 /// </summary>
 public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
     protected override Task<KurrentDBTestCluster> CreateClusterAsync() =>
-        KurrentDBTestCluster.StartAsync(node => node.WithSecureMode());
+        KurrentDBTestCluster.StartAsync(new KurrentDBTopology { Secure = true });
 }
 
 /// <summary>
@@ -83,5 +83,5 @@ public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
 /// </summary>
 public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture {
     protected override Task<KurrentDBTestCluster> CreateClusterAsync() =>
-        KurrentDBTestCluster.StartAsync(node => node.WithClusterSize(3).WithSecureMode());
+        KurrentDBTestCluster.StartAsync(new KurrentDBTopology { NodeCount = 3, Secure = true });
 }
