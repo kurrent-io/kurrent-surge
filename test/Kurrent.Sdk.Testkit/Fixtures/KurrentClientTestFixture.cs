@@ -37,10 +37,7 @@ public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposab
     Lazy<KurrentClient> LazyClient { get; set; } = null!;
 
     public async Task InitializeAsync() {
-        _cluster = await new KurrentDBTestClusterBuilder()
-            .AddNode()
-            .BuildAsync()
-            .ConfigureAwait(false);
+        _cluster = await KurrentDBTestCluster.StartAsync().ConfigureAwait(false);
 
         ConnectionString = _cluster.AuthenticatedConnectionString;
 

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 namespace Kurrent.Sdk.Testkit.Hosting;
 
 public class KurrentDBHealthCheck(string connectionString) : IHealthCheck {
-    static readonly HttpClient Http = CreateHttpClient(); //TODO: fix the slop
+    static readonly HttpClient Http = CreateHttpClient();
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
