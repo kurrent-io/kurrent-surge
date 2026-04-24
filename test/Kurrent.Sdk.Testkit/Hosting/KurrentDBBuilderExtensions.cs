@@ -16,11 +16,7 @@ public static class KurrentDBBuilderExtensions {
 
     static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "Hosting", "gencert.sh");
 
-    /// <summary>
-    /// Registers a single KurrentDB node as a <see cref="KurrentDBResource"/>. Chain
-    /// <see cref="WithReplicas"/> to expand into a cluster or <see cref="WithSecureMode"/>
-    /// to enable TLS; both propagate to peers when called after <see cref="WithReplicas"/>.
-    /// </summary>
+    /// <summary>Registers a KurrentDB node.</summary>
     public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name,
@@ -52,31 +48,28 @@ public static class KurrentDBBuilderExtensions {
             .WithHealthCheck(healthCheckKey);
     }
 
-    /// <summary>
-    /// Expands this node into a cluster by adding <paramref name="count"/> peers named
-    /// <c>{name}-2</c>, <c>{name}-3</c>, ... with gossip seeds wired across all members.
-    /// Chain this BEFORE <see cref="WithSecureMode"/> if you want TLS to apply to every
-    /// node in the cluster.
-    /// </summary>
-    public static IResourceBuilder<KurrentDBResource> WithReplicas(
+    /// <summary>Expands this node into a <paramref name="size"/>-node cluster.</summary>
+    public static IResourceBuilder<KurrentDBResource> WithClusterSize(
         this IResourceBuilder<KurrentDBResource> primary,
-        int count
+        int size
     ) {
-        ArgumentOutOfRangeException.ThrowIfNegative(count);
-        if (count == 0) return primary;
+        ArgumentOutOfRangeException.ThrowIfLessThan(size, 1);
+        if (size == 1) return primary;
 
         var cluster = new List<KurrentDBResource> { primary.Resource };
         primary.Resource.Cluster = cluster;
 
-        for (var i = 2; i <= count + 1; i++) {
+        for (var i = 2; i <= size; i++) {
             var peer = primary.ApplicationBuilder.AddKurrentDB($"{primary.Resource.Name}-{i}");
             peer.Resource.IsPrimary = false;
             peer.Resource.Cluster   = cluster;
             cluster.Add(peer.Resource);
+
+            if (primary.Resource.Secure)
+                peer.WithSecureMode();
         }
 
-        const int port = KurrentDBResource.DefaultHttpPort;
-        var gossipSeeds = string.Join(",", cluster.Select(n => $"{n.Name}:{port}"));
+        var gossipSeeds = string.Join(",", cluster.Select(n => $"{n.Name}:{KurrentDBResource.DefaultHttpPort}"));
         var clusterSize = cluster.Count;
 
         foreach (var node in cluster)
@@ -97,13 +90,7 @@ public static class KurrentDBBuilderExtensions {
             });
     }
 
-    /// <summary>
-    /// Enables TLS. When called after <see cref="WithReplicas"/>, propagates to every node
-    /// in the cluster; otherwise applies to this node only. The first invocation in the app
-    /// registers a one-shot cert-gen container that writes a CA, node cert, and admin user
-    /// cert to a temp directory; subsequent invocations reuse it. Each secure node waits
-    /// for cert-gen to complete before starting and bind-mounts the certs directory read-only.
-    /// </summary>
+    /// <summary>Enables TLS; propagates across the cluster in any call order.</summary>
     public static IResourceBuilder<KurrentDBResource> WithSecureMode(
         this IResourceBuilder<KurrentDBResource> builder,
         bool enabled = true
@@ -143,9 +130,15 @@ public static class KurrentDBBuilderExtensions {
         }
     }
 
-    static CertGenResource AddOrGetCertGenResource(IDistributedApplicationBuilder builder) {
-        if (FindCertGenResource(builder) is { } existing)
-            return new CertGenResource(builder.CreateResourceBuilder(existing.Resource), existing.HostPath);
+    static (IResourceBuilder<ContainerResource> Resource, string HostPath) AddOrGetCertGenResource(IDistributedApplicationBuilder builder) {
+        var existing = builder.Resources.OfType<ContainerResource>()
+            .FirstOrDefault(r => r.Name == CertGenResourceName);
+
+        if (existing is not null) {
+            var mount = existing.Annotations.OfType<ContainerMountAnnotation>()
+                .First(a => a.Target == CertGenTargetFolder);
+            return (builder.CreateResourceBuilder(existing), mount.Source!);
+        }
 
         var hostPath = Path.Combine(Path.GetTempPath(), $"kurrentdb-testkit-certs-{Guid.NewGuid():N}");
         Directory.CreateDirectory(hostPath);
@@ -160,31 +153,13 @@ public static class KurrentDBBuilderExtensions {
             .WithBindMount(CertGenScriptSource, CertGenScriptTarget, true)
             .WithBindMount(hostPath, CertGenTargetFolder);
 
-        return new CertGenResource(resource, hostPath);
+        return (resource, hostPath);
     }
 
-    static string BuildCertificateDnsNames(IDistributedApplicationBuilder builder) {
-        var names = new List<string> { "localhost" };
-
-        names.AddRange(builder.Resources
+    static string BuildCertificateDnsNames(IDistributedApplicationBuilder builder) =>
+        string.Join(",", builder.Resources
             .OfType<KurrentDBResource>()
             .Where(r => r.Secure)
-            .Select(r => r.Name));
-
-        return string.Join(",", names.Distinct(StringComparer.OrdinalIgnoreCase));
-    }
-
-    static (ContainerResource Resource, string HostPath)? FindCertGenResource(IDistributedApplicationBuilder builder) {
-        var resource = builder.Resources.OfType<ContainerResource>()
-            .FirstOrDefault(r => r.Name == CertGenResourceName);
-
-        if (resource is null) return null;
-
-        var mount = resource.Annotations.OfType<ContainerMountAnnotation>()
-            .First(a => a.Target == CertGenTargetFolder);
-
-        return (resource, mount.Source!);
-    }
-
-    readonly record struct CertGenResource(IResourceBuilder<ContainerResource> Resource, string HostPath);
+            .Select(r => r.Name)
+            .Prepend("localhost"));
 }

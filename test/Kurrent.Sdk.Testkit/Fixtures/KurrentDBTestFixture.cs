@@ -83,5 +83,5 @@ public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
 /// </summary>
 public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture {
     protected override Task<KurrentDBTestCluster> CreateClusterAsync() =>
-        KurrentDBTestCluster.StartAsync(node => node.WithReplicas(2).WithSecureMode());
+        KurrentDBTestCluster.StartAsync(node => node.WithClusterSize(3).WithSecureMode());
 }
