@@ -62,14 +62,12 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
 
     public Task InitializeAsync() {
         LazyClient = new Lazy<KurrentClient>(() => {
-            var builder = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
-                .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
-                .ConfigureSchema(schema => schema
-                    .WithValidation(false)
-                    .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience);
-
-            return builder.CreateClient();
+            var opts = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString);
+            opts.LoggerFactory      = TestkitExecutionContext.LoggerFactory;
+            opts.Schema.PreValidate = false;
+            opts.Schema.Mapper      = MessageTypeMapper.Create(m => m.Map<StreamMetadata>("$metadata"));
+            opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
+            return KurrentClient.Create(opts);
         });
 
         if(!KurrentDB.Enabled) {
@@ -139,14 +137,14 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
         }
     }
 
-    public KurrentClient GetNewClient() =>
-        KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString).GetBuilder()
-            .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
-            .ConfigureSchema(schema => schema
-                .WithValidation(false)
-                .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
+    public KurrentClient GetNewClient() {
+        var opts = KurrentClientOptions.Parse(KurrentDB.AuthenticatedConnectionString);
+        opts.LoggerFactory      = TestkitExecutionContext.LoggerFactory;
+        opts.Schema.PreValidate = false;
+        opts.Schema.Mapper      = MessageTypeMapper.Create(m => m.Map<StreamMetadata>("$metadata"));
+        opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
+        return KurrentClient.Create(opts);
+    }
 
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var request = new ReadRecordsRequest {

@@ -8,7 +8,7 @@ namespace Kurrent.Client.Schema.Serialization.Json;
 
 [PublicAPI]
 public record JsonSchemaSerializerOptions : SchemaSerializerOptions {
-	public static readonly JsonSchemaSerializerOptions Default = new();
+	public static JsonSchemaSerializerOptions Default => new();
 
 	public static readonly JsonSerializerOptions DefaultJsonSerializerOptions = BuildOptions([]);
 
@@ -17,14 +17,14 @@ public record JsonSchemaSerializerOptions : SchemaSerializerOptions {
 	/// When provided, they are added to the <see cref="System.Text.Json.JsonSerializerOptions.TypeInfoResolverChain"/>
 	/// alongside the internal <see cref="KurrentJsonContext"/>.
 	/// </summary>
-	public IReadOnlyList<JsonSerializerContext> UserJsonContexts { get; init; } = [];
+	public IReadOnlyList<JsonSerializerContext> UserJsonContexts { get; set; } = [];
 
 	public JsonSerializerOptions JsonSerializerOptions =>
 		UserJsonContexts.Count == 0
 			? DefaultJsonSerializerOptions
 			: BuildOptions(UserJsonContexts);
 
-	public bool UseProtobufFormatter { get; init; } = true;
+	public bool UseProtobufFormatter { get; set; } = true;
 
 	static JsonSerializerOptions CreateDefaultOptions() => BuildOptions([]);
 

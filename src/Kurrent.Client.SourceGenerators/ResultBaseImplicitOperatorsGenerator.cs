@@ -1,127 +1,91 @@
-using System.Diagnostics;
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using Kurrent.CodeAnalysis;
+using Kurrent.CodeAnalysis.Pipeline;
+using TypeSymbol = Kurrent.CodeAnalysis.TypeSymbol;
+using TypeKind = Kurrent.CodeAnalysis.TypeKind;
 
 namespace Kurrent.Client.SourceGenerators;
 
 [Generator]
-public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
+public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        #if DEBUG
-        if (!Debugger.IsAttached) {
-            // Debugger.Launch();
-        }
-        #endif
+        context
+            .Types(t => t
+                .OfKind(TypeKind.Record)
+                .Implementing("Kurrent.IResultBase<,>"))
+            .Select(ExtractResultInfo)
+            .Where(info => info is not null)
+            .RegisterSources((spc, info) => {
+                if (info is null)
+                    return;
 
-        // Filter for record types that might inherit from ResultBase
-        var candidateTypes = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: static (node, _) => IsRecordDeclaration(node),
-                transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx))
-            .Where(static m => m is not null);
-
-        context.RegisterSourceOutput(candidateTypes, static (spc, typeSymbol) => {
-            if (typeSymbol is null) return;
-
-            try {
-                GenerateImplicitOperators(spc, typeSymbol);
-            }
-            catch (Exception ex) {
-                ReportDiagnostic(spc, Failed, ex.ToString());
-            }
-        });
+                try {
+                    var source   = GenerateSource(info);
+                    var hintName = SanitizedHintName(info.FullName);
+                    spc.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
+                    spc.ReportDiagnostic(Diagnostic.Create(ImplementationGenerated, Location.None, info.FullName));
+                }
+                catch (System.Exception ex) {
+                    spc.ReportDiagnostic(Diagnostic.Create(Failed, Location.None, ex.ToString()));
+                }
+            });
     }
 
-    static bool IsRecordDeclaration(SyntaxNode node) {
-        if (node is not RecordDeclarationSyntax)
-            return false;
+    static readonly DiagnosticDescriptor ImplementationGenerated = new(
+        id: "RESULT001",
+        title: "ResultBase Implicit Operators",
+        messageFormat: "Generated implicit operators for: {0}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
 
-        return true;
-    }
+    static readonly DiagnosticDescriptor Failed = new(
+        id: "RESULT500",
+        title: "ResultBase Implicit Operators",
+        messageFormat: "Failed to generate implicit operators: {0}",
+        category: "Error",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 
-    static INamedTypeSymbol? GetSemanticTargetForGeneration(GeneratorSyntaxContext context) {
-        var recordDecl = (RecordDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(recordDecl);
+    static ResultInfo? ExtractResultInfo(TypeSymbol t) {
+        var rb = t.Interface("Kurrent.IResultBase<,>");
 
-        if (symbol is not { } typeSymbol)
+        if (rb is null)
             return null;
 
-        // Check if it implements IResultBase<TValue, TError>
-        if (!ImplementsIResultBase(typeSymbol))
-            return null;
+        var tValue = rb.TypeArguments[0];
+        var tError = rb.TypeArguments[1];
 
-        return typeSymbol;
+        var variants = tError.Interface("Kurrent.IVariantException<>")
+                    ?? tError.Interface("Kurrent.Variant.IVariantException<>");
+
+        var variantItems = variants is null
+            ? System.Array.Empty<VariantRef>()
+            : variants.TypeArguments.Select(v => new VariantRef(v.Name, v.FullName)).ToArray();
+
+        return new ResultInfo(
+            Name: t.Name,
+            FullName: t.FullName,
+            Namespace: t.Namespace,
+            TValue: tValue.FullName,
+            TError: tError.FullName,
+            Variants: variantItems);
     }
 
-    static bool ImplementsIResultBase(INamedTypeSymbol typeSymbol) {
-        foreach (var iface in typeSymbol.AllInterfaces) {
-            var ifaceName = iface.OriginalDefinition.ToDisplayString();
+    static string SanitizedHintName(string fullName) =>
+        fullName.Replace(".", "_").Replace("<", "_").Replace(">", "_") + ".ImplicitOperators.g.cs";
 
-            if (ifaceName == "Kurrent.IResultBase<TValue, TError>")
-                return true;
-        }
+    static string GenerateSource(ResultInfo info) {
+        var typeName      = info.Name;
+        var valueTypeName = info.TValue;
+        var errorTypeName = info.TError;
 
-        return false;
-    }
+        var exceptionOperators = new StringBuilder();
 
-    static void GenerateImplicitOperators(SourceProductionContext context, INamedTypeSymbol typeSymbol) {
-        // Extract TValue and TError from IResultBase<TValue, TError>
-        var interfaceType = typeSymbol.AllInterfaces.Where( x => {
-            var ifaceName = x.OriginalDefinition.ToDisplayString();
-            return ifaceName == "Kurrent.IResultBase<TValue, TError>";
-        }).First();
-
-        var tValue = interfaceType.TypeArguments[0];
-        var tError = interfaceType.TypeArguments[1];
-
-        // Extract exception variants from TError if it implements IVariantException<...>
-        var exceptionVariants = ExtractVariantExceptionTypes(tError);
-
-        var ns = typeSymbol.ContainingNamespace.IsGlobalNamespace
-            ? string.Empty
-            : typeSymbol.ContainingNamespace.ToDisplayString();
-
-        var source = GenerateSource(typeSymbol, tValue, tError, exceptionVariants, ns);
-        var hintName = $"{typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "").Replace(".", "_").Replace("<", "_").Replace(">", "_")}.ImplicitOperators.g.cs";
-
-        context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
-
-        ReportDiagnostic(context, ImplementationGenerated, typeSymbol.ToDisplayString());
-    }
-
-    static List<ITypeSymbol> ExtractVariantExceptionTypes(ITypeSymbol tError) {
-        var variants = new List<ITypeSymbol>();
-
-        // Look for IVariantException<T1, T2, ...> interface
-        foreach (var iface in tError.AllInterfaces) {
-            var ifaceName = iface.OriginalDefinition.ToDisplayString();
-
-            // Check if it's IVariantException with generic arguments
-            if (ifaceName.StartsWith("Kurrent.IVariantException<") || ifaceName.StartsWith("Kurrent.Variant.IVariantException<")) {
-                // Extract all type arguments (the exception types)
-                variants.AddRange(iface.TypeArguments);
-                break;
-            }
-        }
-
-        return variants;
-    }
-
-    static string GenerateSource(INamedTypeSymbol typeSymbol, ITypeSymbol tValue, ITypeSymbol tError, List<ITypeSymbol> exceptionVariants, string ns) {
-        var typeName = typeSymbol.Name;
-        var tValueName = tValue.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var tErrorName = tError.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-
-        // Generate exception operators
-        var exceptionOperatorsBuilder = new StringBuilder();
-        foreach (var exceptionType in exceptionVariants) {
-            var exceptionTypeName = exceptionType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            var exceptionSimpleName = exceptionType.Name;
-
-            const string exceptionOperatorTemplate = """
+        foreach (var variant in info.Variants) {
+            var exceptionOperatorTemplate = """
                     /// <summary>
                     /// Implicitly converts {EXCEPTION_SIMPLE_NAME} to {TYPE_NAME}.
                     /// </summary>
@@ -134,13 +98,13 @@ public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
 
                 """;
 
-            var operatorCode = exceptionOperatorTemplate
+            var code = exceptionOperatorTemplate
                 .Replace("{TYPE_NAME}", typeName)
-                .Replace("{EXCEPTION_TYPE_NAME}", exceptionTypeName)
-                .Replace("{EXCEPTION_SIMPLE_NAME}", exceptionSimpleName)
-                .Replace("{ERROR_TYPE_NAME}", tErrorName);
+                .Replace("{EXCEPTION_TYPE_NAME}", variant.FullName)
+                .Replace("{EXCEPTION_SIMPLE_NAME}", variant.Name)
+                .Replace("{ERROR_TYPE_NAME}", errorTypeName);
 
-            exceptionOperatorsBuilder.Append(operatorCode);
+            exceptionOperators.Append(code);
         }
 
         const string template = """
@@ -149,7 +113,7 @@ public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
             // Changes to this file may be lost when the file is regenerated.
 
             #nullable enable
-            
+
             {NAMESPACE_DECLARATION}
 
             [PublicAPI]
@@ -163,12 +127,12 @@ public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
                 /// Initializes a new instance with an error.
                 /// </summary>
                 {TYPE_NAME}({ERROR_TYPE_NAME} error) : base(false, default, error) { }
-                
+
                 /// <summary>
                 /// Creates a new success result.
                 /// </summary>
                 public static new {TYPE_NAME} Success({VALUE_TYPE_NAME} value) => new(value);
-            
+
                 /// <summary>
                 /// Creates a new failure result.
                 /// </summary>
@@ -188,38 +152,44 @@ public class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator {
             }
             """;
 
-        var namespaceDecl = !string.IsNullOrEmpty(ns) ? $"namespace {ns};" : "// Global namespace";
+        var namespaceDecl = !string.IsNullOrEmpty(info.Namespace) ? $"namespace {info.Namespace};" : "// Global namespace";
 
         return template
             .Replace("{NAMESPACE_DECLARATION}", namespaceDecl)
             .Replace("{TYPE_NAME}", typeName)
-            .Replace("{VALUE_TYPE_NAME}", tValueName)
-            .Replace("{ERROR_TYPE_NAME}", tErrorName)
-            .Replace("{EXCEPTION_OPERATORS}", exceptionOperatorsBuilder.ToString());
+            .Replace("{VALUE_TYPE_NAME}", valueTypeName)
+            .Replace("{ERROR_TYPE_NAME}", errorTypeName)
+            .Replace("{EXCEPTION_OPERATORS}", exceptionOperators.ToString());
     }
 
-    #region ->> Diagnostics <<-
+    sealed record ResultInfo(
+        string Name,
+        string FullName,
+        string Namespace,
+        string TValue,
+        string TError,
+        VariantRef[] Variants
+    ) {
+        public bool Equals(ResultInfo? other) =>
+            other is not null
+         && Name == other.Name
+         && FullName == other.FullName
+         && Namespace == other.Namespace
+         && TValue == other.TValue
+         && TError == other.TError
+         && Variants.AsSpan().SequenceEqual(other.Variants.AsSpan());
 
-    static readonly DiagnosticDescriptor ImplementationGenerated = new(
-        "RESULT001",
-        "ResultBase Implicit Operators",
-        "Generated implicit operators for: {0}",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
-
-    static readonly DiagnosticDescriptor Failed = new(
-        "RESULT500",
-        "ResultBase Implicit Operators",
-        "Failed to generate implicit operators: {0}",
-        "Error",
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
-
-    static void ReportDiagnostic(SourceProductionContext context, DiagnosticDescriptor descriptor, params object?[]? messageArgs) {
-        var diagnostic = Diagnostic.Create(descriptor, Location.None, messageArgs);
-        context.ReportDiagnostic(diagnostic);
+        public override int GetHashCode() {
+            var hash = HashCombine.Start;
+            hash = HashCombine.Add(hash, Name);
+            hash = HashCombine.Add(hash, FullName);
+            hash = HashCombine.Add(hash, Namespace);
+            hash = HashCombine.Add(hash, TValue);
+            hash = HashCombine.Add(hash, TError);
+            hash = HashCombine.AddRange(hash, Variants);
+            return hash;
+        }
     }
 
-    #endregion
+    sealed record VariantRef(string Name, string FullName);
 }

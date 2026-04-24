@@ -40,6 +40,14 @@ public static partial class Contracts {
                 : $"[{Partition:000}] @{LogPosition}";
     }
 
+    // public record PartitionCheckpoint {
+    //     public int     Partition      { get; init; }
+    //     public long    LogPosition    { get; init; }
+    //     public string? Stream         { get; init; }
+    //     public int?    StreamRevision { get; init; }
+    //     public byte[]  State          { get; init; } = [];
+    // }
+
     /// <summary>
     /// Checkpoint was reset to a specific position.
     /// <para>

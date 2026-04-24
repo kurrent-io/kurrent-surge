@@ -121,7 +121,7 @@ public record X509CertificateCredentials() {
     /// The certificate used to authenticate the client to the server.
     /// </para>
     /// </remarks>
-    public required X509Certificate2 Certificate { get; init; }
+    public required X509Certificate2 Certificate { get; set; }
 }
 
 /// <summary>

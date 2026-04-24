@@ -1,4 +1,5 @@
 using Kurrent.Client;
+using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.SDK.Testing.Hosting;
 using Kurrent.Testing;
@@ -39,13 +40,12 @@ public sealed class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
         ConnectionString          = _cluster.AuthenticatedConnectionString;
         AnonymousConnectionString = _cluster.AnonymousConnectionString;
 
-        Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-            .WithLoggerFactory(new TestkitLoggerFactory())
-            .ConfigureSchema(schema => schema
-                .WithValidation(false)
-                .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
+        var options = KurrentClientOptions.Parse(ConnectionString);
+        options.LoggerFactory          = new TestkitLoggerFactory();
+        options.Schema.PreValidate     = false;
+        options.Schema.Mapper          = MessageTypeMapper.Create(m => m.Map<StreamMetadata>("$metadata"));
+        options.Resilience             = KurrentClientResilienceOptions.NoResilience;
+        Client = KurrentClient.Create(options);
     }
 
     public async ValueTask DisposeAsync() {

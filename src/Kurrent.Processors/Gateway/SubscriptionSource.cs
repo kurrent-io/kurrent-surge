@@ -184,6 +184,17 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
                     // Expected on shutdown
                 }
             }, timerCt);
+            
+            SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
+                var now = _clock.Now();
+
+                return new Checkpoint(
+                    CheckpointId.From(now),
+                    trigger,
+                    now.DateTimeOffset,
+                    PartitionPositions.Empty
+                );
+            }
         }
     }
 
@@ -226,16 +237,6 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
     #region ->> Internals <<-
 
-    SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
-        var now = _clock.Now();
-
-        return new Checkpoint(
-            CheckpointId.From(now),
-            trigger,
-            now.DateTimeOffset,
-            PartitionPositions.Empty
-        );
-    }
 
     Checkpoint SnapshotCheckpointMessage(CheckpointTrigger trigger) {
         var now          = _clock.Now();

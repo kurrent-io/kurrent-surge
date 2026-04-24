@@ -9,6 +9,7 @@ static class RecordTestExtensions {
 	/// <summary>
 	/// Returns a copy of the record with Value and ValueType set as if it had been decoded.
 	/// </summary>
+	[Obsolete("WTF is this?!?!? no reason to use this. Delete ASAP!!!")]
 	public static Record WithDecodedValue<T>(this Record record, T value) where T : notnull {
 		record.Value     = value;
 		record.ValueType = typeof(T);

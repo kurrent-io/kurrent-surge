@@ -116,7 +116,7 @@ public class AppendStreamRequestBuilderTests {
     public async ValueTask with_record_value_overload() {
         // Act
         var request = AppendStreamRequest.For("test-stream")
-            .WithRecord("simple-value")
+            .WithMessage("simple-value")
             .Build();
 
         // Assert

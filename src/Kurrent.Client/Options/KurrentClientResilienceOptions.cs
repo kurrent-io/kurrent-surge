@@ -3,8 +3,6 @@ using Grpc.Core;
 using Grpc.Net.Client.Configuration;
 using Kurrent.Validation;
 
-// Added for Timeout.InfiniteTimeSpan
-
 namespace Kurrent.Client;
 
 /// <summary>
@@ -38,7 +36,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// Default value is 60 seconds, which aligns with gRPC best practices.
     /// </para>
     /// </remarks>
-    public TimeSpan KeepAliveInterval { get; init; } = TimeSpan.FromSeconds(60);
+    public TimeSpan KeepAliveInterval { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// The amount of time to wait after which a sent keepalive ping is considered timed out.
@@ -52,7 +50,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// Default value is 30 seconds.
     /// </para>
     /// </remarks>
-    public TimeSpan KeepAliveTimeout { get; init; } = TimeSpan.FromSeconds(30);
+    public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Maximum time to wait for a response for a gRPC call.
@@ -77,7 +75,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// Specific profiles may override this.
     /// </para>
     /// </remarks>
-    public TimeSpan? Deadline { get; init; }
+    public TimeSpan? Deadline { get; set; }
 
     /// <summary>
     /// Retry configuration options.
@@ -91,7 +89,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// Predefined profiles like <see cref="Default"/> may customize these further.
     /// </para>
     /// </remarks>
-    public RetryOptions Retry { get; init; } = new();
+    public RetryOptions Retry { get; set; } = new();
 
     /// <summary>
     /// Default profile: Resilient general-purpose configuration.
@@ -326,7 +324,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         /// Default value is <see langword="true"/>.
         /// </para>
         /// </remarks>
-        public bool Enabled { get; init; } = true;
+        public bool Enabled { get; set; } = true;
 
         /// <summary>
         /// Maximum number of retry attempts.
@@ -342,7 +340,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         /// Default value is 3.
         /// </para>
         /// </remarks>
-        public int MaxAttempts { get; init; } = 3;
+        public int MaxAttempts { get; set; } = 3;
 
         /// <summary>
         /// Initial backoff delay for reconnection attempts.
@@ -358,7 +356,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         /// Default value is 250 milliseconds.
         /// </para>
         /// </remarks>
-        public TimeSpan InitialBackoff { get; init; } = TimeSpan.FromMilliseconds(250);
+        public TimeSpan InitialBackoff { get; set; } = TimeSpan.FromMilliseconds(250);
 
         /// <summary>
         /// Maximum backoff delay for reconnection attempts.
@@ -371,7 +369,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         /// Default value is 10 seconds.
         /// </para>
         /// </remarks>
-        public TimeSpan MaxBackoff { get; init; } = TimeSpan.FromSeconds(10);
+        public TimeSpan MaxBackoff { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
         /// Backoff multiplier. Each successive backoff increases by this multiplier.
@@ -387,7 +385,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         /// Default value is 1.5.
         /// </para>
         /// </remarks>
-        public double BackoffMultiplier { get; init; } = 1.5;
+        public double BackoffMultiplier { get; set; } = 1.5;
 
         /// <summary>
         /// The gRPC status codes that should trigger a retry.
@@ -403,7 +401,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         ///   <item><description><see cref="StatusCode.ResourceExhausted"/> - Server overloaded</description></item>
         /// </list>
         /// </remarks>
-        public StatusCode[] RetryableStatusCodes { get; init; } = [
+        public StatusCode[] RetryableStatusCodes { get; set; } = [
             StatusCode.Unavailable,      // Server temporarily unavailable
             StatusCode.Unknown,          // Unknown error (often network issues)
             StatusCode.DeadlineExceeded, // Server took too long to respond

@@ -18,7 +18,7 @@ public sealed class OrderService(KurrentClient client, ILogger<OrderService> log
         var result = await client.Streams.AppendStream(
             AppendStreamRequest.For(StreamFor(shipped.OrderId))
                 .ExpectingState(ExpectedStreamState.Exists)
-                .WithRecord(shipped)
+                .WithMessage(shipped)
                 .Build());
 
         logger.LogOrderShipped(shipped.OrderId, shipped.TrackingNumber, result.Revision);

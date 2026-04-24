@@ -106,7 +106,7 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
             // 3. Ensure ProcessorId is set before resolving connection strings by id.
             if (string.IsNullOrWhiteSpace(options.ProcessorId))
-                options.ProcessorId = typeof(TProcessor).Name.ToSnakeCase();
+                options.ProcessorId = typeof(TProcessor).Name.ToKebabCase();
 
             // 4. If still no connection, resolve from DI + IConfiguration as a fallback chain.
             if (options.ClientOptions is null)
@@ -190,9 +190,21 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
         var clientSection = configuration.GetSection("Kurrent:Client");
         if (clientSection.Exists()) {
-            var builder = KurrentClientOptions.Builder.Create();
-            builder.FromConfiguration(configuration);
-            options.Connection(builder.Build());
+            var clientOptions        = new KurrentClientOptions();
+            var clientConnectionString = clientSection["ConnectionString"];
+            if (!string.IsNullOrWhiteSpace(clientConnectionString)) {
+                var parsed = KurrentClientOptions.Parse(clientConnectionString);
+                clientOptions.ConnectionName           = parsed.ConnectionName;
+                clientOptions.ConnectionScheme         = parsed.ConnectionScheme;
+                clientOptions.Endpoints                = parsed.Endpoints;
+                clientOptions.Security                 = parsed.Security;
+                clientOptions.Resilience               = parsed.Resilience;
+                clientOptions.Gossip                   = parsed.Gossip;
+                clientOptions.OriginalConnectionString = parsed.OriginalConnectionString;
+            }
+
+            clientSection.Bind(clientOptions, o => o.BindNonPublicProperties = true);
+            options.Connection(clientOptions);
         }
     }
 }

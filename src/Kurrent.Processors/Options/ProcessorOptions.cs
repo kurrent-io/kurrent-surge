@@ -85,24 +85,24 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// one of the <see cref="Connection(string)"/> overloads. The drone always builds
     /// and owns its own <see cref="KurrentClient"/> — client instances are never shared.
     /// </summary>
-    public KurrentClientOptions? ClientOptions { get; private set; }
+    internal KurrentClientOptions? ClientOptions { get; private set; }
 
     /// <summary>
-    /// Sets the KurrentDB connection string. Parsed immediately into <see cref="ClientOptions"/>.
+    /// Sets the KurrentDB connection string.
     /// </summary>
     public void Connection(string connectionString) =>
         ClientOptions = KurrentClientOptions.Parse(connectionString);
 
     /// <summary>
-    /// Sets a connection string and applies additional options configuration. The connection
-    /// string is parsed immediately and the configure delegate runs against the parsed options.
+    /// Sets a connection string and applies additional options configuration.
     /// </summary>
-    public void Connection(string connectionString, Func<KurrentClientOptions, KurrentClientOptions> configure) =>
-        ClientOptions = configure(KurrentClientOptions.Parse(connectionString));
+    public void Connection(string connectionString, Action<KurrentClientOptions> configure) {
+        ClientOptions = KurrentClientOptions.Parse(connectionString);
+        configure(ClientOptions);
+    }
 
     /// <summary>
-    /// Sets the client options directly. The drone will use these options when building
-    /// its <see cref="KurrentClient"/>.
+    /// Sets the client options directly.
     /// </summary>
     public void Connection(KurrentClientOptions clientOptions) =>
         ClientOptions = clientOptions;
@@ -141,7 +141,7 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
 
         // Auto-generate ProcessorId from section name if not set in config
         if (string.IsNullOrEmpty(ProcessorId))
-            ProcessorId = sectionName.ToSnakeCase();
+            ProcessorId = sectionName.ToKebabCase();
 
         // Check for connection string: ConnectionStrings:{sectionName} or ConnectionStrings:Default
         var connectionString = configuration.GetConnectionString(sectionName)

@@ -175,8 +175,6 @@ public class IndexesClient : ClientModuleBase {
         string name,
         CancellationToken cancellationToken = default
     ) {
-
-
         var request = new Contracts.GetIndexRequest { Name = name };
 
         try {

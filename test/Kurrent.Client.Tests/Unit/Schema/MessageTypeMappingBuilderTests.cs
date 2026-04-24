@@ -176,6 +176,52 @@ public class MessageTypeMappingBuilderTests {
 
     #endregion
 
+    #region ->> MessageTypeMapper.Create <<-
+
+    [Test]
+    public async ValueTask create_with_null_configure_returns_empty_mapper() {
+        // Arrange & Act
+        var mapper = MessageTypeMapper.Create();
+
+        // Assert
+        await Assert.That(mapper).IsNotNull();
+        await Assert.That(mapper.TryGetSchemaName(typeof(SampleMessage), out _)).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask create_invokes_configure_action_against_builder() {
+        // Arrange
+        const string schemaName = "created-via-lambda";
+
+        // Act
+        var mapper = MessageTypeMapper.Create(m => m
+            .Map<SampleMessage>(schemaName)
+            .Map<AnotherMessage>("another"));
+
+        // Assert
+        await Assert.That(mapper.TryGetSchemaName(typeof(SampleMessage), out var a)).IsTrue();
+        await Assert.That(mapper.TryGetSchemaName(typeof(AnotherMessage), out var b)).IsTrue();
+        await Assert.That(a.Value).IsEqualTo(schemaName);
+        await Assert.That(b.Value).IsEqualTo("another");
+    }
+
+    [Test]
+    public async ValueTask create_supports_strategy_configuration() {
+        // Arrange
+        var strategy = new NamespaceSchemaNameStrategy("com.example");
+
+        // Act
+        var mapper = MessageTypeMapper.Create(m => m
+            .WithStrategy(strategy)
+            .Map<SampleMessage>());
+
+        // Assert
+        await Assert.That(mapper.TryGetSchemaName(typeof(SampleMessage), out var name)).IsTrue();
+        await Assert.That(name.Value).IsNotNullOrEmpty();
+    }
+
+    #endregion
+
     // Test message types
     record SampleMessage(string Value);
     record AnotherMessage(int Count);

@@ -10,10 +10,10 @@ class DiscoveryException : KurrentException {
 	/// <summary>
 	/// Constructs a new <see cref="DiscoveryException"/>.
 	/// </summary>
-	/// <param name="message"></param>
+	/// <param name="reason"></param>
 	/// <param name="innerException"></param>
 	[Obsolete]
-	public DiscoveryException(string message, Exception? innerException = null) : base(ErrorCode.FromType<DiscoveryException>(), message, innerException) =>
+	public DiscoveryException(string reason, Exception? innerException = null) : base(ErrorCode.FromType<DiscoveryException>(), reason, innerException) =>
 		MaxDiscoverAttempts = 0;
 
 	/// <summary>

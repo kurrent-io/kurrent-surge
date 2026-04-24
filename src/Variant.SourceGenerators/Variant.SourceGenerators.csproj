@@ -2,19 +2,32 @@
   <PropertyGroup>
     <RootNamespace>Kurrent.Variant.SourceGenerators</RootNamespace>
     <AssemblyName>Kurrent.Variant.SourceGenerators</AssemblyName>
-    <!-- override the default multi-targeting; source generators must target netstandard2.0 only -->
-    <TargetFrameworks />
+
     <TargetFramework>netstandard2.0</TargetFramework>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IsPackable>false</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <!-- This ensures the project itself is treated as an analyzer package -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+
+      <!-- This ensures the project itself is treated as an analyzer package -->
     <DevelopmentDependency>true</DevelopmentDependency>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
-
+    
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="All" />
+    <ProjectReference Include="..\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="true"
+                      PrivateAssets="all" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
+  </PropertyGroup>
+
+  <Target Name="GetDependencyTargetPaths">
+    <ItemGroup>
+      <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths->WithMetadataValue('Extension', '.dll'))" IncludeRuntimeDependency="false" />
+    </ItemGroup>
+  </Target>
 </Project>

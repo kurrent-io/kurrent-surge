@@ -85,18 +85,21 @@ sealed class Drone : IDrone {
 
     #region ->> Message Handlers <<-
 
-    ValueTask HandleConnected(Connected connected) {
+    async ValueTask HandleConnected(Connected connected) {
         DroneContext = DroneContext with { SessionId = connected.SessionId };
         Status = DroneStatus.Processing;
         _telemetry.Processing(connected.SessionId);
-        return ValueTask.CompletedTask;
+        await _processor.OnConnected(DroneContext.ForConnected()).ConfigureAwait(false);
     }
 
     async ValueTask HandleRecord(Record record) {
         using var scope = _telemetry.TrackRecord();
 
         // Partition already calculated by the source before yielding
-        var ctx = DroneContext.ForProcessRecord(Progress, record);
+        var ctx = DroneContext.ForProcessRecord(
+            Progress, record, 
+            requestTrackRecord: () =>  _source.Track(record), 
+            requestCheckpoint:   _ => throw new NotSupportedException("Checkpointing from the record handler is not yet supported. Checkpointing is only supported from the checkpoint handler."));
 
         await _processor
             .ProcessRecord(ctx)

@@ -34,12 +34,21 @@ public interface IRecordProcessor {
     ValueTask ProcessRecord(ProcessRecordContext context);
 
     /// <summary>
+    /// Called once when connected to the server, before any records are dispatched.
+    /// <remarks>
+    /// Use this for one-time initialization such as creating state tables, opening external
+    /// resources, or priming caches. Failures propagate as fatal startup errors.
+    /// </remarks>
+    /// </summary>
+    ValueTask OnConnected(ConnectedContext context) => ValueTask.CompletedTask;
+
+    /// <summary>
     /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
     /// </summary>
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
 
     /// <summary>
-    /// Called when the drone encounters an unrecoverable error.
+    /// Called when encountering an unrecoverable error.
     /// <remarks>
     /// <para>
     /// This method is invoked before the drone transitions to <see cref="DroneStatus.Error"/>.
@@ -53,7 +62,7 @@ public interface IRecordProcessor {
     ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
 
     /// <summary>
-    /// Called when the drone completes gracefully (including cancellation).
+    /// Called when completing gracefully (including cancellation).
     /// <remarks>
     /// <para>
     /// This method is invoked before the drone transitions to <see cref="DroneStatus.Stopped"/>.
@@ -76,8 +85,8 @@ public record DroneContext {
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
-    public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record) =>
-        new() {
+    public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record, Action requestTrackRecord, Action<string?> requestCheckpoint) =>
+        new(requestTrackRecord, requestCheckpoint) {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
             SessionId         = SessionId,
@@ -85,6 +94,15 @@ public record DroneContext {
             CancellationToken = CancellationToken,
             Record            = record,
             Progress          = progress
+        };
+
+    public ConnectedContext ForConnected() =>
+        new() {
+            ProcessorId       = ProcessorId,
+            DroneId           = DroneId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken
         };
 
     public CheckpointContext ForCheckpoint(PartitionPositions positions, Checkpoint checkpoint) =>
@@ -127,8 +145,19 @@ public record DroneContext {
 /// </summary>
 [PublicAPI]
 public record ProcessRecordContext : DroneContext {
+
+    public ProcessRecordContext() { }
+    
+    public ProcessRecordContext(Action requestTrackRecord, Action<string?> requestCheckpoint) {
+        RequestTrackRecord = requestTrackRecord;
+        RequestCheckpoint  = requestCheckpoint;
+    } 
+    
     public required Record        Record   { get; init; }
     public required DroneProgress Progress { get; init; }
+    
+    public Action          RequestTrackRecord { get; init; } = () => { };
+    public Action<string?> RequestCheckpoint  { get; init; } = _ => { };
 
     /// <summary>
     /// Signals that processing should stop immediately.
@@ -141,7 +170,12 @@ public record ProcessRecordContext : DroneContext {
 
     public void StopAfterTrack(string? reason = null) =>
         StopProcessingRequest = StopProcessingRequest.AfterTracking(reason);
-
+    
+    public void TrackRecord(RecordPosition position, Partition partition) =>
+        throw new InvalidOperationException("Record tracking is not supported by this processor.");
+    
+    public void Checkpoint(string? reason = null) => RequestCheckpoint(reason);
+    
     internal StopProcessingRequest StopProcessingRequest { get; private set; } = StopProcessingRequest.Unspecified;
 }
 
@@ -160,6 +194,12 @@ public enum StopProcessingTrigger {
     StopBeforeTrack,
     StopAfterTrack,
 }
+
+/// <summary>
+/// Context provided when the drone has connected and is ready to process records.
+/// </summary>
+[PublicAPI]
+public record ConnectedContext : DroneContext;
 
 /// <summary>
 /// Context provided when a checkpoint is signaled.

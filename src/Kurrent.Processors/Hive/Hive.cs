@@ -52,21 +52,17 @@ public sealed class Hive : IAsyncDisposable {
 
         var processorOptions = _options.ProcessorOptions;
 
-        if (processorOptions.ProvidedClient is not null)
-            throw new InvalidOperationException(
-                "Hive owns the client lifecycle. Configure a connection string instead of passing a pre-built KurrentClient.");
-
         if (_options.DroneCount > processorOptions.MaxParallelism)
             throw new InvalidOperationException(
                 $"DroneCount ({_options.DroneCount}) cannot exceed MaxParallelism ({processorOptions.MaxParallelism}).");
 
-        var processorTemplate = processorOptions.Subscribe.ResolveProcessor();
+        var processorTemplate = _options.ProcessorFactory();
         if (string.IsNullOrWhiteSpace(processorOptions.ProcessorId))
-            processorOptions.ProcessorId = processorTemplate.GetType().Name.ToSnakeCase();
+            processorOptions.ProcessorId = processorTemplate.GetType().Name.ToKebabCase();
 
         processorOptions.EnsureValid();
 
-        _client = processorOptions.BuildClient();
+        _client = new KurrentClient(processorOptions.ClientOptions!);
 
         _checkpointStore = new CheckpointStore(
             processorOptions.ProcessorId,
@@ -93,7 +89,7 @@ public sealed class Hive : IAsyncDisposable {
             _sources.Add(source);
 
             var droneOptions = processorOptions with { DroneId = droneId };
-            var droneProcessor = processorOptions.Subscribe.ResolveProcessor();
+            var droneProcessor = droneId == droneIds[0] ? processorTemplate : _options.ProcessorFactory();
 
             var drone = new Drone(
                 droneOptions, source, droneProcessor,

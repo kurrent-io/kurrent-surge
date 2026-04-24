@@ -11,7 +11,9 @@ public record CheckpointOptions {
     /// (<c>"Interval": "00:00:30"</c>).
     /// </summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(30);
-
+    
+    // public int RecordsThreshold { get; init; } = 1000; // this must be per partition or will each drone count all handled records across the partitions its handling?
+    
     /// <summary>
     /// Number of completed checkpoints to retain. Default: 3.
     /// </summary>

@@ -4,6 +4,8 @@ using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
 using Bogus;
+using Kurrent.Client;
+using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Testing;
 using Kurrent.Testing.Bogus;
@@ -64,13 +66,12 @@ public sealed class KurrentClientAspireTestFixture : IAsyncInitializer, IAsyncDi
         var uri = new Uri(baseConnectionString);
         ConnectionString = $"{uri.Scheme}://admin:changeit@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
 
-        Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-            .WithLoggerFactory(new TestkitLoggerFactory())
-            .ConfigureSchema(schema => schema
-                .WithValidation(false)
-                .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
+        var options = KurrentClientOptions.Parse(ConnectionString);
+        options.LoggerFactory          = new TestkitLoggerFactory();
+        options.Schema.PreValidate     = false;
+        options.Schema.Mapper          = MessageTypeMapper.Create(m => m.Map<StreamMetadata>("$metadata"));
+        options.Resilience             = KurrentClientResilienceOptions.NoResilience;
+        Client = KurrentClient.Create(options);
     }
 
     public async ValueTask DisposeAsync() {

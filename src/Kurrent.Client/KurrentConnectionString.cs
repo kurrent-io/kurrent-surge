@@ -5,9 +5,10 @@ using Resources;
 namespace Kurrent.Client;
 
 /// <summary>
-/// Represents a parsed KurrentDB connection string with all its components
+/// Represents a parsed KurrentDB connection string with all its components.
+/// Internal detail behind <see cref="KurrentClientOptions.Parse(string)"/>.
 /// </summary>
-public record KurrentConnectionString {
+internal record KurrentConnectionString {
     const string SchemeSeparator = "://";
 
     const char UserInfoSeparator = '@';
@@ -104,7 +105,7 @@ public record KurrentConnectionString {
     /// <exception cref="InvalidConnectionStringException">
     /// Thrown if the format of the connection string is invalid or required components are missing.
     /// </exception>
-    public static KurrentConnectionString Parse(string connectionString) {
+    internal static KurrentConnectionString Parse(string connectionString) {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
         var currentIndex = 0;
@@ -233,7 +234,7 @@ public record KurrentConnectionString {
     }
 }
 
-public class InvalidConnectionStringException(string message, Exception? innerException = null)
-    : KurrentException(Code, message, innerException) {
+public class InvalidConnectionStringException(string reason, Exception? innerException = null)
+    : KurrentException(Code, reason, innerException) {
     static readonly ErrorCode Code = ErrorCode.FromType<InvalidConnectionStringException>();
 }

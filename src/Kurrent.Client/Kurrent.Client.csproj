@@ -14,7 +14,16 @@
     <!-- Embed source generator DLLs into analyzers/dotnet/cs/ during pack -->
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>
     <RootNamespace>Kurrent</RootNamespace>
+    
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pin the logical name so it stays stable regardless of RootNamespace.
+         The generated Designer references "Kurrent.Client.Resources.ErrorMessages". -->
+    <EmbeddedResource Update="Resources\ErrorMessages.resx"
+                      LogicalName="Kurrent.Client.Resources.ErrorMessages.resources" />
+  </ItemGroup>
 
   <!-- AOT/Trimming Support -->
   <!--  <PropertyGroup>-->

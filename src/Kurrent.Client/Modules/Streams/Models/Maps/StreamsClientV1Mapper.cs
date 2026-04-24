@@ -212,6 +212,26 @@ static class StreamsClientV1Mapper {
         var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
         return Heartbeat.CreateCaughtUp(position, revision, timestamp);
     }
+    
+    // public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
+    //     var position  = LogPosition.From((long)checkpoint.CommitPosition);
+    //     var timestamp = checkpoint.Timestamp.ToDateTimeOffset();
+    //     return Heartbeat.CreateCheckpoint(position, timestamp);
+    // }
+    //
+    // public static Heartbeat MapToCheckpoint(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) {
+    //     var position  = caughtUp.Position is not null ? LogPosition.From((long)caughtUp.Position.CommitPosition) : LogPosition.Unset;
+    //     var revision  = caughtUp.HasStreamRevision ? Revision.From(caughtUp.StreamRevision) : Revision.Unset;
+    //     var timestamp = caughtUp.Timestamp.ToDateTimeOffset();
+    //     return Heartbeat.CreateCaughtUp(position, revision, timestamp);
+    // }
+    
+    // public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) =>
+    //     new(CheckpointId.New(), CheckpointTrigger.Interval, checkpoint.Timestamp.ToDateTimeOffset(), PartitionPositions.Empty);
+    //
+    // public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) =>
+    //     new(CheckpointId.New(), CheckpointTrigger.CaughtUp, caughtUp.Timestamp.ToDateTimeOffset(), PartitionPositions.Empty);
+
 
     public static LogPosition MapToLogPosition(this Contracts.DeleteResp.Types.Position? position) =>
         position switch {

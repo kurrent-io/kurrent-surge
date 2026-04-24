@@ -1,5 +1,6 @@
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
+using Kurrent.Processors.Models;
 using Processor.WithRedisCache;
 using Serilog;
 using StackExchange.Redis;
@@ -21,8 +22,12 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<PlayerCacheProcessor>();
-    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>(opts => {
+    
+    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>( opts => {
         opts.Connection("kurrentdb://localhost:2113");
+        opts.ProcessorId = "PlayerCacheProcessor-001";
+        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        opts.Checkpoint.Interval = TimeSpan.FromSeconds(5);
         opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
     });
 

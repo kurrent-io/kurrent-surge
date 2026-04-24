@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/.Playground/">
+    <Project Path="playground/QueryParserProbe/QueryParserProbe.csproj" />
+  </Folder>
   <Folder Name="/.Solution/">
     <File Path="context7.json" />
     <File Path="Directory.Build.props" />
@@ -21,6 +24,11 @@
   </Folder>
 
   <Folder Name="/Shared/" />
+
+  <Folder Name="/Shared/CodeAnalysis/">
+    <Project Path="src\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.csproj" />
+    <Project Path="test\Kurrent.CodeAnalysis.Tests\Kurrent.CodeAnalysis.Tests.csproj" />
+  </Folder>
 
   <Folder Name="/Shared/Variant/">
     <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" />
