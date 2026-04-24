@@ -10,7 +10,7 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Kurrent.Sdk.Testkit.Fixtures;
 
-public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
+public class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
     KurrentDBTestCluster? _cluster;
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
@@ -30,17 +30,17 @@ public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable
 
     public string? CertsDirectory { get; private set; }
 
-    protected abstract Task<KurrentDBTestCluster> CreateClusterAsync();
+    protected virtual KurrentDBTopology Topology => KurrentDBTopology.Insecure;
 
     public async Task InitializeAsync() {
-        _cluster = await CreateClusterAsync().ConfigureAwait(false);
+        _cluster = await KurrentDBTestCluster.StartAsync(Topology).ConfigureAwait(false);
 
         ConnectionString          = _cluster.AuthenticatedConnectionString;
         AnonymousConnectionString = _cluster.AnonymousConnectionString;
         CertsDirectory            = _cluster.CertsDirectory;
 
         Client = KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-            .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
+            .WithLoggerFactory(LoggerFactory)
             .ConfigureSchema(schema => schema
                 .WithValidation(false)
                 .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
@@ -57,31 +57,10 @@ public abstract class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable
     }
 }
 
-/// <summary>
-/// Single-node insecure fixture. Use as the default for tests that exercise client
-/// operations (reads, writes, subscriptions) and do not depend on TLS, auth, or
-/// cluster semantics. Fastest to spin up.
-/// </summary>
-public sealed class KurrentDBInsecureTestFixture : KurrentDBTestFixture {
-    protected override Task<KurrentDBTestCluster> CreateClusterAsync() =>
-        KurrentDBTestCluster.StartAsync();
-}
-
-/// <summary>
-/// Single-node secure fixture. Use for tests that specifically exercise TLS, user
-/// authentication, or certificate handling.
-/// </summary>
 public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
-    protected override Task<KurrentDBTestCluster> CreateClusterAsync() =>
-        KurrentDBTestCluster.StartAsync(new KurrentDBTopology { Secure = true });
+    protected override KurrentDBTopology Topology => KurrentDBTopology.Secure;
 }
 
-/// <summary>
-/// Three-node secure replica set fixture. Use for tests that depend on cluster
-/// semantics such as gossip, leader discovery, node preference, or failover.
-/// Slowest to spin up; avoid unless the test actually needs multiple nodes.
-/// </summary>
 public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture {
-    protected override Task<KurrentDBTestCluster> CreateClusterAsync() =>
-        KurrentDBTestCluster.StartAsync(new KurrentDBTopology { NodeCount = 3, Secure = true });
+    protected override KurrentDBTopology Topology => KurrentDBTopology.Cluster;
 }

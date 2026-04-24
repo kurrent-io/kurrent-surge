@@ -2,7 +2,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Kurrent.Sdk.Testkit.Hosting;
 
-public class KurrentDBHealthCheck(string connectionString) : IHealthCheck {
+public class KurrentDBHealthCheck(KurrentDBResource resource) : IHealthCheck {
     static readonly HttpClient Http = CreateHttpClient();
 
     public async Task<HealthCheckResult> CheckHealthAsync(
@@ -10,12 +10,11 @@ public class KurrentDBHealthCheck(string connectionString) : IHealthCheck {
         CancellationToken cancellationToken = default
     ) {
         try {
-            var uri       = new Uri(connectionString);
-            var tls       = connectionString.Contains("tls=true", StringComparison.OrdinalIgnoreCase);
-            var scheme    = tls ? "https" : "http";
-            var healthUrl = $"{scheme}://{uri.Host}:{uri.Port}/health/live";
+            var scheme   = resource.Secure ? "https" : "http";
+            var endpoint = resource.PrimaryEndpoint;
+            var url      = new Uri($"{scheme}://{endpoint.Host}:{endpoint.Port}/health/live");
 
-            var response = await Http.GetAsync(healthUrl, cancellationToken);
+            var response = await Http.GetAsync(url, cancellationToken);
 
             return response.IsSuccessStatusCode
                 ? HealthCheckResult.Healthy()

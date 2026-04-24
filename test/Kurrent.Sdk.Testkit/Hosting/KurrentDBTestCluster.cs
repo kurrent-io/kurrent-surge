@@ -42,9 +42,9 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
         _userHost?.Services ?? throw new InvalidOperationException("No user services were configured. Pass a configureServices callback to StartAsync to enable Services.");
 
     public static async Task<KurrentDBTestCluster> StartAsync(
-        KurrentDBTopology?          topology = null,
+        KurrentDBTopology? topology = null,
         Action<IServiceCollection>? configureServices = null,
-        CancellationToken           ct = default
+        CancellationToken ct = default
     ) {
         var builder = DistributedApplicationTestingBuilder.Create();
         var entry   = builder.AddKurrentDB(ResourceName, topology).Resource;
@@ -79,7 +79,7 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
     }
 
     public async ValueTask DisposeAsync() {
-        if (_userHost is not null) {
+        if (_userHost is { }) {
             await _userHost.StopAsync();
             _userHost.Dispose();
         }
@@ -87,7 +87,7 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
         await _app.StopAsync();
         await _app.DisposeAsync();
 
-        if (CertsDirectory is not null && Directory.Exists(CertsDirectory))
+        if (CertsDirectory is { } && Directory.Exists(CertsDirectory))
             Directory.Delete(CertsDirectory, recursive: true);
     }
 

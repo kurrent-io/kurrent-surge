@@ -1,18 +1,15 @@
 namespace Aspire.Hosting.ApplicationModel;
 
-public sealed class KurrentDBResource : ContainerResource, IResourceWithConnectionString {
+public sealed class KurrentDBResource(string name, KurrentDBTopology? topology = null) : ContainerResource(name), IResourceWithConnectionString {
     internal const string HttpEndpointName = "http";
     internal const int    DefaultHttpPort  = 2113;
 
-    public KurrentDBResource(string name, KurrentDBTopology? topology = null) : base(name) {
-        Topology = topology ?? new KurrentDBTopology();
-    }
+    const string DefaultUserName = "admin";
+    const string DefaultPassword = "changeit";
 
-    public KurrentDBTopology Topology { get; }
+    KurrentDBTopology Topology { get; } = topology ?? KurrentDBTopology.Insecure;
 
-    public bool   Secure   => Topology.Secure;
-    public string UserName => Topology.UserName;
-    public string Password => Topology.Password;
+    public bool Secure => Topology.Tls;
 
     internal string? CertsHostPath { get; set; }
 
@@ -27,19 +24,13 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
         var tls  = Secure ? "tls=true&tlsVerifyCert=false" : "tls=false";
 
         return authenticated
-            ? ReferenceExpression.Create($"kurrentdb://{UserName}:{Password}@{host}:{port}?{tls}")
+            ? ReferenceExpression.Create($"kurrentdb://{DefaultUserName}:{DefaultPassword}@{host}:{port}?{tls}")
             : ReferenceExpression.Create($"kurrentdb://{host}:{port}?{tls}");
     }
 }
 
-/// <summary>
-/// Immutable topology description consumed once by <c>AddKurrentDB</c>. Set
-/// <see cref="NodeCount"/> &gt; 1 to spin up a cluster; set <see cref="Secure"/>
-/// to enable TLS across every node.
-/// </summary>
-public sealed record KurrentDBTopology {
-    public int    NodeCount { get; init; } = 1;
-    public bool   Secure    { get; init; }
-    public string UserName  { get; init; } = "admin";
-    public string Password  { get; init; } = "changeit";
+public sealed record KurrentDBTopology(int NodeCount, bool Tls) {
+    public static KurrentDBTopology Insecure { get; } = new(1, false);
+    public static KurrentDBTopology Secure   { get; } = new(1, true);
+    public static KurrentDBTopology Cluster  { get; } = new(3, true);
 }
