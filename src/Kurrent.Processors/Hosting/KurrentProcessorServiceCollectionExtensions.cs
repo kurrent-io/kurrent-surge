@@ -1,5 +1,4 @@
 using System.Diagnostics.Metrics;
-using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Processors.Diagnostics.Metrics;
 using Kurrent.Processors.Hosting;
@@ -31,8 +30,8 @@ namespace Kurrent.Processors;
 /// </list>
 /// <para>
 /// <b>ClientOptions resolution</b> (when <c>opts.Connection(...)</c> is not called in the configure lambda):
-/// <see cref="Client.KurrentClientOptions"/> registered in DI → <c>ConnectionStrings:{ProcessorId}</c>
-/// → <c>ConnectionStrings:Default</c> → <c>Kurrent:Client</c> section → throw.
+/// <c>ConnectionStrings:{ProcessorId}</c> falls back to <c>ConnectionStrings:kurrentdb</c> (matching
+/// the default Aspire resource name). If neither is set, <see cref="KurrentProcessor.Build"/> throws.
 /// </para>
 /// <para>
 /// <b>AOT:</b> all overloads use closed generic types at the callsite and perform no
@@ -108,9 +107,9 @@ public static class KurrentProcessorServiceCollectionExtensions {
             if (string.IsNullOrWhiteSpace(options.ProcessorId))
                 options.ProcessorId = typeof(TProcessor).Name.ToSnakeCase();
 
-            // 4. If still no connection, resolve from DI + IConfiguration as a fallback chain.
-            if (options.ClientOptions is null)
-                ResolveClientOptions(options, sp, configuration);
+            // 4. If still no connection, look it up by processor id then by the default Aspire resource name.
+            if (options.ClientOptions is null && configuration is not null)
+                ResolveClientOptions(options, configuration);
 
             // 4. Resolve the processor instance — factory fires once, at host startup.
             var processor = processorFactory(sp);
@@ -160,39 +159,15 @@ public static class KurrentProcessorServiceCollectionExtensions {
     }
 
     /// <summary>
-    /// Fallback resolution chain for <see cref="KurrentClientOptions"/> when the user did
-    /// not call <c>opts.Connection(...)</c> in their configure delegate:
-    /// <list type="number">
-    /// <item>Cloned <see cref="KurrentClientOptions"/> registered in the service provider.</item>
-    /// <item><c>ConnectionStrings:{ProcessorId}</c>.</item>
-    /// <item><c>ConnectionStrings:Default</c>.</item>
-    /// <item><c>Kurrent:Client</c> configuration section.</item>
-    /// </list>
-    /// If none resolve, <see cref="KurrentProcessor.Build"/> throws.
+    /// Looks up the connection string under <c>ConnectionStrings:{ProcessorId}</c> first, then
+    /// <c>ConnectionStrings:kurrentdb</c> (the default Aspire resource name). If neither is set,
+    /// <see cref="KurrentProcessor.Build"/> throws.
     /// </summary>
-    static void ResolveClientOptions(ProcessorOptions options, IServiceProvider services, IConfiguration? configuration) {
-        var templateOptions = services.GetService<KurrentClientOptions>();
-        if (templateOptions is not null) {
-            options.Connection(templateOptions with { });
-            return;
-        }
-
-        if (configuration is null)
-            return;
-
+    static void ResolveClientOptions(ProcessorOptions options, IConfiguration configuration) {
         var connectionString = configuration.GetConnectionString(options.ProcessorId)
-                            ?? configuration.GetConnectionString("Default");
+                            ?? configuration.GetConnectionString("kurrentdb");
 
-        if (!string.IsNullOrWhiteSpace(connectionString)) {
+        if (!string.IsNullOrWhiteSpace(connectionString))
             options.Connection(connectionString);
-            return;
-        }
-
-        var clientSection = configuration.GetSection("Kurrent:Client");
-        if (clientSection.Exists()) {
-            var builder = KurrentClientOptions.Builder.Create();
-            builder.FromConfiguration(configuration);
-            options.Connection(builder.Build());
-        }
     }
 }
