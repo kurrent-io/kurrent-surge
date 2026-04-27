@@ -1,7 +1,8 @@
 namespace Kurrent.Sdk.Testkit.Hosting;
 
-public sealed record KurrentDBTopology(int NodeCount) {
-    public static KurrentDBTopology SingleNode             { get; } = new(1);
+public sealed record KurrentDBTopology(int NodeCount, int ReadOnlyReplicaCount = 0) {
+    public static KurrentDBTopology SingleNode { get; } = new(1);
+
     public static KurrentDBTopology Cluster(int nodeCount = 3) => new(nodeCount);
 }
 
@@ -28,6 +29,12 @@ public sealed record KurrentDBTestOptions {
 
         public Builder WithCluster(int nodes = 3) => With(o => o with {
             Topology = KurrentDBTopology.Cluster(nodes)
+        });
+
+        public Builder WithReadOnlyReplicas(int count) => With(o => o with {
+            Topology = o.Topology with {
+                ReadOnlyReplicaCount = count
+            }
         });
 
         public Builder WithTls(bool enabled = true) => With(o => o with {
