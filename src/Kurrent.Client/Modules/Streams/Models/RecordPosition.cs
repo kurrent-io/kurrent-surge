@@ -61,12 +61,12 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
                 ? $"{Stream} r{Revision} @{LogPosition}"
                 : $"{Stream} r{Revision} [{Partition}] @{LogPosition}";
 
-    public static RecordPosition From(LogPosition logPosition) {
-        // if (logPosition == LogPosition.Unset)
-        //     throw new ArgumentException("LogPosition cannot be Unset.", nameof(logPosition));
-
-        return new() { LogPosition = logPosition };
-    }
+    // public static RecordPosition From(LogPosition logPosition) {
+    //     // if (logPosition == LogPosition.Unset)
+    //     //     throw new ArgumentException("LogPosition cannot be Unset.", nameof(logPosition));
+    //
+    //     return new() { LogPosition = logPosition };
+    // }
 
     public static RecordPosition From(LogPosition logPosition, StreamName stream, Revision revision, Partition partition = default) {
         // if (logPosition == LogPosition.Unset)
@@ -85,7 +85,7 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
         };
     }
 
-    public static RecordPosition FromLogPosition(LogPosition logPosition, Partition partition = default) =>
+    public static RecordPosition From(LogPosition logPosition, Partition partition = default) =>
         new() { LogPosition = logPosition, Partition = partition };
 
     #region ->> relational members <<-

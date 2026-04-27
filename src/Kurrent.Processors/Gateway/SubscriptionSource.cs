@@ -48,12 +48,14 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
         _clock        = new HybridLogicalClock(timeProvider);
         _tracker      = new PartitionedPositionTracker();
 
-        _checkpointStore = new CheckpointStore(
+        _checkpointStore = new KurrentDBCheckpointStore(
             settings.ProcessorId,
             settings.MaxParallelism,
             settings.Checkpoint.RetentionCount,
             client.Streams,
-            TypeMapper
+            TypeMapper,
+            _timeProvider,
+            NullLogger<KurrentDBCheckpointStore>.Instance
         );
     }
 

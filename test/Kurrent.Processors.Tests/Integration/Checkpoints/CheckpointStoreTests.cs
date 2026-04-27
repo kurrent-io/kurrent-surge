@@ -8,7 +8,7 @@ using Sdk.TestKit.Fixtures;
 namespace Kurrent.Processors.Tests;
 
 /// <summary>
-/// Integration tests for CheckpointStore API against a real KurrentDB instance.
+/// Integration tests for KurrentDBCheckpointStore against a real KurrentDB instance.
 /// Tests direct Store/Load operations, concurrency, stream management, and edge cases.
 /// </summary>
 [Category("Processors")]
@@ -17,7 +17,7 @@ public class CheckpointStoreTests {
 	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
-	CheckpointStore CreateStore(string processorId, int partitionCount = 8, int maxCount = 100) =>
+	KurrentDBCheckpointStore CreateStore(string processorId, int partitionCount = 8, int maxCount = 100) =>
         new(
             processorId,
             partitionCount,
@@ -25,7 +25,7 @@ public class CheckpointStoreTests {
             Fixture.Client.Streams,
             Fixture.TypeMapper,
             TimeProvider.System,
-            logger: TestkitExecutionContext.LoggerFactory.CreateLogger<CheckpointStore>()
+            logger: TestkitExecutionContext.LoggerFactory.CreateLogger<KurrentDBCheckpointStore>()
         );
 
     #region Core Operations
@@ -363,7 +363,7 @@ public class CheckpointStoreTests {
 		var processorId     = CheckpointTestHelpers.ProcessorId("test-pos-reset");
 		var store           = CreateStore(processorId);
 		var seeded          = await Fixture.SeedTestStream(ct);
-		var resetToPosition = RecordPosition.FromLogPosition(seeded.Position.Value);
+		var resetToPosition = RecordPosition.From(seeded.Position.Value);
 		var positions       = CheckpointTestHelpers.PositionsWithStream(
 			(0, seeded.Position.Value + 100, seeded.Stream, 0),
 			(1, seeded.Position.Value + 200, seeded.Stream, 1),
@@ -455,20 +455,6 @@ public class CheckpointStoreTests {
 		await Assert.That(byPartition.Count).IsEqualTo(2);
 		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
 		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2000);
-	}
-
-	#endregion
-
-	#region Properties
-
-	[Test]
-	public async ValueTask processor_id_property_matches_constructor_argument(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-prop");
-        var store       = CreateStore(processorId);
-
-        // Assert
-		await Assert.That(store.ProcessorId).IsEqualTo(processorId);
 	}
 
 	#endregion

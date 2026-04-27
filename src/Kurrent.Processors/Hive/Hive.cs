@@ -64,12 +64,14 @@ public sealed class Hive : IAsyncDisposable {
 
         _client = new KurrentClient(processorOptions.ClientOptions!);
 
-        _checkpointStore = new CheckpointStore(
+        _checkpointStore = new KurrentDBCheckpointStore(
             processorOptions.ProcessorId,
             processorOptions.MaxParallelism,
             processorOptions.Checkpoint.RetentionCount,
             _client.Streams,
-            _client.Options.Schema.Mapper);
+            _client.Options.Schema.Mapper,
+            TimeProvider.System, 
+            NullLogger<KurrentDBCheckpointStore>.Instance);
 
         var droneIds = Enumerable.Range(0, _options.DroneCount)
             .Select(_ => $"{processorOptions.ProcessorId}-{Guid.NewGuid().ToString("N")[^8..]}")

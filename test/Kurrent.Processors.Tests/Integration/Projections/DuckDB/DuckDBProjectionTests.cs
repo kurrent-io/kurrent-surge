@@ -6,7 +6,7 @@ using Kurrent.Projections;
 using Kurrent.Projections.DuckDB;
 using Sdk.TestKit.Fixtures;
 
-namespace Kurrent.Processors.Tests.Projections;
+namespace Kurrent.Processors.Tests.Projections.DuckDB;
 
 [Category("Projections")]
 [Category("DuckDB")]
@@ -16,13 +16,13 @@ public class DuckDBProjectionTests {
     [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
 
+    [ClassDataSource<DuckDBTestFixture>(Shared = SharedType.None)]
+    public required DuckDBTestFixture DuckDB { get; [UsedImplicitly] init; }
+
     [Test]
     public async ValueTask duckdb_projection_runs_setup_and_persists_all_records_via_fallback(CancellationToken ct) {
         // Arrange
         var seeded = await Fixture.SeedTestStream(20, ct);
-
-        await using var db = new DuckDBConnection("Data Source=:memory:");
-        db.Open();
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -40,7 +40,7 @@ public class DuckDBProjectionTests {
                 });
                 opts.Subscription.Filter          = RecordFilter.ByStream(seeded.Stream);
                 opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-                opts.ResolveClient                = _ => ValueTask.FromResult<IDuckDBConnectionProvider>(new SharedDuckDBConnectionProvider(db));
+                opts.ResolveClient                = _ => ValueTask.FromResult(DuckDB.ConnectionProvider);
             }).RunAsync(cts.Token);
         }
         catch (OperationCanceledException) {
@@ -50,6 +50,7 @@ public class DuckDBProjectionTests {
         // Assert
         await Assert.That(projection.SetupRan).IsTrue();
 
+        using var db = DuckDB.GetConnection();
         await using var countCmd = db.CreateCommand();
         countCmd.CommandText = "SELECT COUNT(*) FROM projected_records";
         var count = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
@@ -77,9 +78,5 @@ public class DuckDBProjectionTests {
                     stopSignal.Cancel();
             });
         }
-    }
-
-    sealed class SharedDuckDBConnectionProvider(DuckDBConnection connection) : IDuckDBConnectionProvider {
-        public DuckDBConnection GetConnection() => connection;
     }
 }

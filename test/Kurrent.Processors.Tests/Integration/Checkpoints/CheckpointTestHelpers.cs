@@ -14,7 +14,7 @@ public static class CheckpointTestHelpers {
 	public static PartitionPosition[] Positions(
 		params (int partition, long position)[] pairs
 	) => pairs
-		.Select(p => new PartitionPosition(Partition.From(p.partition), RecordPosition.FromLogPosition(p.position)))
+		.Select(p => new PartitionPosition(Partition.From(p.partition), RecordPosition.From(p.position)))
 		.ToArray();
 
 	/// <summary>

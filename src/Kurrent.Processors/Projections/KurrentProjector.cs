@@ -41,22 +41,6 @@ public sealed class KurrentProjector {
         return BuildFrom(projection, opts);
     }
 
-    /// <summary>
-    /// Creates a projector from a <see cref="DuckDBProjection"/>. Accepts <see cref="DuckDBProjectorOptions"/>
-    /// as the options surface for DuckDB-specific extensibility.
-    /// </summary>
-    public static KurrentProjector Create(
-        DuckDBProjection projection,
-        Action<DuckDBProjectorOptions>? configure = null
-    ) {
-        ArgumentNullException.ThrowIfNull(projection);
-
-        var opts = new DuckDBProjectorOptions();
-        configure?.Invoke(opts);
-
-        return BuildFrom(projection, opts);
-    }
-
     static KurrentProjector BuildFrom<TClient>(Projection<TClient> projection, ProjectorOptions<TClient> opts) {
         opts.EnsureValid();
         projection.UseClientResolver(opts.ResolveClient!);
