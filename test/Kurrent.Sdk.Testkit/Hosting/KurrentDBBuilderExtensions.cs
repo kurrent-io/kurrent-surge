@@ -18,7 +18,7 @@ public static class KurrentDBBuilderExtensions {
     public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name,
-        KurrentDBTopology? topology = null,
+        KurrentDBTestOptions? options = null,
         string image = KurrentDBContainerImageTags.Nightly.Image,
         string tag = KurrentDBContainerImageTags.Nightly.Tag
     ) {
@@ -26,25 +26,25 @@ public static class KurrentDBBuilderExtensions {
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
-        topology ??= KurrentDBTopology.Insecure;
-        ArgumentOutOfRangeException.ThrowIfLessThan(topology.NodeCount, 1);
+        options ??= new KurrentDBTestOptions();
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.Topology.NodeCount, 1);
 
         var nodeNames = BuildNodeNames();
 
-        var certs = topology.Tls ? GetOrCreateCertBundle(builder, nodeNames) : null;
+        var certs = options.Security.Tls ? GetOrCreateCertBundle(builder, nodeNames) : null;
 
         var gossipSeeds = string.Join(",", nodeNames.Select(n => $"{n}:{KurrentDBResource.DefaultHttpPort}"));
 
         IResourceBuilder<KurrentDBResource>? entry = null;
         foreach (var nodeName in nodeNames) {
-            var resource = new KurrentDBResource(nodeName, topology) { CertsHostPath = certs?.HostPath };
+            var resource = new KurrentDBResource(nodeName, options) { CertsHostPath = certs?.HostPath };
 
             var node = builder.AddResource(resource)
                 .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
                 .WithImage(image, tag)
-                .WithKurrentEnvironment(topology)
+                .WithKurrentEnvironment(options)
                 .WithSecureMode(certs)
-                .WithClusterMode(topology, gossipSeeds)
+                .WithClusterMode(options, gossipSeeds)
                 .WithHealthMonitor(builder);
 
             entry ??= node;
@@ -53,16 +53,16 @@ public static class KurrentDBBuilderExtensions {
         return entry!;
 
         string[] BuildNodeNames() =>
-            topology.NodeCount == 1
+            options.Topology.NodeCount == 1
                 ? [name]
-                : Enumerable.Range(1, topology.NodeCount).Select(i => i == 1 ? name : $"{name}-{i}").ToArray();
+                : Enumerable.Range(1, options.Topology.NodeCount).Select(i => i == 1 ? name : $"{name}-{i}").ToArray();
     }
 
     extension(IResourceBuilder<KurrentDBResource> node) {
         IResourceBuilder<KurrentDBResource> WithKurrentEnvironment(
-            KurrentDBTopology topology
+            KurrentDBTestOptions options
         ) {
-            var variables = topology.Tls
+            var variables = options.Security.Tls
                 ? KurrentDBConfiguration.Secure
                 : KurrentDBConfiguration.Insecure;
 
@@ -82,13 +82,13 @@ public static class KurrentDBBuilderExtensions {
         }
 
         IResourceBuilder<KurrentDBResource> WithClusterMode(
-            KurrentDBTopology topology, string gossipSeeds
+            KurrentDBTestOptions options, string gossipSeeds
         ) {
-            if (topology.NodeCount <= 1)
+            if (options.Topology.NodeCount <= 1)
                 return node;
 
             return node.WithEnvironment(ctx =>
-                ApplyClusterEnvironment(ctx, node.Resource, gossipSeeds, topology.NodeCount));
+                ApplyClusterEnvironment(ctx, node.Resource, gossipSeeds, options.Topology.NodeCount));
         }
 
         IResourceBuilder<KurrentDBResource> WithHealthMonitor(

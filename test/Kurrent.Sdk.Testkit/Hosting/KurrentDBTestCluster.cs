@@ -6,9 +6,10 @@ namespace Kurrent.Sdk.Testkit.Hosting;
 
 /// <summary>
 /// Thin harness over <see cref="DistributedApplicationTestingBuilder"/>. Spins up a
-/// KurrentDB topology (single node by default; cluster + TLS via <see cref="KurrentDBTopology"/>)
-/// and optionally a user-side <see cref="IHost"/> with services bound to the cluster's
-/// connection string under <c>ConnectionStrings:kurrentdb</c>.
+/// KurrentDB cluster (single node by default; configure node count and TLS via
+/// <see cref="KurrentDBTestOptions"/>) and optionally a user-side <see cref="IHost"/>
+/// with services bound to the cluster's connection string under
+/// <c>ConnectionStrings:kurrentdb</c>.
 /// </summary>
 public sealed class KurrentDBTestCluster : IAsyncDisposable {
     const string ResourceName = "kurrentdb";
@@ -42,12 +43,12 @@ public sealed class KurrentDBTestCluster : IAsyncDisposable {
         _userHost?.Services ?? throw new InvalidOperationException("No user services were configured. Pass a configureServices callback to StartAsync to enable Services.");
 
     public static async Task<KurrentDBTestCluster> StartAsync(
-        KurrentDBTopology? topology = null,
+        KurrentDBTestOptions? options = null,
         Action<IServiceCollection>? configureServices = null,
         CancellationToken ct = default
     ) {
         var builder = DistributedApplicationTestingBuilder.Create();
-        var entry   = builder.AddKurrentDB(ResourceName, topology).Resource;
+        var entry   = builder.AddKurrentDB(ResourceName, options).Resource;
 
         var app = await builder.BuildAsync(ct);
         await app.StartAsync(ct);

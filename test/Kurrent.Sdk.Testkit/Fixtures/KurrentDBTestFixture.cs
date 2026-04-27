@@ -30,10 +30,10 @@ public class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
 
     public string? CertsDirectory { get; private set; }
 
-    protected virtual KurrentDBTopology Topology => KurrentDBTopology.Insecure;
+    protected virtual KurrentDBTestOptions Options => KurrentDBTestOptions.Build.Build();
 
     public async Task InitializeAsync() {
-        _cluster = await KurrentDBTestCluster.StartAsync(Topology).ConfigureAwait(false);
+        _cluster = await KurrentDBTestCluster.StartAsync(Options).ConfigureAwait(false);
 
         ConnectionString          = _cluster.AuthenticatedConnectionString;
         AnonymousConnectionString = _cluster.AnonymousConnectionString;
@@ -58,9 +58,16 @@ public class KurrentDBTestFixture : IAsyncInitializer, IAsyncDisposable {
 }
 
 public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
-    protected override KurrentDBTopology Topology => KurrentDBTopology.Secure;
+    protected override KurrentDBTestOptions Options =>
+        KurrentDBTestOptions.Build
+            .WithTls()
+            .Build();
 }
 
 public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture {
-    protected override KurrentDBTopology Topology => KurrentDBTopology.Cluster;
+    protected override KurrentDBTestOptions Options =>
+        KurrentDBTestOptions.Build
+            .WithCluster()
+            .WithTls()
+            .Build();
 }
