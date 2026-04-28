@@ -15,7 +15,7 @@ public static class KurrentDBBuilderExtensions {
 
     static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "gencert.sh");
 
-    public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
+    public static IDistributedApplicationBuilder AddKurrentDB(
         this IDistributedApplicationBuilder builder,
         [ResourceName] string name,
         KurrentDBTestOptions? options = null,
@@ -27,39 +27,39 @@ public static class KurrentDBBuilderExtensions {
         ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
         options ??= new KurrentDBTestOptions();
-        ArgumentOutOfRangeException.ThrowIfLessThan(options.Topology.NodeCount, 1);
-        ArgumentOutOfRangeException.ThrowIfNegative(options.Topology.ReadOnlyReplicaCount);
+        Validate(options);
 
-        if (options.Topology is { ReadOnlyReplicaCount: > 0, NodeCount: < 3 })
-            throw new ArgumentException(
-                "Read-only replicas require a cluster of at least 3 nodes.", nameof(options));
+        var clusterNames = CreateClusterNames(name, options.Topology.NodeCount);
+        var replicaNames = CreateReplicaNames(name, options.Topology.ReadOnlyReplicaCount);
+        var gossipSeeds  = string.Join(",", clusterNames.Select(n => $"{n}:{KurrentDBResource.DefaultHttpPort}"));
 
-        var clusterNames = BuildClusterNodeNames();
-        var replicaNames = BuildReplicaNodeNames();
-        var allNames     = clusterNames.Concat(replicaNames).ToArray();
+        var certs = options.Security.Tls
+            ? GetOrCreateCertBundle(builder, [..clusterNames, ..replicaNames])
+            : null;
 
-        var certs = options.Security.Tls ? GetOrCreateCertBundle(builder, allNames) : null;
-
-        var gossipSeeds = string.Join(",", clusterNames.Select(n => $"{n}:{KurrentDBResource.DefaultHttpPort}"));
-
-        IResourceBuilder<KurrentDBResource>? entry = null;
-        foreach (var nodeName in clusterNames) {
-            var added = AddNode(nodeName, isReadOnlyReplica: false);
-            entry ??= added;
-        }
+        foreach (var nodeName in clusterNames)
+            AddNode(nodeName, isReadOnlyReplica: false);
 
         foreach (var nodeName in replicaNames)
             AddNode(nodeName, isReadOnlyReplica: true);
 
-        return entry!;
+        return builder;
 
-        IResourceBuilder<KurrentDBResource> AddNode(string nodeName, bool isReadOnlyReplica) {
+        static string[] CreateClusterNames(string baseName, int nodeCount) =>
+            nodeCount == 1
+                ? [baseName]
+                : Enumerable.Range(1, nodeCount).Select(i => i == 1 ? baseName : $"{baseName}-{i}").ToArray();
+
+        static string[] CreateReplicaNames(string baseName, int replicaCount) =>
+            Enumerable.Range(1, replicaCount).Select(i => $"{baseName}-ro{i}").ToArray();
+
+        void AddNode(string nodeName, bool isReadOnlyReplica) {
             var resource = new KurrentDBResource(nodeName, options) {
-                CertsHostPath     = certs?.HostPath,
+                CertsHostPath = certs?.HostPath,
                 IsReadOnlyReplica = isReadOnlyReplica
             };
 
-            return builder.AddResource(resource)
+            builder.AddResource(resource)
                 .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
                 .WithImage(image, tag)
                 .WithKurrentEnvironment(options)
@@ -67,14 +67,14 @@ public static class KurrentDBBuilderExtensions {
                 .WithClusterMode(options, gossipSeeds)
                 .WithHealthMonitor(builder);
         }
+    }
 
-        string[] BuildClusterNodeNames() =>
-            options.Topology.NodeCount == 1
-                ? [name]
-                : Enumerable.Range(1, options.Topology.NodeCount).Select(i => i == 1 ? name : $"{name}-{i}").ToArray();
+    static void Validate(KurrentDBTestOptions options) {
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.Topology.NodeCount, 1);
+        ArgumentOutOfRangeException.ThrowIfNegative(options.Topology.ReadOnlyReplicaCount);
 
-        string[] BuildReplicaNodeNames() =>
-            Enumerable.Range(1, options.Topology.ReadOnlyReplicaCount).Select(i => $"{name}-ro{i}").ToArray();
+        if (options.Topology is { ReadOnlyReplicaCount: > 0, NodeCount: < 3 })
+            throw new ArgumentException("Read-only replicas require a cluster of at least 3 nodes.", nameof(options));
     }
 
     extension(IResourceBuilder<KurrentDBResource> node) {
@@ -103,7 +103,7 @@ public static class KurrentDBBuilderExtensions {
         IResourceBuilder<KurrentDBResource> WithClusterMode(
             KurrentDBTestOptions options, string gossipSeeds
         ) {
-            if (options.Topology.NodeCount <= 1 && !node.Resource.IsReadOnlyReplica)
+            if (!node.Resource.IsClusterMember)
                 return node;
 
             return node.WithEnvironment(ctx => {
