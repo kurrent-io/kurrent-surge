@@ -13,7 +13,7 @@ public static class KurrentDBBuilderExtensions {
     const string CertGenTargetFolder = "/certs";
     const string CertGenScriptTarget = "/scripts/gencert.sh";
 
-    static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "Hosting", "gencert.sh");
+    static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "gencert.sh");
 
     public static IResourceBuilder<KurrentDBResource> AddKurrentDB(
         this IDistributedApplicationBuilder builder,
@@ -30,7 +30,7 @@ public static class KurrentDBBuilderExtensions {
         ArgumentOutOfRangeException.ThrowIfLessThan(options.Topology.NodeCount, 1);
         ArgumentOutOfRangeException.ThrowIfNegative(options.Topology.ReadOnlyReplicaCount);
 
-        if (options.Topology.ReadOnlyReplicaCount > 0 && options.Topology.NodeCount < 3)
+        if (options.Topology is { ReadOnlyReplicaCount: > 0, NodeCount: < 3 })
             throw new ArgumentException(
                 "Read-only replicas require a cluster of at least 3 nodes.", nameof(options));
 
@@ -43,8 +43,10 @@ public static class KurrentDBBuilderExtensions {
         var gossipSeeds = string.Join(",", clusterNames.Select(n => $"{n}:{KurrentDBResource.DefaultHttpPort}"));
 
         IResourceBuilder<KurrentDBResource>? entry = null;
-        foreach (var nodeName in clusterNames)
-            entry ??= AddNode(nodeName, isReadOnlyReplica: false);
+        foreach (var nodeName in clusterNames) {
+            var added = AddNode(nodeName, isReadOnlyReplica: false);
+            entry ??= added;
+        }
 
         foreach (var nodeName in replicaNames)
             AddNode(nodeName, isReadOnlyReplica: true);

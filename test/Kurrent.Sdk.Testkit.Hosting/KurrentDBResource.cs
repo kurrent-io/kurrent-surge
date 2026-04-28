@@ -15,7 +15,7 @@ public sealed class KurrentDBResource(string name, KurrentDBTestOptions? options
 
     internal bool IsReadOnlyReplica { get; init; }
 
-    internal string? CertsHostPath { get; set; }
+    public string? CertsHostPath { get; internal set; }
 
     public EndpointReference PrimaryEndpoint => field ??= new EndpointReference(this, HttpEndpointName);
 

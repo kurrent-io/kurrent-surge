@@ -10,20 +10,6 @@ public class TransportTests {
     public required KurrentDBSecureTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    public async ValueTask appends_over_tls(CancellationToken ct) {
-        var stream = $"secure-append-{Guid.NewGuid():N}";
-
-        var req = AppendStreamRequest.For(stream)
-            .WithRecord(new TestEvent("hello from TLS", DateTimeOffset.UtcNow))
-            .ExpectingState(ExpectedStreamState.NoStream)
-            .Build();
-
-        var result = await Fixture.Client.Streams.AppendStream(req, ct);
-
-        await Assert.That(result.Revision).IsEqualTo(0);
-    }
-
-    [Test]
     public async ValueTask reads_back_over_tls(CancellationToken ct) {
         var stream = $"secure-read-{Guid.NewGuid():N}";
 

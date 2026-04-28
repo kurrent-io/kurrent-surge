@@ -1,7 +1,7 @@
 namespace Kurrent.Sdk.Testkit.Hosting;
 
 public static class KurrentDBContainerImageTags {
-    public const string Registry = "docker.kurrent.io";
+    const string Registry = "docker.kurrent.io";
 
     public static class Nightly {
         public const string Image = $"{Registry}/kurrent-staging/kurrentdb";

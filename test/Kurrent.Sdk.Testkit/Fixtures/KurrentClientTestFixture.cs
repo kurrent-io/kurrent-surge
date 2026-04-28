@@ -1,80 +1,17 @@
 using System.Runtime.CompilerServices;
-using Bogus;
 using Kurrent.Client;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
-using Kurrent.Sdk.Testkit.Hosting;
-using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Time.Testing;
 using Testing.ArcadeRacer;
-using TUnit.Core.Interfaces;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Kurrent.Sdk.Testkit.Fixtures;
 
-public sealed class KurrentClientTestFixture : IAsyncInitializer, IAsyncDisposable {
-    KurrentDBTestCluster? _cluster;
-
-    [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
-    public required BogusFaker Faker { get; [UsedImplicitly] init; }
-
+public sealed class KurrentClientTestFixture : KurrentDBTestFixture {
     [ClassDataSource<ArcadeRacerTestDataSource>(Shared = SharedType.PerTestSession)]
     public required ITestDataSource TestData { get; [UsedImplicitly] init; }
 
-    public ILogger Logger => TestkitExecutionContext.Logger;
-
-    public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
-
-    public FakeTimeProvider Time { get; } = new();
-
-    public KurrentClient Client => LazyClient.Value;
-
     public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
-
-    public string ConnectionString { get; private set; } = string.Empty;
-
-    Lazy<KurrentClient> LazyClient { get; set; } = null!;
-
-    public async Task InitializeAsync() {
-        _cluster = await KurrentDBTestCluster.StartAsync().ConfigureAwait(false);
-
-        ConnectionString = _cluster.AuthenticatedConnectionString;
-
-        LazyClient = new Lazy<KurrentClient>(() =>
-            KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-                .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
-                .ConfigureSchema(schema => schema
-                    .WithValidation(false)
-                    .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-                .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-                .CreateClient()
-        );
-    }
-
-    public async ValueTask DisposeAsync() {
-        if (LazyClient is { IsValueCreated: true }) {
-            try {
-                await LazyClient.Value.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex) {
-                Logger.LogError(ex, "Failed to dispose of Client");
-                throw;
-            }
-        }
-
-        if (_cluster is { } cluster)
-            await cluster.DisposeAsync();
-    }
-
-    public KurrentClient GetNewClient() =>
-        KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-            .WithLoggerFactory(TestkitExecutionContext.LoggerFactory)
-            .ConfigureSchema(schema => schema
-                .WithValidation(false)
-                .ConfigureMessages(msg => msg.Map<StreamMetadata>("$metadata")))
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
 
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var request = new ReadRecordsRequest {
