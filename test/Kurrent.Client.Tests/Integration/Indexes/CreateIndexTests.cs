@@ -8,8 +8,8 @@ namespace Kurrent.Client.Tests.Indexes;
 [Category("Integration")]
 [Timeout(20_000)]
 public class CreateIndexTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask creates_a_new_index(CancellationToken ct) {

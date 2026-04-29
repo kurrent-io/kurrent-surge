@@ -10,8 +10,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Integration")]
 [Timeout(10_000)]
 public class ReadStreamEdgeTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     public class ReadStreamEdgeTestCases : TestCaseDataGenerator<(ReadDirection Direction, bool SkipDecoding)> {
         protected override IEnumerable<TestCase<(ReadDirection Direction, bool SkipDecoding)>> Data() {

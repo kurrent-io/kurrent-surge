@@ -9,12 +9,12 @@ namespace Kurrent.Client.Tests.Registry;
 [Category("Registry")]
 [Category("Integration")]
 public class DeleteSchemaTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask deletes_schema_throws_not_found_when_schema_does_not_exist(CancellationToken ct) {
-		var schemaName = KurrentClientTestFixture.NewSchemaName();
+		var schemaName = KurrentDBTestFixture.NewSchemaName();
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry.DeleteSchema(schemaName, ct));
@@ -22,8 +22,8 @@ public class DeleteSchemaTests {
 
 	[Test]
 	public async ValueTask deletes_existing_schema(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);

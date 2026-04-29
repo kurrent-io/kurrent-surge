@@ -8,8 +8,8 @@ namespace Kurrent.Client.Tests.Indexes;
 public class ListIndexesTests {
     const int TestTimeoutMs = 20_000;
 
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
     public async ValueTask lists_indexes(CancellationToken ct) {

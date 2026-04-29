@@ -12,8 +12,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Integration")]
 [Timeout(30_000)]
 public class StreamSubscriptionTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask records_are_processed(CancellationToken ct) {

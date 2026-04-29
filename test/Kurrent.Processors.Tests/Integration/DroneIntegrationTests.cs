@@ -14,8 +14,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Integration")]
 [Timeout(30_000)]
 public class DroneIntegrationTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     Drone CreateDrone(
         string processorId,

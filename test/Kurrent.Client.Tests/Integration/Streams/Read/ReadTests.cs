@@ -11,8 +11,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Read")]
 [Category("Integration")]
 public class ReadTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask reads_log(CancellationToken ct) {

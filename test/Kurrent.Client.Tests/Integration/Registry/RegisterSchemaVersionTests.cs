@@ -10,13 +10,13 @@ namespace Kurrent.Client.Tests.Registry;
 [Category("Registry")]
 [Category("Integration")]
 public class RegisterSchemaVersionTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask registers_new_version_of_existing_schema(CancellationToken ct) {
-		var schemaName = KurrentClientTestFixture.NewSchemaName();
-		var v1         = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var schemaName = KurrentDBTestFixture.NewSchemaName();
+		var v1         = KurrentDBTestFixture.NewJsonSchemaDefinition();
 		var v2         = v1.AddOptional("email", JsonObjectType.String);
 
 		var created = await Fixture.Client.Registry
@@ -24,7 +24,7 @@ public class RegisterSchemaVersionTests {
 
 		await Assert.That(created.VersionNumber).IsEqualTo(1);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var registered = await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
@@ -35,22 +35,22 @@ public class RegisterSchemaVersionTests {
 
 	[Test]
 	public async ValueTask registers_multiple_versions_incrementing_version_number(CancellationToken ct) {
-		var schemaName = KurrentClientTestFixture.NewSchemaName();
-		var v1         = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var schemaName = KurrentDBTestFixture.NewSchemaName();
+		var v1         = KurrentDBTestFixture.NewJsonSchemaDefinition();
 		var v2         = v1.AddOptional("email", JsonObjectType.String);
 		var v3         = v2.AddOptional("phone", JsonObjectType.String);
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var reg2 = await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
 		await Assert.That(reg2.VersionNumber).IsEqualTo(2);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var reg3 = await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v3.ToJson(), ct);
@@ -60,19 +60,19 @@ public class RegisterSchemaVersionTests {
 
 	[Test]
 	public async ValueTask registered_version_is_retrievable(CancellationToken ct) {
-		var schemaName = KurrentClientTestFixture.NewSchemaName();
-		var v1         = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var schemaName = KurrentDBTestFixture.NewSchemaName();
+		var v1         = KurrentDBTestFixture.NewJsonSchemaDefinition();
 		var v2         = v1.AddOptional("address", JsonObjectType.String);
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var registered = await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersionById(registered.VersionId, ct);
@@ -86,8 +86,8 @@ public class RegisterSchemaVersionTests {
 
 	[Test]
 	public async ValueTask fails_when_schema_does_not_exist(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry
@@ -96,18 +96,18 @@ public class RegisterSchemaVersionTests {
 
 	[Test]
 	public async ValueTask fails_when_schema_is_deleted(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		await Fixture.Client.Registry
 			.DeleteSchema(schemaName, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry
@@ -116,19 +116,19 @@ public class RegisterSchemaVersionTests {
 
 	[Test]
 	public async ValueTask updates_schema_latest_version_after_registration(CancellationToken ct) {
-		var schemaName = KurrentClientTestFixture.NewSchemaName();
-		var v1         = KurrentClientTestFixture.NewJsonSchemaDefinition();
+		var schemaName = KurrentDBTestFixture.NewSchemaName();
+		var v1         = KurrentDBTestFixture.NewJsonSchemaDefinition();
 		var v2         = v1.AddOptional("age", JsonObjectType.Integer);
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var schema = await Fixture.Client.Registry
 			.GetSchema(schemaName, ct);

@@ -7,14 +7,14 @@ namespace Kurrent.Client.Tests.Connectors;
 [Category("Connectors")]
 [Category("Integration")]
 public class ConnectorCommandTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask creates_connector_with_settings(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var name        = KurrentClientTestFixture.NewConnectorName();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var name        = KurrentDBTestFixture.NewConnectorName();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, name, settings, ct);
@@ -22,9 +22,9 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask creates_connector_with_configuration(CancellationToken ct) {
-        var connectorId   = KurrentClientTestFixture.NewConnectorId();
-        var name          = KurrentClientTestFixture.NewConnectorName();
-        var configuration = KurrentClientTestFixture.NewConnectorConfiguration();
+        var connectorId   = KurrentDBTestFixture.NewConnectorId();
+        var name          = KurrentDBTestFixture.NewConnectorName();
+        var configuration = KurrentDBTestFixture.NewConnectorConfiguration();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, name, configuration, ct);
@@ -32,8 +32,8 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask deletes_existing_connector(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);
@@ -44,8 +44,8 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask reconfigures_existing_connector(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);
@@ -60,13 +60,13 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask reconfigures_existing_connector_with_configuration(CancellationToken ct) {
-		var connectorId   = KurrentClientTestFixture.NewConnectorId();
-		var configuration = KurrentClientTestFixture.NewConnectorConfiguration();
+		var connectorId   = KurrentDBTestFixture.NewConnectorId();
+		var configuration = KurrentDBTestFixture.NewConnectorConfiguration();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, configuration, ct);
 
-		var updatedSettings = new Dictionary<string, string?>(KurrentClientTestFixture.NewConnectorSettings()) {
+		var updatedSettings = new Dictionary<string, string?>(KurrentDBTestFixture.NewConnectorSettings()) {
 			["subscription:filter:expression"] = "updated-"
 		};
 		var updatedConfiguration = updatedSettings.ToProtobufStruct();
@@ -77,14 +77,14 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask renames_existing_connector(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var name        = KurrentClientTestFixture.NewConnectorName();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var name        = KurrentDBTestFixture.NewConnectorName();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, name, settings, ct);
 
-		var newName = KurrentClientTestFixture.NewConnectorName();
+		var newName = KurrentDBTestFixture.NewConnectorName();
 
 		await Fixture.Client.Connectors
 			.Rename(connectorId, newName, ct);
@@ -92,8 +92,8 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask resets_connector_to_log_position(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);
@@ -104,8 +104,8 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask starts_connector_from_log_position(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);
@@ -116,8 +116,8 @@ public class ConnectorCommandTests {
 
 	[Test]
 	public async ValueTask stops_running_connector(CancellationToken ct) {
-		var connectorId = KurrentClientTestFixture.NewConnectorId();
-		var settings    = KurrentClientTestFixture.NewConnectorSettings();
+		var connectorId = KurrentDBTestFixture.NewConnectorId();
+		var settings    = KurrentDBTestFixture.NewConnectorSettings();
 
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);

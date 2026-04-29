@@ -8,8 +8,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Truncate")]
 [Category("Integration")]
 public class TruncateTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask truncates_stream_at_revision(CancellationToken ct) {

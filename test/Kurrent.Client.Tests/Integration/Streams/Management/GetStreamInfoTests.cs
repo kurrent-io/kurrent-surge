@@ -7,8 +7,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("StreamInfo")]
 [Category("Integration")]
 public class GetStreamInfoTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     #region Stream State
 

@@ -8,15 +8,15 @@ namespace Kurrent.Client.Tests.Registry;
 [Category("Registry")]
 [Category("Integration")]
 public class ListSchemasTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask lists_schemas_returns_created_schemas(CancellationToken ct) {
 		var prefix           = $"list-test-{Guid.NewGuid():N}";
 		var schemaName1      = $"{prefix}-schema-1";
 		var schemaName2      = $"{prefix}-schema-2";
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName1, schemaDefinition, SchemaDataFormat.Json, ct);
@@ -24,7 +24,7 @@ public class ListSchemasTests {
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName2, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
 			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct);
@@ -36,13 +36,13 @@ public class ListSchemasTests {
 
 	[Test]
 	public async ValueTask lists_schemas_with_no_filter_returns_results(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
 			.ListSchemas(cancellationToken: ct);
@@ -54,8 +54,8 @@ public class ListSchemasTests {
 	public async ValueTask lists_schemas_filtered_by_prefix_excludes_non_matching(CancellationToken ct) {
 		var prefix           = $"prefix-filter-{Guid.NewGuid():N}";
 		var matchingName     = $"{prefix}-matching";
-		var nonMatchingName  = KurrentClientTestFixture.NewSchemaName();
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var nonMatchingName  = KurrentDBTestFixture.NewSchemaName();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
 			.CreateSchema(matchingName, schemaDefinition, SchemaDataFormat.Json, ct);
@@ -63,7 +63,7 @@ public class ListSchemasTests {
 		await Fixture.Client.Registry
 			.CreateSchema(nonMatchingName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
 			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct);
@@ -78,7 +78,7 @@ public class ListSchemasTests {
 		var tagKey           = $"env-{Guid.NewGuid():N}";
 		var tagValue         = "production";
 		var tags             = new Dictionary<string, string> { [tagKey] = tagValue };
-		var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		var taggedName   = $"{prefix}-tagged";
 		var untaggedName = $"{prefix}-untagged";
@@ -89,7 +89,7 @@ public class ListSchemasTests {
 		await Fixture.Client.Registry
 			.CreateSchema(untaggedName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+		await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
 			.ListSchemas(schemaNamePrefix: prefix, tags: tags, cancellationToken: ct);

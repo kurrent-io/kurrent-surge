@@ -14,8 +14,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 [Category("Integration")]
 public class CheckpointStoreTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	KurrentDBCheckpointStore CreateStore(string processorId, int partitionCount = 8, int maxCount = 100) =>
         new(

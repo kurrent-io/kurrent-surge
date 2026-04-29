@@ -6,10 +6,10 @@ using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
-public static class KurrentClientTestFixtureRegistryExtensions {
+public static class KurrentDBTestFixtureRegistryExtensions {
     static readonly TimeSpan EventualConsistencyDelay = TimeSpan.FromMilliseconds(200);
 
-    extension(KurrentClientTestFixture) {
+    extension(KurrentDBTestFixture) {
 
         /// <summary>
         /// Waits for the schema registry read model to catch up after a state-changing operation.

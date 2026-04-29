@@ -4,8 +4,8 @@ using Kurrent.Sdk.Testkit.Fixtures;
 namespace Kurrent.Client.Tests.Streams;
 
 public abstract class AppendConsistencyTestBase {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     protected async ValueTask<(StreamName Stream, Revision Revision, LogPosition Position)> SeedActiveStream(CancellationToken ct) {
         var data   = await Fixture.TestData.GenerateSet(ct);

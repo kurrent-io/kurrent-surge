@@ -9,8 +9,8 @@ namespace Kurrent.Client.Tests.Indexes;
 public class StartStopIndexTests {
     const int TestTimeoutMs = 20_000;
 
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
     public async ValueTask stops_and_starts_an_index(CancellationToken ct) {

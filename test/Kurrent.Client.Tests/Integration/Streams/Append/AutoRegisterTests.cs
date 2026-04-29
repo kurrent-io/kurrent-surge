@@ -13,19 +13,29 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("Integration")]
 public class AutoRegisterTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
-    static readonly ISchemaNameStrategy NameStrategy = SchemaNameStrategies.TypeName();
+    // Each test scopes its schemas to a unique namespace so the registry never sees a
+    // collision across tests, which lets the assertion `LatestSchemaVersion == 1` stay
+    // exclusive even on a shared container.
+    static ISchemaNameStrategy NewIsolatedNameStrategy() =>
+        SchemaNameStrategies.Namespace($"test-autoreg-{Guid.NewGuid():N}");
 
     [Test]
     public async ValueTask registers_new_schema(CancellationToken ct) {
         // Arrange
+        var nameStrategy = NewIsolatedNameStrategy();
+
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister }
+                Json = new() {
+                    SchemaRegistration = SchemaRegistrationOptions.AutoRegister with {
+                        SchemaNameStrategy = nameStrategy
+                    }
+                }
             };
         });
 
@@ -38,10 +48,10 @@ public class AutoRegisterTests {
         // Act
         await client.Streams.AppendStream(request, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
         // Assert
-        var schemaName = NameStrategy.GenerateSchemaName(data.Records[0].Value!.GetType());
+        var schemaName = nameStrategy.GenerateSchemaName(data.Records[0].Value!.GetType());
         var schema     = await Fixture.Client.Registry.GetSchema(schemaName, ct);
         var version    = await Fixture.Client.Registry.GetSchemaVersion(schemaName, schema.LatestSchemaVersion, ct);
 
@@ -53,11 +63,17 @@ public class AutoRegisterTests {
     [Test]
     public async ValueTask caches_first_registration(CancellationToken ct) {
         // Arrange
+        var nameStrategy = NewIsolatedNameStrategy();
+
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister }
+                Json = new() {
+                    SchemaRegistration = SchemaRegistrationOptions.AutoRegister with {
+                        SchemaNameStrategy = nameStrategy
+                    }
+                }
             };
         });
 
@@ -76,10 +92,10 @@ public class AutoRegisterTests {
         await client.Streams.AppendStream(
             AppendStreamRequest.For(data.Stream).WithRecords([sameType[1]]).Build(), ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
         // Assert
-        var schemaName = NameStrategy.GenerateSchemaName(typeof(LapCompleted));
+        var schemaName = nameStrategy.GenerateSchemaName(typeof(LapCompleted));
         var schema     = await Fixture.Client.Registry.GetSchema(schemaName, ct);
 
         await Assert.That(schema.LatestSchemaVersion).IsEqualTo(1);
@@ -115,27 +131,27 @@ public class AutoRegisterTests {
     [Test]
     public async ValueTask reuses_existing_schema(CancellationToken ct) {
         // Arrange
-        var data = await Fixture.TestData.GenerateRecord(ct);
-        var schemaName = NameStrategy.GenerateSchemaName(data.Records.First().Value!.GetType());
+        var nameStrategy = NewIsolatedNameStrategy();
+        var data         = await Fixture.TestData.GenerateRecord(ct);
+        var schemaName   = nameStrategy.GenerateSchemaName(data.Records.First().Value!.GetType());
 
-        try {
-            await Fixture.Client.Registry.CreateSchema(
-                schemaName,
-                KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson(),
-                SchemaDataFormat.Json,
-                ct);
-        }
-        catch (SchemaAlreadyExistsException) {
-            // schema may already exist from a prior run
-        }
+        await Fixture.Client.Registry.CreateSchema(
+            schemaName,
+            KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson(),
+            SchemaDataFormat.Json,
+            ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister }
+                Json = new() {
+                    SchemaRegistration = SchemaRegistrationOptions.AutoRegister with {
+                        SchemaNameStrategy = nameStrategy
+                    }
+                }
             };
         });
 
