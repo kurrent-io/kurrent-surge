@@ -56,11 +56,11 @@ public class KurrentDBTestFixture : AspireFixture<Projects.Kurrent_Sdk_Testkit_A
     }
 
     public KurrentClient GetNewClient() =>
-        KurrentClientOptions.Parse(ConnectionString).GetBuilder()
-            .WithLoggerFactory(LoggerFactory)
-            .ConfigureSchema(schema => schema.WithValidation(false))
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
+        KurrentClient.Create(ConnectionString, opts => {
+            opts.LoggerFactory      = LoggerFactory;
+            opts.Schema.PreValidate = false;
+            opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
+        });
 
     public override async ValueTask DisposeAsync() {
         if (Client is { } client)

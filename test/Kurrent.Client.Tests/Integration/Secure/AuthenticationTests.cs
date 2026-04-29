@@ -11,14 +11,13 @@ public class AuthenticationTests {
 
     [Test]
     public async ValueTask anonymous_client_cannot_append(CancellationToken ct) {
-        await using var client = KurrentClientOptions.Parse(Fixture.AnonymousConnectionString)
-            .GetBuilder()
-            .WithLoggerFactory(Fixture.LoggerFactory)
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
+        await using var client = KurrentClient.Create(Fixture.AnonymousConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+        });
 
         var req = AppendStreamRequest.For($"secure-auth-{Guid.NewGuid():N}")
-            .WithRecord(new TestEvent("no creds"))
+            .WithMessage(new TestEvent("no creds"))
             .ExpectingState(ExpectedStreamState.NoStream)
             .Build();
 

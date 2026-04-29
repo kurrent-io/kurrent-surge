@@ -21,14 +21,13 @@ public class AutoRegisterTests {
     [Test]
     public async ValueTask registers_new_schema(CancellationToken ct) {
         // Arrange
-        await using var client = KurrentClientOptions.Parse(Fixture.ConnectionString)
-            .GetBuilder()
-            .WithLoggerFactory(Fixture.LoggerFactory)
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .ConfigureSchema(new KurrentClientSchemaOptions {
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema = new KurrentClientSchemaOptions {
                 Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister }
-            })
-            .CreateClient();
+            };
+        });
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
@@ -54,14 +53,13 @@ public class AutoRegisterTests {
     [Test]
     public async ValueTask caches_first_registration(CancellationToken ct) {
         // Arrange
-        await using var client = KurrentClientOptions.Parse(Fixture.ConnectionString)
-            .GetBuilder()
-            .WithLoggerFactory(Fixture.LoggerFactory)
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .ConfigureSchema(new KurrentClientSchemaOptions {
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema = new KurrentClientSchemaOptions {
                 Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister }
-            })
-            .CreateClient();
+            };
+        });
 
         var data = await Fixture.TestData.GenerateSet(ct);
 
@@ -90,14 +88,13 @@ public class AutoRegisterTests {
     [Test]
     public async ValueTask throws_when_type_is_unmapped(CancellationToken ct) {
         // Arrange
-        await using var client = KurrentClientOptions.Parse(Fixture.ConnectionString)
-            .GetBuilder()
-            .WithLoggerFactory(Fixture.LoggerFactory)
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .ConfigureSchema(new KurrentClientSchemaOptions {
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema = new KurrentClientSchemaOptions {
                 Json = new() { SchemaRegistration = SchemaRegistrationOptions.ManualMap }
-            })
-            .CreateClient();
+            };
+        });
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
@@ -134,14 +131,13 @@ public class AutoRegisterTests {
 
         await KurrentClientTestFixture.WaitForEventualConsistency(ct);
 
-        await using var client = KurrentClientOptions.Parse(Fixture.ConnectionString)
-            .GetBuilder()
-            .WithLoggerFactory(Fixture.LoggerFactory)
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .ConfigureSchema(new KurrentClientSchemaOptions {
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema = new KurrentClientSchemaOptions {
                 Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister }
-            })
-            .CreateClient();
+            };
+        });
 
         var request = AppendStreamRequest.For(data.Stream)
             .WithRecords(data.Records)

@@ -4,7 +4,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Projections;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Processors.Tests.Projections;
 
@@ -29,7 +29,7 @@ public class ProjectionTests {
         try {
             await KurrentProjector.Create(projection, opts => {
                 opts.ProcessorId = $"typed-projection-{PunyId.New()}";
-                opts.Connection(Fixture.KurrentDB.AuthenticatedConnectionString, client => {
+                opts.Connection(Fixture.ConnectionString, client => {
                     client.LoggerFactory      = Fixture.LoggerFactory;
                     client.Schema.PreValidate = false;
                     client.Schema.Mapper = MessageTypeMapper.Create(m => m

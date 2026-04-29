@@ -4,7 +4,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Projections;
 using Kurrent.Projections.DuckDB;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Processors.Tests.Projections.DuckDB;
 
@@ -33,7 +33,7 @@ public class DuckDBProjectionTests {
             await KurrentProjector.Create(projection, opts => {
                 opts.ProcessorId  = $"duckdb-projection-{PunyId.New()}";
                 opts.SkipDecoding = true;
-                opts.Connection(Fixture.KurrentDB.AuthenticatedConnectionString, client => {
+                opts.Connection(Fixture.ConnectionString, client => {
                     client.LoggerFactory      = Fixture.LoggerFactory;
                     client.Schema.PreValidate = false;
                     client.Resilience         = KurrentClientResilienceOptions.NoResilience;
