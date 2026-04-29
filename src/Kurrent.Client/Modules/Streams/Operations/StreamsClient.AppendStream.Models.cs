@@ -85,7 +85,7 @@ public record AppendStreamRequest() : SelfValidating {
         return this;
     }
 
-    public override ValidationResult RunValidation() {
+    protected override ValidationResult RunValidation() {
         if (Stream == StreamName.Unset)
             return ValidationResult.FromProblem(
                 ErrorCode.FromType<AppendStreamRequest>(),
@@ -140,13 +140,13 @@ public record AppendStreamRequest() : SelfValidating {
                 return r with { Records = r.Records.Add(builder.ForStream(r.Stream).Build()) };
             });
 
-        public Builder WithRecord<T>(T value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
+        public Builder WithMessage<T>(T value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
             With(r => r with {
                 Records = r.Records.Add(
                     AppendRecord.New.ForStream(r.Stream).WithValue(value).WithDataFormat(dataFormat).Build())
             });
 
-        public Builder WithRecord<T>(T value, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
+        public Builder WithMessage<T>(T value, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
             With(r => r with {
                 Records = r.Records.Add(
                     AppendRecord.New.ForStream(r.Stream).WithValue(value).WithMetadata(metadata).WithDataFormat(dataFormat).Build())

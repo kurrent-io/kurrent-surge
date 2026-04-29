@@ -18,11 +18,11 @@ namespace Kurrent.Client.Exceptions;
 /// </summary>
 [PublicAPI]
 public class KurrentException : Exception {
-    public KurrentException(KurrentErrorDetails details, string message, Exception? innerException = null)
-        : base(message, innerException) => ErrorDetails = details;
+    public KurrentException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(reason, innerException) => ErrorDetails = details;
 
-    public KurrentException(ErrorCode code, string message, Exception? innerException = null)
-        : this(new KurrentErrorDetails { ErrorCode = code }, message, innerException) { }
+    public KurrentException(ErrorCode code, string reason, Exception? innerException = null)
+        : this(new KurrentErrorDetails { ErrorCode = code }, reason, innerException) { }
 
     protected internal KurrentException(ErrorCode code, Status status) : base(status.Message, status.GetDetail<DebugInfo>().ToException()) {
         var details = new KurrentErrorDetails { ErrorCode = code };
@@ -43,7 +43,7 @@ public class KurrentException : Exception {
 
     public override string ToString() => $"[{ErrorDetails.ErrorCode}] {Message}";
 }
-
+ 
 static class KurrentExceptionExtensions {
     extension(KurrentException) {
         /// <summary>

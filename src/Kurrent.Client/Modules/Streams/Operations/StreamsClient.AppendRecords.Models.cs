@@ -54,7 +54,7 @@ public record AppendRecordsRequest() : SelfValidating {
         return this;
     }
 
-    public override ValidationResult RunValidation() {
+    protected override ValidationResult RunValidation() {
         foreach (var record in Records) {
             if (record.Stream == StreamName.Unset)
                 return ValidationResult.FromProblem(

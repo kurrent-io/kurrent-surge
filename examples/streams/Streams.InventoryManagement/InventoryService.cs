@@ -44,7 +44,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         var result = await client.Streams.AppendStream(
             AppendStreamRequest.For(StreamFor(sku))
                 .ExpectingState(revision)
-                .WithRecord(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
+                .WithMessage(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
                 .Build());
 
         logger.LogStockShipped(quantity, sku, orderId, result.Revision);
@@ -60,7 +60,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         var result = await client.Streams.AppendStream(
             AppendStreamRequest.For(StreamFor(sku))
                 .ExpectingState(ExpectedStreamState.Exists)
-                .WithRecord(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
+                .WithMessage(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
                 .Build());
 
         logger.LogStockAdjusted(sku, quantity, reason, result.Revision);

@@ -769,7 +769,7 @@ public class ValidatorTests {
         var record = new SelfValidatingPerson { Name = "", Age = 0 };
 
         // Act & Assert
-        await Assert.That(() => record.EnsureValid()).ThrowsExactly<ValidationException>();
+        await Assert.That(record.EnsureValid).ThrowsExactly<ValidationException>();
     }
 
     [Test]
@@ -778,28 +778,28 @@ public class ValidatorTests {
         var record = new SelfValidatingPerson { Name = "Alice", Age = 25 };
 
         // Act & Assert
-        await Assert.That(() => record.EnsureValid()).ThrowsNothing();
+        await Assert.That(record.EnsureValid).ThrowsNothing();
     }
 
     [Test]
-    public async ValueTask self_validating_run_validation_returns_valid() {
+    public async ValueTask self_validating_validate_returns_valid() {
         // Arrange
         var record = new SelfValidatingPerson { Name = "Alice", Age = 25 };
 
         // Act
-        var result = record.RunValidation();
+        var result = record.Validate();
 
         // Assert
         await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]
-    public async ValueTask self_validating_run_validation_returns_invalid() {
+    public async ValueTask self_validating_validate_returns_invalid() {
         // Arrange
         var record = new SelfValidatingPerson { Name = "", Age = -1 };
 
         // Act
-        var result = record.RunValidation();
+        var result = record.Validate();
 
         // Assert
         await Assert.That(result.IsInvalid).IsTrue();

@@ -194,14 +194,23 @@ public readonly partial record struct ErrorCode {
         return new ErrorCode(code);
     }
 
-    public static ErrorCode FromType(Type type) => From(type.Name);
-    public static ErrorCode FromType<T>()       => FromType(typeof(T));
+    public static ErrorCode FromType(Type type) =>
+        From(type.Name);
 
-    public static ErrorCode FromEx(Exception ex) => FromType(ex.GetType());
+    public static ErrorCode FromType<T>() =>
+        FromType(typeof(T));
 
-    public static ErrorCode FromEnum<T>(T value) where T : struct, Enum      => From(Enum.GetName(value)!);
-    public static ErrorCode FromEnum<T>(string value) where T : struct, Enum => FromEnum(Enum.Parse<T>(value));
-    public static ErrorCode FromEnum<T>(int value) where T : struct, Enum    => FromEnum<T>(value.ToString());
+    public static ErrorCode FromEx(Exception ex) =>
+        FromType(ex.GetType());
+
+    public static ErrorCode FromEnum<T>(T value) where T : struct, Enum =>
+        From(Enum.GetName(value)!);
+
+    public static ErrorCode FromEnum<T>(string value) where T : struct, Enum =>
+        FromEnum(Enum.Parse<T>(value));
+
+    public static ErrorCode FromEnum<T>(int value) where T : struct, Enum =>
+        FromEnum<T>(value.ToString());
 
     public static implicit operator string(ErrorCode code)  => code.Value;
     public static implicit operator ErrorCode(string value) => From(value);

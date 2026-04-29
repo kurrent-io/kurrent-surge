@@ -118,8 +118,8 @@ public readonly record struct StreamName {
     public static implicit operator string(StreamName stream) => stream.Value;
 }
 
-public sealed class InvalidStreamNameException(string message, Exception? innerException = null)
-    : KurrentException(ErrorCode.FromType<InvalidStreamNameException>(), message, innerException)
+public sealed class InvalidStreamNameException(string reason, Exception? innerException = null)
+    : KurrentException(ErrorCode.FromType<InvalidStreamNameException>(), reason, innerException)
     , IThrowableException<InvalidStreamNameException> {
     public static InvalidStreamNameException Create(string message, Exception? innerException) => new(message, innerException);
 }

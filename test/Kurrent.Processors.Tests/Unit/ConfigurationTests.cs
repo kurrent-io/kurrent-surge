@@ -259,7 +259,7 @@ public class ConfigurationTests {
         };
         settings.Connection(TestConnectionString);
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsTrue();
     }
@@ -271,7 +271,7 @@ public class ConfigurationTests {
             MaxParallelism = 1
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -283,7 +283,7 @@ public class ConfigurationTests {
             MaxParallelism = 0
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -295,7 +295,7 @@ public class ConfigurationTests {
             MaxParallelism = -1
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -307,7 +307,7 @@ public class ConfigurationTests {
             MaxParallelism = 32769
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -320,7 +320,7 @@ public class ConfigurationTests {
             BufferCapacity = 0
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -333,7 +333,7 @@ public class ConfigurationTests {
             BufferCapacity = 10001
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -346,7 +346,7 @@ public class ConfigurationTests {
             Checkpoint     = new CheckpointOptions { Interval = TimeSpan.Zero }
         };
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -360,7 +360,7 @@ public class ConfigurationTests {
         };
         settings.Connection(TestConnectionString);
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -374,7 +374,7 @@ public class ConfigurationTests {
         };
         settings.Connection(TestConnectionString);
 
-        var result = settings.RunValidation();
+        var result = settings.Validate();
 
         await Assert.That(result.IsValid).IsTrue();
     }
@@ -396,7 +396,7 @@ public class ConfigurationTests {
             opts.Connection(TestConnectionString);
         }).Build();
 
-        await Assert.That(drone.ProcessorId).IsEqualTo("no_op_processor");
+        await Assert.That(drone.ProcessorId).IsEqualTo("no-op-processor");
     }
 
     #endregion
@@ -796,7 +796,7 @@ public class ConfigurationTests {
 
         var settings = ResolveProcessorOptions(configuration);
 
-        await Assert.That(settings.ProcessorId).IsEqualTo("no_op_processor");
+        await Assert.That(settings.ProcessorId).IsEqualTo("no-op-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(4);
         await Assert.That(settings.BufferCapacity).IsEqualTo(2000);
     }

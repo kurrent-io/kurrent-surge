@@ -211,6 +211,23 @@ public class MessageTypeMapper {
 			: throw new MessageTypeResolutionException(schemaName);
 
     /// <summary>
+    /// Creates a new <see cref="MessageTypeMapper"/> via a fluent builder action.
+    /// When <paramref name="configure"/> is null, returns an empty mapper.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// var mapper = MessageTypeMapper.Create(m => m
+    ///     .Map&lt;OrderPlaced&gt;()
+    ///     .Map&lt;OrderShipped&gt;("order.shipped.v1"));
+    /// </code>
+    /// </example>
+    public static MessageTypeMapper Create(Action<Builder>? configure = null) {
+        var builder = new Builder();
+        configure?.Invoke(builder);
+        return builder.Build();
+    }
+
+    /// <summary>
     /// A builder for configuring message type mappings.
     /// </summary>
     public class Builder {
@@ -245,30 +262,6 @@ public class MessageTypeMapper {
             return this;
         }
 
-        // /// <summary>
-        // /// Automatically maps all message types in the specified namespace.
-        // /// </summary>
-        // public Builder AutoMap(string namespacePrefix) {
-        //     Mapper.AutoMap(namespacePrefix, NameStrategy);
-        //     return this;
-        // }
-        //
-        // /// <summary>
-        // /// Automatically maps all message types in the specified namespace.
-        // /// </summary>
-        // public Builder AutoMap<T>(string namespacePrefix) {
-        //     Mapper.AutoMapMessagesOf<T>(namespacePrefix, NameStrategy);
-        //     return this;
-        // }
-        //
-        // /// <summary>
-        // /// Automatically maps all Protobuf message types in the specified namespace.
-        // /// </summary>
-        // public Builder AutoMapProtobuf(string namespacePrefix) {
-        //     Mapper.AutoMapProtobufMessages(namespacePrefix, NameStrategy);
-        //     return this;
-        // }
-
-        internal MessageTypeMapper Build() => Mapper;
+        public MessageTypeMapper Build() => Mapper;
     }
 }

@@ -11,8 +11,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_executes_action_when_result_is_success() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var gameId         = new GameId(Faker.Random.Guid());
+        var result         = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var actionExecuted = false;
 
         // Act
@@ -27,8 +27,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_does_not_execute_action_when_result_is_failure() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "Error");
+        var result         = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
         var actionExecuted = false;
 
         // Act
@@ -57,8 +57,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_can_capture_side_effects() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var     gameId     = new GameId(Faker.Random.Guid());
+        var     result     = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         GameId? capturedId = null;
 
         // Act
@@ -72,9 +72,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_chains_multiple_actions() {
         // Arrange
-        var position = new Position(1, 2);
-        var result = Kurrent.Result.Success<Position, InvalidMoveError>(position);
-        var firstExecuted = false;
+        var position       = new Position(1, 2);
+        var result         = Kurrent.Result.Success<Position, InvalidMoveError>(position);
+        var firstExecuted  = false;
         var secondExecuted = false;
 
         // Act
@@ -91,9 +91,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_with_state_executes_action_with_provided_state() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
-        var logMessage = Faker.Lorem.Sentence();
+        var gameId      = new GameId(Faker.Random.Guid());
+        var result      = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var logMessage  = Faker.Lorem.Sentence();
         var capturedLog = string.Empty;
 
         // Act
@@ -107,9 +107,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_with_state_does_not_execute_when_failure() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "State error");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
-        var stateValue = Faker.Random.Int();
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "State error");
+        var result         = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var stateValue     = Faker.Random.Int();
         var actionExecuted = false;
 
         // Act
@@ -123,9 +123,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_with_state_avoids_closure_allocation() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
-        var stateValue = Faker.Random.Int(1, 100);
+        var gameId        = new GameId(Faker.Random.Guid());
+        var result        = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var stateValue    = Faker.Random.Int(1, 100);
         var capturedState = 0;
 
         // Act
@@ -138,8 +138,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_executes_action_when_result_is_failure() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Test error");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "Test error");
+        var result         = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
         var actionExecuted = false;
 
         // Act
@@ -154,8 +154,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_does_not_execute_action_when_result_is_success() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var gameId         = new GameId(Faker.Random.Guid());
+        var result         = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var actionExecuted = false;
 
         // Act
@@ -170,8 +170,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_can_capture_error_details() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Capture this");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var               error         = new InvalidMoveError(Faker.Random.Guid(), "Capture this");
+        var               result        = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
         InvalidMoveError? capturedError = null;
 
         // Act
@@ -185,7 +185,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_returns_same_result_for_chaining() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
+        var error  = new InvalidMoveError(Faker.Random.Guid(), "Error");
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
 
         // Act
@@ -199,9 +199,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_chains_multiple_actions() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
-        var result = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
-        var firstExecuted = false;
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
+        var result         = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
+        var firstExecuted  = false;
         var secondExecuted = false;
 
         // Act
@@ -218,9 +218,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_with_state_executes_action_with_provided_state() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "State failure");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
-        var errorCount = Faker.Random.Int(1, 10);
+        var error         = new InvalidMoveError(Faker.Random.Guid(), "State failure");
+        var result        = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var errorCount    = Faker.Random.Int(1, 10);
         var capturedCount = 0;
 
         // Act
@@ -234,9 +234,9 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_with_state_does_not_execute_when_success() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
-        var stateValue = Faker.Random.Int();
+        var gameId         = new GameId(Faker.Random.Guid());
+        var result         = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var stateValue     = Faker.Random.Int();
         var actionExecuted = false;
 
         // Act
@@ -250,8 +250,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_and_inspect_error_can_be_combined() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var gameId          = new GameId(Faker.Random.Guid());
+        var result          = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var successExecuted = false;
         var failureExecuted = false;
 
@@ -269,8 +269,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_and_inspect_can_be_combined() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Combined");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var error           = new InvalidMoveError(Faker.Random.Guid(), "Combined");
+        var result          = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
         var successExecuted = false;
         var failureExecuted = false;
 
@@ -288,8 +288,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_executes_async_action_when_success() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var gameId         = new GameId(Faker.Random.Guid());
+        var result         = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var actionExecuted = false;
 
         // Act
@@ -306,8 +306,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_does_not_execute_when_failure() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Async error");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "Async error");
+        var result         = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
         var actionExecuted = false;
 
         // Act
@@ -324,16 +324,17 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_with_state_executes_with_provided_state() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
-        var logMessage = Faker.Lorem.Sentence();
+        var gameId      = new GameId(Faker.Random.Guid());
+        var result      = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var logMessage  = Faker.Lorem.Sentence();
         var capturedLog = string.Empty;
 
         // Act
-        await result.InspectAsync(async (log, id) => {
-            await Task.Delay(1);
-            capturedLog = log;
-        }, logMessage);
+        await result.InspectAsync(
+            async (log, id) => {
+                await Task.Delay(1);
+                capturedLog = log;
+            }, logMessage);
 
         // Assert
         await Assert.That(capturedLog).IsEqualTo(logMessage);
@@ -342,8 +343,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_executes_async_action_when_failure() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Async failure");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "Async failure");
+        var result         = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
         var actionExecuted = false;
 
         // Act
@@ -360,8 +361,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_does_not_execute_when_success() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
+        var gameId         = new GameId(Faker.Random.Guid());
+        var result         = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var actionExecuted = false;
 
         // Act
@@ -378,16 +379,17 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_with_state_executes_with_provided_state() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "State async");
-        var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
-        var errorCount = Faker.Random.Int(1, 10);
+        var error         = new InvalidMoveError(Faker.Random.Guid(), "State async");
+        var result        = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
+        var errorCount    = Faker.Random.Int(1, 10);
         var capturedCount = 0;
 
         // Act
-        await result.InspectErrorAsync(async (count, err) => {
-            await Task.Delay(1);
-            capturedCount = count;
-        }, errorCount);
+        await result.InspectErrorAsync(
+            async (count, err) => {
+                await Task.Delay(1);
+                capturedCount = count;
+            }, errorCount);
 
         // Assert
         await Assert.That(capturedCount).IsEqualTo(errorCount);
@@ -396,9 +398,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_chain_extension_awaits_task_then_executes() {
         // Arrange
-        var gameId = new GameId(Faker.Random.Guid());
-        var resultTask = ValueTask.FromResult(
-            Kurrent.Result.Success<GameId, InvalidMoveError>(gameId));
+        var gameId         = new GameId(Faker.Random.Guid());
+        var resultTask     = ValueTask.FromResult(Kurrent.Result.Success<GameId, InvalidMoveError>(gameId));
         var actionExecuted = false;
 
         // Act
@@ -415,9 +416,8 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_chain_extension_awaits_task_then_executes() {
         // Arrange
-        var error = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
-        var resultTask = ValueTask.FromResult(
-            Kurrent.Result.Failure<GameId, InvalidMoveError>(error));
+        var error          = new InvalidMoveError(Faker.Random.Guid(), "Chain error");
+        var resultTask     = ValueTask.FromResult(Kurrent.Result.Failure<GameId, InvalidMoveError>(error));
         var actionExecuted = false;
 
         // Act
@@ -434,7 +434,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_executes_action_and_returns_same_instance_when_called_on_success_result() {
         // Arrange
-        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var successValue   = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
         var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
         var actionExecuted = false;
 
@@ -449,7 +449,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_does_not_execute_action_and_returns_same_instance_when_called_on_error_result() {
         // Arrange
-        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var errorValue     = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
         var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
         var actionExecuted = false;
 
@@ -464,7 +464,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_executes_action_and_returns_same_instance_when_called_on_error_result() {
         // Arrange
-        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var errorValue     = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
         var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
         var actionExecuted = false;
 
@@ -479,7 +479,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_does_not_execute_action_and_returns_same_instance_when_called_on_success_result() {
         // Arrange
-        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var successValue   = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
         var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
         var actionExecuted = false;
 
@@ -494,10 +494,10 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        var contextState = "Audit trail";
-        string? capturedState = null;
+        var     successValue   = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var     originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var     contextState   = "Audit trail";
+        string? capturedState  = null;
 
         // Act
         originalResult.Inspect((state, gs) => capturedState = $"{state}: {gs.GameId}", contextState);
@@ -509,10 +509,10 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        var contextState = "Error context";
-        string? capturedState = null;
+        var     errorValue     = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var     originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var     contextState   = "Error context";
+        string? capturedState  = null;
 
         // Act
         originalResult.InspectError((state, err) => capturedState = $"{state}: {err.Reason}", contextState);
@@ -524,7 +524,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_executes_action_with_value_task() {
         // Arrange
-        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var successValue   = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
         var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
         var actionExecuted = false;
 
@@ -542,7 +542,7 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_executes_action_with_value_task() {
         // Arrange
-        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var errorValue     = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
         var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
         var actionExecuted = false;
 
@@ -560,16 +560,17 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_async_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        var successValue = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
-        var originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
-        var contextState = "Async audit trail";
-        string? capturedState = null;
+        var     successValue   = new GameStarted(Faker.Random.Guid(), Faker.PickRandom<Player>());
+        var     originalResult = Kurrent.Result.Success<GameStarted, InvalidMoveError>(successValue);
+        var     contextState   = "Async audit trail";
+        string? capturedState  = null;
 
         // Act
-        await originalResult.InspectAsync(async (state, gs) => {
-            await Task.Delay(1);
-            capturedState = $"{state}: {gs.GameId}";
-        }, contextState);
+        await originalResult.InspectAsync(
+            async (state, gs) => {
+                await Task.Delay(1);
+                capturedState = $"{state}: {gs.GameId}";
+            }, contextState);
 
         // Assert
         await Assert.That(capturedState).IsEqualTo($"{contextState}: {successValue.GameId}");
@@ -578,16 +579,17 @@ public class ResultInspectTests {
     [Test]
     public async Task inspect_error_async_passes_state_to_action_when_using_stateful_variant() {
         // Arrange
-        var errorValue = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
-        var originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
-        var contextState = "Async error context";
-        string? capturedState = null;
+        var     errorValue     = new InvalidMoveError(Faker.Random.Guid(), Faker.Lorem.Sentence());
+        var     originalResult = Kurrent.Result.Failure<GameStarted, InvalidMoveError>(errorValue);
+        var     contextState   = "Async error context";
+        string? capturedState  = null;
 
         // Act
-        await originalResult.InspectErrorAsync(async (state, err) => {
-            await Task.Delay(1);
-            capturedState = $"{state}: {err.Reason}";
-        }, contextState);
+        await originalResult.InspectErrorAsync(
+            async (state, err) => {
+                await Task.Delay(1);
+                capturedState = $"{state}: {err.Reason}";
+            }, contextState);
 
         // Assert
         await Assert.That(capturedState).IsEqualTo($"{contextState}: {errorValue.Reason}");

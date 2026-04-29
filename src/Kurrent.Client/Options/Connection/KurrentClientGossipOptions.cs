@@ -29,7 +29,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     /// Each attempt will use the specified <see cref="DiscoveryInterval"/> between retries.
     /// </para>
     /// </remarks>
-    public int MaxDiscoverAttempts { get; init; } = 10;
+    public int MaxDiscoverAttempts { get; set; } = 10;
 
     /// <summary>
     /// The polling interval used between node discovery attempts.
@@ -43,7 +43,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     /// Higher values reduce network overhead but increase total discovery time.
     /// </para>
     /// </remarks>
-    public TimeSpan DiscoveryInterval { get; init; } = TimeSpan.FromMilliseconds(100);
+    public TimeSpan DiscoveryInterval { get; set; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
     /// The timeout after which an individual discovery attempt will fail.
@@ -57,7 +57,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     /// Should be set higher than typical network latency to the cluster to avoid premature timeouts.
     /// </para>
     /// </remarks>
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(5);
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Controls which nodes in the cluster are selected for read operations.
@@ -74,7 +74,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     ///   <item><description><see cref="NodePreference.ReadOnlyReplica"/> - Prefer read-only replica nodes</description></item>
     /// </list>
     /// </remarks>
-    public NodePreference ReadPreference { get; init; } = NodePreference.Random;
+    public NodePreference ReadPreference { get; set; } = NodePreference.Random;
 
     /// <summary>
     /// The default gossip configuration settings.
@@ -89,7 +89,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     ///   <item><description>ReadPreference = Random</description></item>
     /// </list>
     /// </remarks>
-    public static readonly KurrentClientGossipOptions Default = new() {
+    public static KurrentClientGossipOptions Default => new() {
         MaxDiscoverAttempts = 10,
         DiscoveryInterval   = TimeSpan.FromMilliseconds(100),
         Timeout             = TimeSpan.FromSeconds(5),

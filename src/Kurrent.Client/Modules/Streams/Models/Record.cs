@@ -113,13 +113,12 @@ public record Record {
     /// Represents the classification or grouping of an item.
     /// </summary>
     public string Category => Stream.Category;
-
     
     /// <summary>
     /// Lazily-serialized JSON representation of <see cref="Value"/> for filter expression evaluation.
     /// Returns <c>null</c> when the record is not decoded or the schema format is not JSON.
     /// </summary>
-    internal JsonNode? JsonNode => IsDecoded && Schema.SchemaFormat == SchemaDataFormat.Json
+    internal JsonNode? DecodedValueAsJson => IsDecoded && Schema.SchemaFormat == SchemaDataFormat.Json
         ? field ??= JsonSerializer.SerializeToNode(Value)
         : null;
     

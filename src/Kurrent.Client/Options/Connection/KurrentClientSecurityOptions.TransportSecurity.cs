@@ -158,7 +158,7 @@ public record StandardTls {
     /// Setting to <see langword="false"/> is a security risk and should only be used in development.
     /// </para>
     /// </remarks>
-    public bool VerifyServerCertificate { get; init; } = true;
+    public bool VerifyServerCertificate { get; set; } = true;
 
     /// <summary>
     /// Default StandardTls configuration with certificate validation enabled.
@@ -186,7 +186,7 @@ public record FileCertificateTls {
     /// <summary>
     /// Path to the certificate authority file.
     /// </summary>
-    public required string CaPath { get; init; }
+    public required string CaPath { get; set; }
 
     /// <summary>
     /// Whether to verify server certificates against the provided CA certificate.
@@ -199,7 +199,7 @@ public record FileCertificateTls {
     /// Setting to <see langword="false"/> is a security risk and should only be used in development.
     /// </para>
     /// </remarks>
-    public bool VerifyServerCertificate { get; init; } = true;
+    public bool VerifyServerCertificate { get; set; } = true;
 
     /// <summary>
     /// The X509Certificate2 loaded from the CA file path.
@@ -224,7 +224,7 @@ public record X509CertificateTls {
     /// <summary>
     /// The X509Certificate2 to use as a certificate authority.
     /// </summary>
-    public required X509Certificate2 Certificate { get; init; }
+    public required X509Certificate2 Certificate { get; set; }
 
     /// <summary>
     /// Whether to verify server certificates against the provided CA certificate.
@@ -237,5 +237,5 @@ public record X509CertificateTls {
     /// Setting to <see langword="false"/> is a security risk and should only be used in development.
     /// </para>
     /// </remarks>
-    public bool VerifyServerCertificate { get; init; } = true;
+    public bool VerifyServerCertificate { get; set; } = true;
 }

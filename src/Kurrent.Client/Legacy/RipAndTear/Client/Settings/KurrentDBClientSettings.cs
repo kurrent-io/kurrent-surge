@@ -265,4 +265,4 @@ static class KurrentDBConnectionStringConverter {
     }
 }
 
-public class InvalidSettingException(string message, Exception? innerException = null) : KurrentException(ErrorCode.FromType<InvalidSettingException>(), message, innerException);
+public class InvalidSettingException(string reason, Exception? innerException = null) : KurrentException(ErrorCode.FromType<InvalidSettingException>(), reason, innerException);

@@ -23,4 +23,10 @@ public sealed class HiveOptions {
     /// The processor options shared by every drone. Individual drones override <c>DroneId</c>.
     /// </summary>
     public ProcessorOptions ProcessorOptions { get; init; } = new();
+
+    /// <summary>
+    /// Factory invoked once per drone at <see cref="Hive.RunAsync"/>. Must be non-null.
+    /// </summary>
+    public Func<IRecordProcessor> ProcessorFactory { get; init; } = () =>
+        throw new InvalidOperationException("HiveOptions.ProcessorFactory is required.");
 }

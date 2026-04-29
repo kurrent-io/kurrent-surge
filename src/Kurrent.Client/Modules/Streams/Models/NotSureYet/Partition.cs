@@ -1,28 +1,22 @@
-using System.Diagnostics;
 using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
 
 [PublicAPI]
-[DebuggerDisplay("{DebuggerDisplayValue}")]
 public readonly record struct Partition : IComparable<Partition>, IComparable {
     public static readonly Partition Any = new(-1);
 
     Partition(int value) => Value = value;
 
     public int Value { get; }
-
-    /// <summary>
-    /// Indicates whether this partition is <see cref="Any"/>.
-    /// </summary>
+    
     public bool IsAny => this == Any;
 
-    public override string ToString() => Value.ToString();
-
-    string DebuggerDisplayValue => this switch {
-        _ when this == Any => $"partition: {Value} (Unset)",
-        _                  => $"partition: {Value}"
-    };
+    public override string ToString() =>
+        Value switch{
+            -1   => "[Any]",
+            >= 0 => $"[{Value}]"
+        };
 
     public static Partition From(int partitionValue) =>
         partitionValue switch {

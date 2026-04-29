@@ -1,4 +1,5 @@
 using Kurrent.Client;
+using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Containers.KurrentDB;
 using Testing.ArcadeRacer;
@@ -24,10 +25,10 @@ public sealed class ClientBenchmarkFixture : IAsyncDisposable {
 
         var connectionString = _container.AuthenticatedConnectionString;
 
-        _client = KurrentClientOptions.Parse(connectionString).GetBuilder()
-            .ConfigureSchema(KurrentClientSchemaOptions.NoValidation)
-            .ConfigureResilience(KurrentClientResilienceOptions.NoResilience)
-            .CreateClient();
+        var opts = KurrentClientOptions.Parse(connectionString);
+        opts.Schema.PreValidate = false;
+        opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
+        _client = KurrentClient.Create(opts);
 
         TestData = new ArcadeRacerTestDataSource();
     }

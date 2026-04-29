@@ -92,7 +92,7 @@ public sealed class KurrentProcessor {
     /// </summary>
     internal IDrone Build() {
         if (string.IsNullOrWhiteSpace(_options.ProcessorId))
-            _options.ProcessorId = _processor.GetType().Name.ToSnakeCase();
+            _options.ProcessorId = _processor.GetType().Name.ToKebabCase();
 
         if (_options.ClientOptions is null)
             throw new InvalidOperationException(

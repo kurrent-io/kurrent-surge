@@ -3,12 +3,7 @@ using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Checkpointing;
 
-interface ICheckpointStore {
-    /// <summary>
-    /// Gets the processor ID this store is bound to.
-    /// </summary>
-    string ProcessorId { get; }
-
+public interface ICheckpointStore {
     /// <summary>
     /// Loads the latest checkpoint for this processor.
     /// </summary>
@@ -60,16 +55,8 @@ interface ICheckpointStore {
     );
 }
 
-/// <summary>
-/// A partition and its record position.
-/// </summary>
-[PublicAPI]
 public readonly record struct PartitionPosition(Partition Partition, RecordPosition Position);
 
-/// <summary>
-/// Loaded checkpoint for a processor, with resolved positions for all drone assigned partitions.
-/// </summary>
-[PublicAPI]
 public sealed record ProcessorCheckpoint {
     /// <summary>
     /// Empty checkpoint with no partitions.

@@ -10,8 +10,8 @@ namespace Kurrent.Client.Schema.Serialization;
 /// including metadata about the schema data format used.
 /// Inherits from <see cref="KurrentException"/> to maintain consistency in error handling across the Kurrent client.
 /// </summary>
-public abstract class SchemaSerializationException(string message, SchemaDataFormat dataFormat, Exception? innerException = null)
-    : KurrentException(ErrorCode.FromType<SchemaSerializationException>(), message, innerException) {
+public abstract class SchemaSerializationException(string reason, SchemaDataFormat dataFormat, Exception? innerException = null)
+    : KurrentException(ErrorCode.FromType<SchemaSerializationException>(), reason, innerException) {
 	public SchemaDataFormat DataFormat { get; } = dataFormat;
 }
 

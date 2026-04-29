@@ -105,7 +105,7 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
             // 3. Ensure ProcessorId is set before resolving connection strings by id.
             if (string.IsNullOrWhiteSpace(options.ProcessorId))
-                options.ProcessorId = typeof(TProcessor).Name.ToSnakeCase();
+                options.ProcessorId = typeof(TProcessor).Name.ToKebabCase();
 
             // 4. If still no connection, look it up by processor id then by the default Aspire resource name.
             if (options.ClientOptions is null && configuration is not null)

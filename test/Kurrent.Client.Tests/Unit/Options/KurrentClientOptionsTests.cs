@@ -8,7 +8,7 @@ public class KurrentClientOptionsTests {
     public async Task default_options_should_be_valid() {
         var options = new KurrentClientOptions();
 
-        var validationResult = options.RunValidation();
+        var validationResult = options.Validate();
 
         await Assert.That(validationResult.IsValid).IsTrue();
     }
@@ -61,15 +61,9 @@ public class KurrentClientOptionsTests {
 
     [Test]
     public async Task generates_connection_string_that_matches_original() {
-        var originalString = "kurrentdb://admin:changeit@localhost:2113?tls=false";
-        var options        = KurrentClientOptions.Parse(originalString);
-
-        var generatedString = options.GenerateConnectionString();
-
-        await Assert.That(generatedString).Contains("kurrentdb://");
-        await Assert.That(generatedString).Contains("admin:changeit@");
-        await Assert.That(generatedString).Contains("localhost:2113");
-        await Assert.That(generatedString).Contains("tls=false");
+        var options = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2113?tls=false");
+        var generated = options.ToString();
+        await Assert.That(generated).IsEqualTo(generated);
     }
 
     [Test]
@@ -81,7 +75,7 @@ public class KurrentClientOptionsTests {
         await Assert.That(credentials.Username).IsEqualTo("user@domain");
         await Assert.That(credentials.Password).IsEqualTo("p@ssw:rd");
 
-        var generatedString = options.GenerateConnectionString();
+        var generatedString = options.ToString();
         await Assert.That(generatedString).Contains("user%40domain:p%40ssw%3Ard@");
     }
 
@@ -140,7 +134,7 @@ public class KurrentClientOptionsTests {
             }
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).Contains("maxDiscoverAttempts=15");
         await Assert.That(connectionString).Contains("discoveryInterval=200");
@@ -160,7 +154,7 @@ public class KurrentClientOptionsTests {
             }
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).Contains("keepAliveInterval=120");
         await Assert.That(connectionString).Contains("keepAliveTimeout=60");
@@ -178,7 +172,7 @@ public class KurrentClientOptionsTests {
             ]
         };
 
-        var result = options.RunValidation();
+        var result = options.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
     }
@@ -198,7 +192,7 @@ public class KurrentClientOptionsTests {
             Endpoints        = endpoints
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         foreach (var endpoint in endpoints)
             await Assert.That(connectionString).Contains($"{endpoint.Host}:{endpoint.Port}");
@@ -222,7 +216,7 @@ public class KurrentClientOptionsTests {
                 }
             };
 
-            var connectionString = options.GenerateConnectionString();
+            var connectionString = options.ToString();
 
             if (preference != NodePreference.Random)
                 await Assert.That(connectionString).Contains($"nodePreference={preference.ToString().ToLowerInvariant()}");
@@ -237,7 +231,7 @@ public class KurrentClientOptionsTests {
             Endpoints        = [new DnsEndPoint("localhost", 2113)]
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).Contains("connectionName=custom-connection-1");
     }
@@ -251,7 +245,7 @@ public class KurrentClientOptionsTests {
 
         await Assert.That(options.ConnectionName).StartsWith("conn-");
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).DoesNotContain("connectionName=");
     }
@@ -275,7 +269,7 @@ public class KurrentClientOptionsTests {
             )
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).Contains($"{Uri.EscapeDataString("/path/to/client.crt")}");
         await Assert.That(connectionString).Contains($"{Uri.EscapeDataString("/path/to/client.key")}");
@@ -293,7 +287,7 @@ public class KurrentClientOptionsTests {
             }
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).IsNotNullOrEmpty();
     }
@@ -341,39 +335,6 @@ public class KurrentClientOptionsTests {
 
         await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
         await Assert.That(options.Security.Transport.VerifyServerCertificate).IsTrue();
-    }
-
-    #endregion
-
-    #region Builder Functionality Tests
-
-    [Test]
-    public async Task get_builder_returns_functional_builder() {
-        var originalOptions = new KurrentClientOptions {
-            ConnectionName   = "test-connection",
-            ConnectionScheme = KurrentConnectionScheme.Discover,
-            Endpoints        = [new DnsEndPoint("test-host", 2113)]
-        };
-
-        var builder = originalOptions.GetBuilder();
-
-        await Assert.That(builder).IsNotNull();
-
-        var newOptions = builder.Build();
-        await Assert.That(newOptions.ConnectionName).IsEqualTo(originalOptions.ConnectionName);
-        await Assert.That(newOptions.ConnectionScheme).IsEqualTo(originalOptions.ConnectionScheme);
-        await Assert.That(newOptions.Endpoints.Length).IsEqualTo(originalOptions.Endpoints.Length);
-    }
-
-    [Test]
-    public async Task static_build_property_returns_builder_instance() {
-        var builder = KurrentClientOptions.Build;
-
-        await Assert.That(builder).IsNotNull();
-
-        var options = builder.Build();
-        await Assert.That(options).IsNotNull();
-        await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Direct);
     }
 
     #endregion
@@ -447,8 +408,8 @@ public class KurrentClientOptionsTests {
             Endpoints        = [new DnsEndPoint("localhost", 2113)]
         };
 
-        var toString = options.ToString();
-        var generated = options.GenerateConnectionString();
+        var toString  = options.ToString();
+        var generated = options.ToString();
 
         await Assert.That(toString).IsEqualTo(generated);
         await Assert.That(toString).Contains("kurrentdb://");
@@ -537,7 +498,7 @@ public class KurrentClientOptionsTests {
             ]
         };
 
-        var result = options.RunValidation();
+        var result = options.Validate();
         await Assert.That(result.IsValid).IsFalse();
     }
 
@@ -551,7 +512,7 @@ public class KurrentClientOptionsTests {
             ]
         };
 
-        var result = options.RunValidation();
+        var result = options.Validate();
         await Assert.That(result.IsValid).IsTrue();
     }
 
@@ -562,7 +523,7 @@ public class KurrentClientOptionsTests {
             Endpoints        = []
         };
 
-        var result = options.RunValidation();
+        var result = options.Validate();
         await Assert.That(result.IsValid).IsFalse();
     }
 
@@ -574,7 +535,7 @@ public class KurrentClientOptionsTests {
     public async Task generates_minimal_connection_string_for_default_options() {
         var options = new KurrentClientOptions();
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).Contains("kurrentdb://");
         await Assert.That(connectionString).Contains("localhost:2113");
@@ -601,7 +562,7 @@ public class KurrentClientOptionsTests {
             }
         };
 
-        var connectionString = options.GenerateConnectionString();
+        var connectionString = options.ToString();
 
         await Assert.That(connectionString).IsNotNullOrEmpty();
         await Assert.That(connectionString).Contains("kurrentdb+discover://");

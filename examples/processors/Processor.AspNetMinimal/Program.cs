@@ -15,17 +15,17 @@ try {
     builder.Host.UseSerilog();
 
     builder.Services.AddSingleton<TransferProcessor>();
-    builder.Services.AddKurrentProcessor<TransferProcessor>(opts => {
-        opts.Connection(
+    builder.Services.AddKurrentProcessor<TransferProcessor>(prx => {
+        prx.Connection(
             "kurrentdb://admin:changeit@localhost:2113?tls=false",
-            options => {
-                options.Schema.Mapper.Map<PartitionsCheckpointed>("Kurrent.Processors.Checkpointing.PartitionsCheckpointed");
-                return options;
-            });
-        opts.ProcessorId                  = $"transfer-processor-{Guid.NewGuid().ToString()[..8]}";
-        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
-        opts.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
-        opts.Checkpointing(x => x.Interval(TimeSpan.FromDays(1)));
+            opts => opts.Schema.Mapper
+                .Map<PartitionsCheckpointed>("Kurrent.Processors.Checkpointing.PartitionsCheckpointed"));
+        
+        prx.ProcessorId                  = $"transfer-processor-{Guid.NewGuid().ToString()[..8]}";
+        prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+        prx.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
+        
+        prx.Checkpoint.Interval = TimeSpan.FromDays(1);
     });
 
     var app = builder.Build();

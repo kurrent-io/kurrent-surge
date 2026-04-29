@@ -1,560 +1,197 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using Kurrent.CodeAnalysis;
+using Kurrent.CodeAnalysis.Emission;
+using Kurrent.CodeAnalysis.Pipeline;
+using TypeSymbol = Kurrent.CodeAnalysis.TypeSymbol;
+using TypeKind = Kurrent.CodeAnalysis.TypeKind;
 
 namespace Kurrent.Variant.SourceGenerators;
 
 [Generator]
 [SuppressMessage("MicrosoftCodeAnalysisReleaseTracking", "RS2008:Enable analyzer release tracking")]
-public class VariantGenerator : ISourceGenerator {
-    public void Initialize(GeneratorInitializationContext context) {
-        #if DEBUG
-        if (!Debugger.IsAttached) Debugger.Launch();
-        #endif
-    }
+public sealed class VariantGenerator : IIncrementalGenerator {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
+        context
+            .Types(t => t
+                .OfKind(
+                    TypeKind.Class, TypeKind.Record, TypeKind.RecordStruct,
+                    TypeKind.Struct)
+                .Implementing(static i =>
+                    i.Namespace == "Kurrent.Variant" &&
+                    i.Name == "IVariant" &&
+                    i.TypeArguments.Length > 0))
+            .Select(static t => ExtractVariantInfo(t))
+            .Where(static info => info is not null)
+            .ReportWhenEmpty(NoTargetTypesFound)
+            .RegisterSources(static (spc, info) => {
+                if (info is null)
+                    return;
 
-    public void Execute(GeneratorExecutionContext context) {
-        var compilation = context.Compilation;
-
-        var typesFound = 0;
-
-        foreach (var syntaxTree in compilation.SyntaxTrees) {
-            var semanticModel = compilation.GetSemanticModel(syntaxTree);
-
-            var root = syntaxTree.GetRoot();
-
-            // Look for both classes and record structs that implement IVariant<T1, T2, ...>
-            var typeDeclarations = root.DescendantNodes()
-                .Where(node => node is ClassDeclarationSyntax or RecordDeclarationSyntax or StructDeclarationSyntax);
-
-            foreach (var typeDeclaration in typeDeclarations) {
-                if (semanticModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol typeSymbol) continue;
-
-                if (!ImplementsIVariantDirectly(typeSymbol, out var genericTypeArguments)) continue;
-
-                if (genericTypeArguments.Count == 0) continue;
-
-                var source = GenerateVariantImplementation(classSymbol: typeSymbol, typeArguments: genericTypeArguments, context: context);
-
-                if (string.IsNullOrEmpty(source)) continue;
+                var source = GenerateVariantImplementation(info);
 
                 var hintName = SourceGeneratorFileNaming.GetHintName(
-                    typeSymbol,
-                    new FileNamingOptions {
-                        Prefix = "Variants",
-                        UseFoldersForPrefix = true,
+                    typeName: info.ClassName,
+                    typeNamespace: info.Namespace ?? "",
+                    typeFullName: info.FullName,
+                    typeArgumentFullNames: null,
+                    options: new FileNamingOptions {
+                        Prefix                 = "Variants",
+                        UseFoldersForPrefix    = true,
                         UseFoldersForNamespace = true,
-                        LowercasePath = false
+                        LowercasePath          = false
                     },
-                    genericTypeArguments
-                );
+                    explicitHashTypeFullNames: info.Cases.Select(c => c.FullyQualifiedNameForHash).ToArray());
 
-                context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
+                spc.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
+                spc.ReportDiagnostic(Diagnostic.Create(SwitchMethodsGenerated, Location.None, info.FullName));
+                spc.ReportDiagnostic(Diagnostic.Create(MatchMethodsGenerated, Location.None, info.FullName));
 
-                ReportDiagnostic(context, SourceAdded, hintName);
+                spc.ReportDiagnostic(
+                    info.ImplementsIVariantException
+                        ? Diagnostic.Create(VariantExceptionTypeGenerated, Location.None, info.FullName)
+                        : Diagnostic.Create(VariantTypeGenerated, Location.None, info.FullName));
 
-                typesFound++;
+                spc.ReportDiagnostic(Diagnostic.Create(SourceAdded, Location.None, hintName));
+            });
+    }
+
+    static readonly DiagnosticDescriptor SwitchMethodsGenerated = new(
+        id: "VARIANT002",
+        title: nameof(VariantGenerator),
+        messageFormat: $"[{nameof(VariantGenerator)}] switch methods generated for: {{0}}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    static readonly DiagnosticDescriptor MatchMethodsGenerated = new(
+        id: "VARIANT003",
+        title: nameof(VariantGenerator),
+        messageFormat: $"[{nameof(VariantGenerator)}] match methods generated for: {{0}}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    static readonly DiagnosticDescriptor VariantTypeGenerated = new(
+        id: "VARIANT201",
+        title: nameof(VariantGenerator),
+        messageFormat: $"[{nameof(VariantGenerator)}] completed 'IVariant' code generation for: {{0}}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    static readonly DiagnosticDescriptor VariantExceptionTypeGenerated = new(
+        id: "VARIANT201EX",
+        title: nameof(VariantGenerator),
+        messageFormat: $"[{nameof(VariantGenerator)}] completed 'IVariantException' code generation for: {{0}}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    static readonly DiagnosticDescriptor SourceAdded = new(
+        id: "VARIANT201SRC",
+        title: nameof(VariantGenerator),
+        messageFormat: $"[{nameof(VariantGenerator)}] source added: {{0}}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    static readonly DiagnosticDescriptor NoTargetTypesFound = new(
+        id: "VARIANT404",
+        title: nameof(VariantGenerator),
+        messageFormat: $"[{nameof(VariantGenerator)}] no target types found for code generation",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    static VariantInfo? ExtractVariantInfo(TypeSymbol t) {
+        TypeSymbol? iVariant = null;
+
+        foreach (var iface in t.Interfaces) {
+            if (iface.Namespace == "Kurrent.Variant" && iface.Name == "IVariant" && iface.TypeArguments.Length > 0) {
+                iVariant = iface;
+                break;
             }
         }
 
-        if (typesFound == 0) ReportDiagnostic(context, NoTargetTypesFound);
+        if (iVariant is null)
+            return null;
+
+        var cases = new VariantCaseInfo[iVariant.TypeArguments.Length];
+
+        for (var i = 0; i < iVariant.TypeArguments.Length; i++) {
+            var arg = iVariant.TypeArguments[i];
+
+            cases[i] = new VariantCaseInfo(
+                FullyQualifiedName: FullyQualified(arg),
+                FullyQualifiedNameForHash: arg.FullName,
+                CleanTypeName: GetCleanTypeName(arg),
+                ParameterName: GetParameterName(arg),
+                IsValueType: arg.IsValueType,
+                IsReferenceType: arg.IsReferenceType,
+                IsNullableOfT: arg.IsNullableOfT);
+        }
+
+        var implementsIVariantException = false;
+
+        foreach (var iface in t.Interfaces) {
+            if (iface.Namespace == "Kurrent.Variant" &&
+                iface.Name.StartsWith("IVariantException", System.StringComparison.Ordinal) &&
+                iface.TypeArguments.Length > 0) {
+                implementsIVariantException = true;
+                break;
+            }
+        }
+
+        var typeParameterNames = new string[t.TypeArguments.Length];
+
+        for (var i = 0; i < t.TypeArguments.Length; i++)
+            typeParameterNames[i] = t.TypeArguments[i].Name;
+
+        var containerChain = new string[t.ContainingTypes.Length];
+
+        for (var i = 0; i < t.ContainingTypes.Length; i++)
+            containerChain[i] = t.ContainingTypes[i].Name;
+
+        return new VariantInfo(
+            ClassName: t.Name,
+            FullName: t.FullName,
+            Namespace: string.IsNullOrEmpty(t.Namespace) ? null : t.Namespace,
+            Kind: t.Kind,
+            ImplementsIVariantException: implementsIVariantException,
+            TypeParameterNames: typeParameterNames,
+            ContainingTypeNames: containerChain,
+            Cases: cases);
     }
 
+    #region ->> String helpers (TypeSymbol-based replacements for the old ISymbol helpers) <<-
 
-    static bool ImplementsIVariantDirectly(INamedTypeSymbol classSymbol, out List<ITypeSymbol> genericTypeArguments) {
-        genericTypeArguments = [];
+    static string FullyQualified(TypeSymbol t) {
+        if (t.Kind == TypeKind.Array && t.ArrayElementType is not null)
+            return $"{FullyQualified(t.ArrayElementType)}[]";
 
-        foreach (var implementedInterface in classSymbol.Interfaces.Where(Predicate))
-            genericTypeArguments.AddRange(implementedInterface.TypeArguments);
+        if (t.IsNullableOfT && t.TypeArguments.Length == 1)
+            return $"{FullyQualified(t.TypeArguments[0])}?";
 
-        return genericTypeArguments.Count != 0;
+        var baseName = $"global::{t.FullName}";
 
-        bool Predicate(INamedTypeSymbol implementedInterface) =>
-            implementedInterface.ContainingNamespace?.ToDisplayString() == "Kurrent.Variant" &&
-            implementedInterface.Name.StartsWith("IVariant") &&
-            implementedInterface.IsGenericType;
+        if (t.TypeArguments.Length > 0 && !t.IsNullableOfT) {
+            var args = new string[t.TypeArguments.Length];
+
+            for (var i = 0; i < t.TypeArguments.Length; i++)
+                args[i] = FullyQualified(t.TypeArguments[i]);
+
+            baseName += $"<{string.Join(", ", args)}>";
+        }
+
+        return baseName;
     }
 
-    static bool ImplementsIVariantException(INamedTypeSymbol classSymbol) {
-        return classSymbol.Interfaces.Any(Predicate);
-
-        bool Predicate(INamedTypeSymbol implementedInterface) =>
-            implementedInterface.ContainingNamespace?.ToDisplayString() == "Kurrent.Variant" &&
-            implementedInterface.Name.StartsWith("IVariantException") &&
-            implementedInterface.IsGenericType;
-    }
-
-    static string GenerateVariantImplementation(INamedTypeSymbol classSymbol, List<ITypeSymbol> typeArguments, GeneratorExecutionContext context) {
-        var className                   = classSymbol.Name;
-        var minimallyQualifiedClassName = classSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-        var namespaceName               = classSymbol.ContainingNamespace.IsGlobalNamespace ? null : classSymbol.ContainingNamespace.ToDisplayString();
-
-        var sb = new StringBuilder();
-        sb.AppendLine($"// <auto-generated by VariantGenerator for {minimallyQualifiedClassName} />");
-        sb.AppendLine("#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.");
-        sb.AppendLine("// ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault");
-        sb.AppendLine("#nullable enable");
-        sb.AppendLine();
-        sb.AppendLine("using System;");
-        sb.AppendLine("using System.CodeDom.Compiler;");
-        sb.AppendLine("using System.Collections.Generic;");
-        sb.AppendLine("using System.Runtime.CompilerServices;");
-        sb.AppendLine("using System.Threading.Tasks;");
-        sb.AppendLine("using Kurrent.Variant;");
-
-        sb.AppendLine();
-
-        if (!string.IsNullOrEmpty(namespaceName)) {
-            sb.AppendLine($"namespace {namespaceName};");
-            sb.AppendLine();
-        }
-
-        var containingTypeSymbols = new List<INamedTypeSymbol>();
-        var currentContainingType = classSymbol.ContainingType;
-        while (currentContainingType != null) {
-            containingTypeSymbols.Add(currentContainingType);
-            currentContainingType = currentContainingType.ContainingType;
-        }
-
-        containingTypeSymbols.Reverse();
-
-        foreach (var containingTypeSymbol in containingTypeSymbols) {
-            sb.AppendLine($"partial class {containingTypeSymbol.Name} {{");
-        }
-
-        var baseIndent = string.Concat(Enumerable.Repeat("    ", containingTypeSymbols.Count));
-
-        // Build the correct interface inheritance
-        var typeParams = string.Join(", ", typeArguments.Select(t => t.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
-
-        sb.AppendLine("[GeneratedCode(\"VariantGenerator\", \"1.0.0\")]");
-        sb.AppendLine("[CompilerGenerated]");
-
-        if (ImplementsIVariantException(classSymbol)) {
-            sb.AppendLine($"{baseIndent}public partial class {className} {{");
-        }
-        else {
-            sb.AppendLine($"{baseIndent}public readonly partial record struct {className} {{");
-        }
-
-        var memberIndent = $"{baseIndent}    ";
-
-        // Use optimized storage for better performance
-        sb.AppendLine($"{memberIndent}readonly object _value;");
-        sb.AppendLine($"{memberIndent}readonly byte _index;"); // byte is sufficient for up to 255 variants
-        sb.AppendLine();
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg                   = typeArguments[i];
-            var typeArgNameForConstructor = typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            var parameterName             = GetParameterName(typeArg);
-
-            sb.AppendLine($"{memberIndent}public {className}({typeArgNameForConstructor} {parameterName}) {{");
-
-            if (!typeArg.IsValueType && typeArg.SpecialType != SpecialType.System_Nullable_T)
-                if (typeArg.IsReferenceType)
-                    sb.AppendLine($"{memberIndent}    ArgumentNullException.ThrowIfNull({parameterName});");
-
-            sb.AppendLine($"{memberIndent}    _value = {parameterName};");
-            sb.AppendLine($"{memberIndent}    _index = {i};");
-            sb.AppendLine();
-            sb.AppendLine($"{memberIndent}}}");
-        }
-
-        sb.AppendLine();
-
-        // Generate the Case enum
-        GenerateCaseEnum(sb, memberIndent, className, typeArguments);
-
-        sb.AppendLine($"{memberIndent}public object Value => _value;");
-        sb.AppendLine($"{memberIndent}public int    Index => _index;");
-        sb.AppendLine();
-        sb.AppendLine($"{memberIndent}public {className}Case Case => ({className}Case)_index;");
-        sb.AppendLine();
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg              = typeArguments[i];
-            var typeArgNameForMember = typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            var propertySuffix       = GetCleanTypeName(typeArg);
-
-            sb.AppendLine($"{memberIndent}public bool Is{propertySuffix} => Case == {className}Case.{propertySuffix};");
-            sb.AppendLine($"{memberIndent}public {typeArgNameForMember} As{propertySuffix} => Is{propertySuffix} ? ({typeArgNameForMember})Value! : throw new InvalidOperationException($\"Cannot return as {propertySuffix} as current type is {{Value?.GetType().Name ?? \"unknown\"}} (Case {{Case}})\");");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("#region . Implicit Operators .");
-        sb.AppendLine();
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg                = typeArguments[i];
-            var typeArgNameForImplicit = typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            var parameterName          = GetParameterName(typeArg);
-            var propertySuffix         = GetCleanTypeName(typeArg);
-
-            var fullyQualifiedClassName = classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            sb.AppendLine($"{memberIndent}public static implicit operator {minimallyQualifiedClassName}({typeArgNameForImplicit} _) => new(_);");
-            sb.AppendLine($"{memberIndent}public static implicit operator {typeArgNameForImplicit}({minimallyQualifiedClassName} _) => _.As{propertySuffix};");
-        }
-        sb.AppendLine();
-        sb.AppendLine("#endregion");
-        sb.AppendLine();
-
-        GenerateSwitchMethods(sb, memberIndent, className, typeArguments);
-        ReportDiagnostic(context, SwitchMethodsGenerated, classSymbol);
-
-        GenerateMatchMethods(sb, memberIndent, className, typeArguments);
-        ReportDiagnostic(context, MatchMethodsGenerated, classSymbol);
-
-        if (ImplementsIVariantException(classSymbol)) {
-            // GenerateVariantExceptionImplementation(sb, memberIndent, className, typeArguments);
-            ReportDiagnostic(context, VariantExceptionTypeGenerated, classSymbol);
-        }
-        else {
-            ReportDiagnostic(context, VariantTypeGenerated, classSymbol);
-        }
-
-        if (classSymbol.TypeKind == TypeKind.Struct)
-            GenerateToStringOverride(sb, memberIndent);
-
-        sb.AppendLine($"{baseIndent}}}");
-        for (var i = containingTypeSymbols.Count - 1; i >= 0; i--)
-            sb.AppendLine($"{string.Concat(Enumerable.Repeat("    ", i))}}}");
-        return sb.ToString();
-    }
-
-    static void GenerateVariantExceptionImplementation(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        var code = """
-            #region . IVariantException .
-            
-            //<inheritdoc />
-            public ErrorCode ErrorCode => ErrorCode.FromType(Value.GetType());
-
-            //<inheritdoc />
-            public string ErrorMessage => ((Exception)Value).Message;
-
-            //<inheritdoc />
-            public ImmutableDictionary<string, object?> Metadata => ImmutableDictionary<string, object?>.Empty
-                .Add(ResultError.ReservedErrorCodeKey, ErrorCode.FromType(Value.GetType()));
-
-            //<inheritdoc />
-            public Exception GetOrCreateException() => (Exception)Value;
-            
-            #endregion
-            """;
-
-        sb.AppendLine($"{indent}{code}");
-    }
-
-    #region ->> Method Generators <<-
-
-    #region ->> Switch Method Generators <<-
-    static void GenerateSwitchMethods(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        sb.AppendLine();
-        sb.AppendLine($"{indent}#region . Switch .");
-        sb.AppendLine();
-
-        sb.Append($"{indent}public void Switch(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            // Ensure paramName is a valid identifier (e.g. if cleanTypeName had invalid chars, though GetCleanTypeName should sanitize)
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Action<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-
-        sb.AppendLine(") {");
-        sb.AppendLine($"{indent}    switch (Case) {{");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}        case {className}Case.{propertySuffix}: {paramName}(As{propertySuffix}); break;");
-        }
-
-        sb.AppendLine($"{indent}    }}");
-        sb.AppendLine($"{indent}}}");
-        sb.AppendLine();
-
-        GenerateSwitchWithState(sb, indent, className, typeArguments);
-
-        GenerateSwitchAsync(sb, indent, className, typeArguments);
-
-        sb.AppendLine($"{indent}#endregion");
-    }
-
-    static void GenerateSwitchWithState(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        sb.Append($"{indent}public void Switch<TState>(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Action<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, TState> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-        sb.AppendLine(", TState state) {");
-        sb.AppendLine($"{indent}    switch (Case) {{");
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}        case {className}Case.{propertySuffix}: {paramName}(As{propertySuffix}, state); break;");
-        }
-
-        sb.AppendLine($"{indent}    }}");
-        sb.AppendLine($"{indent}}}");
-        sb.AppendLine();
-    }
-
-    static void GenerateSwitchAsync(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        sb.Append($"{indent}public ValueTask SwitchAsync(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Func<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, ValueTask> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-        sb.AppendLine(") => Case switch {");
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}    {className}Case.{propertySuffix} => {paramName}(As{propertySuffix}),");
-        }
-
-        sb.AppendLine($"{indent}}};");
-        sb.AppendLine();
-
-        sb.Append($"{indent}public ValueTask SwitchAsync<TState>(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Func<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, TState, ValueTask> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-        sb.AppendLine(", TState state) => Case switch {");
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}    {className}Case.{propertySuffix} => {paramName}(As{propertySuffix}, state),");
-        }
-
-        sb.AppendLine($"{indent}}};");
-        sb.AppendLine();
-    }
-
-    #endregion
-
-    #region ->> Match Method Generators <<-
-
-    static void GenerateMatchMethods(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        sb.AppendLine();
-        sb.AppendLine($"{indent}#region . Match .");
-        sb.AppendLine();
-
-        sb.Append($"{indent}public TResult Match<TResult>(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName))) paramName = $"@{paramName}";
-
-            sb.Append($"Func<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, TResult> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-
-        sb.AppendLine(") => Case switch {");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}    {className}Case.{propertySuffix} => {paramName}(As{propertySuffix}),");
-        }
-
-        sb.AppendLine($"{indent}}};");
-        sb.AppendLine();
-
-        GenerateMatchWithState(sb, indent, className, typeArguments);
-
-        GenerateMatchAsync(sb, indent, className, typeArguments);
-
-        sb.AppendLine($"{indent}#endregion");
-    }
-
-    static void GenerateMatchWithState(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        sb.Append($"{indent}public TResult Match<TResult, TState>(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Func<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, TState, TResult> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-        sb.AppendLine(", TState state) => Case switch {");
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}    {className}Case.{propertySuffix} => {paramName}(As{propertySuffix}, state),");
-        }
-
-        // sb.AppendLine($"{indent}    _ => throw new InvalidOperationException(\"Unhandled case in Match statement.\")");
-        sb.AppendLine($"{indent}}};");
-        sb.AppendLine();
-    }
-
-    static void GenerateMatchAsync(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        // All async variant
-        sb.Append($"{indent}public ValueTask<TResult> MatchAsync<TResult>(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Func<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, ValueTask<TResult>> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-        sb.AppendLine(") => Case switch {");
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}    {className}Case.{propertySuffix} => {paramName}(As{propertySuffix}),");
-        }
-
-        // sb.AppendLine($"{indent}    _ => throw new InvalidOperationException(\"Unhandled case in MatchAsync statement.\")");
-        sb.AppendLine($"{indent}}};");
-        sb.AppendLine();
-
-        // Async with state variant
-        sb.Append($"{indent}public ValueTask<TResult> MatchAsync<TResult, TState>(");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg       = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            var paramName     = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.Append($"Func<{typeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}, TState, ValueTask<TResult>> {paramName}");
-            if (i < typeArguments.Count - 1) sb.Append(", ");
-        }
-        sb.AppendLine(", TState state) => Case switch {");
-
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg        = typeArguments[i];
-            var propertySuffix = GetCleanTypeName(typeArg);
-            var cleanTypeName  = GetCleanTypeName(typeArg);
-            var paramName      = $"on{cleanTypeName}";
-            paramName = SanitizeIdentifier(paramName);
-            if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramName)))
-                paramName = $"@{paramName}";
-
-            sb.AppendLine($"{indent}    {className}Case.{propertySuffix} => {paramName}(As{propertySuffix}, state),");
-        }
-
-        // sb.AppendLine($"{indent}    _ => throw new InvalidOperationException(\"Unhandled case in MatchAsync statement.\")");
-        sb.AppendLine($"{indent}}};");
-        sb.AppendLine();
-    }
-
-    #endregion
-
-    static void GenerateCaseEnum(StringBuilder sb, string indent, string className, List<ITypeSymbol> typeArguments) {
-        sb.AppendLine($"{indent}public enum {className}Case : byte {{");
-        for (var i = 0; i < typeArguments.Count; i++) {
-            var typeArg = typeArguments[i];
-            var cleanTypeName = GetCleanTypeName(typeArg);
-            sb.AppendLine($"{indent}    {cleanTypeName} = {i}{(i < typeArguments.Count - 1 ? "," : "")}");
-        }
-        sb.AppendLine($"{indent}}}");
-        sb.AppendLine();
-    }
-
-    static void GenerateToStringOverride(StringBuilder sb, string indent) {
-        sb.AppendLine();
-        sb.AppendLine($"{indent}/// <summary>");
-        sb.AppendLine($"{indent}/// Returns a string representation of the current variant value.");
-        sb.AppendLine($"{indent}/// </summary>");
-        sb.AppendLine($"{indent}public override string? ToString() => _value?.ToString();");
-    }
-
-    #endregion
-
-    #region ->> Helper Methods <<-
-
-    static string GetCleanTypeName(ITypeSymbol typeSymbol) {
-        switch (typeSymbol.SpecialType) {
+    static string GetCleanTypeName(TypeSymbol t) {
+        switch (t.Special) {
             case SpecialType.System_Boolean: return "Bool";
 
             case SpecialType.System_Byte: return "Byte";
@@ -586,77 +223,100 @@ public class VariantGenerator : ISourceGenerator {
             case SpecialType.System_String: return "String";
         }
 
-        if (typeSymbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T, TypeArguments.Length: 1 } namedTypeSymbol)
-            return $"{GetCleanTypeName(namedTypeSymbol.TypeArguments[0])}Nullable";
+        if (t.IsNullableOfT && t.TypeArguments.Length == 1)
+            return $"{GetCleanTypeName(t.TypeArguments[0])}Nullable";
 
-        var name = typeSymbol.Name;
-        if (typeSymbol is INamedTypeSymbol { IsGenericType: true } namedType) {
-            if (namedType.OriginalDefinition.SpecialType != SpecialType.System_Nullable_T)
-                name = namedType.Name + string.Join("", namedType.TypeArguments.Select(GetCleanTypeName));
+        var name = t.Name;
+
+        if (t.TypeArguments.Length > 0 && !t.IsNullableOfT) {
+            var sb = new StringBuilder(t.Name);
+
+            foreach (var arg in t.TypeArguments)
+                sb.Append(GetCleanTypeName(arg));
+
+            name = sb.ToString();
         }
-        else if (typeSymbol is IArrayTypeSymbol arrayType) {
-            name = $"{GetCleanTypeName(arrayType.ElementType)}Array";
+        else if (t.Kind == TypeKind.Array && t.ArrayElementType is not null) {
+            name = $"{GetCleanTypeName(t.ArrayElementType)}Array";
         }
 
         name = name.Replace(".", "").Replace("<", "").Replace(">", "").Replace(",", "").Replace(" ", "");
-        if (string.IsNullOrEmpty(name) || name == "Nullable`1") {
-            if (typeSymbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T, TypeArguments.Length: 1 } nt)
-                return $"{GetCleanTypeName(nt.TypeArguments[0])}Nullable";
 
+        if (string.IsNullOrEmpty(name) || name == "Nullable`1")
             return "Type";
-        }
 
-        if (name.Length > 0 && char.IsDigit(name[0])) name = $"_{name}";
+        if (name.Length > 0 && char.IsDigit(name[0]))
+            name = $"_{name}";
+
         return SanitizeIdentifier(name);
     }
 
     static string SanitizeIdentifier(string name) {
-        if (string.IsNullOrEmpty(name)) return "_";
+        if (string.IsNullOrEmpty(name))
+            return "_";
 
-        var idBuilder = new StringBuilder();
-        if (name.Length > 0 && !char.IsLetter(name[0]) && name[0] != '_') idBuilder.Append('_');
+        var sb = new StringBuilder();
+
+        if (!char.IsLetter(name[0]) && name[0] != '_')
+            sb.Append('_');
+
         foreach (var c in name)
             if (char.IsLetterOrDigit(c) || c == '_')
-                idBuilder.Append(c);
+                sb.Append(c);
             else
-                idBuilder.Append('_');
+                sb.Append('_');
 
-        var result = idBuilder.ToString();
+        var result = sb.ToString();
         return string.IsNullOrEmpty(result) ? "GeneratedType" : result;
     }
 
-    static string GetParameterName(ITypeSymbol typeSymbol) {
+    static string GetParameterName(TypeSymbol t) {
         string paramNameBase;
-        if (typeSymbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T, TypeArguments.Length: 1 } namedTypeSymbol)
-            paramNameBase = $"{GetParameterName(namedTypeSymbol.TypeArguments[0])}Opt";
+
+        if (t.IsNullableOfT && t.TypeArguments.Length == 1)
+            paramNameBase = $"{GetParameterName(t.TypeArguments[0])}Opt";
         else
-            switch (typeSymbol.SpecialType) {
+            switch (t.Special) {
                 case SpecialType.System_Boolean: paramNameBase = "bool"; break;
+
                 case SpecialType.System_Byte: paramNameBase = "byte"; break;
+
                 case SpecialType.System_SByte: paramNameBase = "sbyte"; break;
+
                 case SpecialType.System_Char: paramNameBase = "char"; break;
+
                 case SpecialType.System_Decimal: paramNameBase = "decimal"; break;
+
                 case SpecialType.System_Double: paramNameBase = "double"; break;
+
                 case SpecialType.System_Single: paramNameBase = "float"; break;
+
                 case SpecialType.System_Int32: paramNameBase = "int"; break;
+
                 case SpecialType.System_UInt32: paramNameBase = "uint"; break;
+
                 case SpecialType.System_Int64: paramNameBase = "long"; break;
+
                 case SpecialType.System_UInt64: paramNameBase = "ulong"; break;
+
                 case SpecialType.System_Int16: paramNameBase = "short"; break;
+
                 case SpecialType.System_UInt16: paramNameBase = "ushort"; break;
+
                 case SpecialType.System_Object: paramNameBase = "object"; break;
+
                 case SpecialType.System_String: paramNameBase = "string"; break;
 
-                default:
-                    var cleanTypeName = GetCleanTypeName(typeSymbol);
-                    if (string.IsNullOrEmpty(cleanTypeName) || cleanTypeName == "_" || cleanTypeName.EndsWith("Nullable")) {
-                        if (cleanTypeName.EndsWith("Nullable")) {
-                            // e.g. "IntNullable" -> "intOpt"
-                            var baseName = cleanTypeName.Substring(0, cleanTypeName.Length - "Nullable".Length);
-                            // Convert baseName (e.g. "Int") to camelCase for the parameter part
+                default: {
+                    var clean = GetCleanTypeName(t);
+
+                    if (string.IsNullOrEmpty(clean) || clean == "_" || clean.EndsWith("Nullable", System.StringComparison.Ordinal)) {
+                        if (clean.EndsWith("Nullable", System.StringComparison.Ordinal)) {
+                            var baseName = clean.Substring(0, clean.Length - "Nullable".Length);
+
                             if (baseName.Length > 0 && char.IsUpper(baseName[0]))
                                 baseName = char.ToLowerInvariant(baseName[0]) + baseName.Substring(1);
-                            else if (string.IsNullOrEmpty(baseName)) // Should not happen if GetCleanTypeName is robust
+                            else if (string.IsNullOrEmpty(baseName))
                                 baseName = "value";
 
                             paramNameBase = $"{baseName}Opt";
@@ -665,29 +325,30 @@ public class VariantGenerator : ISourceGenerator {
                             paramNameBase = "arg";
                         }
                     }
-                    else if (char.IsUpper(cleanTypeName[0])) {
-                        if (cleanTypeName.Length == 1 || (cleanTypeName.Length > 1 && char.IsLower(cleanTypeName[1]))) {
-                            paramNameBase = char.ToLowerInvariant(cleanTypeName[0]) + cleanTypeName.Substring(1);
+                    else if (char.IsUpper(clean[0])) {
+                        if (clean.Length == 1 || (clean.Length > 1 && char.IsLower(clean[1]))) {
+                            paramNameBase = char.ToLowerInvariant(clean[0]) + clean.Substring(1);
                         }
                         else {
                             var allUpper = true;
-                            foreach (var c_ in cleanTypeName)
-                                if (char.IsLower(c_)) {
+
+                            foreach (var c in clean)
+                                if (char.IsLower(c)) {
                                     allUpper = false;
                                     break;
                                 }
 
-                            if (allUpper)
-                                paramNameBase = cleanTypeName.ToLowerInvariant();
-                            else
-                                paramNameBase = char.ToLowerInvariant(cleanTypeName[0]) + cleanTypeName.Substring(1);
+                            paramNameBase = allUpper
+                                ? clean.ToLowerInvariant()
+                                : char.ToLowerInvariant(clean[0]) + clean.Substring(1);
                         }
                     }
                     else {
-                        paramNameBase = cleanTypeName;
+                        paramNameBase = clean;
                     }
 
                     break;
+                }
             }
 
         if (SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(paramNameBase)) || paramNameBase == "value")
@@ -696,75 +357,428 @@ public class VariantGenerator : ISourceGenerator {
         return paramNameBase;
     }
 
-    static string GetSafeFileNameFromType(ITypeSymbol typeSymbol) =>
-        GetCleanTypeName(typeSymbol)
-            .Replace("<", "_")
-            .Replace(">", "_")
-            .Replace(",", "_")
-            .Replace(" ", "_")
-            .Replace("?", "_nullable");
+    #endregion
+
+    #region ->> Emission <<-
+
+    static string GenerateVariantImplementation(VariantInfo info) {
+        var className = info.ClassName;
+
+        var minimallyQualifiedClassName = info.TypeParameterNames.Length > 0
+            ? $"{className}<{string.Join(", ", info.TypeParameterNames)}>"
+            : className;
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"// <auto-generated by VariantGenerator for {minimallyQualifiedClassName} />");
+
+        sb.AppendLine(
+            "#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.");
+
+        sb.AppendLine("// ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.CodeDom.Compiler;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Runtime.CompilerServices;");
+        sb.AppendLine("using System.Threading.Tasks;");
+        sb.AppendLine("using Kurrent.Variant;");
+
+        sb.AppendLine();
+
+        if (!string.IsNullOrEmpty(info.Namespace)) {
+            sb.AppendLine($"namespace {info.Namespace};");
+            sb.AppendLine();
+        }
+
+        foreach (var containingName in info.ContainingTypeNames)
+            sb.AppendLine($"partial class {containingName} {{");
+
+        var baseIndent = new string(' ', 4 * info.ContainingTypeNames.Length);
+
+        sb.AppendLine("[GeneratedCode(\"VariantGenerator\", \"1.0.0\")]");
+        sb.AppendLine("[CompilerGenerated]");
+
+        if (info.ImplementsIVariantException) {
+            sb.AppendLine($"{baseIndent}public partial class {className} {{");
+        }
+        else {
+            sb.AppendLine($"{baseIndent}public readonly partial record struct {className} {{");
+        }
+
+        var memberIndent = $"{baseIndent}    ";
+
+        sb.AppendLine($"{memberIndent}readonly object _value;");
+        sb.AppendLine($"{memberIndent}readonly byte _index;");
+        sb.AppendLine();
+
+        for (var i = 0; i < info.Cases.Length; i++) {
+            var c = info.Cases[i];
+
+            sb.AppendLine($"{memberIndent}public {className}({c.FullyQualifiedName} {c.ParameterName}) {{");
+
+            if (!c.IsValueType && !c.IsNullableOfT && c.IsReferenceType)
+                sb.AppendLine($"{memberIndent}    ArgumentNullException.ThrowIfNull({c.ParameterName});");
+
+            sb.AppendLine($"{memberIndent}    _value = {c.ParameterName};");
+            sb.AppendLine($"{memberIndent}    _index = {i};");
+            sb.AppendLine();
+            sb.AppendLine($"{memberIndent}}}");
+        }
+
+        sb.AppendLine();
+
+        GenerateCaseEnum(
+            sb, memberIndent, className,
+            info.Cases);
+
+        sb.AppendLine($"{memberIndent}public object Value => _value;");
+        sb.AppendLine($"{memberIndent}public int    Index => _index;");
+        sb.AppendLine();
+        sb.AppendLine($"{memberIndent}public {className}Case Case => ({className}Case)_index;");
+        sb.AppendLine();
+
+        for (var i = 0; i < info.Cases.Length; i++) {
+            var c = info.Cases[i];
+            sb.AppendLine($"{memberIndent}public bool Is{c.CleanTypeName} => Case == {className}Case.{c.CleanTypeName};");
+
+            sb.AppendLine(
+                $"{memberIndent}public {c.FullyQualifiedName} As{c.CleanTypeName} => Is{c.CleanTypeName} ? ({c.FullyQualifiedName})Value! : throw new InvalidOperationException($\"Cannot return as {c.CleanTypeName} as current type is {{Value?.GetType().Name ?? \"unknown\"}} (Case {{Case}})\");");
+
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("#region . Implicit Operators .");
+        sb.AppendLine();
+
+        for (var i = 0; i < info.Cases.Length; i++) {
+            var c = info.Cases[i];
+            sb.AppendLine($"{memberIndent}public static implicit operator {minimallyQualifiedClassName}({c.FullyQualifiedName} _) => new(_);");
+            sb.AppendLine($"{memberIndent}public static implicit operator {c.FullyQualifiedName}({minimallyQualifiedClassName} _) => _.As{c.CleanTypeName};");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("#endregion");
+        sb.AppendLine();
+
+        GenerateSwitchMethods(
+            sb, memberIndent, className,
+            info.Cases);
+
+        GenerateMatchMethods(
+            sb, memberIndent, className,
+            info.Cases);
+
+        if (info.Kind == TypeKind.Struct || info.Kind == TypeKind.RecordStruct)
+            GenerateToStringOverride(sb, memberIndent);
+
+        sb.AppendLine($"{baseIndent}}}");
+
+        for (var i = info.ContainingTypeNames.Length - 1; i >= 0; i--)
+            sb.AppendLine($"{new string(' ', 4 * i)}}}");
+
+        return sb.ToString();
+    }
+
+    static void GenerateCaseEnum(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.AppendLine($"{indent}public enum {className}Case : byte {{");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {c.CleanTypeName} = {i}{(i < cases.Length - 1 ? "," : "")}");
+        }
+
+        sb.AppendLine($"{indent}}}");
+        sb.AppendLine();
+    }
+
+    static void GenerateToStringOverride(StringBuilder sb, string indent) {
+        sb.AppendLine();
+        sb.AppendLine($"{indent}/// <summary>");
+        sb.AppendLine($"{indent}/// Returns a string representation of the current variant value.");
+        sb.AppendLine($"{indent}/// </summary>");
+        sb.AppendLine($"{indent}public override string? ToString() => _value?.ToString();");
+    }
 
     #endregion
 
-    #region ->> Diagnostic Helpers <<-
+    #region ->> Switch emission <<-
 
-    static readonly DiagnosticDescriptor SwitchMethodsGenerated = new(
-        "VARIANT002",
-        nameof(VariantGenerator),
-        $"[{nameof(VariantGenerator)}] switch methods generated for: {{0}}",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+    static void GenerateSwitchMethods(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.AppendLine();
+        sb.AppendLine($"{indent}#region . Switch .");
+        sb.AppendLine();
 
-    static readonly DiagnosticDescriptor MatchMethodsGenerated = new(
-        "VARIANT003",
-        nameof(VariantGenerator),
-        $"[{nameof(VariantGenerator)}] match methods generated for: {{0}}",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        sb.Append($"{indent}public void Switch(");
 
-    static readonly DiagnosticDescriptor VariantTypeGenerated = new(
-        "VARIANT201",
-        nameof(VariantGenerator),
-        $"[{nameof(VariantGenerator)}] completed 'IVariant' code generation for: {{0}}",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        AppendSwitchParameterList(
+            sb, cases, async: false,
+            withState: false);
 
-    static readonly DiagnosticDescriptor VariantExceptionTypeGenerated = new(
-        "VARIANT201EX",
-        nameof(VariantGenerator),
-        $"[{nameof(VariantGenerator)}] completed 'IVariantException' code generation for: {{0}}",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        sb.AppendLine(") {");
+        sb.AppendLine($"{indent}    switch (Case) {{");
 
-    static readonly DiagnosticDescriptor SourceAdded = new(
-        "VARIANT201SRC",
-        nameof(VariantGenerator),
-        $"[{nameof(VariantGenerator)}] source added: {{0}}",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}        case {className}Case.{c.CleanTypeName}: {BuildParamName(c)}(As{c.CleanTypeName}); break;");
+        }
 
-    static readonly DiagnosticDescriptor NoTargetTypesFound = new(
-        "VARIANT404",
-        nameof(VariantGenerator),
-        $"[{nameof(VariantGenerator)}] no target types found for code generation",
-        "CodeGeneration",
-        DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        sb.AppendLine($"{indent}    }}");
+        sb.AppendLine($"{indent}}}");
+        sb.AppendLine();
 
-    static void ReportDiagnostic(GeneratorExecutionContext context, DiagnosticDescriptor descriptor, INamedTypeSymbol classSymbol) {
-        var diagnostic = Diagnostic.Create(descriptor, Location.None, classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", ""));
-        context.ReportDiagnostic(diagnostic);
+        GenerateSwitchWithState(
+            sb, indent, className,
+            cases);
+
+        GenerateSwitchAsync(
+            sb, indent, className,
+            cases);
+
+        sb.AppendLine($"{indent}#endregion");
     }
 
-    static void ReportDiagnostic(GeneratorExecutionContext context, DiagnosticDescriptor descriptor, params object?[]? messageArgs) {
-        var diagnostic = Diagnostic.Create(descriptor, Location.None, messageArgs);
-        context.ReportDiagnostic(diagnostic);
+    static void GenerateSwitchWithState(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}public void Switch<TState>(");
+
+        AppendSwitchParameterList(
+            sb, cases, async: false,
+            withState: true);
+
+        sb.AppendLine(", TState state) {");
+        sb.AppendLine($"{indent}    switch (Case) {{");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}        case {className}Case.{c.CleanTypeName}: {BuildParamName(c)}(As{c.CleanTypeName}, state); break;");
+        }
+
+        sb.AppendLine($"{indent}    }}");
+        sb.AppendLine($"{indent}}}");
+        sb.AppendLine();
+    }
+
+    static void GenerateSwitchAsync(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}public ValueTask SwitchAsync(");
+
+        AppendSwitchParameterList(
+            sb, cases, async: true,
+            withState: false);
+
+        sb.AppendLine(") => Case switch {");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {className}Case.{c.CleanTypeName} => {BuildParamName(c)}(As{c.CleanTypeName}),");
+        }
+
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+
+        sb.Append($"{indent}public ValueTask SwitchAsync<TState>(");
+
+        AppendSwitchParameterList(
+            sb, cases, async: true,
+            withState: true);
+
+        sb.AppendLine(", TState state) => Case switch {");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {className}Case.{c.CleanTypeName} => {BuildParamName(c)}(As{c.CleanTypeName}, state),");
+        }
+
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+    }
+
+    static void AppendSwitchParameterList(StringBuilder sb, VariantCaseInfo[] cases, bool async, bool withState) {
+        for (var i = 0; i < cases.Length; i++) {
+            var c         = cases[i];
+            var paramName = BuildParamName(c);
+
+            string signature;
+
+            if (async)
+                signature = withState
+                    ? $"Func<{c.FullyQualifiedName}, TState, ValueTask> {paramName}"
+                    : $"Func<{c.FullyQualifiedName}, ValueTask> {paramName}";
+            else
+                signature = withState
+                    ? $"Action<{c.FullyQualifiedName}, TState> {paramName}"
+                    : $"Action<{c.FullyQualifiedName}> {paramName}";
+
+            sb.Append(signature);
+
+            if (i < cases.Length - 1)
+                sb.Append(", ");
+        }
     }
 
     #endregion
+
+    #region ->> Match emission <<-
+
+    static void GenerateMatchMethods(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.AppendLine();
+        sb.AppendLine($"{indent}#region . Match .");
+        sb.AppendLine();
+
+        sb.Append($"{indent}public TResult Match<TResult>(");
+
+        AppendMatchParameterList(
+            sb, cases, async: false,
+            withState: false);
+
+        sb.AppendLine(") => Case switch {");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {className}Case.{c.CleanTypeName} => {BuildParamName(c)}(As{c.CleanTypeName}),");
+        }
+
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+
+        GenerateMatchWithState(
+            sb, indent, className,
+            cases);
+
+        GenerateMatchAsync(
+            sb, indent, className,
+            cases);
+
+        sb.AppendLine($"{indent}#endregion");
+    }
+
+    static void GenerateMatchWithState(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}public TResult Match<TResult, TState>(");
+
+        AppendMatchParameterList(
+            sb, cases, async: false,
+            withState: true);
+
+        sb.AppendLine(", TState state) => Case switch {");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {className}Case.{c.CleanTypeName} => {BuildParamName(c)}(As{c.CleanTypeName}, state),");
+        }
+
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+    }
+
+    static void GenerateMatchAsync(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}public ValueTask<TResult> MatchAsync<TResult>(");
+
+        AppendMatchParameterList(
+            sb, cases, async: true,
+            withState: false);
+
+        sb.AppendLine(") => Case switch {");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {className}Case.{c.CleanTypeName} => {BuildParamName(c)}(As{c.CleanTypeName}),");
+        }
+
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+
+        sb.Append($"{indent}public ValueTask<TResult> MatchAsync<TResult, TState>(");
+
+        AppendMatchParameterList(
+            sb, cases, async: true,
+            withState: true);
+
+        sb.AppendLine(", TState state) => Case switch {");
+
+        for (var i = 0; i < cases.Length; i++) {
+            var c = cases[i];
+            sb.AppendLine($"{indent}    {className}Case.{c.CleanTypeName} => {BuildParamName(c)}(As{c.CleanTypeName}, state),");
+        }
+
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+    }
+
+    static void AppendMatchParameterList(StringBuilder sb, VariantCaseInfo[] cases, bool async, bool withState) {
+        for (var i = 0; i < cases.Length; i++) {
+            var c         = cases[i];
+            var paramName = BuildParamName(c);
+
+            string signature;
+
+            if (async)
+                signature = withState
+                    ? $"Func<{c.FullyQualifiedName}, TState, ValueTask<TResult>> {paramName}"
+                    : $"Func<{c.FullyQualifiedName}, ValueTask<TResult>> {paramName}";
+            else
+                signature = withState
+                    ? $"Func<{c.FullyQualifiedName}, TState, TResult> {paramName}"
+                    : $"Func<{c.FullyQualifiedName}, TResult> {paramName}";
+
+            sb.Append(signature);
+
+            if (i < cases.Length - 1)
+                sb.Append(", ");
+        }
+    }
+
+    #endregion
+
+    static string BuildParamName(VariantCaseInfo c) {
+        var raw       = $"on{c.CleanTypeName}";
+        var sanitized = SanitizeIdentifier(raw);
+
+        return SyntaxFacts.IsKeywordKind(SyntaxFacts.GetKeywordKind(sanitized))
+            ? $"@{sanitized}"
+            : sanitized;
+    }
+
+    sealed record VariantInfo(
+        string ClassName,
+        string FullName,
+        string? Namespace,
+        TypeKind Kind,
+        bool ImplementsIVariantException,
+        string[] TypeParameterNames,
+        string[] ContainingTypeNames,
+        VariantCaseInfo[] Cases
+    ) {
+        public bool Equals(VariantInfo? other) =>
+            other is not null
+         && ClassName == other.ClassName
+         && FullName == other.FullName
+         && Namespace == other.Namespace
+         && Kind == other.Kind
+         && ImplementsIVariantException == other.ImplementsIVariantException
+         && TypeParameterNames.AsSpan().SequenceEqual(other.TypeParameterNames.AsSpan())
+         && ContainingTypeNames.AsSpan().SequenceEqual(other.ContainingTypeNames.AsSpan())
+         && Cases.AsSpan().SequenceEqual(other.Cases.AsSpan());
+
+        public override int GetHashCode() {
+            var hash = HashCombine.Start;
+            hash = HashCombine.Add(hash, ClassName);
+            hash = HashCombine.Add(hash, FullName);
+            hash = HashCombine.Add(hash, Namespace);
+            hash = HashCombine.Add(hash, Kind);
+            hash = HashCombine.Add(hash, ImplementsIVariantException);
+            hash = HashCombine.AddRange(hash, TypeParameterNames);
+            hash = HashCombine.AddRange(hash, ContainingTypeNames);
+            hash = HashCombine.AddRange(hash, Cases);
+            return hash;
+        }
+    }
+
+    sealed record VariantCaseInfo(
+        string FullyQualifiedName,
+        string FullyQualifiedNameForHash,
+        string CleanTypeName,
+        string ParameterName,
+        bool IsValueType,
+        bool IsReferenceType,
+        bool IsNullableOfT
+    );
 }

@@ -166,37 +166,37 @@ sealed partial class DroneTelemetry : TelemetrySource {
 
     #region ->> Logging <<-
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{DroneId}] Starting")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Starting")]
     partial void LogStarting(string processorId, string droneId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{DroneId}] Restoring state ({PartitionCount} partitions)")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Restoring state ({PartitionCount} partitions)")]
     partial void LogRestoringState(string processorId, string droneId, int partitionCount);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{DroneId}] State restored (position: {StartPosition}, partitions: {PartitionCount})")]
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] State restored (position: {StartPosition}, partitions: {PartitionCount})")]
     partial void LogStateRestored(string processorId, string droneId, LogPosition startPosition, int partitionCount);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{DroneId}] Processing (sessionId: {SessionId})")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Processing (sessionId: {SessionId})")]
     partial void LogProcessing(string processorId, string droneId, Guid sessionId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{DroneId}] Record processed (total: {TotalRecords})")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Record processed (total: {TotalRecords})")]
     partial void LogRecordProcessed(string processorId, string droneId, long totalRecords);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{DroneId}] Checkpoint {CheckpointId} ({Trigger}) initiated")]
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Checkpoint {CheckpointId} ({Trigger}) initiated")]
     partial void LogCheckpointInitiated(string processorId, string droneId, string checkpointId, CheckpointTrigger trigger);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{DroneId}] Checkpoint {CheckpointId} ({Trigger}) completed (positions: [{Positions}])")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Checkpoint {CheckpointId} ({Trigger}) completed (positions: [{Positions}])")]
     partial void LogCheckpointComplete(string processorId, string droneId, string checkpointId, CheckpointTrigger trigger, PartitionPositions positions);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "[{ProcessorId}/{DroneId}] Checkpoint {CheckpointId} ({Trigger}) failed: {Message}")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "[{DroneId}] Checkpoint {CheckpointId} ({Trigger}) failed: {Message}")]
     partial void LogCheckpointFailed(Exception ex, string processorId, string droneId, string checkpointId, CheckpointTrigger trigger, PartitionPositions positions, string message);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{DroneId}] Stopping ({TotalRecords} records in {Duration} | {RecordsPerSecond:F1} rec/s)")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Stopping ({TotalRecords} records in {Duration} | {RecordsPerSecond:F1} rec/s)")]
     partial void LogStopping(string processorId, string droneId, long totalRecords, TimeSpan duration, double recordsPerSecond);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{DroneId}] Stopped Gracefully {Reason}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Stopped Gracefully {Reason}")]
     partial void LogStopped(string processorId, string droneId, string? reason = null);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "[{ProcessorId}/{DroneId}] Error: {Message}")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "[{DroneId}] Error: {Message}")]
     partial void LogError(Exception ex, string processorId, string droneId, string message);
 
     #endregion

@@ -13,9 +13,9 @@ var stream = $"order-{Guid.NewGuid().ToString()[..8]}";
 
 // Append events
 var req = AppendStreamRequest.For(stream)
-    .WithRecord(new OrderPlaced("ORD-001", "Alice", 3, DateTimeOffset.UtcNow))
-    .WithRecord(new OrderPaid("ORD-001", 29.97m, DateTimeOffset.UtcNow))
-    .WithRecord(new OrderShipped("ORD-001", "TRACK-9876", DateTimeOffset.UtcNow))
+    .WithMessage(new OrderPlaced("ORD-001", "Alice", 3, DateTimeOffset.UtcNow))
+    .WithMessage(new OrderPaid("ORD-001", 29.97m, DateTimeOffset.UtcNow))
+    .WithMessage(new OrderShipped("ORD-001", "TRACK-9876", DateTimeOffset.UtcNow))
     .ExpectingState(ExpectedStreamState.NoStream)
     .Build();
 

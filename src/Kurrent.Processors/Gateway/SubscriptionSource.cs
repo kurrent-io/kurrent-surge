@@ -48,12 +48,14 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
         _clock        = new HybridLogicalClock(timeProvider);
         _tracker      = new PartitionedPositionTracker();
 
-        _checkpointStore = new CheckpointStore(
+        _checkpointStore = new KurrentDBCheckpointStore(
             settings.ProcessorId,
             settings.MaxParallelism,
             settings.Checkpoint.RetentionCount,
             client.Streams,
-            TypeMapper
+            TypeMapper,
+            _timeProvider,
+            NullLogger<KurrentDBCheckpointStore>.Instance
         );
     }
 
@@ -184,6 +186,17 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
                     // Expected on shutdown
                 }
             }, timerCt);
+            
+            SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
+                var now = _clock.Now();
+
+                return new Checkpoint(
+                    CheckpointId.From(now),
+                    trigger,
+                    now.DateTimeOffset,
+                    PartitionPositions.Empty
+                );
+            }
         }
     }
 
@@ -226,16 +239,6 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
     #region ->> Internals <<-
 
-    SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
-        var now = _clock.Now();
-
-        return new Checkpoint(
-            CheckpointId.From(now),
-            trigger,
-            now.DateTimeOffset,
-            PartitionPositions.Empty
-        );
-    }
 
     Checkpoint SnapshotCheckpointMessage(CheckpointTrigger trigger) {
         var now          = _clock.Now();

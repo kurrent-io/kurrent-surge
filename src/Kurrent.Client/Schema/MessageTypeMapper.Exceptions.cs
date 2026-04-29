@@ -10,8 +10,8 @@ namespace Kurrent.Client.Schema;
 /// It inherits from <see cref="KurrentException"/> to maintain consistency in error handling across the Kurrent client.
 /// </summary>
 [PublicAPI]
-public abstract class MessageTypeMappingException(string message)
-    : KurrentException(ErrorCode.FromType<MessageTypeMappingException>(), message);
+public abstract class MessageTypeMappingException(string reason)
+    : KurrentException(ErrorCode.FromType<MessageTypeMappingException>(), reason);
 
 [PublicAPI]
 public class MessageTypeAlreadyMappedException(string schemaName, Type attemptedMessageType, Type registeredMessageType)

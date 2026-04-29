@@ -69,7 +69,7 @@ public record AppendRecord : SelfValidating {
     /// </summary>
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 
-    public override ValidationResult RunValidation() {
+    protected override ValidationResult RunValidation() {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)

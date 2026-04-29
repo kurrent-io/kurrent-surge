@@ -18,13 +18,13 @@ public partial record IndexName {
 
     public static IndexName From(string? indexName) {
         if (string.IsNullOrWhiteSpace(indexName))
-            throw new InvalidIndexName(indexName, "Index name cannot be null or whitespace.");
+            throw new InvalidValueException<IndexName>(indexName, "cannot be null or whitespace.");
 
         if (indexName.Length > 64)
-            throw new InvalidIndexName(indexName, "Index name cannot exceed 64 characters.");
+            throw new InvalidValueException<IndexName>(indexName, "cannot exceed 64 characters.");
 
         if (!Regex().IsMatch(indexName))
-            throw new InvalidIndexName(indexName, "Index name must start with an uppercase letter, can only contain uppercase letters, digits, and underscores, and must end with an uppercase letter or digit.");
+            throw new InvalidValueException<IndexName>(indexName, "must start with an uppercase letter, can only contain uppercase letters, digits, and underscores, and must end with an uppercase letter or digit.");
 
         return new(indexName);
     }
@@ -32,13 +32,7 @@ public partial record IndexName {
     const string Pattern = "^[A-Z][A-Z0-9_]{1,61}[A-Z0-9]$";
 
     static readonly Regex IndexNameRegEx = Regex();
-
-
+    
     [GeneratedRegex(Pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant)]
     private static partial Regex Regex();
 }
-
-public class InvalidIndexName(string? value, string message) : KurrentException(
-    ErrorCode.FromType<InvalidRevision>(),
-    $"Invalid index name: {value} - {message}"
-);

@@ -29,7 +29,7 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
     /// When null, uses the default TLS settings (standard TLS with system trust store).
     /// </para>
     /// </remarks>
-    public TransportSecurity Transport { get; init; } = TransportSecurity.Standard;
+    public TransportSecurity Transport { get; set; } = TransportSecurity.Standard;
 
     /// <summary>
     /// Client authentication credentials.
@@ -42,7 +42,7 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
     /// Can be certificate-based, username/password, or none.
     /// </para>
     /// </remarks>
-    public ClientCredentials Authentication { get; init; } = ClientCredentials.None;
+    public ClientCredentials Authentication { get; set; } = ClientCredentials.None;
 
     /// <summary>
     /// Default security settings with TLS enabled and server certificate verification.

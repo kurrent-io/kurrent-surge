@@ -117,10 +117,7 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
     public static implicit operator PartitionPositions(ImmutableDictionary<Partition, RecordPosition> values) => new(values);
 }
 
-/// <summary>
-/// Signals the consumer to snapshot state and respond with <see cref="CheckpointComplete"/>.
-/// </summary>
-[PublicAPI]
+
 public readonly record struct Checkpoint(
     CheckpointId CheckpointId,
     CheckpointTrigger Trigger,

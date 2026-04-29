@@ -1,219 +1,60 @@
 using System.Text;
-using KurrentDB.Client;
+using Kurrent.Client.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Client.Tests.Modules.Client;
 
 /// <summary>
-/// Unit tests for KurrentClient configuration from IConfiguration.
+/// Unit tests for KurrentClient configuration and DI registration.
 /// </summary>
 [Category("Client")]
 [Category("Configuration")]
 public class KurrentClientConfigurationTests {
-    #region ->> FromConfiguration Tests <<-
+    #region ->> KurrentClient.Create Tests <<-
 
     [Test]
-    public async Task from_configuration_loads_connection_string() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://admin:changeit@localhost:2113?tls=false"
-                }
-              }
-            }
-            """;
+    public async ValueTask create_with_connection_string_only_parses_and_constructs() {
+        // Arrange & Act
+        await using var client = KurrentClient.Create("kurrentdb://localhost:2118?tls=false");
 
-        var configuration = BuildJsonConfiguration(json);
-
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration)
-            .Build();
-
-        await Assert.That(options.Endpoints).HasSingleItem();
-        await Assert.That(options.Endpoints[0].Host).IsEqualTo("localhost");
-        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2113);
-        await Assert.That(options.Security.Transport.IsEnabled).IsFalse();
+        // Assert
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2118);
+        await Assert.That(client.Options.Security.Transport.IsEnabled).IsFalse();
     }
 
     [Test]
-    public async Task from_configuration_loads_resilience_settings() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://localhost:2113?tls=false",
-                  "Resilience": {
-                    "Deadline": "00:00:30",
-                    "KeepAliveInterval": "00:01:00",
-                    "KeepAliveTimeout": "00:00:20",
-                    "Retry": {
-                      "Enabled": true,
-                      "MaxAttempts": 5,
-                      "InitialBackoff": "00:00:00.500",
-                      "MaxBackoff": "00:00:15",
-                      "BackoffMultiplier": 2.0
-                    }
-                  }
-                }
-              }
-            }
-            """;
+    public async ValueTask create_with_connection_string_and_configure_runs_configure_after_parse() {
+        // Arrange
+        var customName = "custom-connection-name";
 
-        var configuration = BuildJsonConfiguration(json);
+        // Act
+        await using var client = KurrentClient.Create(
+            "kurrentdb://localhost:2119?tls=false",
+            opts => {
+                opts.ConnectionName       = customName;
+                opts.Resilience.Deadline  = TimeSpan.FromSeconds(45);
+            });
 
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration)
-            .Build();
-
-        await Assert.That(options.Resilience.Deadline).IsEqualTo(TimeSpan.FromSeconds(30));
-        await Assert.That(options.Resilience.KeepAliveInterval).IsEqualTo(TimeSpan.FromMinutes(1));
-        await Assert.That(options.Resilience.KeepAliveTimeout).IsEqualTo(TimeSpan.FromSeconds(20));
-        await Assert.That(options.Resilience.Retry.Enabled).IsTrue();
-        await Assert.That(options.Resilience.Retry.MaxAttempts).IsEqualTo(5);
-        await Assert.That(options.Resilience.Retry.InitialBackoff).IsEqualTo(TimeSpan.FromMilliseconds(500));
-        await Assert.That(options.Resilience.Retry.MaxBackoff).IsEqualTo(TimeSpan.FromSeconds(15));
-        await Assert.That(options.Resilience.Retry.BackoffMultiplier).IsEqualTo(2.0);
-    }
-
-    [Test]
-    public async Task from_configuration_loads_connection_name_as_override() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://localhost:2113?tls=false",
-                  "ConnectionName": "my-custom-service"
-                }
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration)
-            .Build();
-
-        await Assert.That(options.ConnectionName).IsEqualTo("my-custom-service");
-    }
-
-    [Test]
-    public async Task from_configuration_loads_gossip_settings() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://localhost:2113?tls=false",
-                  "Gossip": {
-                    "MaxDiscoverAttempts": 20,
-                    "DiscoveryInterval": "00:00:00.500",
-                    "Timeout": "00:00:10",
-                    "ReadPreference": "Leader"
-                  }
-                }
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration)
-            .Build();
-
-        await Assert.That(options.Gossip.MaxDiscoverAttempts).IsEqualTo(20);
-        await Assert.That(options.Gossip.DiscoveryInterval).IsEqualTo(TimeSpan.FromMilliseconds(500));
-        await Assert.That(options.Gossip.Timeout).IsEqualTo(TimeSpan.FromSeconds(10));
-        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodePreference.Leader);
-    }
-
-    [Test]
-    public async Task from_configuration_returns_unchanged_when_section_missing() {
-        var json = """
-            {
-              "SomeOther": {
-                "Setting": "value"
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration)
-            .Build();
-
-        // Should have default values
-        await Assert.That(options.Endpoints).HasSingleItem();
-        await Assert.That(options.Endpoints[0].Host).IsEqualTo("localhost");
-        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2113);
-    }
-
-    [Test]
-    public async Task fluent_methods_override_configuration_values() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://localhost:2113?tls=false",
-                  "Resilience": {
-                    "Deadline": "00:00:30"
-                  }
-                }
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration)
-            .ConfigureResilience(r => r with { Deadline = TimeSpan.FromMinutes(2) })
-            .Build();
-
-        // Fluent override should take precedence
-        await Assert.That(options.Resilience.Deadline).IsEqualTo(TimeSpan.FromMinutes(2));
-    }
-
-    [Test]
-    public async Task from_configuration_with_custom_section_name() {
-        var json = """
-            {
-              "Kurrent": {
-                "MyCustomClient": {
-                  "ConnectionString": "kurrentdb://custom-host:2114?tls=true"
-                }
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
-        var options = KurrentClientOptions.Builder.Create()
-            .FromConfiguration(configuration, "MyCustomClient")
-            .Build();
-
-        await Assert.That(options.Endpoints).HasSingleItem();
-        await Assert.That(options.Endpoints[0].Host).IsEqualTo("custom-host");
-        await Assert.That(options.Endpoints[0].Port).IsEqualTo(2114);
-        await Assert.That(options.Security.Transport.IsEnabled).IsTrue();
+        // Assert — parsed endpoint preserved, configure's mutations applied on top
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2119);
+        await Assert.That(client.Options.ConnectionName).IsEqualTo(customName);
+        await Assert.That(client.Options.Resilience.Deadline).IsEqualTo(TimeSpan.FromSeconds(45));
     }
 
     #endregion
 
-    #region ->> Service Collection Extension Tests <<-
+    #region ->> AddKurrentClient (DI) Tests <<-
 
     [Test]
-    public async Task add_kurrent_client_parameterless_uses_configuration() {
+    public async ValueTask add_kurrent_client_uses_connection_strings_kurrentdb_from_configuration() {
+        // Arrange — standard .NET ConnectionStrings section, key "KurrentDB"
         var json = """
             {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://config-host:2115?tls=false"
-                }
+              "ConnectionStrings": {
+                "KurrentDB": "kurrentdb://config-host:2115?tls=false"
               }
             }
             """;
@@ -222,100 +63,138 @@ public class KurrentClientConfigurationTests {
 
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddLogging();
         services.AddKurrentClient();
 
         var provider = services.BuildServiceProvider();
-        var client = provider.GetRequiredService<KurrentClient>();
+        var client   = provider.GetRequiredService<KurrentClient>();
 
-        await Assert.That(client).IsNotNull();
-        // Client is created - if connection string was invalid, it would throw during creation
+        // Assert
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("config-host");
+        await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2115);
     }
 
     [Test]
-    public async Task add_kurrent_client_parameterless_uses_defaults_without_configuration() {
+    public async ValueTask add_kurrent_client_uses_defaults_without_configuration() {
+        // Arrange & Act
         var services = new ServiceCollection();
-        services.AddLogging();
         services.AddKurrentClient();
 
         var provider = services.BuildServiceProvider();
-        var client = provider.GetRequiredService<KurrentClient>();
+        var client   = provider.GetRequiredService<KurrentClient>();
 
+        // Assert — default endpoint (localhost:2113)
         await Assert.That(client).IsNotNull();
-        // Client is created with defaults (localhost:2113)
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2113);
     }
 
     [Test]
-    public async Task add_kurrent_client_builder_auto_binds_then_applies_overrides() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://localhost:2113?tls=false",
-                  "Resilience": {
-                    "Deadline": "00:00:30"
-                  }
-                }
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
+    public async ValueTask add_kurrent_client_is_idempotent() {
+        // Arrange
         var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
-        services.AddLogging();
-        services.AddKurrentClient(builder => builder
-            .ConfigureResilience(r => r with { Deadline = TimeSpan.FromMinutes(5) })
-        );
-
-        var provider = services.BuildServiceProvider();
-        var client = provider.GetRequiredService<KurrentClient>();
-
-        await Assert.That(client).IsNotNull();
-        // The fluent override (5 minutes) should take precedence over config (30 seconds)
-    }
-
-    [Test]
-    public async Task add_kurrent_client_service_provider_overload_has_access_to_services() {
-        var json = """
-            {
-              "Kurrent": {
-                "Client": {
-                  "ConnectionString": "kurrentdb://localhost:2113?tls=false"
-                }
-              }
-            }
-            """;
-
-        var configuration = BuildJsonConfiguration(json);
-
-        var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
-        services.AddLogging();
-        services.AddKurrentClient((builder, sp) => {
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            builder.WithLoggerFactory(loggerFactory);
-        });
-
-        var provider = services.BuildServiceProvider();
-        var client = provider.GetRequiredService<KurrentClient>();
-
-        await Assert.That(client).IsNotNull();
-    }
-
-    [Test]
-    public async Task add_kurrent_client_is_idempotent() {
-        var services = new ServiceCollection();
-        services.AddLogging();
         services.AddKurrentClient("kurrentdb://first:2113?tls=false");
         services.AddKurrentClient("kurrentdb://second:2114?tls=false"); // Should be ignored
 
+        // Act
         var provider = services.BuildServiceProvider();
-        var clients = provider.GetServices<KurrentClient>().ToList();
+        var clients  = provider.GetServices<KurrentClient>().ToList();
 
-        // Only one client should be registered (first one wins with TryAddSingleton)
+        // Assert — only one registration wins (TryAddSingleton semantics)
         await Assert.That(clients.Count).IsEqualTo(1);
+        await Assert.That(clients[0].Options.Endpoints[0].Host).IsEqualTo("first");
+    }
+
+    [Test]
+    public async ValueTask add_kurrent_client_with_options_overload_registers_verbatim() {
+        // Arrange
+        var options = KurrentClientOptions.Parse("kurrentdb://prebuilt:2116?tls=false");
+        options.ConnectionName = "pre-built-name";
+
+        // Act
+        var services = new ServiceCollection();
+        services.AddKurrentClient(options);
+
+        var provider = services.BuildServiceProvider();
+        var client   = provider.GetRequiredService<KurrentClient>();
+
+        // Assert
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("prebuilt");
+        await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2116);
+        await Assert.That(client.Options.ConnectionName).IsEqualTo("pre-built-name");
+    }
+
+    [Test]
+    public async ValueTask add_kurrent_client_configure_action_runs_after_sp_defaults() {
+        // Arrange
+        var customName = "configured-via-action";
+
+        var services = new ServiceCollection();
+        services.AddKurrentClient(opts => opts.ConnectionName = customName);
+
+        // Act
+        var provider = services.BuildServiceProvider();
+        var client   = provider.GetRequiredService<KurrentClient>();
+
+        // Assert
+        await Assert.That(client.Options.ConnectionName).IsEqualTo(customName);
+    }
+
+    [Test]
+    public async ValueTask add_kurrent_client_applies_registered_message_type_mapper() {
+        // Arrange
+        var mapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("sample-v1"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(mapper);
+        services.AddKurrentClient();
+
+        // Act
+        var provider = services.BuildServiceProvider();
+        var client   = provider.GetRequiredService<KurrentClient>();
+
+        // Assert — SP-registered mapper is applied onto opts.Schema.Mapper
+        await Assert.That(client.Options.Schema.Mapper).IsSameReferenceAs(mapper);
+        await Assert.That(client.Options.Schema.Mapper.TryGetSchemaName(typeof(SampleMessage), out var name)).IsTrue();
+        await Assert.That(name.Value).IsEqualTo("sample-v1");
+    }
+
+    [Test]
+    public async ValueTask add_kurrent_client_configure_action_can_override_registered_mapper() {
+        // Arrange
+        var registeredMapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("registered"));
+        var userMapper       = MessageTypeMapper.Create(m => m.Map<SampleMessage>("user-override"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(registeredMapper);
+        services.AddKurrentClient(opts => opts.Schema.Mapper = userMapper);
+
+        // Act
+        var provider = services.BuildServiceProvider();
+        var client   = provider.GetRequiredService<KurrentClient>();
+
+        // Assert — user's configure wins over SP-resolved mapper
+        await Assert.That(client.Options.Schema.Mapper).IsSameReferenceAs(userMapper);
+        await Assert.That(client.Options.Schema.Mapper).IsNotSameReferenceAs(registeredMapper);
+    }
+
+    [Test]
+    public async ValueTask add_kurrent_client_uses_registered_options_verbatim() {
+        // Arrange
+        var preBuilt = KurrentClientOptions.Parse("kurrentdb://preconfigured:2116?tls=false");
+        preBuilt.ConnectionName = "pre-built-name";
+
+        var services = new ServiceCollection();
+        services.AddSingleton(preBuilt);
+        services.AddKurrentClient();
+
+        // Act
+        var provider = services.BuildServiceProvider();
+        var client   = provider.GetRequiredService<KurrentClient>();
+
+        // Assert — registered options used as-is, SP-resolved defaults still get applied on top (mapper/logger/decoder)
+        await Assert.That(client.Options).IsSameReferenceAs(preBuilt);
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("preconfigured");
+        await Assert.That(client.Options.ConnectionName).IsEqualTo("pre-built-name");
     }
 
     #endregion
@@ -328,6 +207,8 @@ public class KurrentClientConfigurationTests {
             .AddJsonStream(stream)
             .Build();
     }
+
+    record SampleMessage(string Value);
 
     #endregion
 }

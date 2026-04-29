@@ -4,15 +4,13 @@ namespace Kurrent.Validation;
 
 [PublicAPI]
 public class ValidationException : KurrentException {
-    public ValidationException(ErrorCode errorCode, string message, params ValidationProblem[] errors) : base(errorCode, message) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+    public ValidationException(ErrorCode errorCode, string reason, params ValidationProblem[] errors) : base(errorCode, reason) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(errors.Length, 0);
-
-        ErrorCode = errorCode;
-        Errors    = errors;
+        Errors = errors;
     }
 
-    public string ErrorCode { get; }
+    public string ErrorCode => ErrorDetails.ErrorCode;
 
     public ValidationProblem[] Errors { get; }
 }

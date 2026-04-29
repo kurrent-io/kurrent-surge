@@ -54,7 +54,7 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	/// Defaults to <see langword="true"/>.
 	/// </para>
 	/// </remarks>
-	public bool AutoRegister { get; init; } = true;
+	public bool AutoRegister { get; set; } = true;
 
 	/// <summary>
 	/// Whether messages should be validated against their schemas.
@@ -73,7 +73,7 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	/// Defaults to <see langword="true"/>.
 	/// </para>
 	/// </remarks>
-	public bool PreValidate { get; init; } = true;
+	public bool PreValidate { get; set; } = true;
 
 	/// <summary>
 	/// The strategy used for generating schema names.
@@ -92,17 +92,17 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	/// Defaults to <see cref="MessageSchemaNameStrategy"/>, which enables zero-code automatic serialization and deserialization.
 	/// </para>
 	/// </remarks>
-	public ISchemaNameStrategy NameStrategy { get; init; } = SchemaNameStrategies.TypeName();
+	public ISchemaNameStrategy NameStrategy { get; set; } = SchemaNameStrategies.TypeName();
 
 	/// <summary>
 	/// Configuration options for the JSON schema serializer.
 	/// </summary>
-	public JsonSchemaSerializerOptions Json { get; init; } = JsonSchemaSerializerOptions.Default;
+	public JsonSchemaSerializerOptions Json { get; set; } = JsonSchemaSerializerOptions.Default;
 
 	/// <summary>
 	/// Configuration options for the Protobuf schema serializer.
 	/// </summary>
-	public ProtobufSchemaSerializerOptions Protobuf { get; init; } = ProtobufSchemaSerializerOptions.Default;
+	public ProtobufSchemaSerializerOptions Protobuf { get; set; } = ProtobufSchemaSerializerOptions.Default;
 
 	/// <summary>
 	/// Provides a mechanism for mapping message types to their corresponding schemas.
@@ -111,7 +111,7 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	/// The mapper is used to associate specific message types with their schemas in the schema registry.
 	/// This ensures that the correct schema is used when producing or consuming messages.
 	/// </remarks>
-	public MessageTypeMapper Mapper { get; init; } = new();
+	public MessageTypeMapper Mapper { get; set; } = new();
 
 	/// <summary>
 	/// The default schema registry settings with all standard options enabled.
@@ -203,7 +203,7 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	/// </returns>
 	public static KurrentClientSchemaOptions Disabled => new() {
 		AutoRegister = false,
-		PreValidate     = false
+		PreValidate  = false
 	};
 
     public class Validator : Validator<Validator, KurrentClientSchemaOptions> { }

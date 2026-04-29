@@ -23,9 +23,7 @@ public interface IKurrentClient : IAsyncDisposable {
 
 [PublicAPI]
 public class KurrentClient : IKurrentClient {
-    public static KurrentClientOptions.Builder New => new();
-
-    public KurrentClient() : this(new()) { }
+    // public KurrentClient() : this(new()) { }
 
     public KurrentClient(KurrentClientOptions options) {
 	    options.EnsureValid();
@@ -82,8 +80,7 @@ public class KurrentClient : IKurrentClient {
 	// 		Version = LegacyCallInvoker.ServerCapabilities.Version
 	// 	};
 	// }
-
-
+    
     public async ValueTask DisposeAsync() {
         if (Shared) return;
 
@@ -93,11 +90,33 @@ public class KurrentClient : IKurrentClient {
             .DisposeAsync()
             .ConfigureAwait(false);
     }
+    
+    /// <summary>
+    /// Creates a client from a pre-built <see cref="KurrentClientOptions"/> instance.
+    /// </summary>
+    public static KurrentClient Create(KurrentClientOptions options) =>
+        new(options);
 
-
-    public static KurrentClient Create(KurrentClientOptions? options = null) =>
-        new(options ?? new KurrentClientOptions());
-
-    public static KurrentClient Create(string connectionString) =>
-        Create(KurrentConnectionString.Parse(connectionString).ToClientOptions());
+    /// <summary>
+    /// Creates a client from a connection string, with optional further tuning via <paramref name="configure"/>.
+    /// The string is parsed into options first; the delegate (if provided) then mutates the parsed options
+    /// before the client is constructed.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// // Simple: just the connection string.
+    /// var client = KurrentClient.Create("kurrentdb://localhost:2113");
+    ///
+    /// // Parse the connection string, then tune.
+    /// var client = KurrentClient.Create("kurrentdb://localhost:2113", opts => {
+    ///     opts.Resilience = KurrentClientResilienceOptions.HighAvailability;
+    ///     opts.Schema.Mapper.Map&lt;OrderPlaced&gt;();
+    /// });
+    /// </code>
+    /// </example>
+    public static KurrentClient Create(string connectionString, Action<KurrentClientOptions>? configure = null) {
+        var options = KurrentClientOptions.Parse(connectionString);
+        configure?.Invoke(options);
+        return Create(options);
+    }
 }

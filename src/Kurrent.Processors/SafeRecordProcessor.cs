@@ -10,6 +10,15 @@ sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
         }
     }
 
+    public async ValueTask OnConnected(ConnectedContext context) {
+        try {
+            await inner.OnConnected(context).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException) {
+            throw DroneException.OnConnectedFailed(ex);
+        }
+    }
+
     public async ValueTask OnCheckpoint(CheckpointContext context) {
         try {
             await inner.OnCheckpoint(context).ConfigureAwait(false);

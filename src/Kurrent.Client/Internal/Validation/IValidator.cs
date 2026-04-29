@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client;
+using Kurrent.Client.Exceptions;
 using static System.String;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -103,6 +104,9 @@ public sealed class ValidationResult {
     public static ValidationResult FromProblem(ErrorCode code, string message) =>
         Failure(code, ValidationProblem.Create(code, message));
 
+    public static ValidationResult FromValue<T>(object? value, string reason) =>
+        Failure(ErrorCodeCache<T>.Value, ValidationProblem.FromValue<T>(value, reason));
+    
     public override string ToString() => IsValid ? "Valid" : ErrorMessage;
 
     /// <summary>
@@ -164,15 +168,16 @@ public readonly record struct ValidationProblem {
     /// Creates a new <see cref="ValidationProblem"/> for a specific field.
     /// </summary>
     public static ValidationProblem CreateForField(
-        string fieldName, string message,
-        object? attemptedValue = null, string? code = null,
+        string fieldName, string reason,
+        object? attemptedValue = null, 
+        string? code = null,
         RuleSeverity severity = RuleSeverity.Error) {
         ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
         return new() {
             FieldName      = fieldName,
-            Message        = message,
+            Message        = reason,
             AttemptedValue = attemptedValue!,
             Code           = IsNullOrWhiteSpace(code) ? $"INVALID_{fieldName.Underscore().ToUpperInvariant()}" : code,
             Severity       = severity
@@ -183,13 +188,22 @@ public readonly record struct ValidationProblem {
     /// Creates a new <see cref="ValidationProblem"/> without a specific field.
     /// This is useful for general validation problems that do not pertain to a specific field.
     /// </summary>
-    public static ValidationProblem Create(string code, string message) {
+    public static ValidationProblem Create(string code, string reason) {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
         return new() {
             Code    = code,
-            Message = message
+            Message = reason
+        };
+    }
+    
+    public static ValidationProblem FromValue<T>(object? value, string reason) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        return new() {
+            Code           = ErrorCodeCache<T>.Value,
+            Message        = reason,
+            AttemptedValue = value!,
         };
     }
 }

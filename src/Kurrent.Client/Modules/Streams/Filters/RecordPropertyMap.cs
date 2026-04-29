@@ -51,7 +51,7 @@ public static class RecordPropertyMap {
     static object? ResolveData(Record record, string? key) {
         if (key is null) return null;
 
-        var node = record.JsonNode;
+        var node = record.DecodedValueAsJson;
         if (node is null) return null;
 
         // navigate dot-separated path: "address.city" → node["address"]?["city"]
