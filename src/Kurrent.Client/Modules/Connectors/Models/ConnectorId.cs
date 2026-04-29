@@ -1,6 +1,10 @@
 namespace Kurrent.Client.Connectors;
 
 public readonly record struct ConnectorId(string Value) {
+    public static readonly ConnectorId Unset = new("");
+
+    public bool IsUnset => this == Unset;
+
     public string Value { get; } = Value;
 
     public override string ToString() => Value;
