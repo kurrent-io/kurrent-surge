@@ -1,7 +1,4 @@
 <Solution>
-  <Folder Name="/.Playground/">
-    <Project Path="playground/QueryParserProbe/QueryParserProbe.csproj" />
-  </Folder>
   <Folder Name="/.Solution/">
     <File Path="context7.json" />
     <File Path="Directory.Build.props" />
