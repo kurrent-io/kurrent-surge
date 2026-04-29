@@ -50,6 +50,10 @@ public class RegistryClient : ClientModuleBase {
         IReadOnlyDictionary<string, string>? tags = null,
         CancellationToken cancellationToken = default
     ) {
+        if (schemaName.IsUnset)
+            throw new ArgumentException("Schema name cannot be empty.", nameof(schemaName));
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
+
         var details = new Contracts.SchemaDetails {
             DataFormat    = (Contracts.SchemaDataFormat)dataFormat,
             Compatibility = (Contracts.CompatibilityMode)compatibilityMode,
@@ -97,6 +101,9 @@ public class RegistryClient : ClientModuleBase {
     /// A <see cref="Schema"/> containing the retrieved schema details.
     /// </returns>
     public async ValueTask<Schema> GetSchema(SchemaName schemaName, CancellationToken cancellationToken = default) {
+        if (schemaName.IsUnset)
+            throw new ArgumentException("Schema name cannot be empty.", nameof(schemaName));
+
         var request = new Contracts.GetSchemaRequest {
             SchemaName = schemaName
         };
@@ -141,6 +148,12 @@ public class RegistryClient : ClientModuleBase {
         int? versionNumber = null,
         CancellationToken cancellationToken = default
     ) {
+        if (schemaName.IsUnset)
+            throw new ArgumentException("Schema name cannot be empty.", nameof(schemaName));
+
+        if (versionNumber is { } v && v <= 0)
+            throw new ArgumentOutOfRangeException(nameof(versionNumber), v, "Version number must be greater than zero.");
+
         var request = new Contracts.GetSchemaVersionRequest { SchemaName = schemaName };
 
         if (versionNumber.HasValue)
@@ -182,6 +195,9 @@ public class RegistryClient : ClientModuleBase {
         SchemaVersionId schemaVersionId,
         CancellationToken cancellationToken = default
     ) {
+        if (schemaVersionId.IsUnset)
+            throw new ArgumentException("Schema version id cannot be empty.", nameof(schemaVersionId));
+
         var request = new Contracts.GetSchemaVersionByIdRequest { SchemaVersionId = schemaVersionId };
 
         try {
@@ -220,6 +236,9 @@ public class RegistryClient : ClientModuleBase {
         SchemaName schemaName,
         CancellationToken cancellationToken = default
     ) {
+        if (schemaName.IsUnset)
+            throw new ArgumentException("Schema name cannot be empty.", nameof(schemaName));
+
         var request = new Contracts.DeleteSchemaRequest { SchemaName = schemaName };
 
         try {
@@ -264,6 +283,11 @@ public class RegistryClient : ClientModuleBase {
         SchemaIdentifier identifier, string schemaDefinition, SchemaDataFormat dataFormat,
         CancellationToken cancellationToken = default
     ) {
+        if (identifier.IsUnset)
+            throw new ArgumentException("Schema identifier cannot be empty.", nameof(identifier));
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
+
         var request = new Contracts.CheckSchemaCompatibilityRequest {
             Definition = ByteString.CopyFromUtf8(schemaDefinition),
             DataFormat = (Contracts.SchemaDataFormat)dataFormat
@@ -359,6 +383,10 @@ public class RegistryClient : ClientModuleBase {
         SchemaName schemaName, string schemaDefinition,
         CancellationToken cancellationToken = default
     ) {
+        if (schemaName.IsUnset)
+            throw new ArgumentException("Schema name cannot be empty.", nameof(schemaName));
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
+
         var request = new Contracts.RegisterSchemaVersionRequest {
             SchemaName       = schemaName,
             SchemaDefinition = ByteString.CopyFromUtf8(schemaDefinition)
