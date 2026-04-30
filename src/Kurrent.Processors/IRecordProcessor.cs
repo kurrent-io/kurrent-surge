@@ -7,11 +7,13 @@ using Kurrent.Processors.Models;
 namespace Kurrent.Processors;
 
 /// <summary>
-/// Defines the interface for processing records from a processor.
+/// Defines the interface for processing records one at a time.
 /// Implement this interface to receive callbacks during the processing lifecycle.
 /// <para>
-/// All methods except <see cref="ProcessRecord"/> have default implementations
-/// that do nothing, allowing you to override only the methods you need.
+/// Lifecycle methods (<see cref="IProcessor.OnConnected"/>, <see cref="IProcessor.OnCheckpoint"/>,
+/// <see cref="IProcessor.OnComplete"/>) are inherited from
+/// <see cref="IProcessor"/> with default no-op implementations. Only <see cref="ProcessRecord"/>
+/// must be implemented.
 /// </para>
 /// </summary>
 /// <remarks>
@@ -19,9 +21,12 @@ namespace Kurrent.Processors;
 /// All lifecycle methods are informational. The SDK handles checkpointing,
 /// state management, and coordination automatically.
 /// </para>
+/// <para>
+/// For batched dispatch, see <see cref="IRecordBatchProcessor"/>.
+/// </para>
 /// </remarks>
 [PublicAPI]
-public interface IRecordProcessor {
+public interface IRecordProcessor : IProcessor {
     /// <summary>
     /// Called when a record is available for processing.
     /// <remarks>
@@ -32,48 +37,6 @@ public interface IRecordProcessor {
     /// Context containing the record and cancellation token.
     /// </param>
     ValueTask ProcessRecord(ProcessRecordContext context);
-
-    /// <summary>
-    /// Called once when connected to the server, before any records are dispatched.
-    /// <remarks>
-    /// Use this for one-time initialization such as creating state tables, opening external
-    /// resources, or priming caches. Failures propagate as fatal startup errors.
-    /// </remarks>
-    /// </summary>
-    ValueTask OnConnected(ConnectedContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
-    /// </summary>
-    ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when encountering an unrecoverable error.
-    /// <remarks>
-    /// <para>
-    /// This method is invoked before the drone transitions to <see cref="DroneStatus.Error"/>.
-    /// Use it for error reporting, metrics, or cleanup.
-    /// </para>
-    /// </remarks>
-    /// </summary>
-    /// <param name="context">
-    /// Context containing the error and final progress snapshot.
-    /// </param>
-    ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when completing gracefully (including cancellation).
-    /// <remarks>
-    /// <para>
-    /// This method is invoked before the drone transitions to <see cref="DroneStatus.Stopped"/>.
-    /// Use it for final reporting or cleanup.
-    /// </para>
-    /// </remarks>
-    /// </summary>
-    /// <param name="context">
-    /// Context containing the final progress snapshot.
-    /// </param>
-    ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
 }
 
 public record DroneContext {
@@ -85,14 +48,25 @@ public record DroneContext {
     public ILogger           Logger            { get; init; } = NullLogger.Instance;
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
-    public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record, Action requestTrackRecord, Action<string?> requestCheckpoint) =>
-        new(requestTrackRecord, requestCheckpoint) {
+    public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record, Action<RecordPosition> requestTrack) =>
+        new(requestTrack) {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
             Record            = record,
+            Progress          = progress
+        };
+
+    public BatchContext ForBatch(DroneProgress progress, Kurrent.Client.Processors.Gateway.Messages.RecordBatch records) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            DroneId           = DroneId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            Records           = records,
             Progress          = progress
         };
 
@@ -105,7 +79,7 @@ public record DroneContext {
             CancellationToken = CancellationToken
         };
 
-    public CheckpointContext ForCheckpoint(PartitionPositions positions, Checkpoint checkpoint) =>
+    public CheckpointContext ForCheckpoint(RecordPosition[] positions, Checkpoint checkpoint) =>
         new() {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
@@ -115,18 +89,8 @@ public record DroneContext {
             Positions         = positions,
             CheckpointId      = checkpoint.CheckpointId,
             Trigger           = checkpoint.Trigger,
-            Timestamp         = checkpoint.Timestamp
-        };
-
-    public ErrorContext ForError(DroneProgress progress, Exception error) =>
-        new() {
-            ProcessorId       = ProcessorId,
-            DroneId           = DroneId,
-            SessionId         = SessionId,
-            Logger            = Logger,
-            CancellationToken = CancellationToken,
-            Progress          = progress,
-            Error             = error
+            Timestamp         = checkpoint.Timestamp,
+            Reason            = checkpoint.Reason
         };
 
     public CompleteContext ForComplete(DroneProgress progress) =>
@@ -147,52 +111,95 @@ public record DroneContext {
 public record ProcessRecordContext : DroneContext {
 
     public ProcessRecordContext() { }
-    
-    public ProcessRecordContext(Action requestTrackRecord, Action<string?> requestCheckpoint) {
-        RequestTrackRecord = requestTrackRecord;
-        RequestCheckpoint  = requestCheckpoint;
-    } 
-    
+
+    public ProcessRecordContext(Action<RecordPosition> requestTrack) {
+        RequestTrack = requestTrack;
+    }
+
     public required Record        Record   { get; init; }
     public required DroneProgress Progress { get; init; }
-    
-    public Action          RequestTrackRecord { get; init; } = () => { };
-    public Action<string?> RequestCheckpoint  { get; init; } = _ => { };
+
+    public Action<RecordPosition> RequestTrack { get; init; } = _ => { };
 
     /// <summary>
-    /// Signals that processing should stop immediately.
+    /// Tells the framework that the given record has been durably handled.
+    /// Always valid; in <c>AutoCheckpoint = true</c> mode the framework's auto-track
+    /// runs on top, but the tracker is idempotent.
     /// </summary>
-    [SuppressMessage("Performance", "CA1822:Mark members as static")]
-    public void StopProcessing() => throw new OperationCanceledException("Processing stopped by user request.");
+    public void Track(Record record) {
+        _trackedByUser = true;
+        RequestTrack(record.Position);
+    }
 
-    public void StopBeforeTrack(string? reason = null) =>
-        StopProcessingRequest = StopProcessingRequest.BeforeTracking(reason);
+    /// <summary>
+    /// Tells the framework that the given position has been durably handled.
+    /// Always valid; in <c>AutoCheckpoint = true</c> mode the framework's auto-track
+    /// runs on top, but the tracker is idempotent.
+    /// </summary>
+    public void Track(RecordPosition position) {
+        _trackedByUser = true;
+        RequestTrack(position);
+    }
 
-    public void StopAfterTrack(string? reason = null) =>
-        StopProcessingRequest = StopProcessingRequest.AfterTracking(reason);
-    
-    public void TrackRecord(RecordPosition position, Partition partition) =>
-        throw new InvalidOperationException("Record tracking is not supported by this processor.");
-    
-    public void Checkpoint(string? reason = null) => RequestCheckpoint(reason);
-    
-    internal StopProcessingRequest StopProcessingRequest { get; private set; } = StopProcessingRequest.Unspecified;
-}
+    /// <summary>
+    /// Tells the framework that the given positions have been durably handled.
+    /// Always valid; in <c>AutoCheckpoint = true</c> mode the framework's auto-track
+    /// runs on top, but the tracker is idempotent.
+    /// </summary>
+    public void Track(IEnumerable<RecordPosition> positions) {
+        foreach (var p in positions) {
+            _trackedByUser = true;
+            RequestTrack(p);
+        }
+    }
 
-record StopProcessingRequest(StopProcessingTrigger Trigger, string? Reason = null) {
-    public static readonly StopProcessingRequest Unspecified = new(StopProcessingTrigger.Unspecified);
+    /// <summary>
+    /// Requests that processing stop after this record. The framework will inject a
+    /// shutdown marker once the current dispatch finishes. This record will NOT be
+    /// auto-tracked — call <see cref="Track(Record)"/> first if you want it claimed.
+    /// </summary>
+    public void StopProcessing(string? reason = null) {
+        _stopRequested = true;
+        _stopReason    = reason;
+    }
 
-    public static StopProcessingRequest BeforeTracking(string? reason = null) =>
-        new(StopProcessingTrigger.StopBeforeTrack, reason);
+    /// <summary>
+    /// Requests a manual checkpoint barrier. The framework will raise
+    /// <c>OnCheckpoint</c> with <see cref="CheckpointTrigger.Manual"/> and the supplied
+    /// <paramref name="reason"/>; positions are taken from the tracker's state at the
+    /// moment the framework dispatches the marker (after auto-track for this record).
+    /// At most one manual checkpoint may be requested per <c>ProcessRecord</c> invocation.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// A checkpoint has already been requested for this record.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Cancellation has been requested on the context's token.
+    /// </exception>
+    public void Checkpoint(string? reason = null) {
+        if (_checkpointRequested)
+            throw new InvalidOperationException("a checkpoint has already been requested for this record");
 
-    public static StopProcessingRequest AfterTracking(string? reason = null) =>
-        new(StopProcessingTrigger.StopAfterTrack, reason);
-}
+        CancellationToken.ThrowIfCancellationRequested();
 
-public enum StopProcessingTrigger {
-    Unspecified,
-    StopBeforeTrack,
-    StopAfterTrack,
+        _checkpointRequested = true;
+        _checkpointReason    = reason;
+    }
+
+    bool    _checkpointRequested;
+    string? _checkpointReason;
+
+    bool    _stopRequested;
+    string? _stopReason;
+
+    bool    _trackedByUser;
+
+    internal bool    CheckpointRequested => _checkpointRequested;
+    internal string? CheckpointReason    => _checkpointReason;
+
+    internal bool    StopRequested  => _stopRequested;
+    internal string? StopReason     => _stopReason;
+    internal bool    TrackedByUser  => _trackedByUser;
 }
 
 /// <summary>
@@ -206,19 +213,17 @@ public record ConnectedContext : DroneContext;
 /// </summary>
 [PublicAPI]
 public record CheckpointContext : DroneContext {
-    public required PartitionPositions Positions    { get; init; }
+    public required RecordPosition[]   Positions    { get; init; }
     public required string             CheckpointId { get; init; }
     public required CheckpointTrigger  Trigger      { get; init; }
     public required DateTimeOffset     Timestamp    { get; init; }
-}
 
-/// <summary>
-/// Context provided when the drone encounters an unrecoverable error.
-/// </summary>
-[PublicAPI]
-public record ErrorContext : DroneContext {
-    public required DroneProgress Progress { get; init; }
-    public required Exception     Error    { get; init; }
+    /// <summary>
+    /// Optional reason associated with this checkpoint. Populated when
+    /// <see cref="Trigger"/> is <see cref="CheckpointTrigger.Manual"/> and the user
+    /// passed a reason to <c>ctx.Checkpoint(reason)</c>. Null otherwise.
+    /// </summary>
+    public string? Reason { get; init; }
 }
 
 /// <summary>

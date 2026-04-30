@@ -125,7 +125,7 @@ public abstract class Projection<TClient> : IRecordProcessor {
     public bool CanProject(Record record) =>
         record.IsDecoded && Handlers.ContainsKey(record.ValueType);
 
-    async ValueTask IRecordProcessor.OnConnected(ConnectedContext context) {
+    async ValueTask IProcessor.OnConnected(ConnectedContext context) {
         if (_resolveClient is null)
             throw new InvalidOperationException(
                 "Projection client resolver is not configured. Set ProjectorOptions.ResolveClient " +

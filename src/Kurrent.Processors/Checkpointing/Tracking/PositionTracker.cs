@@ -181,11 +181,11 @@ public readonly struct PendingPositionsFlush {
     /// <summary>
     /// The positions to be flushed on <see cref="Execute"/>.
     /// </summary>
-    public ImmutableDictionary<Partition, RecordPosition> Positions { get; }
+    public RecordPosition[] Positions { get; }
 
-    internal PendingPositionsFlush(PartitionedPositionTracker tracker, Dictionary<Partition, RecordPosition> positions) {
+    internal PendingPositionsFlush(PartitionedPositionTracker tracker, RecordPosition[] positions) {
         _tracker  = tracker;
-        Positions = positions.ToImmutableDictionary();
+        Positions = positions;
     }
 
     /// <summary>
@@ -194,5 +194,5 @@ public readonly struct PendingPositionsFlush {
     public void Execute() => _tracker.FlushUpTo(Positions);
 
     public override string ToString() =>
-        string.Join(", ", Positions.Select(kvp => $"P{kvp.Key}={kvp.Value.LogPosition}")); // TODO SS: just use log positions if we keep partition
+        string.Join(", ", Positions.Select(p => $"P{p.Partition}={p.LogPosition}"));
 }

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Processors.Tests;
@@ -8,11 +9,7 @@ sealed class TestRecordProcessor : IRecordProcessor {
 
     public Func<ProcessRecordContext, ValueTask>? OnProcessRecord { get; set; }
 
-    public Func<ErrorContext, ValueTask>? OnError { get; set; }
-
     public Func<CompleteContext, ValueTask>? OnComplete { get; set; }
-
-    public ErrorContext? Error { get; private set; }
 
     public CompleteContext? Complete { get; private set; }
 
@@ -22,18 +19,55 @@ sealed class TestRecordProcessor : IRecordProcessor {
         if (OnProcessRecord is not null)
             await OnProcessRecord(context);
 
-        // Don't enqueue records that won't be tracked (StopBeforeTrack skips tracking)
-        if (context.StopProcessingRequest.Trigger != StopProcessingTrigger.StopBeforeTrack)
+        // Enqueue iff the framework or user will track this record. With
+        // AutoTrack=true, that's "no Stop request" (auto-track will run); the user
+        // can also opt in by calling Track() explicitly before StopProcessing().
+        if (!context.StopRequested || context.TrackedByUser)
             _records.Enqueue(context.Record);
     }
 
-    ValueTask IRecordProcessor.OnError(ErrorContext context) {
-        Error = context;
-        return OnError?.Invoke(context) ?? ValueTask.CompletedTask;
-    }
-
-    ValueTask IRecordProcessor.OnComplete(CompleteContext context) {
+    ValueTask IProcessor.OnComplete(CompleteContext context) {
         Complete = context;
         return OnComplete?.Invoke(context) ?? ValueTask.CompletedTask;
+    }
+}
+
+sealed class TestRecordBatchProcessor(int maxBatchSize, TimeSpan batchWindow) : RecordBatchProcessor(maxBatchSize, batchWindow) {
+    readonly ConcurrentQueue<RecordBatch>      _batches     = new();
+    readonly ConcurrentQueue<CheckpointContext> _checkpoints = new();
+
+    public Func<BatchContext,      ValueTask>? OnProcessBatch    { get; set; }
+    public Func<ConnectedContext,  ValueTask>? OnConnectedHook   { get; set; }
+    public Func<CheckpointContext, ValueTask>? OnCheckpointHook  { get; set; }
+
+    public ConnectedContext? Connected { get; private set; }
+    public CompleteContext?  Complete  { get; private set; }
+
+    public RecordBatch[]                Batches     => _batches.ToArray();
+    public IReadOnlyList<Record>        Records     => _batches.SelectMany(b => b).ToList();
+    public IReadOnlyList<CheckpointContext> Checkpoints => _checkpoints.ToArray();
+
+    public override async ValueTask ProcessBatch(BatchContext context) {
+        _batches.Enqueue(context.Records);
+
+        if (OnProcessBatch is not null)
+            await OnProcessBatch(context);
+    }
+
+    public override async ValueTask OnConnected(ConnectedContext context) {
+        Connected = context;
+        if (OnConnectedHook is not null)
+            await OnConnectedHook(context);
+    }
+
+    public override async ValueTask OnCheckpoint(CheckpointContext context) {
+        _checkpoints.Enqueue(context);
+        if (OnCheckpointHook is not null)
+            await OnCheckpointHook(context);
+    }
+
+    public override ValueTask OnComplete(CompleteContext context) {
+        Complete = context;
+        return ValueTask.CompletedTask;
     }
 }

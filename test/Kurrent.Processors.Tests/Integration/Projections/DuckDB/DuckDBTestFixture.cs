@@ -33,11 +33,7 @@ public sealed class DuckDBTestFixture : IDisposable {
     /// Opens a fresh connection to the fixture's DuckDB file, bypassing the pool.
     /// Caller owns and must dispose.
     /// </summary>
-    public DuckDBAdvancedConnection GetConnection() {
-        var connection = _pool.Open();
-        connection.Open();
-        return connection;
-    }
+    public DuckDBAdvancedConnection GetConnection() => _pool.Open();
 
     public void Dispose() {
         _provider.Dispose();

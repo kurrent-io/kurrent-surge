@@ -13,15 +13,14 @@ namespace Kurrent.Projections;
 public record ProjectionContext<TClient>(GetProjectionClient<TClient> GetClient) : ProcessRecordContext {
     [SetsRequiredMembers]
     public ProjectionContext(ProcessRecordContext source, GetProjectionClient<TClient> getClient) : this(getClient) {
-        Record             = source.Record;
-        Progress           = source.Progress;
-        RequestTrackRecord = source.RequestTrackRecord;
-        RequestCheckpoint  = source.RequestCheckpoint;
-        ProcessorId        = source.ProcessorId;
-        DroneId            = source.DroneId;
-        SessionId          = source.SessionId;
-        Logger             = source.Logger;
-        CancellationToken  = source.CancellationToken;
+        Record            = source.Record;
+        Progress          = source.Progress;
+        RequestTrack      = source.RequestTrack;
+        ProcessorId       = source.ProcessorId;
+        DroneId           = source.DroneId;
+        SessionId         = source.SessionId;
+        Logger            = source.Logger;
+        CancellationToken = source.CancellationToken;
     }
 
     public object Message => Record.Value!;

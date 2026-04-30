@@ -21,6 +21,7 @@
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NodaTime.Testing" />
     <PackageReference Include="TUnit" />
   </ItemGroup>

@@ -12,12 +12,12 @@ namespace Kurrent.Processors.Hive;
 
 /// <summary>
 /// Per-drone pipe: receives messages from <see cref="MasterSubscriptionSource"/>, applies a
-/// catch-up filter, snapshots positions on checkpoint barriers, and writes the drone's
-/// checkpoints under its own <see cref="ProcessorOptions.DroneId"/>.
+/// catch-up filter, and writes the drone's checkpoints under its own
+/// <see cref="ProcessorOptions.DroneId"/>.
 /// </summary>
 /// <remarks>
-/// Owns the drone's <see cref="PartitionedPositionTracker"/> and pending-flush state.
-/// The master holds the gRPC subscription and the flush timer; local is the pipe.
+/// Owns the drone's <see cref="PartitionedPositionTracker"/>. The master holds the gRPC
+/// subscription and the flush timer; local is the pipe.
 /// </remarks>
 sealed class LocalPartitionedSource : ISubscriptionSource {
     readonly MasterSubscriptionSource _master;
@@ -26,9 +26,10 @@ sealed class LocalPartitionedSource : ISubscriptionSource {
     readonly ProcessorOptions         _settings;
     readonly CheckpointStore          _checkpointStore;
     readonly PartitionedPositionTracker _tracker = new();
-    readonly Dictionary<string, PendingPositionsFlush> _pendingFlushes = new();
     readonly Channel<SubscribeMessage> _inbox;
     readonly HybridLogicalClock       _clock;
+
+    int _shutdownInjected;
 
     Dictionary<Partition, LogPosition> _myStart = new();
 
@@ -62,17 +63,21 @@ sealed class LocalPartitionedSource : ISubscriptionSource {
     ) {
         var startPositions = _master.GetStartPositions(_droneId);
 
-        var positionMap = new Dictionary<Partition, RecordPosition>(startPositions.Length);
-        _myStart        = new Dictionary<Partition, LogPosition>(startPositions.Length);
+        _myStart = new Dictionary<Partition, LogPosition>(startPositions.Length);
 
-        foreach (var p in startPositions) {
-            positionMap[p.Partition] = p.Position;
-            _myStart[p.Partition]    = p.Position.LogPosition;
-        }
+        foreach (var p in startPositions)
+            _myStart[p.Partition] = p.LogPosition;
 
-        _tracker.Reset(positionMap);
+        _tracker.Reset(startPositions);
 
-        await foreach (var msg in _inbox.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+        // Cancellation triggers the shutdown barrier on this drone's local inbox.
+        using var ctRegistration = ct.UnsafeRegister(static state => {
+            var src = (LocalPartitionedSource)state!;
+            _ = src.InjectCheckpoint(CheckpointTrigger.Shutdown, "subscription canceled");
+        }, this);
+
+        // Reader uses None — drains until the inbox is completed by InjectCheckpoint(Shutdown).
+        await foreach (var msg in _inbox.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)) {
             switch (msg.Value) {
                 case Record record: {
                     // Master opened gRPC at the global low watermark, so records older than
@@ -85,10 +90,6 @@ sealed class LocalPartitionedSource : ISubscriptionSource {
                     break;
                 }
 
-                case Checkpoint trigger when trigger.Positions.Count == 0:
-                    yield return SnapshotCheckpointMessage(trigger.Trigger);
-                    break;
-
                 default:
                     yield return msg;
                     break;
@@ -96,34 +97,60 @@ sealed class LocalPartitionedSource : ISubscriptionSource {
         }
     }
 
-    public void Track(Record record) => _tracker.Track(record);
+    #region ->> Remote (server) <<-
 
-    public async ValueTask<PartitionPositions> CompleteCheckpointAsync(
-        string checkpointId, CancellationToken ct = default
+    public async ValueTask CompleteCheckpoint(
+        Checkpoint         checkpoint,
+        CancellationToken  ct = default
     ) {
-        if (!_pendingFlushes.Remove(checkpointId, out var pendingFlush))
-            return PartitionPositions.Empty;
-
-        var positions = FilterEarliest(pendingFlush.Positions);
-
-        if (positions.Count == 0)
-            return PartitionPositions.Empty;
-
-        var partitionPositions = positions
-            .Select(kvp => new PartitionPosition(kvp.Key, kvp.Value))
-            .ToArray();
+        if (checkpoint.Positions.Length == 0)
+            return;
 
         await _checkpointStore
-            .StoreAsync(_droneId, checkpointId, partitionPositions, ct)
+            .StoreAsync(_droneId, checkpoint.CheckpointId, checkpoint.Positions, ct)
             .ConfigureAwait(false);
 
-        pendingFlush.Execute();
+        _tracker.FlushUpTo(checkpoint.Positions);
 
-        return positions;
+        // Hive routing for Shutdown markers is deferred to a follow-up. For now,
+        // persist locally regardless of trigger.
     }
 
-    public Checkpoint CreateShutdownCheckpoint() =>
-        SnapshotCheckpointMessage(CheckpointTrigger.Shutdown);
+    #endregion
+
+    #region ->> Local (drone state) <<-
+
+    public void Track(Record record)           => _tracker.Track(record);
+
+    public void Track(RecordPosition position) => _tracker.Track(position);
+
+    public void Track(IEnumerable<Record> records) => _tracker.Track(records);
+
+    public ValueTask InjectCheckpoint(CheckpointTrigger trigger, string? reason = null) {
+        if (trigger == CheckpointTrigger.Shutdown
+            && Interlocked.Exchange(ref _shutdownInjected, 1) == 1)
+            return ValueTask.CompletedTask;
+
+        var now = _clock.Now();
+
+        var marker = new Checkpoint(
+            now,
+            trigger,
+            now.DateTimeOffset,
+            SnapshotPositions()
+        ) {
+            Reason = reason
+        };
+
+        _inbox.Writer.TryWrite(marker);
+
+        if (trigger == CheckpointTrigger.Shutdown)
+            _inbox.Writer.TryComplete();
+
+        return ValueTask.CompletedTask;
+    }
+
+    #endregion
 
     public ValueTask DisposeAsync() {
         _tracker.Dispose();
@@ -132,25 +159,10 @@ sealed class LocalPartitionedSource : ISubscriptionSource {
 
     #region ->> Internals <<-
 
-    Checkpoint SnapshotCheckpointMessage(CheckpointTrigger trigger) {
-        var now          = _clock.Now();
-        var checkpointId = CheckpointId.From(now);
-        var pendingFlush = _tracker.PrepareFlush();
-
-        _pendingFlushes[checkpointId] = pendingFlush;
-
-        return new Checkpoint(
-            checkpointId,
-            trigger,
-            now.DateTimeOffset,
-            FilterEarliest(pendingFlush.Positions)
-        );
-    }
-
-    static PartitionPositions FilterEarliest(IReadOnlyDictionary<Partition, RecordPosition> positions) =>
-        positions
-            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
-            .ToImmutableDictionary();
+    RecordPosition[] SnapshotPositions() =>
+        _tracker.Snapshot()
+            .Where(x => x.LogPosition != LogPosition.Earliest)
+            .ToArray();
 
     #endregion
 }

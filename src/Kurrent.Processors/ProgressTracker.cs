@@ -17,7 +17,7 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
-    CheckpointId      _lastCheckpointId      = CheckpointId.Unset;
+    string            _lastCheckpointId      = "";
     CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
     DateTimeOffset?   _lastCheckpointAt;
 
@@ -41,15 +41,15 @@ sealed class ProgressTracker {
     /// <summary>
     /// Tracks a checkpoint completion with committed positions.
     /// </summary>
-    public void TrackCheckpoint(Checkpoint checkpoint, PartitionPositions positions) {
+    public void TrackCheckpoint(Checkpoint checkpoint, RecordPosition[] positions) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint = _totalRecords;
         _lastCheckpointId        = checkpoint.CheckpointId;
         _lastCheckpointTrigger   = checkpoint.Trigger;
         _lastCheckpointAt        = checkpoint.Timestamp;
 
-        foreach (var (partition, position) in positions)
-            _flushedPositions[partition] = position;
+        foreach (var position in positions)
+            _flushedPositions[position.Partition] = position;
     }
 
     /// <summary>

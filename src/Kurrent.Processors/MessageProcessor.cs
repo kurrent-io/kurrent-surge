@@ -66,7 +66,6 @@ public class MessageProcessor : IRecordProcessor {
     }
 
     Func<CheckpointContext, ValueTask>? _onCheckpoint;
-    Func<ErrorContext, ValueTask>?      _onError;
     Func<CompleteContext, ValueTask>?   _onComplete;
 
     /// <summary>
@@ -81,24 +80,6 @@ public class MessageProcessor : IRecordProcessor {
     /// <inheritdoc cref="OnCheckpoint(Func{CheckpointContext, ValueTask})"/>
     public MessageProcessor OnCheckpoint(Action<CheckpointContext> handler) {
         _onCheckpoint = ctx => {
-            handler(ctx);
-            return ValueTask.CompletedTask;
-        };
-
-        return this;
-    }
-
-    /// <summary>
-    /// Registers a handler invoked when the drone encounters an unrecoverable error.
-    /// </summary>
-    public MessageProcessor OnError(Func<ErrorContext, ValueTask> handler) {
-        _onError = handler;
-        return this;
-    }
-
-    /// <inheritdoc cref="OnError(Func{ErrorContext, ValueTask})"/>
-    public MessageProcessor OnError(Action<ErrorContext> handler) {
-        _onError = ctx => {
             handler(ctx);
             return ValueTask.CompletedTask;
         };
@@ -136,13 +117,10 @@ public class MessageProcessor : IRecordProcessor {
             : _fallback?.Handle(context) ?? ValueTask.CompletedTask;
     }
 
-    ValueTask IRecordProcessor.OnCheckpoint(CheckpointContext context) =>
+    ValueTask IProcessor.OnCheckpoint(CheckpointContext context) =>
         _onCheckpoint?.Invoke(context) ?? ValueTask.CompletedTask;
 
-    ValueTask IRecordProcessor.OnError(ErrorContext context) =>
-        _onError?.Invoke(context) ?? ValueTask.CompletedTask;
-
-    ValueTask IRecordProcessor.OnComplete(CompleteContext context) =>
+    ValueTask IProcessor.OnComplete(CompleteContext context) =>
         _onComplete?.Invoke(context) ?? ValueTask.CompletedTask;
 }
 

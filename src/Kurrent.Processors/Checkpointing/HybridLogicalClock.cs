@@ -257,6 +257,8 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
             DateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
         };
     }
+    
+    public static HybridTimestamp Parse(string value) => Parse(long.Parse(value));
 
     /// <summary>
     /// Attempts to parse a packed 64-bit value into a timestamp.
@@ -296,7 +298,11 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
 
     /// <summary>Parses from packed 64-bit value.</summary>
     public static explicit operator HybridTimestamp(long value) => Parse(value);
-
+    
+    public static implicit operator string(HybridTimestamp timestamp) => timestamp.ToString();
+    
+    public static implicit operator HybridTimestamp(string value) => Parse(value);
+    
     /// <inheritdoc />
     public override string ToString() => $"{PhysicalTime:D19}.{Counter:D5}";
 }

@@ -64,7 +64,7 @@ public abstract partial class CheckpointStore : ICheckpointStore {
             throw;
         }
         catch (Exception ex) {
-            throw new CheckpointStoreException(StoreName, "Failed to initialize checkpoint store.", ex);
+            throw new CheckpointStoreException(StoreName, $"Failed to initialize checkpoint store. {ex.Message}", ex);
         }
 
         _isReady = true;
@@ -110,7 +110,7 @@ public abstract partial class CheckpointStore : ICheckpointStore {
     public async ValueTask StoreAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct = default
     ) {
         ct.ThrowIfCancellationRequested();
@@ -138,7 +138,7 @@ public abstract partial class CheckpointStore : ICheckpointStore {
     public async ValueTask ResetAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct = default
     ) {
         ct.ThrowIfCancellationRequested();
@@ -176,7 +176,7 @@ public abstract partial class CheckpointStore : ICheckpointStore {
         var current = await LoadLatestAsync(ct).ConfigureAwait(false);
 
         var positions = current.Positions
-            .Select(p => p with { Position = position })
+            .Select(p => position with { Partition = p.Partition })
             .ToArray();
 
         await ResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
@@ -199,7 +199,7 @@ public abstract partial class CheckpointStore : ICheckpointStore {
     protected abstract ValueTask OnStoreAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct
     );
 
@@ -210,7 +210,7 @@ public abstract partial class CheckpointStore : ICheckpointStore {
     protected abstract ValueTask OnResetAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct
     );
     
@@ -225,18 +225,18 @@ public abstract partial class CheckpointStore : ICheckpointStore {
             ? RecordPosition.Earliest
             : RecordPosition.Latest;
 
-        var existing = new Dictionary<Partition, PartitionPosition>(checkpoint.Positions.Length);
+        var existing = new Dictionary<Partition, RecordPosition>(checkpoint.Positions.Length);
         foreach (var p in checkpoint.Positions)
             existing[p.Partition] = p;
 
-        var resolved = new PartitionPosition[partitions.Length];
+        var resolved = new RecordPosition[partitions.Length];
 
         for (var i = 0; i < partitions.Length; i++) {
             var partition = partitions[i];
 
             resolved[i] = existing.TryGetValue(partition, out var found)
                 ? found
-                : new PartitionPosition(partition, defaultPos with { Partition = partition });
+                : defaultPos with { Partition = partition };
         }
 
         return new ProcessorCheckpoint {
@@ -248,10 +248,10 @@ public abstract partial class CheckpointStore : ICheckpointStore {
     protected static string FormatPositions(ProcessorCheckpoint checkpoint) =>
         FormatInputPositions(checkpoint.Positions);
 
-    protected static string FormatInputPositions(PartitionPosition[] positions) {
+    protected static string FormatInputPositions(RecordPosition[] positions) {
         var formatted = positions
-            .Where(x => x.Position.LogPosition > LogPosition.Earliest)
-            .Select(x => $"[{x.Partition}] {x.Position}")
+            .Where(x => x.LogPosition > LogPosition.Earliest)
+            .Select(x => $"[{x.Partition}] {x}")
             .ToArray();
 
         return string.Join(", ", formatted);

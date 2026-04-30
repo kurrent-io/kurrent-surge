@@ -94,6 +94,9 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 
     public static PartitionPositions From(ImmutableDictionary<Partition, RecordPosition> values) => new(values);
 
+    public static PartitionPositions From(RecordPosition[] positions) =>
+        new(positions.ToImmutableDictionary(p => p.Partition, p => p));
+
     public RecordPosition MaxPosition => _values.IsEmpty ? RecordPosition.Unset : _values.Values.Max();
 
     public int Count => _values.Count;
@@ -119,11 +122,19 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 
 
 public readonly record struct Checkpoint(
-    CheckpointId CheckpointId,
+    string CheckpointId,
     CheckpointTrigger Trigger,
     DateTimeOffset Timestamp,
-    PartitionPositions Positions
-);
+    RecordPosition[] Positions
+) {
+    /// <summary>
+    /// Optional reason supplied with manual checkpoints (<see cref="CheckpointTrigger.Manual"/>).
+    /// Null for non-manual triggers.
+    /// </summary>
+    public string? Reason { get; init; }
+
+    // public Dictionary<string, string> Metadata { get; init; } = new();
+}
 
 /// <summary>
 /// Messages sent from the Processor Controller (server) to the drone.
@@ -148,7 +159,7 @@ public readonly partial record struct ProcessorControlMessage : IVariant<
 /// <param name="Positions">Partition to record position mapping after recovery.</param>
 [PublicAPI]
 public readonly record struct DroneReady(
-    PartitionPositions Positions
+    RecordPosition[] Positions
 );
 
 /// <summary>
@@ -159,7 +170,7 @@ public readonly record struct DroneReady(
 [PublicAPI]
 public readonly record struct CheckpointComplete(
     CheckpointId CheckpointId,
-    PartitionPositions Positions
+    RecordPosition[] Positions
 );
 
 /// <summary>
@@ -171,7 +182,7 @@ public readonly record struct CheckpointComplete(
 [PublicAPI]
 public readonly record struct Disconnect(
     DisconnectReason Reason,
-    PartitionPositions Positions
+    RecordPosition[] Positions
 );
 
 /// <summary>
@@ -240,19 +251,19 @@ public enum CheckpointTrigger {
     CaughtUp = 4,
 
     /// <summary>
-    /// Checkpoint triggered manually by the user.
+    /// Checkpoint triggered manually by the user from inside <c>ProcessRecord</c>
+    /// via <c>ctx.Checkpoint(reason)</c>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Triggered by an explicit API call to create a checkpoint, such as
-    /// <c>Processor.CreateCheckpointAsync()</c>. Used for scenarios where
-    /// the application needs to ensure a checkpoint at a specific point
-    /// in processing, outside the automatic mechanisms.
+    /// The optional <c>Reason</c> on the <see cref="Checkpoint"/> message carries
+    /// any string the user passed to <c>ctx.Checkpoint(reason)</c>. User code typically
+    /// branches on <see cref="Trigger"/> and/or <c>Reason</c> in <c>OnCheckpoint</c> to
+    /// gate or shape commit behavior.
     /// </para>
-    /// <para>Frequency: Manual (user-initiated).</para>
-    /// <para>Auto-deleted: No (retained until explicitly deleted).</para>
+    /// <para>Frequency: Manual (user-initiated, at most one per <c>ProcessRecord</c> invocation).</para>
     /// </remarks>
-    Savepoint = 5,
+    Manual = 5,
 
     /// <summary>
     /// Checkpoint triggered by graceful drone shutdown to persist final state.

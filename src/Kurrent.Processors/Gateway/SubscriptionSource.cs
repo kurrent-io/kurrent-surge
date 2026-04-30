@@ -22,36 +22,39 @@ namespace Kurrent.Processors.Gateway;
 
 sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
     readonly StreamsClient              _streams;
-    readonly ProcessorOptions           _settings;
+    readonly ProcessorOptions           _options;
     readonly TimeProvider               _timeProvider;
     readonly CheckpointStore            _checkpointStore;
     readonly PartitionedPositionTracker _tracker;
     readonly HybridLogicalClock         _clock;
     readonly KurrentClient              _client;
-    readonly bool                       _ownsClient;
 
-    readonly Dictionary<string, PendingPositionsFlush> _pendingFlushes = new();
+    readonly Lock _writeLock = new();
 
-    // ownsClient is an internal concern — drones built by the runner always own their client.
-    // Integration tests pass ownsClient: false when sharing a fixture-scoped client across tests.
+    ChannelWriter<SubscribeMessage> _channelWriter = null!;
+    CancellationTokenSource?        _cts;
+    Task?                           _pumpTask;
+    Task?                           _timerTask;
+
+    bool _shutdownInjected;
+    int  _connectedObserved;
+
     internal SubscriptionSource(
         KurrentClient client,
-        ProcessorOptions settings,
-        TimeProvider timeProvider,
-        bool ownsClient = true
+        ProcessorOptions options,
+        TimeProvider timeProvider
     ) : base(client) {
         _streams      = new StreamsClient(client);
-        _settings     = settings;
+        _options      = options;
         _timeProvider = timeProvider;
         _client       = client;
-        _ownsClient   = ownsClient;
         _clock        = new HybridLogicalClock(timeProvider);
         _tracker      = new PartitionedPositionTracker();
 
         _checkpointStore = new KurrentDBCheckpointStore(
-            settings.ProcessorId,
-            settings.MaxParallelism,
-            settings.Checkpoint.RetentionCount,
+            options.ProcessorId,
+            options.MaxParallelism,
+            options.Checkpoint.RetentionCount,
             client.Streams,
             TypeMapper,
             _timeProvider,
@@ -64,28 +67,32 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
     public async IAsyncEnumerable<SubscribeMessage> Subscribe(
         [EnumeratorCancellation] CancellationToken ct
     ) {
-        var partitions = Enumerable.Range(0, _settings.MaxParallelism)
+        // Source-owned CTS linked to the caller. Internal tasks (pump, timer, ct
+        // registration) hang off _cts.Token so DisposeAsync can shut everything down
+        // independently of the host's stoppingToken. Either source of cancellation
+        // tears down both internal tasks.
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var sourceCt = _cts.Token;
+
+        var partitions = Enumerable.Range(0, _options.MaxParallelism)
             .Select(Partition.From)
             .ToArray();
 
         RecordPosition startPosition;
 
-        if (_settings.Subscription.StartPosition is not { } explicitStart) {
+        if (_options.Subscription.StartPosition is not { } explicitStart) {
             var checkpoint = await _checkpointStore
-                .LoadLatestAsync(partitions, _settings.Subscription.InitialPosition, ct)
+                .LoadLatestAsync(partitions, _options.Subscription.InitialPosition, sourceCt)
                 .ConfigureAwait(false);
 
             startPosition = checkpoint.LowWatermark;
 
-            var positions = checkpoint.Positions
-                .ToImmutableDictionary(p => p.Partition, p => p.Position);
-
-            _tracker.Reset(positions);
+            _tracker.Reset(checkpoint.Positions);
         }
         else {
             if (explicitStart.Stream.IsUnset) {
                 var record = await _streams
-                    .InspectRecord(explicitStart.LogPosition, ct)
+                    .InspectRecord(explicitStart.LogPosition, sourceCt)
                     .ConfigureAwait(false);
 
                 explicitStart = RecordPosition.From(
@@ -96,74 +103,101 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
 
             await _checkpointStore
                 .ResetAsync(
-                    _settings.DroneId,
-                    CheckpointId.From(_clock.Now()),
+                    _options.DroneId,
+                    _clock.Now(),
                     explicitStart,
-                    ct
+                    sourceCt
                 )
                 .ConfigureAwait(false);
 
-            startPosition = _settings.Subscription.InitialPosition == SubscriptionInitialPosition.Earliest
+            startPosition = _options.Subscription.InitialPosition == SubscriptionInitialPosition.Earliest
                 ? RecordPosition.Earliest
                 : RecordPosition.Latest;
 
-            var positions = ImmutableDictionary<Partition, RecordPosition>.Empty
-                .Add(Partition.From(0), startPosition);
-
-            _tracker.Reset(positions);
+            _tracker.Reset([startPosition with { Partition = Partition.From(0) }]);
         }
 
         var channel = Channel.CreateBounded<SubscribeMessage>(
-            new BoundedChannelOptions(_settings.BufferCapacity) {
+            new BoundedChannelOptions(_options.BufferCapacity) {
                 FullMode     = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false
             });
 
-        StartSubscriptionPump(startPosition, channel.Writer, ct);
+        _channelWriter = channel.Writer;
 
-        await foreach (var msg in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
-            // Snapshot positions at yield time for checkpoint messages
-            if (msg.Value is Checkpoint trigger && trigger.Positions.Count == 0) {
-                yield return SnapshotCheckpointMessage(trigger.Trigger);
-            }
-            // Calculate partition for records before yielding
-            else if (msg.Value is Record record) {
+        // Cancellation (host or DisposeAsync) shuts the source down. UnsafeRegister
+        // fires synchronously inline with Cancel(), so it always wins the race against
+        // the pump's catch path.
+        //
+        // Pre-Connected cancellation: we fault the channel with an OperationCanceledException
+        // instead of injecting a Shutdown marker. Without this guard, OnCheckpoint(Shutdown)
+        // would fire before OnConnected ever ran — breaking the documented lifecycle ordering.
+        // With the channel faulted, the drone's reader throws, RunAsync catches as cancellation,
+        // and InitiateShutdown runs OnComplete (no OnConnected, no OnCheckpoint).
+        using var ctRegistration = sourceCt.UnsafeRegister(static state => {
+            var src = (SubscriptionSource)state!;
+            if (Volatile.Read(ref src._connectedObserved) == 1)
+                _ = src.InjectCheckpoint(CheckpointTrigger.Shutdown, "subscription canceled");
+            else
+                src._channelWriter.TryComplete(new OperationCanceledException("canceled before Connected"));
+        }, this);
+
+        _pumpTask = StartSubscriptionPump(startPosition, channel.Writer, sourceCt);
+
+        // Reader uses CancellationToken.None — drains until channel completed (which is
+        // done by InjectCheckpoint(Shutdown) under the write lock).
+        await foreach (var msg in channel.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)) {
+            // Records get partition tagging; Checkpoint markers get their positions
+            // stamped at drain time so they reflect the tracker's CURRENT state — not
+            // the state at the moment InjectCheckpoint was called. This matters for
+            // host-cancellation: by the time the marker is yielded, the drone has
+            // finished tracking the in-flight record/batch, so the snapshot includes it.
+            if (msg.Value is Record record) {
                 var partition = PartitionCalculator.XXHash
-                    .Calculate(record.Stream, _settings.MaxParallelism);
+                    .Calculate(record.Stream, _options.MaxParallelism);
 
                 yield return record with {
                     Position = record.Position with { Partition = Partition.From(partition) }
                 };
+            }
+            else if (msg.Value is Checkpoint cp) {
+                yield return cp with { Positions = SnapshotPositionsLocked() };
             }
             else {
                 yield return msg;
             }
         }
 
-        void StartSubscriptionPump(RecordPosition from, ChannelWriter<SubscribeMessage> writer, CancellationToken pumpCt) {
-            _ = Task.Run(async () => {
+        Task StartSubscriptionPump(RecordPosition from, ChannelWriter<SubscribeMessage> writer, CancellationToken pumpCt) {
+            return Task.Run(async () => {
                 try {
                     var subscription = _streams.Subscribe(
                         SerializerProvider, MetadataDecoder,
-                        _settings.Subscription.Filter, from,
-                        _settings.SkipDecoding, pumpCt);
-
-                    var connectedHandled = false;
+                        _options.Subscription.Filter, from,
+                        _options.SkipDecoding, pumpCt);
 
                     await foreach (var msg in subscription.ConfigureAwait(false)) {
                         await writer.WriteAsync(msg, pumpCt).ConfigureAwait(false);
 
-                        if (!connectedHandled && msg.Value is Connected) {
-                            connectedHandled = true;
-                            StartFlushTimer(writer, pumpCt);
+                        // The Connected marker has been written to the channel — from now
+                        // on, FIFO ordering guarantees the drone sees Connected (and runs
+                        // OnConnected) before any Shutdown marker injected by cancellation.
+                        if (Volatile.Read(ref _connectedObserved) == 0 && msg.Value is Connected) {
+                            Volatile.Write(ref _connectedObserved, 1);
+                            _timerTask = StartFlushTimer(writer, pumpCt);
                         }
                     }
 
-                    writer.TryComplete();
+                    // Natural end (server closed the stream): inject Shutdown so the
+                    // OnCheckpoint(Shutdown) hook still fires before iteration ends.
+                    await InjectCheckpoint(CheckpointTrigger.Shutdown, "subscription ended").ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) {
-                    writer.TryComplete();
+                catch (Exception) when (pumpCt.IsCancellationRequested) {
+                    // Cancellation may surface as OperationCanceledException OR as
+                    // RpcException(Cancelled) depending on where the gRPC call gets cut.
+                    // Either way, the ct registration has injected the Shutdown marker —
+                    // let it drain. Don't propagate as a channel error.
                 }
                 catch (Exception ex) {
                     writer.TryComplete(ex);
@@ -171,101 +205,140 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscriptionSource {
             }, pumpCt);
         }
 
-        void StartFlushTimer(ChannelWriter<SubscribeMessage> writer, CancellationToken timerCt) {
-            _ = Task.Run(async () => {
-                using var timer = new PeriodicTimer(_settings.Checkpoint.Interval);
+        Task StartFlushTimer(ChannelWriter<SubscribeMessage> writer, CancellationToken timerCt) {
+            if (!_options.Checkpoint.AutoCheckpoint)
+                return Task.CompletedTask;
+
+            return Task.Run(async () => {
+                using var timer = new PeriodicTimer(_options.Checkpoint.Interval);
 
                 try {
                     while (await timer.WaitForNextTickAsync(timerCt).ConfigureAwait(false)) {
-                        // Write a trigger marker with empty positions — will be filled at yield time
-                        var trigger = CreateCheckpointTrigger(CheckpointTrigger.Interval);
-                        await writer.WriteAsync(trigger, timerCt).ConfigureAwait(false);
+                        await InjectCheckpoint(CheckpointTrigger.Interval).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException) {
                     // Expected on shutdown
                 }
             }, timerCt);
-            
-            SubscribeMessage CreateCheckpointTrigger(CheckpointTrigger trigger) {
-                var now = _clock.Now();
-
-                return new Checkpoint(
-                    CheckpointId.From(now),
-                    trigger,
-                    now.DateTimeOffset,
-                    PartitionPositions.Empty
-                );
-            }
         }
     }
 
     #endregion
 
-    #region ->> Track & Checkpoint <<-
+    #region ->> Remote (server) <<-
 
-    public void Track(Record record) => _tracker.Track(record);
-
-    public async ValueTask<PartitionPositions> CompleteCheckpointAsync(
-        string checkpointId, CancellationToken ct = default
+    public async ValueTask CompleteCheckpoint(
+        Checkpoint         checkpoint,
+        CancellationToken  ct = default
     ) {
-        if (!_pendingFlushes.Remove(checkpointId, out var pendingFlush))
-            return PartitionPositions.Empty;
-
-        PartitionPositions positions = pendingFlush.Positions
-            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
-            .ToImmutableDictionary();
-
-        if (positions.Count == 0)
-            return PartitionPositions.Empty;
-
-        var partitionPositions = positions
-            .Select(kvp => new PartitionPosition(kvp.Key, kvp.Value))
-            .ToArray();
+        if (checkpoint.Positions.Length == 0)
+            return;
 
         await _checkpointStore
-            .StoreAsync(_settings.DroneId, checkpointId, partitionPositions, ct)
+            .StoreAsync(_options.DroneId, checkpoint.CheckpointId, checkpoint.Positions, ct)
             .ConfigureAwait(false);
 
-        pendingFlush.Execute();
+        _tracker.FlushUpTo(checkpoint.Positions);
 
-        return positions;
+        // When bidirectional gRPC lands, branch on checkpoint.Trigger == Shutdown here
+        // to send an outbound Disconnect message in addition to the receipt. For the
+        // single-stream impl, the receipt is the same shape regardless of trigger.
     }
 
-    public Checkpoint CreateShutdownCheckpoint() =>
-        SnapshotCheckpointMessage(CheckpointTrigger.Shutdown);
+    #endregion
+
+    #region ->> Local (drone state) <<-
+
+    public void Track(Record record)           => _tracker.Track(record);
+
+    public void Track(RecordPosition position) => _tracker.Track(position);
+
+    public void Track(IEnumerable<Record> records) {
+        // Hold the write lock for the whole batch so InjectCheckpoint's snapshot
+        // observes either pre-batch or post-batch state — never partial.
+        lock (_writeLock) {
+            _tracker.Track(records);
+        }
+    }
+
+    public ValueTask InjectCheckpoint(CheckpointTrigger trigger, string? reason = null) {
+        // The lock serializes all writers so the Shutdown TryWrite + TryComplete pair
+        // is observably atomic — no Interval/Manual marker can sneak in between.
+        // Once _shutdownInjected flips, every subsequent caller (including a second
+        // Shutdown) is dropped at the door.
+        //
+        // Positions are intentionally empty here: they get stamped at DRAIN time by
+        // the Subscribe reader. By the time the marker is yielded, any in-flight
+        // ProcessRecord / ProcessBatch + auto-track has completed, so the snapshot
+        // reflects the tracker's actual post-dispatch state.
+        lock (_writeLock) {
+            if (_shutdownInjected) return ValueTask.CompletedTask;
+
+            var now = _clock.Now();
+
+            var marker = new Checkpoint(
+                now,
+                trigger,
+                now.DateTimeOffset,
+                []
+            ) {
+                Reason = reason
+            };
+
+            _channelWriter.TryWrite(marker);
+
+            if (trigger == CheckpointTrigger.Shutdown) {
+                _shutdownInjected = true;
+                _channelWriter.TryComplete();
+            }
+        }
+
+        return ValueTask.CompletedTask;
+    }
 
     #endregion
 
     #region ->> Internals <<-
 
+    RecordPosition[] SnapshotPositions() =>
+        _tracker.Snapshot()
+            .Where(x => x.LogPosition != LogPosition.Earliest)
+            .ToArray();
 
-    Checkpoint SnapshotCheckpointMessage(CheckpointTrigger trigger) {
-        var now          = _clock.Now();
-        var checkpointId = CheckpointId.From(now);
-        var pendingFlush = _tracker.PrepareFlush();
-
-        _pendingFlushes[checkpointId] = pendingFlush;
-
-        PartitionPositions positions = pendingFlush.Positions
-            .Where(x => x.Value.LogPosition != LogPosition.Earliest)
-            .ToImmutableDictionary();
-
-        return new Checkpoint(
-            checkpointId,
-            trigger,
-            now.DateTimeOffset,
-            positions
-        );
+    RecordPosition[] SnapshotPositionsLocked() {
+        // Held under _writeLock so concurrent Track / TrackBatch calls observe a
+        // consistent state — snapshot either captures pre-track or post-track state,
+        // never partial.
+        lock (_writeLock) {
+            return SnapshotPositions();
+        }
     }
 
     #endregion
 
     public async ValueTask DisposeAsync() {
-        _tracker.Dispose();
+        // Cancel the source CTS first so pump and timer wake up and exit. Awaiting
+        // _pumpTask gives us a happens-before barrier for any field assignments the
+        // pump made (notably _timerTask), so the subsequent _timerTask read is safe.
+        if (_cts is not null) {
+            try { await _cts.CancelAsync().ConfigureAwait(false); }
+            catch { /* best-effort */ }
+        }
 
-        if (_ownsClient)
-            await _client.DisposeAsync().ConfigureAwait(false);
+        if (_pumpTask is not null) {
+            try { await _pumpTask.ConfigureAwait(false); }
+            catch { /* best-effort */ }
+        }
+
+        if (_timerTask is not null) {
+            try { await _timerTask.ConfigureAwait(false); }
+            catch { /* best-effort */ }
+        }
+
+        _cts?.Dispose();
+        _tracker.Dispose();
+        await _client.DisposeAsync().ConfigureAwait(false);
     }
 }
 

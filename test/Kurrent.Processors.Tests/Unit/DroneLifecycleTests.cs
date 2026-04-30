@@ -1,10 +1,7 @@
-using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using TUnit.Assertions.Enums;
-using TUnit.Mocks;
 using Times = TUnit.Mocks.Times;
 
 namespace Kurrent.Processors.Tests;
@@ -247,40 +244,6 @@ public class DroneLifecycleTests {
         await Assert.That(aex!.InnerExceptions).IsNotEmpty();
         await Assert.That(aex.InnerExceptions[0]).IsTypeOf<InvalidOperationException>();
         await Assert.That(aex.InnerExceptions[0].Message).IsEqualTo("original");
-    }
-
-    [Test]
-    public async ValueTask error_shutdown_calls_on_error_handler() {
-        // Arrange
-        var processor = Mock.Of<IRecordProcessor>();
-        var source    = FailingSource(new InvalidOperationException("boom"));
-        var drone     = CreateDrone(source: source, processor: processor.Object);
-
-        // Act
-        await Assert.That(async () => await drone.RunAsync(CancellationToken.None))
-            .Throws<AggregateException>();
-
-        // Assert
-        processor.OnError(Any<ErrorContext>()).WasCalled(Times.Once);
-    }
-
-    [Test]
-    public async ValueTask error_shutdown_accumulates_on_error_handler_failure() {
-        // Arrange
-        var processor = Mock.Of<IRecordProcessor>();
-        var source    = FailingSource(new InvalidOperationException("original"));
-
-        processor.OnError(Any<ErrorContext>())
-            .Throws(new InvalidOperationException("handler bug"));
-
-        var drone = CreateDrone(source: source, processor: processor.Object);
-
-        // Act
-        var aex = await Assert.That(async () => await drone.RunAsync(CancellationToken.None))
-            .Throws<AggregateException>();
-
-        // Assert — both errors in aggregate: original + handler failure
-        await Assert.That(aex!.InnerExceptions).Count().IsGreaterThanOrEqualTo(2);
     }
 
     #endregion

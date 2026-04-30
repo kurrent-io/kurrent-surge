@@ -8,7 +8,7 @@ When editing, preserve this bar.
 
 ## Stack
 
-Multi-target: net8.0, net9.0, net10.0. Use only net8.0 APIs unless behind `#if` guards; build with `--framework net8.0` to verify.
+Targets net10.0 only. Use the latest net10 APIs. Source generators are the exception — they target netstandard2.0.
 
 C# 14 extension members (`extension(Type t)`) are in active use in the Streams module.
 

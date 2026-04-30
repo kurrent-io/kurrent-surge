@@ -49,8 +49,10 @@ public class LogSubscriptionTests {
 
         var processor = new TestRecordProcessor {
             OnProcessRecord = ctx => {
-                if (ctx.Record.Position.LogPosition == data.Position)
-                    ctx.StopAfterTrack();
+                if (ctx.Record.Position.LogPosition == data.Position) {
+                    ctx.Track(ctx.Record);
+                    ctx.StopProcessing();
+                }
 
                 return ValueTask.CompletedTask;
             }
@@ -81,8 +83,10 @@ public class LogSubscriptionTests {
         processor.OnProcessRecord = ctx => {
             Interlocked.Increment(ref recordCount);
 
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack();
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing();
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -135,8 +139,10 @@ public class LogSubscriptionTests {
         var processorId  = $"processor_stops_on_user_request_log-{TestContext.Current!.Id}";
 
         processor.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack();
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing();
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -179,34 +185,6 @@ public class LogSubscriptionTests {
 
         await Assert.That(exception.InnerException).IsTypeOf<InvalidOperationException>();
         await Assert.That(processor.Records.Length).IsEqualTo(0);
-    }
-
-    [Test]
-    public async ValueTask processor_calls_shutdown_even_on_error(CancellationToken ct) {
-        // Arrange
-        var lastPosition = await Fixture.LatestRecordPosition(ct);
-        var data         = await Fixture.SeedTestStream(10, ct);
-        var processor    = new TestRecordProcessor();
-        var processorId  = $"error-shutdown-log-{PunyId.New()}";
-
-        processor.OnProcessRecord = _ => throw new InvalidOperationException("Intentional error");
-
-        // Act
-        try {
-            // TODO: StartFrom(lastPosition) not yet supported on new API
-            await KurrentProcessor.Create(processor, opts => {
-                opts.Connection(Fixture.Client.Options);
-                opts.ProcessorId                   = processorId;
-                opts.Subscription.Filter = RecordFilter.ByExpression($"properties.stream = '{data.Stream}'");
-                
-            }).RunAsync(ct);
-        } catch (DroneException) {
-            // Expected
-        }
-
-        // Assert
-        await Assert.That(processor.Error).IsNotNull();
-        await Assert.That(processor.Error!.Error).IsNotNull();
     }
 
     [Test]
@@ -280,7 +258,7 @@ public class LogSubscriptionTests {
         var processorOne = new TestRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Progress.Throughput.TotalRecords == 1)
-                    ctx.StopBeforeTrack("Phase 1 done after 1 record");
+                    ctx.StopProcessing("Phase 1 done after 1 record");
                 return ValueTask.CompletedTask;
             }
         };
@@ -296,8 +274,10 @@ public class LogSubscriptionTests {
         // Phase 2: Resume from checkpoint, process remaining records
         var processorTwo = new TestRecordProcessor {
             OnProcessRecord = ctx => {
-                if (ctx.Record.Position.LogPosition >= data.Position)
-                    ctx.StopAfterTrack("Phase 2 reached end of stream");
+                if (ctx.Record.Position.LogPosition >= data.Position) {
+                    ctx.Track(ctx.Record);
+                    ctx.StopProcessing("Phase 2 reached end of stream");
+                }
 
                 return ValueTask.CompletedTask;
             }
@@ -336,7 +316,7 @@ public class LogSubscriptionTests {
 
             processor.OnProcessRecord = ctx => {
                 if (ctx.Progress.Throughput.TotalRecords == 10)
-                    ctx.StopBeforeTrack($"Phase {phase + 1} done after 10 records");
+                    ctx.StopProcessing($"Phase {phase + 1} done after 10 records");
 
                 return ValueTask.CompletedTask;
             };
@@ -357,8 +337,10 @@ public class LogSubscriptionTests {
         processors.Add(processor3);
 
         processor3.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack("Phase 3 reached end of stream");
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing("Phase 3 reached end of stream");
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -445,7 +427,7 @@ public class LogSubscriptionTests {
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
-                ctx.StopBeforeTrack("Phase 1 done after 10 records");
+                ctx.StopProcessing("Phase 1 done after 10 records");
 
             return ValueTask.CompletedTask;
         };
@@ -465,8 +447,10 @@ public class LogSubscriptionTests {
         var processor2 = new TestRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack("Phase 2 reached end of stream");
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing("Phase 2 reached end of stream");
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -503,7 +487,7 @@ public class LogSubscriptionTests {
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
-                ctx.StopBeforeTrack("Phase 1 done after 10 records");
+                ctx.StopProcessing("Phase 1 done after 10 records");
 
             return ValueTask.CompletedTask;
         };
@@ -523,8 +507,10 @@ public class LogSubscriptionTests {
         var processor2 = new TestRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack("Phase 2 reached end of stream");
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing("Phase 2 reached end of stream");
+            }
 
             return ValueTask.CompletedTask;
         };

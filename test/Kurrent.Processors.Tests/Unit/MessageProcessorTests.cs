@@ -315,29 +315,6 @@ public class MessageProcessorTests {
 	}
 
 	[Test]
-	public async ValueTask on_error_is_invoked() {
-		// Arrange
-		Exception? captured = null;
-
-		var processor = new MessageProcessor()
-			.OnError(ctx => { captured = ctx.Error; });
-
-		var ctx = new ErrorContext {
-			ProcessorId = "test-processor",
-			DroneId     = "test-drone",
-			Progress    = DroneProgress.Empty,
-			Error       = new InvalidOperationException("boom")
-		};
-
-		// Act
-		await ((IRecordProcessor)processor).OnError(ctx);
-
-		// Assert
-		await Assert.That(captured).IsNotNull();
-		await Assert.That(captured!.Message).IsEqualTo("boom");
-	}
-
-	[Test]
 	public async ValueTask on_complete_is_invoked() {
 		// Arrange
 		var completeCalled = false;
@@ -367,10 +344,6 @@ public class MessageProcessorTests {
 		await processor.OnCheckpoint(new CheckpointContext {
 			ProcessorId = "test", DroneId = "test",
 			Positions = [], CheckpointId = "cp", Trigger = CheckpointTrigger.Interval, Timestamp = DateTimeOffset.UtcNow
-		});
-		await processor.OnError(new ErrorContext {
-			ProcessorId = "test", DroneId = "test",
-			Progress = DroneProgress.Empty, Error = new Exception()
 		});
 		await processor.OnComplete(new CompleteContext {
 			ProcessorId = "test", DroneId = "test",

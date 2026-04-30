@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Reflection;
+using System.Reflection.Emit;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
@@ -59,7 +61,8 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 	(SchemaName schemaName, SchemaVersionId lastSchemaVersionId) HandleLocalRegistration(Type messageType, ResolvedSchemaRegistryPolicy policy) {
 		if (policy.AutoMapMessages) {
 			var mapped = TypeMapper.TryGetSchemaName(messageType, out var schemaName);
-			if (!mapped) {
+			
+            if (!mapped) {
 				schemaName = policy.GetSchemaName(messageType);
 				TypeMapper.TryMap(schemaName, messageType);
 			}
@@ -77,8 +80,15 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 	#region ->> Deserialize <<-
 
 	public async ValueTask<(Type MessageType, SchemaVersionId SchemaVersionId)> ValidateAndEnsureSchemaCompatibility(RecordSchemaInfo schemaInfo, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-        var messageType = TypeMapper.GetOrResolveMessageType(schemaInfo.SchemaName);
 
+        if (!TypeMapper.TryGetMessageType(schemaInfo.SchemaName, out var messageType)) {
+            // TODO SS: Should not be possible to resolve a type if we are to be 100% AOT compatible
+            if (policy.AutoMapMessages && ForbidenTypeResolver.ResolveType(schemaInfo.SchemaName) is { } resolvedType && TypeMapper.TryMap(schemaInfo.SchemaName, resolvedType))
+                messageType = resolvedType;
+            else
+                throw new MessageTypeResolutionException(schemaInfo.SchemaName);
+        }
+  
 		if (!policy.ValidateSchemas)
 			return (messageType, SchemaVersionId.Unset);
 

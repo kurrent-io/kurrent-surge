@@ -98,6 +98,14 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 			return Deserialize(data, result.MessageType);
 		}
 		catch (Exception ex) when (ex is not SchemaSerializationException) {
+            var wtfpolicy = context.SchemaRegistryPolicy
+                .Resolve(Options.SchemaRegistration, context.Stream, DataFormat)
+                .EnsureDataFormatCompliance(DataFormat);
+            
+            var wtfvalidateresult = await SchemaManager
+                .ValidateAndEnsureSchemaCompatibility(schemaInfo, wtfpolicy, context.CancellationToken)
+                .ConfigureAwait(false);
+            
 			throw new SchemaDeserializationFailedException(DataFormat, schemaInfo.SchemaName,  ex);
 		}
 	}

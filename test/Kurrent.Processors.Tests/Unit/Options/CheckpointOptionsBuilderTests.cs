@@ -1,7 +1,6 @@
-using Kurrent.Processors;
 using Kurrent.Processors.Options;
 
-namespace Kurrent.Processors.Tests.Unit.Settings;
+namespace Kurrent.Processors.Tests.Options;
 
 [Category("Processors")]
 public class CheckpointOptionsBuilderTests {

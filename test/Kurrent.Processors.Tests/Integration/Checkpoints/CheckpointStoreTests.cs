@@ -59,7 +59,7 @@ public class CheckpointStoreTests {
 		// Assert
 		await Assert.That(checkpoint.Positions.Length).IsGreaterThan(0);
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(1);
-		await Assert.That(checkpoint.Positions[0].Position.LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(1000);
 		await Assert.That(checkpoint.Timestamp).IsNotEqualTo(DateTimeOffset.MinValue);
 	}
 
@@ -96,9 +96,9 @@ public class CheckpointStoreTests {
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(3);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2500);
-		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition.Value).IsEqualTo(3000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2500);
+		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(3000);
 	}
 
 	#endregion
@@ -124,8 +124,8 @@ public class CheckpointStoreTests {
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(2);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2000);
 	}
 
 	[Test]
@@ -154,7 +154,7 @@ public class CheckpointStoreTests {
 		await Assert.That(byPartition.Count).IsEqualTo(droneCount);
 		for (var i = 0; i < droneCount; i++) {
 			await Assert
-                .That(byPartition[Partition.From(i)].Position.LogPosition.Value)
+                .That(byPartition[Partition.From(i)].LogPosition.Value)
                 .IsEqualTo((i + 1) * 1000);
 		}
 	}
@@ -251,9 +251,9 @@ public class CheckpointStoreTests {
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(3);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(3000);
-		await Assert.That(byPartition[Partition.From(2)].Position).IsEqualTo(RecordPosition.Earliest with { Partition = Partition.From(2) });
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(3000);
+		await Assert.That(byPartition[Partition.From(2)]).IsEqualTo(RecordPosition.Earliest with { Partition = Partition.From(2) });
 	}
 
 	[Test]
@@ -291,8 +291,8 @@ public class CheckpointStoreTests {
 
 		// Assert
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(2);
-		await Assert.That(checkpoint.Positions[0].Position).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(0) });
-		await Assert.That(checkpoint.Positions[1].Position).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(1) });
+		await Assert.That(checkpoint.Positions[0]).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(0) });
+		await Assert.That(checkpoint.Positions[1]).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(1) });
 	}
 
 	#endregion
@@ -335,9 +335,9 @@ public class CheckpointStoreTests {
 
 		// Assert — partition 1 was reset, others preserved
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(500);
-		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition.Value).IsEqualTo(3000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(500);
+		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(3000);
 	}
 
 	[Test]
@@ -379,9 +379,9 @@ public class CheckpointStoreTests {
 		// Assert — all partitions at the reset position
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(3);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(seeded.Position.Value);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(seeded.Position.Value);
-		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition.Value).IsEqualTo(seeded.Position.Value);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(seeded.Position.Value);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(seeded.Position.Value);
+		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(seeded.Position.Value);
 	}
 
 	[Test]
@@ -401,7 +401,7 @@ public class CheckpointStoreTests {
 
 		// Assert — only the post-wipe data is visible
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(1);
-		await Assert.That(checkpoint.Positions[0].Position.LogPosition.Value).IsEqualTo(5000);
+		await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(5000);
 	}
 
 	#endregion
@@ -425,8 +425,8 @@ public class CheckpointStoreTests {
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
-		var p0 = byPartition[Partition.From(0)].Position;
-		var p1 = byPartition[Partition.From(1)].Position;
+		var p0 = byPartition[Partition.From(0)];
+		var p1 = byPartition[Partition.From(1)];
 
 		await Assert.That(p0.LogPosition.Value).IsEqualTo(1000);
 		await Assert.That(p0.Stream).IsEqualTo(streamName);
@@ -453,8 +453,8 @@ public class CheckpointStoreTests {
 		// Assert — types were registered via constructor, so deserialization works
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(2);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2000);
 	}
 
 	#endregion

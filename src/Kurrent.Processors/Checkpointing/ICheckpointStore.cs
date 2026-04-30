@@ -29,7 +29,7 @@ public interface ICheckpointStore {
     ValueTask StoreAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct = default
     );
 
@@ -40,7 +40,7 @@ public interface ICheckpointStore {
     ValueTask ResetAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct = default
     );
 
@@ -66,7 +66,7 @@ public sealed record ProcessorCheckpoint {
     /// <summary>
     /// Per-partition positions.
     /// </summary>
-    public PartitionPosition[] Positions { get; init; } = [];
+    public RecordPosition[] Positions { get; init; } = [];
 
     /// <summary>
     /// UTC timestamp when the checkpoint was created.
@@ -77,11 +77,11 @@ public sealed record ProcessorCheckpoint {
     /// The minimum position across all partitions (subscription start position).
     /// </summary>
     public RecordPosition LowWatermark =>
-        Positions.Length > 0 ? Positions.Min(p => p.Position) : RecordPosition.Unset;
+        Positions.Length > 0 ? Positions.Min() : RecordPosition.Unset;
 
     /// <summary>
     /// The maximum position across all partitions.
     /// </summary>
     public RecordPosition HighWatermark =>
-        Positions.Length > 0 ? Positions.Max(p => p.Position) : RecordPosition.Unset;
+        Positions.Length > 0 ? Positions.Max() : RecordPosition.Unset;
 }

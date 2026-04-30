@@ -9,26 +9,26 @@ static class ChannelExtensions {
     /// <typeparam name="T">The type of data in the channel.</typeparam>
     extension<T>(ChannelReader<T> reader) {
         /// <summary>
-        /// Reads data from the channel in batches of a specified size up to a given timeout period.
+        /// Reads data from the channel in batches of a specified size up to a given window of time.
         /// </summary>
-        /// <param name="batchSize">The maximum number of items in a single batch.</param>
-        /// <param name="timeout">The maximum duration to wait while gathering a batch.</param>
+        /// <param name="maxBatchSize">The maximum number of items in a single batch.</param>
+        /// <param name="batchWindow">The maximum duration to wait while gathering a batch.</param>
         /// <param name="cancellationToken">A token to observe for cancellation of the batch processing.</param>
         public async IAsyncEnumerable<List<T>> ReadBatches(
-            int batchSize, TimeSpan timeout,
+            int maxBatchSize, TimeSpan batchWindow,
             [EnumeratorCancellation] CancellationToken cancellationToken = default
         ) {
-            var buffer = new List<T>(batchSize);
+            var buffer = new List<T>(maxBatchSize);
 
             while (!cancellationToken.IsCancellationRequested) {
-                var timerTask = Task.Delay(timeout, cancellationToken);
+                var timerTask = Task.Delay(batchWindow, cancellationToken);
 
-                while (buffer.Count < batchSize) {
+                while (buffer.Count < maxBatchSize) {
                     var readSignal    = reader.WaitToReadAsync(cancellationToken).AsTask();
                     var completedTask = await Task.WhenAny(readSignal, timerTask).ConfigureAwait(false);
 
                     if (completedTask == readSignal && !readSignal.IsCanceled && await readSignal) {
-                        while (buffer.Count < batchSize && reader.TryRead(out var item))
+                        while (buffer.Count < maxBatchSize && reader.TryRead(out var item))
                             buffer.Add(item);
                     }
                     else break;
@@ -43,9 +43,9 @@ static class ChannelExtensions {
             }
         }
 
-        async IAsyncEnumerable<T[]> ReadBatchesOptimized(int batchSize, TimeSpan timeout, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        async IAsyncEnumerable<T[]> ReadBatchesOptimized(int maxBatchSize, TimeSpan batchWindow, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
             var pool   = ArrayPool<T>.Shared;
-            var buffer = pool.Rent(batchSize);
+            var buffer = pool.Rent(maxBatchSize);
 
             try {
                 while (!cancellationToken.IsCancellationRequested) {
@@ -53,12 +53,12 @@ static class ChannelExtensions {
 
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-                    cts.CancelAfter(timeout);
+                    cts.CancelAfter(batchWindow);
 
-                    while (currentIndex < batchSize && !cts.Token.IsCancellationRequested) {
+                    while (currentIndex < maxBatchSize && !cts.Token.IsCancellationRequested) {
                         try {
                             if (await reader.WaitToReadAsync(cts.Token))
-                                while (currentIndex < batchSize && reader.TryRead(out var item))
+                                while (currentIndex < maxBatchSize && reader.TryRead(out var item))
                                     buffer[currentIndex++] = item;
                         }
                         catch (OperationCanceledException) when (cts.Token.IsCancellationRequested) {

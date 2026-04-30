@@ -50,9 +50,9 @@ namespace Kurrent.Processors;
 [PublicAPI]
 public sealed class KurrentProcessor {
     readonly ProcessorOptions _options;
-    readonly IRecordProcessor _processor;
+    readonly IProcessor       _processor;
 
-    internal KurrentProcessor(ProcessorOptions options, IRecordProcessor processor) {
+    internal KurrentProcessor(ProcessorOptions options, IProcessor processor) {
         _options   = options;
         _processor = processor;
     }
@@ -64,8 +64,24 @@ public sealed class KurrentProcessor {
         ArgumentNullException.ThrowIfNull(processor);
         return new KurrentProcessor(options, processor);
     }
-    
+
     public static KurrentProcessor Create(IRecordProcessor processor, Action<ProcessorOptions>? configure = null) {
+        ArgumentNullException.ThrowIfNull(processor);
+
+        var options = new ProcessorOptions();
+        configure?.Invoke(options);
+        return Create(processor, options);
+    }
+
+    /// <summary>
+    /// Creates a processor from a prebuilt <see cref="IRecordBatchProcessor"/>.
+    /// </summary>
+    public static KurrentProcessor Create(IRecordBatchProcessor processor, ProcessorOptions options) {
+        ArgumentNullException.ThrowIfNull(processor);
+        return new KurrentProcessor(options, processor);
+    }
+
+    public static KurrentProcessor Create(IRecordBatchProcessor processor, Action<ProcessorOptions>? configure = null) {
         ArgumentNullException.ThrowIfNull(processor);
 
         var options = new ProcessorOptions();

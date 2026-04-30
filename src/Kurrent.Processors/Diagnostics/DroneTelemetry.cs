@@ -45,12 +45,12 @@ sealed partial class DroneTelemetry : TelemetrySource {
         Publish(new CheckpointInitiatedEvent(_processorId, _droneId, trigger.ToString(), checkpointId));
     }
 
-    public void CheckpointComplete(string checkpointId, CheckpointTrigger trigger, PartitionPositions positions) {
+    public void CheckpointComplete(string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions) {
         LogCheckpointComplete(_processorId, _droneId, checkpointId, trigger, positions);
-        Publish(new CheckpointCompletedEvent(_processorId, _droneId, trigger.ToString(), checkpointId, positions.Count, 0));
+        Publish(new CheckpointCompletedEvent(_processorId, _droneId, trigger.ToString(), checkpointId, positions.Length, 0));
     }
 
-    public void CheckpointFailed(string checkpointId, CheckpointTrigger trigger, PartitionPositions positions, Exception ex) {
+    public void CheckpointFailed(string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions, Exception ex) {
         LogCheckpointFailed(ex, _processorId, _droneId, checkpointId, trigger, positions, ex.Message);
         Publish(new CheckpointFailedEvent(_processorId, _droneId, checkpointId, trigger.ToString(), ex.GetType().FullName ?? ex.GetType().Name, ex.Message));
     }
@@ -185,10 +185,10 @@ sealed partial class DroneTelemetry : TelemetrySource {
     partial void LogCheckpointInitiated(string processorId, string droneId, string checkpointId, CheckpointTrigger trigger);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Checkpoint {CheckpointId} ({Trigger}) completed (positions: [{Positions}])")]
-    partial void LogCheckpointComplete(string processorId, string droneId, string checkpointId, CheckpointTrigger trigger, PartitionPositions positions);
+    partial void LogCheckpointComplete(string processorId, string droneId, string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "[{DroneId}] Checkpoint {CheckpointId} ({Trigger}) failed: {Message}")]
-    partial void LogCheckpointFailed(Exception ex, string processorId, string droneId, string checkpointId, CheckpointTrigger trigger, PartitionPositions positions, string message);
+    partial void LogCheckpointFailed(Exception ex, string processorId, string droneId, string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions, string message);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Stopping ({TotalRecords} records in {Duration} | {RecordsPerSecond:F1} rec/s)")]
     partial void LogStopping(string processorId, string droneId, long totalRecords, TimeSpan duration, double recordsPerSecond);

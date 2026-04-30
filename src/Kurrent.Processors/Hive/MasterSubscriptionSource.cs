@@ -24,7 +24,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
 
     readonly Dictionary<string, DroneRegistration>                 _drones = new();
     readonly Dictionary<Partition, ChannelWriter<SubscribeMessage>> _routes = new();
-    readonly Dictionary<string, PartitionPosition[]>               _startPositionsByDrone = new();
+    readonly Dictionary<string, RecordPosition[]>               _startPositionsByDrone = new();
 
     DroneRegistration[] _dronesSnapshot = [];
     RecordPosition      _lowWatermark   = RecordPosition.Earliest;
@@ -47,7 +47,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
             _routes[p] = writer;
     }
 
-    public PartitionPosition[] GetStartPositions(string droneId) =>
+    public RecordPosition[] GetStartPositions(string droneId) =>
         _startPositionsByDrone.TryGetValue(droneId, out var positions) ? positions : [];
 
     public async ValueTask InitializeAsync(CancellationToken ct) {
@@ -60,12 +60,12 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
             : RecordPosition.Latest;
 
         foreach (var reg in _drones.Values) {
-            var resolved = new PartitionPosition[reg.Partitions.Length];
+            var resolved = new RecordPosition[reg.Partitions.Length];
             for (var i = 0; i < reg.Partitions.Length; i++) {
                 var p = reg.Partitions[i];
                 resolved[i] = existing.TryGetValue(p, out var found)
                     ? found
-                    : new PartitionPosition(p, defaultPos with { Partition = p });
+                    : defaultPos with { Partition = p };
             }
             _startPositionsByDrone[reg.DroneId] = resolved;
         }
@@ -136,10 +136,10 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
                 while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false)) {
                     var now = _clock.Now();
                     var barrier = new Checkpoint(
-                        CheckpointId.From(now),
+                        now,
                         CheckpointTrigger.Interval,
                         now.DateTimeOffset,
-                        PartitionPositions.Empty);
+                        []);
 
                     await FanOutAsync(barrier, ct).ConfigureAwait(false);
                 }
