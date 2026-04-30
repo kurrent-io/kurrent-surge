@@ -4,7 +4,7 @@ order: 2
 
 # Configuration
 
-`KurrentClient` can be configured via connection strings, the fluent builder API, `appsettings.json`, or dependency injection. All approaches produce the same `KurrentClientOptions` — choose the one that fits your application.
+`KurrentClient` is configured through a single `KurrentClientOptions` record. You can build it from a connection string, mutate it programmatically, or resolve it from dependency injection. Choose the path that fits your application.
 
 ## Connection strings
 
@@ -30,8 +30,8 @@ The `kurrentdb+discover` scheme enables gossip-based node discovery for clustere
 |----------------------|------------------------------------------------|
 | `kurrentdb`          | Direct connection to a single node             |
 | `kurrentdb+discover` | Cluster connection with gossip discovery       |
-| `esdb`               | Legacy scheme — alias for `kurrentdb`          |
-| `esdb+discover`      | Legacy scheme — alias for `kurrentdb+discover` |
+| `esdb`               | Legacy alias for `kurrentdb`                   |
+| `esdb+discover`      | Legacy alias for `kurrentdb+discover`          |
 
 ### Connection string parameters
 
@@ -39,9 +39,9 @@ The `kurrentdb+discover` scheme enables gossip-based node discovery for clustere
 |-----------------------|--------|----------|-----------------------------------------------------------------------------|
 | `Tls`                 | bool   | `true`   | Enable TLS transport security                                               |
 | `TlsVerifyCert`       | bool   | `true`   | Verify the server TLS certificate                                           |
-| `TlsCaFile`           | string | —        | Path to a custom CA certificate file                                        |
-| `UserCertFile`        | string | —        | Path to client certificate (mTLS)                                           |
-| `UserKeyFile`         | string | —        | Path to client private key (mTLS)                                           |
+| `TlsCaFile`           | string | _none_   | Path to a custom CA certificate file                                        |
+| `UserCertFile`        | string | _none_   | Path to client certificate (mTLS)                                           |
+| `UserKeyFile`         | string | _none_   | Path to client private key (mTLS)                                           |
 | `ConnectionName`      | string | auto     | Connection identifier for diagnostics                                       |
 | `DefaultDeadline`     | int    | `30000`  | Client-side timeout in milliseconds (`-1` = infinite)                       |
 | `KeepAliveInterval`   | int    | `60000`  | Keep-alive ping interval in milliseconds                                    |
@@ -77,74 +77,94 @@ Cluster with follower preference:
 kurrentdb+discover://admin:changeit@node1:2113,node2:2113,node3:2113?nodePreference=Follower
 ```
 
-## Builder API
+## Creating a client
 
-The `KurrentClientOptionsBuilder` provides a fluent API for programmatic configuration:
+### From a connection string
 
 ```csharp
 using Kurrent.Client;
 
-var client = KurrentClientOptionsBuilder.Create()
-    .ConfigureConnection(conn => conn
-        .WithConnectionName("my-service")
-        .WithDirectConnection("kurrentdb.internal", 2113)
-        .WithBasicAuthentication("admin", "changeit")
-        .WithTransportSecurity())
-    .Build()
-    .CreateClient();
+await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113");
 ```
 
-### Starting from a connection string
+### From a connection string with overrides
 
-Use a connection string as a base and override specific settings:
+`KurrentClient.Create(connectionString, configure)` parses the string into options first, then runs your callback so you can tune anything before the client is built:
 
 ```csharp
-var client = KurrentClientOptionsBuilder
-    .FromConnectionString("kurrentdb://admin:changeit@localhost:2113")
-    .ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
-    .WithLoggerFactory(loggerFactory)
-    .Build()
-    .CreateClient();
+await using var client = KurrentClient.Create(
+    "kurrentdb://admin:changeit@localhost:2113",
+    opts => {
+        opts.Resilience    = KurrentClientResilienceOptions.HighAvailability;
+        opts.LoggerFactory = loggerFactory;
+        opts.Schema.Mapper.Map<OrderPlaced>();
+    });
 ```
 
-### Cluster discovery
+### From a pre-built options instance
+
+`KurrentClientOptions` is a record. Construct one directly when you want full control:
 
 ```csharp
-var client = KurrentClientOptionsBuilder.Create()
-    .ConfigureConnection(conn => conn
-        .WithGossipEndpoint("node1", 2113)
-        .WithGossipEndpoint("node2", 2113)
-        .WithGossipEndpoint("node3", 2113)
-        .WithBasicAuthentication("admin", "changeit")
-        .ConfigureGossip(gossip => gossip with {
-            ReadPreference = NodePreference.Follower
-        }))
-    .Build()
-    .CreateClient();
+var options = new KurrentClientOptions {
+    ConnectionName   = "my-service",
+    ConnectionScheme = KurrentConnectionScheme.Direct,
+    Endpoints        = [new("kurrentdb.internal", 2113)],
+    Security         = KurrentClientSecurityOptions.Basic("admin", "changeit"),
+    Resilience       = KurrentClientResilienceOptions.HighAvailability
+};
+
+await using var client = KurrentClient.Create(options);
+```
+
+You can also start from a parsed connection string and use `with` to override individual sections:
+
+```csharp
+var options = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2113") with {
+    Resilience = KurrentClientResilienceOptions.HighAvailability
+};
+
+await using var client = KurrentClient.Create(options);
 ```
 
 ### Security options
 
-Insecure (development only):
+Security is configured through `KurrentClientOptions.Security` using `KurrentClientSecurityOptions` factories:
 
 ```csharp
-.ConfigureConnection(conn => conn.WithInsecureTransport())
+// Defaults: TLS enabled, server certificate verified, no client auth.
+var options = KurrentClientOptions.Parse("kurrentdb://localhost:2113") with {
+    Security = KurrentClientSecurityOptions.Default
+};
+
+// Insecure (development only).
+options = options with {
+    Security = KurrentClientSecurityOptions.Insecure
+};
+
+// Basic authentication (forces TLS).
+options = options with {
+    Security = KurrentClientSecurityOptions.Basic("admin", "changeit")
+};
+
+// Mutual TLS using file paths.
+options = options with {
+    Security = KurrentClientSecurityOptions.MutualTls(
+        clientCertPath: "/path/to/client.crt",
+        clientKeyPath:  "/path/to/client.key",
+        rootCaPath:     "/path/to/ca.crt")
+};
 ```
 
-TLS with custom CA:
+For finer-grained control you can compose the underlying variants directly:
 
 ```csharp
-.ConfigureConnection(conn => conn
-    .ConfigureSecurity(KurrentClientSecurityOptions.Default with {
-        Transport = TransportSecurity.Certificate("/path/to/ca.crt")
-    }))
-```
-
-Mutual TLS (client certificate):
-
-```csharp
-.ConfigureConnection(conn => conn
-    .WithCertificateAuthentication("/path/to/client.crt", "/path/to/client.key"))
+options = options with {
+    Security = new() {
+        Transport      = TransportSecurity.Certificate("/path/to/ca.crt"),
+        Authentication = ClientCredentials.Certificate("/path/to/client.crt", "/path/to/client.key")
+    }
+};
 ```
 
 ## Resilience profiles
@@ -153,25 +173,32 @@ The client ships with predefined resilience configurations:
 
 | Profile            | Description                                                   |
 |--------------------|---------------------------------------------------------------|
-| `NoResilience`     | No retries, infinite deadline. Default for new clients.       |
-| `FailFast`         | No retries, short deadline. For latency-sensitive operations. |
-| `HighAvailability` | Aggressive retries with backoff. For production clusters.     |
-| `CautiousWrite`    | Conservative retries for write operations.                    |
-| `Subscription`     | Tuned for long-running subscriptions.                         |
+| `Default`          | Resilient general-purpose configuration with infinite deadline and 3 retries. |
+| `NoResilience`     | No retries, infinite deadline.                                |
+| `FailFast`         | No retries, 5-second deadline. For latency-sensitive operations. |
+| `HighAvailability` | 5 retries, 200ms fixed backoff, 30-second deadline.           |
+| `CautiousWrite`    | 3 retries, 60-second deadline. Conservative for non-idempotent writes. |
+| `Subscription`     | 8 retries, infinite deadline. Tuned for long-running subscriptions. |
 | `RetryForever`     | Unlimited retries with exponential backoff.                   |
 
+Apply a profile to options:
+
 ```csharp
-.ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
+options = options with {
+    Resilience = KurrentClientResilienceOptions.HighAvailability
+};
 ```
 
-Or configure individual settings:
+Or tune individual settings using `with`:
 
 ```csharp
-.ConfigureResilience(resilience => resilience with {
-    Deadline          = TimeSpan.FromSeconds(10),
-    KeepAliveInterval = TimeSpan.FromSeconds(30),
-    KeepAliveTimeout  = TimeSpan.FromSeconds(15)
-})
+options = options with {
+    Resilience = KurrentClientResilienceOptions.HighAvailability with {
+        Deadline          = TimeSpan.FromSeconds(10),
+        KeepAliveInterval = TimeSpan.FromSeconds(30),
+        KeepAliveTimeout  = TimeSpan.FromSeconds(15)
+    }
+};
 ```
 
 ## Dependency injection
@@ -184,7 +211,17 @@ Register `KurrentClient` as a singleton in `IServiceCollection`:
 services.AddKurrentClient();
 ```
 
-This reads from the `Kurrent:Client` section in `appsettings.json` (see below). Falls back to defaults if no configuration is available.
+This reads a connection string from `ConnectionStrings:KurrentDB` in `IConfiguration` (e.g. `appsettings.json`) and parses it into options. If neither a `KurrentClientOptions` instance nor a connection string is registered, registration throws.
+
+`appsettings.json`:
+
+```json
+{
+  "ConnectionStrings": {
+    "KurrentDB": "kurrentdb://admin:changeit@localhost:2113"
+  }
+}
+```
 
 ### From a connection string
 
@@ -192,76 +229,48 @@ This reads from the `Kurrent:Client` section in `appsettings.json` (see below). 
 services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113");
 ```
 
-### With builder overrides
-
-Configuration from `appsettings.json` is applied first, then the builder action overrides:
+### From a pre-built options instance
 
 ```csharp
-services.AddKurrentClient(builder => builder
-    .ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
-    .WithLoggerFactory(loggerFactory));
-```
-
-### With access to `IServiceProvider`
-
-```csharp
-services.AddKurrentClient((builder, sp) => {
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    builder.WithLoggerFactory(loggerFactory);
+services.AddKurrentClient(new KurrentClientOptions {
+    ConnectionName = "my-service",
+    Endpoints      = [new("kurrentdb.internal", 2113)],
+    Resilience     = KurrentClientResilienceOptions.HighAvailability
 });
 ```
 
-All `AddKurrentClient` overloads use `TryAddSingleton` — if a client is already registered, subsequent calls are ignored.
+### With a configure callback
 
-## Configuration from appsettings.json
+`AddKurrentClient(Action<KurrentClientOptions>?)` resolves the options from the service provider, configuration, or defaults, and then runs your callback last so you can override anything:
 
-The client can bind configuration from the `Kurrent:Client` section:
-
-```json
-{
-  "Kurrent": {
-    "Client": {
-      "ConnectionString": "kurrentdb://admin:changeit@localhost:2113",
-      "ConnectionName": "my-service",
-      "Resilience": {
-        "Deadline": "00:00:10",
-        "KeepAliveInterval": "00:01:00",
-        "KeepAliveTimeout": "00:00:30"
-      },
-      "Gossip": {
-        "MaxDiscoverAttempts": 10,
-        "DiscoveryInterval": "00:00:00.100",
-        "Timeout": "00:00:05"
-      }
-    }
-  }
-}
+```csharp
+services.AddKurrentClient(opts => {
+    opts.Resilience = KurrentClientResilienceOptions.HighAvailability;
+});
 ```
 
-The configuration layering order:
+All `AddKurrentClient` overloads use `TryAddSingleton`. If a client is already registered, subsequent calls are ignored.
 
-1. `ConnectionString` is parsed first to establish base settings (endpoints, auth, TLS)
-2. `Resilience`, `Gossip`, and `Schema` sections override the parsed values
-3. Fluent builder methods override everything
+### Service-provider overrides
+
+Whichever overload you pick, the registration applies these overrides from the service provider before constructing the client (overriding any value already set on the options):
+
+| Service                | Applied to                  |
+|------------------------|-----------------------------|
+| `MessageTypeMapper`    | `options.Schema.Mapper`     |
+| `ILoggerFactory`       | `options.LoggerFactory`     |
+| `IMetadataDecoder`     | `options.MetadataDecoder`   |
+
+Registering `ILoggerFactory` in DI is enough to wire it into the client. No separate call is needed.
 
 ## Logging
 
-Pass an `ILoggerFactory` to enable client diagnostics:
+When constructing a client outside DI, assign `LoggerFactory` directly:
 
 ```csharp
-var client = KurrentClientOptionsBuilder
-    .FromConnectionString("kurrentdb://admin:changeit@localhost:2113")
-    .WithLoggerFactory(loggerFactory)
-    .Build()
-    .CreateClient();
-```
-
-When using dependency injection, the logger factory from the service provider is not wired automatically — pass it explicitly via the builder overload:
-
-```csharp
-services.AddKurrentClient((builder, sp) => {
-    builder.WithLoggerFactory(sp.GetRequiredService<ILoggerFactory>());
-});
+await using var client = KurrentClient.Create(
+    "kurrentdb://admin:changeit@localhost:2113",
+    opts => opts.LoggerFactory = loggerFactory);
 ```
 
 ## Disposing the client

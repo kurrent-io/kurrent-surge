@@ -8,47 +8,55 @@ Events are the fundamental unit of data in KurrentDB. You append events to named
 
 ## Append a single event
 
-The simplest way to append an event:
+Build a record with the `AppendRecord.New` builder and pass it to `AppendStream`:
 
 ```csharp
 using Kurrent.Client.Streams;
 
-var record = new AppendRecord("OrderPlaced", new {
-    OrderId = "order-123",
-    Product = "Widget",
-    Quantity = 5
-});
+var record = AppendRecord.New
+    .ForStream("order-123")
+    .WithValue(new {
+        OrderId  = "order-123",
+        Product  = "Widget",
+        Quantity = 5
+    })
+    .Build();
 
-var result = await client.Streams.AppendAsync("order-123", record);
+var result = await client.Streams.AppendStream(record);
 
-Console.WriteLine($"Stream: {result.Stream}");
+Console.WriteLine($"Stream:   {result.Stream}");
+Console.WriteLine($"Revision: {result.Revision}");
 Console.WriteLine($"Position: {result.Position}");
-Console.WriteLine($"Revision: {result.StreamRevision}");
 ```
 
-The first argument is the event type name. The second is the payload — any serializable object. The client serializes it as JSON by default.
+`AppendStream` serializes the value as JSON by default. If the stream does not exist, it is created automatically.
 
-If the stream does not exist, it is created automatically.
+The result is an `AppendStreamResponse` with three properties: `Stream` (`StreamName`), `Revision` (`Revision`), and `Position` (`LogPosition`).
 
 ## Append multiple events
 
-Use `AppendStreamRequest` to append multiple events in a single operation:
+Use `AppendStreamRequest.For(stream)` to build a multi-record request. Records on a `For(stream)` request are stamped with the target stream automatically:
 
 ```csharp
-var request = new AppendStreamRequest(
-    stream: "order-456",
-    expectedState: ExpectedStreamState.Any,
-    messages: [
-        new AppendRecord("OrderPlaced", new { OrderId = "order-456", Product = "Gadget" }),
-        new AppendRecord("OrderConfirmed", new { OrderId = "order-456" }),
-        new AppendRecord("OrderShipped", new { OrderId = "order-456", TrackingId = "TRK-789" })
-    ]
-);
+var request = AppendStreamRequest.For("order-456")
+    .WithMessage(new { OrderId = "order-456", Product = "Gadget" })
+    .WithMessage(new { OrderId = "order-456", ConfirmedAt = DateTimeOffset.UtcNow })
+    .WithMessage(new { OrderId = "order-456", TrackingId  = "TRK-789" })
+    .Build();
 
-var result = await client.Streams.AppendAsync(request);
+var result = await client.Streams.AppendStream(request);
 ```
 
-All events in the request are appended atomically — they all succeed or all fail.
+All records in the request are appended atomically. They all succeed or all fail together.
+
+You can also pass pre-built records:
+
+```csharp
+var request = AppendStreamRequest.For("order-456")
+    .WithRecord(AppendRecord.New.WithValue(new { OrderId = "order-456" }).Build())
+    .WithRecord(AppendRecord.New.WithValue(new { ConfirmedAt = DateTimeOffset.UtcNow }).Build())
+    .Build();
+```
 
 ## Optimistic concurrency
 
@@ -57,23 +65,21 @@ All events in the request are appended atomically — they all succeed or all fa
 ### Any state (no concurrency check)
 
 ```csharp
-var request = new AppendStreamRequest(
-    stream: "order-123",
-    expectedState: ExpectedStreamState.Any,
-    messages: [new AppendRecord("OrderPlaced", payload)]
-);
+var request = AppendStreamRequest.For("order-123")
+    .ExpectingState(ExpectedStreamState.Any)
+    .WithMessage(payload)
+    .Build();
 ```
 
-The append succeeds regardless of whether the stream exists or what revision it is at. This is the default when using the shorthand `AppendAsync(stream, record)`.
+The append succeeds regardless of whether the stream exists or what revision it is at. This is the default behavior. The simple `AppendStream(record)` and `AppendStream(stream, records)` shorthands behave the same.
 
 ### Stream must not exist
 
 ```csharp
-var request = new AppendStreamRequest(
-    stream: "order-123",
-    expectedState: ExpectedStreamCondition.NoStream,
-    messages: [new AppendRecord("OrderCreated", payload)]
-);
+var request = AppendStreamRequest.For("order-123")
+    .ExpectingState(ExpectedStreamState.NoStream)
+    .WithMessage(new { OrderId = "order-123" })
+    .Build();
 ```
 
 The append fails with `StreamAlreadyExistsException` if the stream already has events. Use this for creation events where you need to guarantee uniqueness.
@@ -81,11 +87,10 @@ The append fails with `StreamAlreadyExistsException` if the stream already has e
 ### Stream must exist
 
 ```csharp
-var request = new AppendStreamRequest(
-    stream: "order-123",
-    expectedState: ExpectedStreamCondition.Exists,
-    messages: [new AppendRecord("OrderUpdated", payload)]
-);
+var request = AppendStreamRequest.For("order-123")
+    .ExpectingState(ExpectedStreamState.Exists)
+    .WithMessage(payload)
+    .Build();
 ```
 
 The append fails with `StreamNotFoundException` if the stream does not exist.
@@ -93,111 +98,113 @@ The append fails with `StreamNotFoundException` if the stream does not exist.
 ### Exact revision match
 
 ```csharp
-var request = new AppendStreamRequest(
-    stream: "order-123",
-    expectedState: StreamRevision.From(4),
-    messages: [new AppendRecord("OrderUpdated", payload)]
-);
+var request = AppendStreamRequest.For("order-123")
+    .ExpectingState(Revision.From(4))
+    .WithMessage(payload)
+    .Build();
 ```
 
-The append fails with `StreamRevisionConflictException` if the stream's current revision is not exactly 4. This is the strongest concurrency guarantee — use it when multiple writers may contend on the same stream.
+The append fails with `StreamRevisionConflictException` if the stream's current revision is not exactly 4. This is the strongest concurrency guarantee. Use it when multiple writers may contend on the same stream.
 
 A typical pattern is to read the stream first, then append with the last known revision:
 
 ```csharp
-var last = await client.Streams.ReadLastStreamRecordAsync("order-123");
+var last = await client.Streams.ReadLastStreamRecord("order-123");
 
-var request = new AppendStreamRequest(
-    stream: "order-123",
-    expectedState: last.StreamRevision,
-    messages: [new AppendRecord("OrderUpdated", payload)]
-);
+var request = AppendStreamRequest.For("order-123")
+    .ExpectingState(last.Revision)
+    .WithMessage(payload)
+    .Build();
 
-var result = await client.Streams.AppendAsync(request);
+var result = await client.Streams.AppendStream(request);
 ```
+
+`Revision` implicitly converts into `ExpectedStreamState`, so passing `last.Revision` directly works.
 
 ### Summary
 
-| Value | Behavior |
-|-------|----------|
-| `ExpectedStreamState.Any` | No check - always succeeds |
-| `ExpectedStreamCondition.NoStream` | Stream must not exist |
-| `ExpectedStreamCondition.Exists` | Stream must exist |
-| `StreamRevision.From(revision)` | Stream revision must match exactly |
+| Value                            | Behavior                              |
+|----------------------------------|---------------------------------------|
+| `ExpectedStreamState.Any`        | No check, always succeeds             |
+| `ExpectedStreamState.NoStream`   | Stream must not exist                 |
+| `ExpectedStreamState.Exists`     | Stream must exist                     |
+| `Revision.From(n)`               | Stream revision must match exactly    |
 
-## Builder API
+## Convenience overloads
 
-For more complex scenarios, use the fluent builder:
-
-```csharp
-var request = AppendStreamRequest.New()
-    .ForStream("order-789")
-    .ExpectingRevision(ExpectedStreamCondition.NoStream)
-    .WithRecord(new AppendRecord("OrderPlaced", new { OrderId = "order-789" }))
-    .WithRecord(new AppendRecord("OrderConfirmed", new { OrderId = "order-789" }))
-    .Build();
-
-var result = await client.Streams.AppendAsync(request);
-```
-
-Build individual records with `AppendRecord.New`:
+`StreamsClient.AppendStream` provides several shorthand overloads. Pick whichever matches your shape:
 
 ```csharp
-var record = AppendRecord.New
-    .WithRecordId(Guid.NewGuid())
-    .WithValue(new { OrderId = "order-789", Total = 99.95m })
-    .WithMetadata("correlation-id", correlationId)
-    .Build();
+// Single pre-built record (stream baked into the record).
+await client.Streams.AppendStream(record);
+
+// Single record with concurrency check.
+await client.Streams.AppendStream(record, ExpectedStreamState.NoStream);
+
+// Multiple records to one stream.
+await client.Streams.AppendStream("order-123", records);
+
+// Multiple records with concurrency check.
+await client.Streams.AppendStream("order-123", ExpectedStreamState.Any, records);
+
+// Full request (most explicit form).
+await client.Streams.AppendStream(request);
 ```
 
-### Record builder options
+## Record builder options
 
-| Method | Description |
-|--------|-------------|
-| `WithRecordId(Guid)` | Set a specific event ID (auto-generated if omitted) |
-| `WithValue(object)` | Set the event payload |
-| `WithDataFormat(SchemaDataFormat)` | Override serialization format (`Json`, `Protobuf`, `Avro`, `Bytes`) |
-| `WithMetadata(...)` | Attach metadata as key-value pairs, dictionary, or `Metadata` instance |
+`AppendRecord.New` returns a fluent builder:
 
-## Append sessions
+| Method                              | Description                                                            |
+|-------------------------------------|------------------------------------------------------------------------|
+| `ForStream(StreamName)`             | Set the destination stream                                             |
+| `WithId(Guid)`                      | Set a specific record id (auto-generated if omitted)                   |
+| `WithValue(object)`                 | Set the payload                                                        |
+| `WithDataFormat(SchemaDataFormat)`  | Override serialization format (`Json`, `Protobuf`, `Bytes`)            |
+| `WithMetadata(Metadata)`            | Replace metadata wholesale                                             |
+| `WithMetadata<T>(string, T)`        | Add or update a single metadata entry                                  |
+| `WithTimestamp(DateTimeOffset)`     | Override the record timestamp                                          |
 
-Append sessions allow you to append to multiple streams within a single server round-trip:
+`Build()` validates the record and throws `ValidationException` if the value or stream is missing.
+
+## Multi-stream appends
+
+To append records to multiple streams in a single transaction, use `AppendRecords` with `AppendRecordsRequest.New()`:
 
 ```csharp
-var requests = new[] {
-    new AppendStreamRequest("orders", ExpectedStreamState.Any, [
-        new AppendRecord("OrderPlaced", orderPayload)
-    ]),
-    new AppendStreamRequest("inventory", ExpectedStreamState.Any, [
-        new AppendRecord("InventoryReserved", inventoryPayload)
-    ])
-};
+var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
 
-var result = await client.Streams.AppendSessionAsync(requests);
-
-foreach (var success in result) {
-    Console.WriteLine($"Stream: {success.Stream}, Revision: {success.StreamRevision}");
-}
+await client.Streams.AppendRecords(
+    AppendRecordsRequest.New()
+        .WithRecord(transferEvent, $"inventory-{sku}")
+        .WithRecord(transferEvent, "transfer-log")
+        .WithChecks(ConsistencyCheck.StreamExists($"inventory-{sku}"))
+        .Build());
 ```
 
-The `AppendSessionSuccess` result implements `IReadOnlyList<AppendStreamSuccess>` — iterate it to inspect per-stream results.
+Each record carries its own stream. `ConsistencyCheck` factories (`StreamAtRevision`, `StreamExists`, `StreamDoesNotExist`, `StreamIsDeleted`, `StreamIsTombstoned`) attach pre-commit checks evaluated atomically with the append.
 
 ## Data formats
 
-By default, event payloads are serialized as JSON. Override this per-record:
+By default, payloads are serialized as JSON. Override per record:
 
 ```csharp
 // JSON (default)
-var jsonRecord = new AppendRecord("OrderPlaced", orderPayload);
+var jsonRecord = AppendRecord.New
+    .ForStream("orders")
+    .WithValue(orderPayload)
+    .Build();
 
 // Raw bytes
 var bytesRecord = AppendRecord.New
+    .ForStream("blobs")
     .WithValue(rawBytes)
     .WithDataFormat(SchemaDataFormat.Bytes)
     .Build();
 
 // Protobuf
 var protoRecord = AppendRecord.New
+    .ForStream("orders")
     .WithValue(protobufMessage)
     .WithDataFormat(SchemaDataFormat.Protobuf)
     .Build();
@@ -205,36 +212,31 @@ var protoRecord = AppendRecord.New
 
 ## Error handling
 
-The idiomatic `AppendAsync` methods throw on failure. For explicit error handling without exceptions, use the Result-based API:
+`AppendStream` throws on failure. The exceptions are well-typed and let you pattern-match by catching specific types:
 
 ```csharp
-var result = await client.Streams.Append(
-    new AppendStreamRequest("order-123", ExpectedStreamCondition.NoStream, [record])
-);
-
-result.Switch(
-    success => Console.WriteLine($"Appended at revision {success.StreamRevision}"),
-    error => error.Switch(
-        streamNotFound      => Console.WriteLine("Stream not found"),
-        streamAlreadyExists => Console.WriteLine("Stream already exists"),
-        streamTombstoned    => Console.WriteLine("Stream was tombstoned"),
-        revisionConflict    => Console.WriteLine($"Expected revision mismatch"),
-        alreadyInSession    => Console.WriteLine("Stream already in append session"),
-        maxRecordSize       => Console.WriteLine("Record exceeds max size"),
-        maxTransactionSize  => Console.WriteLine("Transaction exceeds max size"),
-        noRequests          => Console.WriteLine("No requests in session"),
-        exception           => Console.WriteLine($"Unexpected: {exception.Message}")
-    )
-);
+try {
+    await client.Streams.AppendStream(record, ExpectedStreamState.NoStream);
+}
+catch (StreamAlreadyExistsException) {
+    // Stream already has events
+}
+catch (StreamRevisionConflictException ex) {
+    // Expected revision did not match the stream's current state
+    Console.WriteLine($"Expected {ex.ExpectedRevision}, was {ex.ActualRevision}");
+}
+catch (StreamTombstonedException) {
+    // Stream was permanently deleted
+}
 ```
 
-### Error types
+### Common exceptions
 
-| Error | Cause |
-|-------|-------|
-| `StreamNotFoundException` | Stream does not exist (when `Exists` expected) |
-| `StreamAlreadyExistsException` | Stream exists (when `NoStream` expected) |
-| `StreamTombstonedException` | Stream was permanently deleted |
-| `StreamRevisionConflictException` | Current revision does not match expected |
-| `MaxAppendRecordSizeExceededException` | Single record exceeds server size limit |
-| `MaxAppendTransactionSizeExceededException` | Total transaction exceeds server size limit |
+| Exception                                  | Cause                                                       |
+|--------------------------------------------|-------------------------------------------------------------|
+| `StreamNotFoundException`                  | Stream does not exist (when `Exists` was expected)          |
+| `StreamAlreadyExistsException`             | Stream exists (when `NoStream` was expected)                |
+| `StreamTombstonedException`                | Stream was permanently deleted                              |
+| `StreamRevisionConflictException`          | Current revision does not match expected                    |
+| `MaxAppendRecordSizeExceededException`     | Single record exceeds server size limit                     |
+| `MaxAppendTransactionSizeExceededException`| Total transaction exceeds server size limit                 |

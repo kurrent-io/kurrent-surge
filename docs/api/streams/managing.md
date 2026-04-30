@@ -38,8 +38,8 @@ Console.WriteLine($"Last append: {info.LastStreamAppendTime}");
 | State | Description |
 |-------|-------------|
 | `Active` | Stream exists and can be read/written |
-| `Deleted` | Soft-deleted — can be recreated by appending new events |
-| `Tombstoned` | Permanently deleted — cannot be recreated |
+| `Deleted` | Soft-deleted, can be recreated by appending new events |
+| `Tombstoned` | Permanently deleted, cannot be recreated |
 | `Missing` | Stream has never existed |
 
 ## Delete a stream (soft delete)
@@ -125,7 +125,7 @@ await client.Streams.SetStreamMetadataAsync("order-123", metadata);
 | Property | Type | Description |
 |----------|------|-------------|
 | `MaxCount` | `long?` | Maximum number of events retained in the stream |
-| `MaxAge` | `TimeSpan?` | Maximum age of events — older events are scavenged |
+| `MaxAge` | `TimeSpan?` | Maximum age of events. Older events are scavenged |
 | `TruncateBefore` | `StreamRevision?` | Events before this revision are hidden |
 | `CacheControl` | `TimeSpan?` | Cache TTL hint for HTTP clients |
 | `Acl` | `StreamAcl?` | Access control list |
@@ -169,7 +169,7 @@ await client.Streams.SetStreamMetadataAsync("order-123", metadata);
 
 | | Soft Delete | Tombstone |
 |---|-------------|-----------|
-| **Reversible** | Yes — append to recreate | No — permanent |
+| **Reversible** | Yes (append to recreate) | No (permanent) |
 | **Stream name** | Can be reused | Reserved forever |
 | **Read after** | Stream not found | Stream tombstoned error |
 | **Append after** | Creates new stream | Fails with error |

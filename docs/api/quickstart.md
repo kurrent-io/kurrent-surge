@@ -36,7 +36,7 @@ using Kurrent.Client;
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
-This creates a client connected to a local KurrentDB instance with default credentials and TLS disabled — suitable for development.
+This creates a client connected to a local KurrentDB instance with default credentials and TLS disabled. Suitable for development.
 
 For production setups with TLS enabled:
 
@@ -48,38 +48,41 @@ When TLS is not explicitly disabled, it is enabled by default.
 
 ## Append events
 
-Events in KurrentDB are organized into streams. Each stream is identified by a name, and events are appended in order.
+Events in KurrentDB are organized into streams. Each stream is identified by a name, and events are appended in order. Build records with `AppendRecord.New` and append them via `client.Streams.AppendStream`:
 
 ```csharp
 using Kurrent.Client.Streams;
 
-var record = new AppendRecord("OrderPlaced", new {
-    OrderId   = "order-123",
-    Product   = "Widget",
-    Quantity  = 5
-});
+var record = AppendRecord.New
+    .ForStream("order-123")
+    .WithValue(new {
+        OrderId  = "order-123",
+        Product  = "Widget",
+        Quantity = 5
+    })
+    .Build();
 
-var result = await client.Streams.AppendAsync("order-123", record);
+var result = await client.Streams.AppendStream(record);
 
-Console.WriteLine($"Written at position: {result.Position}");
-Console.WriteLine($"Stream revision: {result.StreamRevision}");
+Console.WriteLine($"Stream:   {result.Stream}");
+Console.WriteLine($"Revision: {result.Revision}");
+Console.WriteLine($"Position: {result.Position}");
 ```
 
-`AppendAsync` serializes the event data as JSON and appends it to the specified stream. If the stream does not exist, it is created automatically.
+`AppendStream` serializes the value as JSON by default and appends it to the stream named on the record. If the stream does not exist, it is created automatically.
 
 ### Appending multiple events
 
-```csharp
-var request = new AppendStreamRequest(
-    stream: "order-456",
-    expectedState: ExpectedStreamState.Any,
-    messages: [
-        new AppendRecord("OrderPlaced", new { OrderId = "order-456", Product = "Gadget" }),
-        new AppendRecord("OrderConfirmed", new { OrderId = "order-456", ConfirmedAt = DateTime.UtcNow })
-    ]
-);
+Use `AppendStreamRequest.For(...)` to append several records to one stream atomically:
 
-var result = await client.Streams.AppendAsync(request);
+```csharp
+var request = AppendStreamRequest.For("order-456")
+    .ExpectingState(ExpectedStreamState.Any)
+    .WithMessage(new { OrderId = "order-456", Product = "Gadget" })
+    .WithMessage(new { OrderId = "order-456", ConfirmedAt = DateTimeOffset.UtcNow })
+    .Build();
+
+var result = await client.Streams.AppendStream(request);
 ```
 
 ## Read events
@@ -87,11 +90,11 @@ var result = await client.Streams.AppendAsync(request);
 Read all events from a stream:
 
 ```csharp
-var stream = await client.Streams.ReadStreamRecordsAsync("order-123");
+var stream = client.Streams.ReadStreamRecords("order-123");
 
 await foreach (var item in stream) {
     item.Switch(
-        record => Console.WriteLine($"Event: {record.EventType} at revision {record.Position.StreamRevision}"),
+        record    => Console.WriteLine($"Event: {record.TypeName} at revision {record.Revision}"),
         heartbeat => { }
     );
 }
@@ -100,10 +103,10 @@ await foreach (var item in stream) {
 Read the first or last event in a stream:
 
 ```csharp
-var first = await client.Streams.ReadFirstStreamRecordAsync("order-123");
-var last  = await client.Streams.ReadLastStreamRecordAsync("order-123");
+var first = await client.Streams.ReadFirstStreamRecord("order-123");
+var last  = await client.Streams.ReadLastStreamRecord("order-123");
 ```
 
 ## Next steps
 
-- [Configuration](./configuration.md) — connection strings, builder API, dependency injection, and security options
+- [Configuration](./configuration.md): connection strings, programmatic options, dependency injection, and security

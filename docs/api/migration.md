@@ -8,7 +8,7 @@ Kurrent.Client is the official successor to the EventStoreDB .NET client (`Event
 
 ## Package changes
 
-Replace the old EventStoreDB gRPC client packages with the single unified package:
+Replace the old EventStoreDB gRPC client packages with the unified package:
 
 ::: code-tabs#shell
 
@@ -40,16 +40,16 @@ Install-Package Kurrent.Client
 
 :::
 
-The old client was split across multiple NuGet packages (`EventStore.Client.Grpc.Streams`, `EventStore.Client.Grpc.PersistentSubscriptions`, etc.). Kurrent.Client ships as a single package that provides access to all server features through a unified `KurrentClient` entry point.
+The old client was split across multiple NuGet packages. Kurrent.Client ships as a single package that provides access to the streams, registry, indexes, connectors, and admin modules through a unified `KurrentClient` entry point.
 
 ## Namespace changes
 
-All public types live under the `Kurrent.Client` root namespace and its feature-based sub-namespaces:
+All public types live under the `Kurrent.Client` root namespace and feature-based sub-namespaces:
 
-| Old namespace | New namespace |
-|---|---|
-| `EventStore.Client` | `Kurrent.Client` |
-| `EventStore.Client.Streams` | `Kurrent.Client.Streams` |
+| Old namespace               | New namespace                |
+|-----------------------------|------------------------------|
+| `EventStore.Client`         | `Kurrent.Client`             |
+| `EventStore.Client.Streams` | `Kurrent.Client.Streams`     |
 
 Update your `using` directives:
 
@@ -64,28 +64,25 @@ using Kurrent.Client.Streams;
 
 ## Connection string compatibility
 
-Existing connection strings continue to work without changes. The client accepts the legacy `esdb://` and `eventstore://` schemes as aliases for the new `kurrentdb://` scheme:
+Existing connection strings continue to work without changes. The client accepts the legacy `esdb://` scheme as an alias for `kurrentdb://`:
 
-| Legacy scheme | New equivalent | Description |
-|---|---|---|
-| `esdb://` | `kurrentdb://` | Direct connection to a single node |
-| `esdb+discover://` | `kurrentdb+discover://` | Cluster connection with gossip discovery |
-| `eventstore://` | `kurrentdb://` | Direct connection to a single node |
-| `eventstore+discover://` | `kurrentdb+discover://` | Cluster connection with gossip discovery |
+| Legacy scheme         | New equivalent              | Description                                  |
+|-----------------------|-----------------------------|----------------------------------------------|
+| `esdb://`             | `kurrentdb://`              | Direct connection to a single node           |
+| `esdb+discover://`    | `kurrentdb+discover://`     | Cluster connection with gossip discovery     |
 
 All of these are valid and produce identical client configurations:
 
 ```csharp
-// Legacy schemes — still work
+// Legacy schemes (still work)
 var client1 = KurrentClient.Create("esdb://admin:changeit@localhost:2113?tls=false");
 var client2 = KurrentClient.Create("esdb+discover://admin:changeit@node1:2113,node2:2113,node3:2113");
-var client3 = KurrentClient.Create("eventstore://admin:changeit@localhost:2113?tls=false");
 
-// New scheme — recommended for new code
-var client4 = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
+// New scheme (recommended for new code)
+var client3 = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
-All connection string parameters (`Tls`, `TlsVerifyCert`, `KeepAliveInterval`, `NodePreference`, etc.) work identically across all schemes. See the [Configuration](./configuration.md) page for the full parameter reference.
+All connection string parameters (`Tls`, `TlsVerifyCert`, `KeepAliveInterval`, `NodePreference`, etc.) work identically across schemes. See [Configuration](./configuration.md) for the full parameter reference.
 
 ::: tip
 Legacy connection strings stored in environment variables, configuration files, or secrets managers do not need to be changed immediately. The client normalizes all schemes internally.
@@ -96,20 +93,23 @@ Legacy connection strings stored in environment variables, configuration files, 
 The entry point changes from per-feature clients to a single `KurrentClient`:
 
 ```csharp
-// Old — separate client per feature
-var settings = EventStoreClientSettings.Create("esdb://admin:changeit@localhost:2113?tls=false");
+// Old: separate client per feature
+var settings      = EventStoreClientSettings.Create("esdb://admin:changeit@localhost:2113?tls=false");
 var streamsClient = new EventStoreClient(settings);
 
-// New — single client, module-based access
+// New: single client, module-based access
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
 The `KurrentClient` provides access to server features through module properties:
 
-| Module | Access | Description |
-|---|---|---|
-| Streams | `client.Streams` | Append, read, delete, tombstone, and manage streams |
-| Registry | `client.Registry` | Schema registry operations |
+| Module      | Access               | Description                                                |
+|-------------|----------------------|------------------------------------------------------------|
+| Streams     | `client.Streams`     | Append, read, delete, tombstone, and manage streams        |
+| Registry    | `client.Registry`    | Schema registry operations                                 |
+| Indexes     | `client.Indexes`     | User-defined indexes                                       |
+| Connectors  | `client.Connectors`  | Built-in connector management                              |
+| Admin       | `client.Admin`       | Cluster and server administration                          |
 
 Operations that were top-level methods on the old client are now accessed through the appropriate module:
 
@@ -118,80 +118,72 @@ Operations that were top-level methods on the old client are now accessed throug
 await client.AppendToStreamAsync("my-stream", StreamState.Any, events);
 
 // New
-var result = await client.Streams.Append(
-    new AppendStreamRequest("my-stream", ExpectedStreamState.Any, records)
-);
+await client.Streams.AppendStream("my-stream", ExpectedStreamState.Any, records);
 ```
 
-## Builder API
+## Programmatic configuration
 
-The old client used `EventStoreClientSettings.Create()` to parse a connection string. The new client provides a fluent builder:
+The old client used `EventStoreClientSettings.Create()` to parse a connection string. The new client uses the `KurrentClientOptions` record:
 
 ```csharp
 // Old
 var settings = EventStoreClientSettings.Create("esdb://admin:changeit@localhost:2113");
-var client = new EventStoreClient(settings);
+var client   = new EventStoreClient(settings);
 
-// New — from connection string
+// New: connection string
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113");
 
-// New — fluent builder
-await using var client = KurrentClientOptionsBuilder.Create()
-    .ConfigureConnection(conn => conn
-        .WithDirectConnection("localhost", 2113)
-        .WithBasicAuthentication("admin", "changeit")
-        .WithInsecureTransport())
-    .ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
-    .Build()
-    .CreateClient();
+// New: connection string with overrides
+await using var client = KurrentClient.Create(
+    "kurrentdb://admin:changeit@localhost:2113",
+    opts => {
+        opts.Resilience    = KurrentClientResilienceOptions.HighAvailability;
+        opts.LoggerFactory = loggerFactory;
+    });
 
-// New — builder from connection string with overrides
-await using var client = KurrentClientOptionsBuilder
-    .FromConnectionString("kurrentdb://admin:changeit@localhost:2113")
-    .ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
-    .Build()
-    .CreateClient();
+// New: pre-built options
+var options = new KurrentClientOptions {
+    Endpoints  = [new("localhost", 2113)],
+    Security   = KurrentClientSecurityOptions.Basic("admin", "changeit"),
+    Resilience = KurrentClientResilienceOptions.HighAvailability
+};
+
+await using var client = KurrentClient.Create(options);
 ```
 
-## Error handling — Result pattern
+`KurrentClientOptions` is a record, so you can also start from a parsed connection string and use `with` to override sections:
 
-The most significant API change is how errors are reported. The old client threw exceptions for expected failures (wrong expected version, stream not found, etc.). Kurrent.Client uses the **Result pattern** instead.
+```csharp
+var options = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2113") with {
+    Resilience = KurrentClientResilienceOptions.HighAvailability
+};
+```
 
-Public APIs return `Result<TSuccess, TError>` where `TError` is a variant type (discriminated union) over all possible error cases for that operation.
+See [Configuration](./configuration.md) for the full options reference.
 
-### Idiomatic style (throwing)
+## Error handling
 
-Methods ending in `Async` throw on failure, similar to the old client behavior. Use these for a simpler migration:
+The old client threw exceptions for expected failures (wrong expected version, stream not found, etc.). Kurrent.Client also throws, but the exceptions are well-typed and let you pattern-match by catching specific types:
 
 ```csharp
 // Old
-var result = await client.AppendToStreamAsync("my-stream", StreamState.Any, events);
+try {
+    await client.AppendToStreamAsync("my-stream", new StreamRevision(4), events);
+}
+catch (WrongExpectedVersionException ex) {
+    // ...
+}
 
-// New — idiomatic, throws on failure
-var result = await client.Streams.AppendAsync("my-stream", record);
+// New
+try {
+    await client.Streams.AppendStream(record, Revision.From(4));
+}
+catch (StreamRevisionConflictException ex) {
+    Console.WriteLine($"Expected {ex.ExpectedRevision}, was {ex.ActualRevision}");
+}
 ```
 
-### Explicit style (Result-based)
-
-Methods without the `Async` suffix return `Result<TSuccess, TError>`. Use these for precise error handling without exceptions:
-
-```csharp
-var result = await client.Streams.Append(
-    new AppendStreamRequest("my-stream", ExpectedStreamState.Any, [record])
-);
-
-result.Switch(
-    success => Console.WriteLine($"Revision: {success.StreamRevision}"),
-    error => error.Switch(
-        streamNotFound      => HandleMissing(),
-        streamAlreadyExists => HandleDuplicate(),
-        revisionConflict    => HandleConflict(revisionConflict),
-        exception           => throw exception
-    )
-);
-```
-
-See the [Error handling](./error-handling.md) page for the full Result API reference.
+See [Error handling](./error-handling.md) for the full exception list.
 
 ## Event model changes
 
@@ -209,11 +201,15 @@ var eventData = new EventData(
 await client.AppendToStreamAsync("order-123", StreamState.Any, new[] { eventData });
 
 // New
-var record = new AppendRecord("OrderPlaced", new { OrderId = "123" });
-var result = await client.Streams.AppendAsync("order-123", record);
+var record = AppendRecord.New
+    .ForStream("order-123")
+    .WithValue(new { OrderId = "123" })
+    .Build();
+
+var result = await client.Streams.AppendStream(record);
 ```
 
-`AppendRecord` handles JSON serialization automatically. You pass the event type name and the data object directly.
+`AppendRecord` handles JSON serialization automatically. The schema name is derived from the .NET type using the configured naming strategy. See [Serialization](./serialization.md) for how to control this.
 
 ### Reading
 
@@ -225,14 +221,16 @@ await foreach (var resolvedEvent in events) {
 }
 
 // New
-var stream = await client.Streams.ReadStreamRecordsAsync("order-123");
+var stream = client.Streams.ReadStreamRecords("order-123");
 await foreach (var item in stream) {
     item.Switch(
-        record => Console.WriteLine($"{record.EventType} at revision {record.Position.StreamRevision}"),
+        record    => Console.WriteLine($"{record.TypeName} at revision {record.Revision}"),
         heartbeat => { }
     );
 }
 ```
+
+Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`.
 
 ## Dependency injection
 
@@ -244,13 +242,15 @@ services.AddEventStoreClient("esdb://admin:changeit@localhost:2113?tls=false");
 services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
-With builder overrides:
+With a configure callback:
 
 ```csharp
-services.AddKurrentClient(builder => builder
-    .ConfigureResilience(KurrentClientResilienceOptions.HighAvailability)
-    .WithLoggerFactory(loggerFactory));
+services.AddKurrentClient(opts => {
+    opts.Resilience = KurrentClientResilienceOptions.HighAvailability;
+});
 ```
+
+The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Configuration › Dependency injection](./configuration.md#dependency-injection).
 
 ## Step-by-step migration
 
@@ -258,33 +258,35 @@ services.AddKurrentClient(builder => builder
 
 2. **Update using directives.** Replace `using EventStore.Client;` with `using Kurrent.Client;` and `using Kurrent.Client.Streams;`.
 
-3. **Update client construction.** Replace `new EventStoreClient(settings)` with `KurrentClient.Create(connectionString)`. Your existing `esdb://` connection strings work as-is.
+3. **Update client construction.** Replace `new EventStoreClient(settings)` with `KurrentClient.Create(connectionString)`. Existing `esdb://` connection strings work as-is.
 
 4. **Update operation calls.** Move from top-level methods to module-based access:
-   - `client.AppendToStreamAsync(...)` becomes `client.Streams.AppendAsync(...)` or `client.Streams.Append(...)`
-   - `client.ReadStreamAsync(...)` becomes `client.Streams.ReadStreamRecordsAsync(...)` or `client.Streams.ReadStreamRecords(...)`
-   - `client.DeleteAsync(...)` becomes `client.Streams.Delete(...)`
-   - `client.TombstoneAsync(...)` becomes `client.Streams.Tombstone(...)`
+   - `client.AppendToStreamAsync(...)` → `client.Streams.AppendStream(...)`
+   - `client.ReadStreamAsync(...)` → `client.Streams.ReadStreamRecords(...)` (or `ReadStream(request)`)
+   - `client.DeleteAsync(...)` → `client.Streams.Delete(...)`
+   - `client.TombstoneAsync(...)` → `client.Streams.Tombstone(...)`
 
-5. **Update event types.** Replace `EventData` with `AppendRecord` and update reading code to work with `Record` instead of `ResolvedEvent`.
+5. **Update event types.** Replace `EventData` with `AppendRecord.New.ForStream(...).WithValue(...).Build()` and update reading code to work with `Record` (use `record.TypeName` instead of `EventType`, `record.Revision` instead of `record.OriginalEventNumber`).
 
-6. **Adopt Result pattern (optional).** Start with the idiomatic `Async` methods for a drop-in replacement, then migrate to explicit Result handling where you need fine-grained error control.
+6. **Update concurrency checks.** Replace `StreamRevision`/`StreamState` with `Revision` and `ExpectedStreamState`. `Revision` implicitly converts to `ExpectedStreamState`, so `Revision.From(4)` can be passed wherever `ExpectedStreamState` is expected.
 
 7. **Update connection strings (optional).** Replace `esdb://` with `kurrentdb://` at your own pace. Both work identically.
 
 ## Summary of breaking changes
 
-| Area | Old client | New client |
-|---|---|---|
-| Package | Multiple `EventStore.Client.Grpc.*` packages | Single `Kurrent.Client` package |
-| Root namespace | `EventStore.Client` | `Kurrent.Client` |
-| Client type | `EventStoreClient` | `KurrentClient` |
-| Client creation | `new EventStoreClient(settings)` | `KurrentClient.Create(connectionString)` |
-| Settings type | `EventStoreClientSettings` | `KurrentClientOptions` |
-| Operation access | Top-level methods on the client | Module properties (`client.Streams`, `client.Registry`) |
-| Error handling | Exceptions for expected failures | `Result<TSuccess, TError>` pattern (with throwing convenience methods) |
-| Append model | `EventData` | `AppendRecord` |
-| Read model | `ResolvedEvent` / `RecordedEvent` | `Record` |
-| Stream state | `StreamState` | `ExpectedStreamState` |
-| Connection scheme | `esdb://` | `kurrentdb://` (legacy schemes still accepted) |
-| Disposal | `IDisposable` | `IAsyncDisposable` (`await using`) |
+| Area              | Old client                                     | New client                                                 |
+|-------------------|------------------------------------------------|------------------------------------------------------------|
+| Package           | Multiple `EventStore.Client.Grpc.*` packages   | Single `Kurrent.Client` package                            |
+| Root namespace    | `EventStore.Client`                            | `Kurrent.Client`                                           |
+| Client type       | `EventStoreClient`                             | `KurrentClient`                                            |
+| Client creation   | `new EventStoreClient(settings)`               | `KurrentClient.Create(connectionString)`                   |
+| Settings type     | `EventStoreClientSettings`                     | `KurrentClientOptions`                                     |
+| Operation access  | Top-level methods on the client                | Module properties (`client.Streams`, `client.Registry`, …) |
+| Error handling    | Exceptions for expected failures               | Well-typed exceptions per failure case                     |
+| Append model      | `EventData`                                    | `AppendRecord` (built via `AppendRecord.New`)              |
+| Read model        | `ResolvedEvent` / `RecordedEvent`              | `Record` (with `Heartbeat` interleaved on the stream)      |
+| Stream state      | `StreamState`                                  | `ExpectedStreamState`                                      |
+| Stream revision   | `StreamRevision`                               | `Revision`                                                 |
+| Read method names | `*Async` suffix                                | No `Async` suffix, async return types                      |
+| Connection scheme | `esdb://`                                      | `kurrentdb://` (legacy schemes still accepted)             |
+| Disposal          | `IDisposable`                                  | `IAsyncDisposable` (`await using`)                         |
