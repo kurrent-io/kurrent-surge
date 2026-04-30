@@ -32,23 +32,30 @@ The `SchemaDataFormat` enum controls which serializer is used for a record:
 | `Bytes` | `application/octet-stream` | Raw bytes passthrough with no transformation. |
 | `Unspecified` | `application/octet-stream` | No format specified. Used internally. |
 
-Set the data format per record when appending using the `AppendRecord.New` builder:
+Set the data format per record using the `AppendRecord.New` builder.
+
+The default format is JSON, so the format does not need to be specified explicitly:
 
 ```csharp
-// JSON is the default, no need to specify
 var jsonRecord = AppendRecord.New
     .ForStream("orders")
     .WithValue(orderPlaced)
     .Build();
+```
 
-// Protobuf
+Use `WithDataFormat(SchemaDataFormat.Protobuf)` to serialize a Protocol Buffers message:
+
+```csharp
 var protoRecord = AppendRecord.New
     .ForStream("orders")
     .WithValue(protoMessage)
     .WithDataFormat(SchemaDataFormat.Protobuf)
     .Build();
+```
 
-// Raw bytes
+Use `WithDataFormat(SchemaDataFormat.Bytes)` to store opaque bytes without transformation:
+
+```csharp
 var bytesRecord = AppendRecord.New
     .ForStream("blobs")
     .WithValue(rawBytes)
@@ -94,7 +101,7 @@ The `ProtobufSchemaSerializer` uses the type's generated `Parser` to deserialize
 
 ## Raw bytes
 
-Use `SchemaDataFormat.Bytes` when you want to handle serialization yourself or store opaque binary data. The `BytesPassthroughSerializer` performs no transformation -- it accepts and returns the bytes as-is.
+Use `SchemaDataFormat.Bytes` when you want to handle serialization yourself or store opaque binary data. The `BytesPassthroughSerializer` accepts and returns the bytes without transformation.
 
 Supported input types: `byte[]`, `ReadOnlyMemory<byte>`, `Memory<byte>`, `ReadOnlySequence<byte>`, and `ArraySegment<byte>`.
 
@@ -225,7 +232,7 @@ var mapper = new MessageTypeMapper.Builder()
 | `SchemaNameStrategies.Namespace("acme")` | Type `OrderPlaced` | `acme.OrderPlaced` |
 | `SchemaNameStrategies.NamespaceCategory("acme")` | Stream `order-123`, type `OrderPlaced` | `acme.order.OrderPlaced` |
 
-The default strategy is `TypeName()`, which uses `MessageSchemaNameStrategy` -- it generates `{Namespace}.{TypeName}` from the .NET type.
+The default strategy is `TypeName()`, which uses `MessageSchemaNameStrategy`. It generates `{Namespace}.{TypeName}` from the .NET type.
 
 ### Output formats
 
@@ -295,7 +302,7 @@ await foreach (var item in stream) {
 }
 ```
 
-`TryDecode` returns `true` if decoding succeeded, `false` otherwise. For records stored with `SchemaDataFormat.Bytes`, `TryDecode` always returns `false` -- use `Record.Data` to access the raw bytes directly.
+`TryDecode` returns `true` if decoding succeeded, `false` otherwise. For records stored with `SchemaDataFormat.Bytes`, `TryDecode` always returns `false`. Use `Record.Data` to access the raw bytes directly.
 
 ### Accessing schema metadata
 

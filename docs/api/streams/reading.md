@@ -178,7 +178,7 @@ var request = ReadRecordsRequest.New
 var stream = client.Streams.ReadRecords(request);
 ```
 
-Or via the shorthand:
+Or with a SQL-like expression:
 
 ```csharp
 var request = ReadRecordsRequest.New
@@ -215,8 +215,8 @@ The `Record` type contains the full event data:
 |------------------|-----------------------|------------------------------------------------------------------|
 | `Id`             | `Guid`                | Unique record identifier                                         |
 | `TypeName`       | `string`              | CLR type name when decoded, otherwise the schema name            |
-| `Stream`         | `StreamName`          | Source stream name (shorthand for `Position.Stream`)             |
-| `Revision`       | `Revision`            | Position within the stream (shorthand for `Position.Revision`)   |
+| `Stream`         | `StreamName`          | Source stream name. Equivalent to `Position.Stream`.             |
+| `Revision`       | `Revision`            | Position within the stream. Equivalent to `Position.Revision`.   |
 | `Position`       | `RecordPosition`      | Full position (log position + stream + partition)                |
 | `Timestamp`      | `DateTime`            | When the event was written                                       |
 | `Data`           | `ReadOnlyMemory<byte>`| Raw event payload                                                |
@@ -288,3 +288,13 @@ catch (LogPositionNotFoundException) {
     // Log position does not exist
 }
 ```
+
+### Common exceptions
+
+| Exception                         | Cause                                                       |
+|-----------------------------------|-------------------------------------------------------------|
+| `StreamNotFoundException`         | Stream does not exist.                                      |
+| `StreamDeletedException`          | Stream was soft-deleted.                                    |
+| `StreamTombstonedException`       | Stream was permanently deleted.                             |
+| `LogPositionNotFoundException`    | Global log position does not exist.                         |
+| `OperationCanceledException`      | The cancellation token was cancelled during enumeration.    |

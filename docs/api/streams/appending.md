@@ -31,11 +31,11 @@ Console.WriteLine($"Position: {result.Position}");
 
 `AppendStream` serializes the value as JSON by default. If the stream does not exist, it is created automatically.
 
-The result is an `AppendStreamResponse` with three properties: `Stream` (`StreamName`), `Revision` (`Revision`), and `Position` (`LogPosition`).
+The result is an `AppendStreamResponse` that exposes the target stream, the new stream revision, and the log position of the last appended record.
 
 ## Append multiple events
 
-Use `AppendStreamRequest.For(stream)` to build a multi-record request. Records on a `For(stream)` request are stamped with the target stream automatically:
+`AppendStreamRequest.For(stream)` builds a multi-record request. Records added to the request inherit the target stream automatically:
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
@@ -71,7 +71,7 @@ var request = AppendStreamRequest.For("order-123")
     .Build();
 ```
 
-The append succeeds regardless of whether the stream exists or what revision it is at. This is the default behavior. The simple `AppendStream(record)` and `AppendStream(stream, records)` shorthands behave the same.
+The append succeeds regardless of whether the stream exists or what revision it is at. The convenience overloads `AppendStream(record)` and `AppendStream(stream, records)` behave the same way.
 
 ### Stream must not exist
 
@@ -104,7 +104,7 @@ var request = AppendStreamRequest.For("order-123")
     .Build();
 ```
 
-The append fails with `StreamRevisionConflictException` if the stream's current revision is not exactly 4. This is the strongest concurrency guarantee. Use it when multiple writers may contend on the same stream.
+The append fails with `StreamRevisionConflictException` if the stream's current revision is not exactly 4. This is the strongest concurrency guarantee, intended for situations where multiple writers may contend on the same stream.
 
 A typical pattern is to read the stream first, then append with the last known revision:
 
@@ -132,28 +132,45 @@ var result = await client.Streams.AppendStream(request);
 
 ## Convenience overloads
 
-`StreamsClient.AppendStream` provides several shorthand overloads. Pick whichever matches your shape:
+`client.Streams.AppendStream` provides several overloads. Use the form that matches your call site.
+
+### Single pre-built record
+
+The destination stream is taken from the record itself.
 
 ```csharp
-// Single pre-built record (stream baked into the record).
 await client.Streams.AppendStream(record);
+```
 
-// Single record with concurrency check.
+### Single record with a concurrency check
+
+```csharp
 await client.Streams.AppendStream(record, ExpectedStreamState.NoStream);
+```
 
-// Multiple records to one stream.
+### Multiple records to one stream
+
+```csharp
 await client.Streams.AppendStream("order-123", records);
+```
 
-// Multiple records with concurrency check.
+### Multiple records with a concurrency check
+
+```csharp
 await client.Streams.AppendStream("order-123", ExpectedStreamState.Any, records);
+```
 
-// Full request (most explicit form).
+### Full request
+
+The most explicit form. Use this when you need to set every option (concurrency, metadata, builder records).
+
+```csharp
 await client.Streams.AppendStream(request);
 ```
 
 ## Record builder options
 
-`AppendRecord.New` returns a fluent builder:
+`AppendRecord.New` returns a builder with the following methods:
 
 | Method                              | Description                                                            |
 |-------------------------------------|------------------------------------------------------------------------|
@@ -186,23 +203,36 @@ Each record carries its own stream. `ConsistencyCheck` factories (`StreamAtRevis
 
 ## Data formats
 
-By default, payloads are serialized as JSON. Override per record:
+Payloads are serialized as JSON by default. Override the format per record with `WithDataFormat`.
+
+### JSON
+
+JSON is the default. No explicit format call is required.
 
 ```csharp
-// JSON (default)
 var jsonRecord = AppendRecord.New
     .ForStream("orders")
     .WithValue(orderPayload)
     .Build();
+```
 
-// Raw bytes
+### Raw bytes
+
+Use `SchemaDataFormat.Bytes` when the value is already serialized.
+
+```csharp
 var bytesRecord = AppendRecord.New
     .ForStream("blobs")
     .WithValue(rawBytes)
     .WithDataFormat(SchemaDataFormat.Bytes)
     .Build();
+```
 
-// Protobuf
+### Protocol Buffers
+
+Use `SchemaDataFormat.Protobuf` for messages generated from `.proto` definitions.
+
+```csharp
 var protoRecord = AppendRecord.New
     .ForStream("orders")
     .WithValue(protobufMessage)

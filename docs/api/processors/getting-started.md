@@ -2,7 +2,7 @@
 order: 1
 ---
 
-# Getting Started with Kurrent.Processors
+# Getting started with Kurrent.Processors
 
 Kurrent.Processors is an event processing framework for the Kurrent Platform. It provides a structured runtime for consuming records from KurrentDB with automatic checkpointing and lifecycle management. You implement a processor that handles records, and the framework takes care of connecting, subscribing, checkpointing, and graceful shutdown.
 
@@ -30,7 +30,9 @@ Install-Package Kurrent.Processors
 
 ## Core concepts
 
-A **processor** is your code that handles records. The framework delivers records, manages checkpoints to track progress, and notifies you of lifecycle events. If the processor stops and restarts, it resumes from the last checkpoint rather than reprocessing everything from the beginning.
+A **processor** is the type you implement (`IRecordProcessor`) that defines how records are handled and how lifecycle events are observed. The framework delivers records, manages checkpoints to track progress, and notifies you of lifecycle events. If the processor stops and restarts, it resumes from the last checkpoint rather than reprocessing everything from the beginning.
+
+A **drone** is the runtime worker that hosts a processor instance, owns a `KurrentClient` connection, subscribes to records, and dispatches them to the processor's lifecycle methods. Multiple drones with the same `ProcessorId` form a processor group that coordinates checkpoints and partition assignments.
 
 The main types you interact with are:
 
@@ -66,13 +68,16 @@ public interface IRecordProcessor {
 
 Called each time a record is ready. The `ProcessRecordContext` provides:
 
-- `Record`: the `Record` to process
-- `Progress`: a `DroneProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions
-- `Logger`: an `ILogger` instance scoped to the drone
-- `CancellationToken`: signals when processing should stop
-- `StopProcessing()`: call to immediately stop the drone
-- `StopBeforeTrack(reason?)` / `StopAfterTrack(reason?)`: cooperative stop variants
-- `Checkpoint(reason?)`: request an immediate checkpoint
+| Member                                         | Description                                                                          |
+|------------------------------------------------|--------------------------------------------------------------------------------------|
+| `Record`                                       | The record to process.                                                               |
+| `Progress`                                     | A `DroneProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions. |
+| `Logger`                                       | An `ILogger` instance scoped to the drone.                                           |
+| `CancellationToken`                            | Cancellation token that signals when processing should stop.                         |
+| `StopProcessing()`                             | Immediately stops the drone.                                                         |
+| `StopBeforeTrack(reason?)`                     | Cooperative stop variant that halts before the current record is tracked.            |
+| `StopAfterTrack(reason?)`                      | Cooperative stop variant that halts after the current record is tracked.             |
+| `Checkpoint(reason?)`                          | Requests an immediate checkpoint.                                                    |
 
 ### OnConnected
 
@@ -82,23 +87,29 @@ Called once after the drone connects to the server, before any records are dispa
 
 Called when the framework signals a checkpoint, before the checkpoint is persisted. Use this to flush external state. The `CheckpointContext` exposes:
 
-- `CheckpointId`: unique identifier for this checkpoint
-- `Trigger`: what triggered it (`Interval`, `CaughtUp`, `Shutdown`, `Rebalance`, or `Savepoint`)
-- `Timestamp`: when the checkpoint was triggered
-- `Positions`: partition positions captured at signal time
+| Property       | Description                                                                                |
+|----------------|--------------------------------------------------------------------------------------------|
+| `CheckpointId` | Unique identifier for this checkpoint.                                                     |
+| `Trigger`      | What triggered the checkpoint: `Interval`, `CaughtUp`, `Shutdown`, `Rebalance`, or `Savepoint`. |
+| `Timestamp`    | When the checkpoint was triggered.                                                         |
+| `Positions`    | Partition positions captured at signal time.                                               |
 
 ### OnError
 
 Called when the drone hits an unrecoverable error, before transitioning to `Error` status. The `ErrorContext` carries:
 
-- `Error`: the exception that caused the failure
-- `Progress`: final progress snapshot at the time of the error
+| Property   | Description                                                |
+|------------|------------------------------------------------------------|
+| `Error`    | The exception that caused the failure.                     |
+| `Progress` | Final progress snapshot at the time of the error.          |
 
 ### OnComplete
 
 Called when the drone completes gracefully (including cancellation). The `CompleteContext` carries:
 
-- `Progress`: final progress snapshot at completion
+| Property   | Description                                  |
+|------------|----------------------------------------------|
+| `Progress` | Final progress snapshot at completion.       |
 
 All lifecycle contexts inherit from `DroneContext`, which adds `ProcessorId`, `DroneId`, `SessionId`, `Logger`, and `CancellationToken`.
 
@@ -156,7 +167,7 @@ public class OrderProcessor : IRecordProcessor {
 
 ## Creating a processor with MessageProcessor
 
-For simpler scenarios, use `MessageProcessor` to register strongly-typed handlers inline. `KurrentProcessor.Create(Action<MessageProcessor>, ...)` builds a `MessageProcessor` for you:
+`MessageProcessor` registers strongly-typed handlers inline without a dedicated class. `KurrentProcessor.Create(Action<MessageProcessor>, ...)` builds a `MessageProcessor` for you:
 
 ```csharp
 using Kurrent.Client.Streams;
@@ -274,7 +285,7 @@ opts.Debug = true;
 
 ### Checkpointing
 
-`Checkpointing` exposes a small fluent helper for the common knobs:
+`Checkpointing` exposes a chained API for the common settings:
 
 ```csharp
 opts.Checkpointing(c => c
@@ -342,7 +353,7 @@ app.Run();
 
 The bare `AddKurrentProcessor<T>(...)` overload resolves `T` via `sp.GetRequiredService<T>()`. Register the processor type yourself (typically as a singleton).
 
-If you would rather hand the runtime an instance or a factory, there are matching overloads:
+Other overloads accept a pre-built instance or a factory:
 
 ```csharp
 // Pre-built instance

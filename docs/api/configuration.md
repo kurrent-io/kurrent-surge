@@ -4,7 +4,7 @@ order: 2
 
 # Configuration
 
-`KurrentClient` is configured through a single `KurrentClientOptions` record. You can build it from a connection string, mutate it programmatically, or resolve it from dependency injection. Choose the path that fits your application.
+`KurrentClient` is configured through a single `KurrentClientOptions` record. The options can be built from a connection string, mutated programmatically, or resolved from dependency injection.
 
 ## Connection strings
 

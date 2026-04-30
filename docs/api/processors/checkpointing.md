@@ -23,7 +23,7 @@ If the drone crashes before step 4 completes, no positions are lost. On restart,
 
 ## Configuring checkpoints
 
-Checkpoint behavior is configured through `ProcessorOptions.Checkpoint` (data) or `opts.Checkpointing(...)` (fluent helper):
+Checkpoint behavior is configured through `ProcessorOptions.Checkpoint` directly, or through the chained `opts.Checkpointing(...)` API:
 
 ```csharp
 await KurrentProcessor.Create(new MyProcessor(), opts => {

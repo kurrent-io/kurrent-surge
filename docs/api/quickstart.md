@@ -4,7 +4,13 @@ order: 1
 
 # Getting started
 
-Get started by connecting your application to KurrentDB.
+Connect a .NET application to KurrentDB, append events to a stream, and read them back.
+
+## Prerequisites
+
+- .NET 8.0 or later
+- A running KurrentDB instance (local or remote). For local development, the [KurrentDB Docker image](https://hub.docker.com/r/eventstore/eventstore) is the fastest path.
+- A connection string for the target node or cluster.
 
 ## Installation
 
@@ -28,7 +34,7 @@ Install-Package Kurrent.Client
 
 ## Connect to KurrentDB
 
-The fastest way to connect is with a connection string:
+Pass a connection string to `KurrentClient.Create`:
 
 ```csharp
 using Kurrent.Client;
@@ -36,15 +42,11 @@ using Kurrent.Client;
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
-This creates a client connected to a local KurrentDB instance with default credentials and TLS disabled. Suitable for development.
-
-For production setups with TLS enabled:
+The example above targets a local development node with TLS disabled. For a production node, omit `?tls=false`. TLS is enabled by default.
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113");
 ```
-
-When TLS is not explicitly disabled, it is enabled by default.
 
 ## Append events
 

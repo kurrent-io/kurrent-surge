@@ -51,13 +51,17 @@ All public types live under the `Kurrent.Client` root namespace and feature-base
 | `EventStore.Client`         | `Kurrent.Client`             |
 | `EventStore.Client.Streams` | `Kurrent.Client.Streams`     |
 
-Update your `using` directives:
+Update your `using` directives.
+
+**Old:**
 
 ```csharp
-// Old
 using EventStore.Client;
+```
 
-// New
+**New:**
+
+```csharp
 using Kurrent.Client;
 using Kurrent.Client.Streams;
 ```
@@ -71,14 +75,18 @@ Existing connection strings continue to work without changes. The client accepts
 | `esdb://`             | `kurrentdb://`              | Direct connection to a single node           |
 | `esdb+discover://`    | `kurrentdb+discover://`     | Cluster connection with gossip discovery     |
 
-All of these are valid and produce identical client configurations:
+All of these are valid and produce identical client configurations.
+
+**Legacy schemes (still accepted):**
 
 ```csharp
-// Legacy schemes (still work)
 var client1 = KurrentClient.Create("esdb://admin:changeit@localhost:2113?tls=false");
 var client2 = KurrentClient.Create("esdb+discover://admin:changeit@node1:2113,node2:2113,node3:2113");
+```
 
-// New scheme (recommended for new code)
+**New scheme (recommended for new code):**
+
+```csharp
 var client3 = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
@@ -90,14 +98,18 @@ Legacy connection strings stored in environment variables, configuration files, 
 
 ## Client initialization
 
-The entry point changes from per-feature clients to a single `KurrentClient`:
+The entry point changes from per-feature clients to a single `KurrentClient`.
+
+**Old:** separate client per feature.
 
 ```csharp
-// Old: separate client per feature
 var settings      = EventStoreClientSettings.Create("esdb://admin:changeit@localhost:2113?tls=false");
 var streamsClient = new EventStoreClient(settings);
+```
 
-// New: single client, module-based access
+**New:** single client, module-based access.
+
+```csharp
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
@@ -111,37 +123,51 @@ The `KurrentClient` provides access to server features through module properties
 | Connectors  | `client.Connectors`  | Built-in connector management                              |
 | Admin       | `client.Admin`       | Cluster and server administration                          |
 
-Operations that were top-level methods on the old client are now accessed through the appropriate module:
+Operations that were top-level methods on the old client are now accessed through the appropriate module.
+
+**Old:**
 
 ```csharp
-// Old
 await client.AppendToStreamAsync("my-stream", StreamState.Any, events);
+```
 
-// New
+**New:**
+
+```csharp
 await client.Streams.AppendStream("my-stream", ExpectedStreamState.Any, records);
 ```
 
 ## Programmatic configuration
 
-The old client used `EventStoreClientSettings.Create()` to parse a connection string. The new client uses the `KurrentClientOptions` record:
+The old client used `EventStoreClientSettings.Create()` to parse a connection string. The new client uses the `KurrentClientOptions` record.
+
+**Old:**
 
 ```csharp
-// Old
 var settings = EventStoreClientSettings.Create("esdb://admin:changeit@localhost:2113");
 var client   = new EventStoreClient(settings);
+```
 
-// New: connection string
+**New, from a connection string:**
+
+```csharp
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113");
+```
 
-// New: connection string with overrides
+**New, from a connection string with overrides:**
+
+```csharp
 await using var client = KurrentClient.Create(
     "kurrentdb://admin:changeit@localhost:2113",
     opts => {
         opts.Resilience    = KurrentClientResilienceOptions.HighAvailability;
         opts.LoggerFactory = loggerFactory;
     });
+```
 
-// New: pre-built options
+**New, from a pre-built options instance:**
+
+```csharp
 var options = new KurrentClientOptions {
     Endpoints  = [new("localhost", 2113)],
     Security   = KurrentClientSecurityOptions.Basic("admin", "changeit"),
@@ -163,18 +189,22 @@ See [Configuration](./configuration.md) for the full options reference.
 
 ## Error handling
 
-The old client threw exceptions for expected failures (wrong expected version, stream not found, etc.). Kurrent.Client also throws, but the exceptions are well-typed and let you pattern-match by catching specific types:
+The old client threw exceptions for expected failures (wrong expected version, stream not found, etc.). Kurrent.Client also throws, but the exceptions are well-typed and let you pattern-match by catching specific types.
+
+**Old:**
 
 ```csharp
-// Old
 try {
     await client.AppendToStreamAsync("my-stream", new StreamRevision(4), events);
 }
 catch (WrongExpectedVersionException ex) {
     // ...
 }
+```
 
-// New
+**New:**
+
+```csharp
 try {
     await client.Streams.AppendStream(record, Revision.From(4));
 }
@@ -191,16 +221,20 @@ The old client used `EventData` for appending and `ResolvedEvent` / `RecordedEve
 
 ### Appending
 
+**Old:**
+
 ```csharp
-// Old
 var eventData = new EventData(
     Uuid.NewUuid(),
     "OrderPlaced",
     JsonSerializer.SerializeToUtf8Bytes(new { OrderId = "123" })
 );
 await client.AppendToStreamAsync("order-123", StreamState.Any, new[] { eventData });
+```
 
-// New
+**New:**
+
+```csharp
 var record = AppendRecord.New
     .ForStream("order-123")
     .WithValue(new { OrderId = "123" })
@@ -213,14 +247,18 @@ var result = await client.Streams.AppendStream(record);
 
 ### Reading
 
+**Old:**
+
 ```csharp
-// Old
 var events = client.ReadStreamAsync(Direction.Forwards, "order-123", StreamPosition.Start);
 await foreach (var resolvedEvent in events) {
     Console.WriteLine(resolvedEvent.Event.EventType);
 }
+```
 
-// New
+**New:**
+
+```csharp
 var stream = client.Streams.ReadStreamRecords("order-123");
 await foreach (var item in stream) {
     item.Switch(
@@ -234,11 +272,15 @@ Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable
 
 ## Dependency injection
 
-```csharp
-// Old
-services.AddEventStoreClient("esdb://admin:changeit@localhost:2113?tls=false");
+**Old:**
 
-// New
+```csharp
+services.AddEventStoreClient("esdb://admin:changeit@localhost:2113?tls=false");
+```
+
+**New:**
+
+```csharp
 services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
