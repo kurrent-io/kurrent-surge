@@ -1,20 +1,19 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.2.2">
-    <PropertyGroup>
-        <IsAspireHost>false</IsAspireHost>
-        <NoWarn>$(NoWarn);ASPIRE002</NoWarn>
-    </PropertyGroup>
-    
-  <PropertyGroup>
-    <RootNamespace>Sdk.TestKit</RootNamespace>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
-    <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <Using Include="TUnit" />
+        <Using Include="TUnit.Core" />
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Testing" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+        <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+        <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
+        <ProjectReference Include="..\Kurrent.Sdk.Testkit.Hosting\Kurrent.Sdk.Testkit.Hosting.csproj" />
+        <ProjectReference Include="..\Kurrent.Sdk.Testkit.AppHost\Kurrent.Sdk.Testkit.AppHost.csproj" IsAspireProjectResource="true" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TUnit.Aspire" />
+    </ItemGroup>
 </Project>

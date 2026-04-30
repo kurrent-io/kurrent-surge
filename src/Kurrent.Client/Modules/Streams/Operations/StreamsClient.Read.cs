@@ -156,7 +156,7 @@ public partial class StreamsClient {
 
                     Logger.LogInformation(
                         "{Position} {Type}: {@Value}",
-                        record.Position, record.ValueType.Name, record.Value
+                        record.Position, record.TypeName, record.Value
                     );
 
                     break;

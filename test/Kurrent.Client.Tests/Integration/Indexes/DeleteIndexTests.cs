@@ -1,6 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -9,8 +9,8 @@ namespace Kurrent.Client.Tests.Indexes;
 public class DeleteIndexTests {
     const int TestTimeoutMs = 20_000;
 
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
     public async ValueTask deletes_existing_index(CancellationToken ct) {

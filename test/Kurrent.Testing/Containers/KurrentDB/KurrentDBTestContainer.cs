@@ -114,9 +114,8 @@ public static class KurrentDBConfiguration {
         ["KURRENTDB_INSECURE"]                       = "true",
         ["KURRENTDB_USER_CERTIFICATES__ENABLED"]     = "false",
         ["KURRENTDB_SECONDARY_INDEXING__ENABLED"]    = "true",
-        ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = "http://host.docker.internal:4317", // or 18889?
-        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "true",
-        // ["OTEL_LOG_LEVEL"]                           = "debug"
+        ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = null,
+        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "false",
     };
 
     /// <summary>
@@ -126,10 +125,11 @@ public static class KurrentDBConfiguration {
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string?> Secure = new Dictionary<string, string?>(Insecure) {
         ["KURRENTDB_INSECURE"]                       = "false",
-        ["KURRENTDB_USER_CERTIFICATES__ENABLED"]     = "true",
         ["KURRENTDB_TRUSTED_ROOT_CERTIFICATES_PATH"] = "/etc/kurrentdb/certs/ca",
         ["KURRENTDB_CERTIFICATE_FILE"]               = "/etc/kurrentdb/certs/node/node.crt",
         ["KURRENTDB_CERTIFICATE_PRIVATE_KEY_FILE"]   = "/etc/kurrentdb/certs/node/node.key",
+        ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = null,
+        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "false",
     };
 
     /// <summary>

@@ -1,6 +1,6 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -8,8 +8,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Read")]
 [Category("Integration")]
 public class InspectRecordTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async Task inspects_log_record(CancellationToken ct) {

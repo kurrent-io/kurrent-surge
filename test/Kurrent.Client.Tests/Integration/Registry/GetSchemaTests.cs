@@ -2,20 +2,20 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]
 public class GetSchemaTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask get_schema(CancellationToken ct) {
-        var schemaName       = KurrentClientTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+        var schemaName       = KurrentDBTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
         var description      = Fixture.Faker.Lorem.Sentence();
         var tags             = new Dictionary<string, string> { [Fixture.Faker.Lorem.Word()] = Fixture.Faker.Lorem.Word(), [Fixture.Faker.Lorem.Word()] = Fixture.Faker.Lorem.Word() };
 
@@ -25,7 +25,7 @@ public class GetSchemaTests {
 			    CompatibilityMode.Backward, description, tags, ct
 		    );
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var schema = await Fixture.Client.Registry
             .GetSchema(schemaName, ct);
@@ -42,7 +42,7 @@ public class GetSchemaTests {
 
 	[Test]
 	public async ValueTask get_schema_when_schema_does_not_exist(CancellationToken ct) {
-		var schemaName = KurrentClientTestFixture.NewSchemaName();
+		var schemaName = KurrentDBTestFixture.NewSchemaName();
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
@@ -50,18 +50,18 @@ public class GetSchemaTests {
 
 	[Test]
 	public async ValueTask get_schema_when_schema_deleted(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		await Fixture.Client.Registry
             .DeleteSchema(schemaName, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));

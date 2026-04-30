@@ -1,6 +1,6 @@
 using Bogus;
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -11,8 +11,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Integration")]
 [Timeout(30_000)]
 public class ReadWithFilterTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     #region . Stream Filter .
 

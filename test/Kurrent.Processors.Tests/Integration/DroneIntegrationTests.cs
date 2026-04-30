@@ -5,7 +5,7 @@ using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;
@@ -14,8 +14,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Integration")]
 [Timeout(30_000)]
 public class DroneIntegrationTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     Drone CreateDrone(
         string processorId,

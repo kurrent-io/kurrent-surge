@@ -16,6 +16,9 @@ public interface ITestDataSource {
 
     ValueTask<TestStream[]> GenerateManySets(CancellationToken cancellationToken) =>
         GenerateManySets(TestDataSource.UnspecifiedCount, cancellationToken);
+
+    ValueTask<TestStream> GenerateRecord(CancellationToken cancellationToken) =>
+        GenerateSet(1, cancellationToken);
 }
 
 static class TestDataSource {

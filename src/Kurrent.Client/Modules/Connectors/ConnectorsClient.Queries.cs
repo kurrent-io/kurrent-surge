@@ -63,6 +63,9 @@ public partial class ConnectorsClient {
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+
         var request = new Queries.GetConnectorSettings {
             ConnectorId = connectorId
         };
@@ -98,6 +101,9 @@ public partial class ConnectorsClient {
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+
         var request = new Queries.GetConnectorConfiguration {
             ConnectorId = connectorId
         };

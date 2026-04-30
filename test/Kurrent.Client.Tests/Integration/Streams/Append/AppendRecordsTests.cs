@@ -1,13 +1,13 @@
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
 public class AppendRecordsTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     [Arguments<int>(2)]

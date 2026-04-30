@@ -32,6 +32,10 @@ public class IndexesClient : ClientModuleBase {
         bool? start = null,
         CancellationToken cancellationToken = default
     ) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filter);
+        ArgumentNullException.ThrowIfNull(fields);
+
         var request = new Contracts.CreateIndexRequest {
             Name   = name,
             Filter = filter,
@@ -69,7 +73,7 @@ public class IndexesClient : ClientModuleBase {
     /// A <see cref="Result{Success, StartIndexError}"/> indicating the outcome of the operation.
     /// </returns>
     public async ValueTask Start(string name, CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name, "indexName");
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var request = new Contracts.StartIndexRequest { Name = name };
 
@@ -97,6 +101,8 @@ public class IndexesClient : ClientModuleBase {
         string name,
         CancellationToken cancellationToken = default
     ) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var request = new Contracts.StopIndexRequest { Name = name };
 
         try {
@@ -123,6 +129,8 @@ public class IndexesClient : ClientModuleBase {
         string name,
         CancellationToken cancellationToken = default
     ) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var request = new Contracts.DeleteIndexRequest { Name = name };
 
         try {
@@ -175,6 +183,8 @@ public class IndexesClient : ClientModuleBase {
         string name,
         CancellationToken cancellationToken = default
     ) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var request = new Contracts.GetIndexRequest { Name = name };
 
         try {

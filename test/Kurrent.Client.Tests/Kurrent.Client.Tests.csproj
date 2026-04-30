@@ -1,28 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
+    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
-    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
-  </ItemGroup>
-
-<ItemGroup>
-    <Using Include="FakeItEasy" />
-    <Using Include="TUnit" />
-    <Using Include="Kurrent.Testing" />
-    <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj"/>
+    <ProjectReference Include="..\..\src\Variant\Variant.csproj"/>
+    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj"/>
+    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DuckDB.NET.Data.Full" />
-    <PackageReference Include="FakeItEasy" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="NodaTime.Testing" />
-    <PackageReference Include="TUnit" />
+    <Using Include="FakeItEasy"/>
+    <Using Include="TUnit"/>
+    <Using Include="Kurrent.Testing"/>
+    <Using Include="Kurrent.Testkit.TUnit.Assertions"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.NET.Data.Full"/>
+    <PackageReference Include="FakeItEasy"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+    <PackageReference Include="NodaTime.Testing"/>
+    <PackageReference Include="TUnit"/>
   </ItemGroup>
 
   <ItemGroup>
@@ -30,16 +30,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  
+
   <ItemGroup>
-    <Content Include="..\..\certs\**\*">
-      <Link>certs\%(RecursiveDir)/%(FileName)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Folder Include="Integration\Streams\Append\AppendRecords\" />
-    <Folder Include="Integration\Streams\Append\AppendToStream\" />
+    <Folder Include="Integration\Streams\Append\AppendRecords\"/>
+    <Folder Include="Integration\Streams\Append\AppendToStream\"/>
   </ItemGroup>
 </Project>
