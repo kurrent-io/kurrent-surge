@@ -2,7 +2,7 @@
 order: 1
 ---
 
-# Getting Started with Kurrent.Processors
+# Getting started
 
 Kurrent.Processors is an event processing framework for the Kurrent Platform. It provides a structured runtime for consuming records from KurrentDB with automatic checkpointing and lifecycle management. You implement a processor that handles records, and the framework takes care of connecting, subscribing, checkpointing, and graceful shutdown.
 
@@ -28,71 +28,92 @@ Install-Package Kurrent.Processors
 
 `Kurrent.Processors` depends on `Kurrent.Client`, which is included automatically.
 
-## Core Concepts
+## Core concepts
 
-A **processor** is your code that handles records. The framework delivers records, manages checkpoints to track progress, and notifies you of lifecycle events. If the processor stops and restarts, it resumes from the last checkpoint rather than reprocessing everything from the beginning.
+A **processor** is the type you implement (`IRecordProcessor`) that defines how records are handled and how lifecycle events are observed. The framework delivers records, manages checkpoints to track progress, and notifies you of lifecycle events. If the processor stops and restarts, it resumes from the last checkpoint rather than reprocessing everything from the beginning.
+
+A **drone** is the runtime worker that hosts a processor instance, owns a `KurrentClient` connection, subscribes to records, and dispatches them to the processor's lifecycle methods. Multiple drones with the same `ProcessorId` form a processor group that coordinates checkpoints and partition assignments.
 
 The main types you interact with are:
 
-- `IRecordProcessor` -- the interface you implement to handle a record and lifecycle events
-- `KurrentProcessors` -- the static entry point for creating and configuring processors
-- `KurrentProcessorBuilder` -- the fluent builder returned by `KurrentProcessors.Create` for configuring connection, filtering, and running the processor
-- `RecordProcessorBuilder` -- a delegate-based alternative for defining a processor inline without implementing a class
+- `IRecordProcessor`: the interface you implement to handle records and react to lifecycle events.
+- `KurrentProcessor`: the entry point. `KurrentProcessor.Create(...)` produces a configured runner you call `RunAsync` on.
+- `ProcessorOptions`: pure data record that holds connection, subscription, and checkpoint configuration. You mutate it through the `Action<ProcessorOptions>` callback passed to `Create`.
+- `MessageProcessor`: a delegate-based `IRecordProcessor` for inline typed handlers without subclassing.
 
-## The IRecordProcessor Interface
+## The IRecordProcessor interface
 
-`IRecordProcessor` defines four lifecycle methods. Only `ProcessRecord` is required -- the others have default no-op implementations that you can override as needed.
+`IRecordProcessor` defines five lifecycle methods. Only `ProcessRecord` is required. The others have default no-op implementations.
 
 ```csharp
 public interface IRecordProcessor {
-    // Required: Called when a record is available for processing.
+    // Required: called when a record is available for processing.
     ValueTask ProcessRecord(ProcessRecordContext context);
 
-    // Optional: Called when a checkpoint is signaled, before state is persisted.
+    // Optional: called once after the drone connects, before any records are dispatched.
+    ValueTask OnConnected(ConnectedContext context) => ValueTask.CompletedTask;
+
+    // Optional: called when a checkpoint is signaled, before state is persisted.
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
 
-    // Optional: Called when the worker encounters an unrecoverable error.
+    // Optional: called when the drone encounters an unrecoverable error.
     ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
 
-    // Optional: Called when the worker completes gracefully (including cancellation).
+    // Optional: called when the drone completes gracefully (including cancellation).
     ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
 }
 ```
 
 ### ProcessRecord
 
-This is the only method you must implement. The framework calls it each time a record is ready. The `ProcessRecordContext` provides:
+Called each time a record is ready. The `ProcessRecordContext` provides:
 
-- `Record` -- the `Record` to process
-- `Progress` -- a `WorkerProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions
-- `Logger` -- an `ILogger` instance scoped to the worker
-- `CancellationToken` -- signals when processing should stop
-- `StopProcessing()` -- call this to immediately stop the processor
+| Member                                         | Description                                                                          |
+|------------------------------------------------|--------------------------------------------------------------------------------------|
+| `Record`                                       | The record to process.                                                               |
+| `Progress`                                     | A `DroneProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions. |
+| `Logger`                                       | An `ILogger` instance scoped to the drone.                                           |
+| `CancellationToken`                            | Cancellation token that signals when processing should stop.                         |
+| `StopProcessing()`                             | Immediately stops the drone.                                                         |
+| `StopBeforeTrack(reason?)`                     | Cooperative stop variant that halts before the current record is tracked.            |
+| `StopAfterTrack(reason?)`                      | Cooperative stop variant that halts after the current record is tracked.             |
+| `Checkpoint(reason?)`                          | Requests an immediate checkpoint.                                                    |
+
+### OnConnected
+
+Called once after the drone connects to the server, before any records are dispatched. Use this for one-time setup (state tables, opening external resources, priming caches). Failures propagate as fatal startup errors.
 
 ### OnCheckpoint
 
-Called when the framework signals a checkpoint, before the checkpoint is persisted. Use this for flushing external state, writing to a database, or any operation that should happen atomically with the checkpoint. The `CheckpointContext` includes:
+Called when the framework signals a checkpoint, before the checkpoint is persisted. Use this to flush external state. The `CheckpointContext` exposes:
 
-- `CheckpointId` -- the unique identifier for this checkpoint
-- `Trigger` -- what triggered the checkpoint (`Interval`, `CaughtUp`, `Shutdown`, `Rebalance`, or `Savepoint`)
-- `Timestamp` -- when the checkpoint was triggered
+| Property       | Description                                                                                |
+|----------------|--------------------------------------------------------------------------------------------|
+| `CheckpointId` | Unique identifier for this checkpoint.                                                     |
+| `Trigger`      | What triggered the checkpoint: `Interval`, `CaughtUp`, `Shutdown`, `Rebalance`, or `Savepoint`. |
+| `Timestamp`    | When the checkpoint was triggered.                                                         |
+| `Positions`    | Partition positions captured at signal time.                                               |
 
 ### OnError
 
-Called when the worker encounters an unrecoverable error, before the worker transitions to `Error` status. Use this for error reporting, alerting, or cleanup. The `ErrorContext` includes:
+Called when the drone hits an unrecoverable error, before transitioning to `Error` status. The `ErrorContext` carries:
 
-- `Error` -- the exception that caused the failure
-- `Progress` -- final progress snapshot at the time of the error
+| Property   | Description                                                |
+|------------|------------------------------------------------------------|
+| `Error`    | The exception that caused the failure.                     |
+| `Progress` | Final progress snapshot at the time of the error.          |
 
 ### OnComplete
 
-Called when the worker completes gracefully, including when it is cancelled via the stopping token. The `CompleteContext` includes:
+Called when the drone completes gracefully (including cancellation). The `CompleteContext` carries:
 
-- `Progress` -- final progress snapshot at completion
+| Property   | Description                                  |
+|------------|----------------------------------------------|
+| `Progress` | Final progress snapshot at completion.       |
 
-## Creating a Processor by Implementing IRecordProcessor
+All lifecycle contexts inherit from `DroneContext`, which adds `ProcessorId`, `DroneId`, `SessionId`, `Logger`, and `CancellationToken`.
 
-Implement the `IRecordProcessor` interface to create a processor class:
+## Creating a processor by implementing IRecordProcessor
 
 ```csharp
 using Kurrent.Client.Streams;
@@ -101,13 +122,12 @@ using Kurrent.Processors;
 public class OrderProcessor : IRecordProcessor {
     public async ValueTask ProcessRecord(ProcessRecordContext context) {
         context.Logger.LogInformation(
-            "Processing {Schema} from {Stream} at position {Position}",
-            context.Record.SchemaName,
-            context.Record.StreamName,
+            "Processing {Type} from {Stream} at position {Position}",
+            context.Record.TypeName,
+            context.Record.Stream,
             context.Record.Position
         );
 
-        // Your processing logic here
         await HandleRecordAsync(context.Record, context.CancellationToken);
     }
 
@@ -132,7 +152,7 @@ public class OrderProcessor : IRecordProcessor {
     public ValueTask OnComplete(CompleteContext context) {
         var throughput = context.Progress.Throughput;
         context.Logger.LogInformation(
-            "Completed: {Records} records in {Elapsed} ({Rps} records/sec)",
+            "Completed: {Records} records in {Elapsed} ({Rps:F1} records/sec)",
             throughput.TotalRecords,
             throughput.Elapsed,
             throughput.RecordsPerSecond
@@ -140,271 +160,243 @@ public class OrderProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
-    static Task HandleRecordAsync(Record record, CancellationToken ct) {
-        // Process the record
-        return Task.CompletedTask;
-    }
+    static Task HandleRecordAsync(Record record, CancellationToken ct) =>
+        Task.CompletedTask;
 }
 ```
 
-## Creating a Processor with the Delegate Builder
+## Creating a processor with MessageProcessor
 
-For simpler scenarios, you can define a processor inline using `KurrentProcessors.Create` with an `Action<RecordProcessorBuilder>`. The builder provides both synchronous and asynchronous overloads for each lifecycle method:
+`MessageProcessor` registers strongly-typed handlers inline without a dedicated class. `KurrentProcessor.Create(Action<MessageProcessor>, ...)` builds a `MessageProcessor` for you:
 
 ```csharp
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
+using Kurrent.Processors.Models;
 
-await KurrentProcessors.Create(p => p
-        .ProcessRecordAsync(async ctx => {
-            await HandleAsync(ctx.Record, ctx.CancellationToken);
+await KurrentProcessor.Create(handlers => handlers
+        .Process<OrderPlaced>(async (msg, ctx) => {
+            await HandleOrderPlacedAsync(msg, ctx.CancellationToken);
+        })
+        .Process<OrderShipped>((msg, ctx) => {
+            ctx.Logger.LogInformation("Shipped {OrderId}", msg.OrderId);
         })
         .OnCheckpoint(ctx => {
             ctx.Logger.LogInformation("Checkpoint {Id}", ctx.CheckpointId);
         })
         .OnError(ctx => {
             ctx.Logger.LogError(ctx.Error, "Processing failed");
-        })
-    )
-    .ConnectTo("kurrentdb://localhost:2113")
-    .WithProcessorId("my-processor")
+        }),
+    opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.ProcessorId                  = "my-processor";
+        opts.Subscription.Filter          = RecordFilter.ByStreamPrefix("order-");
+        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+    })
     .RunAsync(stoppingToken);
 ```
 
-The `RecordProcessorBuilder` methods are:
+`MessageProcessor` also lets you register a fallback for records whose runtime type does not match any registered handler:
 
-| Method | Description |
-|---|---|
-| `ProcessRecord(Action<ProcessRecordContext>)` | Required. Synchronous record handler. |
-| `ProcessRecordAsync(Func<ProcessRecordContext, ValueTask>)` | Required. Asynchronous record handler. |
-| `OnCheckpoint(Action<CheckpointContext>)` | Optional. Synchronous checkpoint handler. |
-| `OnCheckpointAsync(Func<CheckpointContext, ValueTask>)` | Optional. Asynchronous checkpoint handler. |
-| `OnError(Action<ErrorContext>)` | Optional. Synchronous error handler. |
-| `OnErrorAsync(Func<ErrorContext, ValueTask>)` | Optional. Asynchronous error handler. |
-| `OnComplete(Action<CompleteContext>)` | Optional. Synchronous completion handler. |
-| `OnCompleteAsync(Func<CompleteContext, ValueTask>)` | Optional. Asynchronous completion handler. |
+```csharp
+.Fallback(ctx => ctx.Logger.LogWarning("Unhandled: {Type}", ctx.Record.TypeName))
+```
 
-You must call either `ProcessRecord` or `ProcessRecordAsync` -- the builder will throw `InvalidOperationException` at build time if neither is set.
+You must register at least one `Process<T>` handler or a `Fallback`. The lifecycle hooks (`OnCheckpoint`, `OnError`, `OnComplete`) are optional and have both sync and async overloads.
 
-## Configuring and Running a Processor
+## Configuring a processor
 
-`KurrentProcessors.Create` returns a `KurrentProcessorBuilder` that provides a fluent API for configuring the connection, filtering, checkpointing, and execution.
+`KurrentProcessor.Create(processor, configure)` takes an optional `Action<ProcessorOptions>` callback. `ProcessorOptions` is a record, so you set properties directly or use the convenience helpers.
 
 ### Connection
 
-Connect to KurrentDB using a connection string:
-
 ```csharp
-var builder = KurrentProcessors.Create(new OrderProcessor())
-    .ConnectTo("kurrentdb://localhost:2113");
+KurrentProcessor.Create(new OrderProcessor(), opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+});
 ```
 
-For more control over client options:
+`Connection` has overloads for tuning the parsed client options or supplying a pre-built `KurrentClientOptions`:
 
 ```csharp
-var builder = KurrentProcessors.Create(new OrderProcessor())
-    .WithClient("kurrentdb://admin:changeit@localhost:2113?tls=true", opts => opts with {
-        Resilience = KurrentClientResilienceOptions.HighAvailability
-    });
+KurrentProcessor.Create(new OrderProcessor(), opts => {
+    opts.Connection(
+        "kurrentdb://admin:changeit@localhost:2113",
+        client => client.Resilience = KurrentClientResilienceOptions.Subscription);
+});
 ```
-
-You can also provide an existing `KurrentClient` instance:
 
 ```csharp
-var builder = KurrentProcessors.Create(new OrderProcessor())
-    .UseClient(existingClient);
+KurrentProcessor.Create(new OrderProcessor(), opts => {
+    opts.Connection(myClientOptions);
+});
 ```
 
-### Processor Identity
+Each drone always builds and owns its own `KurrentClient`. Client instances are never shared between drones.
 
-Set the processor ID to enable checkpointing and group coordination:
+### Processor and drone identity
 
 ```csharp
-builder.WithProcessorId("order-processor");
+opts.ProcessorId = "order-processor";
+opts.DroneId     = Environment.MachineName;
 ```
 
-Multiple workers with the same processor ID share checkpoints, enabling coordinated processing across instances. If not set explicitly, the processor ID is auto-generated from the processor type name (e.g., `OrderProcessor` becomes `order_processor`).
+`ProcessorId` is used for checkpoint coordination. Multiple drones with the same `ProcessorId` share a checkpoint stream. If you don't set it explicitly, it is derived from the processor type name (e.g., `OrderProcessor` becomes `order-processor`).
 
-Optionally set a worker ID for checkpoint attribution:
-
-```csharp
-builder.WithWorkerId(Environment.MachineName);
-```
+`DroneId` identifies this drone instance within the group. If left blank, it is auto-generated as `{ProcessorId}-{short-guid}` when `ProcessorId` is set.
 
 ### Filtering
 
-Filter records server-side to reduce data transfer:
+Filter records server-side via `Subscription.Filter`:
 
 ```csharp
-// Filter by a single stream
-builder.WithFilter(RecordFilter.ByStream("orders-123"));
-
-// Filter by stream pattern
-builder.WithFilter(RecordFilter.ByStreamPattern(@"^orders-\d+$"));
-
-// Filter by schema (event type)
-builder.WithFilter(RecordFilter.BySchema("OrderPlaced"));
-
-// Filter by expression
-builder.WithFilterExpression("schema_name = 'OrderPlaced'");
+opts.Subscription.Filter = RecordFilter.ByStream("orders-123");
+opts.Subscription.Filter = RecordFilter.ByStreamPattern(@"^orders-\d+$");
+opts.Subscription.Filter = RecordFilter.BySchema("OrderPlaced");
+opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced'");
 ```
 
-### Initial Position
+### Initial position
 
 Control where processing starts when no checkpoint exists:
 
 ```csharp
 using Kurrent.Processors.Models;
 
-// Start from the beginning (process all historical records)
-builder.WithInitialPosition(SubscriptionInitialPosition.Earliest);
+// Default: start from the latest record (live tail)
+opts.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
 
-// Start from the end (new records only) -- this is the default
-builder.WithInitialPosition(SubscriptionInitialPosition.Latest);
+// Process all historical records first
+opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
 ```
 
-### Batching
-
-Configure how records are grouped before delivery:
+### Worker settings
 
 ```csharp
-builder.ConfigureBatching(b => b
-    .MaxSize(500)                              // Max records per batch (default: 200)
-    .Timeout(TimeSpan.FromMilliseconds(500))   // Max wait for a full batch (default: 250ms)
-);
+// Records to buffer in memory (default: 1000, max: 10000)
+opts.BufferCapacity = 5000;
+
+// Skip record deserialization for metadata-only processing
+opts.SkipDecoding = true;
+
+// Re-throw all exceptions and emit extra diagnostics
+opts.Debug = true;
 ```
 
 ### Checkpointing
 
-Configure automatic checkpoint behavior:
+`Checkpointing` exposes a chained API for the common settings:
 
 ```csharp
-builder.ConfigureCheckpointing(c => c
-    .Interval(TimeSpan.FromSeconds(10))    // Time between checkpoints (default: 30s)
-    .Timeout(TimeSpan.FromSeconds(15))     // Acknowledgment timeout (default: 30s)
-    .RetentionCount(5)                     // Checkpoints to retain (default: 3)
-    .FailurePolicy(CheckpointFailurePolicy.FailProcessor)  // default: Continue
-);
+opts.Checkpointing(c => c
+    .Interval(TimeSpan.FromSeconds(10))
+    .RetentionCount(5)
+    .FailurePolicy(CheckpointFailurePolicy.Fail));
 ```
 
-### Worker Settings
-
-Configure worker runtime behavior:
+Or set them directly:
 
 ```csharp
-builder.ConfigureWorker(w => w
-    .BufferCapacity(5000)    // Records to buffer in memory (default: 1000, max: 10000)
-    .SkipDecoding()          // Skip record deserialization for metadata-only processing
-    .ThrowOnFailure()        // Throw exceptions instead of logging and stopping
-);
+opts.Checkpoint.Interval       = TimeSpan.FromSeconds(10);
+opts.Checkpoint.RetentionCount = 5;
+opts.Checkpoint.FailurePolicy  = CheckpointFailurePolicy.Fail;
 ```
 
-### Running
+## Running a processor
 
 The simplest way to run a processor:
 
 ```csharp
-await KurrentProcessors.Create(new OrderProcessor())
-    .ConnectTo("kurrentdb://localhost:2113")
-    .WithProcessorId("order-processor")
+await KurrentProcessor.Create(new OrderProcessor(), opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.ProcessorId = "order-processor";
+    })
     .RunAsync(stoppingToken);
 ```
 
 `RunAsync` blocks until the stopping token is cancelled or an error occurs.
 
-For console applications that need automatic signal handling:
+For console applications, `RunWithGracefulShutdownAsync` automatically handles `Ctrl+C` (SIGINT) and `SIGTERM`, giving the drone time to complete a final checkpoint:
 
 ```csharp
-await KurrentProcessors.Create(new OrderProcessor())
-    .ConnectTo("kurrentdb://localhost:2113")
-    .WithProcessorId("order-processor")
+await KurrentProcessor.Create(new OrderProcessor(), opts => {
+        opts.Connection("kurrentdb://localhost:2113");
+        opts.ProcessorId = "order-processor";
+    })
     .RunWithGracefulShutdownAsync(shutdownTimeout: TimeSpan.FromSeconds(15));
 ```
 
-`RunWithGracefulShutdownAsync` automatically handles `Ctrl+C` (SIGINT) and `SIGTERM`, giving the processor time to complete a final checkpoint before exiting.
+## Dependency injection
 
-### Building for Runtime Access
-
-If you need runtime access to the worker's status and progress, use `Build` to get an `IProcessorWorker`:
-
-```csharp
-var worker = KurrentProcessors.Create(new OrderProcessor())
-    .ConnectTo("kurrentdb://localhost:2113")
-    .WithProcessorId("order-processor")
-    .Build();
-
-Console.WriteLine($"Processor: {worker.ProcessorId}");
-Console.WriteLine($"Worker: {worker.WorkerId}");
-Console.WriteLine($"Status: {worker.Status}");
-
-await worker.RunAsync(stoppingToken);
-```
-
-The `IProcessorWorker` exposes:
-
-| Property | Description |
-|---|---|
-| `ProcessorId` | Unique identifier of the processor group. |
-| `WorkerId` | Unique identifier of this worker instance. |
-| `Status` | Current lifecycle status: `Starting`, `Processing`, `Stopped`, or `Error`. |
-| `Settings` | The resolved `ProcessorSettings` used by this worker. |
-
-## Dependency Injection
-
-For ASP.NET Core and hosted service scenarios, register processors with the DI container using `AddKurrentProcessor`:
+For ASP.NET Core and hosted-service scenarios, register processors with `AddKurrentProcessor<T>`. Each registration becomes its own hosted service. The configure callback receives a `ProcessorOptions` (and optionally an `IServiceProvider`) to set up the connection and behavior:
 
 ```csharp
 using Kurrent.Client;
-using Kurrent.Processors.Options;
+using Kurrent.Client.Streams;
+using Kurrent.Processors;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register a shared KurrentDB client
-builder.Services.AddKurrentClient("kurrentdb://localhost:2113");
+// Register the processor in DI so the hosted service can resolve it.
+builder.Services.AddSingleton<OrderProcessor>();
 
-// Register a processor as a hosted service
-builder.Services.AddKurrentProcessor<OrderProcessor>(config => config
-    .WithFilter("schema_name IN ('OrderPlaced', 'OrderShipped')")
-    .ConfigureCheckpointing(c => c.Interval(TimeSpan.FromSeconds(10)))
-);
+// Hook it up as a hosted service.
+builder.Services.AddKurrentProcessor<OrderProcessor>(opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('OrderPlaced', 'OrderShipped')");
+    opts.Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)));
+});
 
 var app = builder.Build();
 app.Run();
 ```
 
-The processor is resolved from DI, so it can accept constructor-injected dependencies. The processor ID is auto-generated from the type name unless explicitly set.
+The bare `AddKurrentProcessor<T>(...)` overload resolves `T` via `sp.GetRequiredService<T>()`. Register the processor type yourself (typically as a singleton).
 
-To register multiple processors with a shared connection:
+Other overloads accept a pre-built instance or a factory:
 
 ```csharp
-builder.Services.AddKurrentProcessors(kurrent => kurrent
-    .ConnectTo("kurrentdb://localhost:2113")
-    .AddProcessor<OrderProcessor>(c => c.WithFilter("schema_name = 'OrderPlaced'"))
-    .AddProcessor<ShippingProcessor>(c => c.WithFilter("schema_name = 'OrderShipped'"))
-);
+// Pre-built instance
+builder.Services.AddKurrentProcessor(new OrderProcessor(), opts =>
+    opts.Connection("kurrentdb://localhost:2113"));
+
+// Factory invoked once at host startup
+builder.Services.AddKurrentProcessor(sp => new OrderProcessor(sp.GetRequiredService<ILogger<OrderProcessor>>()),
+    opts => opts.Connection("kurrentdb://localhost:2113"));
 ```
 
-## Using IRecordProcessorFactory
+### Connection-string resolution
 
-When your processor needs a fresh instance for each processing session (e.g., it holds mutable state or requires scoped dependencies), implement `IRecordProcessorFactory`:
+If your configure callback does not call `opts.Connection(...)`, the registration looks up a connection string from `IConfiguration`:
 
-```csharp
-using Kurrent.Processors;
+1. `ConnectionStrings:{ProcessorId}`
+2. `ConnectionStrings:kurrentdb` (the default Aspire resource name)
 
-public class OrderProcessorFactory(ILogger<OrderProcessor> logger) : IRecordProcessorFactory {
-    public IRecordProcessor CreateProcessor() => new OrderProcessor(logger);
+If neither is present, the drone build throws at host startup.
+
+### Configuration binding
+
+Settings under `Kurrent:Processors:{TypeName}` in `IConfiguration` are bound onto `ProcessorOptions` before your configure callback runs. The callback always wins, so configuration acts as defaults:
+
+```json
+{
+  "Kurrent": {
+    "Processors": {
+      "OrderProcessor": {
+        "ProcessorId": "order-processor",
+        "BufferCapacity": 5000,
+        "Checkpoint": { "Interval": "00:00:10" },
+        "Subscription": { "InitialPosition": "Earliest" }
+      }
+    }
+  },
+  "ConnectionStrings": {
+    "kurrentdb": "kurrentdb://localhost:2113"
+  }
 }
-
-// Usage
-await KurrentProcessors.Create(new OrderProcessorFactory(logger))
-    .ConnectTo("kurrentdb://localhost:2113")
-    .WithProcessorId("order-processor")
-    .RunAsync(stoppingToken);
 ```
 
-## Complete Example
-
-Here is a complete console application that processes order events from KurrentDB:
+## Complete example
 
 ```csharp
 using Kurrent.Client.Streams;
@@ -414,12 +406,11 @@ using Kurrent.Processors.Models;
 public class OrderProcessor : IRecordProcessor {
     public ValueTask ProcessRecord(ProcessRecordContext context) {
         context.Logger.LogInformation(
-            "[{Schema}] Stream={Stream} Position={Position}",
-            context.Record.SchemaName,
-            context.Record.StreamName,
+            "[{Type}] Stream={Stream} Position={Position}",
+            context.Record.TypeName,
+            context.Record.Stream,
             context.Record.Position
         );
-
         return ValueTask.CompletedTask;
     }
 
@@ -444,23 +435,21 @@ public class OrderProcessor : IRecordProcessor {
     }
 }
 
-// Run the processor
-await KurrentProcessors.Create(new OrderProcessor())
-    .ConnectTo("kurrentdb://localhost:2113?tls=false")
-    .WithProcessorId("order-processor")
-    .WithFilter(RecordFilter.ByStreamPrefix("order-"))
-    .WithInitialPosition(SubscriptionInitialPosition.Earliest)
-    .ConfigureBatching(b => b.MaxSize(100).Timeout(TimeSpan.FromMilliseconds(500)))
-    .ConfigureCheckpointing(c => c.Interval(TimeSpan.FromSeconds(10)))
+await KurrentProcessor.Create(new OrderProcessor(), opts => {
+        opts.Connection("kurrentdb://localhost:2113?tls=false");
+        opts.ProcessorId                  = "order-processor";
+        opts.Subscription.Filter          = RecordFilter.ByStreamPrefix("order-");
+        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        opts.Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)));
+    })
     .RunWithGracefulShutdownAsync();
 ```
 
 This processor will:
 
-1. Connect to a local KurrentDB instance
-2. Subscribe to all streams starting with `order-`
-3. Process records from the beginning (`Earliest`)
-4. Receive records in groups of up to 100, delivered at most every 500ms
-5. Automatically checkpoint every 10 seconds
-6. Perform a final checkpoint on graceful shutdown
-7. Resume from the last checkpoint on restart
+1. Connect to a local KurrentDB instance.
+2. Subscribe to all streams starting with `order-`.
+3. Process records from the beginning (`Earliest`).
+4. Automatically checkpoint every 10 seconds.
+5. Perform a final checkpoint on graceful shutdown.
+6. Resume from the last checkpoint on restart.

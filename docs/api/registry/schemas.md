@@ -13,7 +13,7 @@ var client = new KurrentClient(options);
 var registry = client.Registry;
 ```
 
-All registry operations return `Result<TSuccess, TError>` types. See [Error handling](../error-handling.md) for how to work with results.
+Registry operations return values directly and throw on failure. See [Error handling](../error-handling.md) for the exception catalogue and patterns.
 
 ## Creating a schema
 
@@ -23,7 +23,7 @@ Use `CreateSchema` to register a new schema. This creates the schema and its fir
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 
-var result = await client.Registry.CreateSchema(
+var descriptor = await client.Registry.CreateSchema(
     schemaName: "order-placed",
     schemaDefinition: """
         {
@@ -44,50 +44,61 @@ var result = await client.Registry.CreateSchema(
         ["team"] = "fulfillment"
     }
 );
+
+Console.WriteLine($"Created version {descriptor.VersionNumber} ({descriptor.VersionId})");
 ```
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `schemaName` | `SchemaName` | Unique name for the schema. Accepts a plain `string` via implicit conversion. |
-| `schemaDefinition` | `string` | The schema definition as a string (e.g. a JSON Schema document). |
-| `dataFormat` | `SchemaDataFormat` | The serialization format of the schema content. |
-| `compatibilityMode` | `CompatibilityMode` | Rules for how future versions must relate to previous versions. |
-| `description` | `string` | Human-readable description of the schema. |
-| `tags` | `Dictionary<string, string>` | Key-value metadata for categorization and filtering. |
-| `cancellationToken` | `CancellationToken` | Optional cancellation token. |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `schemaName` | `SchemaName` | yes | Unique name for the schema. Accepts a plain `string` via implicit conversion. |
+| `schemaDefinition` | `string` | yes | The schema definition as a string (for example, a JSON Schema document). |
+| `dataFormat` | `SchemaDataFormat` | yes | The serialization format of the schema content. |
+| `compatibilityMode` | `CompatibilityMode` | no, defaults to `None` | Rules for how future versions must relate to previous versions. |
+| `description` | `string` | no, defaults to `""` | Human-readable description of the schema. |
+| `tags` | `IReadOnlyDictionary<string, string>?` | no, defaults to `null` | Key-value metadata for categorization and filtering. |
+| `cancellationToken` | `CancellationToken` | no | Optional cancellation token. |
 
 ### Return value
 
-On success, returns a `SchemaVersionDescriptor` containing:
+Returns a `SchemaVersionDescriptor`:
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `VersionId` | `SchemaVersionId` | Unique identifier for the created schema version. |
 | `VersionNumber` | `int` | The version number (1 for the first version). |
 
+### Errors
+
+| Exception | When it is thrown |
+|-----------|------------------|
+| `SchemaAlreadyExistsException` | A schema with the same name already exists. |
+| `ArgumentException` | `schemaName` is empty or `schemaDefinition` is null/whitespace. |
+
 ## Getting a schema
 
 Use `GetSchema` to retrieve the schema metadata by name:
 
 ```csharp
-var result = await client.Registry.GetSchema("order-placed");
+var schema = await client.Registry.GetSchema("order-placed");
 
-result.Switch(
-    schema => {
-        Console.WriteLine($"Schema: {schema.SchemaName}");
-        Console.WriteLine($"Format: {schema.Details.DataFormat}");
-        Console.WriteLine($"Compatibility: {schema.Details.Compatibility}");
-        Console.WriteLine($"Latest version: {schema.LatestSchemaVersion}");
-        Console.WriteLine($"Created: {schema.CreatedAt}");
-        Console.WriteLine($"Updated: {schema.UpdatedAt}");
-    },
-    error => Console.WriteLine($"Failed: {error}")
-);
+Console.WriteLine($"Schema: {schema.SchemaName}");
+Console.WriteLine($"Format: {schema.Details.DataFormat}");
+Console.WriteLine($"Compatibility: {schema.Details.Compatibility}");
+Console.WriteLine($"Latest version: {schema.LatestSchemaVersion}");
+Console.WriteLine($"Created: {schema.CreatedAt}");
+Console.WriteLine($"Updated: {schema.UpdatedAt}");
 ```
 
 `GetSchema` returns the schema's metadata and details, but not the schema definition itself. To get the actual definition, use `GetSchemaVersion`.
+
+### Errors
+
+| Exception | When it is thrown |
+|-----------|------------------|
+| `SchemaNotFoundException` | No schema with that name exists. |
+| `SchemaDeletedException` | The schema was deleted. |
 
 ## Getting a schema version
 
@@ -96,17 +107,12 @@ result.Switch(
 Call `GetSchemaVersion` without a version number to get the latest version:
 
 ```csharp
-var result = await client.Registry.GetSchemaVersion("order-placed");
+var version = await client.Registry.GetSchemaVersion("order-placed");
 
-result.Switch(
-    version => {
-        Console.WriteLine($"Version: {version.VersionNumber}");
-        Console.WriteLine($"Format: {version.DataFormat}");
-        Console.WriteLine($"Definition: {version.SchemaDefinition}");
-        Console.WriteLine($"Registered: {version.RegisteredAt}");
-    },
-    error => Console.WriteLine($"Failed: {error}")
-);
+Console.WriteLine($"Version: {version.VersionNumber}");
+Console.WriteLine($"Format: {version.DataFormat}");
+Console.WriteLine($"Definition: {version.SchemaDefinition}");
+Console.WriteLine($"Registered: {version.RegisteredAt}");
 ```
 
 ### Specific version number
@@ -114,7 +120,7 @@ result.Switch(
 Pass the version number to get an exact version:
 
 ```csharp
-var result = await client.Registry.GetSchemaVersion("order-placed", versionNumber: 2);
+var version = await client.Registry.GetSchemaVersion("order-placed", versionNumber: 2);
 ```
 
 ### By version ID
@@ -122,32 +128,104 @@ var result = await client.Registry.GetSchemaVersion("order-placed", versionNumbe
 If you already have a `SchemaVersionId` (for example, from a `CreateSchema` result), use `GetSchemaVersionById`:
 
 ```csharp
-var createResult = await client.Registry.CreateSchema(
-    "order-placed", definition, SchemaDataFormat.Json,
-    CompatibilityMode.Backward, "Order events", new Dictionary<string, string>()
+var descriptor = await client.Registry.CreateSchema(
+    "order-placed", definition, SchemaDataFormat.Json
 );
 
-// Use the version ID from the creation result
-var versionResult = await createResult.MatchAsync(
-    async descriptor => await client.Registry.GetSchemaVersionById(descriptor.VersionId),
-    error => ValueTask.FromResult(GetSchemaVersionError.FromEx(error.AsException()))
-);
+var version = await client.Registry.GetSchemaVersionById(descriptor.VersionId);
 ```
+
+### Errors
+
+The same exceptions apply to `GetSchemaVersion` and `GetSchemaVersionById`:
+
+| Exception | When it is thrown |
+|-----------|------------------|
+| `SchemaNotFoundException` | The schema or requested version does not exist. |
+| `SchemaDeletedException` | The schema (or the version's parent schema) was deleted. |
+
+## Registering a new version
+
+Once a schema exists, use `RegisterSchemaVersion` to add a new version. The server validates the definition against the schema's configured compatibility mode and rejects incompatible changes.
+
+```csharp
+var descriptor = await client.Registry.RegisterSchemaVersion(
+    schemaName: "order-placed",
+    schemaDefinition: updatedSchemaJson
+);
+
+Console.WriteLine($"Registered version {descriptor.VersionNumber}");
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `schemaName` | `SchemaName` | yes | The schema to add a version to. |
+| `schemaDefinition` | `string` | yes | The new schema definition. |
+| `cancellationToken` | `CancellationToken` | no | Optional cancellation token. |
+
+### Errors
+
+| Exception | When it is thrown |
+|-----------|------------------|
+| `SchemaNotFoundException` | The schema does not exist. Use `CreateSchema` first. |
+| `SchemaDeletedException` | The schema was deleted. |
+| `SchemaIncompatibleException` | The new version violates the schema's compatibility mode. The exception's `Errors` property lists each incompatibility. See [Schema compatibility](./compatibility.md). |
+
+## Listing schemas
+
+Use `ListSchemas` to enumerate registered schemas, optionally filtered by name prefix and tags:
+
+```csharp
+// List everything
+var all = await client.Registry.ListSchemas();
+
+// Filter by name prefix
+var orders = await client.Registry.ListSchemas(schemaNamePrefix: "order-");
+
+// Filter by tags (matches schemas with all specified tags)
+var fulfillment = await client.Registry.ListSchemas(
+    tags: new Dictionary<string, string> { ["team"] = "fulfillment" }
+);
+
+// Combined
+var ordersFulfillment = await client.Registry.ListSchemas(
+    schemaNamePrefix: "order-",
+    tags: new Dictionary<string, string> { ["team"] = "fulfillment" }
+);
+
+foreach (var schema in all) {
+    Console.WriteLine($"{schema.SchemaName} (v{schema.LatestSchemaVersion})");
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `schemaNamePrefix` | `string?` | no, defaults to `null` | Returns only schemas whose names start with this prefix. |
+| `tags` | `IReadOnlyDictionary<string, string>?` | no, defaults to `null` | Returns only schemas matching all specified tags. |
+| `cancellationToken` | `CancellationToken` | no | Optional cancellation token. |
+
+Returns `IReadOnlyList<Schema>`.
 
 ## Deleting a schema
 
 `DeleteSchema` removes a schema and all its versions from the registry:
 
 ```csharp
-var result = await client.Registry.DeleteSchema("order-placed");
-
-result.Switch(
-    success => Console.WriteLine("Schema deleted"),
-    error => Console.WriteLine($"Failed: {error}")
-);
+await client.Registry.DeleteSchema("order-placed");
 ```
 
-The return type is `Result<Success, DeleteSchemaError>`. `Success` is a zero-sized marker type indicating the operation completed.
+The method returns `Success` (a marker type indicating the operation completed) on success.
+
+### Errors
+
+| Exception | When it is thrown |
+|-----------|------------------|
+| `SchemaNotFoundException` | The schema does not exist. |
+| `SchemaDeletedException` | The schema was already deleted. |
 
 ## Data formats
 
@@ -162,20 +240,13 @@ The `SchemaDataFormat` enum specifies the serialization format for schema defini
 
 ## Compatibility modes
 
-The `CompatibilityMode` enum controls how new schema versions must relate to previous ones:
-
-| Value | Description |
-|-------|-------------|
-| `None` | No compatibility checks. Any schema change is allowed. |
-| `Backward` | New schemas can read data written by previous schemas. Adding optional fields is allowed; removing or renaming existing fields is not. |
-| `Forward` | Previous schemas can read data written by new schemas. Removing optional fields is allowed; adding required fields is not. |
-| `Full` | Both backward and forward compatible. The strictest mode -- guarantees interoperability in both directions. |
+`CompatibilityMode` controls how new schema versions must relate to previous ones. See [Schema compatibility](./compatibility.md) for the full reference and per-mode rules.
 
 ## Model reference
 
 ### Schema
 
-Returned by `GetSchema`. Contains the schema metadata but not the definition content.
+Returned by `GetSchema` and `ListSchemas`. Contains the schema metadata but not the definition content.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -210,7 +281,7 @@ Returned by `GetSchemaVersion` and `GetSchemaVersionById`. Contains the actual s
 
 ### SchemaVersionDescriptor
 
-Returned by `CreateSchema`. A lightweight reference to a schema version.
+Returned by `CreateSchema` and `RegisterSchemaVersion`. A lightweight reference to a schema version.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -225,7 +296,7 @@ A strongly-typed wrapper around a schema name string. Supports implicit conversi
 // Explicit construction
 var name = SchemaName.From("order-placed");
 
-// Implicit from string -- works anywhere SchemaName is expected
+// Implicit from string, works anywhere SchemaName is expected
 SchemaName name = "order-placed";
 ```
 
@@ -240,46 +311,35 @@ var id = SchemaVersionId.From("550e8400-e29b-41d4-a716-446655440000");
 
 ## Error handling
 
-All registry operations use the Result pattern. Each operation has a dedicated error type:
-
-| Operation | Error type |
-|-----------|------------|
-| `CreateSchema` | `CreateSchemaError` |
-| `GetSchema` | `GetSchemaError` |
-| `GetSchemaVersion` | `GetSchemaVersionError` |
-| `GetSchemaVersionById` | `GetSchemaVersionError` |
-| `DeleteSchema` | `DeleteSchemaError` |
-
-Each error type wraps an `Exception` variant. Handle errors with `Switch`:
+Registry operations follow the same exception-based model as the rest of the client. Catch the specific exception type when you want to handle a known case, and let the rest propagate.
 
 ```csharp
-var result = await client.Registry.GetSchema("order-placed");
-
-result.Switch(
-    schema => Console.WriteLine($"Found: {schema.SchemaName}"),
-    error => error.Switch(
-        exception => Console.WriteLine($"Error: {exception.Message}")
-    )
-);
+try {
+    var schema = await client.Registry.GetSchema("order-placed");
+    Console.WriteLine($"Found: {schema.SchemaName}");
+}
+catch (SchemaNotFoundException) {
+    // Schema does not exist. Create it.
+}
+catch (SchemaDeletedException ex) {
+    Console.WriteLine($"Schema '{ex.Schema}' was deleted.");
+}
 ```
 
-Or use `Match` to transform the result:
+| Exception | Operations that throw it |
+|-----------|--------------------------|
+| `SchemaNotFoundException` | `GetSchema`, `GetSchemaVersion`, `GetSchemaVersionById`, `RegisterSchemaVersion`, `DeleteSchema`, `CheckSchemaCompatibility` |
+| `SchemaAlreadyExistsException` | `CreateSchema` |
+| `SchemaDeletedException` | `GetSchema`, `GetSchemaVersion`, `GetSchemaVersionById`, `RegisterSchemaVersion`, `DeleteSchema`, `CheckSchemaCompatibility` |
+| `SchemaIncompatibleException` | `RegisterSchemaVersion`, `CheckSchemaCompatibility` (when the new definition violates the configured compatibility mode) |
 
-```csharp
-var result = await client.Registry.CreateSchema(
-    "order-placed", definition, SchemaDataFormat.Json,
-    CompatibilityMode.Backward, "Order events", new Dictionary<string, string>()
-);
+`SchemaNotFoundException`, `SchemaAlreadyExistsException`, and `SchemaDeletedException` each expose a `Schema` property with the affected `SchemaName`. `SchemaIncompatibleException` exposes an `Errors` collection of `SchemaCompatibilityError` records.
 
-var message = result.Match(
-    descriptor => $"Created version {descriptor.VersionNumber} ({descriptor.VersionId})",
-    error => $"Creation failed: {error}"
-);
-```
+For general guidance (cancellation, gRPC errors, validation), see [Error handling](../error-handling.md).
 
 ## Complete workflow example
 
-A typical workflow: create a schema, retrieve it, then fetch the version details.
+A typical workflow: create a schema, retrieve it, fetch the version details, then clean up.
 
 ```csharp
 using Kurrent.Client;
@@ -302,7 +362,7 @@ var definition = """
     }
     """;
 
-var createResult = await client.Registry.CreateSchema(
+var descriptor = await client.Registry.CreateSchema(
     schemaName: "order-placed",
     schemaDefinition: definition,
     dataFormat: SchemaDataFormat.Json,
@@ -314,49 +374,30 @@ var createResult = await client.Registry.CreateSchema(
     }
 );
 
-createResult.Switch(
-    descriptor => Console.WriteLine(
-        $"Created schema version {descriptor.VersionNumber} (ID: {descriptor.VersionId})"
-    ),
-    error => Console.WriteLine($"Failed to create schema: {error}")
-);
+Console.WriteLine($"Created schema version {descriptor.VersionNumber} (ID: {descriptor.VersionId})");
 
 // 2. Retrieve the schema metadata
-var schemaResult = await client.Registry.GetSchema("order-placed");
+var schema = await client.Registry.GetSchema("order-placed");
 
-schemaResult.Switch(
-    schema => {
-        Console.WriteLine($"Schema: {schema.SchemaName}");
-        Console.WriteLine($"Format: {schema.Details.DataFormat}");
-        Console.WriteLine($"Compatibility: {schema.Details.Compatibility}");
-        Console.WriteLine($"Description: {schema.Details.Description}");
-        Console.WriteLine($"Latest version: {schema.LatestSchemaVersion}");
+Console.WriteLine($"Schema: {schema.SchemaName}");
+Console.WriteLine($"Format: {schema.Details.DataFormat}");
+Console.WriteLine($"Compatibility: {schema.Details.Compatibility}");
+Console.WriteLine($"Description: {schema.Details.Description}");
+Console.WriteLine($"Latest version: {schema.LatestSchemaVersion}");
 
-        foreach (var tag in schema.Details.Tags) {
-            Console.WriteLine($"  Tag: {tag.Key} = {tag.Value}");
-        }
-    },
-    error => Console.WriteLine($"Failed to get schema: {error}")
-);
+foreach (var tag in schema.Details.Tags) {
+    Console.WriteLine($"  Tag: {tag.Key} = {tag.Value}");
+}
 
 // 3. Fetch the latest schema version (includes the definition)
-var versionResult = await client.Registry.GetSchemaVersion("order-placed");
+var version = await client.Registry.GetSchemaVersion("order-placed");
 
-versionResult.Switch(
-    version => {
-        Console.WriteLine($"Version {version.VersionNumber}:");
-        Console.WriteLine($"  Registered: {version.RegisteredAt}");
-        Console.WriteLine($"  Format: {version.DataFormat}");
-        Console.WriteLine($"  Definition: {version.SchemaDefinition}");
-    },
-    error => Console.WriteLine($"Failed to get version: {error}")
-);
+Console.WriteLine($"Version {version.VersionNumber}:");
+Console.WriteLine($"  Registered: {version.RegisteredAt}");
+Console.WriteLine($"  Format: {version.DataFormat}");
+Console.WriteLine($"  Definition: {version.SchemaDefinition}");
 
 // 4. Clean up
-var deleteResult = await client.Registry.DeleteSchema("order-placed");
-
-deleteResult.Switch(
-    _ => Console.WriteLine("Schema deleted"),
-    error => Console.WriteLine($"Failed to delete: {error}")
-);
+await client.Registry.DeleteSchema("order-placed");
+Console.WriteLine("Schema deleted");
 ```
