@@ -2,7 +2,7 @@
 order: 1
 ---
 
-# Getting started with Kurrent.Processors
+# Getting started
 
 Kurrent.Processors is an event processing framework for the Kurrent Platform. It provides a structured runtime for consuming records from KurrentDB with automatic checkpointing and lifecycle management. You implement a processor that handles records, and the framework takes care of connecting, subscribing, checkpointing, and graceful shutdown.
 

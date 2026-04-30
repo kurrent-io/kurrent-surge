@@ -294,25 +294,65 @@ services.AddKurrentClient(opts => {
 
 The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Configuration › Dependency injection](./configuration.md#dependency-injection).
 
-## Step-by-step migration
+## Migration checklist
 
-1. **Replace NuGet packages.** Remove all `EventStore.Client.Grpc.*` packages and add `Kurrent.Client`.
+Work through the steps in order. Each step links to the relevant detailed section for full context.
 
-2. **Update using directives.** Replace `using EventStore.Client;` with `using Kurrent.Client;` and `using Kurrent.Client.Streams;`.
+### 1. Replace NuGet packages
 
-3. **Update client construction.** Replace `new EventStoreClient(settings)` with `KurrentClient.Create(connectionString)`. Existing `esdb://` connection strings work as-is.
+Remove all `EventStore.Client.Grpc.*` packages and add the unified `Kurrent.Client` package. See [Package changes](#package-changes).
 
-4. **Update operation calls.** Move from top-level methods to module-based access:
-   - `client.AppendToStreamAsync(...)` → `client.Streams.AppendStream(...)`
-   - `client.ReadStreamAsync(...)` → `client.Streams.ReadStreamRecords(...)` (or `ReadStream(request)`)
-   - `client.DeleteAsync(...)` → `client.Streams.Delete(...)`
-   - `client.TombstoneAsync(...)` → `client.Streams.Tombstone(...)`
+### 2. Update using directives
 
-5. **Update event types.** Replace `EventData` with `AppendRecord.New.ForStream(...).WithValue(...).Build()` and update reading code to work with `Record` (use `record.TypeName` instead of `EventType`, `record.Revision` instead of `record.OriginalEventNumber`).
+Replace `using EventStore.Client;` with `using Kurrent.Client;` and the feature-specific namespaces you actually use (for example, `using Kurrent.Client.Streams;`). See [Namespace changes](#namespace-changes).
 
-6. **Update concurrency checks.** Replace `StreamRevision`/`StreamState` with `Revision` and `ExpectedStreamState`. `Revision` implicitly converts to `ExpectedStreamState`, so `Revision.From(4)` can be passed wherever `ExpectedStreamState` is expected.
+### 3. Update client construction
 
-7. **Update connection strings (optional).** Replace `esdb://` with `kurrentdb://` at your own pace. Both work identically.
+Replace `new EventStoreClient(settings)` with `KurrentClient.Create(connectionString)`. Existing `esdb://` connection strings continue to work without changes. See [Client initialization](#client-initialization) and [Programmatic configuration](#programmatic-configuration).
+
+### 4. Update operation calls
+
+Top-level methods on the old client are now reached through module properties. The `Async` suffix has been removed.
+
+| Old                                | New                                       |
+|------------------------------------|-------------------------------------------|
+| `client.AppendToStreamAsync(...)`  | `client.Streams.AppendStream(...)`        |
+| `client.ReadStreamAsync(...)`      | `client.Streams.ReadStreamRecords(...)`   |
+| `client.DeleteAsync(...)`          | `client.Streams.Delete(...)`              |
+| `client.TombstoneAsync(...)`       | `client.Streams.Tombstone(...)`           |
+
+### 5. Update event types
+
+Replace `EventData` with `AppendRecord` on appends, and use `Record` instead of `ResolvedEvent`/`RecordedEvent` on reads.
+
+| Old member                                  | New member                                                |
+|---------------------------------------------|-----------------------------------------------------------|
+| `EventData`                                 | `AppendRecord.New.ForStream(...).WithValue(...).Build()`  |
+| `resolvedEvent.Event.EventType`             | `record.TypeName`                                         |
+| `resolvedEvent.Event.OriginalEventNumber`   | `record.Revision`                                         |
+| `resolvedEvent.Event.Position`              | `record.Position`                                         |
+
+See [Event model changes](#event-model-changes).
+
+### 6. Update concurrency checks
+
+Replace `StreamRevision`/`StreamState` with `Revision`/`ExpectedStreamState`. `Revision` implicitly converts to `ExpectedStreamState`, so `Revision.From(4)` can be passed wherever `ExpectedStreamState` is expected.
+
+### 7. Update error handling
+
+Replace catches of `WrongExpectedVersionException` with `StreamRevisionConflictException`. Other domain failures surface as well-typed exceptions such as `StreamNotFoundException` and `StreamTombstonedException`. See [Error handling](#error-handling).
+
+### 8. Update DI registration
+
+Replace `services.AddEventStoreClient(...)` with `services.AddKurrentClient(...)`. See [Dependency injection](#dependency-injection).
+
+### 9. Build and verify
+
+Build the project. Compiler errors flag any remaining old API usage. Once the build succeeds, run your existing tests against a local KurrentDB instance to confirm behavior end to end.
+
+### 10. Update connection strings (optional)
+
+Replace `esdb://` with `kurrentdb://` at your own pace. Both schemes work identically and can coexist across services.
 
 ## Summary of breaking changes
 
