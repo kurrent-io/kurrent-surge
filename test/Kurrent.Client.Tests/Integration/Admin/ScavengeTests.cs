@@ -1,6 +1,6 @@
 using Kurrent.Client.Admin;
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Integration.Admin;
@@ -14,8 +14,8 @@ namespace Kurrent.Client.Tests.Integration.Admin;
 public class ScavengeTests {
     //TODO SS: Use Aspire instead of fluent docker to allow creating isolated databases for these tests, and remove the Skip attribute.
 
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     #region ->> Validation <<-
 

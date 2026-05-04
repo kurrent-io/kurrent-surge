@@ -1,0 +1,4 @@
+auto-increment: patch
+minimum-major-minor: 0.1
+pre-release: @simple
+pull-request: @traceable

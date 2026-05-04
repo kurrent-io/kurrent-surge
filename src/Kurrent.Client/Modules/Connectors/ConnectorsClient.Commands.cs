@@ -21,6 +21,10 @@ public partial class ConnectorsClient {
         Dictionary<string, string?> settings,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+        ArgumentNullException.ThrowIfNull(settings);
+
         var request = new Commands.CreateConnector {
             ConnectorId = connectorId
         };
@@ -60,6 +64,10 @@ public partial class ConnectorsClient {
         Struct configuration,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+        ArgumentNullException.ThrowIfNull(configuration);
+
         var request = new Commands.CreateConnector {
             ConnectorId   = connectorId,
             Configuration = configuration
@@ -95,6 +103,10 @@ public partial class ConnectorsClient {
         Dictionary<string, string?> settings,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+        ArgumentNullException.ThrowIfNull(settings);
+
         var request = new Commands.ReconfigureConnector {
             ConnectorId = connectorId
         };
@@ -132,6 +144,10 @@ public partial class ConnectorsClient {
         Struct configuration,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+        ArgumentNullException.ThrowIfNull(configuration);
+
         var request = new Commands.ReconfigureConnector {
             ConnectorId   = connectorId,
             Configuration = configuration
@@ -165,6 +181,9 @@ public partial class ConnectorsClient {
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+
         var request = new Commands.DeleteConnector {
             ConnectorId = connectorId
         };
@@ -199,6 +218,9 @@ public partial class ConnectorsClient {
         ulong? logPosition = null,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+
         var request = new Commands.StartConnector {
             ConnectorId = connectorId
         };
@@ -239,6 +261,9 @@ public partial class ConnectorsClient {
         ulong? logPosition = null,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+
         var request = new Commands.ResetConnector {
             ConnectorId = connectorId
         };
@@ -277,6 +302,9 @@ public partial class ConnectorsClient {
         ConnectorId connectorId,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+
         var request = new Commands.StopConnector {
             ConnectorId = connectorId
         };
@@ -311,6 +339,10 @@ public partial class ConnectorsClient {
         string name,
         CancellationToken cancellationToken = default
     ) {
+        if (connectorId.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var request = new Commands.RenameConnector {
             ConnectorId = connectorId,
             Name        = name

@@ -1,6 +1,6 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -9,8 +9,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("StreamInfo")]
 [Category("Integration")]
 public class SetCustomMetadataTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask sets_custom_metadata_when_stream_exists(CancellationToken ct) {

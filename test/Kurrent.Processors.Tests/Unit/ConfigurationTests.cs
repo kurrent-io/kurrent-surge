@@ -1,7 +1,6 @@
 using System.Text;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Processors;
 using Kurrent.Processors.Hosting;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
@@ -542,11 +541,11 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task di_resolves_connection_from_configuration_default_connection_string() {
+    public async Task di_resolves_connection_from_configuration_default_resource_name() {
         var configuration = BuildJsonConfiguration("""
             {
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -591,7 +590,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -625,7 +624,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -654,7 +653,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -686,7 +685,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -709,7 +708,7 @@ public class ConfigurationTests {
                 "Section": "value"
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -739,7 +738,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -761,7 +760,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -825,7 +824,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -853,7 +852,7 @@ public class ConfigurationTests {
                 }
               },
               "ConnectionStrings": {
-                "Default": "kurrentdb://localhost:2113"
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);

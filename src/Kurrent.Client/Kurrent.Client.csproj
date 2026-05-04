@@ -86,7 +86,6 @@
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Processors" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
-    <InternalsVisibleTo Include="Kurrent.SDK.Testing" />
   </ItemGroup>
 
   <!--

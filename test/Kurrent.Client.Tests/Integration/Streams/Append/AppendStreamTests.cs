@@ -1,7 +1,7 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -9,8 +9,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("Integration")]
 public class AppendStreamTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.None)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask creates_multiple_streams(CancellationToken ct) {

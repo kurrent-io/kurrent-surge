@@ -2,25 +2,25 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Client.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]
 public class GetSchemaVersionTests {
-	[ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask get_latest_schema_by_name(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
         await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, cancellationToken: ct);
@@ -34,13 +34,13 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_name_and_version(CancellationToken ct) {
-        var schemaName       = KurrentClientTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+        var schemaName       = KurrentDBTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, schemaVersion.VersionNumber, ct);
@@ -54,13 +54,13 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_id(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersionById(schemaVersion.VersionId, ct);
@@ -74,7 +74,7 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_name_fails_on_unknown_name(CancellationToken ct) {
-		var nonExistentSchemaName = KurrentClientTestFixture.NewSchemaName();
+		var nonExistentSchemaName = KurrentDBTestFixture.NewSchemaName();
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry
@@ -83,13 +83,13 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_name_fails_on_invalid_version(CancellationToken ct) {
-		var schemaName       = KurrentClientTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentClientTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBTestFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
 
         await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentClientTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 
 		const int nonExistentVersionNumber = 999;
 
