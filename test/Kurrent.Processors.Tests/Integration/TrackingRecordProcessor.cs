@@ -4,34 +4,6 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Processors.Tests;
 
-sealed class TestRecordProcessor : IRecordProcessor {
-    readonly ConcurrentQueue<Record> _records = new();
-
-    public Func<ProcessRecordContext, ValueTask>? OnProcessRecord { get; set; }
-
-    public Func<CompleteContext, ValueTask>? OnComplete { get; set; }
-
-    public CompleteContext? Complete { get; private set; }
-
-    public Record[] Records => _records.ToArray();
-
-    public async ValueTask ProcessRecord(ProcessRecordContext context) {
-        if (OnProcessRecord is not null)
-            await OnProcessRecord(context);
-
-        // Enqueue iff the framework or user will track this record. With
-        // AutoTrack=true, that's "no Stop request" (auto-track will run); the user
-        // can also opt in by calling Track() explicitly before StopProcessing().
-        if (!context.StopRequested || context.TrackedByUser)
-            _records.Enqueue(context.Record);
-    }
-
-    ValueTask IProcessor.OnComplete(CompleteContext context) {
-        Complete = context;
-        return OnComplete?.Invoke(context) ?? ValueTask.CompletedTask;
-    }
-}
-
 sealed class TestRecordBatchProcessor(int maxBatchSize, TimeSpan batchWindow) : RecordBatchProcessor(maxBatchSize, batchWindow) {
     readonly ConcurrentQueue<RecordBatch>      _batches     = new();
     readonly ConcurrentQueue<CheckpointContext> _checkpoints = new();
@@ -41,7 +13,6 @@ sealed class TestRecordBatchProcessor(int maxBatchSize, TimeSpan batchWindow) : 
     public Func<CheckpointContext, ValueTask>? OnCheckpointHook  { get; set; }
 
     public ConnectedContext? Connected { get; private set; }
-    public CompleteContext?  Complete  { get; private set; }
 
     public RecordBatch[]                Batches     => _batches.ToArray();
     public IReadOnlyList<Record>        Records     => _batches.SelectMany(b => b).ToList();
@@ -66,8 +37,4 @@ sealed class TestRecordBatchProcessor(int maxBatchSize, TimeSpan batchWindow) : 
             await OnCheckpointHook(context);
     }
 
-    public override ValueTask OnComplete(CompleteContext context) {
-        Complete = context;
-        return ValueTask.CompletedTask;
-    }
 }

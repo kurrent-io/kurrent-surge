@@ -6,8 +6,7 @@ namespace Kurrent.Processors;
 /// Defines the interface for processing records in batches. The drone accumulates records
 /// up to <see cref="MaxBatchSize"/> or until <see cref="BatchWindow"/> elapses (whichever
 /// comes first), then dispatches the batch via <see cref="ProcessBatch"/>. Lifecycle hooks
-/// (Connected, Checkpoint, Complete) and shutdown signals always flush the pending
-/// batch before yielding.
+/// (Connected, Checkpoint) and shutdown signals always flush the pending batch before yielding.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -15,7 +14,7 @@ namespace Kurrent.Processors;
 /// Only <see cref="ProcessBatch"/> must be implemented.
 /// </para>
 /// <para>
-/// The drone calls <see cref="Kurrent.Processors.Gateway.ISubscriptionSource.Track"/> for
+/// The drone tracks positions for
 /// each record in a batch only after <see cref="ProcessBatch"/> returns successfully —
 /// source-side checkpoint cadence is naturally aligned with batch boundaries.
 /// </para>
@@ -87,5 +86,4 @@ public abstract class RecordBatchProcessor(int maxBatchSize, TimeSpan batchWindo
 
     public virtual ValueTask OnConnected(ConnectedContext context)   => ValueTask.CompletedTask;
     public virtual ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
-    public virtual ValueTask OnComplete(CompleteContext context)     => ValueTask.CompletedTask;
 }

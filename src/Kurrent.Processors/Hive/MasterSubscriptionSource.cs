@@ -20,7 +20,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
     readonly StreamsClient      _streams;
     readonly ProcessorOptions   _settings;
     readonly HybridLogicalClock _clock;
-    readonly CheckpointStore    _checkpointStore;
+    readonly ICheckpointStore    _checkpointStore;
 
     readonly Dictionary<string, DroneRegistration>                 _drones = new();
     readonly Dictionary<Partition, ChannelWriter<SubscribeMessage>> _routes = new();
@@ -32,7 +32,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
     public MasterSubscriptionSource(
         KurrentClient client,
         ProcessorOptions settings,
-        CheckpointStore checkpointStore,
+        ICheckpointStore checkpointStore,
         TimeProvider timeProvider
     ) : base(client) {
         _streams         = new StreamsClient(client);
@@ -52,7 +52,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
 
     public async ValueTask InitializeAsync(CancellationToken ct) {
         // Single stream read — every drone resolves its slice from the same checkpoint.
-        var checkpoint = await _checkpointStore.LoadLatestAsync(ct).ConfigureAwait(false);
+        var checkpoint = await _checkpointStore.LoadLatestAsync("master", ct).ConfigureAwait(false);
 
         var existing = checkpoint.Positions.ToDictionary(p => p.Partition);
         var defaultPos = _settings.Subscription.InitialPosition == SubscriptionInitialPosition.Earliest

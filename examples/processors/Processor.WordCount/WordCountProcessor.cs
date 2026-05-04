@@ -67,16 +67,6 @@ public sealed partial class WordCountProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation(
-            "Completed | Final stats: {TextCount} texts, {TotalWords} words, {UniqueWords} unique",
-            _totalTextsProcessed,
-            _totalWordsProcessed,
-            _wordCounts.Count
-        );
-        return ValueTask.CompletedTask;
-    }
-
     [GeneratedRegex(@"\b[\w']+\b", RegexOptions.Compiled)]
     private static partial Regex WordPattern();
 }

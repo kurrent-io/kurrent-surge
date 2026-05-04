@@ -1,25 +1,31 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Checkpointing;
 
+readonly struct DefferedLogValue<T>(T[] items, Func<T, string?> formatter, string separator = ", ") {
+    public override string ToString() => string.Join(separator, items.Select(formatter).Where(x => x is { }));
+}
+
+static class FormattedLogValueExtensions {
+    extension<T>(T[] source) {
+        public DefferedLogValue<T> AsLogValue(Func<T, string?> formatter, string separator = ", ") =>
+            new(source, formatter, separator);
+    }
+}
+
 /// <summary>
-/// Base class for <see cref="ICheckpointStore"/> implementations. Owns the lifecycle
-/// scaffolding (<see cref="Initialize"/> / <see cref="EnsureReadyAsync"/>), cancellation
-/// checks, exception translation to <see cref="CheckpointStoreException"/>, shared log
-/// vocabulary, and the <see cref="ResolvePartitions"/> / format helpers.
+/// Base class for <see cref="ICheckpointStore"/> implementations. Handles lazy initialization,
+/// cancellation, exception translation to <see cref="CheckpointStoreException"/>, and logging.
+/// Subclasses implement <see cref="OnInitializeAsync"/>, <see cref="OnLoadLatestAsync"/>,
+/// <see cref="OnStoreAsync"/>, <see cref="OnResetAsync"/>.
 /// </summary>
-/// <remarks>
-/// Subclasses implement the IO hooks — <see cref="OnInitializeAsync"/>,
-/// <see cref="OnLoadLatestAsync"/>, <see cref="OnStoreAsync"/>, <see cref="OnResetAsync"/> —
-/// plus <see cref="StoreName"/> (used in exception messages) and <see cref="ReadyTarget"/>
-/// (used in the "Ready on {Target}" log line).
-/// </remarks>
 [PublicAPI]
-public abstract partial class CheckpointStore : ICheckpointStore {
+public abstract partial class CheckpointStoreBase : ICheckpointStore {
     volatile bool _isReady;
 
-    public CheckpointStore(
+    protected CheckpointStoreBase(
         string processorId,
         TimeProvider? time = null,
         ILogger? logger = null
@@ -68,23 +74,25 @@ public abstract partial class CheckpointStore : ICheckpointStore {
         }
 
         _isReady = true;
+        
         LogReady(ProcessorId, ReadyTarget);
     }
     
-    public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(CancellationToken ct = default) {
+    /// <inheritdoc/>
+    public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(string droneId, CancellationToken ct = default) {
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
-        LogLoading(ProcessorId);
+        LogLoading(ProcessorId, droneId);
 
         try {
             var checkpoint = await OnLoadLatestAsync(ct).ConfigureAwait(false);
 
             if (checkpoint.Positions.Length == 0) {
-                LogNotFound(ProcessorId);
+                LogNotFound(ProcessorId, droneId);
                 return ProcessorCheckpoint.Empty;
             }
 
-            LogLoaded(ProcessorId, checkpoint.Positions.Length, FormatPositions(checkpoint));
+            LogLoaded(ProcessorId, droneId, checkpoint.Positions.Length, checkpoint.Positions.AsLogValue(FormatPosition));
             return checkpoint;
         }
         catch (OperationCanceledException) {
@@ -95,18 +103,19 @@ public abstract partial class CheckpointStore : ICheckpointStore {
         }
     }
 
+    /// <inheritdoc/>
     public async ValueTask<ProcessorCheckpoint> LoadLatestAsync(
+        string droneId,
         Partition[] partitions,
         SubscriptionInitialPosition initialPosition,
         CancellationToken ct = default
     ) {
-        // if (partitions.Length == 0)
-        //     return ProcessorCheckpoint.Empty;
+        var checkpoint = await LoadLatestAsync(droneId, ct).ConfigureAwait(false);
 
-        var checkpoint = await LoadLatestAsync(ct).ConfigureAwait(false);
-        return ResolvePartitions(checkpoint, partitions, initialPosition);
+        return checkpoint.ResolveStartPositions(initialPosition, partitions);
     }
 
+    /// <inheritdoc/>
     public async ValueTask StoreAsync(
         string droneId,
         string checkpointId,
@@ -121,11 +130,11 @@ public abstract partial class CheckpointStore : ICheckpointStore {
 
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
-        LogStoring(ProcessorId, droneId, FormatInputPositions(positions));
+        LogStoring(ProcessorId, droneId, positions.AsLogValue(FormatPosition));
 
         try {
             await OnStoreAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
-            LogStored(ProcessorId, droneId, positions.Length, FormatInputPositions(positions));
+            LogStored(ProcessorId, droneId, positions.Length, positions.AsLogValue(FormatPosition));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
@@ -135,7 +144,8 @@ public abstract partial class CheckpointStore : ICheckpointStore {
         }
     }
 
-    public async ValueTask ResetAsync(
+    /// <inheritdoc/>
+    public async ValueTask<ProcessorCheckpoint> ResetAsync(
         string droneId,
         string checkpointId,
         RecordPosition[] positions,
@@ -148,11 +158,13 @@ public abstract partial class CheckpointStore : ICheckpointStore {
 
         await EnsureReadyAsync(ct).ConfigureAwait(false);
 
-        LogResetting(ProcessorId, droneId, positions.Length);
+        var previous = await LoadLatestAsync(droneId, ct).ConfigureAwait(false);
+
+        LogResetting(ProcessorId, droneId, positions.AsLogValue(FormatPosition));
 
         try {
             await OnResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
-            LogReset(ProcessorId, droneId, positions.Length);
+            LogReset(ProcessorId, droneId, previous.Positions.AsLogValue(FormatPosition));
         }
         catch (OperationCanceledException) {
             throw;
@@ -160,26 +172,46 @@ public abstract partial class CheckpointStore : ICheckpointStore {
         catch (Exception ex) {
             throw new CheckpointStoreException(StoreName, "Failed to reset checkpoint.", ex);
         }
+
+        return previous;
     }
 
-    public async ValueTask ResetAsync(
+    /// <inheritdoc/>
+    public async ValueTask<ProcessorCheckpoint> ResetAsync(
         string droneId,
         string checkpointId,
         RecordPosition position,
         CancellationToken ct = default
     ) {
-        if (position.IsUnset) {
-            await ResetAsync(droneId, checkpointId, [], ct).ConfigureAwait(false);
-            return;
-        }
+        if (position.IsUnset)
+            return await ResetAsync(droneId, checkpointId, [], ct).ConfigureAwait(false);
 
-        var current = await LoadLatestAsync(ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(droneId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
 
-        var positions = current.Positions
+        await EnsureReadyAsync(ct).ConfigureAwait(false);
+
+        var previous = await LoadLatestAsync(droneId, ct).ConfigureAwait(false);
+
+        var positions = previous.Positions
             .Select(p => position with { Partition = p.Partition })
             .ToArray();
 
-        await ResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
+        LogResetting(ProcessorId, droneId, positions.AsLogValue(FormatPosition));
+
+        try {
+            await OnResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
+            LogReset(ProcessorId, droneId, previous.Positions.AsLogValue(FormatPosition));
+        }
+        catch (OperationCanceledException) {
+            throw;
+        }
+        catch (Exception ex) {
+            throw new CheckpointStoreException(StoreName, "Failed to reset checkpoint.", ex);
+        }
+
+        return previous;
     }
     
     /// <summary>
@@ -214,76 +246,44 @@ public abstract partial class CheckpointStore : ICheckpointStore {
         CancellationToken ct
     );
     
-    #region ->> Helpers <<-
-
-    protected static ProcessorCheckpoint ResolvePartitions(
-        ProcessorCheckpoint checkpoint,
-        Partition[] partitions,
-        SubscriptionInitialPosition initialPosition
-    ) {
-        var defaultPos = initialPosition == SubscriptionInitialPosition.Earliest
-            ? RecordPosition.Earliest
-            : RecordPosition.Latest;
-
-        var existing = new Dictionary<Partition, RecordPosition>(checkpoint.Positions.Length);
-        foreach (var p in checkpoint.Positions)
-            existing[p.Partition] = p;
-
-        var resolved = new RecordPosition[partitions.Length];
-
-        for (var i = 0; i < partitions.Length; i++) {
-            var partition = partitions[i];
-
-            resolved[i] = existing.TryGetValue(partition, out var found)
-                ? found
-                : defaultPos with { Partition = partition };
-        }
-
-        return new ProcessorCheckpoint {
-            Positions = resolved,
-            Timestamp = checkpoint.Timestamp
-        };
-    }
-
-    protected static string FormatPositions(ProcessorCheckpoint checkpoint) =>
-        FormatInputPositions(checkpoint.Positions);
-
-    protected static string FormatInputPositions(RecordPosition[] positions) {
-        var formatted = positions
-            .Where(x => x.LogPosition > LogPosition.Earliest)
-            .Select(x => $"[{x.Partition}] {x}")
-            .ToArray();
-
-        return string.Join(", ", formatted);
-    }
-
-    #endregion
-
     #region ->> Logging <<-
-
+    
+    static string? FormatPosition(RecordPosition p) =>
+        p.LogPosition > LogPosition.Earliest ? $"[{p.Partition}] {p}" : null;
+    
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}] Ready on {Target}")]
     partial void LogReady(string processorId, string target);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}] Loading checkpoint...")]
-    partial void LogLoading(string processorId);
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Loading checkpoint...")]
+    partial void LogLoading(string processorId, string droneId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}] Loaded {PartitionCount} partitions :: {Positions}")]
-    partial void LogLoaded(string processorId, int partitionCount, string positions);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Loaded {PartitionCount} partitions :: {Positions}")]
+    partial void LogLoaded(string processorId, string droneId, int partitionCount, DefferedLogValue<RecordPosition> positions);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}] No checkpoint found")]
-    partial void LogNotFound(string processorId);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] No checkpoint found")]
+    partial void LogNotFound(string processorId, string droneId);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{DroneId}] Storing checkpoint :: {Positions}")]
-    partial void LogStoring(string processorId, string droneId, string positions);
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Storing checkpoint :: {Positions}")]
+    partial void LogStoring(string processorId, string droneId, DefferedLogValue<RecordPosition> positions);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "[{ProcessorId}/{DroneId}] Stored {PartitionCount} partitions: {Positions}")]
-    partial void LogStored(string processorId, string droneId, int partitionCount, string positions);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Stored {PartitionCount} partitions: {Positions}")]
+    partial void LogStored(string processorId, string droneId, int partitionCount, DefferedLogValue<RecordPosition> positions);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{ProcessorId}/{DroneId}] Resetting {PartitionCount} partitions...")]
-    partial void LogResetting(string processorId, string droneId, int partitionCount);
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Resetting positions to :: {Positions}")]
+    partial void LogResetting(string processorId, string droneId, DefferedLogValue<RecordPosition> positions);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "[{ProcessorId}/{DroneId}] Reset {PartitionCount} partitions")]
-    partial void LogReset(string processorId, string droneId, int partitionCount);
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Reset from :: {PreviousPositions}")]
+    partial void LogReset(string processorId, string droneId, DefferedLogValue<RecordPosition> previousPositions);
 
     #endregion
 }
+
+/// <summary>
+/// Thrown by a <see cref="CheckpointStoreBase"/> implementation when an underlying operation
+/// (initialize / load / store / reset) fails. The originating store is identified in the
+/// message prefix; the original exception is attached as <see cref="Exception.InnerException"/>.
+/// </summary>
+[PublicAPI]
+public sealed class CheckpointStoreException(string storeName, string message, Exception? innerException = null) 
+    : KurrentException(ErrorCode.FromType<CheckpointStoreException>(), $"[{storeName}] {message}", innerException);
+

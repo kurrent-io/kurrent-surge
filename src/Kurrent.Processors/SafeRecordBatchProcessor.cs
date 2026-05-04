@@ -30,13 +30,4 @@ sealed class SafeRecordBatchProcessor(IRecordBatchProcessor inner) : IRecordBatc
             throw DroneException.OnCheckpointFailed(ex);
         }
     }
-
-    public async ValueTask OnComplete(CompleteContext context) {
-        try {
-            await inner.OnComplete(context).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException) {
-            throw DroneException.OnCompleteFailed(ex);
-        }
-    }
 }

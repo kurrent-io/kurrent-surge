@@ -103,15 +103,6 @@ public sealed class TemperatureMonitorProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation(
-            "Completed | Total readings: {Readings}, Alerts raised: {Alerts}",
-            _totalReadings,
-            _alertsRaised
-        );
-        return ValueTask.CompletedTask;
-    }
-
     sealed class SensorState {
         readonly Queue<double> _readings = new();
         double _sum;

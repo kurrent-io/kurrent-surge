@@ -95,7 +95,7 @@ public class HybridLogicalClockTests {
     [Test]
     public async Task parse_rejects_negative_value() {
         // Act & Assert
-        await Assert.That(() => HybridTimestamp.Parse(-1)).Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => HybridTimestamp.Parse(-1)).Throws<FormatException>();
     }
 
     [Test]

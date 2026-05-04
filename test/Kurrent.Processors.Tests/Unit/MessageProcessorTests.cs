@@ -315,27 +315,6 @@ public class MessageProcessorTests {
 	}
 
 	[Test]
-	public async ValueTask on_complete_is_invoked() {
-		// Arrange
-		var completeCalled = false;
-
-		var processor = new MessageProcessor()
-			.OnComplete(_ => { completeCalled = true; });
-
-		var ctx = new CompleteContext {
-			ProcessorId = "test-processor",
-			DroneId     = "test-drone",
-			Progress    = DroneProgress.Empty
-		};
-
-		// Act
-		await ((IRecordProcessor)processor).OnComplete(ctx);
-
-		// Assert
-		await Assert.That(completeCalled).IsTrue();
-	}
-
-	[Test]
 	public async ValueTask lifecycle_hooks_are_noop_when_not_registered() {
 		// Arrange
 		var processor = (IRecordProcessor)new MessageProcessor();
@@ -344,10 +323,6 @@ public class MessageProcessorTests {
 		await processor.OnCheckpoint(new CheckpointContext {
 			ProcessorId = "test", DroneId = "test",
 			Positions = [], CheckpointId = "cp", Trigger = CheckpointTrigger.Interval, Timestamp = DateTimeOffset.UtcNow
-		});
-		await processor.OnComplete(new CompleteContext {
-			ProcessorId = "test", DroneId = "test",
-			Progress = DroneProgress.Empty
 		});
 	}
 

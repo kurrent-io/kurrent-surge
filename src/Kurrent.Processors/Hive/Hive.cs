@@ -1,7 +1,10 @@
+using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Options;
 using Kurrent.Processors.Partitioning;
 
@@ -29,7 +32,7 @@ public sealed class Hive : IAsyncDisposable {
     readonly List<IDrone>                 _drones  = [];
 
     MasterSubscriptionSource? _master;
-    CheckpointStore?          _checkpointStore;
+    ICheckpointStore?          _checkpointStore;
     KurrentClient?            _client;
     int                       _started;
 
@@ -86,16 +89,29 @@ public sealed class Hive : IAsyncDisposable {
         foreach (var droneId in droneIds) {
             var partitions = manifest[droneId].All;
 
+            var channel = Channel.CreateBounded<SubscribeMessage>(
+                new BoundedChannelOptions(processorOptions.BufferCapacity) {
+                    FullMode     = BoundedChannelFullMode.Wait,
+                    SingleReader = true,
+                    SingleWriter = false
+                });
+
+            var checkpointer = new Checkpointer(
+                droneId, processorOptions.Checkpoint,
+                _checkpointStore, channel.Writer, TimeProvider.System);
+
             var source = new LocalPartitionedSource(
-                _master, droneId, partitions, processorOptions, _checkpointStore, TimeProvider.System);
+                _master, droneId, partitions, processorOptions,
+                _checkpointStore, channel.Writer, TimeProvider.System);
             _sources.Add(source);
 
             var droneOptions = processorOptions with { DroneId = droneId };
             var droneProcessor = droneId == droneIds[0] ? processorTemplate : _options.ProcessorFactory();
 
             var drone = new Drone(
-                droneOptions, source, droneProcessor,
-                _client.Options.LoggerFactory, TimeProvider.System);
+                droneOptions, source, checkpointer, channel,
+                new StreamsClient(_client), _client.Options.LoggerFactory,
+                TimeProvider.System, droneProcessor);
 
             _drones.Add(drone);
         }

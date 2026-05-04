@@ -25,13 +25,4 @@ public interface IProcessor {
     /// Called when a checkpoint is signaled to allow for pre-checkpoint actions like flushing state.
     /// </summary>
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
-
-    /// <summary>
-    /// Called when completing gracefully (including cancellation).
-    /// <remarks>
-    /// This method is invoked before the drone transitions to <see cref="DroneStatus.Stopped"/>.
-    /// Use it for final reporting or cleanup.
-    /// </remarks>
-    /// </summary>
-    ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
 }

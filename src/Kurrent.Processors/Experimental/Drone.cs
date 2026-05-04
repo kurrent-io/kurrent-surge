@@ -92,7 +92,7 @@ public sealed class Drone : IAsyncDisposable {
                 [_options.DroneId].All;
             
             var startPositions = await _checkpointer
-                .Initialize(partitions, _options.Subscription.InitialPosition, _stopping.Token)
+                .Initialize(partitions, _options.Subscription.InitialPosition, ct: _stopping.Token)
                 .ConfigureAwait(false);
 
             _dispatchLoop     = Task.Run(() => RunDispatchAsync(_stopping.Token));

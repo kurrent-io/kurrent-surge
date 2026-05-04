@@ -74,6 +74,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Checkpointing\Storage\" />
     <Folder Include="Hosting\" />
     <Folder Include="Options\" />
   </ItemGroup>

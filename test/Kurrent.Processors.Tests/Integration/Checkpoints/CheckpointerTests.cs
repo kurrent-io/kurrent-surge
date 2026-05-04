@@ -2,7 +2,6 @@ using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
-using Kurrent.Processors.Experimental;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
@@ -56,7 +55,7 @@ public class CheckpointerTests {
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         // Act
-        var positions = await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        var positions = await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Assert
         await Assert.That(positions.Length).IsEqualTo(1);
@@ -73,21 +72,22 @@ public class CheckpointerTests {
         var partitions  = Partitions(1);
 
         var checkpointer1 = CreateCheckpointer(processorId, channel.Writer);
-        await checkpointer1.Initialize(partitions, SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer1.Initialize(partitions, SubscriptionInitialPosition.Earliest, ct: ct);
 
         var position = RecordPosition.From(LogPosition.From(5000), Partition.From(0));
         checkpointer1.Track(position);
+        var positions1 = checkpointer1.PendingPositions();
         await checkpointer1.RaiseCheckpoint(CheckpointTrigger.Interval);
 
         channel.Reader.TryRead(out var msg);
         var checkpoint = (Checkpoint)msg.Value!;
-        await checkpointer1.CommitCheckpoint(checkpoint.CheckpointId, checkpoint.Positions, ct);
+        await checkpointer1.CommitCheckpoint(checkpoint.CheckpointId, positions1, ct);
         await checkpointer1.DisposeAsync();
 
         // Act
         var channel2      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer2 = CreateCheckpointer(processorId, channel2.Writer);
-        var positions     = await checkpointer2.Initialize(partitions, SubscriptionInitialPosition.Earliest, ct);
+        var positions     = await checkpointer2.Initialize(partitions, SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Assert
         await Assert.That(positions.Length).IsEqualTo(1);
@@ -105,7 +105,7 @@ public class CheckpointerTests {
 
         // Act & Assert
         await Assert.That(async () =>
-                await checkpointer.Initialize([], SubscriptionInitialPosition.Earliest, ct))
+                await checkpointer.Initialize([], SubscriptionInitialPosition.Earliest, ct: ct))
             .Throws<ArgumentOutOfRangeException>();
 
         await checkpointer.DisposeAsync();
@@ -118,11 +118,11 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act & Assert
         await Assert.That(async () =>
-                await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct))
+                await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct))
             .Throws<InvalidOperationException>();
 
         await checkpointer.DisposeAsync();
@@ -186,21 +186,21 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         var position = RecordPosition.From(LogPosition.From(100), Partition.From(0));
 
         // Act
         checkpointer.Track(position);
+        var pendingPositions = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
 
         // Assert
-        var ok = channel.Reader.TryRead(out var msg);
+        var ok = channel.Reader.TryRead(out _);
         await Assert.That(ok).IsTrue();
 
-        var checkpoint = (Checkpoint)msg.Value!;
-        await Assert.That(checkpoint.Positions.Length).IsEqualTo(1);
-        await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(100L);
+        await Assert.That(pendingPositions.Length).IsEqualTo(1);
+        await Assert.That(pendingPositions[0].LogPosition.Value).IsEqualTo(100L);
 
         await checkpointer.DisposeAsync();
     }
@@ -212,19 +212,19 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 2);
 
-        await checkpointer.Initialize(Partitions(2), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(2), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         checkpointer.Track(RecordPosition.From(LogPosition.From(10), Partition.From(0)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(20), Partition.From(0)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(30), Partition.From(1)));
 
+        var pendingPositions = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
 
         // Assert
-        channel.Reader.TryRead(out var msg);
-        var checkpoint  = (Checkpoint)msg.Value!;
-        var byPartition = checkpoint.Positions.ToDictionary(p => p.Partition);
+        channel.Reader.TryRead(out _);
+        var byPartition = pendingPositions.ToDictionary(p => p.Partition);
 
         await Assert.That(byPartition.Count).IsEqualTo(2);
         await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(20L);
@@ -240,7 +240,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
@@ -263,7 +263,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Shutdown, "test shutdown");
@@ -286,7 +286,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Rebalance, "rebalance");
@@ -307,7 +307,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Shutdown, "done");
 
         // Act & Assert
@@ -324,7 +324,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act & Assert
         await Assert.That(async () => await checkpointer.RaiseCheckpoint(CheckpointTrigger.Unspecified))
@@ -340,7 +340,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Manual, "user flush");
@@ -363,7 +363,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.CaughtUp, "live mode");
@@ -386,7 +386,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         var before = DateTimeOffset.UtcNow.AddSeconds(-1);
 
@@ -408,26 +408,27 @@ public class CheckpointerTests {
     }
 
     [Test]
-    public async ValueTask raise_captures_positions_at_raise_time_not_after(CancellationToken ct) {
+    public async ValueTask pending_positions_reflects_current_tracked_state(CancellationToken ct) {
         // Arrange
-        var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-snapshot-time");
+        var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-pending-positions");
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
+        // Track position 100 and snapshot pending positions
         checkpointer.Track(RecordPosition.From(LogPosition.From(100), Partition.From(0)));
+        var snapshot1 = checkpointer.PendingPositions();
 
-        // Act
-        await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
+        // Assert snapshot1 captured position 100
+        await Assert.That(snapshot1[0].LogPosition.Value).IsEqualTo(100L);
 
-        // Track more AFTER raising — should not be in the marker
+        // Track position 200 and snapshot again
         checkpointer.Track(RecordPosition.From(LogPosition.From(200), Partition.From(0)));
+        var snapshot2 = checkpointer.PendingPositions();
 
-        // Assert
-        channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
-        await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(100L);
+        // Assert snapshot2 reflects the updated position 200, not the old 100
+        await Assert.That(snapshot2[0].LogPosition.Value).IsEqualTo(200L);
 
         await checkpointer.DisposeAsync();
     }
@@ -439,7 +440,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval, "periodic flush");
@@ -459,7 +460,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
@@ -479,7 +480,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
         channel.Writer.TryComplete();
 
         // Act & Assert — should not throw
@@ -499,23 +500,24 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         var position = RecordPosition.From(LogPosition.From(7777), Partition.From(0));
         checkpointer.Track(position);
+        var pendingPositions = checkpointer.PendingPositions();
 
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg);
         var raised = (Checkpoint)msg.Value!;
 
         // Act
-        await checkpointer.CommitCheckpoint(raised.CheckpointId, raised.Positions, ct);
+        await checkpointer.CommitCheckpoint(raised.CheckpointId, pendingPositions, ct);
         await checkpointer.DisposeAsync();
 
         // Assert — new checkpointer loads the committed position
         var channel2      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer2 = CreateCheckpointer(processorId, channel2.Writer);
-        var positions     = await checkpointer2.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        var positions     = await checkpointer2.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         await Assert.That(positions.Length).IsEqualTo(1);
         await Assert.That(positions[0].LogPosition.Value).IsEqualTo(7777L);
@@ -530,7 +532,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act & Assert
         await Assert.That(async () => await checkpointer.CommitCheckpoint("", [], ct))
@@ -546,34 +548,36 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 3);
 
-        await checkpointer.Initialize(Partitions(3), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(3), SubscriptionInitialPosition.Earliest, ct: ct);
 
         checkpointer.Track(RecordPosition.From(LogPosition.From(100), Partition.From(0)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(200), Partition.From(1)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(300), Partition.From(2)));
 
         // Act — raise + commit
+        var pendingPositions1 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg);
         var raised = (Checkpoint)msg.Value!;
-        await checkpointer.CommitCheckpoint(raised.CheckpointId, raised.Positions, ct);
+        await checkpointer.CommitCheckpoint(raised.CheckpointId, pendingPositions1, ct);
 
         // Track all 3 partitions again in the second round
         checkpointer.Track(RecordPosition.From(LogPosition.From(150), Partition.From(0)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(250), Partition.From(1)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(350), Partition.From(2)));
 
+        var pendingPositions2 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg2);
         var raised2 = (Checkpoint)msg2.Value!;
-        await checkpointer.CommitCheckpoint(raised2.CheckpointId, raised2.Positions, ct);
+        await checkpointer.CommitCheckpoint(raised2.CheckpointId, pendingPositions2, ct);
 
         await checkpointer.DisposeAsync();
 
         // Assert — new checkpointer should see the latest positions
         var channel2      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer2 = CreateCheckpointer(processorId, channel2.Writer, partitionCount: 3);
-        var positions     = await checkpointer2.Initialize(Partitions(3), SubscriptionInitialPosition.Earliest, ct);
+        var positions     = await checkpointer2.Initialize(Partitions(3), SubscriptionInitialPosition.Earliest, ct: ct);
 
         var byPartition = positions.ToDictionary(p => p.Partition);
         await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(150L);
@@ -590,26 +594,27 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 2);
 
-        await checkpointer.Initialize(Partitions(2), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(2), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Track both partitions and commit
         checkpointer.Track(RecordPosition.From(LogPosition.From(100), Partition.From(0)));
         checkpointer.Track(RecordPosition.From(LogPosition.From(200), Partition.From(1)));
 
+        var pendingPositions1 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg1);
         var raised1 = (Checkpoint)msg1.Value!;
-        await checkpointer.CommitCheckpoint(raised1.CheckpointId, raised1.Positions, ct);
+        await checkpointer.CommitCheckpoint(raised1.CheckpointId, pendingPositions1, ct);
 
         // Act — only track partition 0, partition 1 is idle
         checkpointer.Track(RecordPosition.From(LogPosition.From(150), Partition.From(0)));
 
+        var pendingPositions2 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
-        channel.Reader.TryRead(out var msg2);
-        var raised2 = (Checkpoint)msg2.Value!;
+        channel.Reader.TryRead(out _);
 
         // Assert — partition 1 should retain its flushed position (200), not be Unset
-        var byPartition = raised2.Positions.ToDictionary(p => p.Partition);
+        var byPartition = pendingPositions2.ToDictionary(p => p.Partition);
         await Assert.That(byPartition.Count).IsEqualTo(2);
         await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(150L);
         await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(200L);
@@ -628,7 +633,7 @@ public class CheckpointerTests {
         var channel      = Channel.CreateBounded<SubscribeMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
-        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct);
+        await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
         // Act & Assert — double dispose should not throw
         await checkpointer.DisposeAsync();

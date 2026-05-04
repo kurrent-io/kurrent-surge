@@ -66,7 +66,6 @@ public class MessageProcessor : IRecordProcessor {
     }
 
     Func<CheckpointContext, ValueTask>? _onCheckpoint;
-    Func<CompleteContext, ValueTask>?   _onComplete;
 
     /// <summary>
     /// Registers a handler invoked when a checkpoint is signaled.
@@ -88,24 +87,6 @@ public class MessageProcessor : IRecordProcessor {
     }
 
     /// <summary>
-    /// Registers a handler invoked when the drone completes gracefully.
-    /// </summary>
-    public MessageProcessor OnComplete(Func<CompleteContext, ValueTask> handler) {
-        _onComplete = handler;
-        return this;
-    }
-
-    /// <inheritdoc cref="OnComplete(Func{CompleteContext, ValueTask})"/>
-    public MessageProcessor OnComplete(Action<CompleteContext> handler) {
-        _onComplete = ctx => {
-            handler(ctx);
-            return ValueTask.CompletedTask;
-        };
-
-        return this;
-    }
-
-    /// <summary>
     /// Returns <c>true</c> if a handler is registered for the record's decoded message type.
     /// </summary>
     public bool CanProcess(Record record) =>
@@ -119,9 +100,6 @@ public class MessageProcessor : IRecordProcessor {
 
     ValueTask IProcessor.OnCheckpoint(CheckpointContext context) =>
         _onCheckpoint?.Invoke(context) ?? ValueTask.CompletedTask;
-
-    ValueTask IProcessor.OnComplete(CompleteContext context) =>
-        _onComplete?.Invoke(context) ?? ValueTask.CompletedTask;
 }
 
 public interface IMessageHandler {

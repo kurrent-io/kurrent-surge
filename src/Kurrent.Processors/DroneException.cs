@@ -16,7 +16,4 @@ public class DroneException(ErrorCode code, string reason, Exception innerExcept
 
     public static DroneException OnCheckpointFailed(Exception innerException) =>
         new("ON_CHECKPOINT_FAILED", ErrorMessages.Drone_OnCheckpointFailed, innerException);
-
-    public static DroneException OnCompleteFailed(Exception innerException) =>
-        new("ON_COMPLETE_FAILED", ErrorMessages.Drone_OnCompleteFailed, innerException);
 }

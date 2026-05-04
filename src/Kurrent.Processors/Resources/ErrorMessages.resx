@@ -29,8 +29,4 @@
     <value>An error occurred during checkpoint handling.</value>
     <comment>The exception message for when IRecordProcessor.OnCheckpoint callback throws an exception.</comment>
   </data>
-  <data name="Drone_OnCompleteFailed" xml:space="preserve">
-    <value>An error occurred in the completion handler.</value>
-    <comment>The exception message for when IRecordProcessor.OnComplete callback throws an exception.</comment>
-  </data>
 </root>

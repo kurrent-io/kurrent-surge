@@ -3,15 +3,18 @@ client:
     - any-glob-to-any-file:
       - src/Kurrent.Client/**
       - src/Kurrent.Client.SourceGenerators/**
+      - src/Kurrent.CodeAnalysis/**
+      - src/Variant/**
+      - src/Variant.SourceGenerators/**
       - test/Kurrent.Client.Tests/**
-      - test/Kurrent.Client.Integration.Tests/**
+      - test/Kurrent.CodeAnalysis.Tests/**
+      - test/Variant.Tests/**
 
-processors:
+processing:
   - changed-files:
     - any-glob-to-any-file:
       - src/Kurrent.Processors/**
       - test/Kurrent.Processors.Tests/**
-      - test/Kurrent.Processors.Integration.Tests/**
 
 contracts:
   - changed-files:
@@ -27,11 +30,11 @@ benchmarks:
 
 documentation:
   - changed-files:
-    - any-glob-to-any-file: docs/**
-    - any-glob-to-any-file: README.md
-    - any-glob-to-any-file: CONTRIBUTING.md
-    - any-glob-to-any-file: LICENSE.md
-    - any-glob-to-any-file: context7.json
+    - any-glob-to-any-file:
+      - docs/**
+      - README.md
+      - CONTRIBUTING.md
+      - LICENSE.md
 
 test:
   - changed-files:
@@ -42,14 +45,14 @@ ci:
     - any-glob-to-any-file:
       - .github/workflows/**
       - .github/actions/**
-      - release.yml
-      - labeler.yml
-      - dependabot.yml
+      - .github/labeler.yml
+      - .github/release.yml
+      - .github/PULL_REQUEST_TEMPLATE.md
       - scripts/**
       - .devcontainer/**
-      - .github/copilot-instructions.md
-      - .github/git-commit-instructions.md
       - .config/**
+      - global.json
+      - nuget.config
 
 tooling:
   - changed-files:
@@ -68,6 +71,7 @@ agents:
       - CLAUDE.md
       - AGENTS.md
       - mcp.json
+      - context7.json
       - .github/copilot-instructions.md
       - .github/git-commit-instructions.md
       - .qodo/**

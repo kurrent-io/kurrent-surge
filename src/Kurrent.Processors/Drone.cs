@@ -1,19 +1,27 @@
+using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Diagnostics;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 
+using ISubscription = Kurrent.Processors.Gateway.ISubscription;
+
 namespace Kurrent.Processors;
 
 sealed class Drone : IDrone {
-    readonly ISubscriptionSource _source;
-    readonly IProcessor          _processor;
-    readonly DroneTelemetry      _telemetry;
-    readonly ProgressTracker     _progress;
-    readonly ILogger             _logger;
+    readonly ISubscription      _subscription;
+    readonly IProcessor         _processor;
+    readonly Checkpointer       _checkpointer;
+    readonly StreamsClient      _streams;
+    readonly DroneTelemetry     _telemetry;
+    readonly ProgressTracker    _progress;
+    readonly HybridLogicalClock _clock;
+
+    readonly Channel<SubscribeMessage> _channel;
 
     int _started;
 
@@ -21,33 +29,41 @@ sealed class Drone : IDrone {
 
     public Drone(
         ProcessorOptions options,
-        ISubscriptionSource source,
-        IProcessor processor,
+        ISubscription subscription,
+        Checkpointer checkpointer,
+        Channel<SubscribeMessage> channel,
+        StreamsClient streams,
         ILoggerFactory loggerFactory,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        IProcessor processor
     ) {
-        Options   = options;
+        Options = options;
 
-        _source    = source;
+        _subscription = subscription;
+        _checkpointer = checkpointer;
+        _channel      = channel;
+        _streams      = streams;
+        _clock        = new HybridLogicalClock(timeProvider);
 
         _processor = processor switch {
             IRecordBatchProcessor bp => new SafeRecordBatchProcessor(bp),
-            IRecordProcessor      rp => new SafeRecordProcessor(rp),
+            IRecordProcessor rp      => new SafeRecordProcessor(rp),
             _ => throw new ArgumentException(
                 $"Processor must implement {nameof(IRecordProcessor)} or {nameof(IRecordBatchProcessor)}.",
                 nameof(processor))
         };
 
-        _progress  = new ProgressTracker(timeProvider);
-        _logger    = loggerFactory.CreateLogger<Drone>();
+        _progress = new ProgressTracker(timeProvider);
 
-        _telemetry = new DroneTelemetry(_logger, options.ProcessorId, options.DroneId);
+        var logger = loggerFactory.CreateLogger<Drone>();
+
+        _telemetry = new DroneTelemetry(logger, options.ProcessorId, options.DroneId);
 
         DroneContext = new DroneContext {
             ProcessorId = ProcessorId,
             DroneId     = DroneId,
             SessionId   = SessionId.Unset,
-            Logger      = _logger
+            Logger      = logger
         };
     }
 
@@ -70,86 +86,207 @@ sealed class Drone : IDrone {
 
         DroneContext = DroneContext with { CancellationToken = stoppingToken };
 
+        var partitions = Enumerable
+            .Range(0, Options.MaxParallelism)
+            .Select(Partition.From)
+            .ToArray();
+
+        // Resolve explicit start position if provided (stream info may be missing)
+        var resetTo = RecordPosition.Unset;
+
+        if (Options.Subscription.StartPosition is { } explicitStart) {
+            if (explicitStart.Stream.IsUnset) {
+                var record = await _streams
+                    .InspectRecord(explicitStart.LogPosition, stoppingToken)
+                    .ConfigureAwait(false);
+
+                explicitStart = RecordPosition.From(record.Position.LogPosition, record.Stream, record.Revision);
+            }
+
+            resetTo = explicitStart;
+        }
+
+        // Load checkpoint (resetting first if explicit start was provided), start timer
+        var startPositions = await _checkpointer
+            .Initialize(partitions, Options.Subscription.InitialPosition, resetTo, stoppingToken)
+            .ConfigureAwait(false);
+
+        // Catch-up filter: skip records at or below per-partition checkpoint
+        var catchUp = startPositions.ToDictionary(p => p.Partition, p => p.LogPosition);
+
+        var lowWatermark = startPositions.Length > 0
+            ? startPositions.Min()
+            : RecordPosition.Earliest;
+
+        // Subscribe writes to channel, completes it when done. Never throws.
+        _ = _subscription.Subscribe(
+            lowWatermark, Options.Subscription.Filter,
+            Options.SkipDecoding, stoppingToken);
+
+        Exception? fatalError = null;
+
         try {
             switch (_processor) {
-                case IRecordBatchProcessor batchProcessor:
-                    await RunBatched(batchProcessor, stoppingToken).ConfigureAwait(false);
-                    break;
-                case IRecordProcessor recordProcessor:
-                    await RunPerRecord(recordProcessor, stoppingToken).ConfigureAwait(false);
-                    break;
-            }
+                case IRecordBatchProcessor batchProcessor: 
+                    await RunBatched(batchProcessor, catchUp).ConfigureAwait(false); break;
 
-            await Shutdown().ConfigureAwait(false);
+                case IRecordProcessor recordProcessor: 
+                    await RunPerRecord(recordProcessor, catchUp).ConfigureAwait(false); break;
+            }
         }
-        catch (OperationCanceledException) {
-            await Shutdown().ConfigureAwait(false);
+        catch (ChannelClosedException ex) {
+            fatalError = ex.InnerException;
         }
         catch (Exception ex) {
-            await Shutdown(ex).ConfigureAwait(false);
+            fatalError = ex;
         }
+
+        // Channel closed — subscription ended or user stopped.
+        // If user stopped, the Shutdown barrier already committed pending positions.
+        // If subscription ended naturally, pending positions may remain.
+        // Skip if we already have a fatal error — the checkpoint hook would fail again.
+        if (fatalError is null && _checkpointer.HasPendingPositions) {
+            var now = _clock.Now();
+            var checkpoint = new Checkpoint(now, CheckpointTrigger.Shutdown, now.DateTimeOffset, []);
+
+            await HandleCheckpoint(checkpoint).ConfigureAwait(false);
+        }
+
+        await Shutdown(fatalError).ConfigureAwait(false);
     }
 
-    async Task RunPerRecord(IRecordProcessor processor, CancellationToken stoppingToken) {
+    async Task RunPerRecord(IRecordProcessor processor, Dictionary<Partition, LogPosition> catchUp) {
         var stopping = false;
 
-        await foreach (var msg in _source.Subscribe(stoppingToken).ConfigureAwait(false)) {
-            // Once stop has been signaled, queued Records are dropped — only checkpoints
-            // (the Shutdown marker plus any Interval/Manual already in flight) still dispatch.
-            if (stopping && msg.Value is Record) continue;
+        await foreach (var msg in _channel.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)) {
+            if (stopping && msg.Value is Record)
+                continue;
 
-            var result = await msg
-                .MatchAsync(
-                    HandleConnected,
-                    record => HandleRecord(processor, record),
-                    HandleCheckpoint
-                )
+            switch (msg.Value) {
+                case Connected c: await HandleConnected(c).ConfigureAwait(false); break;
+
+                case Record record: {
+                    if (catchUp.TryGetValue(record.Position.Partition, out var cp)
+                     && record.Position.LogPosition <= cp)
+                        continue;
+
+                    var result = await HandleRecord(processor, record).ConfigureAwait(false);
+
+                    if (result.ShouldStop && !stopping) {
+                        stopping = true;
+
+                        await _checkpointer
+                            .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
+                            .ConfigureAwait(false);
+                    }
+
+                    break;
+                }
+
+                case Checkpoint checkpoint: await HandleCheckpoint(checkpoint).ConfigureAwait(false); break;
+            }
+        }
+        
+        async ValueTask<RecordProcessingResult> HandleRecord(IRecordProcessor processor, Record record) {
+            using var scope = _telemetry.TrackRecord();
+
+            var autoCheckpoint = Options.Checkpoint.AutoCheckpoint;
+
+            var ctx = DroneContext.ForProcessRecord(
+                Progress, record,
+                requestTrack: _checkpointer.Track);
+
+            await processor
+                .ProcessRecord(ctx)
                 .ConfigureAwait(false);
 
-            if (result.ShouldStop && !stopping) {
-                stopping = true;
-                await _source.InjectCheckpoint(CheckpointTrigger.Shutdown, result.Reason).ConfigureAwait(false);
+            if (autoCheckpoint && !ctx.StopRequested) {
+                _checkpointer.Track(record.Position);
+                _progress.TrackRecord(record.Position, record.Position.Partition);
             }
+
+            if (ctx.CheckpointRequested)
+                await _checkpointer
+                    .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
+                    .ConfigureAwait(false);
+
+            scope.Complete(Progress.Throughput.TotalRecords);
+
+            return ctx.StopRequested
+                ? RecordProcessingResult.Stop(ctx.StopReason)
+                : RecordProcessingResult.Continue;
         }
     }
 
-    async Task RunBatched(IRecordBatchProcessor processor, CancellationToken stoppingToken) {
-        // Cancellation is propagated to the source via its own _cts (linked to stoppingToken)
-        // and translated into a Shutdown marker in the channel. ReadBatched is given None so
-        // its outer-loop cancellation guard cannot short-circuit before the source's drain
-        // pattern delivers in-flight Interval / Shutdown markers to HandleCheckpoint.
-        var stream = _source.Subscribe(stoppingToken)
+    async Task RunBatched(IRecordBatchProcessor processor, Dictionary<Partition, LogPosition> catchUp) {
+        var stream = _channel.Reader
+            .ReadAllAsync(CancellationToken.None)
             .ReadBatched<SubscribeMessage, Record, BatchedSubscribeMessage>(
                 processor.MaxBatchSize, processor.BatchWindow,
                 classify: static msg => msg.Match<BatchAction<Record, BatchedSubscribeMessage>>(
-                    connected  => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(connected),
-                    record     => BatchAction<Record, BatchedSubscribeMessage>.Batch(record),
-                    checkpoint => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(checkpoint)
-                ),
+                    static connected  => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(connected),
+                    static record     => BatchAction<Record, BatchedSubscribeMessage>.Batch(record),
+                    static checkpoint => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(checkpoint)),
                 batchToOutput: static records => RecordBatch.From(records),
-                CancellationToken.None
-            );
+                CancellationToken.None);
 
         var stopping = false;
 
         await foreach (var output in stream.ConfigureAwait(false)) {
-            // Once stop has been signaled, queued RecordBatches are dropped — only
-            // checkpoints (the Shutdown marker plus any Interval already in flight)
-            // still dispatch.
-            if (stopping && output.Value is RecordBatch) continue;
+            
+            // If stopping, skip any remaining batches but continue to drain checkpoint messages
+            // to ensure we can checkpoint final positions and shut down cleanly.
+            if (stopping && output.Value is RecordBatch)
+                continue;
 
-            var result = await output
-                .MatchAsync(
-                    HandleConnected,
-                    batch => HandleBatch(processor, batch),
-                    HandleCheckpoint
-                )
+            switch (output.Value) {
+                case Connected c: await HandleConnected(c).ConfigureAwait(false); break;
+
+                case RecordBatch batch: {
+                    var result = await HandleBatch(processor, batch, catchUp).ConfigureAwait(false);
+
+                    if (result.ShouldStop && !stopping) {
+                        stopping = true;
+
+                        await _checkpointer
+                            .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
+                            .ConfigureAwait(false);
+                    }
+
+                    break;
+                }
+
+                case Checkpoint checkpoint: await HandleCheckpoint(checkpoint).ConfigureAwait(false); break;
+            }
+        }
+        
+        async ValueTask<RecordProcessingResult> HandleBatch(
+            IRecordBatchProcessor processor,
+            RecordBatch batch,
+            Dictionary<Partition, LogPosition> catchUp
+        ) {
+            var ctx = DroneContext.ForBatch(Progress, batch);
+
+            await processor
+                .ProcessBatch(ctx)
                 .ConfigureAwait(false);
 
-            if (result.ShouldStop && !stopping) {
-                stopping = true;
-                await _source.InjectCheckpoint(CheckpointTrigger.Shutdown, result.Reason).ConfigureAwait(false);
+            foreach (var record in batch) {
+                // Catch-up filter: skip records already processed
+                if (catchUp.TryGetValue(record.Position.Partition, out var cp)
+                 && record.Position.LogPosition <= cp)
+                    continue;
+
+                _checkpointer.Track(record.Position);
+
+                using var scope = _telemetry.TrackRecord();
+                _progress.TrackRecord(record.Position, record.Position.Partition);
+                scope.Complete(Progress.Throughput.TotalRecords);
             }
+
+            return ctx.StopRequested
+                ? RecordProcessingResult.Stop(ctx.StopReason)
+                : RecordProcessingResult.Continue;
         }
     }
 
@@ -157,121 +294,62 @@ sealed class Drone : IDrone {
 
     async ValueTask<RecordProcessingResult> HandleConnected(Connected connected) {
         DroneContext = DroneContext with { SessionId = connected.SessionId };
-        Status = DroneStatus.Processing;
+        Status       = DroneStatus.Processing;
+        
         _telemetry.Processing(connected.SessionId);
-        await _processor.OnConnected(DroneContext.ForConnected()).ConfigureAwait(false);
+        
+        await _processor
+            .OnConnected(DroneContext.ForConnected())
+            .ConfigureAwait(false);
+        
         return RecordProcessingResult.Continue;
     }
-
-    async ValueTask<RecordProcessingResult> HandleRecord(IRecordProcessor processor, Record record) {
-        using var scope = _telemetry.TrackRecord();
-
-        var autoCheckpoint = Options.Checkpoint.AutoCheckpoint;
-
-        // Partition already calculated by the source before yielding.
-        // Track is always valid; the tracker is idempotent if both user and framework
-        // track the same position.
-        var ctx = DroneContext.ForProcessRecord(
-            Progress, record,
-            requestTrack: _source.Track);
-
-        await processor
-            .ProcessRecord(ctx)
-            .ConfigureAwait(false);
-
-        // Auto-track unless StopProcessing was called. The user is signaling they want
-        // to take control of this record's tracking — Track() before StopProcessing()
-        // claims it; StopProcessing() alone leaves it unclaimed.
-        if (autoCheckpoint && !ctx.StopRequested) {
-            _source.Track(record);
-            _progress.TrackRecord(record.Position, record.Position.Partition);
-        }
-
-        // Manual checkpoint requested via ctx.Checkpoint(reason): inject AFTER auto-track
-        // so the snapshot at injection time reflects this record's position.
-        if (ctx.CheckpointRequested)
-            await _source.InjectCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason).ConfigureAwait(false);
-
-        scope.Complete(Progress.Throughput.TotalRecords);
-
-        return ctx.StopRequested
-            ? RecordProcessingResult.Stop(ctx.StopReason)
-            : RecordProcessingResult.Continue;
-    }
-
-    async ValueTask<RecordProcessingResult> HandleBatch(IRecordBatchProcessor processor, RecordBatch batch) {
-        var ctx = DroneContext.ForBatch(Progress, batch);
-
-        await processor
-            .ProcessBatch(ctx)
-            .ConfigureAwait(false);
-
-        // Track positions only after the batch dispatch returns successfully — source-side
-        // commit cadence is naturally aligned with batch boundaries. The source's batch
-        // Track is atomic with InjectCheckpoint's snapshot, so a concurrent Shutdown
-        // injection cannot capture mid-batch state.
-        _source.Track(batch);
-        foreach (var record in batch) {
-            using var scope = _telemetry.TrackRecord();
-            _progress.TrackRecord(record.Position, record.Position.Partition);
-            scope.Complete(Progress.Throughput.TotalRecords);
-        }
-
-        return ctx.StopRequested
-            ? RecordProcessingResult.Stop(ctx.StopReason)
-            : RecordProcessingResult.Continue;
-    }
-
-    async ValueTask<RecordProcessingResult> HandleCheckpoint(Checkpoint checkpoint) {
+    
+    async ValueTask HandleCheckpoint(Checkpoint checkpoint) {
         _telemetry.CheckpointInitiated(checkpoint.CheckpointId, checkpoint.Trigger);
 
-        // Shutdown commits must complete even when the orchestrating cancellation has fired,
-        // so the user's OnCheckpoint hook (and the subsequent receipt) see a non-cancellable
-        // token. Mirrors the prior CompleteCheckpointAsync(..., None) behavior.
-        var checkpointToken = checkpoint.Trigger == CheckpointTrigger.Shutdown
-            ? CancellationToken.None
-            : DroneContext.CancellationToken;
+        var positions = _checkpointer.PendingPositions();
 
-        var ctx = DroneContext.ForCheckpoint(checkpoint.Positions, checkpoint) with {
-            CancellationToken = checkpointToken
-        };
+        if (positions.Length == 0)
+            return;
 
-        Exception? hookEx = null;
+        var checkpointToken = CancellationToken.None;
+
+        var ctx = DroneContext.ForCheckpoint(positions, checkpoint) with { CancellationToken = checkpointToken };
 
         try {
             await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
         }
         catch (Exception ex) {
-            hookEx = ex;
-        }
+            _telemetry.CheckpointFailed(
+                checkpoint.CheckpointId, checkpoint.Trigger, positions,
+                ex);
 
-        if (hookEx is not null) {
-            _telemetry.CheckpointFailed(checkpoint.CheckpointId, checkpoint.Trigger, checkpoint.Positions, hookEx);
-
-            // Debug rethrows so test failures surface; production lets FailurePolicy decide.
             if (Options.Debug)
-                throw hookEx;
+                throw;
 
             if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
-                throw hookEx;
+                throw;
 
-            return RecordProcessingResult.Continue;
+            return;
         }
 
         try {
-            await _source.CompleteCheckpoint(checkpoint, checkpointToken).ConfigureAwait(false);
+            await _checkpointer
+                .CommitCheckpoint(checkpoint.CheckpointId, positions, checkpointToken)
+                .ConfigureAwait(false);
 
-            _progress.TrackCheckpoint(checkpoint, checkpoint.Positions);
-            _telemetry.CheckpointComplete(checkpoint.CheckpointId, checkpoint.Trigger, checkpoint.Positions);
+            _progress.TrackCheckpoint(checkpoint, positions);
+            _telemetry.CheckpointComplete(checkpoint.CheckpointId, checkpoint.Trigger, positions);
         }
         catch (Exception ex) {
-            _telemetry.CheckpointFailed(checkpoint.CheckpointId, checkpoint.Trigger, checkpoint.Positions, ex);
+            _telemetry.CheckpointFailed(
+                checkpoint.CheckpointId, checkpoint.Trigger, positions,
+                ex);
 
             if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
                 throw;
         }
-
-        return RecordProcessingResult.Continue;
     }
 
     #endregion
@@ -289,22 +367,18 @@ sealed class Drone : IDrone {
         if (fatalError is not null)
             errors.Add(fatalError);
 
-        if (fatalError is null) {
-            try {
-                await _processor
-                    .OnComplete(DroneContext.ForComplete(Progress))
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex) when (!Options.Debug) {
-                errors.Add(ex);
-            }
+        try {
+            await _checkpointer.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            errors.Add(ex);
         }
 
         try {
-            await _source.DisposeAsync().ConfigureAwait(false);
+            await _subscription.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex) {
-            errors.Add(new Exception("Error disposing subscription source", ex));
+            errors.Add(ex);
         }
 
         if (errors.Count > 0) {
@@ -314,8 +388,7 @@ sealed class Drone : IDrone {
                 fatalError is not null
                     ? "Fatal error in processor drone"
                     : "Errors during graceful shutdown",
-                errors
-            ).Flatten();
+                errors).Flatten();
 
             _telemetry.Error(aex);
 
@@ -338,5 +411,6 @@ sealed class Drone : IDrone {
 readonly record struct RecordProcessingResult(bool ShouldStop, string? Reason) {
     public static readonly RecordProcessingResult Continue = new(false, null);
 
-    public static RecordProcessingResult Stop(string? reason) => new(true, reason);
+    public static RecordProcessingResult Stop(string? reason) =>
+        new(true, reason);
 }

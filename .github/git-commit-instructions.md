@@ -63,7 +63,7 @@ Use dot notation for module-level precision within a package: `type(package.modu
 | Scope        | Area                                |
 |--------------|-------------------------------------|
 | `client`     | Kurrent.Client package              |
-| `processors` | Kurrent.Processors package          |
+| `processing` | Kurrent.Processing package          |
 | `variant`    | Variant discriminated union library |
 | `testing`    | Shared test infrastructure          |
 
@@ -86,8 +86,8 @@ Use `client.module` when the change is scoped to a specific module within the cl
 feat(client.streams): added bidirectional read support
 fix(client.connectors): corrected timeout on status polling
 refactor(client.legacy): extracted shared retry logic
-feat(processors): added dead-letter queue for failed records
-fix(processors): corrected offset drift on partition rebalance
+feat(processing): added dead-letter queue for failed records
+fix(processing): corrected offset drift on partition rebalance
 test(testing): added new read test for empty stream
 perf(client.schema): reduced allocations in type mapper lookup
 docs(client.registry): documented schema evolution rules
@@ -137,6 +137,20 @@ body with a lowercase prefix indicating its nature (fixed, updated, refactored, 
 - **PATCH (0.0.X):** Commits with type `fix` or `perf` or `refactor` that doesn't introduce a new feature
 - **No version change:** Other types (docs, chore, etc.)
 
+## Issue tracker references
+
+Never put Linear issue IDs in the commit subject line — the subject must remain a clean conventional commit
+for `semver-bump` to parse correctly. Reference issues in the commit body if needed:
+
+```
+feat(client.streams): added bidirectional read support
+
+- Closes DEV-1046
+```
+
+The PR title (which becomes the squash commit on main) follows the same rule: conventional commit only,
+no issue IDs. Linear links PRs to issues automatically via branch names.
+
 ## Common Pitfalls to Avoid
 
 1. **Mixing changes:** Prefer atomic commits, but when unavoidable use the multi-concern format above
@@ -146,3 +160,4 @@ body with a lowercase prefix indicating its nature (fixed, updated, refactored, 
 5. **Inconsistent scopes:** Use established scope names
 6. **Forgetting breaking changes:** Always mark API-breaking changes
 7. **Excessive scope:** Commits should be atomic and focused
+8. **Linear ID in subject:** Never prefix with `[DEV-XXXX]` — breaks CI validation and version detection

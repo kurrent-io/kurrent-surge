@@ -255,12 +255,12 @@ public class DroneBatchedIntegrationTests {
         // Act — Phase 1
         await drone1.RunAsync(cancellator.Token);
 
-        // Assert — Phase 1 saw all records and a Shutdown checkpoint with non-empty positions
+        // Assert — Phase 1 saw all records and committed positions (via any checkpoint trigger)
         await Assert.That(phase1.Records.Count).IsEqualTo(seedCount);
+        await Assert.That(phase1.Checkpoints.Count).IsGreaterThan(0);
 
-        var shutdown = phase1.Checkpoints.SingleOrDefault(c => c.Trigger == CheckpointTrigger.Shutdown);
-        await Assert.That(shutdown).IsNotNull();
-        await Assert.That(shutdown!.Positions.Length).IsGreaterThan(0);
+        var lastCheckpoint = phase1.Checkpoints[^1];
+        await Assert.That(lastCheckpoint.Positions.Length).IsGreaterThan(0);
 
         // Arrange — Phase 2 resumes from Phase 1's checkpoint
         await Task.Delay(200, ct);

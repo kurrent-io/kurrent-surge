@@ -1,3 +1,4 @@
+using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
@@ -20,7 +21,7 @@ public class DroneIntegrationTests {
         // Arrange
         var data = await Fixture.SeedTestStream(100, ct);
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -54,7 +55,7 @@ public class DroneIntegrationTests {
     public async ValueTask processes_all_records_from_stream(CancellationToken ct) {
         // Arrange
         var data      = await Fixture.SeedTestStream(ct);
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition == data.Position) {
                     ctx.Track(ctx.Record);
@@ -86,7 +87,7 @@ public class DroneIntegrationTests {
     public async ValueTask processor_processes_all_records_individually(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(25, ct);
-        var processor   = new TestRecordProcessor();
+        var processor   = new TestableRecordProcessor();
         var processorId = $"drone-individual-{PunyId.New()}";
         var recordCount = 0;
 
@@ -126,7 +127,7 @@ public class DroneIntegrationTests {
     public async ValueTask processor_stops_on_user_request(CancellationToken ct) {
         // Arrange
         var data      = await Fixture.SeedTestStream(ct);
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -151,7 +152,6 @@ public class DroneIntegrationTests {
         await drone.RunAsync(ct);
 
         // Assert
-        await Assert.That(processor.Complete).IsNotNull();
         await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
     }
 
@@ -159,7 +159,7 @@ public class DroneIntegrationTests {
     public async ValueTask processor_cancels_gracefully(CancellationToken ct) {
         // Arrange
         var data      = await Fixture.SeedTestStream(ct);
-        var processor = new TestRecordProcessor();
+        var processor = new TestableRecordProcessor();
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -190,7 +190,7 @@ public class DroneIntegrationTests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = _ => throw new InvalidOperationException("Process failed")
         };
 
@@ -224,7 +224,7 @@ public class DroneIntegrationTests {
         var recordsToProcessInPhase1 = 10;
 
         // Phase 1: Process first 10 records, checkpoint, then stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= recordsToProcessInPhase1) {
@@ -252,7 +252,7 @@ public class DroneIntegrationTests {
         await Task.Delay(200, ct);
 
         // Phase 2: Resume from same processor ID — should process remaining records
-        var processor2 = new TestRecordProcessor {
+        var processor2 = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -289,11 +289,11 @@ public class DroneIntegrationTests {
         // Arrange
         var data        = await Fixture.SeedTestStream(30, ct);
         var processorId = $"drone-multi-{PunyId.New()}";
-        var processors  = new List<TestRecordProcessor>();
+        var processors  = new List<TestableRecordProcessor>();
 
         // Phases 1-2: Process 10 records each, then stop
         for (var phase = 0; phase < 2; phase++) {
-            var processor = new TestRecordProcessor();
+            var processor = new TestableRecordProcessor();
             processors.Add(processor);
 
             processor.OnProcessRecord = ctx => {
@@ -323,7 +323,7 @@ public class DroneIntegrationTests {
         }
 
         // Phase 3: Process remaining records
-        var processor3 = new TestRecordProcessor {
+        var processor3 = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -363,7 +363,7 @@ public class DroneIntegrationTests {
         var processorId = $"drone-norec-{PunyId.New()}";
 
         // Phase 1: Process all records
-        var processor1 = new TestRecordProcessor {
+        var processor1 = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -389,7 +389,7 @@ public class DroneIntegrationTests {
         await Task.Delay(200, ct);
 
         // Phase 2: Resume — no records remain, cancel after 2s
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(2000);
@@ -419,7 +419,7 @@ public class DroneIntegrationTests {
         var processorId = $"drone-all-ckpt-{data.Stream}";
 
         // Phase 1: Process first 5 records, stop before tracking the 6th
-        var processorOne = new TestRecordProcessor {
+        var processorOne = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Progress.Throughput.TotalRecords == 5)
                     ctx.StopProcessing("Phase 1 done after 5 records");
@@ -441,7 +441,7 @@ public class DroneIntegrationTests {
         await drone1.RunAsync(ct);
 
         // Phase 2: Resume, process remaining records
-        var processorTwo = new TestRecordProcessor {
+        var processorTwo = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -476,13 +476,198 @@ public class DroneIntegrationTests {
 
     #endregion
 
+    #region ->> checkpointing <<-
+
+    [Test]
+    public async ValueTask user_track_is_allowed_when_auto_checkpoint_is_true(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+        Exception? caught = null;
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                try { ctx.Track(ctx.Record); }
+                catch (Exception ex) { caught = ex; }
+
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.KurrentDB.AuthenticatedConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-track-auto-{PunyId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoCheckpoint    = true;
+        });
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — Track does not throw; idempotent with auto-track
+        await Assert.That(caught).IsNull();
+        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
+    }
+
+    [Test]
+    public async ValueTask manual_checkpoint_fires_on_checkpoint_with_trigger_manual(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                ctx.Checkpoint("custom-reason");
+
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.KurrentDB.AuthenticatedConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-manual-ckpt-{PunyId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
+        });
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — Manual checkpoints fired
+        var manualCheckpoints = processor.Checkpoints
+            .Where(c => c.Trigger == CheckpointTrigger.Manual)
+            .ToList();
+
+        await Assert.That(manualCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+        await Assert.That(manualCheckpoints[0].Reason).IsEqualTo("custom-reason");
+    }
+
+    [Test]
+    public async ValueTask shutdown_checkpoint_fires_when_pending_positions(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.KurrentDB.AuthenticatedConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-shutdown-ckpt-{PunyId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
+        });
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — Shutdown checkpoint fires because auto-tracked records created pending positions
+        var shutdownCheckpoints = processor.Checkpoints
+            .Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+            .ToList();
+
+        await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+    }
+
+    [Test]
+    public async ValueTask on_checkpoint_throwing_skips_persistence_when_continue_policy(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            },
+            OnCheckpointHook = _ => throw new InvalidOperationException("user gate")
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.KurrentDB.AuthenticatedConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-ckpt-continue-{PunyId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Continue;
+            opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
+        }).Build();
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — drone reaches Stopped (continue policy, no tear-down)
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
+    }
+
+    [Test]
+    public async ValueTask on_checkpoint_throwing_tears_down_drone_when_fail_policy(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            },
+            OnCheckpointHook = _ => throw new InvalidOperationException("user gate")
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.KurrentDB.AuthenticatedConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-ckpt-fail-{PunyId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Fail;
+            opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
+        }).Build();
+
+        // Act
+        await Assert.That(async () => await drone.RunAsync(ct))
+            .Throws<AggregateException>();
+
+        // Assert — drone went through error path
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
+    }
+
+    #endregion
+
     #region ->> status <<-
 
     [Test]
     public async ValueTask status_is_stopped_after_graceful_shutdown(CancellationToken ct) {
         // Arrange
         var data      = await Fixture.SeedTestStream(5, ct);
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -515,7 +700,7 @@ public class DroneIntegrationTests {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = _ => throw new InvalidOperationException("boom")
         };
 

@@ -10,10 +10,9 @@ namespace Kurrent.Processors;
 /// Defines the interface for processing records one at a time.
 /// Implement this interface to receive callbacks during the processing lifecycle.
 /// <para>
-/// Lifecycle methods (<see cref="IProcessor.OnConnected"/>, <see cref="IProcessor.OnCheckpoint"/>,
-/// <see cref="IProcessor.OnComplete"/>) are inherited from
-/// <see cref="IProcessor"/> with default no-op implementations. Only <see cref="ProcessRecord"/>
-/// must be implemented.
+/// Lifecycle methods (<see cref="IProcessor.OnConnected"/>, <see cref="IProcessor.OnCheckpoint"/>)
+/// are inherited from <see cref="IProcessor"/> with default no-op implementations. Only
+/// <see cref="ProcessRecord"/> must be implemented.
 /// </para>
 /// </summary>
 /// <remarks>
@@ -42,10 +41,14 @@ public interface IRecordProcessor : IProcessor {
 public record DroneContext {
     public static readonly DroneContext None = new DroneContext();
 
-    public ProcessorId       ProcessorId       { get; init; } = ProcessorId.Unset;
-    public string            DroneId           { get; init; } = string.Empty;
-    public SessionId         SessionId         { get; init; } = SessionId.Unset;
-    public ILogger           Logger            { get; init; } = NullLogger.Instance;
+    public ProcessorId ProcessorId { get; init; } = ProcessorId.Unset;
+
+    public string DroneId { get; init; } = string.Empty;
+
+    public SessionId SessionId { get; init; } = SessionId.Unset;
+
+    public ILogger Logger { get; init; } = NullLogger.Instance;
+
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
     public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record, Action<RecordPosition> requestTrack) =>
@@ -93,15 +96,6 @@ public record DroneContext {
             Reason            = checkpoint.Reason
         };
 
-    public CompleteContext ForComplete(DroneProgress progress) =>
-        new() {
-            ProcessorId       = ProcessorId,
-            DroneId           = DroneId,
-            SessionId         = SessionId,
-            Logger            = Logger,
-            CancellationToken = CancellationToken,
-            Progress          = progress
-        };
 }
 
 /// <summary>
@@ -112,9 +106,8 @@ public record ProcessRecordContext : DroneContext {
 
     public ProcessRecordContext() { }
 
-    public ProcessRecordContext(Action<RecordPosition> requestTrack) {
+    public ProcessRecordContext(Action<RecordPosition> requestTrack) =>
         RequestTrack = requestTrack;
-    }
 
     public required Record        Record   { get; init; }
     public required DroneProgress Progress { get; init; }
@@ -178,7 +171,7 @@ public record ProcessRecordContext : DroneContext {
     /// </exception>
     public void Checkpoint(string? reason = null) {
         if (_checkpointRequested)
-            throw new InvalidOperationException("a checkpoint has already been requested for this record");
+            throw new InvalidOperationException("Checkpoint already requested for this record");
 
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -224,14 +217,6 @@ public record CheckpointContext : DroneContext {
     /// passed a reason to <c>ctx.Checkpoint(reason)</c>. Null otherwise.
     /// </summary>
     public string? Reason { get; init; }
-}
-
-/// <summary>
-/// Context provided when the drone completes gracefully.
-/// </summary>
-[PublicAPI]
-public record CompleteContext : DroneContext {
-    public required DroneProgress Progress { get; init; }
 }
 
 /// <summary>

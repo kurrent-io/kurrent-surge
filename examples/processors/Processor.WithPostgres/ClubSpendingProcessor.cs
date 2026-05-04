@@ -99,11 +99,6 @@ public sealed class ClubSpendingProcessor(NpgsqlDataSource dataSource) : IRecord
         }
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation("Completed, {PendingCount} pending records", _pending.Count);
-        return ValueTask.CompletedTask;
-    }
-
     static int GetSeasonForDate(DateOnly date) {
         // Season runs July-June, so Jan-June belongs to previous year's season
         return date.Month >= 7 ? date.Year : date.Year - 1;

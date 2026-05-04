@@ -4,7 +4,7 @@
 
 ## Motivation
 
-<!-- Why this change is needed. Link related issues with "Closes #123" or "Fixes #456". -->
+<!-- Why this change is needed. Link related issues or design docs. -->
 
 ## Purpose
 
@@ -15,9 +15,16 @@
 - [ ] Documentation
 - [ ] CI/CD or infrastructure
 
-## Checklist
+## Definition of done
 
-- [ ] Tests added or updated
-- [ ] Documentation updated (if appropriate)
-- [ ] No unrelated changes included
-- [ ] Code follows the style guidelines of this project
+- [ ] Implementation compiles with zero errors and zero new warnings
+- [ ] All acceptance criteria tests pass (written test-first)
+- [ ] No regressions — full unit test suite passes
+- [ ] Every new or modified `public` member has XML documentation
+- [ ] SDK docs in `docs/` updated (if user-facing behavior changed)
+- [ ] Code examples added or updated in `examples/` (if new API surface)
+- [ ] Resolution comment added to the Linear issue
+
+<!-- Linear issue reference — uses branch auto-linking, but include for clarity.
+     Use "Closes" to auto-close on merge, or "Refs" for partial work. -->
+Closes DEV-XXXX

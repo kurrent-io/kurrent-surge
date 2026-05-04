@@ -5,7 +5,7 @@ using Kurrent.Quack;
 namespace Kurrent.Projections.DuckDB;
 
 /// <summary>
-/// DuckDB-backed <see cref="CheckpointStore"/>. One row per <c>(processor_id, partition)</c>,
+/// DuckDB-backed <see cref="CheckpointStoreBase"/>. One row per <c>(processor_id, partition)</c>,
 /// updated under optimistic concurrency control — each update is fenced on the previously
 /// observed <c>log_position</c> for that partition.
 /// </summary>
@@ -21,7 +21,7 @@ public sealed partial class DuckDBCheckpointStore(
     TimeProvider time,
     ILogger<DuckDBCheckpointStore> logger
 )
-    : CheckpointStore(processorId, time, logger) {
+    : CheckpointStoreBase(processorId, time, logger) {
     
     /// <summary>
     /// Checkpoint table name. Quoted in every SQL statement below because the <c>$</c>

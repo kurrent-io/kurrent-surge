@@ -17,7 +17,7 @@ public class LogSubscriptionTests {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data         = await Fixture.SeedTestStream(100, ct);
-        var processor    = new TestRecordProcessor();
+        var processor    = new TestableRecordProcessor();
         var processorId  = $"order-log-{data.Stream}";
 
         processor.OnProcessRecord = ctx => {
@@ -47,7 +47,7 @@ public class LogSubscriptionTests {
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data         = await Fixture.SeedTestStream(ct);
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition == data.Position) {
                     ctx.Track(ctx.Record);
@@ -76,7 +76,7 @@ public class LogSubscriptionTests {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data         = await Fixture.SeedTestStream(25, ct);
-        var processor    = new TestRecordProcessor();
+        var processor    = new TestableRecordProcessor();
         var processorId  = $"individual-records-log-{data.Stream}";
         var recordCount  = 0;
 
@@ -109,7 +109,7 @@ public class LogSubscriptionTests {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data         = await Fixture.SeedTestStream(ct);
-        var processor    = new TestRecordProcessor();
+        var processor    = new TestableRecordProcessor();
         var processorId  = $"processor_cancels_gracefully_log-{TestContext.Current!.Id}";
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -135,7 +135,7 @@ public class LogSubscriptionTests {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data         = await Fixture.SeedTestStream(ct);
-        var processor    = new TestRecordProcessor();
+        var processor    = new TestableRecordProcessor();
         var processorId  = $"processor_stops_on_user_request_log-{TestContext.Current!.Id}";
 
         processor.OnProcessRecord = ctx => {
@@ -168,7 +168,7 @@ public class LogSubscriptionTests {
         var data         = await Fixture.SeedTestStream(10, ct);
         var processorId  = $"error-process-log-{PunyId.New()}";
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = _ => throw new InvalidOperationException("Process failed")
         };
 
@@ -197,7 +197,7 @@ public class LogSubscriptionTests {
         var recordsToProcessInPhase1 = 10;
 
         // Phase 1: Process first 10 records, checkpoint, then stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= recordsToProcessInPhase1)
@@ -217,7 +217,7 @@ public class LogSubscriptionTests {
         await Task.Delay(200, ct);
 
         // Phase 2: Resume from same processor ID, should process remaining records
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
             if (ctx.Record.Position.LogPosition >= data.Position)
@@ -255,7 +255,7 @@ public class LogSubscriptionTests {
         var filter       = RecordFilter.ByExpression($"properties.stream = '{data.Stream}'");
 
         // Phase 1: Process 1 record, checkpoint, stop
-        var processorOne = new TestRecordProcessor {
+        var processorOne = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Progress.Throughput.TotalRecords == 1)
                     ctx.StopProcessing("Phase 1 done after 1 record");
@@ -272,7 +272,7 @@ public class LogSubscriptionTests {
         }).RunAsync(ct);
 
         // Phase 2: Resume from checkpoint, process remaining records
-        var processorTwo = new TestRecordProcessor {
+        var processorTwo = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Record.Position.LogPosition >= data.Position) {
                     ctx.Track(ctx.Record);
@@ -307,11 +307,11 @@ public class LogSubscriptionTests {
         var data         = await Fixture.SeedTestStream(30, ct);
         var processorId  = $"multi-phase-log-{PunyId.New()}";
         var filter       = $"properties.stream = '{data.Stream}'";
-        var processors   = new List<TestRecordProcessor>();
+        var processors   = new List<TestableRecordProcessor>();
 
         // Phases 1-2: Process 10 records each, checkpoint, stop
         for (var phase = 0; phase < 2; phase++) {
-            var processor = new TestRecordProcessor();
+            var processor = new TestableRecordProcessor();
             processors.Add(processor);
 
             processor.OnProcessRecord = ctx => {
@@ -333,7 +333,7 @@ public class LogSubscriptionTests {
         }
 
         // Phase 3: Process remaining records
-        var processor3 = new TestRecordProcessor();
+        var processor3 = new TestableRecordProcessor();
         processors.Add(processor3);
 
         processor3.OnProcessRecord = ctx => {
@@ -374,7 +374,7 @@ public class LogSubscriptionTests {
         var filter       = $"properties.stream = '{data.Stream}'";
 
         // Phase 1: Process all records
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (ctx.Record.Position.LogPosition >= data.Position)
@@ -394,7 +394,7 @@ public class LogSubscriptionTests {
         await Task.Delay(200, ct);
 
         // Phase 2: Resume — no records remain, cancel after 2s
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(2000);
@@ -423,7 +423,7 @@ public class LogSubscriptionTests {
         var filter       = $"properties.stream = '{data.Stream}'";
 
         // Phase 1: Process first 10 records, checkpoint, stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
@@ -444,7 +444,7 @@ public class LogSubscriptionTests {
 
         // Phase 2: Resume — log subscription still sees all events (they exist in $all).
         // Tombstone only prevents stream-level access, not log-level reads.
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
             if (ctx.Record.Position.LogPosition >= data.Position) {
@@ -483,7 +483,7 @@ public class LogSubscriptionTests {
         var filter       = $"properties.stream = '{data.Stream}'";
 
         // Phase 1: Process first 10 records, checkpoint, stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
@@ -504,7 +504,7 @@ public class LogSubscriptionTests {
 
         // Phase 2: Resume — log subscription still sees all events (they exist in $all).
         // Soft delete only affects stream-level access, not log-level reads.
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
             if (ctx.Record.Position.LogPosition >= data.Position) {
@@ -553,7 +553,7 @@ public class LogSubscriptionTests {
         // Cancel after 3s since the processor will sit idle.
         // SkipDecoding is required because $all may contain system events (e.g. $scavengeStarted)
         // that cannot be deserialized — the client-side filter handles them.
-        var processor = new TestRecordProcessor();
+        var processor = new TestableRecordProcessor();
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(3000);

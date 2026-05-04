@@ -108,20 +108,6 @@ public sealed class SessionAnalyticsProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        // Close all remaining sessions on completion
-        foreach (var session in _activeSessions.Values.ToList())
-            CloseSession(session, "completed", context.Logger);
-
-        context.Logger.LogInformation(
-            "Completed | Total page views: {Views}, Sessions completed: {Sessions}",
-            _totalPageViews,
-            _sessionsCompleted
-        );
-
-        return ValueTask.CompletedTask;
-    }
-
     sealed class UserSession(string sessionId, string userId, DateTimeOffset startTime) {
         public string         SessionId    { get; }              = sessionId;
         public string         UserId       { get; }              = userId;

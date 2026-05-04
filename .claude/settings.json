@@ -1,20 +1,13 @@
 {
   "env": {
-    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": 1,
-    "DISABLE_FEEDBACK_COMMAND": 1,
-    "DISABLE_TELEMETRY": 1,
-    "DISABLE_ERROR_REPORTING": 1
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+    "DISABLE_FEEDBACK_COMMAND": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1"
   },
   "attribution": {
     "commit": "",
     "pr": ""
-  },
-  "plansDirectory": ".project/docs/plans",
-  "enabledPlugins": {
-    "context7@claude-plugins-official": true,
-    "microsoft-docs@claude-plugins-official": true,
-    "csharp-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
   },
   "hooks": {
     "SessionStart": [
@@ -29,5 +22,12 @@
         ]
       }
     ]
-  }
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "microsoft-docs@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": false,
+    "pyright-lsp@claude-plugins-official": true
+  },
+  "plansDirectory": ".project/docs/plans"
 }

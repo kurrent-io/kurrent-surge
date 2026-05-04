@@ -28,6 +28,44 @@
     <s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexedValue"></s:String>
     <s:Boolean x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexRemoved">True</s:Boolean>
     <s:String x:Key="/Default/CodeInspection/Highlighting/SweaWarningsMode/@EntryValue">ShowAndRun</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0003/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0004/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0005/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0006/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0007/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0008/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0009/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0010/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0011/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0012/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0013/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0014/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0015/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0016/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0017/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0018/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0019/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0020/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0021/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0022/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0023/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0024/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0025/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0026/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0027/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0028/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASPIRE006/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0003/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0004/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0005/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0006/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0007/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0008/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=BL0009/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA1000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA1001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA1002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -344,6 +382,14 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA5403/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA5404/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA5405/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1003/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1004/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1005/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1006/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=POLYSP0003/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1003/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -381,6 +427,7 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1035/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1036/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1037/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS1043/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS2000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS2001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=RS2002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -450,6 +497,8 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0070/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0071/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0072/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0073/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0074/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0300/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnit0301/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnitAssertions0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -467,6 +516,7 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnitAssertions0013/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUNU0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUXU0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:Boolean x:Key="/Default/CodeInspection/Roslyn/UseRoslynInSwea/@EntryValue">True</s:Boolean>
     <s:String x:Key="/Default/CodeStyle/CodeCleanup/Profiles/=EventStore/@EntryIndexedValue"></s:String>
     <s:Boolean x:Key="/Default/CodeStyle/CodeCleanup/Profiles/=EventStore/@EntryIndexRemoved">True</s:Boolean>
     <s:String x:Key="/Default/CodeStyle/CodeCleanup/Profiles/=Kurrent/@EntryIndexedValue">&lt;?xml version="1.0" encoding="utf-16"?&gt;&lt;Profile name="Kurrent"&gt;&lt;XMLReformatCode&gt;True&lt;/XMLReformatCode&gt;&lt;HtmlReformatCode&gt;True&lt;/HtmlReformatCode&gt;&lt;CSReformatCode&gt;True&lt;/CSReformatCode&gt;&lt;CSCodeStyleAttributes ArrangeVarStyle="True" ArrangeTypeAccessModifier="True" ArrangeTypeMemberAccessModifier="True" SortModifiers="True" ArrangeArgumentsStyle="True" RemoveRedundantParentheses="True" AddMissingParentheses="True" ArrangeBraces="True" ArrangeAttributes="True" ArrangeCodeBodyStyle="True" ArrangeTrailingCommas="True" ArrangeObjectCreation="True" ArrangeDefaultValue="True" ArrangeNamespaces="True" ArrangeEmptyString="True" /&gt;&lt;CSArrangeQualifiers&gt;True&lt;/CSArrangeQualifiers&gt;&lt;CSFixBuiltinTypeReferences&gt;True&lt;/CSFixBuiltinTypeReferences&gt;&lt;CppCodeStyleCleanupDescriptor /&gt;&lt;FormatAttributeQuoteDescriptor&gt;True&lt;/FormatAttributeQuoteDescriptor&gt;&lt;CSOptimizeUsings&gt;&lt;OptimizeUsings&gt;True&lt;/OptimizeUsings&gt;&lt;/CSOptimizeUsings&gt;&lt;CSReorderTypeMembers&gt;True&lt;/CSReorderTypeMembers&gt;&lt;IDEA_SETTINGS&gt;&amp;lt;profile version="1.0"&amp;gt;
@@ -906,6 +956,8 @@
 	<s:String x:Key="/Default/CodeStyle/Naming/CSharpNaming/Abbreviations/=DB/@EntryIndexedValue">DB</s:String>
     <s:Boolean x:Key="/Default/CodeStyle/Naming/CSharpNaming/ApplyAutoDetectedRules/@EntryValue">False</s:Boolean>
     <s:String x:Key="/Default/CustomTools/CustomToolsData/@EntryValue"></s:String>
+	<s:Boolean x:Key="/Default/Environment/EntityFramework/EntityFrameworkAnalysisEnabled/@EntryValue">False</s:Boolean>
+	<s:Boolean x:Key="/Default/Environment/EntityFramework/EntityFrameworkModelAnalysisEnabled/@EntryValue">False</s:Boolean>
 	<s:String x:Key="/Default/Environment/Hierarchy/PMCOptions/CustomExecutablePath/@EntryValue">/opt/homebrew/Cellar/powershell/7.5.2/libexec/pwsh</s:String>
 	<s:String x:Key="/Default/Environment/Hierarchy/PMCOptions/ToolScope/@EntryValue">Global</s:String>
     <s:Boolean x:Key="/Default/Environment/SettingsMigration/IsMigratorApplied/=JetBrains_002EReSharper_002EPsi_002ECSharp_002ECodeStyle_002ECSharpKeepExistingMigration/@EntryIndexedValue">True</s:Boolean>

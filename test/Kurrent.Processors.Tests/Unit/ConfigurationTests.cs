@@ -86,7 +86,7 @@ public class ConfigurationTests {
     public async Task with_processor_id_sets_settings_processor_id() {
         var processorId = "test-processor-id";
 
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = processorId;
         }).Build();
@@ -99,7 +99,7 @@ public class ConfigurationTests {
     public async Task with_drone_id_sets_settings_drone_id() {
         var droneId = "test-drone-id";
 
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
             opts.DroneId     = droneId;
@@ -111,7 +111,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task without_drone_id_derives_from_processor_id() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
         }).Build();
@@ -121,7 +121,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task configure_drone_sets_buffer_capacity() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId    = "test-processor";
             opts.BufferCapacity = 5000;
@@ -132,7 +132,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task configure_checkpointing_sets_settings() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
             opts.Checkpointing(c => c
@@ -147,7 +147,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task with_initial_position_sets_settings() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId                  = "test-processor";
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
@@ -160,7 +160,7 @@ public class ConfigurationTests {
     public async Task with_filter_sets_settings() {
         var filter = RecordFilter.ByStream("test-stream");
 
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId         = "test-processor";
             opts.Subscription.Filter = filter;
@@ -173,7 +173,7 @@ public class ConfigurationTests {
     public async Task with_expression_filter_sets_filter() {
         var expression = "stream_id LIKE 'orders-%'";
 
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId         = "test-processor";
             opts.Subscription.Filter = RecordFilter.ByExpression(expression);
@@ -187,7 +187,7 @@ public class ConfigurationTests {
     public async Task with_partition_key_selector_sets_settings() {
         var selector = "data.customer_id";
 
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId                       = "test-processor";
             opts.Subscription.PartitionKeySelector = selector;
@@ -198,7 +198,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task configure_drone_sets_skip_decoding() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId  = "test-processor";
             opts.SkipDecoding = true;
@@ -209,7 +209,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task configure_multiple_settings_applies_all() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId    = "test-processor";
             opts.BufferCapacity = 2000;
@@ -226,7 +226,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task build_returns_drone_with_correct_settings() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
             opts.DroneId     = "test-drone";
@@ -240,7 +240,7 @@ public class ConfigurationTests {
 
     [Test]
     public async Task drone_initial_status_is_starting() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
         }).Build();
@@ -384,7 +384,7 @@ public class ConfigurationTests {
     [Test]
     public async Task build_with_invalid_buffer_capacity_throws() {
         await Assert.That(() =>
-            KurrentProcessor.Create(new NoOpProcessor(), opts => {
+            KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
                 opts.Connection(TestConnectionString);
                 opts.ProcessorId    = "test-processor";
                 opts.BufferCapacity = 0;
@@ -394,11 +394,11 @@ public class ConfigurationTests {
 
     [Test]
     public async Task build_without_processor_id_auto_generates_from_type_name() {
-        var drone = KurrentProcessor.Create(new NoOpProcessor(), opts => {
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
         }).Build();
 
-        await Assert.That(drone.ProcessorId).IsEqualTo("no-op-processor");
+        await Assert.That(drone.ProcessorId).IsEqualTo("testable-record-processor");
     }
 
     #endregion
@@ -409,7 +409,7 @@ public class ConfigurationTests {
     public async Task standalone_processor_throws_when_no_connection_is_configured() {
         var options = new ProcessorOptions { ProcessorId = "test-processor" };
 
-        var processor = new KurrentProcessor(options, new NoOpProcessor());
+        var processor = new KurrentProcessor(options, new TestableRecordProcessor());
 
         await Assert.That(() => processor.Build()).Throws<InvalidOperationException>();
     }
@@ -422,11 +422,11 @@ public class ConfigurationTests {
     public async Task duplicate_registration_is_idempotent() {
         var services = new ServiceCollection();
 
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "first";
         });
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "second";
         });
@@ -442,14 +442,14 @@ public class ConfigurationTests {
     public async Task duplicate_registration_with_factory_is_idempotent() {
         var services = new ServiceCollection();
 
-        services.AddKurrentProcessor<NoOpProcessor>(
-            _ => new NoOpProcessor(),
+        services.AddKurrentProcessor<TestableRecordProcessor>(
+            _ => new TestableRecordProcessor(),
             opts => {
                 opts.Connection(TestConnectionString);
                 opts.ProcessorId = "first";
             });
-        services.AddKurrentProcessor<NoOpProcessor>(
-            _ => new NoOpProcessor(),
+        services.AddKurrentProcessor<TestableRecordProcessor>(
+            _ => new TestableRecordProcessor(),
             opts => {
                 opts.Connection(TestConnectionString);
                 opts.ProcessorId = "second";
@@ -470,7 +470,7 @@ public class ConfigurationTests {
 
         string? capturedId = null;
 
-        services.AddKurrentProcessor(new NoOpProcessor(), (opts, sp) => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), (opts, sp) => {
             var settings = sp.GetRequiredService<TestSettings>();
             capturedId = settings.ProcessorId;
             opts.ProcessorId = capturedId;
@@ -491,12 +491,12 @@ public class ConfigurationTests {
         services.AddLogging();
         services.AddSingleton(KurrentClientOptions.Parse(TestConnectionString));
 
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
             opts.ProcessorId = "sp-resolved";
         });
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<NoOpProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
         await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
@@ -508,13 +508,13 @@ public class ConfigurationTests {
         services.AddLogging();
         services.AddSingleton(KurrentClientOptions.Parse("kurrentdb://other-host:2113"));
 
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
             opts.ProcessorId = "explicit-wins";
             opts.Connection(TestConnectionString);
         });
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<NoOpProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
     }
@@ -533,10 +533,10 @@ public class ConfigurationTests {
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
 
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => opts.ProcessorId = "by-id-processor");
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => opts.ProcessorId = "by-id-processor");
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<NoOpProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
     }
@@ -555,10 +555,10 @@ public class ConfigurationTests {
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
 
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => opts.ProcessorId = "unknown-processor");
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => opts.ProcessorId = "unknown-processor");
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<NoOpProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
     }
@@ -577,7 +577,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "ProcessorId": "config-processor",
                     "MaxParallelism": 8,
                     "BufferCapacity": 2000,
@@ -610,7 +610,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "processorId": "camel-processor",
                     "maxParallelism": 4,
                     "bufferCapacity": 1500,
@@ -646,7 +646,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "processor_id": "snake-processor",
                     "max_parallelism": 4,
                     "buffer_capacity": 1500
@@ -675,7 +675,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "ProcessorId": "config-processor",
                     "MaxParallelism": 8,
                     "BufferCapacity": 2000,
@@ -729,7 +729,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "ProcessorId": "test-processor",
                     "MaxParallelism": 1,
                     "Subscription": {
@@ -755,7 +755,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "BufferCapacity": 3000
                   }
                 }
@@ -770,7 +770,7 @@ public class ConfigurationTests {
         services.AddSingleton(configuration);
         services.AddSingleton(new TestSettings { ProcessorId = "sp-processor" });
         services.AddLogging();
-        services.AddKurrentProcessor(new NoOpProcessor(), (opts, sp) => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), (opts, sp) => {
             var testSettings = sp.GetRequiredService<TestSettings>();
             opts.ProcessorId    = testSettings.ProcessorId;
             opts.MaxParallelism = 1;
@@ -778,7 +778,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<DroneService<NoOpProcessor>>()
+            .OfType<DroneService<TestableRecordProcessor>>()
             .Single();
 
         var settings = hostedService.Drone.Options;
@@ -792,7 +792,7 @@ public class ConfigurationTests {
         var services = new ServiceCollection();
         // Intentionally NOT registering IConfiguration
         services.AddLogging();
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => {
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId    = "test-processor";
             opts.MaxParallelism = 1;
@@ -800,7 +800,7 @@ public class ConfigurationTests {
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<DroneService<NoOpProcessor>>()
+            .OfType<DroneService<TestableRecordProcessor>>()
             .Single();
 
         var settings = hostedService.Drone.Options;
@@ -815,7 +815,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "MaxParallelism": 4,
                     "BufferCapacity": 2000,
                     "Subscription": {
@@ -832,7 +832,7 @@ public class ConfigurationTests {
 
         var settings = ResolveProcessorOptions(configuration);
 
-        await Assert.That(settings.ProcessorId).IsEqualTo("no-op-processor");
+        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(4);
         await Assert.That(settings.BufferCapacity).IsEqualTo(2000);
     }
@@ -843,7 +843,7 @@ public class ConfigurationTests {
             {
               "Kurrent": {
                 "Processors": {
-                  "NoOpProcessor": {
+                  "TestableRecordProcessor": {
                     "ProcessorId": "my-custom-id",
                     "MaxParallelism": 4,
                     "Subscription": {
@@ -876,11 +876,11 @@ public class ConfigurationTests {
         var services = new ServiceCollection();
         services.AddSingleton(configuration);
         services.AddLogging();
-        services.AddKurrentProcessor(new NoOpProcessor(), opts => configure?.Invoke(opts));
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => configure?.Invoke(opts));
 
         var provider = services.BuildServiceProvider();
         var hostedService = provider.GetServices<IHostedService>()
-            .OfType<DroneService<NoOpProcessor>>()
+            .OfType<DroneService<TestableRecordProcessor>>()
             .Single();
 
         return hostedService.Drone.Options;
@@ -888,10 +888,4 @@ public class ConfigurationTests {
 
     #endregion
 
-    /// <summary>
-    /// A minimal processor implementation for testing configuration.
-    /// </summary>
-    sealed class NoOpProcessor : IRecordProcessor {
-        public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
-    }
 }
