@@ -24,10 +24,6 @@ The [Kurrent agent toolkit](https://github.com/kurrent-io/kurrent-toolkit) gives
 
 `Kurrent.Client` targets modern .NET. You will need the [.NET SDK 10.0 or later](https://dotnet.microsoft.com/download) installed. Follow the installation instructions for your operating system (Windows, macOS, or Linux) to complete the setup.
 
-## Install Kurrent Navigator
-
-Install [Kurrent Navigator](https://navigator.kurrent.io/), the desktop UI for KurrentDB. You will use it later to inspect streams and events.
-
 ## Create the solution
 
 Create a solution with two console projects: a **producer** that appends events and a **consumer** that reads them. Reference `Kurrent.Client` from both.
@@ -54,7 +50,7 @@ docker run --name kurrentdb -d \
     --insecure
 ```
 
-Open Navigator and connect it to `localhost:2113` to browse the node. For production deployments, see the [Configuration guide](./configuration.md) to set up TLS, authentication, and clustering.
+For production deployments, see the [Configuration guide](./configuration.md) to set up TLS, authentication, and clustering.
 
 ## Append events from the producer
 
@@ -129,6 +125,10 @@ Then re-run the consumer to see the stream grow:
 dotnet run --project Orders.Consumer
 ```
 
-Each producer run appends a new event at the next revision, and the consumer prints the full history every time. In Navigator, go to **Stream Browser / order-123** to inspect events as they accumulate.
+Each producer run appends a new event at the next revision, and the consumer prints the full history every time.
+
+::: tip Inspect streams visually
+Install [Kurrent Navigator](https://navigator.kurrent.io/), the desktop UI for KurrentDB, and connect it to `localhost:2113`. Open **Stream Browser / order-123** to watch events accumulate as you re-run the producer.
+:::
 
 </div>
