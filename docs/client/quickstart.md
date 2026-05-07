@@ -4,64 +4,58 @@ order: 1
 
 # Quickstart
 
-Configure your local development environment to get started developing with KurrentDB.
+This guide walks through adding `Kurrent.Client` to a .NET console app, connecting to a local KurrentDB node, and appending and reading your first events. It is the fastest path from zero to a running event stream.
 
-## Install .NET
+By the end of this guide, you will have:
 
-The .NET client requires .NET 10.0 or later. Install the latest version of .NET by following the [official .NET instructions](https://dotnet.microsoft.com/download).
+- A .NET solution with a **producer** project that appends events and a **consumer** project that reads them.
+- A local KurrentDB node running in Docker.
+- An interactive loop where the producer writes to a stream and the consumer reads it back.
 
-## Install the Kurrent.Client package
-
-
-<!-- 
-## Prerequisites
-
-- .NET 10.0 or later
-- A running KurrentDB instance (local or remote). For local development, the [KurrentDB Docker image](https://hub.docker.com/r/eventstore/eventstore) is the fastest path.
-- A connection string for the target node or cluster.
-
-## Installation
-
-Install the `Kurrent.Client` NuGet package:
-
-::: code-tabs#shell
-
-@tab dotnet CLI
-
-```bash
-dotnet add package Kurrent.Client
-```
-
-@tab Package Manager
-
-```powershell
-Install-Package Kurrent.Client
-```
-
+::: tip Building with AI coding agents?
+The [Kurrent agent toolkit](https://github.com/kurrent-io/kurrent-toolkit) gives AI coding agents the tools, knowledge, and guardrails to build on the Kurrent platform.
 :::
 
-## Connect to KurrentDB
+<div class="steps">
 
-Pass a connection string to `KurrentClient.Create`:
+## Install your language runtime
+
+`Kurrent.Client` targets modern .NET. You will need the [.NET SDK 10.0 or later](https://dotnet.microsoft.com/download) installed. Follow the installation instructions for your operating system (Windows, macOS, or Linux) to complete the setup.
+
+## Create the solution
+
+Create a solution with two console projects: a **producer** that appends events and a **consumer** that reads them. Reference `Kurrent.Client` from both.
+
+```bash
+dotnet new sln -n Orders
+dotnet new console -n Orders.Producer
+dotnet new console -n Orders.Consumer
+dotnet sln add Orders.Producer Orders.Consumer
+dotnet add Orders.Producer package Kurrent.Client
+dotnet add Orders.Consumer package Kurrent.Client
+```
+
+You now have an `Orders.sln` with `Orders.Producer/` and `Orders.Consumer/` next to it, both referencing `Kurrent.Client`.
+
+## Run KurrentDB locally
+
+Start a single-node KurrentDB instance with [Docker](https://docs.docker.com/get-docker/) and TLS disabled. This is the fastest setup for local development and matches the connection string used below. Any reachable KurrentDB instance works in place of this container.
+
+```bash
+docker run --name kurrentdb -d \
+    -p 2113:2113 \
+    docker.kurrent.io/kurrent-latest/kurrentdb:latest \
+    --insecure
+```
+
+The admin UI is available at [http://localhost:2113](http://localhost:2113). For production deployments, see the [Configuration guide](./configuration.md) to set up TLS, authentication, and clustering.
+
+## Append events from the producer
+
+Open `Orders.Producer/Program.cs` and replace its contents. The producer connects to KurrentDB, builds a record with `AppendRecord.New`, and appends it to the `order-123` stream:
 
 ```csharp
-using Kurrent.Client;
-
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
-```
-
-The example above targets a local development node with TLS disabled. For a production node, omit `?tls=false`. TLS is enabled by default.
-
-```csharp
-await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113");
-```
-
-## Append events
-
-Events in KurrentDB are organized into streams. Each stream is identified by a name, and events are appended in order. Build records with `AppendRecord.New` and append them via `client.Streams.AppendStream`:
-
-```csharp
-using Kurrent.Client.Streams;
 
 var record = AppendRecord.New
     .ForStream("order-123")
@@ -74,49 +68,61 @@ var record = AppendRecord.New
 
 var result = await client.Streams.AppendStream(record);
 
-Console.WriteLine($"Stream:   {result.Stream}");
-Console.WriteLine($"Revision: {result.Revision}");
-Console.WriteLine($"Position: {result.Position}");
+Console.WriteLine("Appended to {0} at revision {1}", result.Stream, result.Revision);
 ```
 
-`AppendStream` serializes the value as JSON by default and appends it to the stream named on the record. If the stream does not exist, it is created automatically.
+`KurrentClient.Create` parses the connection string and configures a gRPC channel. The client is thread-safe and intended to be reused for the lifetime of your application. `AppendStream` serializes the value as JSON by default and creates the stream automatically if it does not exist.
 
-### Appending multiple events
+::: tip
+For a production node, omit `?tls=false`. TLS is enabled by default, and the client will refuse to connect to a plaintext endpoint without it.
+:::
 
-Use `AppendStreamRequest.For(...)` to append several records to one stream atomically:
+Run the producer:
 
-```csharp
-var request = AppendStreamRequest.For("order-456")
-    .ExpectingState(ExpectedStreamState.Any)
-    .WithMessage(new { OrderId = "order-456", Product = "Gadget" })
-    .WithMessage(new { OrderId = "order-456", ConfirmedAt = DateTimeOffset.UtcNow })
-    .Build();
-
-var result = await client.Streams.AppendStream(request);
+```bash
+dotnet run --project Orders.Producer
 ```
 
-## Read events
+You should see something like `Appended to order-123 at revision 0`.
 
-Read all events from a stream:
+## Read events from the consumer
+
+Open `Orders.Consumer/Program.cs` and replace its contents. The consumer connects with the same connection string, reads every record from `order-123`, and prints each event:
 
 ```csharp
-var stream = client.Streams.ReadStreamRecords("order-123");
+await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 
-await foreach (var item in stream) {
-    item.Switch(
-        record    => Console.WriteLine($"Event: {record.TypeName} at revision {record.Revision}"),
-        heartbeat => { }
-    );
+var records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
+
+foreach (var record in records) {
+    Console.WriteLine("Event: {0} at revision {1}", record.TypeName, record.Revision);
 }
 ```
 
-Read the first or last event in a stream:
+`ReadStreamRecords` returns an `IAsyncEnumerable` that streams results lazily from the server, and `ToListAsync` materializes them into a `List<Record>`.
 
-```csharp
-var first = await client.Streams.ReadFirstStreamRecord("order-123");
-var last  = await client.Streams.ReadLastStreamRecord("order-123");
+Run the consumer:
+
+```bash
+dotnet run --project Orders.Consumer
 ```
 
-## Next steps
+You should see one event printed for the record the producer just appended.
 
-- [Configuration](./configuration.md): connection strings, programmatic options, dependency injection, and security -->
+## See it in action
+
+Re-run the producer to append another event:
+
+```bash
+dotnet run --project Orders.Producer
+```
+
+Then re-run the consumer to see the stream grow:
+
+```bash
+dotnet run --project Orders.Consumer
+```
+
+Each producer run appends a new event at the next revision, and the consumer prints the full history every time. Open the [admin UI](http://localhost:2113) and navigate to **Stream Browser → order-123** to inspect events as they accumulate.
+
+</div>
