@@ -2,13 +2,21 @@
 order: 1
 ---
 
-# Getting started
+# Quickstart
 
-Connect a .NET application to KurrentDB, append events to a stream, and read them back.
+Configure your local development environment to get started developing with KurrentDB.
 
+## Install .NET
+
+The .NET client requires .NET 10.0 or later. Install the latest version of .NET by following the [official .NET instructions](https://dotnet.microsoft.com/download).
+
+## Install the Kurrent.Client package
+
+
+<!-- 
 ## Prerequisites
 
-- .NET 8.0 or later
+- .NET 10.0 or later
 - A running KurrentDB instance (local or remote). For local development, the [KurrentDB Docker image](https://hub.docker.com/r/eventstore/eventstore) is the fastest path.
 - A connection string for the target node or cluster.
 
@@ -111,4 +119,4 @@ var last  = await client.Streams.ReadLastStreamRecord("order-123");
 
 ## Next steps
 
-- [Configuration](./configuration.md): connection strings, programmatic options, dependency injection, and security
+- [Configuration](./configuration.md): connection strings, programmatic options, dependency injection, and security -->

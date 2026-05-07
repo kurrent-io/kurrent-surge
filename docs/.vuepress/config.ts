@@ -34,12 +34,17 @@ export default defineUserConfig({
         docsDir: ".",
         toc: true,
         sidebar: {
-            "/api/": "structure",
+            "/client/": "structure",
+            "/processor/": "structure",
         },
         navbar: [
             {
-                text: "API",
-                link: "/api/quickstart",
+                text: "Client",
+                link: "/client/quickstart",
+            },
+            {
+                text: "Processor",
+                link: "/processor/getting-started",
             },
         ],
         markdown: {
