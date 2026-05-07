@@ -1,19 +1,12 @@
 ---
-order: 1
+order: 6
 ---
 
 # Schema Registry
 
-The schema registry is a centralized store for managing event schemas in KurrentDB. It lets you register schemas for your event types, enforce compatibility rules across versions, and retrieve schema definitions at runtime.
+Register, retrieve, list, and delete schemas through `client.Registry`. Each schema has a name, a definition, a serialization format, and one or more versions. Compatibility rules are enforced when new versions are registered (see [Schema compatibility](./schema-compatibility.md)).
 
-Access the registry through `client.Registry`:
-
-```csharp
-var client = new KurrentClient(options);
-var registry = client.Registry;
-```
-
-Registry operations return values directly and throw on failure. See [Error handling](../error-handling.md) for the exception catalogue and patterns.
+Registry operations return values directly and throw on failure. See [Error handling](./error-handling.md) for the exception catalogue and patterns.
 
 ## Creating a schema
 
@@ -171,7 +164,7 @@ Console.WriteLine($"Registered version {descriptor.VersionNumber}");
 |-----------|------------------|
 | `SchemaNotFoundException` | The schema does not exist. Use `CreateSchema` first. |
 | `SchemaDeletedException` | The schema was deleted. |
-| `SchemaIncompatibleException` | The new version violates the schema's compatibility mode. The exception's `Errors` property lists each incompatibility. See [Schema compatibility](./compatibility.md). |
+| `SchemaIncompatibleException` | The new version violates the schema's compatibility mode. The exception's `Errors` property lists each incompatibility. See [Schema compatibility](./schema-compatibility.md). |
 
 ## Listing schemas
 
@@ -240,7 +233,7 @@ The `SchemaDataFormat` enum specifies the serialization format for schema defini
 
 ## Compatibility modes
 
-`CompatibilityMode` controls how new schema versions must relate to previous ones. See [Schema compatibility](./compatibility.md) for the full reference and per-mode rules.
+`CompatibilityMode` controls how new schema versions must relate to previous ones. See [Schema compatibility](./schema-compatibility.md) for the full reference and per-mode rules.
 
 ## Model reference
 
@@ -335,7 +328,7 @@ catch (SchemaDeletedException ex) {
 
 `SchemaNotFoundException`, `SchemaAlreadyExistsException`, and `SchemaDeletedException` each expose a `Schema` property with the affected `SchemaName`. `SchemaIncompatibleException` exposes an `Errors` collection of `SchemaCompatibilityError` records.
 
-For general guidance (cancellation, gRPC errors, validation), see [Error handling](../error-handling.md).
+For general guidance (cancellation, gRPC errors, validation), see [Error handling](./error-handling.md).
 
 ## Complete workflow example
 
