@@ -57,7 +57,7 @@ For production deployments, see the [Configuration guide](./configuration.md) to
 Open `Orders.Producer/Program.cs` and replace its contents. The producer connects to KurrentDB, builds a record with `AppendRecord.New`, and appends it to the `order-123` stream:
 
 ```csharp
-await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
+await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
 var record = AppendRecord.New
     .ForStream("order-123")
@@ -92,7 +92,7 @@ You should see something like `Appended to order-123 at revision 0`.
 Open `Orders.Consumer/Program.cs` and replace its contents. The consumer connects with the same connection string, reads every record from `order-123`, and prints each event:
 
 ```csharp
-await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
+await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
 var records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
 
