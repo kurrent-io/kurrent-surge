@@ -4,6 +4,8 @@ order: 1
 
 # Quickstart
 
+<CopyMarkdownButton />
+
 This guide walks through adding `Kurrent.Client` to a .NET console app, connecting to a local KurrentDB node, and appending and reading your first events. It is the fastest path from zero to a running event stream.
 
 By the end of this guide, you will have:
