@@ -50,7 +50,7 @@ docker run --name kurrentdb -d \
     --insecure
 ```
 
-For production deployments, see the [Configuration guide](./configuration.md) to set up TLS, authentication, and clustering.
+For production deployments, see the [Client setup guide](./client-setup.md) to set up TLS, authentication, and clustering.
 
 ## Append events from the producer
 

@@ -172,7 +172,7 @@ await using var client = KurrentClient.Create(
     opts => opts.Schema.Mapper = mapper);
 ```
 
-You can also register a `MessageTypeMapper` in DI and have `AddKurrentClient` apply it automatically. See [Configuration › Service-provider overrides](./configuration.md#service-provider-overrides).
+You can also register a `MessageTypeMapper` in DI and have `AddKurrentClient` apply it automatically. See [Client setup › Service-provider overrides](./client-setup.md#service-provider-overrides).
 
 ### MessageTypeMapper.Builder API
 
