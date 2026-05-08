@@ -16,7 +16,6 @@ Build a record with the `AppendRecord.New` builder and pass it to `AppendStream`
 var record = AppendRecord.New
     .ForStream("order-123")
     .WithValue(new {
-        OrderId  = "order-123",
         Product  = "Widget",
         Quantity = 5
     })
@@ -39,9 +38,9 @@ The result is an `AppendStreamResponse` that exposes the target stream, the new 
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
-    .WithMessage(new { OrderId = "order-456", Product = "Gadget" })
-    .WithMessage(new { OrderId = "order-456", ConfirmedAt = DateTimeOffset.UtcNow })
-    .WithMessage(new { OrderId = "order-456", TrackingId  = "TRK-789" })
+    .WithMessage(new { Product = "Gadget", Quantity = 2 })
+    .WithMessage(new { ConfirmedAt = DateTimeOffset.UtcNow })
+    .WithMessage(new { TrackingId = "TRK-789" })
     .Build();
 
 var result = await client.Streams.AppendStream(request);
@@ -49,12 +48,17 @@ var result = await client.Streams.AppendStream(request);
 
 All records in the request are appended atomically. They all succeed or all fail together.
 
-You can also pass pre-built records:
+`WithMessage` is a shortcut for the payload-only case. Use `WithRecord` when you need to set the id, timestamp, or richer metadata on the record itself:
 
-```csharp
+```csharp{3,5-7}
 var request = AppendStreamRequest.For("order-456")
-    .WithRecord(AppendRecord.New.WithValue(new { OrderId = "order-456" }).Build())
-    .WithRecord(AppendRecord.New.WithValue(new { ConfirmedAt = DateTimeOffset.UtcNow }).Build())
+    .WithRecord(AppendRecord.New
+        .WithId(Guid.NewGuid())
+        .WithValue(new { Product = "Gadget" })
+        .WithMetadata("correlation-id", correlationId)
+        .WithMetadata("causation-id", causationId)
+        .WithTimestamp(DateTimeOffset.UtcNow)
+        .Build())
     .Build();
 ```
 
@@ -80,7 +84,7 @@ The append succeeds regardless of whether the stream exists or what revision it 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
     .ExpectingState(ExpectedStreamState.NoStream)
-    .WithMessage(new { OrderId = "order-123" })
+    .WithMessage(new { Product = "Widget", Quantity = 5 })
     .Build();
 ```
 
@@ -110,9 +114,8 @@ The append fails with `StreamRevisionConflictException` if the stream's current 
 
 A typical pattern is to read the stream first, then append with the last known revision:
 
-```csharp
-var last = await client.Streams.ReadStreamEdge(
-    "order-123", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
+```csharp{1,4}
+var last = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
 
 var request = AppendStreamRequest.For("order-123")
     .ExpectingState(last.Revision)
@@ -137,7 +140,7 @@ var result = await client.Streams.AppendStream(request);
 
 To append records to multiple streams in a single transaction, use `AppendRecords` with `AppendRecordsRequest.New()`:
 
-```csharp
+```csharp{5,6}
 var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
 
 await client.Streams.AppendRecords(
