@@ -4,6 +4,8 @@ order: 1
 
 # Getting started
 
+<CopyMarkdownButton />
+
 Kurrent.Processors is an event processing framework for the Kurrent Platform. It provides a structured runtime for consuming records from KurrentDB with automatic checkpointing and lifecycle management. You implement a processor that handles records, and the framework takes care of connecting, subscribing, checkpointing, and graceful shutdown.
 
 ## Installation
@@ -116,9 +118,6 @@ All lifecycle contexts inherit from `DroneContext`, which adds `ProcessorId`, `D
 ## Creating a processor by implementing IRecordProcessor
 
 ```csharp
-using Kurrent.Client.Streams;
-using Kurrent.Processors;
-
 public class OrderProcessor : IRecordProcessor {
     public async ValueTask ProcessRecord(ProcessRecordContext context) {
         context.Logger.LogInformation(
@@ -170,10 +169,6 @@ public class OrderProcessor : IRecordProcessor {
 `MessageProcessor` registers strongly-typed handlers inline without a dedicated class. `KurrentProcessor.Create(Action<MessageProcessor>, ...)` builds a `MessageProcessor` for you:
 
 ```csharp
-using Kurrent.Client.Streams;
-using Kurrent.Processors;
-using Kurrent.Processors.Models;
-
 await KurrentProcessor.Create(handlers => handlers
         .Process<OrderPlaced>(async (msg, ctx) => {
             await HandleOrderPlacedAsync(msg, ctx.CancellationToken);
@@ -261,8 +256,6 @@ opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced
 Control where processing starts when no checkpoint exists:
 
 ```csharp
-using Kurrent.Processors.Models;
-
 // Default: start from the latest record (live tail)
 opts.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
 
@@ -331,10 +324,6 @@ await KurrentProcessor.Create(new OrderProcessor(), opts => {
 For ASP.NET Core and hosted-service scenarios, register processors with `AddKurrentProcessor<T>`. Each registration becomes its own hosted service. The configure callback receives a `ProcessorOptions` (and optionally an `IServiceProvider`) to set up the connection and behavior:
 
 ```csharp
-using Kurrent.Client;
-using Kurrent.Client.Streams;
-using Kurrent.Processors;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Register the processor in DI so the hosted service can resolve it.
@@ -399,10 +388,6 @@ Settings under `Kurrent:Processors:{TypeName}` in `IConfiguration` are bound ont
 ## Complete example
 
 ```csharp
-using Kurrent.Client.Streams;
-using Kurrent.Processors;
-using Kurrent.Processors.Models;
-
 public class OrderProcessor : IRecordProcessor {
     public ValueTask ProcessRecord(ProcessRecordContext context) {
         context.Logger.LogInformation(

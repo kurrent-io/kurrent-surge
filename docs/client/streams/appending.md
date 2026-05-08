@@ -2,17 +2,17 @@
 order: 1
 ---
 
-# Appending events
+# Appending records
 
-Events are the fundamental unit of data in KurrentDB. You append events to named streams, and each stream maintains an ordered sequence of events identified by a revision number.
+<CopyMarkdownButton />
 
-## Append a single event
+Records are the fundamental unit of data in KurrentDB. You append records to named streams, and each stream maintains an ordered sequence of records identified by a revision number.
+
+## Append a single record
 
 Build a record with the `AppendRecord.New` builder and pass it to `AppendStream`:
 
 ```csharp
-using Kurrent.Client.Streams;
-
 var record = AppendRecord.New
     .ForStream("order-123")
     .WithValue(new {
@@ -24,16 +24,16 @@ var record = AppendRecord.New
 
 var result = await client.Streams.AppendStream(record);
 
-Console.WriteLine($"Stream:   {result.Stream}");
-Console.WriteLine($"Revision: {result.Revision}");
-Console.WriteLine($"Position: {result.Position}");
+Console.WriteLine("Stream:   {0}", result.Stream);
+Console.WriteLine("Revision: {0}", result.Revision);
+Console.WriteLine("Position: {0}", result.Position);
 ```
 
 `AppendStream` serializes the value as JSON by default. If the stream does not exist, it is created automatically.
 
 The result is an `AppendStreamResponse` that exposes the target stream, the new stream revision, and the log position of the last appended record.
 
-## Append multiple events
+## Append multiple records
 
 `AppendStreamRequest.For(stream)` builds a multi-record request. Records added to the request inherit the target stream automatically:
 
@@ -62,7 +62,9 @@ var request = AppendStreamRequest.For("order-456")
 
 `ExpectedStreamState` controls optimistic concurrency. It tells the server what state the stream should be in before the append is accepted.
 
-### Any state (no concurrency check)
+::: tabs#expected-state
+
+@tab Any state
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
@@ -71,9 +73,9 @@ var request = AppendStreamRequest.For("order-123")
     .Build();
 ```
 
-The append succeeds regardless of whether the stream exists or what revision it is at. The convenience overloads `AppendStream(record)` and `AppendStream(stream, records)` behave the same way.
+The append succeeds regardless of whether the stream exists or what revision it is at. Calls that omit `ExpectingState` default to this.
 
-### Stream must not exist
+@tab Stream must not exist
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
@@ -82,9 +84,9 @@ var request = AppendStreamRequest.For("order-123")
     .Build();
 ```
 
-The append fails with `StreamAlreadyExistsException` if the stream already has events. Use this for creation events where you need to guarantee uniqueness.
+The append fails with `StreamAlreadyExistsException` if the stream already has records. Use this for creation records where you need to guarantee uniqueness.
 
-### Stream must exist
+@tab Stream must exist
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
@@ -95,7 +97,7 @@ var request = AppendStreamRequest.For("order-123")
 
 The append fails with `StreamNotFoundException` if the stream does not exist.
 
-### Exact revision match
+@tab Match revision
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
@@ -121,7 +123,7 @@ var result = await client.Streams.AppendStream(request);
 
 `Revision` implicitly converts into `ExpectedStreamState`, so passing `last.Revision` directly works.
 
-### Summary
+:::
 
 | Value                            | Behavior                              |
 |----------------------------------|---------------------------------------|
@@ -130,61 +132,7 @@ var result = await client.Streams.AppendStream(request);
 | `ExpectedStreamState.Exists`     | Stream must exist                     |
 | `Revision.From(n)`               | Stream revision must match exactly    |
 
-## Convenience overloads
-
-`client.Streams.AppendStream` provides several overloads. Use the form that matches your call site.
-
-### Single pre-built record
-
-The destination stream is taken from the record itself.
-
-```csharp
-await client.Streams.AppendStream(record);
-```
-
-### Single record with a concurrency check
-
-```csharp
-await client.Streams.AppendStream(record, ExpectedStreamState.NoStream);
-```
-
-### Multiple records to one stream
-
-```csharp
-await client.Streams.AppendStream("order-123", records);
-```
-
-### Multiple records with a concurrency check
-
-```csharp
-await client.Streams.AppendStream("order-123", ExpectedStreamState.Any, records);
-```
-
-### Full request
-
-The most explicit form. Use this when you need to set every option (concurrency, metadata, builder records).
-
-```csharp
-await client.Streams.AppendStream(request);
-```
-
-## Record builder options
-
-`AppendRecord.New` returns a builder with the following methods:
-
-| Method                              | Description                                                            |
-|-------------------------------------|------------------------------------------------------------------------|
-| `ForStream(StreamName)`             | Set the destination stream                                             |
-| `WithId(Guid)`                      | Set a specific record id (auto-generated if omitted)                   |
-| `WithValue(object)`                 | Set the payload                                                        |
-| `WithDataFormat(SchemaDataFormat)`  | Override serialization format (`Json`, `Protobuf`, `Bytes`)            |
-| `WithMetadata(Metadata)`            | Replace metadata wholesale                                             |
-| `WithMetadata<T>(string, T)`        | Add or update a single metadata entry                                  |
-| `WithTimestamp(DateTimeOffset)`     | Override the record timestamp                                          |
-
-`Build()` validates the record and throws `ValidationException` if the value or stream is missing.
-
-## Multi-stream appends
+## Append across multiple streams
 
 To append records to multiple streams in a single transaction, use `AppendRecords` with `AppendRecordsRequest.New()`:
 
@@ -205,7 +153,9 @@ Each record carries its own stream. `ConsistencyCheck` factories (`StreamAtRevis
 
 Payloads are serialized as JSON by default. Override the format per record with `WithDataFormat`.
 
-### JSON
+::: tabs#data-formats
+
+@tab JSON
 
 JSON is the default. No explicit format call is required.
 
@@ -216,7 +166,7 @@ var jsonRecord = AppendRecord.New
     .Build();
 ```
 
-### Raw bytes
+@tab Bytes
 
 Use `SchemaDataFormat.Bytes` when the value is already serialized.
 
@@ -228,7 +178,7 @@ var bytesRecord = AppendRecord.New
     .Build();
 ```
 
-### Protocol Buffers
+@tab Protobuf
 
 Use `SchemaDataFormat.Protobuf` for messages generated from `.proto` definitions.
 
@@ -240,33 +190,77 @@ var protoRecord = AppendRecord.New
     .Build();
 ```
 
+@tab Avro
+
+Use `SchemaDataFormat.Avro` for Avro-encoded payloads.
+
+```csharp
+var avroRecord = AppendRecord.New
+    .ForStream("orders")
+    .WithValue(avroPayload)
+    .WithDataFormat(SchemaDataFormat.Avro)
+    .Build();
+```
+
+:::
+
 ## Error handling
 
-`AppendStream` throws on failure. The exceptions are well-typed and let you pattern-match by catching specific types:
+`AppendStream` throws when the server rejects the append. The exception type tells you why. See [Error handling](../error-handling.md) for the throwing model, validation, and cancellation.
+
+A failed concurrency check raises a typed exception that carries the stream and, where relevant, both the expected and actual revision:
 
 ```csharp
 try {
-    await client.Streams.AppendStream(record, ExpectedStreamState.NoStream);
-}
-catch (StreamAlreadyExistsException) {
-    // Stream already has events
+    await client.Streams.AppendStream(record, Revision.From(4));
 }
 catch (StreamRevisionConflictException ex) {
-    // Expected revision did not match the stream's current state
-    Console.WriteLine($"Expected {ex.ExpectedRevision}, was {ex.ActualRevision}");
-}
-catch (StreamTombstonedException) {
-    // Stream was permanently deleted
+    Console.WriteLine("Expected {0}, was {1}", ex.ExpectedRevision, ex.ActualRevision);
 }
 ```
 
-### Common exceptions
+Append-specific exceptions:
 
-| Exception                                  | Cause                                                       |
-|--------------------------------------------|-------------------------------------------------------------|
-| `StreamNotFoundException`                  | Stream does not exist (when `Exists` was expected)          |
-| `StreamAlreadyExistsException`             | Stream exists (when `NoStream` was expected)                |
-| `StreamTombstonedException`                | Stream was permanently deleted                              |
-| `StreamRevisionConflictException`          | Current revision does not match expected                    |
-| `MaxAppendRecordSizeExceededException`     | Single record exceeds server size limit                     |
-| `MaxAppendTransactionSizeExceededException`| Total transaction exceeds server size limit                 |
+| Exception                                  | Cause                                                  |
+|--------------------------------------------|--------------------------------------------------------|
+| `StreamNotFoundException`                  | `Exists` was expected, stream does not exist           |
+| `StreamAlreadyExistsException`             | `NoStream` was expected, stream already has records    |
+| `StreamDeletedException`                   | Stream was soft-deleted                                |
+| `StreamTombstonedException`                | Stream was permanently deleted                         |
+| `StreamRevisionConflictException`          | Exact revision was expected, current revision differs  |
+| `MaxAppendRecordSizeExceededException`     | A single record exceeds the server size limit          |
+| `MaxAppendTransactionSizeExceededException`| The transaction exceeds the server size limit          |
+
+### `AppendRecords` failures
+
+`AppendStream` collapses a failed consistency check into one of the typed exceptions above. `AppendRecords` does not, because a single request can contain checks against several streams. When any check fails, it throws `AppendConsistencyViolationException` carrying every violation:
+
+```csharp
+try {
+    await client.Streams.AppendRecords(request);
+}
+catch (AppendConsistencyViolationException ex) {
+    foreach (var violation in ex.Violations) {
+        var state = violation.AsStreamStateViolation;
+        Console.WriteLine(
+            "Stream {0} expected {1}, was {2}",
+            state.Stream, state.ExpectedState, state.ActualState);
+    }
+}
+```
+
+## Record builder options
+
+`AppendRecord.New` returns a builder with the following methods:
+
+| Method                              | Description                                                            |
+|-------------------------------------|------------------------------------------------------------------------|
+| `ForStream(StreamName)`             | Set the destination stream                                             |
+| `WithId(Guid)`                      | Set a specific record id (auto-generated if omitted)                   |
+| `WithValue(object)`                 | Set the payload                                                        |
+| `WithDataFormat(SchemaDataFormat)`  | Override serialization format (`Json`, `Protobuf`, `Avro`, `Bytes`)    |
+| `WithMetadata(Metadata)`            | Replace metadata wholesale                                             |
+| `WithMetadata<T>(string, T)`        | Add or update a single metadata entry                                  |
+| `WithTimestamp(DateTimeOffset)`     | Override the record timestamp                                          |
+
+`Build()` validates the record and throws `ValidationException` if the value is missing. The destination stream is enforced when the record is added to a request, not on the record itself, so a record built without `ForStream` is valid as long as the request supplies one.

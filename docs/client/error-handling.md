@@ -4,6 +4,8 @@ order: 10
 
 # Error handling
 
+<CopyMarkdownButton />
+
 `Kurrent.Client` reports failures as exceptions. Operations throw well-typed exception classes you can catch by type. There is no Result wrapper or special error type.
 
 ## Throwing model
@@ -33,7 +35,7 @@ These are the most frequently caught exceptions. All live under `Kurrent.Client.
 | Exception                                    | When it is thrown                                                                |
 |----------------------------------------------|----------------------------------------------------------------------------------|
 | `StreamNotFoundException`                    | Reading a stream that does not exist, or appending with `Exists` when it does not. |
-| `StreamAlreadyExistsException`               | Appending with `NoStream` when the stream already has events.                    |
+| `StreamAlreadyExistsException`               | Appending with `NoStream` when the stream already has records.                   |
 | `StreamDeletedException`                     | Reading a stream that was soft-deleted.                                          |
 | `StreamTombstonedException`                  | Reading or writing a stream that was permanently deleted.                        |
 | `StreamRevisionConflictException`            | Appending with an exact revision that does not match the current state.          |

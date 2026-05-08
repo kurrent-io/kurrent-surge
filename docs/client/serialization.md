@@ -4,13 +4,15 @@ order: 9
 
 # Serialization
 
-Kurrent.Client handles serialization and deserialization of event data automatically. By default, payloads are serialized as JSON using `System.Text.Json`. The client also supports Protocol Buffers and raw byte passthrough, and provides a type mapping system that links your domain types to schema names stored in KurrentDB.
+<CopyMarkdownButton />
+
+Kurrent.Client handles serialization and deserialization of record data automatically. By default, payloads are serialized as JSON using `System.Text.Json`. The client also supports Protocol Buffers and raw byte passthrough, and provides a type mapping system that links your domain types to schema names stored in KurrentDB.
 
 ## How it works
 
 When you append a record, the client:
 
-1. Resolves the .NET type to a **schema name** (the event type name stored in KurrentDB).
+1. Resolves the .NET type to a **schema name** stored in KurrentDB.
 2. Serializes the payload using the serializer for the record's **data format**.
 3. Stores the serialized bytes along with the schema name and format metadata.
 
@@ -84,7 +86,7 @@ When a message implements `Google.Protobuf.IMessage` and `UseProtobufFormatter` 
 
 ## Protobuf serialization
 
-To serialize events as Protocol Buffers binary format, your message types must implement `Google.Protobuf.IMessage` (generated from `.proto` files).
+To serialize records as Protocol Buffers binary format, your message types must implement `Google.Protobuf.IMessage` (generated from `.proto` files).
 
 ```csharp
 // Assuming OrderPlaced is a generated Protobuf message type
@@ -121,11 +123,11 @@ Records stored with `SchemaDataFormat.Bytes` are not automatically decoded when 
 
 ## Message type mapping
 
-The `MessageTypeMapper` maintains a bidirectional mapping between schema names (event type names stored in KurrentDB) and .NET types. This mapping is what allows the client to deserialize records back into strongly-typed objects.
+The `MessageTypeMapper` maintains a bidirectional mapping between schema names stored in KurrentDB and .NET types. This mapping is what allows the client to deserialize records back into strongly-typed objects.
 
 ### Auto-mapping
 
-By default, the client automatically maps types to schema names the first time they are encountered during serialization. The schema name is derived from the .NET type using a naming strategy. This means you can append and read events without any upfront registration:
+By default, the client automatically maps types to schema names the first time they are encountered during serialization. The schema name is derived from the .NET type using a naming strategy. This means you can append and read records without any upfront registration:
 
 ```csharp
 // The client auto-maps OrderPlaced to its schema name on first use.
@@ -252,9 +254,9 @@ opts.Schema.Mapper.Map<OrderPlaced>();
 // Schema name: "acme.order-placed"
 ```
 
-## Reading and deserializing events
+## Reading and deserializing records
 
-When reading events from a stream, each `Record` carries both the raw bytes and the deserialized value:
+When reading records from a stream, each `Record` carries both the raw bytes and the deserialized value:
 
 | Property | Type | Description |
 |----------|------|-------------|

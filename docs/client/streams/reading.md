@@ -2,17 +2,17 @@
 order: 2
 ---
 
-# Reading events
+# Reading records
 
-Events can be read from individual streams or from the global log (`$all`). All read operations return async enumerables that stream results lazily from the server.
+<CopyMarkdownButton />
+
+Records can be read from individual streams or from the global log (`$all`). All read operations return async enumerables that stream results lazily from the server.
 
 ## Read from a stream
 
-Read all events from a named stream:
+Read all records from a named stream:
 
 ```csharp
-using Kurrent.Client.Streams;
-
 var stream = client.Streams.ReadStreamRecords("order-123");
 
 await foreach (var item in stream) {
@@ -31,7 +31,7 @@ await foreach (var item in stream) {
 var stream = client.Streams.ReadStreamRecords("order-123", Revision.From(5));
 ```
 
-This reads events starting at stream revision 5 (inclusive).
+This reads records starting at stream revision 5 (inclusive).
 
 ### First and last record
 
@@ -39,13 +39,13 @@ This reads events starting at stream revision 5 (inclusive).
 var first = await client.Streams.ReadFirstStreamRecord("order-123");
 var last  = await client.Streams.ReadLastStreamRecord("order-123");
 
-Console.WriteLine($"First event: {first.TypeName}");
-Console.WriteLine($"Last event:  {last.TypeName} at revision {last.Revision}");
+Console.WriteLine($"First record: {first.TypeName}");
+Console.WriteLine($"Last record:  {last.TypeName} at revision {last.Revision}");
 ```
 
 ## Read from the global log
 
-The global log (`$all`) contains every event across all streams in commit order:
+The global log (`$all`) contains every record across all streams in commit order:
 
 ```csharp
 var stream = client.Streams.ReadRecords(LogPosition.Earliest);
@@ -70,7 +70,9 @@ await foreach (var item in stream) {
 
 For full control over read behavior, build a request with `ReadStreamRequest.New` (per-stream) or `ReadRecordsRequest.New` (global log) and pass it to `ReadStream`/`ReadRecords`.
 
-### Stream reads
+::: tabs#read-builder
+
+@tab Stream reads
 
 ```csharp
 var request = ReadStreamRequest.New
@@ -83,22 +85,7 @@ var request = ReadStreamRequest.New
 var stream = client.Streams.ReadStream(request);
 ```
 
-#### Builder methods
-
-| Method                              | Description                                      |
-|-------------------------------------|--------------------------------------------------|
-| `ForStream(StreamName)`             | Set the stream to read from                      |
-| `FromStart()`                       | Start at the first revision, read forwards       |
-| `FromEnd()`                         | Start at the last revision, read backwards       |
-| `FromRevision(Revision)`            | Start at a specific revision                     |
-| `Forward()`                         | Read in ascending order                          |
-| `Backwards()`                       | Read in descending order                         |
-| `WithMaxRecords(long)`              | Limit the number of records returned             |
-| `WithFilter(IRecordFilter)`         | Apply a filter (matched client-side)             |
-| `WithFilterExpression(string)`      | Apply a SQL-like filter expression               |
-| `SkipDecoding()`                    | Skip payload deserialization for metadata-only reads |
-
-### Global log reads
+@tab Global log reads
 
 ```csharp
 var request = ReadRecordsRequest.New
@@ -111,14 +98,30 @@ var request = ReadRecordsRequest.New
 var stream = client.Streams.ReadRecords(request);
 ```
 
-`ReadRecordsRequest` exposes the same `Forward()`, `Backwards()`, `WithMaxRecords`, `WithFilter`, `WithFilterExpression`, and `SkipDecoding` methods as `ReadStreamRequest`. Set the start with `FromPosition(LogPosition)`.
+:::
+
+## Builder methods
+
+| Method                         | Applies to     | Description                                          |
+|--------------------------------|----------------|------------------------------------------------------|
+| `ForStream(StreamName)`        | Stream         | Set the stream to read from                          |
+| `FromStart()`                  | Stream         | Start at the first revision, read forwards           |
+| `FromEnd()`                    | Stream         | Start at the last revision, read backwards           |
+| `FromRevision(Revision)`       | Stream         | Start at a specific revision                         |
+| `FromPosition(LogPosition)`    | Global log     | Start at a specific log position                     |
+| `Forward()`                    | Both           | Read in ascending order                              |
+| `Backwards()`                  | Both           | Read in descending order                             |
+| `WithMaxRecords(long)`         | Both           | Limit the number of records returned                 |
+| `WithFilter(IRecordFilter)`    | Both           | Apply a filter (matched client-side)                 |
+| `WithFilterExpression(string)` | Both           | Apply a SQL-like filter expression                   |
+| `SkipDecoding()`               | Both           | Skip payload deserialization for metadata-only reads |
 
 ## Reading direction
 
 Read forwards (oldest first) or backwards (newest first):
 
 ```csharp
-// Last 10 events in a stream
+// Last 10 records in a stream
 var request = ReadStreamRequest.New
     .ForStream("order-123")
     .FromEnd()
@@ -131,9 +134,11 @@ var stream = client.Streams.ReadStream(request);
 
 ## Filtering
 
-Filters reduce the set of records returned from a read.
+Filters reduce the set of records returned from a read. They work with both stream reads and global log reads.
 
-### By stream name
+::: tabs#filter-types
+
+@tab By stream name
 
 ```csharp
 // Exact match (single stream)
@@ -146,28 +151,29 @@ RecordFilter.ByCategory("order")
 RecordFilter.ByStreamPattern(@"^order-\d+$")
 ```
 
-### By event type (schema)
+@tab By record type
 
 ```csharp
-// Exact match
-RecordFilter.BySchema("OrderPlaced", "OrderConfirmed")
-
-// Prefix match
-RecordFilter.BySchemaPrefix("Order")
-
-// Regex pattern
-RecordFilter.BySchemaPattern(@"Order(Placed|Confirmed)")
+// Exact match (single schema)
+RecordFilter.BySchema("OrderPlaced")
 ```
 
-### SQL-like expressions
+For multiple schemas or pattern matches, use a SQL-like expression:
+
+```csharp
+RecordFilter.ByExpression("schema_name IN ('OrderPlaced', 'OrderConfirmed')")
+RecordFilter.ByExpression("schema_name LIKE 'Order%'")
+```
+
+@tab SQL-like expressions
 
 ```csharp
 RecordFilter.ByExpression("stream = 'order-123' AND schema_name = 'OrderPlaced'")
 ```
 
-### Applying filters
+:::
 
-Filters work with both stream reads and global log reads:
+Apply a filter with `WithFilter` or pass an expression directly with `WithFilterExpression`:
 
 ```csharp
 var request = ReadRecordsRequest.New
@@ -175,13 +181,7 @@ var request = ReadRecordsRequest.New
     .WithFilter(RecordFilter.ByCategory("order"))
     .Build();
 
-var stream = client.Streams.ReadRecords(request);
-```
-
-Or with a SQL-like expression:
-
-```csharp
-var request = ReadRecordsRequest.New
+var withExpression = ReadRecordsRequest.New
     .FromPosition(LogPosition.Earliest)
     .WithFilterExpression("stream like 'order-%'")
     .Build();
@@ -209,7 +209,7 @@ Console.WriteLine($"Decoded value: {record.Value}");
 
 ## Working with records
 
-The `Record` type contains the full event data:
+The `Record` type contains the full record data:
 
 | Property         | Type                  | Description                                                      |
 |------------------|-----------------------|------------------------------------------------------------------|
@@ -218,14 +218,14 @@ The `Record` type contains the full event data:
 | `Stream`         | `StreamName`          | Source stream name. Equivalent to `Position.Stream`.             |
 | `Revision`       | `Revision`            | Position within the stream. Equivalent to `Position.Revision`.   |
 | `Position`       | `RecordPosition`      | Full position (log position + stream + partition)                |
-| `Timestamp`      | `DateTime`            | When the event was written                                       |
-| `Data`           | `ReadOnlyMemory<byte>`| Raw event payload                                                |
+| `Timestamp`      | `DateTime`            | When the record was written                                      |
+| `Data`           | `ReadOnlyMemory<byte>`| Raw record payload                                               |
 | `Value`          | `object?`             | Deserialized payload (if decoded)                                |
 | `ValueType`      | `Type`                | CLR type of the deserialized value                               |
-| `Metadata`       | `Metadata`            | Event metadata                                                   |
+| `Metadata`       | `Metadata`            | Record metadata                                                  |
 | `Schema`         | `RecordSchemaInfo`    | Schema name and format                                           |
 | `Category`       | `string`              | Category portion of the stream name                              |
-| `IsRedacted`     | `bool`                | Whether the event data was redacted                              |
+| `IsRedacted`     | `bool`                | Whether the record data was redacted                             |
 | `IsDecoded`      | `bool`                | Whether `Value` has been deserialized                            |
 
 Use `record.As<T>()` to cast the decoded value to a specific type with no boxing for reference types.
@@ -237,7 +237,7 @@ Read results interleave records with heartbeats. Heartbeats are server signals i
 ```csharp
 await foreach (var item in stream) {
     item.Switch(
-        record    => ProcessEvent(record),
+        record    => ProcessRecord(record),
         heartbeat => {
             if (heartbeat.IsCaughtUp)
                 Console.WriteLine("Caught up to end of stream");

@@ -4,12 +4,11 @@ order: 5
 
 # Metadata
 
+<CopyMarkdownButton />
+
 Every record carries a `Metadata` instance. The SDK populates a small set of system keys (schema name, schema id, format), and you can attach your own keys when appending. This page covers reading, writing, and converting metadata.
 
 ```csharp
-using Kurrent.Client;
-using Kurrent.Client.Streams;
-
 var record = await client.Streams.ReadFirstStreamRecord("order-123");
 
 if (record.Metadata.TryGetValue<string>("tenant", out var tenant))
@@ -107,7 +106,7 @@ Three system keys describe the record's schema. Convenience extensions read them
 | `metadata.GetSchemaId()` | `SchemaVersionId` (or `Unset`). |
 | `metadata.ExtractSchemaInfo()` | Returns a `RecordSchemaInfo` and removes the three keys from the metadata in place. |
 
-`AddSchemaNameIfMissing` and `AddSchemaFormatIfMissing` set the value only if no schema info is already present. This is useful when forwarding events between contexts where the inner code may already have stamped a schema.
+`AddSchemaNameIfMissing` and `AddSchemaFormatIfMissing` set the value only if no schema info is already present. This is useful when forwarding records between contexts where the inner code may already have stamped a schema.
 
 ```csharp
 metadata.AddSchemaNameIfMissing("OrderPlaced");

@@ -2,13 +2,13 @@
 order: 2
 ---
 
-# Inspecting connectors
+# Querying connectors
+
+<CopyMarkdownButton />
 
 Inspection covers listing connectors, reading their configuration, and watching their state. The query API is paginated and filterable.
 
 ```csharp
-using Kurrent.Client.Connectors;
-
 var page = await client.Connectors.List();
 
 foreach (var connector in page.Items)

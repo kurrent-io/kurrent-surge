@@ -4,15 +4,15 @@ order: 3
 
 # Managing streams
 
-Stream management operations cover inspecting a stream's state, deleting and tombstoning streams, truncating earlier events, configuring data retention, and attaching custom metadata.
+<CopyMarkdownButton />
+
+Stream management operations cover inspecting a stream's state, deleting and tombstoning streams, truncating earlier records, configuring data retention, and attaching custom metadata.
 
 ## Get stream info
 
 Retrieve metadata and state for a stream:
 
 ```csharp
-using Kurrent.Client.Streams;
-
 var info = await client.Streams.GetStreamInfo("order-123");
 
 Console.WriteLine($"State:      {info.State}");
@@ -43,7 +43,7 @@ Console.WriteLine($"Last write: {info.LastStreamAppendedAt}");
 | State        | Description                                                |
 |--------------|------------------------------------------------------------|
 | `Active`     | Stream exists and can be read or written.                  |
-| `Deleted`    | Soft-deleted. Can be recreated by appending new events.    |
+| `Deleted`    | Soft-deleted. Can be recreated by appending new records.   |
 | `Tombstoned` | Permanently deleted. Cannot be recreated.                  |
 | `Missing`    | Stream has never existed.                                  |
 
@@ -60,7 +60,7 @@ Console.WriteLine($"Deleted at position: {position}");
 After a soft delete:
 
 - The stream no longer appears in reads.
-- Appending new events to the same stream name **recreates** it.
+- Appending new records to the same stream name **recreates** it.
 - The new stream starts at the next revision. The previous history is no longer visible.
 
 ### With a revision check
@@ -99,23 +99,23 @@ Tombstoning is irreversible. The stream name can never be reused. Use a soft del
 
 ## Truncate a stream
 
-Truncation hides events before a specified revision. Events at or after the truncation point remain readable.
+Truncation hides records before a specified revision. Records at or after the truncation point remain readable.
 
 ```csharp
 await client.Streams.Truncate("order-123", Revision.From(50));
 ```
 
-This hides all events with revisions 0 through 49. Events at revision 50 and above remain readable.
+This hides all records with revisions 0 through 49. Records at revision 50 and above remain readable.
 
 Truncation is useful for:
 
 - Enforcing data retention policies.
-- Removing processed events that are no longer needed.
+- Removing processed records that are no longer needed.
 - Reducing storage for high-volume streams.
 
 ## Configure data retention
 
-`ConfigureDataRetention` sets `MaxCount` and `MaxAge` on a stream. Events that fall outside these limits are removed during scavenging.
+`ConfigureDataRetention` sets `MaxCount` and `MaxAge` on a stream. Records that fall outside these limits are removed during scavenging.
 
 ### By max count
 
@@ -155,9 +155,9 @@ await client.Streams.ConfigureDataRetention(
 
 | Property         | Type        | Description                                                          |
 |------------------|-------------|----------------------------------------------------------------------|
-| `MaxAge`         | `TimeSpan?` | Maximum age of events. Older events are scavenged.                   |
-| `MaxCount`       | `int?`      | Maximum number of events retained in the stream.                     |
-| `TruncateBefore` | `Revision`  | Events before this revision are hidden. Set by `Truncate`.           |
+| `MaxAge`         | `TimeSpan?` | Maximum age of records. Older records are scavenged.                 |
+| `MaxCount`       | `int?`      | Maximum number of records retained in the stream.                    |
+| `TruncateBefore` | `Revision`  | Records before this revision are hidden. Set by `Truncate`.          |
 
 ## Set custom metadata
 

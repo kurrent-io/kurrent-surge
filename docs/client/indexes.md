@@ -5,13 +5,13 @@ title: Indexes
 
 # Indexes
 
+<CopyMarkdownButton />
+
 Secondary indexes let you query records by a payload field instead of by stream name. The server materializes a separate index stream from a filter expression and a list of indexed fields. Queries against the index return matching records via the standard read APIs.
 
 Access the module through `client.Indexes`:
 
 ```csharp
-using Kurrent.Client.Indexes;
-
 var indexes = client.Indexes;
 ```
 
@@ -101,8 +101,6 @@ Both return the same `Index` shape:
 A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it:
 
 ```csharp
-using Kurrent.Client.Streams;
-
 var request = ReadRecordsRequest.New
     .FromPosition(LogPosition.Earliest)
     .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))

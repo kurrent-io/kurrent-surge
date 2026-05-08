@@ -4,11 +4,11 @@ order: 1
 
 # Managing connectors
 
-Connectors stream events from KurrentDB into external systems. The `client.Connectors` module covers the connector lifecycle: create, reconfigure, start, stop, reset, rename, and delete.
+<CopyMarkdownButton />
+
+Connectors stream records from KurrentDB into external systems. The `client.Connectors` module covers the connector lifecycle: create, reconfigure, start, stop, reset, rename, and delete.
 
 ```csharp
-using Kurrent.Client.Connectors;
-
 var connectorId = ConnectorId.From("orders-to-kafka");
 ```
 
@@ -49,8 +49,6 @@ Null values are stored as empty strings.
 For nested settings, use a `Google.Protobuf.WellKnownTypes.Struct`:
 
 ```csharp
-using Google.Protobuf.WellKnownTypes;
-
 var configuration = new Struct {
     Fields = {
         ["instanceTypeName"] = Value.ForString("kafka-sink"),

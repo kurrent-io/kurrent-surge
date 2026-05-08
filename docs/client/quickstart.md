@@ -6,11 +6,11 @@ order: 1
 
 <CopyMarkdownButton />
 
-This guide walks through adding `Kurrent.Client` to a .NET console app, connecting to a local KurrentDB node, and appending and reading your first events. It is the fastest path from zero to a running event stream.
+This guide walks through adding `Kurrent.Client` to a .NET console app, connecting to a local KurrentDB node, and appending and reading your first records. It is the fastest path from zero to a running stream.
 
 By the end of this guide, you will have:
 
-- A .NET solution with a **producer** project that appends events and a **consumer** project that reads them.
+- A .NET solution with a **producer** project that appends records and a **consumer** project that reads them.
 - A local KurrentDB node running in Docker.
 - An interactive loop where the producer writes to a stream and the consumer reads it back.
 
@@ -26,7 +26,7 @@ The [Kurrent agent toolkit](https://github.com/kurrent-io/kurrent-toolkit) gives
 
 ## Create the solution
 
-Create a solution with two console projects: a **producer** that appends events and a **consumer** that reads them. Reference `Kurrent.Client` from both.
+Create a solution with two console projects: a **producer** that appends records and a **consumer** that reads them. Reference `Kurrent.Client` from both.
 
 ```bash
 dotnet new sln -n Orders
@@ -52,7 +52,7 @@ docker run --name kurrentdb -d \
 
 For production deployments, see the [Client setup guide](./client-setup.md) to set up TLS, authentication, and clustering.
 
-## Append events from the producer
+## Append records from the producer
 
 Open `Orders.Producer/Program.cs` and replace its contents. The producer connects to KurrentDB, builds a record with `AppendRecord.New`, and appends it to the `order-123` stream:
 
@@ -87,9 +87,9 @@ dotnet run --project Orders.Producer
 
 You should see something like `Appended to order-123 at revision 0`.
 
-## Read events from the consumer
+## Read records from the consumer
 
-Open `Orders.Consumer/Program.cs` and replace its contents. The consumer connects with the same connection string, reads every record from `order-123`, and prints each event:
+Open `Orders.Consumer/Program.cs` and replace its contents. The consumer connects with the same connection string, reads every record from `order-123`, and prints each one:
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
@@ -97,7 +97,7 @@ await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=fa
 var records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
 
 foreach (var record in records) {
-    Console.WriteLine("Event: {0} at revision {1}", record.TypeName, record.Revision);
+    Console.WriteLine("Record: {0} at revision {1}", record.TypeName, record.Revision);
 }
 ```
 
@@ -109,11 +109,11 @@ Run the consumer:
 dotnet run --project Orders.Consumer
 ```
 
-You should see one event printed for the record the producer just appended.
+You should see one record printed for the record the producer just appended.
 
 ## See it in action
 
-Re-run the producer to append another event:
+Re-run the producer to append another record:
 
 ```bash
 dotnet run --project Orders.Producer
@@ -125,10 +125,10 @@ Then re-run the consumer to see the stream grow:
 dotnet run --project Orders.Consumer
 ```
 
-Each producer run appends a new event at the next revision, and the consumer prints the full history every time.
+Each producer run appends a new record at the next revision, and the consumer prints the full history every time.
 
 ::: tip Inspect streams visually
-Install [Kurrent Navigator](https://navigator.kurrent.io/), the desktop UI for KurrentDB, and connect it to `localhost:2113`. Open **Stream Browser / order-123** to watch events accumulate as you re-run the producer.
+Install [Kurrent Navigator](https://navigator.kurrent.io/), the desktop UI for KurrentDB, and connect it to `localhost:2113`. Open **Stream Browser / order-123** to watch records accumulate as you re-run the producer.
 :::
 
 </div>

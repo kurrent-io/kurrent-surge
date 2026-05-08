@@ -4,11 +4,11 @@ order: 2
 
 # Scavenging
 
-Scavenging reclaims disk space by removing soft-deleted events and merging chunk files. It runs per-node and is initiated explicitly. The `client.Admin` module starts, stops, and inspects scavenge operations.
+<CopyMarkdownButton />
+
+Scavenging reclaims disk space by removing soft-deleted records and merging chunk files. It runs per-node and is initiated explicitly. The `client.Admin` module starts, stops, and inspects scavenge operations.
 
 ```csharp
-using Kurrent.Client.Admin;
-
 var response = await client.Admin.StartScavenge();
 Console.WriteLine("Scavenge {0}: {1}", response.ScavengeId, response.Status);
 ```
