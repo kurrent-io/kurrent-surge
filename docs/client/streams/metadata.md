@@ -9,7 +9,8 @@ order: 5
 Every record carries a `Metadata` instance. The SDK populates a small set of system keys (schema name, schema id, format), and you can attach your own keys when appending. This page covers reading, writing, and converting metadata.
 
 ```csharp
-var record = await client.Streams.ReadFirstStreamRecord("order-123");
+var record = await client.Streams.ReadStreamEdge(
+    "order-123", ReadDirection.Forwards, skipDecoding: false, cancellationToken: default);
 
 if (record.Metadata.TryGetValue<string>("tenant", out var tenant))
     Console.WriteLine("Tenant: {0}", tenant);

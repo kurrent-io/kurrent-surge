@@ -94,14 +94,27 @@ Open `Orders.Consumer/Program.cs` and replace its contents. The consumer connect
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
-var records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
+var request = ReadStreamRequest.New.ForStream("order-123").Build();
+
+var records = await client.Streams.ReadStream(request)
+    .Where(msg => msg.IsRecord)
+    .Select(msg => msg.AsRecord)
+    .ToListAsync();
 
 foreach (var record in records) {
     Console.WriteLine("Record: {0} at revision {1}", record.TypeName, record.Revision);
 }
 ```
 
-`ReadStreamRecords` returns an `IAsyncEnumerable` that streams results lazily from the server, and `ToListAsync` materializes them into a `List<Record>`.
+`ReadStream` returns an `IAsyncEnumerable` that streams results lazily from the server. The LINQ pipeline drops heartbeats and materializes the records into a `List<Record>`.
+
+::: tip
+For the simplest case, the `ReadStreamRecords` and `ToListAsync` extensions collapse to one line:
+
+```csharp
+var records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
+```
+:::
 
 Run the consumer:
 

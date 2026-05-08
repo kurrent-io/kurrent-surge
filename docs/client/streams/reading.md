@@ -10,53 +10,101 @@ Records can be read from individual streams or from the global log (`$all`). All
 
 ## Read from a stream
 
-Read all records from a named stream:
+Build a request with `ReadStreamRequest.New` and pass it to `ReadStream`:
 
 ```csharp
-var stream = client.Streams.ReadStreamRecords("order-123");
+var request = ReadStreamRequest.New
+    .ForStream("order-123")
+    .Build();
+
+var stream = client.Streams.ReadStream(request);
 
 await foreach (var item in stream) {
     item.Switch(
-        record    => Console.WriteLine($"{record.TypeName} at revision {record.Revision}"),
+        record    => Console.WriteLine("{0} at revision {1}", record.TypeName, record.Revision),
         heartbeat => { } // periodic server signal
     );
 }
 ```
 
-`ReadStreamRecords` returns an `IAsyncEnumerable<ReadRecordsResult>`. Each `ReadRecordsResult` is a discriminated union of `Record` or `Heartbeat`. Use `Switch` (or pattern matching) to handle both cases.
+`ReadStream` returns an `IAsyncEnumerable<ReadRecordsResult>`. Each `ReadRecordsResult` is a discriminated union of `Record` or `Heartbeat`. Use `Switch` (or pattern matching) to handle both cases.
+
+::: tip
+For a simple read from the start of a stream, the `ReadStreamRecords` extension skips the builder:
+
+```csharp
+var stream = client.Streams.ReadStreamRecords("order-123");
+```
+:::
 
 ### Start from a specific revision
 
 ```csharp
-var stream = client.Streams.ReadStreamRecords("order-123", Revision.From(5));
+var request = ReadStreamRequest.New
+    .ForStream("order-123")
+    .FromRevision(Revision.From(5))
+    .Build();
+
+var stream = client.Streams.ReadStream(request);
 ```
 
 This reads records starting at stream revision 5 (inclusive).
 
+::: tip
+The `ReadStreamRecords` extension takes a revision directly:
+
+```csharp
+var stream = client.Streams.ReadStreamRecords("order-123", Revision.From(5));
+```
+:::
+
 ### First and last record
+
+`ReadStreamEdge` reads a single record at the start or end of a stream:
+
+```csharp
+var first = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Forwards,  skipDecoding: false, cancellationToken: default);
+var last  = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, skipDecoding: false, cancellationToken: default);
+
+Console.WriteLine("First record: {0}", first.TypeName);
+Console.WriteLine("Last record:  {0} at revision {1}", last.TypeName, last.Revision);
+```
+
+::: tip
+`ReadFirstStreamRecord` and `ReadLastStreamRecord` are shorthand extensions for the common case:
 
 ```csharp
 var first = await client.Streams.ReadFirstStreamRecord("order-123");
 var last  = await client.Streams.ReadLastStreamRecord("order-123");
-
-Console.WriteLine($"First record: {first.TypeName}");
-Console.WriteLine($"Last record:  {last.TypeName} at revision {last.Revision}");
 ```
+:::
 
 ## Read from the global log
 
-The global log (`$all`) contains every record across all streams in commit order:
+The global log (`$all`) contains every record across all streams in commit order. Build a request with `ReadRecordsRequest.New` and pass it to `ReadRecords`:
 
 ```csharp
-var stream = client.Streams.ReadRecords(LogPosition.Earliest);
+var request = ReadRecordsRequest.New
+    .FromPosition(LogPosition.Earliest)
+    .Build();
+
+var stream = client.Streams.ReadRecords(request);
 
 await foreach (var item in stream) {
     item.Switch(
-        record    => Console.WriteLine($"[{record.Position}] {record.Stream}: {record.TypeName}"),
+        record    => Console.WriteLine("[{0}] {1}: {2}", record.Position, record.Stream, record.TypeName),
         heartbeat => { }
     );
 }
 ```
+
+::: tip
+For a position-only read, the `ReadRecords` extension takes a `LogPosition` directly:
+
+```csharp
+var stream = client.Streams.ReadRecords(LogPosition.Earliest);
+```
+:::
 
 ### Key positions
 
@@ -66,41 +114,9 @@ await foreach (var item in stream) {
 | `LogPosition.Latest`     | End of the log                    |
 | `LogPosition.From(long)` | A specific position               |
 
-## Read request builders
-
-For full control over read behavior, build a request with `ReadStreamRequest.New` (per-stream) or `ReadRecordsRequest.New` (global log) and pass it to `ReadStream`/`ReadRecords`.
-
-::: tabs#read-builder
-
-@tab Stream reads
-
-```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
-    .FromStart()
-    .Forward()
-    .WithMaxRecords(100)
-    .Build();
-
-var stream = client.Streams.ReadStream(request);
-```
-
-@tab Global log reads
-
-```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .Forward()
-    .WithMaxRecords(500)
-    .WithFilter(RecordFilter.ByCategory("order"))
-    .Build();
-
-var stream = client.Streams.ReadRecords(request);
-```
-
-:::
-
 ## Builder methods
+
+`ReadStreamRequest.New` (per-stream) and `ReadRecordsRequest.New` (global log) share most of their fluent surface.
 
 | Method                         | Applies to     | Description                                          |
 |--------------------------------|----------------|------------------------------------------------------|
@@ -189,23 +205,29 @@ var withExpression = ReadRecordsRequest.New
 
 ## Inspect a single record
 
-Read a single record at a known global log position:
+`InspectRecord` reads a single record at a known global log position. The `skipDecoding` argument controls whether the payload is deserialized:
+
+```csharp
+// Metadata only, no payload decode
+var record = await client.Streams.InspectRecord(LogPosition.From(42), skipDecoding: true);
+
+Console.WriteLine("Type:   {0}", record.TypeName);
+Console.WriteLine("Stream: {0}", record.Stream);
+Console.WriteLine("Data:   {0} bytes", record.Data.Length);
+
+// Decode the payload
+var decoded = await client.Streams.InspectRecord(LogPosition.From(42), skipDecoding: false);
+
+Console.WriteLine("Decoded value: {0}", decoded.Value);
+```
+
+::: tip
+The single-argument overload defaults to `skipDecoding: true`:
 
 ```csharp
 var record = await client.Streams.InspectRecord(LogPosition.From(42));
-
-Console.WriteLine($"Type:   {record.TypeName}");
-Console.WriteLine($"Stream: {record.Stream}");
-Console.WriteLine($"Data:   {record.Data.Length} bytes");
 ```
-
-By default, `InspectRecord` skips payload deserialization (`skipDecoding: true`). To decode the payload:
-
-```csharp
-var record = await client.Streams.InspectRecord(LogPosition.From(42), skipDecoding: false);
-
-Console.WriteLine($"Decoded value: {record.Value}");
-```
+:::
 
 ## Working with records
 
@@ -242,7 +264,7 @@ await foreach (var item in stream) {
             if (heartbeat.IsCaughtUp)
                 Console.WriteLine("Caught up to end of stream");
             if (heartbeat.IsCheckpoint)
-                Console.WriteLine($"Checkpoint at position {heartbeat.Position}");
+                Console.WriteLine("Checkpoint at position {0}", heartbeat.Position);
         }
     );
 }
@@ -250,20 +272,24 @@ await foreach (var item in stream) {
 
 ## Materializing results
 
-If you only care about records (and want to drop heartbeats), use the `ToListAsync()` extension:
+To collect all records into a list, project the stream with LINQ. Filter out heartbeats first:
 
 ```csharp
-List<Record> records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
-```
+var request = ReadStreamRequest.New.ForStream("order-123").Build();
 
-For finer control, project the stream with LINQ:
-
-```csharp
-var records = await client.Streams.ReadStreamRecords("order-123")
+var records = await client.Streams.ReadStream(request)
     .Where(msg => msg.IsRecord)
     .Select(msg => msg.AsRecord)
     .ToListAsync();
 ```
+
+::: tip
+The `ToListAsync` extension on a read result drops heartbeats automatically:
+
+```csharp
+List<Record> records = await client.Streams.ReadStream(request).ToListAsync();
+```
+:::
 
 ## Error handling
 
@@ -271,7 +297,9 @@ Read operations throw on failure. Catch the well-typed exceptions when you need 
 
 ```csharp
 try {
-    await foreach (var item in client.Streams.ReadStreamRecords("order-123")) {
+    var request = ReadStreamRequest.New.ForStream("order-123").Build();
+
+    await foreach (var item in client.Streams.ReadStream(request)) {
         // ...
     }
 }

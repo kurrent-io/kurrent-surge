@@ -16,8 +16,10 @@ var connectorId = ConnectorId.From("orders-to-kafka");
 
 ```csharp
 ConnectorId id = "orders-to-kafka";
-await client.Connectors.Create(id, settings);
-await client.Connectors.Create("orders-to-kafka", settings);
+
+// Both work where ConnectorId is expected
+await client.Connectors.Create(id,                "Orders → Kafka", settings);
+await client.Connectors.Create("orders-to-kafka", "Orders → Kafka", settings);
 ```
 
 All command methods return `Success` on completion and throw on failure. See [Error handling](../error-handling.md) for the exception catalogue.

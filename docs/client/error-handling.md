@@ -77,7 +77,9 @@ Read methods return `IAsyncEnumerable<ReadRecordsResult>`. The exception is thro
 
 ```csharp
 try {
-    await foreach (var item in client.Streams.ReadStreamRecords("order-123")) {
+    var request = ReadStreamRequest.New.ForStream("order-123").Build();
+
+    await foreach (var item in client.Streams.ReadStream(request)) {
         // process record / heartbeat
     }
 }
@@ -86,4 +88,4 @@ catch (StreamNotFoundException) {
 }
 ```
 
-If you need to consume the stream defensively, wrap the enumeration loop, not the call to `ReadStreamRecords`.
+If you need to consume the stream defensively, wrap the enumeration loop, not the call to `ReadStream`.

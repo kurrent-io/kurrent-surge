@@ -111,7 +111,8 @@ The append fails with `StreamRevisionConflictException` if the stream's current 
 A typical pattern is to read the stream first, then append with the last known revision:
 
 ```csharp
-var last = await client.Streams.ReadLastStreamRecord("order-123");
+var last = await client.Streams.ReadStreamEdge(
+    "order-123", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
 
 var request = AppendStreamRequest.For("order-123")
     .ExpectingState(last.Revision)

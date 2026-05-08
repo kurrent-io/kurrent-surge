@@ -262,16 +262,19 @@ await foreach (var resolvedEvent in events) {
 **New:**
 
 ```csharp
-var stream = client.Streams.ReadStreamRecords("order-123");
+var request = ReadStreamRequest.New.ForStream("order-123").Build();
+
+var stream = client.Streams.ReadStream(request);
+
 await foreach (var item in stream) {
     item.Switch(
-        record    => Console.WriteLine($"{record.TypeName} at revision {record.Revision}"),
+        record    => Console.WriteLine("{0} at revision {1}", record.TypeName, record.Revision),
         heartbeat => { }
     );
 }
 ```
 
-Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`.
+Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`. For a quick read of an entire stream, the `ReadStreamRecords` extension skips the builder.
 
 ## Dependency injection
 
@@ -320,7 +323,7 @@ Top-level methods on the old client are now reached through module properties. T
 | Old                                | New                                       |
 |------------------------------------|-------------------------------------------|
 | `client.AppendToStreamAsync(...)`  | `client.Streams.AppendStream(...)`        |
-| `client.ReadStreamAsync(...)`      | `client.Streams.ReadStreamRecords(...)`   |
+| `client.ReadStreamAsync(...)`      | `client.Streams.ReadStream(...)`          |
 | `client.DeleteAsync(...)`          | `client.Streams.Delete(...)`              |
 | `client.TombstoneAsync(...)`       | `client.Streams.Tombstone(...)`           |
 

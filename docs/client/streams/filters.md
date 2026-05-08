@@ -6,7 +6,7 @@ order: 4
 
 <CopyMarkdownButton />
 
-Filters narrow the set of records returned from a read. They work against named streams, the global log, and secondary index streams. The same `IRecordFilter` types apply across `ReadStream`, `ReadStreamRecords`, `ReadRecords`, and request builders.
+Filters narrow the set of records returned from a read. They work against named streams, the global log, and secondary index streams. The same `IRecordFilter` types apply across `ReadStream` and `ReadRecords` (and their request builders).
 
 ```csharp
 var request = ReadRecordsRequest.New
