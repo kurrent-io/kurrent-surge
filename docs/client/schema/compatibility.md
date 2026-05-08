@@ -1,8 +1,10 @@
 ---
-order: 7
+order: 2
 ---
 
-# Schema compatibility
+# Compatibility
+
+<CopyMarkdownButton />
 
 Schema compatibility governs how schemas are allowed to evolve over time. When consumers and producers share a schema, changes can break existing readers or writers unless they follow well-defined rules. The schema registry enforces these rules automatically through compatibility modes.
 
