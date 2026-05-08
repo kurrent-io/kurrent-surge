@@ -4,6 +4,8 @@ order: 3
 
 # Error handling
 
+<CopyMarkdownButton />
+
 Kurrent.Processors provides structured error handling through lifecycle callbacks on the `IRecordProcessor` interface. When a drone encounters an unrecoverable error, it invokes `OnError` before transitioning to a terminal state. When it shuts down gracefully (including cancellation), it invokes `OnComplete`. Both callbacks receive rich context objects with progress snapshots, drone identifiers, and a structured logger.
 
 The runtime wraps every processor in a safety wrapper that catches exceptions from your code and converts them into well-typed `DroneException` errors, preventing a misbehaving handler from crashing the drone in unexpected ways.

@@ -4,6 +4,8 @@ order: 2
 
 # Checkpointing and progress tracking
 
+<CopyMarkdownButton />
+
 Checkpointing is the mechanism that makes processor execution resumable. When a processor restarts after a crash, deployment, or scaling event, it resumes from the last committed checkpoint rather than reprocessing every record from the beginning. Without checkpointing, every restart would mean replaying the entire history of your event log.
 
 The SDK handles checkpointing automatically. Your processor receives a callback before each checkpoint, giving you an opportunity to flush external state (write to a database, send a batch of messages, etc.) before the checkpoint is committed. Progress tracking gives you real-time visibility into throughput, checkpoint status, and per-partition positions.

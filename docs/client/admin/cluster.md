@@ -4,6 +4,8 @@ order: 1
 
 # Cluster operations
 
+<CopyMarkdownButton />
+
 The `client.Admin` module exposes node-level operations against a KurrentDB cluster: graceful shutdown, leader resignation, and node priority changes. These are operator tools, intended for orchestration and maintenance scripts.
 
 ```csharp
