@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using System.Reflection;
-using System.Reflection.Emit;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;

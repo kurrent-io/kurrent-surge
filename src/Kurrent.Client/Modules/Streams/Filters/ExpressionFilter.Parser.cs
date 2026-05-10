@@ -448,7 +448,7 @@ file sealed class FilterTokenizer(ReadOnlySpan<char> input) {
     }
 
     static TokenType GetKeywordType(string value) =>
-        Keywords.TryGetValue(value, out var type) ? type : TokenType.Identifier;
+        Keywords.GetValueOrDefault(value, TokenType.Identifier);
 
     void SkipWhitespace() {
         var remaining = _input.AsSpan(_position);
@@ -999,13 +999,14 @@ enum LikePatternKind { Exact, Prefix, Suffix, Contains, MatchAll, Complex }
 /// Simple patterns (prefix%, %suffix, %contains%, exact) use string operations.
 /// Complex patterns (with <c>_</c> wildcards or multiple <c>%</c> segments) fall back to compiled Regex.
 /// </summary>
-public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated)
-    : IFilterExpression {
-    readonly LikePatternKind  _kind       = ClassifyPattern(pattern);
-    readonly string           _fixedPart  = ExtractFixedPart(pattern);
-    readonly Regex?           _regex      = ClassifyPattern(pattern) == LikePatternKind.Complex
+public sealed class LikeExpression(PropertyAccess property, string pattern, bool caseInsensitive, bool negated) : IFilterExpression {
+    readonly LikePatternKind _kind      = ClassifyPattern(pattern);
+    readonly string          _fixedPart = ExtractFixedPart(pattern);
+
+    readonly Regex? _regex = ClassifyPattern(pattern) == LikePatternKind.Complex
         ? ConvertLikeToRegex(pattern, caseInsensitive)
         : null;
+    
     readonly StringComparison _comparison = caseInsensitive
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
@@ -1018,9 +1019,11 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
     /// <inheritdoc/>
     public bool IsMatch(Record record) {
         var value = ExpressionFilterResolver.Resolve(property, record);
+       
         if (value is null) return false;
 
-        var str     = value as string ?? value.ToString() ?? "";
+        var str = value as string ?? value.ToString() ?? "";
+        
         var matches = _kind switch {
             LikePatternKind.MatchAll => true,
             LikePatternKind.Exact    => str.Equals(_fixedPart, _comparison),
@@ -1067,7 +1070,6 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
             LikePatternKind.Prefix   => pattern[..^1],
             LikePatternKind.Suffix   => pattern[1..],
             LikePatternKind.Contains => pattern[1..^1],
-            LikePatternKind.Exact    => pattern,
             _                        => pattern
         };
 

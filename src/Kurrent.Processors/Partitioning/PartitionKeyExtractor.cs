@@ -62,7 +62,7 @@ public static class PartitionKeyExtractor {
 
 file sealed class NullExtractor : IPartitionKeyExtractor {
     public string? Extract(Record record) => null;
-    public string Expression => string.Empty;
+    public string Expression => "";
 }
 
 /// <summary>

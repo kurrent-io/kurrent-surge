@@ -99,5 +99,5 @@ public class PartitionedPositionTrackerTests {
         await Assert.That(tracker.HasPendingPositions).IsFalse();
     }
 
-    #endregion
+    #endregion // HasPendingPositions
 }

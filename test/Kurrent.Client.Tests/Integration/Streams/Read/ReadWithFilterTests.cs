@@ -1,4 +1,3 @@
-using Bogus;
 using Kurrent.Client.Streams;
 using Kurrent.Sdk.Testkit.Fixtures;
 using Serilog;
@@ -25,8 +24,8 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream = '{simulation.Stream}'")
-            .WithMaxRecords(simulation.Records.Length)
+            .Filter($"stream = '{simulation.Stream}'")
+            .Limit(simulation.Records.Length)
             .SkipDecoding()
             .Build();
 
@@ -54,8 +53,8 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream LIKE '{category}-%'")
-            .WithMaxRecords(simulation.Records.Length)
+            .Filter($"stream LIKE '{category}-%'")
+            .Limit(simulation.Records.Length)
             .SkipDecoding()
             .Build();
 
@@ -87,7 +86,7 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream LIKE '{category}-%'")
+            .Filter($"stream LIKE '{category}-%'")
             .SkipDecoding()
             .Build();
 
@@ -137,7 +136,7 @@ public class ReadWithFilterTests {
 
             var options = ReadRecordsRequest.New
                 .FromPosition(lastPosition.LogPosition)
-                .WithFilter(filter)
+                .Filter(filter)
                 .SkipDecoding()
                 .Build();
 
@@ -188,7 +187,7 @@ public class ReadWithFilterTests {
 
             var options = ReadRecordsRequest.New
                 .FromPosition(lastPosition.LogPosition)
-                .WithFilterExpression($"category = '{category}' AND schema_name = '{expectedSchema}'")
+                .Filter($"category = '{category}' AND schema_name = '{expectedSchema}'")
                 .SkipDecoding()
                 .Build();
 
@@ -246,7 +245,7 @@ public class ReadWithFilterTests {
 
             var options = ReadRecordsRequest.New
                 .FromPosition(lastPosition.LogPosition)
-                .WithFilter(filter)
+                .Filter(filter)
                 .SkipDecoding()
                 .Build();
 
@@ -285,8 +284,8 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream = '{simulation.Stream}' AND schema_name = '{expectedSchema}'")
-            .WithMaxRecords(simulation.Records.Length)
+            .Filter($"stream = '{simulation.Stream}' AND schema_name = '{expectedSchema}'")
+            .Limit(simulation.Records.Length)
             .SkipDecoding()
             .Build();
 
@@ -322,8 +321,8 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream = '{simulation.Stream}' AND log_position >= {startPos} AND log_position <= {endPos}")
-            .WithMaxRecords(simulation.Records.Length)
+            .Filter($"stream = '{simulation.Stream}' AND log_position >= {startPos} AND log_position <= {endPos}")
+            .Limit(simulation.Records.Length)
             .SkipDecoding()
             .Build();
 
@@ -354,8 +353,8 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream = '{simulation.Stream}' AND created_at >= {sinceMillis}")
-            .WithMaxRecords(simulation.Records.Length)
+            .Filter($"stream = '{simulation.Stream}' AND created_at >= {sinceMillis}")
+            .Limit(simulation.Records.Length)
             .SkipDecoding()
             .Build();
 
@@ -393,7 +392,7 @@ public class ReadWithFilterTests {
 
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilter(filter)
+            .Filter(filter)
             .SkipDecoding()
             .Build();
 
@@ -427,8 +426,8 @@ public class ReadWithFilterTests {
         // Act
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream IN ('{sim1.Stream}', '{sim2.Stream}')")
-            .WithMaxRecords(expectedCount)
+            .Filter($"stream IN ('{sim1.Stream}', '{sim2.Stream}')")
+            .Limit(expectedCount)
             .SkipDecoding()
             .Build();
 
@@ -456,8 +455,8 @@ public class ReadWithFilterTests {
         // Act — stream filter with NOT to exclude a stream, scoped by LIKE to our test streams
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream LIKE '{category}-%' AND stream != '{excluded.Stream}'")
-            .WithMaxRecords(expectedCount)
+            .Filter($"stream LIKE '{category}-%' AND stream != '{excluded.Stream}'")
+            .Limit(expectedCount)
             .SkipDecoding()
             .Build();
 

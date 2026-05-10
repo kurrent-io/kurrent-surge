@@ -101,7 +101,7 @@ public class ManualCheckpointingTests {
 		await Assert.That(capturedPositions).IsDeepEquivalentTo(expectedPositions);
 	}
 
-	#endregion
+	#endregion // ProcessRecordContext API
 
 	#region ->> PartitionedPositionTracker validation <<-
 
@@ -118,6 +118,6 @@ public class ManualCheckpointingTests {
 		await Assert.That(() => tracker.Track(first)).Throws<InvalidOperationException>();
 	}
 
-	#endregion
+	#endregion // PartitionedPositionTracker validation
 
 }

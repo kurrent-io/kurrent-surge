@@ -1,8 +1,7 @@
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
-using Kurrent.Processors.Options;
-using Sdk.TestKit.Fixtures;
+using Kurrent.Sdk.Testkit.Fixtures;
 
 namespace Kurrent.Processors.Tests;
 
@@ -10,8 +9,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Integration")]
 [Timeout(30_000)]
 public class DroneBatchedIntegrationTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     #region ->> processing <<-
 
@@ -24,8 +23,9 @@ public class DroneBatchedIntegrationTests {
 
         var data = await Fixture.SeedTestStream(seedCount, ct);
 
-        using var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var       totalReceived = 0;
+        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        var totalReceived = 0;
 
         var processor = new TestRecordBatchProcessor(maxBatchSize, batchWindow) {
             OnProcessBatch = batchCtx => {
@@ -40,7 +40,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batched-{PunyId.New()}";
@@ -86,7 +86,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-window-{PunyId.New()}";
@@ -102,7 +102,7 @@ public class DroneBatchedIntegrationTests {
         await Assert.That(processor.Batches[0].Count).IsLessThan(maxBatchSize);
     }
 
-    #endregion
+    #endregion // processing
 
     #region ->> error handling <<-
 
@@ -117,7 +117,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-error-{PunyId.New()}";
@@ -132,7 +132,7 @@ public class DroneBatchedIntegrationTests {
         await Assert.That(aex!.InnerExceptions[0]).IsTypeOf<DroneException>();
     }
 
-    #endregion
+    #endregion // error handling
 
     #region ->> status <<-
 
@@ -158,7 +158,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-status-{PunyId.New()}";
@@ -173,7 +173,7 @@ public class DroneBatchedIntegrationTests {
         await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
     }
 
-    #endregion
+    #endregion // status
 
     #region ->> checkpointing <<-
 
@@ -204,7 +204,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-interval-{data.Stream}";
@@ -244,7 +244,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone1 = KurrentProcessor.Create(phase1, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
@@ -272,7 +272,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone2 = KurrentProcessor.Create(phase2, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId         = processorId;
@@ -305,7 +305,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-pre-conn-{PunyId.New()}";
@@ -322,7 +322,7 @@ public class DroneBatchedIntegrationTests {
         await Assert.That(processor.Checkpoints.Count).IsEqualTo(0);
     }
 
-    #endregion
+    #endregion // checkpointing
 
     #region ->> status (more) <<-
 
@@ -337,7 +337,7 @@ public class DroneBatchedIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-errstat-{PunyId.New()}";
@@ -353,5 +353,5 @@ public class DroneBatchedIntegrationTests {
         await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
-    #endregion
+    #endregion // status (more)
 }

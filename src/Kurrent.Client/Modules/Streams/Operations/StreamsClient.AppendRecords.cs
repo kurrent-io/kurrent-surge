@@ -11,14 +11,6 @@ public partial class StreamsClient {
         request.EnsureValid();
 
         try {
-            // request = request with {
-            //     Checks = [
-            //         ..request.Checks
-            //             .Where(c => c.IsStreamStateCheck)
-            //             .Where(c => c.Value is StreamStateCheck check && check.ExpectedState != ExpectedStreamState.Any)
-            //     ]
-            // };
-
             var serviceRequest = await Mapper
                 .ToContract(request, cancellationToken)
                 .ConfigureAwait(false);

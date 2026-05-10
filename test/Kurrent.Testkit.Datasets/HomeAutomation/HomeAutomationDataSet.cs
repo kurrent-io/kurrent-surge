@@ -58,7 +58,7 @@ public class HomeAutomationDataSet(Faker? faker = null) : CustomDataSet<HomeAuto
         while (true) {
             timestamp += Faker.Random.Number(1, 30) * 60000L;
             var device = Faker.PickRandom(devices);
-            yield return GenerateEventForDevice(device, string.Empty, timestamp);
+            yield return GenerateEventForDevice(device, "", timestamp);
         }
     }
 

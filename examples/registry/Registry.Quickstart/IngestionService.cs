@@ -1,6 +1,5 @@
 using Kurrent.Client;
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Serilog;
 

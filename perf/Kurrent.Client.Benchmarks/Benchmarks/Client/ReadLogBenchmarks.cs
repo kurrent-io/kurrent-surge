@@ -33,7 +33,7 @@ public class ReadLogBenchmarks {
     public async Task<int> read_log_forward() {
         var builder = ReadRecordsRequest.New
             .FromPosition(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
-            .WithMaxRecords(MessageCount);
+            .Limit(MessageCount);
 
         if (Direction == ReadDirection.Backwards)
             builder.Backwards();

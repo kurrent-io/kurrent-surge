@@ -1,7 +1,6 @@
 using System.Collections.Frozen;
 using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;

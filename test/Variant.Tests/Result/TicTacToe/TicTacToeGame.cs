@@ -45,7 +45,7 @@ public record Game {
             throw new InvalidOperationException(
                 $"Invalid move: Cell at {cmd.Position} is already occupied with {cellToUpdate.State}");
 
-        CellState newCellState = cmd.Player switch {
+        var newCellState = cmd.Player switch {
             Player.X => CellState.X,
             Player.O => CellState.O,
             _        => throw new ArgumentOutOfRangeException(nameof(cmd.Player), "Invalid player value")

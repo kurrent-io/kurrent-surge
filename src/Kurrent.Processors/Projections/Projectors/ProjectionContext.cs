@@ -1,7 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Kurrent.Client.Streams;
 using Kurrent.Processors;
-using Kurrent.Processors.Models;
 
 namespace Kurrent.Projections;
 

@@ -89,7 +89,7 @@ public sealed record PropertyAccess(string PropertyName, string? Key = null) {
             var start = _position;
 
             if (!char.IsLetter(Current) && Current != '_')
-                return string.Empty;
+                return "";
 
             while (!IsAtEnd && (char.IsLetterOrDigit(Current) || Current == '_'))
                 _position++;

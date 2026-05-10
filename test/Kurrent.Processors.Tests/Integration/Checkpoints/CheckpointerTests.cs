@@ -5,17 +5,17 @@ using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
+using Kurrent.Sdk.Testkit.Fixtures;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.Logging;
-using Sdk.TestKit.Fixtures;
 
 namespace Kurrent.Processors.Tests;
 
 [Category("Processors")]
 [Category("Integration")]
 public class CheckpointerTests {
-    [ClassDataSource<KurrentClientTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentClientTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
 
     Checkpointer CreateCheckpointer(
         string processorId,
@@ -80,7 +80,7 @@ public class CheckpointerTests {
         await checkpointer1.RaiseCheckpoint(CheckpointTrigger.Interval);
 
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await checkpointer1.CommitCheckpoint(checkpoint.CheckpointId, positions1, ct);
         await checkpointer1.DisposeAsync();
 
@@ -128,7 +128,7 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
     }
 
-    #endregion
+    #endregion // Initialization
 
     #region ->> Pre-initialization guards <<-
 
@@ -175,7 +175,7 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
     }
 
-    #endregion
+    #endregion // Pre-initialization guards
 
     #region ->> Track and RaiseCheckpoint <<-
 
@@ -247,7 +247,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Interval);
 
         // Channel still open
@@ -270,7 +270,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Shutdown);
         await Assert.That(checkpoint.Reason).IsEqualTo("test shutdown");
 
@@ -293,7 +293,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Rebalance);
         await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsFalse();
 
@@ -347,7 +347,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Manual);
         await Assert.That(checkpoint.Reason).IsEqualTo("user flush");
 
@@ -370,7 +370,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.CaughtUp);
         await Assert.That(checkpoint.Reason).IsEqualTo("live mode");
 
@@ -397,7 +397,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
 
         await Assert.That(checkpoint.CheckpointId).IsNotNull();
         await Assert.That(checkpoint.CheckpointId).IsNotEmpty();
@@ -447,7 +447,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Reason).IsEqualTo("periodic flush");
 
         await checkpointer.DisposeAsync();
@@ -467,7 +467,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value!;
+        var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint.Reason).IsNull();
 
         await checkpointer.DisposeAsync();
@@ -489,7 +489,7 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
     }
 
-    #endregion
+    #endregion // Track and RaiseCheckpoint
 
     #region ->> CommitCheckpoint <<-
 
@@ -508,7 +508,7 @@ public class CheckpointerTests {
 
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg);
-        var raised = (Checkpoint)msg.Value!;
+        var raised = (Checkpoint)msg.Value;
 
         // Act
         await checkpointer.CommitCheckpoint(raised.CheckpointId, pendingPositions, ct);
@@ -558,7 +558,7 @@ public class CheckpointerTests {
         var pendingPositions1 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg);
-        var raised = (Checkpoint)msg.Value!;
+        var raised = (Checkpoint)msg.Value;
         await checkpointer.CommitCheckpoint(raised.CheckpointId, pendingPositions1, ct);
 
         // Track all 3 partitions again in the second round
@@ -569,7 +569,7 @@ public class CheckpointerTests {
         var pendingPositions2 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg2);
-        var raised2 = (Checkpoint)msg2.Value!;
+        var raised2 = (Checkpoint)msg2.Value;
         await checkpointer.CommitCheckpoint(raised2.CheckpointId, pendingPositions2, ct);
 
         await checkpointer.DisposeAsync();
@@ -603,7 +603,7 @@ public class CheckpointerTests {
         var pendingPositions1 = checkpointer.PendingPositions();
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg1);
-        var raised1 = (Checkpoint)msg1.Value!;
+        var raised1 = (Checkpoint)msg1.Value;
         await checkpointer.CommitCheckpoint(raised1.CheckpointId, pendingPositions1, ct);
 
         // Act — only track partition 0, partition 1 is idle
@@ -622,7 +622,7 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
     }
 
-    #endregion
+    #endregion // CommitCheckpoint
 
     #region ->> Dispose <<-
 
@@ -640,5 +640,5 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
     }
 
-    #endregion
+    #endregion // Dispose
 }

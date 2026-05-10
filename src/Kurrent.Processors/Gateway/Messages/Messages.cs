@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
-using Kurrent.Processors;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 using Kurrent.Variant;
@@ -17,7 +16,7 @@ namespace Kurrent.Client.Processors.Gateway.Messages;
 /// </remarks>
 [PublicAPI]
 public readonly record struct CheckpointId(string Value) {
-	public static readonly CheckpointId Unset = new(string.Empty);
+	public static readonly CheckpointId Unset = new("");
 
 	/// <summary>Creates a new unique checkpoint ID.</summary>
 	public static CheckpointId New() => new(Guid.NewGuid().ToString());

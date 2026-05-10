@@ -7,8 +7,8 @@ namespace Kurrent.Client.Tests.Connectors;
 [Category("Connectors")]
 [Category("Integration")]
 public class ConnectorCommandTests {
-	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBTestFixtureV1>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBTestFixtureV1 Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask creates_connector_with_settings(CancellationToken ct) {

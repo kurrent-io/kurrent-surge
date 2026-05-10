@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
@@ -43,7 +42,7 @@ public record DroneContext {
 
     public ProcessorId ProcessorId { get; init; } = ProcessorId.Unset;
 
-    public string DroneId { get; init; } = string.Empty;
+    public string DroneId { get; init; } = "";
 
     public SessionId SessionId { get; init; } = SessionId.Unset;
 

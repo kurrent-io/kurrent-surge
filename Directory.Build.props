@@ -23,8 +23,11 @@
     <!-- CI builds -->
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 
-    <!-- Define the repository root directory -->
+    <!-- Define directories -->
     <RepoRoot>$([System.IO.Directory]::GetParent($(MSBuildThisFileDirectory)).FullName)</RepoRoot>
+
+    <SharedDir>$(MSBuildThisFileDirectory)/src/Shared/</SharedDir>
+    <TestsSharedDir>$([MSBuild]::NormalizeDirectory($(MSBuildThisFileDirectory), 'tests', 'Shared'))</TestsSharedDir>
   </PropertyGroup>
 
   <ItemGroup Label="Default Packages">

@@ -8,15 +8,14 @@ namespace Kurrent.Testing;
 public readonly record struct Disposable(params Func<ValueTask>[] Actions) : IAsyncDisposable {
     static int _disposed;
 
+    public static DisposableBuilder Create => new();
+
     public async ValueTask DisposeAsync() {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 0) {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 0)
             // Dispose in reverse order using modern iteration patterns
             foreach (var disposable in Actions.AsEnumerable().Reverse())
                 await disposable().ConfigureAwait(false);
-        }
     }
-
-    public static DisposableBuilder Create => new DisposableBuilder();
 
     public static Disposable From(Func<ValueTask> action) =>
         Create.With(action).Build();
@@ -43,7 +42,10 @@ public readonly record struct Disposable(params Func<ValueTask>[] Actions) : IAs
         }
 
         public DisposableBuilder With(Action action) =>
-            With(() => { action(); return ValueTask.CompletedTask; });
+            With(() => {
+                action();
+                return ValueTask.CompletedTask;
+            });
 
         public DisposableBuilder With(IDisposable disposable) =>
             With(disposable.Dispose);
@@ -55,8 +57,10 @@ public readonly record struct Disposable(params Func<ValueTask>[] Actions) : IAs
                 _                           => throw new ArgumentException($"Object of type {obj.GetType().Name} is not disposable", nameof(obj))
             };
 
-        public Disposable Build() => new(_actions.ToArray());
+        public Disposable Build() =>
+            new(_actions.ToArray());
 
-        public static implicit operator Disposable(DisposableBuilder builder) => builder.Build();
+        public static implicit operator Disposable(DisposableBuilder builder) =>
+            builder.Build();
     }
 }

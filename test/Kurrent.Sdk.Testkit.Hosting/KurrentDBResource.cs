@@ -1,36 +1,60 @@
-using Kurrent.Sdk.Testkit.Hosting;
+// ReSharper disable CheckNamespace
+
+#pragma warning disable ASPIREATS001 // AspireExport is experimental
 
 namespace Aspire.Hosting.ApplicationModel;
 
-public sealed class KurrentDBResource(string name, KurrentDBTestOptions? options = null) : ContainerResource(name), IResourceWithConnectionString {
-    internal const string HttpEndpointName = "http";
-    internal const int    DefaultHttpPort  = 2113;
+[AspireExport(ExposeProperties = true)]
+public sealed class KurrentDBResource : ContainerResource, IResourceWithConnectionString {
+    public const string DefaultResourceName = "kurrentdb";
+    public const string DefaultUserName     = "admin";
+    public const string DefaultPassword     = "changeit";
+    public const int    DefaultHttpPort     = 2113;
 
-    const string DefaultUserName = "admin";
-    const string DefaultPassword = "changeit";
-
-    KurrentDBTestOptions Options { get; } = options ?? new();
-
-    public bool Secure => Options.Security.Tls;
-
-    internal bool IsReadOnlyReplica { get; init; }
-
-    internal bool IsClusterMember => Options.Topology.NodeCount > 1 || IsReadOnlyReplica;
+    public KurrentDBResource(string name, string? userName = null, string? password = null) : base(name) {
+        PrimaryEndpoint   = new(this, "http");
+        IsReadOnlyReplica = name.Contains("ro", StringComparison.OrdinalIgnoreCase);
+        UserName          = userName ?? DefaultUserName;
+        Password          = password ?? DefaultPassword;
+    }
 
     public string? CertsHostPath { get; internal set; }
 
-    public EndpointReference PrimaryEndpoint => field ??= new EndpointReference(this, HttpEndpointName);
+    public bool IsReadOnlyReplica { get; }
 
-    public ReferenceExpression ConnectionStringExpression              => BuildConnectionString(authenticated: false);
-    public ReferenceExpression AuthenticatedConnectionStringExpression => BuildConnectionString(authenticated: true);
+    public string UserName { get; }
 
-    ReferenceExpression BuildConnectionString(bool authenticated) {
-        var host = PrimaryEndpoint.Property(EndpointProperty.Host);
-        var port = PrimaryEndpoint.Property(EndpointProperty.Port);
-        var tls  = Secure ? "tls=true&tlsVerifyCert=false" : "tls=false";
+    public string Password { get; }
 
-        return authenticated
-            ? ReferenceExpression.Create($"kurrentdb://{DefaultUserName}:{DefaultPassword}@{host}:{port}?{tls}")
-            : ReferenceExpression.Create($"kurrentdb://{host}:{port}?{tls}");
+    public EndpointReference PrimaryEndpoint { get; }
+
+    public EndpointReferenceExpression Host =>
+        PrimaryEndpoint.Property(EndpointProperty.Host);
+
+    public EndpointReferenceExpression Port =>
+        PrimaryEndpoint.Property(EndpointProperty.Port);
+
+    public ReferenceExpression UserNameExpression => ReferenceExpression.Create($"{UserName}");
+
+    public ReferenceExpression PasswordExpression => ReferenceExpression.Create($"{Password}");
+
+    public ReferenceExpression ConnectionStringExpression {
+        get {
+            var host = PrimaryEndpoint.Property(EndpointProperty.Host);
+            var port = PrimaryEndpoint.Property(EndpointProperty.Port);
+            var tls  = PrimaryEndpoint.GetTlsValue(
+                enabledValue:  ReferenceExpression.Create($"tls=true&tlsVerifyCert=false"),
+                disabledValue: ReferenceExpression.Create($"tls=false"));
+
+            return ReferenceExpression.Create($"kurrentdb://{UserNameExpression}:{PasswordExpression}@{host}:{port}?{tls}");
+        }
+    }
+
+    IEnumerable<KeyValuePair<string, ReferenceExpression>> IResourceWithConnectionString.GetConnectionProperties() {
+        yield return new("Host", ReferenceExpression.Create($"{Host}"));
+        yield return new("Port", ReferenceExpression.Create($"{Port}"));
+        yield return new("UserName", UserNameExpression);
+        yield return new("Password", PasswordExpression);
+        yield return new("Uri", ConnectionStringExpression);
     }
 }

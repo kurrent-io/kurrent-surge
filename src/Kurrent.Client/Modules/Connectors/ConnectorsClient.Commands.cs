@@ -1,7 +1,6 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
-using Contracts = KurrentDB.Connectors.Management.Contracts;
 using Commands = KurrentDB.Connectors.Management.Contracts.Commands;
 
 namespace Kurrent.Client.Connectors;
@@ -23,27 +22,33 @@ public partial class ConnectorsClient {
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
-        ArgumentNullException.ThrowIfNull(settings);
 
+        if (settings.Count == 0) {
+            
+        }
+        
+        ArgumentNullException.ThrowIfNull(settings);
+    
         var request = new Commands.CreateConnector {
             ConnectorId = connectorId
         };
-
+    
         if (name is not null)
             request.Name = name;
-
+    
         foreach (var (key, value) in settings)
             request.Settings[key] = value ?? "";
-
+    
         try {
             await CommandServiceClient
                 .CreateAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
-
+    
             return Results.Success;
         }
         catch (Exception ex) {
-            throw ex.ToException(
+            
+            throw ex.AsWellKnownException(
                 ConnectorAlreadyExistsException.From,
                 // StatusCode fallback
                 StatusCode.AlreadyExists.MapTo(new ConnectorAlreadyExistsException(connectorId)));
@@ -60,7 +65,7 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
     public async ValueTask<Success> Create(
         ConnectorId connectorId,
-        string? name,
+        string name,
         Struct configuration,
         CancellationToken cancellationToken = default
     ) {

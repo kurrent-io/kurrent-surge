@@ -11,7 +11,7 @@ public class AuthenticationTests {
 
     [Test]
     public async ValueTask anonymous_client_cannot_append(CancellationToken ct) {
-        await using var client = KurrentClient.Create(Fixture.AnonymousConnectionString, opts => {
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
         });

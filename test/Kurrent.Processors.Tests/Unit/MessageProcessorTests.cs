@@ -9,7 +9,7 @@ namespace Kurrent.Processors.Tests;
 public class MessageProcessorTests {
 	readonly RecordFaker _recordFaker = new();
 
-	#region . typed dispatch .
+	#region ->> typed dispatch <<-
 
 	[Test]
 	public async ValueTask dispatches_to_registered_async_handler() {
@@ -91,9 +91,9 @@ public class MessageProcessorTests {
 		await Assert.That(secondCalled).IsTrue();
 	}
 
-	#endregion
+	#endregion // typed dispatch
 
-	#region . fallback .
+	#region ->> fallback <<-
 
 	[Test]
 	public async ValueTask invokes_async_fallback_for_unregistered_type() {
@@ -148,9 +148,9 @@ public class MessageProcessorTests {
 		await Assert.That(fallbackCalled).IsFalse();
 	}
 
-	#endregion
+	#endregion // fallback
 
-	#region . undecoded records .
+	#region ->> undecoded records <<-
 
 	[Test]
 	public async ValueTask skips_dispatch_when_record_is_not_decoded() {
@@ -201,9 +201,9 @@ public class MessageProcessorTests {
 		await ((IRecordProcessor)processor).ProcessRecord(context);
 	}
 
-	#endregion
+	#endregion // undecoded records
 
-	#region . can process .
+	#region ->> can process <<-
 
 	[Test]
 	public async ValueTask can_process_returns_true_for_registered_decoded_type() {
@@ -242,9 +242,9 @@ public class MessageProcessorTests {
 		await Assert.That(processor.CanProcess(record)).IsFalse();
 	}
 
-	#endregion
+	#endregion // can process
 
-	#region . context access .
+	#region ->> context access <<-
 
 	[Test]
 	public async ValueTask handler_receives_full_context() {
@@ -266,9 +266,9 @@ public class MessageProcessorTests {
 		await Assert.That(captured.ProcessorId).IsEqualTo(context.ProcessorId);
 	}
 
-	#endregion
+	#endregion // context access
 
-	#region . subclass pattern .
+	#region ->> subclass pattern <<-
 
 	[Test]
 	public async ValueTask subclass_registration_works() {
@@ -285,9 +285,9 @@ public class MessageProcessorTests {
 		await Assert.That(processor.ProcessedOrders[0].OrderId).IsEqualTo("SUB-1");
 	}
 
-	#endregion
+	#endregion // subclass pattern
 
-	#region . lifecycle hooks .
+	#region ->> lifecycle hooks <<-
 
 	[Test]
 	public async ValueTask on_checkpoint_is_invoked() {
@@ -326,9 +326,9 @@ public class MessageProcessorTests {
 		});
 	}
 
-	#endregion
+	#endregion // lifecycle hooks
 
-	#region . drone compatibility .
+	#region ->> drone compatibility <<-
 
 	[Test]
 	public async ValueTask implements_irecord_processor() {
@@ -362,9 +362,9 @@ public class MessageProcessorTests {
 		await Assert.That(captured!.OrderId).IsEqualTo("SAFE-1");
 	}
 
-	#endregion
+	#endregion // drone compatibility
 
-	#region Test helpers
+	#region ->> Test helpers <<-
 
 	ProcessRecordContext CreateContext<T>(T message) where T : notnull {
 		var record = _recordFaker.Generate().WithDecodedValue(message);
@@ -392,5 +392,5 @@ public class MessageProcessorTests {
 		}
 	}
 
-	#endregion
+	#endregion // Test helpers
 }

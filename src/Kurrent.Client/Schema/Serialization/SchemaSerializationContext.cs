@@ -9,7 +9,7 @@ public class SchemaSerializationContext {
     /// <summary>
     /// The name of the data stream being processed.
     /// </summary>
-    public string Stream { get; set; } = string.Empty;
+    public string Stream { get; set; } = "";
 
     /// <summary>
     /// Information about the record's schema.

@@ -28,7 +28,7 @@ public class CheckpointStoreTests {
             logger: TestkitExecutionContext.LoggerFactory.CreateLogger<KurrentDBCheckpointStore>()
         );
 
-    #region Core Operations
+    #region ->> Core Operations <<-
 
 	[Test]
 	public async ValueTask load_returns_empty_checkpoint_when_no_checkpoint_exists(CancellationToken ct) {
@@ -101,9 +101,9 @@ public class CheckpointStoreTests {
 		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(3000);
 	}
 
-	#endregion
+	#endregion // Core Operations
 
-	#region Concurrency
+	#region ->> Concurrency <<-
 
 	[Test]
 	public async ValueTask concurrent_stores_from_different_drones_merge_correctly(CancellationToken ct) {
@@ -159,9 +159,9 @@ public class CheckpointStoreTests {
 		}
 	}
 
-	#endregion
+	#endregion // Concurrency
 
-	#region Edge Cases
+	#region ->> Edge Cases <<-
 
 	[Test]
 	public async ValueTask store_with_empty_positions_throws(CancellationToken ct) {
@@ -194,9 +194,9 @@ public class CheckpointStoreTests {
 		await Assert.That(checkpoint2.Timestamp).IsGreaterThan(checkpoint1.Timestamp);
 	}
 
-	#endregion
+	#endregion // Edge Cases
 
-	#region Stream Management
+	#region ->> Stream Management <<-
 
 	[Test]
 	public async ValueTask ensures_stream_retention_policy_on_first_store(CancellationToken ct) {
@@ -230,9 +230,9 @@ public class CheckpointStoreTests {
 		await Assert.That(info.Retention.HasMaxCount).IsFalse();
 	}
 
-	#endregion
+	#endregion // Stream Management
 
-	#region Checkpoint Resolution
+	#region ->> Checkpoint Resolution <<-
 
 	[Test]
 	public async ValueTask load_with_partitions_resolves_positions_and_computes_watermarks(CancellationToken ct) {
@@ -295,9 +295,9 @@ public class CheckpointStoreTests {
 		await Assert.That(checkpoint.Positions[1]).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(1) });
 	}
 
-	#endregion
+	#endregion // Checkpoint Resolution
 
-	#region Reset
+	#region ->> Reset <<-
 
 	[Test]
 	public async ValueTask reset_with_empty_positions_acts_as_full_wipe(CancellationToken ct) {
@@ -404,9 +404,9 @@ public class CheckpointStoreTests {
 		await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(5000);
 	}
 
-	#endregion
+	#endregion // Reset
 
-	#region Serialization
+	#region ->> Serialization <<-
 
 	[Test]
 	public async ValueTask store_and_load_preserves_stream_and_revision(CancellationToken ct) {
@@ -457,5 +457,5 @@ public class CheckpointStoreTests {
 		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2000);
 	}
 
-	#endregion
+	#endregion // Serialization
 }

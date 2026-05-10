@@ -4,13 +4,9 @@ using Kurrent.Processors.Models;
 
 namespace Kurrent.Processors.Tests.Fakes;
 
-sealed class InMemoryCheckpointStore : ICheckpointStore {
-	readonly SubscriptionInitialPosition _defaultInitialPosition;
+sealed class InMemoryCheckpointStore(SubscriptionInitialPosition defaultInitialPosition = SubscriptionInitialPosition.Earliest) : ICheckpointStore {
 
-	public InMemoryCheckpointStore(SubscriptionInitialPosition defaultInitialPosition = SubscriptionInitialPosition.Earliest) =>
-		_defaultInitialPosition = defaultInitialPosition;
-
-	public ValueTask<ProcessorCheckpoint> LoadLatestAsync(string droneId, CancellationToken ct = default) =>
+    public ValueTask<ProcessorCheckpoint> LoadLatestAsync(string droneId, CancellationToken ct = default) =>
 		new(ProcessorCheckpoint.Empty);
 
 	public ValueTask<ProcessorCheckpoint> LoadLatestAsync(

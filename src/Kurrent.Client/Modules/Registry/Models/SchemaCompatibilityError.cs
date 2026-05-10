@@ -8,9 +8,9 @@ namespace Kurrent.Client.Registry;
 
 public readonly record struct SchemaCompatibilityError() {
     public SchemaCompatibilityErrorKind Kind    { get; init; } = SchemaCompatibilityErrorKind.Unspecified;
-    public string                       Details { get; init; } = string.Empty;
+    public string                       Details { get; init; } = "";
 
-    public string         PropertyPath { get; init; } = string.Empty;
+    public string         PropertyPath { get; init; } = "";
     public JsonObjectType OriginalType { get; init; } = JsonObjectType.None;
     public JsonObjectType NewType      { get; init; } = JsonObjectType.None;
 

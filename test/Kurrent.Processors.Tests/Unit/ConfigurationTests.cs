@@ -18,35 +18,35 @@ namespace Kurrent.Processors.Tests;
 public class ConfigurationTests {
     const string TestConnectionString = "kurrentdb://localhost:2113";
 
-    #region Default Values Tests
+    #region ->> Default Values Tests <<-
 
     [Test]
-    public async Task default_processor_id_is_empty() {
+    public async ValueTask default_processor_id_is_empty() {
         var settings = new ProcessorOptions();
-        await Assert.That(settings.ProcessorId).IsEqualTo(string.Empty);
+        await Assert.That(settings.ProcessorId).IsEqualTo("");
     }
 
     [Test]
-    public async Task default_drone_id_is_empty() {
+    public async ValueTask default_drone_id_is_empty() {
         var settings = new ProcessorOptions();
-        await Assert.That(settings.DroneId).IsEqualTo(string.Empty);
+        await Assert.That(settings.DroneId).IsEqualTo("");
     }
 
     [Test]
-    public async Task setting_processor_id_derives_drone_id() {
+    public async ValueTask setting_processor_id_derives_drone_id() {
         var settings = new ProcessorOptions { ProcessorId = "order-processor" };
         await Assert.That(settings.DroneId).StartsWith("order-processor-");
     }
 
     [Test]
-    public async Task setting_processor_id_preserves_explicit_drone_id() {
+    public async ValueTask setting_processor_id_preserves_explicit_drone_id() {
         var settings = new ProcessorOptions { DroneId = "machine-01" };
         settings.ProcessorId = "order-processor";
         await Assert.That(settings.DroneId).IsEqualTo("machine-01");
     }
 
     [Test]
-    public async Task reassigning_processor_id_does_not_overwrite_derived_drone_id() {
+    public async ValueTask reassigning_processor_id_does_not_overwrite_derived_drone_id() {
         var settings = new ProcessorOptions { ProcessorId = "first" };
         var firstDroneId = settings.DroneId;
         settings.ProcessorId = "second";
@@ -54,35 +54,35 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task default_buffer_capacity_is_1000() {
+    public async ValueTask default_buffer_capacity_is_1000() {
         var settings = new ProcessorOptions();
         await Assert.That(settings.BufferCapacity).IsEqualTo(1000);
     }
 
     [Test]
-    public async Task default_checkpoint_interval_is_30000() {
+    public async ValueTask default_checkpoint_interval_is_30000() {
         var settings = new ProcessorOptions();
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
     }
 
     [Test]
-    public async Task default_initial_position_is_latest() {
+    public async ValueTask default_initial_position_is_latest() {
         var settings = new ProcessorOptions();
         await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Latest);
     }
 
     [Test]
-    public async Task default_skip_decoding_is_false() {
+    public async ValueTask default_skip_decoding_is_false() {
         var settings = new ProcessorOptions();
         await Assert.That(settings.SkipDecoding).IsFalse();
     }
 
-    #endregion
+    #endregion // Default Values Tests
 
-    #region Builder Configuration Tests
+    #region ->> Builder Configuration Tests <<-
 
     [Test]
-    public async Task with_processor_id_sets_settings_processor_id() {
+    public async ValueTask with_processor_id_sets_settings_processor_id() {
         var processorId = "test-processor-id";
 
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
@@ -95,7 +95,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task with_drone_id_sets_settings_drone_id() {
+    public async ValueTask with_drone_id_sets_settings_drone_id() {
         var droneId = "test-drone-id";
 
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
@@ -109,7 +109,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task without_drone_id_derives_from_processor_id() {
+    public async ValueTask without_drone_id_derives_from_processor_id() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
@@ -119,7 +119,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task configure_drone_sets_buffer_capacity() {
+    public async ValueTask configure_drone_sets_buffer_capacity() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId    = "test-processor";
@@ -130,7 +130,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task configure_checkpointing_sets_settings() {
+    public async ValueTask configure_checkpointing_sets_settings() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
@@ -145,7 +145,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task with_initial_position_sets_settings() {
+    public async ValueTask with_initial_position_sets_settings() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId                  = "test-processor";
@@ -156,7 +156,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task with_filter_sets_settings() {
+    public async ValueTask with_filter_sets_settings() {
         var filter = RecordFilter.ByStream("test-stream");
 
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
@@ -169,7 +169,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task with_expression_filter_sets_filter() {
+    public async ValueTask with_expression_filter_sets_filter() {
         var expression = "stream_id LIKE 'orders-%'";
 
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
@@ -183,7 +183,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task with_partition_key_selector_sets_settings() {
+    public async ValueTask with_partition_key_selector_sets_settings() {
         var selector = "data.customer_id";
 
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
@@ -196,7 +196,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task configure_drone_sets_skip_decoding() {
+    public async ValueTask configure_drone_sets_skip_decoding() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId  = "test-processor";
@@ -207,7 +207,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task configure_multiple_settings_applies_all() {
+    public async ValueTask configure_multiple_settings_applies_all() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId    = "test-processor";
@@ -219,12 +219,12 @@ public class ConfigurationTests {
         await Assert.That(drone.Options.SkipDecoding).IsTrue();
     }
 
-    #endregion
+    #endregion // Builder Configuration Tests
 
-    #region Drone Creation Tests
+    #region ->> Drone Creation Tests <<-
 
     [Test]
-    public async Task build_returns_drone_with_correct_settings() {
+    public async ValueTask build_returns_drone_with_correct_settings() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
@@ -238,7 +238,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task drone_initial_status_is_starting() {
+    public async ValueTask drone_initial_status_is_starting() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
@@ -247,12 +247,12 @@ public class ConfigurationTests {
         await Assert.That(drone.Status).IsEqualTo(DroneStatus.Starting);
     }
 
-    #endregion
+    #endregion // Drone Creation Tests
 
-    #region Validation Tests
+    #region ->> Validation Tests <<-
 
     [Test]
-    public async Task valid_configuration_passes_validation() {
+    public async ValueTask valid_configuration_passes_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "valid-processor",
             MaxParallelism = 1,
@@ -266,9 +266,9 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task empty_processor_id_fails_validation() {
+    public async ValueTask empty_processor_id_fails_validation() {
         var settings = new ProcessorOptions {
-            ProcessorId    = string.Empty,
+            ProcessorId    = "",
             MaxParallelism = 1
         };
 
@@ -278,7 +278,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task invalid_max_parallelism_zero_fails_validation() {
+    public async ValueTask invalid_max_parallelism_zero_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 0
@@ -290,7 +290,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task invalid_max_parallelism_negative_fails_validation() {
+    public async ValueTask invalid_max_parallelism_negative_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = -1
@@ -302,7 +302,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task invalid_max_parallelism_exceeds_limit_fails_validation() {
+    public async ValueTask invalid_max_parallelism_exceeds_limit_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 32769
@@ -314,7 +314,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task invalid_buffer_capacity_zero_fails_validation() {
+    public async ValueTask invalid_buffer_capacity_zero_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -327,7 +327,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task invalid_buffer_capacity_exceeds_limit_fails_validation() {
+    public async ValueTask invalid_buffer_capacity_exceeds_limit_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -340,7 +340,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task invalid_checkpoint_interval_fails_validation() {
+    public async ValueTask invalid_checkpoint_interval_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
@@ -353,7 +353,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task max_parallelism_without_partition_key_fails_validation() {
+    public async ValueTask max_parallelism_without_partition_key_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 4,
@@ -367,7 +367,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task max_parallelism_with_partition_key_passes_validation() {
+    public async ValueTask max_parallelism_with_partition_key_passes_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 4,
@@ -381,7 +381,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task build_with_invalid_buffer_capacity_throws() {
+    public async ValueTask build_with_invalid_buffer_capacity_throws() {
         await Assert.That(() =>
             KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
                 opts.Connection(TestConnectionString);
@@ -392,7 +392,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task build_without_processor_id_auto_generates_from_type_name() {
+    public async ValueTask build_without_processor_id_auto_generates_from_type_name() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
         }).Build();
@@ -400,12 +400,12 @@ public class ConfigurationTests {
         await Assert.That(drone.ProcessorId).IsEqualTo("testable-record-processor");
     }
 
-    #endregion
+    #endregion // Validation Tests
 
-    #region Connection Resolution Tests
+    #region ->> Connection Resolution Tests <<-
 
     [Test]
-    public async Task standalone_processor_throws_when_no_connection_is_configured() {
+    public async ValueTask standalone_processor_throws_when_no_connection_is_configured() {
         var options = new ProcessorOptions { ProcessorId = "test-processor" };
 
         var processor = new KurrentProcessor(options, new TestableRecordProcessor());
@@ -413,12 +413,12 @@ public class ConfigurationTests {
         await Assert.That(() => processor.Build()).Throws<InvalidOperationException>();
     }
 
-    #endregion
+    #endregion // Connection Resolution Tests
 
-    #region DI Registration Tests
+    #region ->> DI Registration Tests <<-
 
     [Test]
-    public async Task duplicate_registration_is_idempotent() {
+    public async ValueTask duplicate_registration_is_idempotent() {
         var services = new ServiceCollection();
 
         services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
@@ -438,7 +438,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task duplicate_registration_with_factory_is_idempotent() {
+    public async ValueTask duplicate_registration_with_factory_is_idempotent() {
         var services = new ServiceCollection();
 
         services.AddKurrentProcessor<TestableRecordProcessor>(
@@ -462,7 +462,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task configuration_with_service_provider_can_access_services() {
+    public async ValueTask configuration_with_service_provider_can_access_services() {
         var services = new ServiceCollection();
         services.AddSingleton(new TestSettings { ProcessorId = "configured-processor-id" });
         services.AddLogging();
@@ -485,7 +485,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task di_resolves_connection_from_client_options_in_service_provider() {
+    public async ValueTask di_resolves_connection_from_client_options_in_service_provider() {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(KurrentClientOptions.Parse(TestConnectionString));
@@ -502,7 +502,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task di_explicit_connection_wins_over_client_options_in_service_provider() {
+    public async ValueTask di_explicit_connection_wins_over_client_options_in_service_provider() {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(KurrentClientOptions.Parse("kurrentdb://other-host:2113"));
@@ -519,7 +519,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task di_resolves_connection_from_configuration_by_processor_id() {
+    public async ValueTask di_resolves_connection_from_configuration_by_processor_id() {
         var configuration = BuildJsonConfiguration("""
             {
               "ConnectionStrings": {
@@ -541,7 +541,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task di_resolves_connection_from_configuration_default_resource_name() {
+    public async ValueTask di_resolves_connection_from_configuration_default_resource_name() {
         var configuration = BuildJsonConfiguration("""
             {
               "ConnectionStrings": {
@@ -563,15 +563,15 @@ public class ConfigurationTests {
     }
 
     record TestSettings {
-        public string ProcessorId { get; init; } = string.Empty;
+        public string ProcessorId { get; init; } = "";
     }
 
-    #endregion
+    #endregion // DI Registration Tests
 
-    #region Configuration Binding Tests
+    #region ->> Configuration Binding Tests <<-
 
     [Test]
-    public async Task settings_loaded_from_json_configuration_by_processor_type_name() {
+    public async ValueTask settings_loaded_from_json_configuration_by_processor_type_name() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -604,7 +604,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task json_configuration_supports_camel_case_properties() {
+    public async ValueTask json_configuration_supports_camel_case_properties() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -639,7 +639,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task json_configuration_does_not_support_snake_case_properties() {
+    public async ValueTask json_configuration_does_not_support_snake_case_properties() {
         // snake_case is NOT supported by default .NET configuration binding
         var configuration = BuildJsonConfiguration("""
             {
@@ -669,7 +669,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task fluent_configuration_overrides_json_settings() {
+    public async ValueTask fluent_configuration_overrides_json_settings() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -701,7 +701,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task missing_json_section_uses_defaults() {
+    public async ValueTask missing_json_section_uses_defaults() {
         var configuration = BuildJsonConfiguration("""
             {
               "SomeOther": {
@@ -723,7 +723,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task nested_subscription_settings_bind_from_json() {
+    public async ValueTask nested_subscription_settings_bind_from_json() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -749,7 +749,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task configuration_binding_works_with_service_provider_overload() {
+    public async ValueTask configuration_binding_works_with_service_provider_overload() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -787,7 +787,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task no_configuration_registered_uses_defaults() {
+    public async ValueTask no_configuration_registered_uses_defaults() {
         var services = new ServiceCollection();
         // Intentionally NOT registering IConfiguration
         services.AddLogging();
@@ -809,7 +809,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task processor_id_auto_generated_from_processor_type_name_when_not_in_config() {
+    public async ValueTask processor_id_auto_generated_from_processor_type_name_when_not_in_config() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -837,7 +837,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async Task explicit_processor_id_in_config_overrides_auto_generation() {
+    public async ValueTask explicit_processor_id_in_config_overrides_auto_generation() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -885,6 +885,6 @@ public class ConfigurationTests {
         return hostedService.Drone.Options;
     }
 
-    #endregion
+    #endregion // Configuration Binding Tests
 
 }

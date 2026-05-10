@@ -34,7 +34,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"records_are_processed-{data.Stream}";
@@ -68,7 +68,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-all-{data.Stream}";
@@ -104,7 +104,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
@@ -119,7 +119,7 @@ public class DroneIntegrationTests {
         await Assert.That(recordCount).IsEqualTo(processor.Records.Length);
     }
 
-    #endregion
+    #endregion // processing
 
     #region ->> stop and cancel <<-
 
@@ -140,7 +140,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-stop-{TestContext.Current!.Id}";
@@ -165,7 +165,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-cancel-{TestContext.Current!.Id}";
@@ -181,7 +181,7 @@ public class DroneIntegrationTests {
         await Assert.That(task).IsNotCompletedSuccessfully();
     }
 
-    #endregion
+    #endregion // stop and cancel
 
     #region ->> error handling <<-
 
@@ -196,7 +196,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-error-{PunyId.New()}";
@@ -212,7 +212,7 @@ public class DroneIntegrationTests {
         await Assert.That(processor.Records.Length).IsEqualTo(0);
     }
 
-    #endregion
+    #endregion // error handling
 
     #region ->> checkpoint recovery <<-
 
@@ -237,7 +237,7 @@ public class DroneIntegrationTests {
 
         var drone1 = KurrentProcessor.Create(processor1, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
@@ -265,7 +265,7 @@ public class DroneIntegrationTests {
 
         var drone2 = KurrentProcessor.Create(processor2, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId               = processorId;
@@ -309,7 +309,7 @@ public class DroneIntegrationTests {
 
             var drone = KurrentProcessor.Create(processor, opts => {
                 opts.Connection(
-                    Fixture.KurrentDB.AuthenticatedConnectionString,
+                    Fixture.ConnectionString,
                     client => client.LoggerFactory = Fixture.LoggerFactory);
 
                 opts.ProcessorId                  = processorId;
@@ -337,7 +337,7 @@ public class DroneIntegrationTests {
 
         var finalDrone = KurrentProcessor.Create(processor3, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId         = processorId;
@@ -376,7 +376,7 @@ public class DroneIntegrationTests {
 
         var drone1 = KurrentProcessor.Create(processor1, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
@@ -396,7 +396,7 @@ public class DroneIntegrationTests {
 
         var drone2 = KurrentProcessor.Create(processor2, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId         = processorId;
@@ -430,7 +430,7 @@ public class DroneIntegrationTests {
 
         var drone1 = KurrentProcessor.Create(processorOne, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
@@ -454,7 +454,7 @@ public class DroneIntegrationTests {
 
         var drone2 = KurrentProcessor.Create(processorTwo, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
@@ -474,7 +474,7 @@ public class DroneIntegrationTests {
         await Assert.That(duplicateCount).IsLessThanOrEqualTo(5);
     }
 
-    #endregion
+    #endregion // checkpoint recovery
 
     #region ->> checkpointing <<-
 
@@ -498,7 +498,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-track-auto-{PunyId.New()}";
@@ -533,7 +533,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-manual-ckpt-{PunyId.New()}";
@@ -570,7 +570,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-shutdown-ckpt-{PunyId.New()}";
@@ -607,7 +607,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-ckpt-continue-{PunyId.New()}";
@@ -641,7 +641,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-ckpt-fail-{PunyId.New()}";
@@ -659,7 +659,7 @@ public class DroneIntegrationTests {
         await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
-    #endregion
+    #endregion // checkpointing
 
     #region ->> status <<-
 
@@ -680,7 +680,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-status-{PunyId.New()}";
@@ -706,7 +706,7 @@ public class DroneIntegrationTests {
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
-                Fixture.KurrentDB.AuthenticatedConnectionString,
+                Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-errstat-{PunyId.New()}";
@@ -722,5 +722,5 @@ public class DroneIntegrationTests {
         await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
     }
 
-    #endregion
+    #endregion // status
 }

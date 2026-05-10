@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Collections.Immutable;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Processors.Checkpointing;

@@ -5,7 +5,6 @@ using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
-using Kurrent.Processors.Options;
 using Kurrent.Processors.Partitioning;
 
 namespace Kurrent.Processors.Hive;

@@ -37,6 +37,53 @@ public class ReadRecordsRequestBuilderTests {
         await Assert.That(request.Start).IsEqualTo(position);
     }
 
+    [Test]
+    public async ValueTask from_latest_sets_latest_start_position() {
+        // Arrange & Act
+        var request = ReadRecordsRequest.New
+            .FromLatest()
+            .Backwards()
+            .Build();
+
+        // Assert
+        await Assert.That(request.Start).IsEqualTo(LogPosition.Latest);
+    }
+
+    [Test]
+    public async ValueTask from_earliest_sets_earliest_start_position() {
+        // Arrange & Act
+        var request = ReadRecordsRequest.New
+            .FromEarliest()
+            .Build();
+
+        // Assert
+        await Assert.That(request.Start).IsEqualTo(LogPosition.Earliest);
+    }
+
+    [Test]
+    public async ValueTask from_latest_backwards_sets_latest_start_and_backwards_direction() {
+        // Arrange & Act
+        var request = ReadRecordsRequest.New
+            .FromLatestBackwards()
+            .Build();
+
+        // Assert
+        await Assert.That(request.Start).IsEqualTo(LogPosition.Latest);
+        await Assert.That(request.Direction).IsEqualTo(ReadDirection.Backwards);
+    }
+
+    [Test]
+    public async ValueTask from_earliest_forwards_sets_earliest_start_and_forwards_direction() {
+        // Arrange & Act
+        var request = ReadRecordsRequest.New
+            .FromEarliestForwards()
+            .Build();
+
+        // Assert
+        await Assert.That(request.Start).IsEqualTo(LogPosition.Earliest);
+        await Assert.That(request.Direction).IsEqualTo(ReadDirection.Forwards);
+    }
+
     #endregion
 
     #region ->> Forward / Backwards <<-
@@ -45,7 +92,7 @@ public class ReadRecordsRequestBuilderTests {
     public async ValueTask forward_sets_forwards_direction() {
         // Arrange & Act
         var request = ReadRecordsRequest.New
-            .Forward()
+            .Forwards()
             .Build();
 
         // Assert
@@ -71,7 +118,7 @@ public class ReadRecordsRequestBuilderTests {
     public async ValueTask with_max_records_sets_limit() {
         // Arrange & Act
         var request = ReadRecordsRequest.New
-            .WithMaxRecords(200)
+            .Limit(200)
             .Build();
 
         // Assert
@@ -104,7 +151,7 @@ public class ReadRecordsRequestBuilderTests {
 
         // Act
         var request = ReadRecordsRequest.New
-            .WithFilter(filter)
+            .Filter(filter)
             .Build();
 
         // Assert
@@ -118,7 +165,7 @@ public class ReadRecordsRequestBuilderTests {
 
         // Act
         var request = ReadRecordsRequest.New
-            .WithFilterExpression(expression)
+            .Filter(expression)
             .Build();
 
         // Assert
@@ -139,7 +186,7 @@ public class ReadRecordsRequestBuilderTests {
         var request = ReadRecordsRequest.New
             .FromPosition(position)
             .Backwards()
-            .WithMaxRecords(75)
+            .Limit(75)
             .SkipDecoding()
             .Build();
 
@@ -157,7 +204,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public void build_throws_when_max_records_is_zero() {
         // Arrange
-        var builder = ReadRecordsRequest.New.WithMaxRecords(0);
+        var builder = ReadRecordsRequest.New.Limit(0);
 
         // Act & Assert
         Assert.Throws<Exception>(() => builder.Build());

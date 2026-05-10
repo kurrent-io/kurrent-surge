@@ -1,9 +1,7 @@
 using System.Threading.Channels;
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
-using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
 
 namespace Kurrent.Processors.Hive;

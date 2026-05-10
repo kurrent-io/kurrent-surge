@@ -60,7 +60,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
         _partitionCount = partitionCount;
         _maxCount       = maxCount;
         _client         = client;
-        _logger         = logger ?? NullLogger<KurrentDBCheckpointStore>.Instance;
+        _logger         = logger;
         _stream         = $"$processors/{processorId}/checkpoints";
 
         RegisterContractTypes(typeMapper);

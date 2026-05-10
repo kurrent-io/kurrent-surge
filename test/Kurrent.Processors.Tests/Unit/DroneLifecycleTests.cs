@@ -1,6 +1,4 @@
 using System.Threading.Channels;
-using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Options;
@@ -88,7 +86,7 @@ public class DroneLifecycleTests {
 			.Throws<InvalidOperationException>();
 	}
 
-	#endregion
+	#endregion // cleanup
 
 	#region ->> run_async guards <<-
 
@@ -104,7 +102,7 @@ public class DroneLifecycleTests {
 			.Throws<InvalidOperationException>();
 	}
 
-	#endregion
+	#endregion // run_async guards
 
 	#region ->> status transitions <<-
 
@@ -121,6 +119,6 @@ public class DroneLifecycleTests {
 		await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
 	}
 
-	#endregion
+	#endregion // status transitions
 
 }

@@ -35,7 +35,7 @@ static class RegistryClientMapper {
         new(
             (SchemaDataFormat)details.DataFormat,
             (CompatibilityMode)details.Compatibility,
-            details.HasDescription ? details.Description : string.Empty,
+            details.HasDescription ? details.Description : "",
             details.Tags
         );
 }

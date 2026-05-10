@@ -1,7 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Kurrent.Processors</PackageId>
+      <PackageId>Kurrent.Processors</PackageId>
+<!--      <PackageId>Kurrent.Streaming</PackageId> &lt;!&ndash; Common library for streaming utilities (e.g. checkpointing, leasing, locking) &ndash;&gt;-->
+<!--      <PackageId>Kurrent.Surge</PackageId>-->
+<!--      <PackageId>Kurrent.Projectors.Postgres</PackageId>-->
+<!--      <PackageId>Kurrent.Connectors.Kafka</PackageId>-->
+      
     <IsPackable>true</IsPackable>
     <Title>Kurrent .NET Processors</Title>
     <Product>Kurrent .NET Processors</Product>

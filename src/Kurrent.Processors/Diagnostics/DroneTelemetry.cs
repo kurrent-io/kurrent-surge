@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Checkpointing;
 
 namespace Kurrent.Processors.Diagnostics;
 

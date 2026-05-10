@@ -1,8 +1,5 @@
-using Kurrent.Client.Streams;
-using Kurrent.Processors;
 using Kurrent.Processors.Models;
 using Processor.AspNetMinimal;
-using Serilog;
 using static Kurrent.Processors.Checkpointing.Contracts;
 
 Log.Logger = new LoggerConfiguration()

@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Kurrent.Testkit</RootNamespace>
   </PropertyGroup>
+  
   <ItemGroup>
     <Using Include="Bogus" />
     <Using Include="TUnit" />
@@ -16,5 +17,4 @@
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
-
 </Project>

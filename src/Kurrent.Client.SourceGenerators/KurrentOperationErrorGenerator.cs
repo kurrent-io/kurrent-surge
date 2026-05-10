@@ -34,7 +34,7 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
 
                     spc.ReportDiagnostic(Diagnostic.Create(ImplementationGenerated, Location.None, info.FullName));
                 }
-                catch (System.Exception ex) {
+                catch (Exception ex) {
                     spc.ReportDiagnostic(Diagnostic.Create(Failed, Location.None, ex.ToString()));
                 }
             });
@@ -169,7 +169,7 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
     }
 
     static string GenerateNamespaceDeclaration(string ns) =>
-        ns != string.Empty ? $"namespace {ns} {{" : "// Global namespace";
+        ns != "" ? $"namespace {ns} {{" : "// Global namespace";
 
     static string RenderContainerHeader(ContainingTypeRef c) {
         var sb = new StringBuilder();

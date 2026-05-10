@@ -70,8 +70,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// It can be either "kurrentdb" for single-node connections or "kurrentdb+discover" for multi-node clusters with discovery.
     /// </summary>
     public KurrentConnectionScheme ConnectionScheme { get; set; } = KurrentConnectionScheme.Direct;
-
-
+    
     /// <summary>
     /// Gets the address of the KurrentDB cluster based on the connection scheme and endpoints.
     /// </summary>

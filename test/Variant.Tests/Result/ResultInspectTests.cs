@@ -94,7 +94,7 @@ public class ResultInspectTests {
         var gameId      = new GameId(Faker.Random.Guid());
         var result      = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var logMessage  = Faker.Lorem.Sentence();
-        var capturedLog = string.Empty;
+        var capturedLog = "";
 
         // Act
         var returned = result.Inspect((log, id) => capturedLog = log, logMessage);
@@ -327,7 +327,7 @@ public class ResultInspectTests {
         var gameId      = new GameId(Faker.Random.Guid());
         var result      = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var logMessage  = Faker.Lorem.Sentence();
-        var capturedLog = string.Empty;
+        var capturedLog = "";
 
         // Act
         await result.InspectAsync(

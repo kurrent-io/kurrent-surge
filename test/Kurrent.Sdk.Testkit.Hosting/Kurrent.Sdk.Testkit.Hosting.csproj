@@ -1,25 +1,34 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
 
-    <PropertyGroup>
-        <IsTestProject>false</IsTestProject>
-    </PropertyGroup>
+  <PropertyGroup>
+    <!-- stuff for the oficial aspire integration package -->
+    <!-- ************************************************ -->
+    <!--    <TargetFramework>$(DefaultTargetFramework)</TargetFramework>-->
+    <!--    <IsPackable>true</IsPackable>-->
+    <!--    <PackageTags>aspire integration hosting kurrentdb kurrent database data streaming processors projectors</PackageTags>-->
+    <!--    <Description>KurrentDB® support for Aspire.</Description>-->
+    <!--    <PackageIconFullPath>$(SharedDir)KurrentDB_logo.3colors.540x557.png</PackageIconFullPath>-->
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Using Include="Aspire.Hosting" />
+    <Using Include="Aspire.Hosting.ApplicationModel" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <Using Include="Aspire.Hosting" />
-        <Using Include="Aspire.Hosting.ApplicationModel" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-        <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Aspire.Hosting" />
-        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <None Update="gencert.sh" CopyToOutputDirectory="PreserveNewest" />
-    </ItemGroup>
+  <ItemGroup>
+    <None Update="gencert.sh" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

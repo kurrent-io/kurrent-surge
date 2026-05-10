@@ -1,7 +1,4 @@
 using Kurrent.Client;
-using Kurrent.Client.Streams;
-using Serilog;
-using Transfermarkt.Domain;
 
 namespace Processor.AspNetMinimal;
 

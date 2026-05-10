@@ -62,7 +62,7 @@ public class ReadStreamBenchmarks {
     public async Task<int> read_stream_from_log() {
         var builder = ReadRecordsRequest.New
             .FromPosition(LogPosition.Earliest)
-            .WithFilter(RecordFilter.ByStream(_stream));
+            .Filter(RecordFilter.ByStream(_stream));
 
         if (SkipDecoding)
             builder.SkipDecoding();

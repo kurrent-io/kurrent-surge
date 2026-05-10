@@ -86,7 +86,7 @@ internal static class ServerFilterExtractor {
                 return true;
 
             default:
-                regex           = string.Empty;
+                regex           = "";
                 caseInsensitive = false;
                 return false;
         }

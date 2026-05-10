@@ -1,7 +1,6 @@
 namespace Testing.ArcadeRacer;
 
 public interface ITestDataSource {
-
     string Name { get; }
 
     ValueTask<TestStream> GenerateSet(int numberOfEvents, CancellationToken cancellationToken);

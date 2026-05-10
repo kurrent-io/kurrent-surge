@@ -21,7 +21,7 @@ static class RsaExtensions {
 	public static RSA ImportPrivateKeyFromFile(this RSA rsa, string privateKeyPath) {
 		var (content, label) = LoadPemKeyFile(privateKeyPath);
 
-		var privateKey      = string.Join(string.Empty, content[1..^1]);
+		var privateKey      = string.Join("", content[1..^1]);
 		var privateKeyBytes = Convert.FromBase64String(privateKey);
 
 		if (label == RsaPemLabels.Pkcs8PrivateKey)
@@ -58,7 +58,7 @@ static class RsaPemLabels {
 	const string LabelSuffix = "-----";
 
 	public static string ParseKeyLabel(string pemFileHeader) {
-		var label = pemFileHeader.Replace(LabelPrefix, string.Empty).Replace(LabelSuffix, string.Empty);
+		var label = pemFileHeader.Replace(LabelPrefix, "").Replace(LabelSuffix, "");
 
 		if (!IsPrivateKey(label))
 			throw new CryptographicException($"Unknown private key label: {label}");

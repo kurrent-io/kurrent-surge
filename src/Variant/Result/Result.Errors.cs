@@ -188,8 +188,7 @@ public readonly partial record struct ErrorCode {
         if (!Regex().IsMatch(code))
             throw new InvalidErrorCodeException(
                 $"Error code is invalid: {value}. " +
-                $"It must be 3-63 characters and match UPPER_SNAKE_CASE pattern."
-            );
+                $"It must be 3-63 characters and match UPPER_SNAKE_CASE pattern.");
 
         return new ErrorCode(code);
     }

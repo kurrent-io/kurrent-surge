@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using KurrentDB.Protocol.V1;
-using KurrentDB.Protocol.V1.Operations;
 using OperationsServiceClient = KurrentDB.Protocol.V1.Operations.Operations.OperationsClient;
 
 namespace Kurrent.Client.Admin;
