@@ -191,9 +191,9 @@ Available checks:
 
 When a check fails, `AppendRecords` throws `AppendConsistencyViolationException` carrying one violation per failed check, each with the stream, expected state, and actual state. See [Handle append errors](#handle-append-errors) for the catch pattern, and the [cross-stream check state matrix](#cross-stream-check-state-matrix) for which expected and actual combinations pass.
 
-## Append non-JSON payloads
+## Choose a payload format
 
-Override the format per record with `WithDataFormat`.
+JSON is the default. Override per record with `WithDataFormat`.
 
 ::: tabs#data-formats
 
