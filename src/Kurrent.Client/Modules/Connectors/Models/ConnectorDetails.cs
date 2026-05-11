@@ -10,7 +10,7 @@ public record ConnectorDetails {
     /// <summary>
     /// Unique identifier for the connector.
     /// </summary>
-    public required string ConnectorId { get; init; }
+    public required ConnectorId ConnectorId { get; init; }
 
     /// <summary>
     /// Display name of the connector instance type.

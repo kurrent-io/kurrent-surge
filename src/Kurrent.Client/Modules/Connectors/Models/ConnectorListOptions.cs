@@ -17,7 +17,7 @@ public record ConnectorListOptions {
     /// <summary>
     /// Filter connectors by specific connector IDs.
     /// </summary>
-    public IReadOnlyList<string> ConnectorIds { get; init; } = [];
+    public IReadOnlyList<ConnectorId> ConnectorIds { get; init; } = [];
 
     /// <summary>
     /// Include connector settings in the response.
