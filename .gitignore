@@ -551,6 +551,7 @@ wip/
 # Certificates
 .certs-*/
 certs-*/
+certs/**
 
 # act (local GitHub Actions runner)
 .secrets
