@@ -94,38 +94,34 @@ await client.Registry.CreateSchema(
 
 ## Check before registering
 
-`CheckSchemaCompatibility` validates a proposed definition against an existing schema without registering it. It returns the matched `SchemaVersionId` on success and throws `SchemaIncompatibleException` on failure.
+`CheckSchemaCompatibility` validates a proposed definition against an existing schema without registering it. Build a `CheckSchemaCompatibilityRequest`, point it at a schema, and submit. The call returns the matched `SchemaVersionId` on success and throws `SchemaIncompatibleException` on failure.
 
-The first parameter is a `SchemaIdentifier`. Pass a `SchemaName` to check against the latest version, or a `SchemaVersionId` to check against a specific one.
+`For` accepts either a `SchemaName` (checks against the latest version) or a `SchemaVersionId` (checks against a specific one, handy for rollback dry-runs).
 
-::: tabs#check-target
+```csharp
+var versionId = await client.Registry.CheckSchemaCompatibility(
+    CheckSchemaCompatibilityRequest.For(SchemaName.From("order-placed"))
+        .WithDefinition(proposedSchema)
+        .WithDataFormat(SchemaDataFormat.Json)
+        .Build());
+```
 
-@tab Latest version
+| Method                             | Description                                                      |
+|------------------------------------|------------------------------------------------------------------|
+| `For(SchemaIdentifier)`            | Target schema. Accepts a `SchemaName` or `SchemaVersionId`.      |
+| `WithDefinition(string)`           | The proposed new definition.                                     |
+| `WithDataFormat(SchemaDataFormat)` | `Json`, `Protobuf`, `Avro`, or `Bytes`.                          |
+
+::: tip
+The `CheckSchemaCompatibility` extension covers the common case without the builder:
 
 ```csharp
 var versionId = await client.Registry.CheckSchemaCompatibility(
     SchemaName.From("order-placed"), proposedSchema, SchemaDataFormat.Json);
 ```
 
-@tab Specific version
-
-```csharp
-var versionId = await client.Registry.CheckSchemaCompatibility(
-    SchemaVersionId.From("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
-    proposedSchema,
-    SchemaDataFormat.Json);
-```
-
-Useful when verifying that a rollback would be safe.
-
+The same call accepts a `SchemaVersionId` directly when targeting a specific version.
 :::
-
-| Parameter           | Type                | Description                                                  |
-|---------------------|---------------------|--------------------------------------------------------------|
-| `identifier`        | `SchemaIdentifier`  | Schema name or version id to check against.                  |
-| `schemaDefinition`  | `string`            | The proposed new definition.                                 |
-| `dataFormat`        | `SchemaDataFormat`  | `Json`, `Protobuf`, `Avro`, or `Bytes`.                      |
-| `cancellationToken` | `CancellationToken` | Optional.                                                    |
 
 ## Compatibility errors
 
@@ -165,7 +161,7 @@ catch (SchemaIncompatibleException ex) {
 
 `Unspecified` is the proto default and should not occur in practice.
 
-`CheckSchemaCompatibility` and `RegisterSchemaVersion` share the same exception model: `SchemaIncompatibleException`, `SchemaNotFoundException`, `SchemaDeletedException`, and `ArgumentException` for invalid input.
+`CheckSchemaCompatibility` and `RegisterSchemaVersion` share the same exception model: `SchemaIncompatibleException`, `SchemaNotFoundException`, and `SchemaDeletedException`. Invalid inputs on `CheckSchemaCompatibility` surface as `ValidationException`. See [Error handling › Validation errors](../error-handling.md#validation-errors).
 
 ## Evolving a schema safely
 

@@ -10,37 +10,43 @@ CRUD operations for schemas and their versions, all on `client.Registry`. Calls 
 
 ## Create a schema
 
-`CreateSchema` registers a new schema and its first version. The minimum needed is the name, the definition, and the data format. It returns a `SchemaVersionDescriptor` with the new `VersionId` and `VersionNumber`.
+`CreateSchema` registers a new schema and its first version. Build a `CreateSchemaRequest` and pass it to the client. The call returns a `SchemaVersionDescriptor` with the new `VersionId` and `VersionNumber`.
 
 ```csharp
 var descriptor = await client.Registry.CreateSchema(
-    "order-placed", schemaJson, SchemaDataFormat.Json);
+    CreateSchemaRequest.For("order-placed")
+        .WithDefinition(schemaJson)
+        .WithDataFormat(SchemaDataFormat.Json)
+        .WithCompatibility(CompatibilityMode.Backward)
+        .WithDescription("Order placed event")
+        .WithTag("domain", "orders")
+        .Build());
 
 Console.WriteLine("Created version {0}", descriptor.VersionNumber);
 ```
 
-Add a compatibility mode, description, and tags for richer metadata.
+| Method                                 | Description                                                      |
+|----------------------------------------|------------------------------------------------------------------|
+| `For(SchemaName)`                      | Start the request for the given schema name.                     |
+| `WithDefinition(string)`               | Set the schema definition.                                       |
+| `WithDataFormat(SchemaDataFormat)`     | `Json`, `Protobuf`, `Avro`, or `Bytes`.                          |
+| `WithCompatibility(CompatibilityMode)` | Defaults to `None`. See [Compatibility](./compatibility.md).     |
+| `WithDescription(string)`              | Human-readable description.                                      |
+| `WithTag(string, string)`              | Add a single tag entry.                                          |
+| `WithTags(IReadOnlyDictionary<,>)`     | Replace the full tag set.                                        |
+
+::: tip
+For the common case of name, definition, and data format, the `CreateSchema` extension skips the builder:
 
 ```csharp
 var descriptor = await client.Registry.CreateSchema(
-    "order-placed",
-    schemaJson,
-    SchemaDataFormat.Json,
-    CompatibilityMode.Backward,
-    description: "Order placed event",
-    tags: new Dictionary<string, string> { ["domain"] = "orders" });
+    "order-placed", schemaJson, SchemaDataFormat.Json);
 ```
 
-| Parameter           | Type                                   | Required | Default     | Description                                               |
-|---------------------|----------------------------------------|----------|-------------|-----------------------------------------------------------|
-| `schemaName`        | `SchemaName`                           | yes      |             | Implicit from `string`.                                   |
-| `schemaDefinition`  | `string`                               | yes      |             | The schema definition (for example, JSON Schema).         |
-| `dataFormat`        | `SchemaDataFormat`                     | yes      |             | `Json`, `Protobuf`, `Avro`, or `Bytes`.                   |
-| `compatibilityMode` | `CompatibilityMode`                    | no       | `None`      | See [Compatibility](./compatibility.md).                  |
-| `description`       | `string`                               | no       | `""`        | Human-readable description.                               |
-| `tags`              | `IReadOnlyDictionary<string, string>?` | no       | `null`      | Key-value metadata for categorization and filtering.      |
+Overloads also accept a `CompatibilityMode` or a tags dictionary directly.
+:::
 
-Throws `SchemaAlreadyExistsException` when the name is taken, or `ArgumentException` when inputs are empty.
+Throws `SchemaAlreadyExistsException` when the name is taken. Invalid inputs throw `ValidationException`. See [Error handling › Validation errors](../error-handling.md#validation-errors).
 
 ## Get a schema
 
@@ -98,37 +104,33 @@ Throws `SchemaNotFoundException` (use `CreateSchema` first), `SchemaDeletedExcep
 
 ## List schemas
 
-`ListSchemas` enumerates registered schemas, optionally filtered by name prefix and tags. Tag filters require all specified tags to match. Returns `IReadOnlyList<Schema>`.
-
-::: tabs#list-schemas
-
-@tab All
+`ListSchemas` enumerates registered schemas, optionally filtered by name prefix and tags. Tag filters require all specified tags to match. Build a `ListSchemasRequest` to combine filters; the call returns `IReadOnlyList<Schema>`.
 
 ```csharp
-var all = await client.Registry.ListSchemas();
+var schemas = await client.Registry.ListSchemas(
+    ListSchemasRequest.New
+        .WithPrefix("order-")
+        .WithTag("team", "fulfillment")
+        .Build());
 ```
 
-@tab By prefix
+| Method                              | Description                                                      |
+|-------------------------------------|------------------------------------------------------------------|
+| `WithPrefix(string)`                | Filter by schema name prefix. Empty means no prefix filter.      |
+| `WithTag(string, string)`           | Add a single tag entry to the filter.                            |
+| `WithTags(IReadOnlyDictionary<,>)`  | Replace the full tag filter. Empty means no tag filter.          |
+
+A request with no filters set returns every registered schema.
+
+::: tip
+The `ListSchemas` extension covers the common single-filter cases without the builder:
 
 ```csharp
-var orders = await client.Registry.ListSchemas(schemaNamePrefix: "order-");
-```
-
-@tab By tags
-
-```csharp
-var fulfillment = await client.Registry.ListSchemas(
+var all          = await client.Registry.ListSchemas();
+var orders       = await client.Registry.ListSchemas(schemaNamePrefix: "order-");
+var fulfillment  = await client.Registry.ListSchemas(
     tags: new Dictionary<string, string> { ["team"] = "fulfillment" });
 ```
-
-@tab Combined
-
-```csharp
-var ordersFulfillment = await client.Registry.ListSchemas(
-    schemaNamePrefix: "order-",
-    tags: new Dictionary<string, string> { ["team"] = "fulfillment" });
-```
-
 :::
 
 ## Delete a schema
