@@ -39,6 +39,7 @@
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
     <Project Path="test\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
     <Project Path="test\Kurrent.Sdk.Testkit.Hosting\Kurrent.Sdk.Testkit.Hosting.csproj" />
+    <Project Path="test\Kurrent.Sdk.Testkit.Hosting.Tests\Kurrent.Sdk.Testkit.Hosting.Tests.csproj" />
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
     <Project Path="test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
   </Folder>

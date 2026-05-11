@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -5,54 +6,19 @@ using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Sdk.Testkit.Hosting;
 
-public sealed class KurrentDBHealthCheckV2(string resourceName, ResourceConnectionSubscriber provider, ILoggerFactory loggerFactory) : IHealthCheck {
-    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) {
-        var logger = loggerFactory.CreateLogger<KurrentDBHealthCheckV2>();
-
-        try {
-            logger.LogWarning("Checking health for KurrentDB resource: {ResourceName}", resourceName);
-            
-            var connectionString = await provider
-                .GetConnectionStringAsync(resourceName)
-                .ConfigureAwait(false);
-
-            logger.LogWarning("Using ConnectionString: {ConnectionString}", connectionString);
-            
-            await using var client = KurrentClient.Create(connectionString, opts => {
-                opts.ConnectionName = resourceName;
-                opts.LoggerFactory  = loggerFactory;
-                // opts.Resilience     = KurrentClientResilienceOptions.FailFast;
-                opts.Resilience     = KurrentClientResilienceOptions.NoResilience;
-            });
-
-            var hasRecords = await client.Streams
-                .ReadRecords(req => req.FromLatestBackwards().Limit(1).SkipDecoding(), cancellationToken)
-                .AnyAsync(cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
-            return hasRecords
-                ? HealthCheckResult.Healthy()
-                : new(context.Registration.FailureStatus, "Failed to read from KurrentDB");
-        }
-        catch (Exception ex) {
-            logger.LogError(ex, "Failed to check health for KurrentDB resource: {ResourceName}", resourceName);
-
-            return new(context.Registration.FailureStatus, exception: ex);
-        }
-    }
-}
-
-public sealed class KurrentDBHealthCheck(string resourceName, ResourceConnectionProvider<KurrentDBResource> provider, ILoggerFactory loggerFactory) : IHealthCheck {
+public sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectionProvider provider, ILoggerFactory loggerFactory) : IHealthCheck {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) {
         var logger = loggerFactory.CreateLogger<KurrentDBHealthCheck>();
 
         try {
+            LogResourcenameCheckingHealth(logger, resourceName);
+            
             var connectionString = await provider
                 .GetConnectionStringAsync(resourceName, TimeSpan.FromSeconds(30))
                 .ConfigureAwait(false);
-            
-            logger.LogWarning("Using ConnectionString: {ConnectionString}", connectionString);
 
+            LogResourcenameConnectionstringConnectionstring(logger, resourceName, connectionString);
+            
             await using var client = KurrentClient.Create(connectionString, opts => {
                 opts.ConnectionName = resourceName;
                 opts.LoggerFactory  = loggerFactory;
@@ -66,10 +32,20 @@ public sealed class KurrentDBHealthCheck(string resourceName, ResourceConnection
 
             return hasRecords
                 ? HealthCheckResult.Healthy()
-                : new(context.Registration.FailureStatus, "Failed to read from KurrentDB.");
+                : throw new UnreachableException($"It is impossible for {resourceName} to not have records.");
         }
-        catch (Exception exception) {
-            return new(context.Registration.FailureStatus, exception: exception);
+        catch (Exception ex) {
+            return new(context.Registration.FailureStatus, exception: ex);
         }
     }
+
+    #region ->> Logging <<-
+
+    [LoggerMessage(LogLevel.Debug, "{ResourceName} Checking health...")]
+    static partial void LogResourcenameCheckingHealth(ILogger<KurrentDBHealthCheck> logger, string resourceName);
+
+    [LoggerMessage(LogLevel.Debug, "{ResourceName} ConnectionString: {ConnectionString}")]
+    static partial void LogResourcenameConnectionstringConnectionstring(ILogger<KurrentDBHealthCheck> logger, string resourceName, string connectionString);
+
+    #endregion
 }

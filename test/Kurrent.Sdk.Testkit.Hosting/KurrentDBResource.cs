@@ -34,7 +34,7 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
         var variables = Parent.TlsEnabled
             ? NodeConfiguration.Secure
             : NodeConfiguration.Insecure;
-
+        
         foreach (var (key, value) in variables) {
             if (value is not null)
                 ctx.EnvironmentVariables[key] = value;
@@ -53,6 +53,15 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
 
         if (Priority != 0)
             ctx.EnvironmentVariables["KURRENTDB_NODE_PRIORITY"] = Priority.ToString();
+
+        var otel = Parent.OpenTelemetry;
+
+        if (otel.IsEnabled) {
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"]   = otel.Endpoint;
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]    = otel.LogsEnabled.ToString().ToLowerInvariant();
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__METRICS__ENABLED"] = otel.MetricsEnabled.ToString().ToLowerInvariant();
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__TRACES__ENABLED"]  = otel.TracesEnabled.ToString().ToLowerInvariant();
+        }
     }
 
     IEnumerable<KeyValuePair<string, ReferenceExpression>> IResourceWithConnectionString.GetConnectionProperties() {

@@ -2,6 +2,8 @@
 
 #pragma warning disable ASPIREATS001 // AspireExport is experimental
 
+using Kurrent.Sdk.Testkit.Hosting;
+
 namespace Aspire.Hosting.ApplicationModel;
 
 [AspireExport(ExposeProperties = true)]
@@ -17,7 +19,11 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
         TlsEnabled        = tlsEnabled;
         UserNameParameter  = userName;
         PasswordParameter  = password;
+        
+        CertsHostPath = Path.Combine(AppContext.BaseDirectory, "certs", name);
     }
+
+    public string CertsHostPath { get; }
 
     public IReadOnlyList<KurrentDBResource> Nodes => _nodes;
 
@@ -26,6 +32,8 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
     public ParameterResource UserNameParameter { get; }
 
     public ParameterResource PasswordParameter { get; }
+
+    public OpenTelemetrySettings OpenTelemetry { get; internal set; } = new();
 
     public int ClusterSize => _nodes.Count;
 

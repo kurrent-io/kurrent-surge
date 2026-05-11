@@ -33,11 +33,6 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
     /// </summary>
     protected Action<IDistributedApplicationTestingBuilder> ConfigureBuilder { get; init; } = __ => { };
 
-    // /// <summary>
-    // /// Final hook to allow custom setup logic after the application is built but before it starts.
-    // /// </summary>
-    // protected Func<ValueTask> OnSetup { get; init; } = () => ValueTask.CompletedTask;
-
     /// <summary>
     /// Hook that runs after all resources are ready. Use for connection string resolution
     /// and client creation that depend on allocated endpoints.
@@ -223,21 +218,4 @@ public sealed record AspireFixtureOptions {
     /// Defaults to all compute resources that are not child resources.
     /// </summary>
     public Func<IResource, bool> ShouldWaitForResource { get; init; } = r => r is IComputeResource and not IResourceWithParent;
-}
-
-static class AspireExtensions {
-    extension(IDistributedApplicationTestingBuilder builder) {
-        /// <summary>
-        /// Builds the application within the specified timeout.
-        /// </summary>
-        /// <param name="timeout"></param>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public async Task BuildAsync(TimeSpan timeout) {
-            ArgumentOutOfRangeException.ThrowIfLessThan(timeout, TimeSpan.Zero);
-            ArgumentOutOfRangeException.ThrowIfEqual(timeout, Timeout.InfiniteTimeSpan);
-
-            using var cts = new CancellationTokenSource(timeout);
-            await builder.BuildAsync(cts.Token).ConfigureAwait(false);
-        }
-    }
 }

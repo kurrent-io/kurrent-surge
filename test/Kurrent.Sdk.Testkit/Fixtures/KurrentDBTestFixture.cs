@@ -47,9 +47,7 @@ public class KurrentDBTestFixture : AspireFixture {
     public KurrentClient Client { get; private set; } = null!;
 
     public string ConnectionString { get; private set; } = null!;
-
-    // public string? CertsDirectory { get; private set; }
-
+    
     public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
 
     public KurrentClient GetNewClient(string? connectionString = null) =>
@@ -114,20 +112,16 @@ public class KurrentDBTestFixture : AspireFixture {
 }
 
 public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
-    public KurrentDBSecureTestFixture() {
-        // Options = new() {
-        //     ResourceTimeout    = TimeSpan.FromMinutes(2),
-        //     WaitBehavior       = ResourceWaitBehavior.Named,
-        //     ResourcesToWaitFor = r => r.OfType<KurrentDBResource>().ToList<IResource>(),
-        //     Args = new[] { KurrentDBAppHostArgs.Tls(true) }
-        // };
-        
-        // Settings = new KurrentDBSettings { Secure = true, };
-    }
-    
-    // static readonly string[] DefaultArgs = [KurrentDBAppHostArgs.Tls(true)];
-    //
-    // protected override string[] Args => DefaultArgs;
+    // public KurrentDBSecureTestFixture() {
+    //     Options = new() {
+    //         ResourceTimeout    = TimeSpan.FromMinutes(2),
+    //         WaitBehavior       = ResourceWaitBehavior.Named,
+    //         ResourcesToWaitFor = r => r.OfType<KurrentDBResource>().ToList<IResource>(),
+    //         Args = new[] { KurrentDBAppHostArgs.Tls(true) }
+    //     };
+    //     
+    //     Settings = new KurrentDBSettings { Secure = true, };
+    // }
 }
 
 /// <summary>

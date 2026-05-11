@@ -1,5 +1,3 @@
-using Kurrent.Client;
-
 namespace Kurrent.Sdk.Testkit.Hosting;
 
 public class KurrentDBSettings {
@@ -14,11 +12,6 @@ public class KurrentDBSettings {
     };
 
     /// <summary>
-    /// The connection string for the KurrentDB resource. Allows for custom connection string parameters.
-    /// </summary>
-    public string? ConnectionString { get; set; }
-
-    /// <summary>
     /// Represents the cluster topology for the KurrentDB resource, including the number of nodes and read-only replicas.
     /// </summary>
     public ClusterTopologySettings Topology { get; set; } = new();
@@ -26,7 +19,7 @@ public class KurrentDBSettings {
     /// <summary>
     /// Represents the container image settings for the KurrentDB resource, including registry, image, and tag.
     /// </summary>
-    public ContainerImageSettings ContainerImage { get; set; } = new();
+    public ContainerSettings Container { get; set; } = new();
 
     /// <summary>
     /// Indicates whether TLS encryption is enabled for the KurrentDB resource.
@@ -34,14 +27,15 @@ public class KurrentDBSettings {
     public bool TlsEnabled { get; set; } = true;
 
     /// <summary>
-    /// The username for the KurrentDB resource. Cannot be empty.
+    /// The credentials for the KurrentDB resource.
     /// </summary>
-    public string UserName { get; set; } = KurrentDBServerResource.DefaultUserName;
+    public CredentialSettings Credentials { get; set; } = new();
 
     /// <summary>
-    /// The password for the KurrentDB resource. Can be empty but is not advised.
+    /// OpenTelemetry export settings for the KurrentDB node.
+    /// Controls OTLP export of logs, metrics, and traces to the configured endpoint.
     /// </summary>
-    public string Password { get; set; } = KurrentDBServerResource.DefaultPassword;
+    public OpenTelemetrySettings OpenTelemetry { get; set; } = new();
 
     /// <summary>
     /// Gets or sets a boolean value that indicates whether the KurrentDB health check is disabled or not.
@@ -58,8 +52,6 @@ public class KurrentDBSettings {
     /// The default value is <see langword="null"/>.
     /// </value>
     public TimeSpan? HealthCheckTimeout { get; set; }
-
-    public string Tag { get; init; } = KurrentDBContainerImageTags.Tag;
 
     #region ->> Fluent API <<-
 
@@ -113,25 +105,28 @@ public class KurrentDBSettings {
     /// <summary>
     /// Sets custom credentials for the KurrentDB resource.
     /// </summary>
-    public KurrentDBSettings Credentials(string userName, string password = "") {
-        ArgumentException.ThrowIfNullOrWhiteSpace(userName);
-        UserName = userName;
-        Password = password;
+    public KurrentDBSettings WithCredentials(string userName, string password = "") {
+        Credentials = new() { UserName = userName, Password = password };
+        return this;
+    }
+
+    /// <summary>
+    /// Configures OpenTelemetry export settings for the KurrentDB node.
+    /// </summary>
+    public KurrentDBSettings WithOpenTelemetry(Action<OpenTelemetrySettings> configure) {
+        configure(OpenTelemetry);
         return this;
     }
 
     #endregion // Fluent API
 
     public KurrentDBSettings EnsureValid() {
-        ArgumentException.ThrowIfNullOrWhiteSpace(UserName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(Credentials.UserName);
         ArgumentOutOfRangeException.ThrowIfLessThan(Topology.Nodes, 1);
         ArgumentOutOfRangeException.ThrowIfNegative(Topology.Replicas);
 
         if (Topology is { Replicas: > 0, Nodes: < 3 })
             throw new ArgumentException("Read-only replicas require a cluster of at least 3 nodes.");
-
-        if (ConnectionString is not null)
-            KurrentClientOptions.Parse(ConnectionString);
 
         return this;
     }
@@ -171,10 +166,56 @@ public sealed class ClusterBuilder {
     internal List<NodeSettings> Build() => _nodes;
 }
 
-public sealed class ContainerImageSettings {
+public sealed class CredentialSettings {
+    public string UserName { get; set; } = KurrentDBServerResource.DefaultUserName;
+
+    public string Password { get; set; } = KurrentDBServerResource.DefaultPassword;
+}
+
+public sealed class ContainerSettings {
     public string Registry { get; set; } = KurrentDBContainerImageTags.Registry;
 
-    public string Image { get; set; } = KurrentDBContainerImageTags.Image;
+    public string Image { get; set; } = KurrentDBContainerImageTags.Latest.Image;
 
-    public string Tag { get; set; } = KurrentDBContainerImageTags.Tag;
+    public string Tag { get; set; } = KurrentDBContainerImageTags.Latest.Tag;
+}
+
+public sealed class OpenTelemetrySettings {
+    const string DefaultContainerEndpoint = "http://host.docker.internal:4317";
+
+    /// <summary>
+    /// The OTLP endpoint for exporting telemetry data.
+    /// Defaults to the Aspire dashboard OTLP collector reachable from inside Docker.
+    /// </summary>
+    public string Endpoint { get; set; } = DefaultContainerEndpoint;
+
+    /// <summary>
+    /// Enables OTLP log export from the KurrentDB node. Default is <see langword="false"/>.
+    /// </summary>
+    public bool LogsEnabled { get; set; }
+
+    /// <summary>
+    /// Enables OTLP metrics export from the KurrentDB node. Default is <see langword="false"/>.
+    /// </summary>
+    public bool MetricsEnabled { get; set; }
+
+    /// <summary>
+    /// Enables OTLP traces export from the KurrentDB node. Default is <see langword="false"/>.
+    /// </summary>
+    public bool TracesEnabled { get; set; }
+
+    /// <summary>
+    /// Returns <see langword="true"/> if any telemetry signal is enabled.
+    /// </summary>
+    public bool IsEnabled => LogsEnabled || MetricsEnabled || TracesEnabled;
+
+    /// <summary>
+    /// Enables all telemetry signals (logs, metrics, traces).
+    /// </summary>
+    public OpenTelemetrySettings EnableAll() {
+        LogsEnabled    = true;
+        MetricsEnabled = true;
+        TracesEnabled  = true;
+        return this;
+    }
 }
