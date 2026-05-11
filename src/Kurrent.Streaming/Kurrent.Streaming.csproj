@@ -41,8 +41,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Kurrent.Processors.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Processors.Integration.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
