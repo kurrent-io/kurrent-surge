@@ -233,6 +233,38 @@ catch (AppendConsistencyViolationException ex) {
 
 See [Error handling](../error-handling.md) for the full throwing model, validation, and cancellation.
 
+## Stream state matrix
+
+Every append compares an *expected* state against the *actual* state of the stream and rejects the operation on a mismatch. The rules differ slightly for the stream being appended to versus read-only consistency checks on other streams. In the matrices below, ✅ means the check passes and ❌ means the operation is rejected with a stream state violation.
+
+### Append target
+
+Applied to the stream being appended to. A tombstoned stream rejects every append.
+
+| Expected ↓ / Actual → | Revision M  | No stream | Deleted | Tombstoned |
+|:----------------------|:-----------:|:---------:|:-------:|:----------:|
+| `Revision.From(N)`    | ✅ if M = N  |     ❌     |    ❌    |     ❌      |
+| `NoStream`            |      ❌      |     ✅     |    ✅    |     ❌      |
+| `Any`                 |      ✅      |     ✅     |    ✅    |     ❌      |
+| `Exists`              |      ✅      |     ❌     |    ❌    |     ❌      |
+| `Deleted`             |      ❌      |     ❌     |    ✅    |     ❌      |
+| `Tombstoned`          |      ❌      |     ❌     |    ❌    |     ❌      |
+
+### Cross-stream consistency check
+
+Applied as a read-only check on another stream in an `AppendRecords` transaction. `NoStream` and `Any` are also satisfied when the stream has been deleted or tombstoned, because the check is asserting absence rather than guarding a write.
+
+| Expected ↓ / Actual → | Revision M  | No stream | Deleted | Tombstoned |
+|:----------------------|:-----------:|:---------:|:-------:|:----------:|
+| `Revision.From(N)`    | ✅ if M = N  |     ❌     |    ❌    |     ❌      |
+| `NoStream`            |      ❌      |     ✅     |    ✅    |     ✅      |
+| `Any`                 |      ✅      |     ✅     |    ✅    |     ✅      |
+| `Exists`              |      ✅      |     ❌     |    ❌    |     ❌      |
+| `Deleted`             |      ❌      |     ❌     |    ✅    |     ❌      |
+| `Tombstoned`          |      ❌      |     ❌     |    ❌    |     ✅      |
+
+See [Append-specific exceptions](#reference) below for the exception raised on each rejection.
+
 ## Reference
 
 `AppendRecord.New` builder methods:
