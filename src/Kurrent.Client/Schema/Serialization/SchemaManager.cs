@@ -121,7 +121,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 
 		try {
 			var version = await SchemaRegistryClient
-				.GetSchemaVersion(schemaName, null, cancellationToken)
+				.GetSchemaVersion(schemaName, cancellationToken)
 				.ConfigureAwait(false);
 
 			var versionInfo = new SchemaVersionDescriptor(version.VersionId, version.VersionNumber);
@@ -136,7 +136,7 @@ public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter 
 
 		try {
 			var versionInfo = await SchemaRegistryClient
-				.CreateSchema(schemaName, definition, dataFormat, cancellationToken: cancellationToken)
+				.CreateSchema(schemaName, definition, dataFormat, cancellationToken)
 				.ConfigureAwait(false);
 
 			// edge case: the schema was created by another client between checking and creating
