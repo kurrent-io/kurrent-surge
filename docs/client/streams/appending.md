@@ -8,7 +8,7 @@ order: 1
 
 Streams hold an ordered sequence of records. Use `AppendStream` to write to a single stream and `AppendRecords` to write across several streams in one atomic transaction.
 
-## Append a record
+## Append a single record
 
 Build a record and pass it to `AppendStream`:
 
@@ -29,7 +29,7 @@ Payloads serialize as JSON by default. The stream is created on first append.
 
 The response carries the target stream, the new revision, and the log position of the last appended record.
 
-## Append a batch atomically
+## Append a batch to one stream
 
 `AppendStreamRequest.For(stream)` collects multiple records destined for the same stream. They commit together or not at all.
 
@@ -45,7 +45,7 @@ var result = await client.Streams.AppendStream(request);
 
 `WithMessage` is the payload-only shortcut. Reach for `WithRecord` when you need to control more than just the payload.
 
-## Customize a record
+## Attach metadata to a record
 
 Use the full record builder when you need more control than `WithMessage` provides:
 
@@ -130,7 +130,7 @@ var result = await client.Streams.AppendStream(request);
 
 :::
 
-## Append to multiple streams in one transaction
+## Append across multiple streams
 
 `AppendRecords` writes to several streams atomically. Each record carries its own destination, and `ConsistencyCheck` factories attach pre-commit checks evaluated against the current state of the affected streams.
 
@@ -145,9 +145,9 @@ await client.Streams.AppendRecords(
         .Build());
 ```
 
-See [Guard a multi-stream transaction](#guard-a-multi-stream-transaction) for the full set of checks and how violations surface.
+See [Guard cross-stream consistency](#guard-cross-stream-consistency) for the full set of checks and how violations surface.
 
-## Guard a multi-stream transaction
+## Guard cross-stream consistency
 
 Each consistency check is a pre-commit assertion the server evaluates against the current state of a stream. If any check on an `AppendRecords` request fails, the whole transaction is rejected. `ExpectingState` on a single-stream `AppendStream` is sugar for the same mechanism, applied to one stream.
 
@@ -189,7 +189,7 @@ Available checks:
 | `StreamIsDeleted(stream)`            | Stream is soft-deleted                          |
 | `StreamIsTombstoned(stream)`         | Stream is permanently deleted                   |
 
-When a check fails, `AppendRecords` throws `AppendConsistencyViolationException` carrying one violation per failed check, each with the stream, expected state, and actual state. See [Handle append errors](#handle-append-errors) for the catch pattern, and the [cross-stream consistency check matrix](#cross-stream-consistency-check) for which expected and actual combinations pass.
+When a check fails, `AppendRecords` throws `AppendConsistencyViolationException` carrying one violation per failed check, each with the stream, expected state, and actual state. See [Handle append errors](#handle-append-errors) for the catch pattern, and the [cross-stream check state matrix](#cross-stream-check-state-matrix) for which expected and actual combinations pass.
 
 ## Append non-JSON payloads
 
@@ -277,11 +277,20 @@ catch (AppendConsistencyViolationException ex) {
 
 See [Error handling](../error-handling.md) for the full throwing model, validation, and cancellation.
 
-## Stream state matrix
+## Reference
 
 Every append compares an *expected* state against the *actual* state of the stream and rejects the operation on a mismatch. The rules differ slightly for the stream being appended to versus read-only consistency checks on other streams. ✅ means the check passes, and ❌ means the operation is rejected with a stream state violation.
 
-### Append target
+### Expected stream state values
+
+| Value              | Check performed                    |
+|--------------------|------------------------------------|
+| `Any`              | None, always succeeds              |
+| `NoStream`         | Stream must not exist              |
+| `Exists`           | Stream must exist                  |
+| `Revision.From(n)` | Stream revision must match exactly |
+
+### Append target state matrix
 
 Applied to the stream being appended to. A tombstoned stream rejects every append.
 
@@ -300,7 +309,7 @@ Applied to the stream being appended to. A tombstoned stream rejects every appen
 </tbody>
 </table>
 
-### Cross-stream consistency check
+### Cross-stream check state matrix
 
 Applied as a read-only check on another stream in an `AppendRecords` transaction. `NoStream` and `Any` are also satisfied when the stream has been deleted or tombstoned, because the check is asserting absence rather than guarding a write.
 
@@ -319,20 +328,7 @@ Applied as a read-only check on another stream in an `AppendRecords` transaction
 </tbody>
 </table>
 
-See [Append-specific exceptions](#reference) below for the exception raised on each rejection.
-
-## Reference
-
-Expected stream state values:
-
-| Value              | Check performed                    |
-|--------------------|------------------------------------|
-| `Any`              | None, always succeeds              |
-| `NoStream`         | Stream must not exist              |
-| `Exists`           | Stream must exist                  |
-| `Revision.From(n)` | Stream revision must match exactly |
-
-Append-specific exceptions:
+### Append-specific exceptions
 
 | Exception                                   | Cause                                                       |
 |---------------------------------------------|-------------------------------------------------------------|
