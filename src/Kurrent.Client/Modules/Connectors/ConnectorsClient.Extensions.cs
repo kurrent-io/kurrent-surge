@@ -22,11 +22,11 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Create(ConnectorId connectorId, IConfiguration configuration, CancellationToken ct) =>
             client.Create(connectorId, configuration.ToFlatDictionary(), ct);
 
-        public ValueTask<Success> Create(ConnectorId connectorId, string json) =>
-            client.Create(connectorId, json.ToFlatDictionary(), CancellationToken.None);
+        public ValueTask<Success> Create(ConnectorId connectorId, string configuration) =>
+            client.Create(connectorId, configuration.ToFlatDictionary(), CancellationToken.None);
 
-        public ValueTask<Success> Create(ConnectorId connectorId, string json, CancellationToken ct) =>
-            client.Create(connectorId, json.ToFlatDictionary(), ct);
+        public ValueTask<Success> Create(ConnectorId connectorId, string configuration, CancellationToken ct) =>
+            client.Create(connectorId, configuration.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Create(ConnectorId connectorId, string name, Dictionary<string, string> settings) =>
             client.Create(connectorId, name, settings, CancellationToken.None);
