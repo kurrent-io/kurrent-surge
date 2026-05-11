@@ -14,8 +14,6 @@ namespace KurrentDB.Client;
 /// Represents the settings to use for operations made from an implementation of <see cref="KurrentDBClientBase"/>.
 /// </summary>
 class KurrentDBClientSettings {
-    // public static KurrentDBClientSettingsBuilder Builder => new();
-
     /// <summary>
     /// The name of the connection.
     /// </summary>
@@ -109,17 +107,17 @@ static class KurrentDBConnectionStringConverter {
         var typedOptions = new Dictionary<string, object>(StringComparer.InvariantCultureIgnoreCase);
         foreach (var kv in connectionString.Options) {
             if (!SettingsType.TryGetValue(kv.Key, out var type))
-                throw new InvalidSettingException($"Unknown option: {kv.Key}");
+                throw new InvalidLegacyClientSettingsException($"Unknown option: {kv.Key}");
 
             if (type == typeof(int)) {
                 if (!int.TryParse(kv.Value, out var intValue))
-                    throw new InvalidSettingException($"{kv.Key} must be an integer value");
+                    throw new InvalidLegacyClientSettingsException($"{kv.Key} must be an integer value");
 
                 typedOptions.Add(kv.Key, intValue);
             }
             else if (type == typeof(bool)) {
                 if (!bool.TryParse(kv.Value, out var boolValue))
-                    throw new InvalidSettingException($"{kv.Key} must be either true or false");
+                    throw new InvalidLegacyClientSettingsException($"{kv.Key} must be either true or false");
 
                 typedOptions.Add(kv.Key, boolValue);
             }
@@ -146,7 +144,7 @@ static class KurrentDBConnectionStringConverter {
                 "follower"        => NodePreference.Follower,
                 "random"          => NodePreference.Random,
                 "readonlyreplica" => NodePreference.ReadOnlyReplica,
-                _                 => throw new InvalidSettingException($"Invalid NodePreference: {nodePreference}")
+                _                 => throw new InvalidLegacyClientSettingsException($"Invalid NodePreference: {nodePreference}")
             };
 
         var useTls = true;
@@ -163,14 +161,14 @@ static class KurrentDBConnectionStringConverter {
             settings.ConnectivitySettings.KeepAliveInterval = keepAliveIntervalMs switch {
                 -1                 => Timeout.InfiniteTimeSpan,
                 int value and >= 0 => TimeSpan.FromMilliseconds(value),
-                _                  => throw new InvalidSettingException($"Invalid KeepAliveInterval: {keepAliveIntervalMs}")
+                _                  => throw new InvalidLegacyClientSettingsException($"Invalid KeepAliveInterval: {keepAliveIntervalMs}")
             };
 
         if (typedOptions.TryGetValue(KurrentConnectionString.KeepAliveTimeout, out var keepAliveTimeoutMs))
             settings.ConnectivitySettings.KeepAliveTimeout = keepAliveTimeoutMs switch {
                 -1                 => Timeout.InfiniteTimeSpan,
                 int value and >= 0 => TimeSpan.FromMilliseconds(value),
-                _                  => throw new InvalidSettingException($"Invalid KeepAliveTimeout: {keepAliveTimeoutMs}")
+                _                  => throw new InvalidLegacyClientSettingsException($"Invalid KeepAliveTimeout: {keepAliveTimeoutMs}")
             };
 
         settings.ConnectivitySettings.Insecure = !useTls;
@@ -189,13 +187,13 @@ static class KurrentDBConnectionStringConverter {
         if (typedOptions.TryGetValue(KurrentConnectionString.TlsCaFile, out var tlsCaFile)) {
             var tlsCaFilePath = Path.GetFullPath((string)tlsCaFile);
             if (!string.IsNullOrEmpty(tlsCaFilePath) && !File.Exists(tlsCaFilePath))
-                throw new InvalidSettingException("Failed to load certificate. File was not found.");
+                throw new InvalidLegacyClientSettingsException("Failed to load certificate. File was not found.");
 
             try {
                 settings.ConnectivitySettings.TlsCaFile = X509CertificateLoader.LoadCertificateFromFile(tlsCaFilePath);
             }
             catch (CryptographicException) {
-                throw new InvalidSettingException("Failed to load certificate. Invalid file format.");
+                throw new InvalidLegacyClientSettingsException("Failed to load certificate. Invalid file format.");
             }
         }
 
@@ -243,19 +241,19 @@ static class KurrentDBConnectionStringConverter {
                 return;
 
             if (string.IsNullOrEmpty(certPemFilePath) || string.IsNullOrEmpty(keyPemFilePath))
-                throw new InvalidSettingException("Invalid client certificate settings. Both UserCertFile and UserKeyFile must be set.");
+                throw new InvalidLegacyClientSettingsException("Invalid client certificate settings. Both UserCertFile and UserKeyFile must be set.");
 
             if (!File.Exists(certPemFilePath))
-                throw new InvalidSettingException($"Invalid client certificate settings. The specified UserCertFile does not exist: {certPemFilePath}");
+                throw new InvalidLegacyClientSettingsException($"Invalid client certificate settings. The specified UserCertFile does not exist: {certPemFilePath}");
 
             if (!File.Exists(keyPemFilePath))
-                throw new InvalidSettingException($"Invalid client certificate settings. The specified UserKeyFile does not exist: {keyPemFilePath}");
+                throw new InvalidLegacyClientSettingsException($"Invalid client certificate settings. The specified UserKeyFile does not exist: {keyPemFilePath}");
 
             try {
                 settings.ConnectivitySettings.ClientCertificate = X509Certificates.CreateFromPemFile(certPemFilePath, keyPemFilePath);
             }
             catch (Exception ex) {
-                throw new InvalidSettingException($"Failed to create client certificate: {ex.Message}", ex);
+                throw new InvalidLegacyClientSettingsException($"Failed to create client certificate: {ex.Message}", ex);
             }
 
             return;
@@ -265,4 +263,5 @@ static class KurrentDBConnectionStringConverter {
     }
 }
 
-public class InvalidSettingException(string reason, Exception? innerException = null) : KurrentException(ErrorCode.FromType<InvalidSettingException>(), reason, innerException);
+public class InvalidLegacyClientSettingsException(string reason, Exception? innerException = null) 
+    : KurrentException(ErrorCode.FromType<InvalidLegacyClientSettingsException>(), reason, innerException);

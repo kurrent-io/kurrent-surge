@@ -1,5 +1,5 @@
 # JavaScript Record Processor — Draft Spec
-
+==
 > Living document. Captures decisions from design discussions. Not a final spec.
 
 **Status:** Early design discussion

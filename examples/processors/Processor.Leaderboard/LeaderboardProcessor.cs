@@ -116,14 +116,5 @@ public sealed class LeaderboardProcessor(IConnectionMultiplexer redis) : IRecord
         );
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation(
-            "Completed | Total scores: {Scores}, Players registered: {Players}",
-            _scoresProcessed,
-            _playersRegistered
-        );
-        return ValueTask.CompletedTask;
-    }
-
     record PlayerInfo(string PlayerId, string DisplayName, string Country, string JoinedAt);
 }

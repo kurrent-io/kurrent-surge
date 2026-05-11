@@ -1,5 +1,4 @@
 using Kurrent.Client;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Testing.Containers.KurrentDB;
 using Testing.ArcadeRacer;

@@ -27,7 +27,7 @@ public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator
                     spc.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
                     spc.ReportDiagnostic(Diagnostic.Create(ImplementationGenerated, Location.None, info.FullName));
                 }
-                catch (System.Exception ex) {
+                catch (Exception ex) {
                     spc.ReportDiagnostic(Diagnostic.Create(Failed, Location.None, ex.ToString()));
                 }
             });
@@ -62,15 +62,15 @@ public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator
                     ?? tError.Interface("Kurrent.Variant.IVariantException<>");
 
         var variantItems = variants is null
-            ? System.Array.Empty<VariantRef>()
+            ? Array.Empty<VariantRef>()
             : variants.TypeArguments.Select(v => new VariantRef(v.Name, v.FullName)).ToArray();
 
         return new ResultInfo(
             Name: t.Name,
             FullName: t.FullName,
             Namespace: t.Namespace,
-            TValue: tValue.FullName,
-            TError: tError.FullName,
+            Value: tValue.FullName,
+            Error: tError.FullName,
             Variants: variantItems);
     }
 
@@ -79,8 +79,8 @@ public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator
 
     static string GenerateSource(ResultInfo info) {
         var typeName      = info.Name;
-        var valueTypeName = info.TValue;
-        var errorTypeName = info.TError;
+        var valueTypeName = info.Value;
+        var errorTypeName = info.Error;
 
         var exceptionOperators = new StringBuilder();
 
@@ -166,26 +166,25 @@ public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator
         string Name,
         string FullName,
         string Namespace,
-        string TValue,
-        string TError,
+        string Value,
+        string Error,
         VariantRef[] Variants
     ) {
-        public bool Equals(ResultInfo? other) =>
-            other is not null
-         && Name == other.Name
-         && FullName == other.FullName
-         && Namespace == other.Namespace
-         && TValue == other.TValue
-         && TError == other.TError
-         && Variants.AsSpan().SequenceEqual(other.Variants.AsSpan());
+        public bool Equals(ResultInfo? other) => other is not null
+                                              && Name == other.Name
+                                              && FullName == other.FullName
+                                              && Namespace == other.Namespace
+                                              && Value == other.Value
+                                              && Error == other.Error
+                                              && Variants.AsSpan().SequenceEqual(other.Variants.AsSpan());
 
         public override int GetHashCode() {
             var hash = HashCombine.Start;
             hash = HashCombine.Add(hash, Name);
             hash = HashCombine.Add(hash, FullName);
             hash = HashCombine.Add(hash, Namespace);
-            hash = HashCombine.Add(hash, TValue);
-            hash = HashCombine.Add(hash, TError);
+            hash = HashCombine.Add(hash, Value);
+            hash = HashCombine.Add(hash, Error);
             hash = HashCombine.AddRange(hash, Variants);
             return hash;
         }

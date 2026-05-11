@@ -5,8 +5,7 @@ namespace Kurrent.Processors.Tests;
 
 /// <summary>
 /// Verifies the module-initializer-registered TimeSpan converter: numeric ms and TimeSpan
-/// format strings both bind into a plain <see cref="TimeSpan"/> property via standard
-/// <see cref="IConfiguration.Bind(object)"/>.
+/// format strings both bind into a plain <see cref="TimeSpan"/> property
 /// </summary>
 [Category("Processors")]
 public class ConfigTimeSpanConverterTests {
@@ -15,7 +14,7 @@ public class ConfigTimeSpanConverterTests {
     }
 
     [Test]
-    public async Task binds_numeric_milliseconds_as_timespan() {
+    public async ValueTask binds_numeric_milliseconds_as_timespan() {
         var section = BuildSection("""{ "Interval": 30000 }""");
         var probe   = new Probe();
 
@@ -25,7 +24,7 @@ public class ConfigTimeSpanConverterTests {
     }
 
     [Test]
-    public async Task binds_timespan_format_string() {
+    public async ValueTask binds_timespan_format_string() {
         var section = BuildSection("""{ "Interval": "00:00:45" }""");
         var probe   = new Probe();
 
@@ -35,7 +34,7 @@ public class ConfigTimeSpanConverterTests {
     }
 
     [Test]
-    public async Task binds_days_in_timespan_format() {
+    public async ValueTask binds_days_in_timespan_format() {
         var section = BuildSection("""{ "Interval": "1.00:00:00" }""");
         var probe   = new Probe();
 
@@ -45,7 +44,7 @@ public class ConfigTimeSpanConverterTests {
     }
 
     [Test]
-    public async Task invalid_string_throws() {
+    public async ValueTask invalid_string_throws() {
         var section = BuildSection("""{ "Interval": "not-a-duration" }""");
         var probe   = new Probe();
 

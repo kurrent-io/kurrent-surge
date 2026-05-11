@@ -1,33 +1,51 @@
+using System.Diagnostics;
+using Kurrent.Client;
+using Kurrent.Client.Streams;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Sdk.Testkit.Hosting;
 
-public class KurrentDBHealthCheck(KurrentDBResource resource) : IHealthCheck {
-    static readonly HttpClient Http = CreateHttpClient();
+public sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectionProvider provider, ILoggerFactory loggerFactory) : IHealthCheck {
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) {
+        var logger = loggerFactory.CreateLogger<KurrentDBHealthCheck>();
 
-    public async Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context,
-        CancellationToken cancellationToken = default
-    ) {
         try {
-            var scheme   = resource.Secure ? "https" : "http";
-            var endpoint = resource.PrimaryEndpoint;
-            var url      = new Uri($"{scheme}://{endpoint.Host}:{endpoint.Port}/health/live");
+            LogResourcenameCheckingHealth(logger, resourceName);
+            
+            var connectionString = await provider
+                .GetConnectionStringAsync(resourceName, TimeSpan.FromSeconds(30))
+                .ConfigureAwait(false);
 
-            var response = await Http.GetAsync(url, cancellationToken);
+            LogResourcenameConnectionstringConnectionstring(logger, resourceName, connectionString);
+            
+            await using var client = KurrentClient.Create(connectionString, opts => {
+                opts.ConnectionName = resourceName;
+                opts.LoggerFactory  = loggerFactory;
+                opts.Resilience     = KurrentClientResilienceOptions.NoResilience;
+            });
 
-            return response.IsSuccessStatusCode
+            var hasRecords = await client.Streams
+                .ReadRecords(req => req.FromLatestBackwards().Limit(1).SkipDecoding(), cancellationToken)
+                .AnyAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            return hasRecords
                 ? HealthCheckResult.Healthy()
-                : new HealthCheckResult(context.Registration.FailureStatus, $"KurrentDB health check returned {response.StatusCode}.");
+                : throw new UnreachableException($"It is impossible for {resourceName} to not have records.");
         }
         catch (Exception ex) {
-            return new HealthCheckResult(context.Registration.FailureStatus, exception: ex);
+            return new(context.Registration.FailureStatus, exception: ex);
         }
     }
 
-    static HttpClient CreateHttpClient() {
-        var handler = new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator };
+    #region ->> Logging <<-
 
-        return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
-    }
+    [LoggerMessage(LogLevel.Debug, "{ResourceName} Checking health...")]
+    static partial void LogResourcenameCheckingHealth(ILogger<KurrentDBHealthCheck> logger, string resourceName);
+
+    [LoggerMessage(LogLevel.Debug, "{ResourceName} ConnectionString: {ConnectionString}")]
+    static partial void LogResourcenameConnectionstringConnectionstring(ILogger<KurrentDBHealthCheck> logger, string resourceName, string connectionString);
+
+    #endregion
 }

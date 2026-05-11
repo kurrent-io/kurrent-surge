@@ -2,6 +2,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors;
 using Processor.FraudDetection;
 using Serilog;
+using Serilog.Extensions.Logging;
 
 // Fraud Detection processor - pattern matching on transaction sequences
 // Detects card testing pattern: small tx followed by large tx within 1 minute
@@ -13,6 +14,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 await KurrentProcessor.Create(new FraudDetectionProcessor(), opts => {
-    opts.Connection("kurrentdb://localhost:2113");
+    opts.Connection("kurrentdb://localhost:2113", client => client.LoggerFactory = new SerilogLoggerFactory());
     opts.Subscription.Filter = RecordFilter.ByExpression("schema like 'Transaction'");
 }).RunWithGracefulShutdownAsync();

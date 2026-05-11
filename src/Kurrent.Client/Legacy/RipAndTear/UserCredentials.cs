@@ -49,7 +49,7 @@ public class UserCredentials {
 
 	/// <inheritdoc />
 	public override string ToString() =>
-		Authorization?.ToString() ?? string.Empty;
+		Authorization?.ToString() ?? "";
 
 	/// <summary>
 	/// Implicitly convert a <see cref="UserCredentials"/> to a <see cref="string"/>.

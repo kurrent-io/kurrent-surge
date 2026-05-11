@@ -93,7 +93,7 @@ public sealed class StickyStrategy : IDistributionStrategy {
         for (var i = 0; i < maxParallelism; i++) {
             var partition = Partition.From(i);
             if (!assignedPartitions.Contains(partition))
-                orphanedPartitions.Add((partition, string.Empty));
+                orphanedPartitions.Add((partition, ""));
         }
 
         // Distribute orphaned partitions to least-loaded drones

@@ -1,3 +1,5 @@
+using static System.DateTimeOffset;
+
 namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
@@ -200,6 +202,8 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
 
     public DateTimeOffset DateTimeOffset { get; private init; }
 
+    #region ->> IComparable <<-
+    
     /// <inheritdoc />
     public int CompareTo(HybridTimestamp other) => Value.CompareTo(other.Value);
 
@@ -208,7 +212,57 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
         obj is HybridTimestamp other
             ? CompareTo(other)
             : throw new ArgumentException($"Object must be of type {nameof(HybridTimestamp)}");
+    
+    #endregion // IComparable
+    
+    #region ->> Relational Operators <<-
+    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
+    public static bool operator <(HybridTimestamp left, HybridTimestamp right) => left.Value < right.Value;
 
+    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
+    public static bool operator >(HybridTimestamp left, HybridTimestamp right) => left.Value > right.Value;
+
+    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
+    public static bool operator <=(HybridTimestamp left, HybridTimestamp right) => left.Value <= right.Value;
+
+    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
+    public static bool operator >=(HybridTimestamp left, HybridTimestamp right) => left.Value >= right.Value;
+
+    #endregion // Relational Operators
+    
+    #region ->> Implicit/Explicit Conversions <<-
+    
+    /// <summary>
+    /// Provides an implicit conversion from <see cref="HybridTimestamp"/> to a 64-bit integer value.
+    /// </summary>
+    public static implicit operator long(HybridTimestamp timestamp) =>
+        timestamp.Value;
+
+    /// <summary>
+    /// Converts a 64-bit integer value into a <see cref="HybridTimestamp"/> instance explicitly.
+    /// </summary>
+    public static explicit operator HybridTimestamp(long value) =>
+        Parse(value);
+
+    /// <summary>
+    /// Converts the <see cref="HybridTimestamp"/> instance to its string representation.
+    /// </summary>
+    public static implicit operator string(HybridTimestamp timestamp) =>
+        timestamp.ToString();
+
+    
+    /// <summary>
+    /// Parses a string representation of a timestamp to create a <see cref="HybridTimestamp"/> instance.
+    /// The string should be in the format "{PhysicalTime}.{Counter}".
+    /// </summary>
+    public static implicit operator HybridTimestamp(string value) =>
+        Parse(value);
+
+    #endregion // Implicit/Explicit Conversions
+    
+    /// <inheritdoc />
+    public override string ToString() => $"{PhysicalTime:D19}.{Counter:D5}";
+    
     /// <summary>
     /// Creates a new timestamp with the specified physical time and counter.
     /// </summary>
@@ -221,7 +275,7 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
             PhysicalTime   = physicalTime,
             Counter        = counter,
             Value          = (physicalTime << 16) | (uint)counter,
-            DateTimeOffset =  DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
+            DateTimeOffset =  FromUnixTimeMilliseconds(physicalTime)
         };
     }
 
@@ -244,21 +298,6 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
     }
 
     /// <summary>
-    /// Parses a packed 64-bit value into a timestamp.
-    /// </summary>
-    public static HybridTimestamp Parse(long value) {
-        ArgumentOutOfRangeException.ThrowIfNegative(value);
-
-        var physicalTime = value >> 16;
-        return new HybridTimestamp {
-            PhysicalTime   = physicalTime,
-            Counter        = (int)(value & 0xFFFF),
-            Value          = value,
-            DateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
-        };
-    }
-
-    /// <summary>
     /// Attempts to parse a packed 64-bit value into a timestamp.
     /// </summary>
     public static bool TryParse(long value, out HybridTimestamp timestamp) {
@@ -273,32 +312,20 @@ public readonly record struct HybridTimestamp : IComparable<HybridTimestamp>, IC
             PhysicalTime   = physicalTime,
             Counter        = (int)(value & 0xFFFF),
             Value          = value,
-            DateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(physicalTime)
+            DateTimeOffset = FromUnixTimeMilliseconds(physicalTime)
         };
 
         return true;
     }
+    
+    /// <summary>
+    /// Parses a packed 64-bit value into a timestamp.
+    /// </summary>
+    public static HybridTimestamp Parse(long value) =>
+        TryParse(value, out var hts) ? hts : throw new FormatException($"Value '{value}' is not a valid HybridTimestamp.");
 
-    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
-    public static bool operator <(HybridTimestamp left, HybridTimestamp right) => left.Value < right.Value;
-
-    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
-    public static bool operator >(HybridTimestamp left, HybridTimestamp right) => left.Value > right.Value;
-
-    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
-    public static bool operator <=(HybridTimestamp left, HybridTimestamp right) => left.Value <= right.Value;
-
-    /// <inheritdoc cref="IComparable{T}.CompareTo"/>
-    public static bool operator >=(HybridTimestamp left, HybridTimestamp right) => left.Value >= right.Value;
-
-    /// <summary>Converts to packed 64-bit representation.</summary>
-    public static implicit operator long(HybridTimestamp timestamp) => timestamp.Value;
-
-    /// <summary>Parses from packed 64-bit value.</summary>
-    public static explicit operator HybridTimestamp(long value) => Parse(value);
-
-    /// <inheritdoc />
-    public override string ToString() => $"{PhysicalTime:D19}.{Counter:D5}";
+    public static HybridTimestamp Parse(string value) =>
+        long.TryParse(value, out var parsed) ? Parse(parsed) : throw new FormatException($"Value '{value}' is not a valid HybridTimestamp.");
 }
 
 /// <summary>

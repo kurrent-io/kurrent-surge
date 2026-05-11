@@ -28,7 +28,7 @@ public class CheckpointStoreTests {
             logger: TestkitExecutionContext.LoggerFactory.CreateLogger<KurrentDBCheckpointStore>()
         );
 
-    #region Core Operations
+    #region ->> Core Operations <<-
 
 	[Test]
 	public async ValueTask load_returns_empty_checkpoint_when_no_checkpoint_exists(CancellationToken ct) {
@@ -36,7 +36,7 @@ public class CheckpointStoreTests {
 		var store = CreateStore(CheckpointTestHelpers.ProcessorId("test-empty"));
 
 		// Act
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
@@ -54,12 +54,12 @@ public class CheckpointStoreTests {
 
 		// Act
 		await store.StoreAsync("drone-1", barrierId, positions, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		await Assert.That(checkpoint.Positions.Length).IsGreaterThan(0);
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(1);
-		await Assert.That(checkpoint.Positions[0].Position.LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(1000);
 		await Assert.That(checkpoint.Timestamp).IsNotEqualTo(DateTimeOffset.MinValue);
 	}
 
@@ -72,7 +72,7 @@ public class CheckpointStoreTests {
 
 		// Act
 		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(3);
@@ -91,19 +91,19 @@ public class CheckpointStoreTests {
 		// Act
 		await store.StoreAsync("drone-1", PunyId.New(), positions1, ct);
 		await store.StoreAsync("drone-1", PunyId.New(), positions2, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(3);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2500);
-		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition.Value).IsEqualTo(3000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2500);
+		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(3000);
 	}
 
-	#endregion
+	#endregion // Core Operations
 
-	#region Concurrency
+	#region ->> Concurrency <<-
 
 	[Test]
 	public async ValueTask concurrent_stores_from_different_drones_merge_correctly(CancellationToken ct) {
@@ -119,13 +119,13 @@ public class CheckpointStoreTests {
 		var task2 = store2.StoreAsync("drone-2", PunyId.New(), positions2, ct).AsTask();
 		await Task.WhenAll(task1, task2);
 
-		var checkpoint = await store1.LoadLatestAsync(ct);
+		var checkpoint = await store1.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(2);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2000);
 	}
 
 	[Test]
@@ -147,21 +147,21 @@ public class CheckpointStoreTests {
 
 		await Task.WhenAll(tasks);
 
-		var checkpoint = await stores[0].LoadLatestAsync(ct);
+		var checkpoint = await stores[0].LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(droneCount);
 		for (var i = 0; i < droneCount; i++) {
 			await Assert
-                .That(byPartition[Partition.From(i)].Position.LogPosition.Value)
+                .That(byPartition[Partition.From(i)].LogPosition.Value)
                 .IsEqualTo((i + 1) * 1000);
 		}
 	}
 
-	#endregion
+	#endregion // Concurrency
 
-	#region Edge Cases
+	#region ->> Edge Cases <<-
 
 	[Test]
 	public async ValueTask store_with_empty_positions_throws(CancellationToken ct) {
@@ -183,20 +183,20 @@ public class CheckpointStoreTests {
 
 		// Act
 		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
-		var checkpoint1 = await store.LoadLatestAsync(ct);
+		var checkpoint1 = await store.LoadLatestAsync("drone-1", ct);
 
 		await Task.Delay(100, ct);
 
 		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
-		var checkpoint2 = await store.LoadLatestAsync(ct);
+		var checkpoint2 = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		await Assert.That(checkpoint2.Timestamp).IsGreaterThan(checkpoint1.Timestamp);
 	}
 
-	#endregion
+	#endregion // Edge Cases
 
-	#region Stream Management
+	#region ->> Stream Management <<-
 
 	[Test]
 	public async ValueTask ensures_stream_retention_policy_on_first_store(CancellationToken ct) {
@@ -230,9 +230,9 @@ public class CheckpointStoreTests {
 		await Assert.That(info.Retention.HasMaxCount).IsFalse();
 	}
 
-	#endregion
+	#endregion // Stream Management
 
-	#region Checkpoint Resolution
+	#region ->> Checkpoint Resolution <<-
 
 	[Test]
 	public async ValueTask load_with_partitions_resolves_positions_and_computes_watermarks(CancellationToken ct) {
@@ -246,14 +246,14 @@ public class CheckpointStoreTests {
 		var partitions = new[] { Partition.From(0), Partition.From(1), Partition.From(2) };
 
 		// Act
-		var checkpoint = await store.LoadLatestAsync(partitions, SubscriptionInitialPosition.Earliest, ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", partitions, SubscriptionInitialPosition.Earliest, ct);
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(3);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(3000);
-		await Assert.That(byPartition[Partition.From(2)].Position).IsEqualTo(RecordPosition.Earliest with { Partition = Partition.From(2) });
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(3000);
+		await Assert.That(byPartition[Partition.From(2)]).IsEqualTo(RecordPosition.Earliest with { Partition = Partition.From(2) });
 	}
 
 	[Test]
@@ -268,7 +268,7 @@ public class CheckpointStoreTests {
 		var partitions = new[] { Partition.From(0), Partition.From(2) };
 
 		// Act
-		var checkpoint = await store.LoadLatestAsync(partitions, SubscriptionInitialPosition.Earliest, ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", partitions, SubscriptionInitialPosition.Earliest, ct);
 
 		// Assert
 		var partitionKeys = checkpoint.Positions.Select(p => p.Partition).ToArray();
@@ -287,17 +287,17 @@ public class CheckpointStoreTests {
         var partitions = new[] { Partition.From(0), Partition.From(1) };
 
 		// Act
-		var checkpoint = await store.LoadLatestAsync(partitions, SubscriptionInitialPosition.Latest, ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", partitions, SubscriptionInitialPosition.Latest, ct);
 
 		// Assert
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(2);
-		await Assert.That(checkpoint.Positions[0].Position).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(0) });
-		await Assert.That(checkpoint.Positions[1].Position).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(1) });
+		await Assert.That(checkpoint.Positions[0]).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(0) });
+		await Assert.That(checkpoint.Positions[1]).IsEqualTo(RecordPosition.Latest with { Partition = Partition.From(1) });
 	}
 
-	#endregion
+	#endregion // Checkpoint Resolution
 
-	#region Reset
+	#region ->> Reset <<-
 
 	[Test]
 	public async ValueTask reset_with_empty_positions_acts_as_full_wipe(CancellationToken ct) {
@@ -310,7 +310,7 @@ public class CheckpointStoreTests {
 
 		// Act — full wipe (empty positions = barrier)
 		await store.ResetAsync("drone-1", PunyId.New(), [], ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
@@ -331,13 +331,13 @@ public class CheckpointStoreTests {
 
 		// Act — selective reset: only partition 1 repositioned
 		await store.ResetAsync("drone-1", PunyId.New(), resetPositions, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert — partition 1 was reset, others preserved
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(500);
-		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition.Value).IsEqualTo(3000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(500);
+		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(3000);
 	}
 
 	[Test]
@@ -351,7 +351,7 @@ public class CheckpointStoreTests {
 
 		// Act — RecordPosition.Unset = full wipe
 		await store.ResetAsync("drone-1", PunyId.New(), RecordPosition.Unset, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
@@ -374,14 +374,14 @@ public class CheckpointStoreTests {
 
 		// Act — reset all partitions to the seeded position
 		await store.ResetAsync("drone-1", PunyId.New(), resetToPosition, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert — all partitions at the reset position
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(3);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(seeded.Position.Value);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(seeded.Position.Value);
-		await Assert.That(byPartition[Partition.From(2)].Position.LogPosition.Value).IsEqualTo(seeded.Position.Value);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(seeded.Position.Value);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(seeded.Position.Value);
+		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(seeded.Position.Value);
 	}
 
 	[Test]
@@ -397,16 +397,16 @@ public class CheckpointStoreTests {
 		// Act — wipe then store new data
 		await store.ResetAsync("drone-1", PunyId.New(), [], ct);
 		await store.StoreAsync("drone-1", PunyId.New(), newPositions, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert — only the post-wipe data is visible
 		await Assert.That(checkpoint.Positions.Length).IsEqualTo(1);
-		await Assert.That(checkpoint.Positions[0].Position.LogPosition.Value).IsEqualTo(5000);
+		await Assert.That(checkpoint.Positions[0].LogPosition.Value).IsEqualTo(5000);
 	}
 
-	#endregion
+	#endregion // Reset
 
-	#region Serialization
+	#region ->> Serialization <<-
 
 	[Test]
 	public async ValueTask store_and_load_preserves_stream_and_revision(CancellationToken ct) {
@@ -421,12 +421,12 @@ public class CheckpointStoreTests {
 
 		// Act
 		await store.StoreAsync("drone-1", PunyId.New(), positions, ct);
-		var checkpoint = await store.LoadLatestAsync(ct);
+		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
-		var p0 = byPartition[Partition.From(0)].Position;
-		var p1 = byPartition[Partition.From(1)].Position;
+		var p0 = byPartition[Partition.From(0)];
+		var p1 = byPartition[Partition.From(1)];
 
 		await Assert.That(p0.LogPosition.Value).IsEqualTo(1000);
 		await Assert.That(p0.Stream).IsEqualTo(streamName);
@@ -448,14 +448,14 @@ public class CheckpointStoreTests {
 
 		// Act — load with a fresh store instance (no prior write in this instance)
 		var store2     = CreateStore(processorId);
-		var checkpoint = await store2.LoadLatestAsync(ct);
+		var checkpoint = await store2.LoadLatestAsync("drone-2", ct);
 
 		// Assert — types were registered via constructor, so deserialization works
 		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
 		await Assert.That(byPartition.Count).IsEqualTo(2);
-		await Assert.That(byPartition[Partition.From(0)].Position.LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].Position.LogPosition.Value).IsEqualTo(2000);
+		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
+		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(2000);
 	}
 
-	#endregion
+	#endregion // Serialization
 }

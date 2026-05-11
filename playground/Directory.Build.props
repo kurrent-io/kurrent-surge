@@ -1,0 +1,3 @@
+<Project>
+  <!-- Break inheritance from repo root so playground projects stay isolated. -->
+</Project>

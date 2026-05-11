@@ -1,3 +1,4 @@
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Microsoft.Extensions.Configuration;
@@ -29,8 +30,8 @@ public static class KurrentClientServiceCollectionExtensions {
     /// <param name="services">The service collection.</param>
     extension(IServiceCollection services) {
         /// <summary>
-        /// Registers a <see cref="KurrentClient"/> with options resolved from the service provider,
-        /// configuration, or defaults — in that order — and an optional final configuration step.
+        /// Registers a <see cref="KurrentClient"/> with options resolved from the service provider
+        /// or configuration, with an optional final configuration step.
         /// </summary>
         /// <param name="configure">
         /// Optional action to tune the resolved options. Runs last, after service-provider overrides,
@@ -44,14 +45,25 @@ public static class KurrentClientServiceCollectionExtensions {
         /// <list type="number">
         ///   <item><description>A <see cref="KurrentClientOptions"/> instance registered in the service provider.</description></item>
         ///   <item><description>A connection string at <c>ConnectionStrings:KurrentDB</c> in <see cref="IConfiguration"/>.</description></item>
-        ///   <item><description>A new <see cref="KurrentClientOptions"/> with defaults.</description></item>
         /// </list>
+        /// <para>
+        /// If neither is available, <see cref="KurrentClientNotConfiguredException"/> is thrown when
+        /// the client is first resolved. Falling back to defaults is intentionally not supported here —
+        /// silently connecting to <c>localhost:2113</c> would mask a real misconfiguration in any
+        /// non-development environment. Callers wanting defaults should pass a connection string
+        /// explicitly via the <see cref="AddKurrentClient(IServiceCollection, string)"/> overload, or
+        /// register a <see cref="KurrentClientOptions"/> instance.
+        /// </para>
         /// <para>
         /// After resolution, service-provider overrides (<see cref="MessageTypeMapper"/>,
         /// <see cref="ILoggerFactory"/>, <see cref="IMetadataDecoder"/>) are applied, then
         /// <paramref name="configure"/> runs.
         /// </para>
         /// </remarks>
+        /// <exception cref="KurrentClientNotConfiguredException">
+        /// Thrown on first resolution when neither a registered <see cref="KurrentClientOptions"/> nor
+        /// a <c>ConnectionStrings:KurrentDB</c> entry can be found.
+        /// </exception>
         public IServiceCollection AddKurrentClient(Action<KurrentClientOptions>? configure = null) {
             services.TryAddSingleton(sp => {
                 var options = sp.GetService<KurrentClientOptions>();
@@ -59,10 +71,7 @@ public static class KurrentClientServiceCollectionExtensions {
 
                 options ??= config?.GetConnectionString("KurrentDB") is { } connString
                     ? KurrentClientOptions.Parse(connString)
-                    : throw new InvalidOperationException(
-                        "KurrentDB connection string not found. " 
-                      + "Please register a KurrentClientOptions instance or "
-                      + "configure a connection string at 'ConnectionStrings:KurrentDB' in your app configuration.");
+                    : throw new KurrentClientNotConfiguredException();
 
                 ResolveServices(options, sp);
 

@@ -1,71 +1,251 @@
 #!/usr/bin/env bash
+#
+# gencert.sh — Generate TLS certificates for KurrentDB development and testing.
+#
+# Downloads es-gencert-cli from https://github.com/kurrent-io/es-gencert-cli
+# on first run, caches it at ~/.cache/es-gencert-cli/<version>/, and generates
+# a CA + node certificate pair. Optionally generates user certificates for
+# client certificate authentication and installs the CA into the OS trust store.
+#
+# CA and node certs are only created if they don't already exist in the output
+# directory. User certs are always created/overwritten when requested. To
+# regenerate everything, delete the output directory and run again.
+#
+# Usage:
+#   ./gencert.sh                                      # CA + node (latest version)
+#   ./gencert.sh --trust                              # + install CA into OS trust store
+#   ./gencert.sh --user-certs admin,invalid           # + user certs (comma-separated)
+#   ./gencert.sh --user-certs admin --user-certs bob  # + user certs (repeated flag)
+#   ./gencert.sh --version 1.3.0                      # pin a specific version
+#   ./gencert.sh --dns "localhost,node1"              # custom DNS names for node cert
+#   ./gencert.sh --output /tmp/certs                  # custom output directory
+#
+# Incremental usage (certs already exist):
+#   ./gencert.sh --user-certs goofy # add a user cert, reuse existing CA
+#   ./gencert.sh --trust            # just install existing CA into OS
+#
+# Options:
+#   --version X.Y.Z       Pin es-gencert-cli version (default: latest GitHub release)
+#   --dns names            Comma-separated DNS names for the node cert (default: localhost)
+#   --output dir           Output directory for certs (default: ./certs)
+#   --user-certs names     Generate user certs; comma-separated or pass the flag multiple times
+#   --trust                Install the CA into the OS trust store (macOS/Linux; requires sudo)
+#   -h, --help             Show help
+#
+set -euo pipefail
 
-unameOutput="$(uname -sr)"
-case "${unameOutput}" in
-    Linux*Microsoft*) machine=WSL;;
-    Linux*)           machine=Linux;;
-    Darwin*)          machine=MacOS;;
-    *)                machine="${unameOutput}"
-esac
+GENCERT_REPO="kurrent-io/es-gencert-cli"
+GENCERT_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/es-gencert-cli"
 
-echo ">> Generating certificate..."
-mkdir -p certs
+GENCERT_VERSION=""
+DNS_NAMES="localhost"
+CERTS_DIR="./certs"
+TRUST=false
+USER_CERTS=()
 
-chmod 0755 ./certs
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version)     GENCERT_VERSION="$2"; shift 2 ;;
+        --dns)         DNS_NAMES="$2"; shift 2 ;;
+        --output)      CERTS_DIR="$2"; shift 2 ;;
+        --trust)       TRUST=true; shift ;;
+        --user-certs)
+            IFS=',' read -ra names <<< "$2"
+            USER_CERTS+=("${names[@]}")
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: gencert.sh [options]"
+            echo ""
+            echo "  --version X.Y.Z        Pin es-gencert-cli version (default: latest release)"
+            echo "  --dns names            DNS names for the node cert (default: localhost)"
+            echo "  --output dir           Output directory for certs (default: ./certs)"
+            echo "  --trust                Install the CA into the OS trust store (requires sudo)"
+            echo "  --user-certs names     Generate user certs (comma-separated or repeated)"
+            echo ""
+            echo "Examples:"
+            echo "  gencert.sh                                     # CA + node only"
+            echo "  gencert.sh --trust                             # CA + node + install CA"
+            echo "  gencert.sh --user-certs admin,invalid          # CA + node + two user certs"
+            echo "  gencert.sh --user-certs admin --user-certs bob # same, repeated flag"
+            exit 0
+            ;;
+        *) echo "error: unknown option: $1" >&2; exit 1 ;;
+    esac
+done
 
-docker pull docker.eventstore.com/eventstore-utils/es-gencert-cli:latest
+fetch() {
+    if command -v curl &>/dev/null; then
+        curl -fsSL "$@"
+    elif command -v wget &>/dev/null; then
+        wget -q -O- "$@"
+    else
+        echo "error: neither curl nor wget found" >&2
+        exit 1
+    fi
+}
 
-docker run --rm --volume $PWD/certs:/tmp --user $(id -u):$(id -g) docker.eventstore.com/eventstore-utils/es-gencert-cli create-ca -out /tmp/ca -force
+resolve_version() {
+    if [[ -n "$GENCERT_VERSION" ]]; then
+        return
+    fi
 
-docker run --rm --volume $PWD/certs:/tmp --user $(id -u):$(id -g) docker.eventstore.com/eventstore-utils/es-gencert-cli create-node -ca-certificate /tmp/ca/ca.crt -ca-key /tmp/ca/ca.key -out /tmp/node -ip-addresses 127.0.0.1 -dns-names localhost -force
+    echo ">> Resolving latest es-gencert-cli version..."
 
-docker run --rm --volume $PWD/certs:/tmp --user $(id -u):$(id -g) docker.eventstore.com/eventstore-utils/es-gencert-cli create-user -username admin -ca-certificate /tmp/ca/ca.crt -ca-key /tmp/ca/ca.key -out /tmp/user-admin -force
+    GENCERT_VERSION=$(fetch "https://api.github.com/repos/${GENCERT_REPO}/releases/latest" \
+        | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
 
-docker run --rm --volume $PWD/certs:/tmp --user $(id -u):$(id -g) docker.eventstore.com/eventstore-utils/es-gencert-cli create-user -username invalid -ca-certificate /tmp/ca/ca.crt -ca-key /tmp/ca/ca.key -out /tmp/user-invalid -force
+    if [[ -z "$GENCERT_VERSION" ]]; then
+        echo "error: could not resolve latest version from GitHub" >&2
+        exit 1
+    fi
 
-chmod -R 0755 ./certs
+    echo ">> Latest version: ${GENCERT_VERSION}"
+}
 
-if [ "${machine}" == "MacOS" ]; then
-#  echo ">> Installing certificate on ${machine}..."
-#  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain certs/ca/ca.crt
- echo ">> Installing certificate on ${machine}..."
+detect_platform() {
+    local os arch
 
-   # Check certificate format and display info
-   echo ">> Certificate details:"
-   openssl x509 -in certs/ca/ca.crt -text -noout | head
+    case "$(uname -s)" in
+        Darwin) os="Darwin" ;;
+        Linux)  os="Linux" ;;
+        MINGW*|MSYS*|CYGWIN*) os="Windows" ;;
+        *) echo "error: unsupported OS: $(uname -s)" >&2; exit 1 ;;
+    esac
 
-   # Extract certificate Common Name
-   CERT_NAME=$(openssl x509 -noout -subject -in certs/ca/ca.crt | sed -n 's/.*CN *= *\([^,]*\).*/\1/p')
-   echo ">> Certificate Common Name: $CERT_NAME"
+    case "$(uname -m)" in
+        x86_64|amd64)  arch="x86_64" ;;
+        arm64|aarch64) arch="arm64" ;;
+        *) echo "error: unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+    esac
 
-   # Copy certificate to a temporary location with proper permissions
-   sudo cp certs/ca/ca.crt /tmp/ca.crt
-   sudo chmod 644 /tmp/ca.crt
+    echo "${os} ${arch}"
+}
 
-   # Install certificate
-   echo ">> Importing certificate to System keychain..."
-   sudo security import /tmp/ca.crt -k /Library/Keychains/System.keychain -T /usr/bin/codesign
+download_gencert() {
+    read -r os arch <<< "$(detect_platform)"
 
-   # Set trust settings
-   echo ">> Setting trust settings..."
-   sudo security add-trusted-cert -d -r trustRoot -p ssl -p basic -k /Library/Keychains/System.keychain /tmp/ca.crt
+    local ext="tar.gz"
+    [[ "$os" == "Windows" ]] && ext="zip"
 
-   # Clean up
-   sudo rm /tmp/ca.crt
+    local asset="es-gencert-cli_${GENCERT_VERSION}_${os}-${arch}.${ext}"
+    local url="https://github.com/${GENCERT_REPO}/releases/download/${GENCERT_VERSION}/${asset}"
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
 
-   # Verify installation
-   echo ">> Verifying certificate installation..."
-   if security find-certificate -a -c "$CERT_NAME" -p /Library/Keychains/System.keychain > /dev/null 2>&1; then
-     echo ">> Certificate '$CERT_NAME' installed successfully in System keychain."
-   else
-     echo ">> Certificate installation failed. Please check Keychain Access manually."
-     echo ">> You can try installing it manually by opening certs/ca/ca.crt in Keychain Access."
-   fi
-elif [ "$machine" == "Linux" ] || [ "$machine" == "WSL" ]; then
-  echo ">> Copying certificate..."
-  cp certs/ca/ca.crt /usr/local/share/ca-certificates/eventstore_ca.crt
-  echo ">> Installing certificate on ${machine}..."
-  sudo update-ca-certificates
+    echo ">> Downloading es-gencert-cli ${GENCERT_VERSION} (${os}/${arch})..."
+
+    if command -v curl &>/dev/null; then
+        curl -fsSL -o "${tmp_dir}/${asset}" "$url"
+    elif command -v wget &>/dev/null; then
+        wget -q -O "${tmp_dir}/${asset}" "$url"
+    else
+        echo "error: neither curl nor wget found" >&2
+        exit 1
+    fi
+
+    mkdir -p "${GENCERT_CACHE_DIR}/${GENCERT_VERSION}"
+
+    if [[ "$ext" == "zip" ]]; then
+        unzip -qo "${tmp_dir}/${asset}" -d "${GENCERT_CACHE_DIR}/${GENCERT_VERSION}"
+    else
+        tar -xzf "${tmp_dir}/${asset}" -C "${GENCERT_CACHE_DIR}/${GENCERT_VERSION}"
+    fi
+
+    chmod +x "${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
+    rm -rf "$tmp_dir"
+
+    echo ">> Installed es-gencert-cli to ${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
+}
+
+ensure_gencert() {
+    local bin="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
+
+    if [[ -x "$bin" ]]; then
+        return
+    fi
+
+    download_gencert
+}
+
+resolve_version
+ensure_gencert
+
+GENCERT_BIN="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
+
+mkdir -p "$CERTS_DIR"
+
+if [[ -f "${CERTS_DIR}/ca/ca.crt" && -f "${CERTS_DIR}/ca/ca.key" ]]; then
+    echo ">> CA already exists at ${CERTS_DIR}/ca, skipping."
 else
-  echo ">> Unknown platform. Please install the certificate manually."
+    "$GENCERT_BIN" create-ca \
+        -out "${CERTS_DIR}/ca" \
+        -force
+fi
+
+if [[ -f "${CERTS_DIR}/node/node.crt" && -f "${CERTS_DIR}/node/node.key" ]]; then
+    echo ">> Node cert already exists at ${CERTS_DIR}/node, skipping."
+else
+    "$GENCERT_BIN" create-node \
+        -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
+        -ca-key "${CERTS_DIR}/ca/ca.key" \
+        -out "${CERTS_DIR}/node" \
+        -ip-addresses 127.0.0.1 \
+        -dns-names "$DNS_NAMES" \
+        -force
+fi
+
+for username in "${USER_CERTS[@]}"; do
+    "$GENCERT_BIN" create-user \
+        -username "$username" \
+        -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
+        -ca-key "${CERTS_DIR}/ca/ca.key" \
+        -out "${CERTS_DIR}/user-${username}" \
+        -force
+done
+
+find "$CERTS_DIR" -type f -exec chmod 666 {} +
+find "$CERTS_DIR" -type d -exec chmod 777 {} +
+
+if [[ "$TRUST" == true ]]; then
+    install_trust_store() {
+        local ca_crt="${CERTS_DIR}/ca/ca.crt"
+
+        case "$(uname -sr)" in
+            Darwin*)
+                echo ">> Installing CA into macOS System keychain..."
+
+                local cert_name
+                cert_name=$(openssl x509 -noout -subject -in "$ca_crt" | sed -n 's/.*CN *= *\([^,]*\).*/\1/p')
+
+                sudo cp "$ca_crt" /tmp/ca.crt
+                sudo chmod 644 /tmp/ca.crt
+                sudo security import /tmp/ca.crt -k /Library/Keychains/System.keychain -T /usr/bin/codesign
+                sudo security add-trusted-cert -d -r trustRoot -p ssl -p basic -k /Library/Keychains/System.keychain /tmp/ca.crt
+                sudo rm /tmp/ca.crt
+
+                if security find-certificate -a -c "$cert_name" -p /Library/Keychains/System.keychain > /dev/null 2>&1; then
+                    echo ">> Certificate '${cert_name}' installed successfully."
+                else
+                    echo ">> Certificate installation failed. Check Keychain Access manually."
+                    echo ">> You can try opening ${ca_crt} in Keychain Access."
+                fi
+                ;;
+            Linux*Microsoft*)
+                echo ">> Installing CA on WSL..."
+                sudo cp "$ca_crt" /usr/local/share/ca-certificates/kurrentdb_ca.crt
+                sudo update-ca-certificates
+                ;;
+            Linux*)
+                echo ">> Installing CA on Linux..."
+                sudo cp "$ca_crt" /usr/local/share/ca-certificates/kurrentdb_ca.crt
+                sudo update-ca-certificates
+                ;;
+            *)
+                echo ">> Unknown platform. Please install the CA certificate manually: ${ca_crt}"
+                ;;
+        esac
+    }
+
+    install_trust_store
 fi

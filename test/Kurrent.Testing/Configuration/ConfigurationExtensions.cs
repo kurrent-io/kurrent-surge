@@ -31,7 +31,7 @@ public static class ConfigurationExtensions {
         public string[] Values(string key, char separator = ',') {
             ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-            var value = configuration.GetValue(key, Empty);
+            var value = configuration.GetValue(key, "");
 
             return IsNullOrWhiteSpace(value)
                 ? []

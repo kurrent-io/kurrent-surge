@@ -23,8 +23,6 @@ public interface IKurrentClient : IAsyncDisposable {
 
 [PublicAPI]
 public class KurrentClient : IKurrentClient {
-    // public KurrentClient() : this(new()) { }
-
     public KurrentClient(KurrentClientOptions options) {
 	    options.EnsureValid();
 

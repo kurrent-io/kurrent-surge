@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Tests.Schema.Serialization.Fixtures;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Client.Tests.Schema.Serialization.Json;
 
@@ -115,5 +116,51 @@ public class JsonSchemaSerializerOptionsTests {
 
         // Assert
         await Assert.That(sut.UseProtobufFormatter).IsTrue();
+    }
+
+    [Test]
+    public async Task user_context_resolves_type_info_for_registered_types() {
+        // Arrange
+        var sut = new JsonSchemaSerializerOptions {
+            UserJsonContexts = [TestJsonContext.Default]
+        };
+
+        // Act
+        var typeInfo = sut.JsonSerializerOptions.GetTypeInfo(typeof(LapCompleted));
+
+        // Assert
+        await Assert.That(typeInfo).IsNotNull();
+        await Assert.That(typeInfo.OriginatingResolver).IsSameReferenceAs(TestJsonContext.Default);
+    }
+
+    [Test]
+    public async Task user_context_serializes_and_deserializes_registered_types() {
+        // Arrange
+        var sut = new JsonSchemaSerializerOptions {
+            UserJsonContexts = [TestJsonContext.Default]
+        };
+
+        var expected = new LapCompleted {
+            EventId        = Guid.NewGuid(),
+            CarId          = "car-42",
+            Lap            = 3,
+            LapTime        = 78.5,
+            CumulativeTime = 235.2,
+            Timestamp      = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            RaceId         = "race-1"
+        };
+
+        // Act
+        var json   = System.Text.Json.JsonSerializer.Serialize(expected, sut.JsonSerializerOptions);
+        var actual = System.Text.Json.JsonSerializer.Deserialize<LapCompleted>(json, sut.JsonSerializerOptions);
+
+        // Assert
+        await Assert.That(actual).IsNotNull();
+        await Assert.That(actual!.EventId).IsEqualTo(expected.EventId);
+        await Assert.That(actual.CarId).IsEqualTo(expected.CarId);
+        await Assert.That(actual.Lap).IsEqualTo(expected.Lap);
+        await Assert.That(actual.LapTime).IsEqualTo(expected.LapTime);
+        await Assert.That(actual.CumulativeTime).IsEqualTo(expected.CumulativeTime);
+        await Assert.That(actual.RaceId).IsEqualTo(expected.RaceId);
     }
 }

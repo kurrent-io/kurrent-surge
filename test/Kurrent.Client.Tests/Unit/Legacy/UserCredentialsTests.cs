@@ -13,7 +13,7 @@ public class UserCredentialsTests {
 
 		await Assert.That(settings.DefaultCredentials).IsNotNull();
 		await Assert.That(settings.DefaultCredentials).IsEqualTo(UserCredentials.Empty);
-		await Assert.That(settings.DefaultCredentials.ToString()).IsEqualTo(string.Empty);
+		await Assert.That(settings.DefaultCredentials.ToString()).IsEqualTo("");
 	}
 
 	[Test]

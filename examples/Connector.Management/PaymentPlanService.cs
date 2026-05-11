@@ -36,17 +36,20 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
                 stream, currency, planCounter);
 
             if (Random.Shared.NextDouble() > 0.3) {
-                await client.Streams.AppendStream(stream, [
-                    AppendRecord.New
-                        .WithValue(new PaymentCollected(
+                var req = AppendRecord.New
+                    .ForStream(stream)
+                    .WithValue(
+                        new PaymentCollected(
                             planId,
                             InstallmentNumber: 1,
                             Amount: Math.Round(Random.Shared.NextDouble() * 100 + 5, 2),
                             currency,
-                            CollectedAt: DateTimeOffset.UtcNow
-                        ))
-                        .Build()
-                ], stoppingToken);
+                            CollectedAt: DateTimeOffset.UtcNow))
+                    .Build();
+
+                await client.Streams.AppendStream(req, stoppingToken);
+
+                // await client.Streams.AppendStream(stream, [req], stoppingToken);
 
                 logger.LogInformation("Wrote PaymentCollected to {Stream}", stream);
             }

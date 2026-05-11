@@ -1,21 +1,42 @@
 using System.Runtime.CompilerServices;
-using Aspire.Hosting.ApplicationModel;
 using Bogus;
 using Kurrent.Client;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Sdk.Testkit.Hosting;
-using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Time.Testing;
 using Testing.ArcadeRacer;
-using TUnit.Aspire;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Kurrent.Sdk.Testkit.Fixtures;
 
-public class KurrentDBTestFixture : AspireFixture<Projects.Kurrent_Sdk_Testkit_AppHost> {
+public class KurrentDBTestFixture : AspireFixture {
+    protected KurrentDBSettings Settings { get; init; } = KurrentDBSettings.SingleNode;
+    
+    public KurrentDBTestFixture() {
+        Options = new() {
+            StartupTimeout        = TimeSpan.FromMinutes(1),
+            ShouldWaitForResource = r => r is KurrentDBResource
+        };
+
+        ConfigureBuilder = builder => {
+            builder.AddKurrentDB(KurrentDBServerResource.DefaultResourceName, Settings);
+        };
+
+        OnStarted = async () => {
+            var db = AppModel.Resources.OfType<KurrentDBServerResource>()
+                .First(r => r.Name == KurrentDBServerResource.DefaultResourceName);
+
+            ConnectionString = await db.GetRequiredConnectionString();
+
+            Client = GetNewClient(ConnectionString);
+        };
+        
+        OnTeardown = async () => {
+            if (Client is { } client)
+                await client.DisposeAsync();
+        };
+    }
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
@@ -23,63 +44,18 @@ public class KurrentDBTestFixture : AspireFixture<Projects.Kurrent_Sdk_Testkit_A
     [ClassDataSource<ArcadeRacerTestDataSource>(Shared = SharedType.PerTestSession)]
     public required ITestDataSource TestData { get; [UsedImplicitly] init; }
 
-    public ILogger        Logger        => TestkitExecutionContext.Logger;
-    public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
+    public KurrentClient Client { get; private set; } = null!;
 
-    public FakeTimeProvider Time { get; } = new();
-
-    public KurrentClient Client                    { get; private set; } = null!;
-    public string        ConnectionString          { get; private set; } = string.Empty;
-    public string        AnonymousConnectionString { get; private set; } = string.Empty;
-    public string?       CertsDirectory            { get; private set; }
-
+    public string ConnectionString { get; private set; } = null!;
+    
     public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
 
-    protected override TimeSpan ResourceTimeout => TimeSpan.FromMinutes(2);
-
-    protected override ResourceWaitBehavior WaitBehavior => ResourceWaitBehavior.Named;
-
-    protected override IEnumerable<string> ResourcesToWaitFor() =>
-        App.Services
-            .GetRequiredService<DistributedApplicationModel>().Resources
-            .OfType<KurrentDBResource>()
-            .Select(resource => resource.Name);
-
-    public override async Task InitializeAsync() {
-        await base.InitializeAsync();
-
-        var model = App.Services.GetRequiredService<DistributedApplicationModel>();
-        var resource = model.Resources
-            .OfType<KurrentDBResource>()
-            .First(resource => resource.Name == KurrentDBAppHostArgs.DefaultResourceName);
-
-        ConnectionString = await resource.AuthenticatedConnectionStringExpression.GetValueAsync(CancellationToken.None)
-                        ?? throw new InvalidOperationException("Authenticated connection string was null.");
-
-        AnonymousConnectionString = await resource.ConnectionStringExpression.GetValueAsync(CancellationToken.None)
-                        ?? throw new InvalidOperationException("Anonymous connection string was null.");
-
-        CertsDirectory = resource.CertsHostPath;
-
-        Client = GetNewClient();
-    }
-
-    public KurrentClient GetNewClient() =>
-        KurrentClient.Create(ConnectionString, opts => {
-            opts.LoggerFactory      = LoggerFactory;
+    public KurrentClient GetNewClient(string? connectionString = null) =>
+        KurrentClient.Create(connectionString ?? ConnectionString, opts => {
+            opts.LoggerFactory      = App.Services.GetRequiredService<ILoggerFactory>();
             opts.Schema.PreValidate = false;
             opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
         });
-
-    public override async ValueTask DisposeAsync() {
-        if (Client is { } client)
-            await client.DisposeAsync();
-
-        await base.DisposeAsync();
-
-        if (CertsDirectory is { } dir)
-            Directory.Delete(dir, recursive: true);
-    }
 
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var request = new ReadRecordsRequest {
@@ -136,17 +112,22 @@ public class KurrentDBTestFixture : AspireFixture<Projects.Kurrent_Sdk_Testkit_A
 }
 
 public sealed class KurrentDBSecureTestFixture : KurrentDBTestFixture {
-    static readonly string[] DefaultArgs = [KurrentDBAppHostArgs.Tls(true)];
-
-    protected override string[] Args => DefaultArgs;
+    // public KurrentDBSecureTestFixture() {
+    //     Options = new() {
+    //         ResourceTimeout    = TimeSpan.FromMinutes(2),
+    //         WaitBehavior       = ResourceWaitBehavior.Named,
+    //         ResourcesToWaitFor = r => r.OfType<KurrentDBResource>().ToList<IResource>(),
+    //         Args = new[] { KurrentDBAppHostArgs.Tls(true) }
+    //     };
+    //     
+    //     Settings = new KurrentDBSettings { Secure = true, };
+    // }
 }
 
 /// <summary>
-/// Three-node cluster with TLS enabled. KurrentDB clustering requires TLS for
-/// inter-node gossip, so this fixture is always secure.
+/// Three-node cluster + one replica with TLS enabled.
 /// </summary>
-public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture {
-    static readonly string[] DefaultArgs = [KurrentDBAppHostArgs.Nodes(3), KurrentDBAppHostArgs.Tls(true)];
-
-    protected override string[] Args => DefaultArgs;
+public sealed class KurrentDBClusterTestFixture : KurrentDBTestFixture { 
+    KurrentDBClusterTestFixture() =>
+        Settings = KurrentDBSettings.DefaultCluster;
 }

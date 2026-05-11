@@ -6,7 +6,7 @@ namespace Kurrent.Processors.Diagnostics.Metrics;
 /// <summary>
 /// Source-generated metrics for drones.
 /// </summary>
-internal static partial class ProcessorMetrics {
+static partial class ProcessorMetrics {
     /// <summary>
     /// Creates a counter for records processed.
     /// </summary>

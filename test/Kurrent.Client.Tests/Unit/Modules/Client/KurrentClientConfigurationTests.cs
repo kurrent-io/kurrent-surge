@@ -1,4 +1,5 @@
 using System.Text;
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -74,18 +75,15 @@ public class KurrentClientConfigurationTests {
     }
 
     [Test]
-    public async ValueTask add_kurrent_client_uses_defaults_without_configuration() {
-        // Arrange & Act
+    public async ValueTask add_kurrent_client_throws_when_no_options_or_connection_string_configured() {
+        // Arrange — no KurrentClientOptions registered, no IConfiguration with ConnectionStrings:KurrentDB
         var services = new ServiceCollection();
         services.AddKurrentClient();
-
         var provider = services.BuildServiceProvider();
-        var client   = provider.GetRequiredService<KurrentClient>();
 
-        // Assert — default endpoint (localhost:2113)
-        await Assert.That(client).IsNotNull();
-        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("localhost");
-        await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2113);
+        // Act & Assert — first resolution surfaces the misconfiguration loudly
+        await Assert.That(() => provider.GetRequiredService<KurrentClient>())
+            .ThrowsExactly<KurrentClientNotConfiguredException>();
     }
 
     [Test]
@@ -124,29 +122,38 @@ public class KurrentClientConfigurationTests {
     }
 
     [Test]
-    public async ValueTask add_kurrent_client_configure_action_runs_after_sp_defaults() {
-        // Arrange
-        var customName = "configured-via-action";
+    public async ValueTask add_kurrent_client_configure_action_runs_after_sp_resolution() {
+        // Arrange — connection string from configuration, configure delegate layered on top
+        var customName    = "configured-via-action";
+        var configuration = BuildJsonConfiguration("""
+            {
+              "ConnectionStrings": {
+                "KurrentDB": "kurrentdb://from-config:2117?tls=false"
+              }
+            }
+            """);
 
         var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
         services.AddKurrentClient(opts => opts.ConnectionName = customName);
 
         // Act
         var provider = services.BuildServiceProvider();
         var client   = provider.GetRequiredService<KurrentClient>();
 
-        // Assert
+        // Assert — parsed endpoint preserved, configure's mutation applied on top
+        await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("from-config");
         await Assert.That(client.Options.ConnectionName).IsEqualTo(customName);
     }
 
     [Test]
     public async ValueTask add_kurrent_client_applies_registered_message_type_mapper() {
-        // Arrange
+        // Arrange — connection string is required for resolution; the test focuses on mapper override
         var mapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("sample-v1"));
 
         var services = new ServiceCollection();
         services.AddSingleton(mapper);
-        services.AddKurrentClient();
+        services.AddKurrentClient("kurrentdb://localhost:2113?tls=false");
 
         // Act
         var provider = services.BuildServiceProvider();
@@ -160,11 +167,19 @@ public class KurrentClientConfigurationTests {
 
     [Test]
     public async ValueTask add_kurrent_client_configure_action_can_override_registered_mapper() {
-        // Arrange
+        // Arrange — connection string from configuration, mapper registered, configure delegate overrides it
         var registeredMapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("registered"));
         var userMapper       = MessageTypeMapper.Create(m => m.Map<SampleMessage>("user-override"));
+        var configuration    = BuildJsonConfiguration("""
+            {
+              "ConnectionStrings": {
+                "KurrentDB": "kurrentdb://localhost:2113?tls=false"
+              }
+            }
+            """);
 
         var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton(registeredMapper);
         services.AddKurrentClient(opts => opts.Schema.Mapper = userMapper);
 

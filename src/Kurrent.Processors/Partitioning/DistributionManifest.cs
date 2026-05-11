@@ -17,8 +17,7 @@ public sealed record DistributionManifest {
     /// </summary>
     public static readonly DistributionManifest Empty = new(
         new Dictionary<string, PartitionAssignment>(),
-        []
-    );
+        []);
 
     /// <summary>
     /// Per-drone partition assignments with change tracking.
@@ -55,14 +54,13 @@ public sealed record DistributionManifest {
         PartitionTransfer[] transfers
     ) {
         Assignments = assignments;
-        Transfers = transfers;
+        Transfers   = transfers;
     }
 
     /// <summary>
     /// Gets the assignment for a specific drone, or <see cref="PartitionAssignment.Empty"/> if not found.
     /// </summary>
-    public PartitionAssignment this[string droneId] =>
-        Assignments.TryGetValue(droneId, out var assignment) ? assignment : PartitionAssignment.Empty;
+    public PartitionAssignment this[string droneId] => Assignments.TryGetValue(droneId, out var assignment) ? assignment : PartitionAssignment.Empty;
 }
 
 /// <summary>

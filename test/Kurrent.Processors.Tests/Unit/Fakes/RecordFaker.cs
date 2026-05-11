@@ -15,22 +15,15 @@ namespace Kurrent.Processors.Tests.Fakes;
 sealed class RecordFaker : Faker<Record> {
     public RecordFaker() {
         CustomInstantiator(f => {
-                var urn = GenerateMessageSchemaUrn(f);
+            var urn = GenerateMessageSchemaUrn(f);
 
-                return new Record {
-                    Id             = Guid.CreateVersion7(),
-                    Position       = new RecordPosition {
-                        LogPosition    = LogPosition.From(f.IndexGlobal + 1),
-                        StreamPosition = new StreamPosition(StreamName.From(f.Lorem.Slug()), Revision.From(f.Random.Long(1, 20)))
-                    },
-                    Timestamp      = TimeProvider.System.GetLocalNow().LocalDateTime,
-                    Schema         = new RecordSchemaInfo {
-                        SchemaName   = urn.ToString(),
-                        SchemaFormat = SchemaDataFormat.Json
-                    }
-                };
-            }
-        );
+            return new() {
+                Id        = Guid.CreateVersion7(),
+                Position  = new() { LogPosition = LogPosition.From(f.IndexGlobal + 1), StreamPosition = new(StreamName.From(f.Lorem.Slug()), Revision.From(f.Random.Long(1, 20))) },
+                Timestamp = TimeProvider.System.GetLocalNow().LocalDateTime,
+                Schema    = new() { SchemaName = urn.ToString(), SchemaFormat = SchemaDataFormat.Json }
+            };
+        });
     }
 
     static SchemaUrn GenerateMessageSchemaUrn(Faker faker) {
@@ -41,8 +34,7 @@ sealed class RecordFaker : Faker<Record> {
             ? faker.Random.Guid()
             : null;
 
-        return SchemaUrn.Create(ns, messageName, schemaId );
-
+        return SchemaUrn.Create(ns, messageName, schemaId);
 
         string GenerateMessageNamespace() {
             var company = faker.Company.CompanyName();
@@ -53,15 +45,14 @@ sealed class RecordFaker : Faker<Record> {
 
             return $"{company}.{domain}";
 
-            string Sanitize(string input) {
-                return input
+            string Sanitize(string input) =>
+                input
                     .Replace(" ", "")
                     .Replace(",", "")
                     .Replace("`", "")
                     .Replace("'", "")
                     .Replace("-", "")
                     .Replace("&", "And");
-            }
         }
 
         string GenerateMessageName() {
@@ -87,19 +78,16 @@ sealed class RecordFaker : Faker<Record> {
         var record = Generate();
 
         return record with {
-            Position = new RecordPosition {
-                LogPosition    = position.HasValue ? LogPosition.From(position.Value) : record.Position.LogPosition,
-                StreamPosition = new StreamPosition(
+            Position = new() {
+                LogPosition = position.HasValue ? LogPosition.From(position.Value) : record.Position.LogPosition,
+                StreamPosition = new(
                     stream is { } ? StreamName.From(stream) : record.Position.Stream,
-                    streamRevision.HasValue ? Revision.From(streamRevision.Value) : record.Position.Revision
-                ),
+                    streamRevision.HasValue ? Revision.From(streamRevision.Value) : record.Position.Revision),
                 Partition = record.Position.Partition
             },
             Timestamp = timestamp ?? record.Timestamp,
-            Metadata  = metadata ?? record.Metadata,
-            Schema = record.Schema with {
-                SchemaName = schemaName is { } ? SchemaName.From(schemaName) : record.Schema.SchemaName
-            }
+            Metadata = metadata   ?? record.Metadata,
+            Schema = record.Schema with { SchemaName = schemaName is { } ? SchemaName.From(schemaName) : record.Schema.SchemaName }
         };
     }
 }

@@ -97,10 +97,7 @@ public partial class StreamsClient {
 
     public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest request, CancellationToken ct = default) {
         request.EnsureValid();
-
-        var grpcRequest = Requests.CreateReadRecordsRequest(request);
-
-        return ReadCore(grpcRequest, request.SkipDecoding, request.Filter, ct);
+        return ReadCore(Requests.CreateReadRecordsRequest(request), request.SkipDecoding, request.Filter, ct);
     }
 
     public IAsyncEnumerable<ReadRecordsResult> ReadStream(ReadStreamRequest request, CancellationToken ct = default) {
@@ -194,10 +191,16 @@ public static partial class StreamsClientExtensions {
         #region ->> Read Records <<-
 
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
-            client.ReadRecords(
-                ReadRecordsRequest.New.FromPosition(start).Build(),
-                cancellationToken
-            );
+            client.ReadRecords(ReadRecordsRequest.New.FromPosition(start).Build(), cancellationToken);
+       
+        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest.Builder builder, CancellationToken ct = default) =>
+            client.ReadRecords(builder.Build(), ct);
+        
+        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Action<ReadRecordsRequest.Builder> configure, CancellationToken ct = default) =>
+            client.ReadRecords(ReadRecordsRequest.New.With(configure).Build(), ct);
+        
+        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Action<ReadRecordsRequest> configure, CancellationToken ct = default) =>
+            client.ReadRecords(new ReadRecordsRequest().With(configure), ct);
 
         #endregion
 

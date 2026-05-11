@@ -1,11 +1,6 @@
 #pragma warning disable CS8524 // non-exhaustive switch over enum
 #pragma warning disable CS8509 // non-exhaustive switch
 
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Streams.Checkpoints;
-using KurrentDB.Client;
 using KurrentDB.Protocol.V1;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 

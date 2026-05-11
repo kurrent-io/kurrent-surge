@@ -7,17 +7,17 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 public class ServiceCollectionExtensionsTests {
 
-    #region IsRegistered
+    #region ->> IsRegistered <<-
 
     [Test]
-    public async Task is_registered_returns_false_when_not_registered() {
+    public async ValueTask is_registered_returns_false_when_not_registered() {
         var services = new ServiceCollection();
 
         await Assert.That(services.IsRegistered<IFoo>()).IsFalse();
     }
 
     [Test]
-    public async Task is_registered_returns_true_when_registered() {
+    public async ValueTask is_registered_returns_true_when_registered() {
         var services = new ServiceCollection();
         services.AddSingleton<IFoo, Foo>();
 
@@ -25,7 +25,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task is_registered_respects_service_key() {
+    public async ValueTask is_registered_respects_service_key() {
         var services = new ServiceCollection();
         services.AddKeyedSingleton<IFoo, Foo>("a");
 
@@ -35,7 +35,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task is_registered_by_type_argument() {
+    public async ValueTask is_registered_by_type_argument() {
         var services = new ServiceCollection();
         services.AddSingleton<Foo>();
 
@@ -43,12 +43,12 @@ public class ServiceCollectionExtensionsTests {
         await Assert.That(services.IsRegistered(typeof(IFoo))).IsFalse();
     }
 
-    #endregion
+    #endregion // IsRegistered
 
-    #region TryRegister — non-keyed
+    #region ->> TryRegister — non-keyed <<-
 
     [Test]
-    public async Task try_register_self_adds_on_first_call() {
+    public async ValueTask try_register_self_adds_on_first_call() {
         var services = new ServiceCollection();
 
         var added = services.TryRegister<Foo>();
@@ -58,7 +58,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_self_skips_on_second_call() {
+    public async ValueTask try_register_self_skips_on_second_call() {
         var services = new ServiceCollection();
         services.TryRegister<Foo>();
 
@@ -69,7 +69,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_service_impl_adds_descriptor() {
+    public async ValueTask try_register_service_impl_adds_descriptor() {
         var services = new ServiceCollection();
 
         var added = services.TryRegister<IFoo, Foo>();
@@ -80,7 +80,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_factory_adds_descriptor() {
+    public async ValueTask try_register_factory_adds_descriptor() {
         var services = new ServiceCollection();
 
         var added = services.TryRegister<IFoo>(_ => new Foo());
@@ -91,7 +91,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_instance_adds_descriptor() {
+    public async ValueTask try_register_instance_adds_descriptor() {
         var services = new ServiceCollection();
         var instance = new Foo();
 
@@ -106,7 +106,7 @@ public class ServiceCollectionExtensionsTests {
     [Arguments(ServiceLifetime.Singleton)]
     [Arguments(ServiceLifetime.Scoped)]
     [Arguments(ServiceLifetime.Transient)]
-    public async Task try_register_honors_lifetime(ServiceLifetime lifetime) {
+    public async ValueTask try_register_honors_lifetime(ServiceLifetime lifetime) {
         var services = new ServiceCollection();
 
         services.TryRegister<Foo>(lifetime);
@@ -116,7 +116,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_default_lifetime_is_singleton() {
+    public async ValueTask try_register_default_lifetime_is_singleton() {
         var services = new ServiceCollection();
 
         services.TryRegister<Foo>();
@@ -125,12 +125,12 @@ public class ServiceCollectionExtensionsTests {
         await Assert.That(descriptor.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
     }
 
-    #endregion
+    #endregion // TryRegister — non-keyed
 
-    #region TryRegisterKeyed
+    #region ->> TryRegisterKeyed <<-
 
     [Test]
-    public async Task try_register_keyed_adds_distinct_entry_per_key() {
+    public async ValueTask try_register_keyed_adds_distinct_entry_per_key() {
         var services = new ServiceCollection();
 
         var a = services.TryRegisterKeyed<Foo>("a");
@@ -142,7 +142,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_keyed_skips_on_duplicate_key() {
+    public async ValueTask try_register_keyed_skips_on_duplicate_key() {
         var services = new ServiceCollection();
         services.TryRegisterKeyed<Foo>("a");
 
@@ -153,7 +153,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task keyed_and_non_keyed_are_distinct() {
+    public async ValueTask keyed_and_non_keyed_are_distinct() {
         var services = new ServiceCollection();
 
         var keyed    = services.TryRegisterKeyed<Foo>("a");
@@ -165,7 +165,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_keyed_instance_adds_descriptor() {
+    public async ValueTask try_register_keyed_instance_adds_descriptor() {
         var services = new ServiceCollection();
         var instance = new Foo();
 
@@ -177,12 +177,12 @@ public class ServiceCollectionExtensionsTests {
         await Assert.That(descriptor.KeyedImplementationInstance).IsEqualTo(instance);
     }
 
-    #endregion
+    #endregion // TryRegisterKeyed
 
-    #region TryRegisterActivated
+    #region ->> TryRegisterActivated <<-
 
     [Test]
-    public async Task try_register_activated_adds_and_marks_for_activation() {
+    public async ValueTask try_register_activated_adds_and_marks_for_activation() {
         var services = new ServiceCollection();
 
         var added = services.TryRegisterActivated<Foo>();
@@ -194,7 +194,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_activated_skips_on_duplicate() {
+    public async ValueTask try_register_activated_skips_on_duplicate() {
         var services = new ServiceCollection();
         services.TryRegisterActivated<Foo>();
 
@@ -204,28 +204,29 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_activated_resolves_at_host_start() {
+    public async ValueTask try_register_activated_resolves_at_host_start() {
+        // Arrange
         var services = new ServiceCollection();
         services.AddLogging();
-        Foo.ConstructedCount = 0;
         services.TryRegisterActivated<Foo>();
 
-        var provider = services.BuildServiceProvider();
-        var host     = provider.GetServices<IHostedService>().ToArray();
+        var provider      = services.BuildServiceProvider();
+        var host          = provider.GetServices<IHostedService>().ToArray();
+        var countBefore   = Foo.ConstructedCount;
 
-        // Host wiring present
+        // Act
         await Assert.That(host.Length).IsGreaterThan(0);
 
-        // Start all hosted services to trigger auto-activation
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         foreach (var h in host)
             await h.StartAsync(cts.Token);
 
-        await Assert.That(Foo.ConstructedCount).IsEqualTo(1);
+        // Assert
+        await Assert.That(Foo.ConstructedCount - countBefore).IsEqualTo(1);
     }
 
     [Test]
-    public async Task try_register_keyed_activated_adds_distinct_entries() {
+    public async ValueTask try_register_keyed_activated_adds_distinct_entries() {
         var services = new ServiceCollection();
 
         var a = services.TryRegisterKeyedActivated<Foo>("a");
@@ -235,12 +236,12 @@ public class ServiceCollectionExtensionsTests {
         await Assert.That(b).IsTrue();
     }
 
-    #endregion
+    #endregion // TryRegisterActivated
 
-    #region TryRegisterHostedService
+    #region ->> TryRegisterHostedService <<-
 
     [Test]
-    public async Task try_register_hosted_service_adds_on_first_call() {
+    public async ValueTask try_register_hosted_service_adds_on_first_call() {
         var services = new ServiceCollection();
 
         var added = services.TryRegisterHostedService<TestHostedService>();
@@ -251,7 +252,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_hosted_service_skips_on_duplicate() {
+    public async ValueTask try_register_hosted_service_skips_on_duplicate() {
         var services = new ServiceCollection();
         services.TryRegisterHostedService<TestHostedService>();
 
@@ -262,7 +263,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_hosted_service_with_factory_uses_factory() {
+    public async ValueTask try_register_hosted_service_with_factory_uses_factory() {
         var services = new ServiceCollection();
         var instance = new TestHostedService();
 
@@ -275,7 +276,7 @@ public class ServiceCollectionExtensionsTests {
     }
 
     [Test]
-    public async Task try_register_hosted_service_survives_addhostedservice_dedup_trap() {
+    public async ValueTask try_register_hosted_service_survives_addhostedservice_dedup_trap() {
         // AddHostedService<T>(factory) dedups on (IHostedService, T) — second call is silently dropped.
         // TryRegisterHostedService uses AddSingleton<IHostedService>(factory), which bypasses the dedup,
         // but the concrete type IsRegistered<T> check still gates duplicate registration at the API level.
@@ -288,9 +289,9 @@ public class ServiceCollectionExtensionsTests {
         await Assert.That(second).IsFalse();
     }
 
-    #endregion
+    #endregion // TryRegisterHostedService
 
-    #region Fixtures
+    #region ->> Fixtures <<-
 
     interface IFoo { }
 
@@ -305,5 +306,5 @@ public class ServiceCollectionExtensionsTests {
         public Task StopAsync(CancellationToken cancellationToken)  => Task.CompletedTask;
     }
 
-    #endregion
+    #endregion // Fixtures
 }

@@ -15,7 +15,7 @@ namespace Kurrent.Processors.Models;
 public partial record StreamTemplate {
     public StreamTemplate(string format, char categorySeparator = '/') {
         Format   = format;
-        Category = Format.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+        Category = Format.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
     }
 
     public string Format   { get; }

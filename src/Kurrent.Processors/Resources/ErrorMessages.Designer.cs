@@ -57,16 +57,5 @@ namespace Kurrent.Processors.Resources {
             }
         }
 
-        internal static string Drone_OnErrorFailed {
-            get {
-                return ResourceManager.GetString("Drone_OnErrorFailed", resourceCulture);
-            }
-        }
-
-        internal static string Drone_OnCompleteFailed {
-            get {
-                return ResourceManager.GetString("Drone_OnCompleteFailed", resourceCulture);
-            }
-        }
     }
 }

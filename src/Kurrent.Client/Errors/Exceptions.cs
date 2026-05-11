@@ -43,7 +43,7 @@ static class ExceptionExtensions {
     /// </summary>
     extension(StatusCode statusCode) {
         internal OperationExceptionParser MapTo(Exception exception) =>
-            (s, e) => (StatusCode)s.Code == statusCode ? (dynamic?)exception : null;
+            (s, _) => (StatusCode)s.Code == statusCode ? (dynamic?)exception : null;
     }
 
     static readonly OperationExceptionParser[] GoogleParsers = [

@@ -1,195 +1,167 @@
 using Kurrent.Sdk.Testkit.Hosting;
-using Kurrent.Testing.Containers.KurrentDB;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 
 namespace Aspire.Hosting;
 
 public static class KurrentDBBuilderExtensions {
-    const string CertsTargetFolder = "/etc/kurrentdb/certs";
-
-    const string CertGenResourceName = "kurrentdb-certs";
-    const string CertGenImage        = "docker.eventstore.com/eventstore-utils/es-gencert-cli";
-    const string CertGenTag          = "latest";
-    const string CertGenTargetFolder = "/certs";
-    const string CertGenScriptTarget = "/scripts/gencert.sh";
-
-    static readonly string CertGenScriptSource = Path.Combine(AppContext.BaseDirectory, "gencert.sh");
-
-    public static IDistributedApplicationBuilder AddKurrentDB(
-        this IDistributedApplicationBuilder builder,
+    public static IResourceBuilder<KurrentDBServerResource> AddKurrentDB(
+        this IDistributedApplicationBuilder app,
         [ResourceName] string name,
-        KurrentDBTestOptions? options = null,
-        string image = KurrentDBContainerImageTags.Nightly.Image,
-        string tag = KurrentDBContainerImageTags.Nightly.Tag
+        KurrentDBSettings settings
     ) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(image);
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
 
-        options ??= new KurrentDBTestOptions();
-        Validate(options);
+        settings.EnsureValid();
 
-        var clusterNames = CreateClusterNames(name, options.Topology.NodeCount);
-        var replicaNames = CreateReplicaNames(name, options.Topology.ReadOnlyReplicaCount);
-        var gossipSeeds  = string.Join(",", clusterNames.Select(n => $"{n}:{KurrentDBResource.DefaultHttpPort}"));
+        var userNameParameter = new ParameterResource($"{name}-username", _ => settings.Credentials.UserName, secret: true);
+        var passwordParameter = new ParameterResource($"{name}-password", _ => settings.Credentials.Password, secret: true);
 
-        var certs = options.Security.Tls
-            ? GetOrCreateCertBundle(builder, [..clusterNames, ..replicaNames])
+        app.Services.AddResourceConnectionProvider();
+
+        var topology  = settings.Topology;
+        var nodeCount = topology.Nodes + topology.Replicas;
+        var server = new KurrentDBServerResource(name, userNameParameter, passwordParameter, settings.TlsEnabled) {
+            OpenTelemetry = settings.OpenTelemetry
+        };
+
+        var serverBuilder = app.AddResource(server).ExcludeFromManifest();
+
+        var certsHostPath = Path.Combine(AppContext.BaseDirectory, "certs", name);
+
+        var certGen = settings.TlsEnabled
+            ? app.AddCertificateGenerator(name, certsHostPath, server)
             : null;
 
-        foreach (var nodeName in clusterNames)
-            AddNode(nodeName, isReadOnlyReplica: false);
+        for (var i = 0; i < nodeCount; i++) {
+            var nodeBuilder = serverBuilder.AddNode(i, settings);
 
-        foreach (var nodeName in replicaNames)
-            AddNode(nodeName, isReadOnlyReplica: true);
+            if (certGen is not null)
+                nodeBuilder.WaitForCompletion(certGen);
+        }
+
+        return serverBuilder;
+    }
+
+    public static IResourceBuilder<KurrentDBServerResource> AddKurrentDB(
+        this IDistributedApplicationBuilder app,
+        Action<KurrentDBSettings> configure,
+        [ResourceName] string name = KurrentDBServerResource.DefaultResourceName
+    ) {
+        var settings = new KurrentDBSettings();
+        app.Configuration.GetSection("KurrentDB").Bind(settings);
+        configure(settings);
+        return app.AddKurrentDB(name, settings);
+    }
+
+    public static IResourceBuilder<KurrentDBServerResource> AddKurrentDB(
+        this IDistributedApplicationBuilder app
+    ) => app.AddKurrentDB(_ => { });
+
+    static IResourceBuilder<KurrentDBResource> AddNode(
+        this IResourceBuilder<KurrentDBServerResource> serverBuilder,
+        int nodeIndex,
+        KurrentDBSettings settings
+    ) {
+        var app      = serverBuilder.ApplicationBuilder;
+        var server   = serverBuilder.Resource;
+        
+        var isReplica = nodeIndex >=  settings.Topology.Nodes;
+        var nodeName  = isReplica ? $"{server.Name}-ro{nodeIndex + 1:00}" : $"{server.Name}-{nodeIndex + 1:00}";
+        var priority  = settings.Topology.NodeConfigurations[nodeIndex].Priority;
+        var node      = server.AddNode(nodeName, priority);
+
+        var builder = app
+            .AddResource(node)
+            .WithHttpEndpoint(targetPort: KurrentDBServerResource.DefaultHttpPort)
+            .WithImage(settings.Container.Image, settings.Container.Tag)
+            .WithImageRegistry(settings.Container.Registry)
+            .WithEnvironment(node.ConfigureEnvironment)
+            .WithLifetime(ContainerLifetime.Persistent);
+
+        if (server.TlsEnabled) {
+            var certsHostPath = Path.Combine(AppContext.BaseDirectory, "certs", server.Name);
+
+            builder
+                .WithEndpoint("http", ep => { ep.UriScheme = "https"; ep.TlsEnabled = true; })
+                .WithBindMount(certsHostPath, "/etc/kurrentdb/certs", isReadOnly: true);
+        }
+
+        var healthCheckKey = $"{node.Name}_check";
+
+        app.Services
+            .AddHealthChecks()
+            .Add(new HealthCheckRegistration(
+                healthCheckKey,
+                sp => {
+                    var subscriber    = sp.GetRequiredService<ResourceConnectionProvider>();
+                    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+                    return new KurrentDBHealthCheck(node.Name, subscriber, loggerFactory);
+                },
+                failureStatus: HealthStatus.Unhealthy,
+                tags: []));
+
+        builder
+            .WithHealthCheck(healthCheckKey)
+            .WithAdminCommands();
 
         return builder;
-
-        static string[] CreateClusterNames(string baseName, int nodeCount) =>
-            nodeCount == 1
-                ? [baseName]
-                : Enumerable.Range(1, nodeCount).Select(i => i == 1 ? baseName : $"{baseName}-{i}").ToArray();
-
-        static string[] CreateReplicaNames(string baseName, int replicaCount) =>
-            Enumerable.Range(1, replicaCount).Select(i => $"{baseName}-ro{i}").ToArray();
-
-        void AddNode(string nodeName, bool isReadOnlyReplica) {
-            var resource = new KurrentDBResource(nodeName, options) {
-                CertsHostPath = certs?.HostPath,
-                IsReadOnlyReplica = isReadOnlyReplica
-            };
-
-            builder.AddResource(resource)
-                .WithHttpEndpoint(targetPort: KurrentDBResource.DefaultHttpPort, name: KurrentDBResource.HttpEndpointName)
-                .WithImage(image, tag)
-                .WithKurrentEnvironment(options)
-                .WithSecureMode(certs)
-                .WithClusterMode(options, gossipSeeds)
-                .WithHealthMonitor(builder);
-        }
     }
 
-    static void Validate(KurrentDBTestOptions options) {
-        ArgumentOutOfRangeException.ThrowIfLessThan(options.Topology.NodeCount, 1);
-        ArgumentOutOfRangeException.ThrowIfNegative(options.Topology.ReadOnlyReplicaCount);
-
-        if (options.Topology is { ReadOnlyReplicaCount: > 0, NodeCount: < 3 })
-            throw new ArgumentException("Read-only replicas require a cluster of at least 3 nodes.", nameof(options));
-    }
-
-    extension(IResourceBuilder<KurrentDBResource> node) {
-        IResourceBuilder<KurrentDBResource> WithKurrentEnvironment(
-            KurrentDBTestOptions options
-        ) {
-            var variables = options.Security.Tls
-                ? KurrentDBConfiguration.Secure
-                : KurrentDBConfiguration.Insecure;
-
-            return node.WithEnvironment(ctx => ApplyEnvironmentVariables(ctx, variables));
-        }
-
-        IResourceBuilder<KurrentDBResource> WithSecureMode(
-            CertBundle? certs
-        ) {
-            if (certs is null)
-                return node;
-
-            return node
-                .WithEndpoint(KurrentDBResource.HttpEndpointName, ep => ep.UriScheme = "https")
-                .WithBindMount(certs.HostPath, CertsTargetFolder, isReadOnly: true)
-                .WaitForCompletion(certs.Resource);
-        }
-
-        IResourceBuilder<KurrentDBResource> WithClusterMode(
-            KurrentDBTestOptions options, string gossipSeeds
-        ) {
-            if (!node.Resource.IsClusterMember)
-                return node;
-
-            return node.WithEnvironment(ctx => {
-                ApplyClusterEnvironment(ctx, node.Resource, gossipSeeds, options.Topology.NodeCount);
-                if (node.Resource.IsReadOnlyReplica)
-                    ctx.EnvironmentVariables["KURRENTDB_READ_ONLY_REPLICA"] = "true";
-            });
-        }
-
-        IResourceBuilder<KurrentDBResource> WithHealthMonitor(
-            IDistributedApplicationBuilder builder
-        ) {
-            var healthCheckKey = $"{node.Resource.Name}_check";
-
-            builder.Services
-                .AddHealthChecks()
-                .AddCheck(healthCheckKey, new KurrentDBHealthCheck(node.Resource));
-
-            return node.WithHealthCheck(healthCheckKey);
-        }
-    }
-
-    static void ApplyEnvironmentVariables(
-        EnvironmentCallbackContext context,
-        IReadOnlyDictionary<string, string?> variables
+    static IResourceBuilder<ExecutableResource> AddCertificateGenerator(
+        this IDistributedApplicationBuilder app,
+        string name,
+        string certsHostPath,
+        KurrentDBServerResource server
     ) {
-        foreach (var (key, value) in variables) {
-            if (value is not null)
-                context.EnvironmentVariables[key] = value;
-            else
-                context.EnvironmentVariables.Remove(key);
-        }
-    }
+        var scriptPath = Path.Combine(AppContext.BaseDirectory, "gencert.sh");
 
-    static void ApplyClusterEnvironment(
-        EnvironmentCallbackContext context,
-        KurrentDBResource resource,
-        string gossipSeeds,
-        int clusterSize
-    ) {
-        context.EnvironmentVariables["KURRENTDB_CLUSTER_SIZE"]                     = clusterSize.ToString();
-        context.EnvironmentVariables["KURRENTDB_DISCOVER_VIA_DNS"]                 = "false";
-        context.EnvironmentVariables["KURRENTDB_GOSSIP_SEED"]                      = gossipSeeds;
-        context.EnvironmentVariables["KURRENTDB_NODE_HOST_ADVERTISE_AS"]           = resource.Name;
-        context.EnvironmentVariables["KURRENTDB_REPLICATION_HOST_ADVERTISE_AS"]    = resource.Name;
-        context.EnvironmentVariables["KURRENTDB_ADVERTISE_HOST_TO_CLIENT_AS"]      = "localhost";
-        context.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] = ReferenceExpression.Create($"{resource.PrimaryEndpoint.Property(EndpointProperty.Port)}");
-    }
+        var certGen = app.AddExecutable(
+            name: $"{name}-certs", command: "/bin/bash", workingDirectory: ".");
 
-    static CertBundle GetOrCreateCertBundle(
-        IDistributedApplicationBuilder builder,
-        IReadOnlyList<string> secureNodeNames
-    ) {
-        var existing = builder.Resources.OfType<ContainerResource>()
-            .FirstOrDefault(r => r.Name == CertGenResourceName);
-
-        if (existing is not null) {
-            var mount = existing.Annotations.OfType<ContainerMountAnnotation>()
-                .First(a => a.Target == CertGenTargetFolder);
-            return new CertBundle(builder.CreateResourceBuilder(existing), mount.Source!);
-        }
-
-        var hostPath = Path.Combine(Path.GetTempPath(), $"kurrentdb-testkit-certs-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(hostPath);
-
-        var resource = builder
-            .AddContainer(CertGenResourceName, CertGenImage, CertGenTag)
-            .WithEntrypoint("/bin/sh")
-            .WithArgs(ctx => {
-                ctx.Args.Add(CertGenScriptTarget);
-                ctx.Args.Add(BuildCertificateDnsNames());
-            })
-            .WithBindMount(CertGenScriptSource, CertGenScriptTarget, true)
-            .WithBindMount(hostPath, CertGenTargetFolder);
-
-        return new CertBundle(resource, hostPath);
-
-        string BuildCertificateDnsNames() =>
-            string.Join(",", builder.Resources
-                .OfType<KurrentDBResource>()
-                .Where(r => r.Secure)
+        certGen.WithArgs(context => {
+            var dnsNames = string.Join(",", server.Nodes
                 .Select(r => r.Name)
-                .Concat(secureNodeNames)
                 .Distinct(StringComparer.Ordinal)
                 .Prepend("localhost"));
-    }
 
-    sealed record CertBundle(IResourceBuilder<ContainerResource> Resource, string HostPath);
+            context.Args.Add(scriptPath);
+            context.Args.Add("--output");
+            context.Args.Add(certsHostPath);
+            context.Args.Add("--dns");
+            context.Args.Add(dnsNames);
+            context.Args.Add("--user-certs");
+            context.Args.Add("admin");
+        });
+
+        return certGen;
+    }
+}
+
+static class NodeConfiguration {
+    public static readonly IReadOnlyDictionary<string, string?> Insecure = new Dictionary<string, string?> {
+        ["KURRENTDB_TELEMETRY_OPTOUT"]               = "true",
+        ["KURRENTDB_ALLOW_UNKNOWN_OPTIONS"]          = "true",
+        ["KURRENTDB_MEM_DB"]                         = "false",
+        ["KURRENTDB_DISABLE_LOG_FILE"]               = "true",
+        ["KURRENTDB_LOG_LEVEL"]                      = "Debug",
+        ["KURRENTDB_ENABLE_ATOM_PUB_OVER_HTTP"]      = "true",
+        ["KURRENTDB_RUN_PROJECTIONS"]                = "All",
+        ["KURRENTDB_START_STANDARD_PROJECTIONS"]     = "true",
+        ["KURRENTDB_NODE_PORT"]                      = "2113",
+        ["KURRENTDB_INSECURE"]                       = "true",
+        ["KURRENTDB_USER_CERTIFICATES__ENABLED"]     = "false",
+        ["KURRENTDB_SECONDARY_INDEXING__ENABLED"]    = "true",
+        ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = null,
+        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "false",
+    };
+
+    public static readonly IReadOnlyDictionary<string, string?> Secure = new Dictionary<string, string?>(Insecure) {
+        ["KURRENTDB_INSECURE"]                       = "false",
+        ["KURRENTDB_TRUSTED_ROOT_CERTIFICATES_PATH"] = "/etc/kurrentdb/certs/ca",
+        ["KURRENTDB_CERTIFICATE_FILE"]               = "/etc/kurrentdb/certs/node/node.crt",
+        ["KURRENTDB_CERTIFICATE_PRIVATE_KEY_FILE"]   = "/etc/kurrentdb/certs/node/node.key"
+    };
 }

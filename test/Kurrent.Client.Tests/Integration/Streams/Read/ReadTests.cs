@@ -26,7 +26,7 @@ public class ReadTests {
 
         var options = ReadRecordsRequest.New
             .FromPosition(lastPosition.LogPosition)
-            .WithFilterExpression($"stream = '{simulation.Stream}'")
+            .Filter($"stream = '{simulation.Stream}'")
             .SkipDecoding()
             .Build();
 

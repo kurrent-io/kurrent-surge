@@ -5,7 +5,7 @@ using Kurrent.Quack;
 namespace Kurrent.Projections.DuckDB;
 
 /// <summary>
-/// DuckDB-backed <see cref="CheckpointStore"/>. One row per <c>(processor_id, partition)</c>,
+/// DuckDB-backed <see cref="CheckpointStoreBase"/>. One row per <c>(processor_id, partition)</c>,
 /// updated under optimistic concurrency control — each update is fenced on the previously
 /// observed <c>log_position</c> for that partition.
 /// </summary>
@@ -21,7 +21,7 @@ public sealed partial class DuckDBCheckpointStore(
     TimeProvider time,
     ILogger<DuckDBCheckpointStore> logger
 )
-    : CheckpointStore(processorId, time, logger) {
+    : CheckpointStoreBase(processorId, time, logger) {
     
     /// <summary>
     /// Checkpoint table name. Quoted in every SQL statement below because the <c>$</c>
@@ -62,7 +62,7 @@ public sealed partial class DuckDBCheckpointStore(
     }
 
     protected override ValueTask<ProcessorCheckpoint> OnLoadLatestAsync(CancellationToken ct) {
-        var positions       = new List<PartitionPosition>();
+        var positions       = new List<RecordPosition>();
         var latestTimestamp = DateTimeOffset.MinValue;
 
         _lastStored.Clear();
@@ -92,7 +92,7 @@ public sealed partial class DuckDBCheckpointStore(
     protected override ValueTask OnStoreAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct
     ) {
         var timestamp = Time.GetUtcNow().UtcDateTime;
@@ -104,7 +104,7 @@ public sealed partial class DuckDBCheckpointStore(
 
         foreach (var p in positions) {
             var partition      = p.Partition.Value;
-            var newLogPosition = (long)p.Position.LogPosition;
+            var newLogPosition = (long)p.LogPosition;
 
             if (_lastStored.TryGetValue(partition, out var expected)) {
                 var affected = connection.ExecuteNonQuery<UpdateWithExpectedArgs, UpdateWithExpectedStatement>(
@@ -137,7 +137,7 @@ public sealed partial class DuckDBCheckpointStore(
     protected override ValueTask OnResetAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct
     ) {
         var timestamp = Time.GetUtcNow().UtcDateTime;
@@ -162,7 +162,7 @@ public sealed partial class DuckDBCheckpointStore(
             _lastStored.Clear();
         else {
             foreach (var p in positions)
-                _lastStored[p.Partition.Value] = p.Position.LogPosition;
+                _lastStored[p.Partition.Value] = p.LogPosition;
         }
 
         return ValueTask.CompletedTask;
@@ -172,20 +172,20 @@ public sealed partial class DuckDBCheckpointStore(
 
     #region ->> Mapping <<-
 
-    UpsertArgs BuildUpsertArgs(PartitionPosition p, string droneId, string checkpointId, DateTime timestamp) =>
+    UpsertArgs BuildUpsertArgs(RecordPosition p, string droneId, string checkpointId, DateTime timestamp) =>
         new(
             ProcessorId,
             p.Partition.Value,
-            p.Position.LogPosition,
-            p.Position.Stream.IsUnset ? null : (string)p.Position.Stream,
-            p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision,
+            p.LogPosition,
+            p.Stream.IsUnset ? null : (string)p.Stream,
+            p.Revision == Revision.Unset ? null : (int?)p.Revision,
             droneId,
             checkpointId,
             timestamp
         );
 
     UpdateWithExpectedArgs BuildUpdateArgs(
-        PartitionPosition p,
+        RecordPosition p,
         string droneId,
         string checkpointId,
         DateTime timestamp,
@@ -194,23 +194,21 @@ public sealed partial class DuckDBCheckpointStore(
         new(
             ProcessorId,
             p.Partition.Value,
-            p.Position.LogPosition,
-            p.Position.Stream.IsUnset ? null : (string)p.Position.Stream,
-            p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision,
+            p.LogPosition,
+            p.Stream.IsUnset ? null : (string)p.Stream,
+            p.Revision == Revision.Unset ? null : (int?)p.Revision,
             droneId,
             checkpointId,
             timestamp,
             expectedLogPosition
         );
 
-    static PartitionPosition MapRow(in CheckpointRow row) {
+    static RecordPosition MapRow(in CheckpointRow row) {
         var partition = Partition.From(row.Partition);
 
-        var position = row.Stream is not null && row.StreamRevision is not null
+        return row.Stream is not null && row.StreamRevision is not null
             ? RecordPosition.From(row.LogPosition, row.Stream, Revision.From(row.StreamRevision.Value), partition)
             : RecordPosition.From(row.LogPosition, partition);
-
-        return new PartitionPosition(partition, position);
     }
 
     #endregion

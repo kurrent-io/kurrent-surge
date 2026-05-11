@@ -1,5 +1,4 @@
 using Kurrent.Processors;
-using Kurrent.Projections.DuckDB;
 
 namespace Kurrent.Projections;
 

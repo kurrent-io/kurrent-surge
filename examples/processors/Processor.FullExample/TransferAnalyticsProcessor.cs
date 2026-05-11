@@ -146,11 +146,6 @@ public sealed class TransferAnalyticsProcessor(
         }
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation("Completed, {PendingCount} pending", _pendingSpending.Count);
-        return ValueTask.CompletedTask;
-    }
-
     static int GetSeasonForDate(DateOnly date) =>
         date.Month >= 7 ? date.Year : date.Year - 1;
 

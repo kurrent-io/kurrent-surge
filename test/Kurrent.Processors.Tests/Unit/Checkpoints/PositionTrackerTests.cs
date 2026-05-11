@@ -5,10 +5,10 @@ namespace Kurrent.Processors.Tests.Checkpoints;
 
 [Category("Processors")]
 public class PositionTrackerTests {
-    #region . Track .
+    #region ->> Track <<-
 
     [Test]
-    public async Task track_single_position_returns_count_of_one() {
+    public async ValueTask track_single_position_returns_count_of_one() {
         // Arrange
         using var tracker = new PositionTracker();
         var position = TestPositions.At(100);
@@ -21,7 +21,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task track_multiple_positions_returns_incremented_count() {
+    public async ValueTask track_multiple_positions_returns_incremented_count() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -37,7 +37,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task track_unset_position_throws_argument_exception() {
+    public async ValueTask track_unset_position_throws_argument_exception() {
         // Arrange
         using var tracker = new PositionTracker();
         var unset = RecordPosition.Unset;
@@ -47,7 +47,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task track_position_less_than_or_equal_to_last_flushed_throws() {
+    public async ValueTask track_position_less_than_or_equal_to_last_flushed_throws() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -61,7 +61,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task positions_returns_all_tracked_positions_in_order() {
+    public async ValueTask positions_returns_all_tracked_positions_in_order() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -75,12 +75,12 @@ public class PositionTrackerTests {
         await positions.ShouldHavePositions(100, 200, 300);
     }
 
-    #endregion
+    #endregion // Track
 
-    #region . Flush .
+    #region ->> Flush <<-
 
     [Test]
-    public async Task flush_returns_all_tracked_positions() {
+    public async ValueTask flush_returns_all_tracked_positions() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -95,7 +95,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_clears_tracked_positions() {
+    public async ValueTask flush_clears_tracked_positions() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -110,7 +110,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_updates_last_flushed_position_to_last_tracked() {
+    public async ValueTask flush_updates_last_flushed_position_to_last_tracked() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -125,7 +125,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_on_empty_tracker_returns_empty_span() {
+    public async ValueTask flush_on_empty_tracker_returns_empty_span() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -136,12 +136,12 @@ public class PositionTrackerTests {
         await Assert.That(flushed.Length).IsEqualTo(0);
     }
 
-    #endregion
+    #endregion // Flush
 
-    #region . FlushUpTo .
+    #region ->> FlushUpTo <<-
 
     [Test]
-    public async Task flush_up_to_retains_positions_after_flush_position() {
+    public async ValueTask flush_up_to_retains_positions_after_flush_position() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -157,7 +157,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_updates_last_flushed_position() {
+    public async ValueTask flush_up_to_updates_last_flushed_position() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -172,7 +172,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_on_empty_tracker_returns_empty_span() {
+    public async ValueTask flush_up_to_on_empty_tracker_returns_empty_span() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -184,7 +184,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_beyond_all_tracked_flushes_all() {
+    public async ValueTask flush_up_to_beyond_all_tracked_flushes_all() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -201,7 +201,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_with_exact_match_includes_that_position() {
+    public async ValueTask flush_up_to_with_exact_match_includes_that_position() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -217,7 +217,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_untracked_position_flushes_up_to_previous() {
+    public async ValueTask flush_up_to_untracked_position_flushes_up_to_previous() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -234,7 +234,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_position_less_than_last_flushed_returns_empty() {
+    public async ValueTask flush_up_to_position_less_than_last_flushed_returns_empty() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -251,7 +251,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task consecutive_flushes_maintain_correct_state() {
+    public async ValueTask consecutive_flushes_maintain_correct_state() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -277,7 +277,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task flush_up_to_with_duplicate_positions_handles_correctly() {
+    public async ValueTask flush_up_to_with_duplicate_positions_handles_correctly() {
         // Arrange - track duplicate positions
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -293,12 +293,12 @@ public class PositionTrackerTests {
         await tracker.Positions.ShouldHavePositions(200, 200);
     }
 
-    #endregion
+    #endregion // FlushUpTo
 
-    #region . Buffer Management .
+    #region ->> Buffer Management <<-
 
     [Test]
-    public async Task buffer_grows_when_capacity_exceeded() {
+    public async ValueTask buffer_grows_when_capacity_exceeded() {
         // Arrange - create tracker with small capacity
         using var tracker = new PositionTracker(capacity: 256);
 
@@ -311,7 +311,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task buffer_at_exact_minimum_capacity_works() {
+    public async ValueTask buffer_at_exact_minimum_capacity_works() {
         // Arrange - create tracker with exact minimum capacity
         using var tracker = new PositionTracker(capacity: 256);
 
@@ -324,7 +324,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task buffer_compacts_before_growing_when_possible() {
+    public async ValueTask buffer_compacts_before_growing_when_possible() {
         // Arrange - create tracker with minimum capacity
         using var tracker = new PositionTracker(capacity: 256);
 
@@ -356,7 +356,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task operations_after_dispose_throw_object_disposed_exception() {
+    public async ValueTask operations_after_dispose_throw_object_disposed_exception() {
         // Arrange
         var tracker = new PositionTracker();
         tracker.Dispose();
@@ -367,12 +367,12 @@ public class PositionTrackerTests {
         await Assert.That(() => tracker.FlushUpTo(TestPositions.At(100))).Throws<ObjectDisposedException>();
     }
 
-    #endregion
+    #endregion // Buffer Management
 
-    #region . Reset .
+    #region ->> Reset <<-
 
     [Test]
-    public async Task reset_after_partial_flush_clears_pending_positions() {
+    public async ValueTask reset_after_partial_flush_clears_pending_positions() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -390,7 +390,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task track_after_reset_enforces_new_baseline() {
+    public async ValueTask track_after_reset_enforces_new_baseline() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -409,7 +409,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task reset_with_unset_position_works() {
+    public async ValueTask reset_with_unset_position_works() {
         // Arrange
         using var tracker = new PositionTracker();
         tracker.Track(TestPositions.At(100));
@@ -426,12 +426,12 @@ public class PositionTrackerTests {
         await Assert.That(tracker.Track(TestPositions.At(50))).IsEqualTo(1);
     }
 
-    #endregion
+    #endregion // Reset
 
-    #region . Constructor .
+    #region ->> Constructor <<-
 
     [Test]
-    public async Task constructor_with_last_flushed_position_sets_initial_state() {
+    public async ValueTask constructor_with_last_flushed_position_sets_initial_state() {
         // Arrange
         var lastFlushed = TestPositions.At(500);
 
@@ -444,7 +444,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task constructor_with_last_flushed_position_enforces_baseline() {
+    public async ValueTask constructor_with_last_flushed_position_enforces_baseline() {
         // Arrange
         var lastFlushed = TestPositions.At(500);
         using var tracker = new PositionTracker(lastFlushed);
@@ -458,7 +458,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task constructor_with_unset_position_allows_any_tracking() {
+    public async ValueTask constructor_with_unset_position_allows_any_tracking() {
         // Arrange
         using var tracker = new PositionTracker(RecordPosition.Unset);
 
@@ -466,12 +466,12 @@ public class PositionTrackerTests {
         await Assert.That(tracker.Track(TestPositions.At(1))).IsEqualTo(1);
     }
 
-    #endregion
+    #endregion // Constructor
 
-    #region . Properties .
+    #region ->> Properties <<-
 
     [Test]
-    public async Task last_flushed_position_is_unset_initially() {
+    public async ValueTask last_flushed_position_is_unset_initially() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -480,7 +480,7 @@ public class PositionTrackerTests {
     }
 
     [Test]
-    public async Task positions_is_empty_initially() {
+    public async ValueTask positions_is_empty_initially() {
         // Arrange
         using var tracker = new PositionTracker();
 
@@ -488,7 +488,7 @@ public class PositionTrackerTests {
         await Assert.That(tracker.Positions.Length).IsEqualTo(0);
     }
 
-    #endregion
+    #endregion // Properties
 }
 
 static class TestPositions {
@@ -496,14 +496,8 @@ static class TestPositions {
         RecordPosition.From((long)logPosition);
 }
 
-/// <summary>
-/// Helper extension methods for PositionTracker tests.
-/// </summary>
 static class PositionTrackerTestExtensions {
-    /// <summary>
-    /// Asserts that the positions match the expected values.
-    /// </summary>
-    public static async Task ShouldHavePositions(this RecordPosition[] positions, params ulong[] expected) {
+    public static async ValueTask ShouldHavePositions(this RecordPosition[] positions, params ulong[] expected) {
         await Assert.That(positions.Length).IsEqualTo(expected.Length);
         for (var i = 0; i < expected.Length; i++)
             await Assert.That(positions[i].LogPosition.Value).IsEqualTo((long)expected[i]);

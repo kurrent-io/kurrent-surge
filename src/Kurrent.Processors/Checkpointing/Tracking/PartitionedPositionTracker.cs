@@ -15,10 +15,10 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// <summary>
     /// Creates a tracker with initial positions per partition.
     /// </summary>
-    public PartitionedPositionTracker(IReadOnlyDictionary<Partition, RecordPosition> positions) =>
+    public PartitionedPositionTracker(RecordPosition[] positions) =>
         _trackers = positions.ToFrozenDictionary(
-            x => x.Key,
-            x => new PositionTracker(lastFlushedPosition: x.Value));
+            x => x.Partition,
+            x => new PositionTracker(lastFlushedPosition: x));
 
     /// <summary>
     /// Creates a tracker with no initial partitions.
@@ -29,26 +29,24 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// <summary>
     /// Gets the last flushed (checkpointed) position for each partition.
     /// </summary>
-    public Dictionary<Partition, RecordPosition> LastFlushedPositions =>
-        _trackers.ToDictionary(
-            x => x.Key,
-            x => x.Value.LastFlushedPosition
-        );
+    public RecordPosition[] LastFlushedPositions =>
+        _trackers.Select(x => x.Value.LastFlushedPosition).ToArray();
 
     /// <summary>
     /// Gets the last tracked (pending, not yet flushed) position for each partition.
     /// Returns <see cref="LogPosition.Unset"/> for partitions with no pending positions.
     /// </summary>
-    public Dictionary<Partition, RecordPosition> LastTrackedPositions =>
-        _trackers.ToDictionary(
-            x => x.Key,
-            x => x.Value.Positions.LastOrDefault(RecordPosition.Unset)
-        );
+    public RecordPosition[] LastTrackedPositions =>
+        _trackers
+            .Select(x => x.Value.Positions.LastOrDefault(RecordPosition.Unset))
+            .ToArray();
 
     /// <summary>
     /// Gets the number of partitions being tracked.
     /// </summary>
     public int PartitionCount => _trackers.Count;
+
+    public bool HasPendingPositions => _trackers.Any(x => x.Value.Positions.Length > 0);
 
     /// <summary>
     /// Tracks positions from a batch of records, grouped by partition.
@@ -106,30 +104,32 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// Snapshots ALL pending positions at the moment of call (no position filtering).
     /// This enables distributed checkpoint coordination across drones.
     /// </remarks>
-    public PendingPositionsFlush PrepareFlush() {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        return new PendingPositionsFlush(this, GetAllPendingPositions());
+    public PendingPositionsFlush PrepareFlush() =>
+        new(this, Snapshot());
 
-        Dictionary<Partition, RecordPosition> GetAllPendingPositions() =>
-            _trackers.ToDictionary(
-                x => x.Key,
-                x => {
-                    var positions = x.Value.Positions;
-                    return positions.Length > 0
-                        ? positions[^1]
-                        : x.Value.LastFlushedPosition;
-                }
-            );
+    /// <summary>
+    /// Snapshots all pending positions at the moment of call (last pending per partition,
+    /// or the partition's last flushed position if no pending). Pure read — does not prepare
+    /// a flush handle, does not advance the tracker. Use this when the caller persists via
+    /// an explicit positions dictionary and advances the tracker via <see cref="FlushUpTo"/>
+    /// directly (no <see cref="PendingPositionsFlush.Execute"/> coordination required).
+    /// </summary>
+    public RecordPosition[] Snapshot() {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        
+        return _trackers
+            .Select(x => x.Value.Positions.LastOrDefault(x.Value.LastFlushedPosition))
+            .ToArray();
     }
 
     /// <summary>
     /// Flushes tracked positions up to the specified positions for each partition.
     /// </summary>
-    public void FlushUpTo(IReadOnlyDictionary<Partition, RecordPosition> positions) {
+    public void FlushUpTo(RecordPosition[] positions) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        foreach (var (partition, tracker) in _trackers) {
-            if (positions.TryGetValue(partition, out var position))
+        foreach (var position in positions) {
+            if (_trackers.TryGetValue(position.Partition, out var tracker))
                 tracker.FlushUpTo(position);
         }
     }
@@ -138,13 +138,14 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// Resets the tracker with new partition positions, reusing existing trackers where possible.
     /// </summary>
     /// <param name="positions">The new partition positions.</param>
-    public void Reset(IReadOnlyDictionary<Partition, RecordPosition> positions) {
+    public void Reset(RecordPosition[] positions) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var oldCount    = _trackers.Count;
-        var newTrackers = new Dictionary<Partition, PositionTracker>(positions.Count);
+        var newTrackers = new Dictionary<Partition, PositionTracker>(positions.Length);
 
-        foreach (var (partition, position) in positions) {
+        foreach (var position in positions) {
+            var partition = position.Partition;
             if (_trackers.TryGetValue(partition, out var existing)) {
                 existing.Reset(position);
                 newTrackers[partition] = existing;

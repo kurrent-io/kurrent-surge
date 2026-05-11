@@ -20,7 +20,9 @@
     <Project Path="test\Kurrent.Processors.Tests\Kurrent.Processors.Tests.csproj" />
   </Folder>
 
-  <Folder Name="/Shared/" />
+  <Folder Name="/Shared/">
+    <Project Path="src/Kurrent.Toolkit/Kurrent.Toolkit.csproj" />
+  </Folder>
 
   <Folder Name="/Shared/CodeAnalysis/">
     <Project Path="src\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.csproj" />
@@ -36,8 +38,8 @@
     <Project Path="test/Kurrent.Testkit.Datasets.Tests/Kurrent.Testkit.Datasets.Tests.csproj" />
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
     <Project Path="test\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
-    <Project Path="test\Kurrent.Sdk.Testkit.AppHost\Kurrent.Sdk.Testkit.AppHost.csproj" />
     <Project Path="test\Kurrent.Sdk.Testkit.Hosting\Kurrent.Sdk.Testkit.Hosting.csproj" />
+    <Project Path="test\Kurrent.Sdk.Testkit.Hosting.Tests\Kurrent.Sdk.Testkit.Hosting.Tests.csproj" />
     <Project Path="test\Kurrent.Testing\Kurrent.Testing.csproj" />
     <Project Path="test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
   </Folder>

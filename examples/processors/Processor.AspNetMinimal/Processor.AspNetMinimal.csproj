@@ -8,4 +8,12 @@
     <ProjectReference Include="..\..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\..\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Kurrent.Client.Streams" />
+    <Using Include="Kurrent.Processors" />
+    <Using Include="Kurrent.Processors.Checkpointing" />
+    <Using Include="Serilog" />
+    <Using Include="Transfermarkt.Domain" />
+  </ItemGroup>
 </Project>

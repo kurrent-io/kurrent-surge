@@ -1,20 +1,5 @@
 services:
-  seq:
-    image: datalust/seq:latest
-    pull_policy: always
-    container_name: seq
-    restart: unless-stopped
-    environment:
-      - ACCEPT_EULA=Y
-      - SEQ_FIRSTRUN_NOAUTHENTICATION=True
-    volumes:
-      - seq-data:/data
-    ports:
-      - "5341:80"
-    networks:
-      - kurrentdb-net
-
-  dashboard:
+  aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     pull_policy: always
     container_name: dashboard
@@ -22,19 +7,18 @@ services:
     environment:
       - ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true
       - ASPIRE_ALLOW_UNSECURED_TRANSPORT=true
+      - ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true
+      - ASPIRE_DASHBOARD_APPLICATIONNAME="Kurrent SDK Dashboard"
     ports:
       - "18888:18888" # Dashboard UI
       - "4317:18889"  # OTLP/gRPC ingestion
       - "4318:18890"  # OTLP/HTTP Protobuf ingestion
       - "18891:18891" # MCP server
-    networks:
-      - kurrentdb-net
-
-volumes:
-  seq-data:
-    name: seq-data
-
-networks:
-  kurrentdb-net:
-    name: kurrentdb-net
-    driver: bridge
+ 
+#    networks:
+#      - kurrentdb-net
+#      
+#networks:
+#  kurrentdb-net:
+#    name: kurrentdb-net
+#    driver: bridge

@@ -46,6 +46,7 @@
     <PackageReference Include="TUnit.Assertions" />
     <PackageReference Include="TUnit.Core" />
     <PackageReference Include="Grpc.StatusProto" />
+    <PackageReference Include="TUnit.OpenTelemetry" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,13 +54,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
-<!--  <ItemGroup>-->
-<!--    <EmbeddedResource Include="Sample\FormulaOne\Data\*.json" />-->
-<!--  </ItemGroup>-->
-
-<!--  <ItemGroup>-->
-<!--    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />-->
-<!--  </ItemGroup>-->
-
 </Project>

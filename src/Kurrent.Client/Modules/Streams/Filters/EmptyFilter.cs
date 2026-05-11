@@ -7,7 +7,7 @@ namespace Kurrent.Client.Streams;
 public sealed record EmptyFilter : IRecordFilter {
     public StreamName TargetStream => StreamName.Unset;
 
-    public string Expression => string.Empty;
+    public string Expression => "";
 
     public bool IsMatch(Record record) => true;
 }

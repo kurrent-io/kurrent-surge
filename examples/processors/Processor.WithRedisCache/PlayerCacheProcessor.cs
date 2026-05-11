@@ -81,11 +81,6 @@ public sealed class PlayerCacheProcessor(
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation("Completed");
-        return ValueTask.CompletedTask;
-    }
-
     record CachedPlayer {
         public string  PlayerId    { get; init; } = "";
         public string  Name        { get; init; } = "";

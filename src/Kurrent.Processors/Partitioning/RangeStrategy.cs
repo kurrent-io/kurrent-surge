@@ -67,7 +67,7 @@ public sealed class RangeStrategy : IDistributionStrategy {
 
             for (var j = 0; j < partitionCount; j++) {
                 var partition = Partition.From(currentPartition++);
-                var prevOwner = previousOwner.GetValueOrDefault(partition, string.Empty);
+                var prevOwner = previousOwner.GetValueOrDefault(partition, "");
 
                 if (prevOwner == droneId) {
                     kept.Add(partition);

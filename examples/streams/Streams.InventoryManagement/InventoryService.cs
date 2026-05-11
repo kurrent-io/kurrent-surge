@@ -165,8 +165,8 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     public async ValueTask<List<Record>> GetRecentActivity(int maxRecords = 50) {
         var req = ReadRecordsRequest.New
             .Backwards()
-            .WithMaxRecords(maxRecords)
-            .WithFilterExpression("stream like 'inventory-%'")
+            .Limit(maxRecords)
+            .Filter("stream like 'inventory-%'")
             .Build();
 
         return await client.Streams.ReadRecords(req).ToListAsync();

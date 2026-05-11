@@ -1,6 +1,5 @@
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Models;
 using Kurrent.Processors.Partitioning;
 
 namespace Kurrent.Processors.Tests.Partitioning;
@@ -13,7 +12,7 @@ public class PartitionAssignerTests {
     #region ->> GetPartition <<-
 
     [Test]
-    public async Task get_partition_returns_value_in_valid_range() {
+    public async ValueTask get_partition_returns_value_in_valid_range() {
         // Arrange
         const int maxParallelism = 128;
 
@@ -26,7 +25,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task get_partition_is_deterministic_for_same_key() {
+    public async ValueTask get_partition_is_deterministic_for_same_key() {
         // Arrange
         const string key            = "order-456";
         const int    maxParallelism = 128;
@@ -42,7 +41,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task get_partition_distributes_keys_across_partitions() {
+    public async ValueTask get_partition_distributes_keys_across_partitions() {
         // Arrange
         const int maxParallelism = 128;
         const int keyCount       = 10000;
@@ -65,7 +64,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task get_partition_handles_single_partition() {
+    public async ValueTask get_partition_handles_single_partition() {
         // Arrange & Act
         var partition = _assigner.GetPartition("any-key", maxParallelism: 1);
 
@@ -74,7 +73,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task get_partition_handles_max_parallelism_boundary() {
+    public async ValueTask get_partition_handles_max_parallelism_boundary() {
         // Arrange & Act
         var partition = _assigner.GetPartition("test-key", maxParallelism: 32768);
 
@@ -84,25 +83,25 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task get_partition_throws_for_null_key() {
+    public async ValueTask get_partition_throws_for_null_key() {
         // Act & Assert
         await Assert.That(() => _assigner.GetPartition(null!, 128)).Throws<ArgumentNullException>();
     }
 
     [Test]
-    public async Task get_partition_throws_for_invalid_max_parallelism() {
+    public async ValueTask get_partition_throws_for_invalid_max_parallelism() {
         // Act & Assert
         await Assert.That(() => _assigner.GetPartition("key", 0)).Throws<ArgumentOutOfRangeException>();
         await Assert.That(() => _assigner.GetPartition("key", -1)).Throws<ArgumentOutOfRangeException>();
         await Assert.That(() => _assigner.GetPartition("key", 32769)).Throws<ArgumentOutOfRangeException>();
     }
 
-    #endregion
+    #endregion // GetPartition
 
     #region ->> Distribute <<-
 
     [Test]
-    public async Task distribute_evenly_with_exact_division() {
+    public async ValueTask distribute_evenly_with_exact_division() {
         // Arrange
         string[] drones = ["drone-a", "drone-b", "drone-c", "drone-d"];
         const int maxParallelism = 128;
@@ -119,7 +118,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task distribute_remainder_to_earlier_drones() {
+    public async ValueTask distribute_remainder_to_earlier_drones() {
         // Arrange
         string[] drones = ["drone-a", "drone-b", "drone-c"];
         const int maxParallelism = 128;
@@ -135,7 +134,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task distribute_creates_contiguous_ranges() {
+    public async ValueTask distribute_creates_contiguous_ranges() {
         // Arrange
         string[] drones = ["drone-a", "drone-b"];
         const int maxParallelism = 10;
@@ -149,7 +148,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task distribute_single_drone_gets_all() {
+    public async ValueTask distribute_single_drone_gets_all() {
         // Arrange
         string[] drones = ["solo-drone"];
         const int maxParallelism = 128;
@@ -163,7 +162,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task distribute_returns_empty_for_no_drones() {
+    public async ValueTask distribute_returns_empty_for_no_drones() {
         // Arrange
         var drones = Array.Empty<string>();
 
@@ -175,7 +174,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task distribute_covers_all_partitions_exactly_once() {
+    public async ValueTask distribute_covers_all_partitions_exactly_once() {
         // Arrange
         string[] drones = ["a", "b", "c", "d", "e"];
         const int maxParallelism = 128;
@@ -195,7 +194,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task distribute_handles_more_drones_than_partitions() {
+    public async ValueTask distribute_handles_more_drones_than_partitions() {
         // Arrange
         string[] drones = ["a", "b", "c", "d", "e"];
         const int maxParallelism = 3;
@@ -211,12 +210,12 @@ public class PartitionAssignerTests {
         await Assert.That(manifest["e"].All.Length).IsEqualTo(0);
     }
 
-    #endregion
+    #endregion // Distribute
 
     #region ->> Rebalancing <<-
 
     [Test]
-    public async Task rebalance_returns_no_changes_for_same_drones() {
+    public async ValueTask rebalance_returns_no_changes_for_same_drones() {
         // Arrange
         string[] drones = ["a", "b"];
         var initial = _assigner.Distribute(DistributionManifest.Empty, drones, 10);
@@ -230,7 +229,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task rebalance_detects_drone_joining() {
+    public async ValueTask rebalance_detects_drone_joining() {
         // Arrange
         string[] twoDrones   = ["a", "b"];
         string[] threeDrones = ["a", "b", "c"];
@@ -249,7 +248,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task rebalance_detects_drone_leaving() {
+    public async ValueTask rebalance_detects_drone_leaving() {
         // Arrange
         string[] threeDrones = ["a", "b", "c"];
         string[] twoDrones   = ["a", "b"];
@@ -269,7 +268,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task rebalance_tracks_transfers() {
+    public async ValueTask rebalance_tracks_transfers() {
         // Arrange - manually construct a manifest for precise control
         var beforeAssignments = new Dictionary<string, PartitionAssignment> {
             ["a"] = new([Partition.From(0), Partition.From(1), Partition.From(2)], [], []),
@@ -289,7 +288,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task rebalance_handles_new_partitions_from_empty() {
+    public async ValueTask rebalance_handles_new_partitions_from_empty() {
         // Arrange
         string[] drones = ["new-drone"];
 
@@ -302,7 +301,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task rebalance_total_moved_is_accurate() {
+    public async ValueTask rebalance_total_moved_is_accurate() {
         // Arrange
         var beforeAssignments = new Dictionary<string, PartitionAssignment> {
             ["a"] = new([
@@ -320,12 +319,12 @@ public class PartitionAssignerTests {
         await Assert.That(after.TotalMoved).IsEqualTo(3);
     }
 
-    #endregion
+    #endregion // Rebalancing
 
     #region ->> Hash Consistency <<-
 
     [Test]
-    public async Task hash_is_consistent_for_known_values() {
+    public async ValueTask hash_is_consistent_for_known_values() {
         // These are regression tests to ensure hash doesn't change between versions
         // The actual values are not important, just that they remain stable
 
@@ -340,7 +339,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task different_keys_produce_different_partitions_usually() {
+    public async ValueTask different_keys_produce_different_partitions_usually() {
         // Arrange
         const int maxParallelism = 1000;
         var uniquePartitions = new HashSet<int>();
@@ -353,12 +352,12 @@ public class PartitionAssignerTests {
         await Assert.That(uniquePartitions.Count).IsGreaterThan(50);
     }
 
-    #endregion
+    #endregion // Hash Consistency
 
     #region ->> Scaling Scenarios <<-
 
     [Test]
-    public async Task scaling_from_1_to_4_drones_distributes_evenly() {
+    public async ValueTask scaling_from_1_to_4_drones_distributes_evenly() {
         // Arrange
         const int maxParallelism = 128;
 
@@ -380,7 +379,7 @@ public class PartitionAssignerTests {
     }
 
     [Test]
-    public async Task scaling_down_consolidates_partitions() {
+    public async ValueTask scaling_down_consolidates_partitions() {
         // Arrange
         const int maxParallelism = 128;
 
@@ -397,7 +396,7 @@ public class PartitionAssignerTests {
         await Assert.That(oneDrone["a"].All.Length).IsEqualTo(128);
     }
 
-    #endregion
+    #endregion // Scaling Scenarios
 }
 
 [Category("Processors")]
@@ -405,7 +404,7 @@ public class StickyStrategyTests {
     readonly PartitionAssigner _assigner = new(StickyStrategy.Instance);
 
     [Test]
-    public async Task sticky_keeps_all_existing_assignments_when_drone_joins() {
+    public async ValueTask sticky_keeps_all_existing_assignments_when_drone_joins() {
         // Arrange
         string[] twoDrones   = ["a", "b"];
         string[] threeDrones = ["a", "b", "c"];
@@ -433,7 +432,7 @@ public class StickyStrategyTests {
     }
 
     [Test]
-    public async Task sticky_redistributes_orphaned_partitions_when_drone_leaves() {
+    public async ValueTask sticky_redistributes_orphaned_partitions_when_drone_leaves() {
         // Arrange
         string[] threeDrones = ["a", "b", "c"];
         string[] twoDrones   = ["a", "b"];
@@ -456,7 +455,7 @@ public class StickyStrategyTests {
     }
 
     [Test]
-    public async Task sticky_minimizes_movement_compared_to_range() {
+    public async ValueTask sticky_minimizes_movement_compared_to_range() {
         // Arrange
         string[] drones = ["a", "b", "c"];
         string[] moreDrones = ["a", "b", "c", "d"];
@@ -473,7 +472,7 @@ public class StickyStrategyTests {
     }
 
     [Test]
-    public async Task sticky_handles_initial_empty_distribution() {
+    public async ValueTask sticky_handles_initial_empty_distribution() {
         // Arrange
         string[] drones = ["a", "b", "c"];
 

@@ -44,7 +44,7 @@ public readonly partial record struct ClientCredentials : IVariant<NoCredentials
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Size = 1)]
 public readonly struct NoCredentials {
-    public static readonly NoCredentials Value = new();
+    public static readonly NoCredentials Value;
 }
 
 /// <summary>

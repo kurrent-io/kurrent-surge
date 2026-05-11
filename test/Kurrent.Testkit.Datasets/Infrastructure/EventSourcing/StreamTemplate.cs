@@ -22,19 +22,20 @@ public record StreamTemplate {
         ArgumentOutOfRangeException.ThrowIfEqual(categorySeparator, '\0');
 
         Format   = format;
-        Category = Format.Split(categorySeparator, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+        Category = Format.Split(categorySeparator, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
     }
 
-    public string Format   { get; }
+    public string Format { get; }
+
     public string Category { get; }
 
     public bool HasCategory => Category.Length > 0;
 
     public string GetStream(string id) =>
         FormattableStringFactory.Create(Format, id).ToString();
-    
+
     public static implicit operator StreamTemplate(string format) =>
-        new StreamTemplate(format);
+        new(format);
 
     public static implicit operator string(StreamTemplate template) =>
         template.Format;

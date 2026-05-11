@@ -36,27 +36,27 @@ readonly struct BatchAction<TBatch, TPassThrough> {
 }
 
 static class AsyncEnumerableExtensions {
+    /// <summary>
+    /// Reads data from the async enumerable in batches of a specified size up to a given window of time.
+    /// Uses ArrayPool internally for efficient batch building, then creates a List via CollectionsMarshal.
+    /// </summary>
     /// <param name="source">The async enumerable to read data from.</param>
+    /// <param name="maxBatchSize">The maximum number of items in a single batch.</param>
+    /// <param name="batchWindow">The maximum duration to wait while gathering a batch.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation of the batch processing.</param>
     /// <typeparam name="T">The type of data in the enumerable.</typeparam>
-    extension<T>(IAsyncEnumerable<T> source) {
-        /// <summary>
-        /// Reads data from the async enumerable in batches of a specified size up to a given timeout period.
-        /// Uses ArrayPool internally for efficient batch building, then creates a List via CollectionsMarshal.
-        /// </summary>
-        /// <param name="batchSize">The maximum number of items in a single batch.</param>
-        /// <param name="timeout">The maximum duration to wait while gathering a batch.</param>
-        /// <param name="cancellationToken">A token to observe for cancellation of the batch processing.</param>
-        /// <remarks>
-        /// Uses the "park and resume" pattern to safely handle timeouts without violating the async enumerable
-        /// serialization rule. When a timeout occurs while MoveNextAsync is pending, the task is "parked" and
-        /// resumed on the next batch iteration, ensuring disposal never happens mid-await.
-        /// </remarks>
-        public async IAsyncEnumerable<List<T>> ReadBatches(
-            int batchSize, TimeSpan timeout,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default
-        ) {
+    /// <remarks>
+    /// Uses the "park and resume" pattern to safely handle timeouts without violating the async enumerable
+    /// serialization rule. When a window expires while MoveNextAsync is pending, the task is "parked" and
+    /// resumed on the next batch iteration, ensuring disposal never happens mid-await.
+    /// </remarks>
+    public static async IAsyncEnumerable<List<T>> ReadBatches<T>(
+        this IAsyncEnumerable<T> source,
+        int maxBatchSize, TimeSpan batchWindow,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    ) {
             var pool   = ArrayPool<T>.Shared;
-            var buffer = pool.Rent(batchSize);
+            var buffer = pool.Rent(maxBatchSize);
             ValueTask<bool>? parkedTask = null;
 
             var enumerator = source.GetAsyncEnumerator(cancellationToken);
@@ -66,7 +66,7 @@ static class AsyncEnumerableExtensions {
                     var count = 0;
                     var start = TimeProvider.System.GetTimestamp();
 
-                    while (count < batchSize) {
+                    while (count < maxBatchSize) {
                         bool hasNext;
 
                         // Resume parked task OR start fresh
@@ -78,8 +78,8 @@ static class AsyncEnumerableExtensions {
                             hasNext = moveNext.Result;
                         }
                         else {
-                            // Slow path: async with remaining timeout
-                            var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
+                            // Slow path: async with remaining window
+                            var remaining = batchWindow - TimeProvider.System.GetElapsedTime(start);
 
                             if (remaining <= TimeSpan.Zero) {
                                 parkedTask = moveNext; // Park for next iteration
@@ -156,39 +156,42 @@ static class AsyncEnumerableExtensions {
             }
         }
 
-        /// <summary>
-        /// Batches items from the source, yielding flush-trigger items immediately after flushing the pending batch.
-        /// </summary>
-        /// <typeparam name="TBatch">Type of items that can be batched.</typeparam>
-        /// <typeparam name="TOutput">Output type (batch or pass-through).</typeparam>
-        /// <param name="batchSize">Maximum items per batch.</param>
-        /// <param name="timeout">Maximum time to collect a batch.</param>
-        /// <param name="classify">Classifies each item as batchable or flush-trigger.</param>
-        /// <param name="batchToOutput">Converts batch array to output.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>An async enumerable of batched outputs and pass-through items.</returns>
-        /// <remarks>
-        /// <para>
-        /// Batches are yielded when: batch size is reached, timeout expires, source exhausted, or a flush-trigger arrives.
-        /// </para>
-        /// <para>
-        /// Flush-trigger items cause pending batched items to be yielded first, then the trigger item itself.
-        /// </para>
-        /// <para>
-        /// Uses the "park and resume" pattern to safely handle timeouts without violating the async enumerable
-        /// serialization rule. When a timeout occurs while MoveNextAsync is pending, the task is "parked" and
-        /// resumed on the next batch iteration, ensuring disposal never happens mid-await.
-        /// </para>
-        /// </remarks>
-        public async IAsyncEnumerable<TOutput> ReadBatched<TBatch, TOutput>(
-            int batchSize,
-            TimeSpan timeout,
-            Func<T, BatchAction<TBatch, TOutput>> classify,
-            Func<TBatch[], TOutput> batchToOutput,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default
-        ) {
+    /// <summary>
+    /// Batches items from the source, yielding flush-trigger items immediately after flushing the pending batch.
+    /// </summary>
+    /// <param name="source">The async enumerable to read data from.</param>
+    /// <param name="maxBatchSize">Maximum items per batch.</param>
+    /// <param name="batchWindow">Maximum time to collect a batch.</param>
+    /// <param name="classify">Classifies each item as batchable or flush-trigger.</param>
+    /// <param name="batchToOutput">Converts batch array to output.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <typeparam name="T">The type of data in the enumerable.</typeparam>
+    /// <typeparam name="TBatch">Type of items that can be batched.</typeparam>
+    /// <typeparam name="TOutput">Output type (batch or pass-through).</typeparam>
+    /// <returns>An async enumerable of batched outputs and pass-through items.</returns>
+    /// <remarks>
+    /// <para>
+    /// Batches are yielded when: batch size is reached, window expires, source exhausted, or a flush-trigger arrives.
+    /// </para>
+    /// <para>
+    /// Flush-trigger items cause pending batched items to be yielded first, then the trigger item itself.
+    /// </para>
+    /// <para>
+    /// Uses the "park and resume" pattern to safely handle timeouts without violating the async enumerable
+    /// serialization rule. When a window expires while MoveNextAsync is pending, the task is "parked" and
+    /// resumed on the next batch iteration, ensuring disposal never happens mid-await.
+    /// </para>
+    /// </remarks>
+    public static async IAsyncEnumerable<TOutput> ReadBatched<T, TBatch, TOutput>(
+        this IAsyncEnumerable<T> source,
+        int maxBatchSize,
+        TimeSpan batchWindow,
+        Func<T, BatchAction<TBatch, TOutput>> classify,
+        Func<TBatch[], TOutput> batchToOutput,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    ) {
             var pool   = ArrayPool<TBatch>.Shared;
-            var buffer = pool.Rent(batchSize);
+            var buffer = pool.Rent(maxBatchSize);
             ValueTask<bool>? parkedTask = null;
 
             var enumerator = source.GetAsyncEnumerator(cancellationToken);
@@ -198,7 +201,7 @@ static class AsyncEnumerableExtensions {
                     var count = 0;
                     var start = TimeProvider.System.GetTimestamp();
 
-                    while (count < batchSize) {
+                    while (count < maxBatchSize) {
                         bool hasNext;
 
                         // Resume parked task OR start fresh
@@ -210,8 +213,8 @@ static class AsyncEnumerableExtensions {
                             hasNext = moveNext.Result;
                         }
                         else {
-                            // Slow path: async with remaining timeout
-                            var remaining = timeout - TimeProvider.System.GetElapsedTime(start);
+                            // Slow path: async with remaining window
+                            var remaining = batchWindow - TimeProvider.System.GetElapsedTime(start);
 
                             if (remaining <= TimeSpan.Zero) {
                                 parkedTask = moveNext; // Park for next iteration
@@ -298,5 +301,4 @@ static class AsyncEnumerableExtensions {
                 return result;
             }
         }
-    }
 }

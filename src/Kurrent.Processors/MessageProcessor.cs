@@ -66,8 +66,6 @@ public class MessageProcessor : IRecordProcessor {
     }
 
     Func<CheckpointContext, ValueTask>? _onCheckpoint;
-    Func<ErrorContext, ValueTask>?      _onError;
-    Func<CompleteContext, ValueTask>?   _onComplete;
 
     /// <summary>
     /// Registers a handler invoked when a checkpoint is signaled.
@@ -89,42 +87,6 @@ public class MessageProcessor : IRecordProcessor {
     }
 
     /// <summary>
-    /// Registers a handler invoked when the drone encounters an unrecoverable error.
-    /// </summary>
-    public MessageProcessor OnError(Func<ErrorContext, ValueTask> handler) {
-        _onError = handler;
-        return this;
-    }
-
-    /// <inheritdoc cref="OnError(Func{ErrorContext, ValueTask})"/>
-    public MessageProcessor OnError(Action<ErrorContext> handler) {
-        _onError = ctx => {
-            handler(ctx);
-            return ValueTask.CompletedTask;
-        };
-
-        return this;
-    }
-
-    /// <summary>
-    /// Registers a handler invoked when the drone completes gracefully.
-    /// </summary>
-    public MessageProcessor OnComplete(Func<CompleteContext, ValueTask> handler) {
-        _onComplete = handler;
-        return this;
-    }
-
-    /// <inheritdoc cref="OnComplete(Func{CompleteContext, ValueTask})"/>
-    public MessageProcessor OnComplete(Action<CompleteContext> handler) {
-        _onComplete = ctx => {
-            handler(ctx);
-            return ValueTask.CompletedTask;
-        };
-
-        return this;
-    }
-
-    /// <summary>
     /// Returns <c>true</c> if a handler is registered for the record's decoded message type.
     /// </summary>
     public bool CanProcess(Record record) =>
@@ -136,14 +98,8 @@ public class MessageProcessor : IRecordProcessor {
             : _fallback?.Handle(context) ?? ValueTask.CompletedTask;
     }
 
-    ValueTask IRecordProcessor.OnCheckpoint(CheckpointContext context) =>
+    ValueTask IProcessor.OnCheckpoint(CheckpointContext context) =>
         _onCheckpoint?.Invoke(context) ?? ValueTask.CompletedTask;
-
-    ValueTask IRecordProcessor.OnError(ErrorContext context) =>
-        _onError?.Invoke(context) ?? ValueTask.CompletedTask;
-
-    ValueTask IRecordProcessor.OnComplete(CompleteContext context) =>
-        _onComplete?.Invoke(context) ?? ValueTask.CompletedTask;
 }
 
 public interface IMessageHandler {

@@ -67,7 +67,7 @@ public class DuckDBProjectionTests {
                 await cmd.ExecuteNonQueryAsync(setupCt);
                 SetupRan = true;
             });
-
+            
             Fallback(async (provider, ctx) => {
                 await using var cmd = provider.GetConnection().CreateCommand();
                 cmd.CommandText = "INSERT INTO projected_records VALUES ($id)";

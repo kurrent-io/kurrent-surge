@@ -45,7 +45,7 @@ public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : IS
 		if (messageType is null || messageType == Type.MissingType)
 			throw new ArgumentNullException(nameof(messageType));
 
-		var (ns, msg) = Generate(messageType, stream ?? string.Empty);
+		var (ns, msg) = Generate(messageType, stream ?? "");
 
 		if (string.IsNullOrEmpty(ns)) {
 			return format switch {

@@ -46,7 +46,7 @@ public record SubscriptionOptions {
     /// metadata->>'amount' > 100
     /// ```
     /// </remarks>
-    internal string PartitionKeySelector { get; set; } = string.Empty;
+    internal string PartitionKeySelector { get; set; } = "";
 
     /// <summary>
     /// When set, overrides the stored checkpoint and forces subscription to start from this position.

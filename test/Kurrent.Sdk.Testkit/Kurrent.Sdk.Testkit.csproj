@@ -1,19 +1,38 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Aspire.AppHost.Sdk/13.3.0">
+<!--  <Project Sdk="Microsoft.NET.Sdk">-->
+  
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <NoWarn>$(NoWarn);ASPIRE002</NoWarn>
+    <IsTestProject>false</IsTestProject>
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    <UserSecretsId>6969a99a-7018-4a4d-a7a4-b25277053c4e</UserSecretsId>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <Using Include="TUnit" />
-        <Using Include="TUnit.Core" />
-    </ItemGroup>
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="TUnit.Core" />
+    <Using Include="Aspire.Hosting" />
+    <Using Include="Aspire.Hosting.ApplicationModel" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-        <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
-        <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
-        <ProjectReference Include="..\Kurrent.Sdk.Testkit.Hosting\Kurrent.Sdk.Testkit.Hosting.csproj" />
-        <ProjectReference Include="..\Kurrent.Sdk.Testkit.AppHost\Kurrent.Sdk.Testkit.AppHost.csproj" IsAspireProjectResource="true" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\Kurrent.Sdk.Testkit.Hosting\Kurrent.Sdk.Testkit.Hosting.csproj" IsAspireProjectResource="false" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="TUnit.Aspire" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+  </ItemGroup>
+  
+  
+  <ItemGroup>
+    <Folder Include="Aspire\Hosting\" />
+  </ItemGroup>
+  
 </Project>

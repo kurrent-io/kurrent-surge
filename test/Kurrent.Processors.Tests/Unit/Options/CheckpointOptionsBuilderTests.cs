@@ -1,16 +1,14 @@
-using Kurrent.Processors;
 using Kurrent.Processors.Options;
 
-namespace Kurrent.Processors.Tests.Unit.Settings;
+namespace Kurrent.Processors.Tests.Options;
 
 [Category("Processors")]
 public class CheckpointOptionsBuilderTests {
-    #region Default Values
+    #region ->> Default Values <<-
 
     [Test]
     public async ValueTask defaults_interval_is_30000() {
-        // Arrange
-        // Act
+        // Arrange & Act
         var settings = new CheckpointOptions();
 
         // Assert
@@ -19,17 +17,16 @@ public class CheckpointOptionsBuilderTests {
 
     [Test]
     public async ValueTask defaults_failure_policy_is_continue() {
-        // Arrange
-        // Act
+        // Arrange &Act
         var settings = new CheckpointOptions();
 
         // Assert
         await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Continue);
     }
 
-    #endregion
+    #endregion // Default Values
 
-    #region Interval (long)
+    #region ->> Interval (long) <<-
 
     [Test]
     public async ValueTask interval_long_sets_value() {
@@ -44,9 +41,9 @@ public class CheckpointOptionsBuilderTests {
         await Assert.That(settings.Interval).IsEqualTo(TimeSpan.FromMilliseconds(60000));
     }
 
-    #endregion
+    #endregion // Interval (long)
 
-    #region Interval (TimeSpan)
+    #region ->> Interval (TimeSpan) <<-
 
     [Test]
     public async ValueTask interval_timespan_sets_value_as_milliseconds() {
@@ -62,9 +59,9 @@ public class CheckpointOptionsBuilderTests {
         await Assert.That(settings.Interval).IsEqualTo(TimeSpan.FromMilliseconds(60000));
     }
 
-    #endregion
+    #endregion // Interval (TimeSpan)
 
-    #region FailurePolicy
+    #region ->> FailurePolicy <<-
 
     [Test]
     public async ValueTask failure_policy_sets_value() {
@@ -79,9 +76,9 @@ public class CheckpointOptionsBuilderTests {
         await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Fail);
     }
 
-    #endregion
+    #endregion // FailurePolicy
 
-    #region Method Chaining
+    #region ->> Method Chaining <<-
 
     [Test]
     public async ValueTask chained_calls_apply_all_values() {
@@ -100,5 +97,5 @@ public class CheckpointOptionsBuilderTests {
         await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Fail);
     }
 
-    #endregion
+    #endregion // Method Chaining
 }

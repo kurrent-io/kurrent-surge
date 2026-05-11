@@ -1,19 +1,27 @@
 // ReSharper disable CheckNamespace
 
 using Grpc.Core;
+using Kurrent.Testkit.TUnit;
 using Serilog;
 using Serilog.Context;
 using TUnit.Core.Interfaces;
+
 namespace Kurrent.Testkit;
 
+/// <summary>
+/// Custom test executor for the Kurrent test suite.
+/// <remarks>
+/// This executor not only injects the test identifier into the log context,
+/// but also handles gRPC exceptions in a more user-friendly format.
+/// </remarks>
+/// </summary>
 public class TestkitTestExecutor : ITestExecutor {
     public async ValueTask ExecuteTest(TestContext context, Func<ValueTask> action) {
-        using var _ = LogContext.PushProperty("TestUid", context.TestId);
+        using var _ = LogContext.PushProperty("TestUid", context.TestUid);
 
         try {
             await action().ConfigureAwait(false);
-        }
-        catch (RpcException ex) {
+        } catch (RpcException ex) {
             var status = ex.GetRpcStatus();
 
             if (status is null) {
@@ -21,8 +29,7 @@ public class TestkitTestExecutor : ITestExecutor {
                     ex, "{TestClass} {TestName} failed: {ErrorMessage}",
                     context.Metadata.TestDetails.ClassType.Name,
                     context.Metadata.TestDetails.TestName,
-                    ex.Message
-                );
+                    ex.Message);
 
                 throw;
             }
@@ -32,8 +39,7 @@ public class TestkitTestExecutor : ITestExecutor {
                 "{TestClass} {TestName} failed: {ErrorMessage}",
                 context.Metadata.TestDetails.ClassType.Name,
                 context.Metadata.TestDetails.TestName,
-                ex.Status.Detail
-            );
+                ex.Status.Detail);
 
             var details = string.Join($"{Environment.NewLine}", status.Details.Select(d => $"  - {d.TypeUrl}"));
 
@@ -42,15 +48,13 @@ public class TestkitTestExecutor : ITestExecutor {
                              + $"Error:   {ex.Status.Detail}{Environment.NewLine}"
                              + $"Details:{Environment.NewLine}{details}{Environment.NewLine}";
 
-            throw new Exception(errorMessage, ex.Status.DebugException);
-        }
-        catch (Exception ex) {
+            throw new(errorMessage, ex.Status.DebugException);
+        } catch (Exception ex) {
             Log.Error(
                 ex, "{TestClass} {TestName} failed: {ErrorMessage}",
                 context.Metadata.TestDetails.ClassType.Name,
                 context.Metadata.TestDetails.TestName,
-                ex.Message
-            );
+                ex.Message);
 
             throw;
         }
@@ -66,4 +70,3 @@ public class TestkitTestExecutor : ITestExecutor {
 //         return ValueTask.CompletedTask;
 //     }
 // }
-

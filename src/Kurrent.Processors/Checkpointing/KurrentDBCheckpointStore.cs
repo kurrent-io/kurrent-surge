@@ -5,7 +5,7 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Processors.Checkpointing;
 
 /// <summary>
-/// Event-sourced <see cref="CheckpointStore"/> backed by KurrentDB.
+/// Event-sourced <see cref="CheckpointStoreBase"/> backed by KurrentDB.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,7 +25,7 @@ namespace Kurrent.Processors.Checkpointing;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
+public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     readonly StreamsClient _client;
     readonly ILogger       _logger;
     readonly int           _maxCount;
@@ -60,7 +60,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
         _partitionCount = partitionCount;
         _maxCount       = maxCount;
         _client         = client;
-        _logger         = logger ?? NullLogger<KurrentDBCheckpointStore>.Instance;
+        _logger         = logger;
         _stream         = $"$processors/{processorId}/checkpoints";
 
         RegisterContractTypes(typeMapper);
@@ -79,6 +79,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
 
     #region ->> Hooks <<-
 
+    /// <inheritdoc/>
     protected override async ValueTask OnInitializeAsync(CancellationToken ct) {
         if (_maxCount <= 0) {
             LogRetentionNotConfigured(ProcessorId);
@@ -93,6 +94,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
         }
     }
 
+    /// <inheritdoc/>
     protected override async ValueTask<ProcessorCheckpoint> OnLoadLatestAsync(CancellationToken ct) {
         try {
             var readRequest = ReadStreamRequest.New.ForStream(_stream).FromEnd().Build();
@@ -137,10 +139,11 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
         }
     }
 
+    /// <inheritdoc/>
     protected override async ValueTask OnStoreAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct
     ) {
         var evt = new Contracts.PartitionsCheckpointed {
@@ -156,25 +159,24 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
         await _client.AppendStream(request, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     protected override async ValueTask OnResetAsync(
         string droneId,
         string checkpointId,
-        PartitionPosition[] positions,
+        RecordPosition[] positions,
         CancellationToken ct
     ) {
         for (var i = 0; i < positions.Length; i++) {
-            if (positions[i].Position.Stream.IsUnset) {
+            if (positions[i].Stream.IsUnset) {
                 var record = await _client
-                    .InspectRecord(positions[i].Position.LogPosition, ct)
+                    .InspectRecord(positions[i].LogPosition, ct)
                     .ConfigureAwait(false);
 
-                positions[i] = positions[i] with {
-                    Position = RecordPosition.From(
-                        record.Position.LogPosition,
-                        record.Stream,
-                        record.Revision,
-                        positions[i].Partition)
-                };
+                positions[i] = RecordPosition.From(
+                    record.Position.LogPosition,
+                    record.Stream,
+                    record.Revision,
+                    positions[i].Partition);
             }
         }
 
@@ -204,12 +206,12 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
                 .WithMetadata("drone_id", droneId))
             .Build();
 
-    static Contracts.PartitionPosition[] ToContractPositions(PartitionPosition[] positions) =>
+    static Contracts.PartitionPosition[] ToContractPositions(RecordPosition[] positions) =>
         positions.Select(p => new Contracts.PartitionPosition {
-            Partition      = p.Partition.Value,
-            LogPosition    = p.Position.LogPosition,
-            Stream         = p.Position.Stream,
-            StreamRevision = p.Position.Revision == Revision.Unset ? null : (int?)p.Position.Revision
+            Partition      = p.Partition,
+            LogPosition    = p.LogPosition,
+            Stream         = p.Stream,
+            StreamRevision = p.Revision == Revision.Unset ? null : (int?)p.Revision
         }).ToArray();
 
     static ProcessorCheckpoint MapToCheckpoint(Dictionary<int, Contracts.PartitionPosition> events, DateTimeOffset timestamp) {
@@ -217,11 +219,9 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStore {
             var partition = Partition.From(kvp.Key);
             var evt       = kvp.Value;
 
-            var position = evt.Stream is not null && evt.StreamRevision is not null
+            return evt is { Stream: { }, StreamRevision: { } }
                 ? RecordPosition.From(evt.LogPosition, evt.Stream, evt.StreamRevision, partition)
                 : RecordPosition.From(evt.LogPosition, partition);
-
-            return new PartitionPosition(partition, position);
         }).ToArray();
 
         return new ProcessorCheckpoint {

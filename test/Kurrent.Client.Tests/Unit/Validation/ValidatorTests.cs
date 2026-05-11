@@ -1,4 +1,3 @@
-using System.Net;
 using Kurrent.Validation;
 
 namespace Kurrent.Client.Tests.Validation;

@@ -151,16 +151,6 @@ public sealed class OrderEnrichmentProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnComplete(CompleteContext context) {
-        context.Logger.LogInformation(
-            "Completed | Orders: {Orders}, Customer updates: {CustUpdates}, Product updates: {ProdUpdates}",
-            _ordersProcessed,
-            _customerUpdates,
-            _productUpdates
-        );
-        return ValueTask.CompletedTask;
-    }
-
     record CustomerInfo(string CustomerId, string Name, string Email, string Tier);
     record ProductInfo(string ProductId, string Name, string Category, decimal CurrentPrice);
     record EnrichedOrderItem(string ProductId, string ProductName, string Category, int Quantity, decimal UnitPrice, decimal LineTotal);

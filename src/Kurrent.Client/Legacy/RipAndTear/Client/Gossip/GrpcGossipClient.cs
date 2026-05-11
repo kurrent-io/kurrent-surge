@@ -1,7 +1,5 @@
-using System.Net;
 using EventStore.Client.Gossip;
 using Grpc.Core;
-using KurrentDB.Protocol.V1;
 
 namespace KurrentDB.Client;
 

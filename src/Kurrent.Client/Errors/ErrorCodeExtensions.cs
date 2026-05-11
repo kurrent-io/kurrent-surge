@@ -1,5 +1,4 @@
 using Google.Rpc;
-using Kurrent.Client;
 using Kurrent.GoogleRpc;
 
 namespace Kurrent.Client.Errors;

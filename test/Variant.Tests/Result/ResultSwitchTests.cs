@@ -100,7 +100,7 @@ public class ResultSwitchTests {
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var logPrefix = Faker.Lorem.Word();
-        var capturedLog = string.Empty;
+        var capturedLog = "";
 
         // Act
         result.Switch(
@@ -242,7 +242,7 @@ public class ResultSwitchTests {
         var gameId = new GameId(Faker.Random.Guid());
         var result = Kurrent.Result.Success<GameId, InvalidMoveError>(gameId);
         var logPrefix = Faker.Lorem.Word();
-        var capturedLog = string.Empty;
+        var capturedLog = "";
 
         // Act
         await result.SwitchAsync(
@@ -334,7 +334,7 @@ public class ResultSwitchTests {
         var resultTask = ValueTask.FromResult(
             Kurrent.Result.Failure<GameId, InvalidMoveError>(error));
         var prefix = Faker.Lorem.Word();
-        var capturedLog = string.Empty;
+        var capturedLog = "";
 
         // Act
         await resultTask.SwitchAsync(
@@ -376,8 +376,8 @@ public class ResultSwitchTests {
         var successResult = Kurrent.Result.Success<Position, InvalidMoveError>(position);
         var error = new InvalidMoveError(Faker.Random.Guid(), "Error");
         var failureResult = Kurrent.Result.Failure<Position, InvalidMoveError>(error);
-        var successLog = string.Empty;
-        var errorLog = string.Empty;
+        var successLog = "";
+        var errorLog = "";
 
         // Act
         successResult.Switch(

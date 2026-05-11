@@ -19,7 +19,7 @@ public class StreamSubscriptionTests {
     public async ValueTask records_are_processed(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(100, ct);
-        var processor   = new TestRecordProcessor();
+        var processor   = new TestableRecordProcessor();
         var processorId = $"order-{PunyId.New()}";
 
         processor.OnProcessRecord = ctx => {
@@ -47,10 +47,12 @@ public class StreamSubscriptionTests {
         // Arrange
         var data = await Fixture.SeedTestStream(ct);
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
-                if (ctx.Record.Position.LogPosition == data.Position)
-                    ctx.StopAfterTrack();
+                if (ctx.Record.Position.LogPosition == data.Position) {
+                    ctx.Track(ctx.Record);
+                    ctx.StopProcessing();
+                }
 
                 return ValueTask.CompletedTask;
             }
@@ -73,15 +75,17 @@ public class StreamSubscriptionTests {
     public async ValueTask processor_processes_all_records_individually(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(25, ct);
-        var processor   = new TestRecordProcessor();
+        var processor   = new TestableRecordProcessor();
         var processorId = $"individual-records-{PunyId.New()}";
         var recordCount = 0;
 
         processor.OnProcessRecord = ctx => {
             Interlocked.Increment(ref recordCount);
 
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack();
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing();
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -102,7 +106,7 @@ public class StreamSubscriptionTests {
     public async ValueTask processor_cancels_gracefully(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(ct);
-        var processor   = new TestRecordProcessor();
+        var processor   = new TestableRecordProcessor();
         var processorId = $"processor_cancels_gracefully-{TestContext.Current!.Id}";
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -126,12 +130,14 @@ public class StreamSubscriptionTests {
     public async ValueTask processor_stops_on_user_request(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(ct);
-        var processor   = new TestRecordProcessor();
+        var processor   = new TestableRecordProcessor();
         var processorId = $"processor_stops_on_user_request-{TestContext.Current!.Id}";
 
         processor.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack();
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing();
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -155,7 +161,7 @@ public class StreamSubscriptionTests {
         var data        = await Fixture.SeedTestStream(10, ct);
         var processorId = $"error-process-{PunyId.New()}";
 
-        var processor = new TestRecordProcessor {
+        var processor = new TestableRecordProcessor {
             OnProcessRecord = _ => throw new InvalidOperationException("Process failed")
         };
 
@@ -174,32 +180,6 @@ public class StreamSubscriptionTests {
     }
 
     [Test]
-    public async ValueTask processor_calls_shutdown_even_on_error(CancellationToken ct) {
-        // Arrange
-        var data        = await Fixture.SeedTestStream(10, ct);
-        var processor   = new TestRecordProcessor();
-        var processorId = $"error-shutdown-{PunyId.New()}";
-
-        processor.OnProcessRecord = _ => throw new InvalidOperationException("Intentional error");
-
-        // Act
-        try {
-            await KurrentProcessor.Create(processor, opts => {
-                opts.Connection(Fixture.Client.Options);
-                opts.ProcessorId                  = processorId;
-                opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
-                opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-            }).RunAsync(ct);
-        } catch (DroneException) {
-            // Expected
-        }
-
-        // Assert
-        await Assert.That(processor.Error).IsNotNull();
-        await Assert.That(processor.Error!.Error).IsNotNull();
-    }
-
-    [Test]
     public async ValueTask complete_processor_lifecycle_with_checkpoint_recovery(CancellationToken ct) {
         // Arrange
         var data                     = await Fixture.SeedTestStream(20, ct);
@@ -207,7 +187,7 @@ public class StreamSubscriptionTests {
         var recordsToProcessInPhase1 = 10;
 
         // Phase 1: Process first 10 records, checkpoint, then stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= recordsToProcessInPhase1)
@@ -228,7 +208,7 @@ public class StreamSubscriptionTests {
         await Task.Delay(200, ct);
 
         // Phase 2: Resume from same processor ID, should process remaining records
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         processor2.OnProcessRecord = ctx => {
             if (ctx.Record.Position.LogPosition >= data.Position)
@@ -266,10 +246,10 @@ public class StreamSubscriptionTests {
 
         // Phase 1: Process first 5 records, stop before tracking the 6th.
         // Checkpoint stores the position of the 5th record.
-        var processorOne = new TestRecordProcessor {
+        var processorOne = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
                 if (ctx.Progress.Throughput.TotalRecords == 5)
-                    ctx.StopBeforeTrack("Phase 1 done after 5 records");
+                    ctx.StopProcessing("Phase 1 done after 5 records");
 
                 return ValueTask.CompletedTask;
             }
@@ -284,11 +264,13 @@ public class StreamSubscriptionTests {
         }).RunAsync(ct);
 
         // Phase 2: Resume from same processor ID, should process remaining records
-        var processorTwo = new TestRecordProcessor();
+        var processorTwo = new TestableRecordProcessor();
 
         processorTwo.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack("Phase 2 reached end of stream");
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing("Phase 2 reached end of stream");
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -316,16 +298,16 @@ public class StreamSubscriptionTests {
         // Arrange
         var data        = await Fixture.SeedTestStream(30, ct);
         var processorId = $"multi-phase-{PunyId.New()}";
-        var processors  = new List<TestRecordProcessor>();
+        var processors  = new List<TestableRecordProcessor>();
 
         // Phases 1-2: Process 10 records each, checkpoint, stop
         for (var phase = 0; phase < 2; phase++) {
-            var processor = new TestRecordProcessor();
+            var processor = new TestableRecordProcessor();
             processors.Add(processor);
 
             processor.OnProcessRecord = ctx => {
                 if (ctx.Progress.Throughput.TotalRecords == 10)
-                    ctx.StopBeforeTrack($"Phase {phase + 1} done after 10 records");
+                    ctx.StopProcessing($"Phase {phase + 1} done after 10 records");
 
                 return ValueTask.CompletedTask;
             };
@@ -342,12 +324,14 @@ public class StreamSubscriptionTests {
         }
 
         // Phase 3: Process remaining records
-        var processor3 = new TestRecordProcessor();
+        var processor3 = new TestableRecordProcessor();
         processors.Add(processor3);
 
         processor3.OnProcessRecord = ctx => {
-            if (ctx.Record.Position.LogPosition >= data.Position)
-                ctx.StopAfterTrack("Phase 3 reached end of stream");
+            if (ctx.Record.Position.LogPosition >= data.Position) {
+                ctx.Track(ctx.Record);
+                ctx.StopProcessing("Phase 3 reached end of stream");
+            }
 
             return ValueTask.CompletedTask;
         };
@@ -379,7 +363,7 @@ public class StreamSubscriptionTests {
         var processorId = $"no-remaining-{PunyId.New()}";
 
         // Phase 1: Process all records
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (ctx.Record.Position.LogPosition >= data.Position)
@@ -399,7 +383,7 @@ public class StreamSubscriptionTests {
         await Task.Delay(200, ct);
 
         // Phase 2: Resume — no records remain, cancel after 2s
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellator.CancelAfter(2000);
@@ -427,11 +411,11 @@ public class StreamSubscriptionTests {
         var processorId = $"tombstoned-{PunyId.New()}";
 
         // Phase 1: Process first 10 records, checkpoint, stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
-                ctx.StopBeforeTrack("Phase 1 done after 10 records");
+                ctx.StopProcessing("Phase 1 done after 10 records");
 
             return ValueTask.CompletedTask;
         };
@@ -465,7 +449,7 @@ public class StreamSubscriptionTests {
 
         var stoppingToken = cancellator.Token;
 
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         var drone = KurrentProcessor.Create(processor2, opts => {
             opts.Connection(Fixture.Client.Options);
@@ -485,11 +469,11 @@ public class StreamSubscriptionTests {
         var processorId = $"deleted-{PunyId.New()}";
 
         // Phase 1: Process first 10 records, checkpoint, stop
-        var processor1 = new TestRecordProcessor();
+        var processor1 = new TestableRecordProcessor();
 
         processor1.OnProcessRecord = ctx => {
             if (processor1.Records.Length >= 10)
-                ctx.StopBeforeTrack("Phase 1 done after 10 records");
+                ctx.StopProcessing("Phase 1 done after 10 records");
 
             return ValueTask.CompletedTask;
         };
@@ -507,7 +491,7 @@ public class StreamSubscriptionTests {
         // Phase 2: Resume — soft-deleted stream truncates remaining events.
         // The subscription connects and catches up immediately with 0 new records.
         // Cancel after 2s to stop the idle live subscription.
-        var processor2 = new TestRecordProcessor();
+        var processor2 = new TestableRecordProcessor();
 
         using var cancellator = CancellationTokenSource.CreateShortLived(2000, ct);
 

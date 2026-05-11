@@ -15,7 +15,7 @@ public record OtelServiceMetadata {
     const string ValueSeparator       = "=";
     const string Format               = $"{{0}}{ValueSeparator}{{1}}";
 
-    OtelServiceMetadata() => ServiceName = string.Empty;
+    OtelServiceMetadata() => ServiceName = "";
 
     public OtelServiceMetadata(string serviceName) {
 	    Debug.Assert(!string.IsNullOrWhiteSpace(serviceName), "Service name should not be empty.");

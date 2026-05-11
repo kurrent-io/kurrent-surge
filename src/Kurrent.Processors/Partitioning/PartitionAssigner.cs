@@ -81,4 +81,10 @@ public sealed class PartitionAssigner {
         string[] drones,
         int maxParallelism
     ) => _strategy.Distribute(current, drones, maxParallelism);
+    
+    /// <summary>
+    /// Distributes partitions across drones using the configured strategy, starting from an empty distribution.
+    /// </summary>
+    public DistributionManifest Distribute(string[] drones, int maxParallelism) =>
+        Distribute(DistributionManifest.Empty, drones, maxParallelism);
 }

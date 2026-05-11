@@ -39,13 +39,13 @@ static class EndPointExtensions {
 				schema,
 				ipEndPoint.Address.ToString(),
 				ipEndPoint.Port,
-				rawUrl != null ? rawUrl.TrimStart('/') : string.Empty
+				rawUrl != null ? rawUrl.TrimStart('/') : ""
 			),
 			DnsEndPoint dnsEndpoint => CreateHttpUrl(
 				schema,
 				dnsEndpoint.Host,
 				dnsEndpoint.Port,
-				rawUrl != null ? rawUrl.TrimStart('/') : string.Empty
+				rawUrl != null ? rawUrl.TrimStart('/') : ""
 			),
 			_ => null
 		};

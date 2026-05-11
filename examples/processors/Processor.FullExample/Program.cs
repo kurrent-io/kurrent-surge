@@ -1,4 +1,3 @@
-using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Processors;
 using Npgsql;

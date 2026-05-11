@@ -1,39 +1,41 @@
 using System.Collections.Concurrent;
+using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Processors.Tests;
 
-sealed class TestRecordProcessor : IRecordProcessor {
-    readonly ConcurrentQueue<Record> _records = new();
+sealed class TestRecordBatchProcessor(int maxBatchSize, TimeSpan batchWindow) : RecordBatchProcessor(maxBatchSize, batchWindow) {
+    readonly ConcurrentQueue<RecordBatch>       _batches     = new();
+    readonly ConcurrentQueue<CheckpointContext> _checkpoints = new();
 
-    public Func<ProcessRecordContext, ValueTask>? OnProcessRecord { get; set; }
+    public Func<BatchContext, ValueTask>?      OnProcessBatch   { get; set; }
+    public Func<ConnectedContext, ValueTask>?  OnConnectedHook  { get; set; }
+    public Func<CheckpointContext, ValueTask>? OnCheckpointHook { get; set; }
 
-    public Func<ErrorContext, ValueTask>? OnError { get; set; }
+    public ConnectedContext? Connected { get; private set; }
 
-    public Func<CompleteContext, ValueTask>? OnComplete { get; set; }
+    public RecordBatch[]                    Batches     => _batches.ToArray();
+    public IReadOnlyList<Record>            Records     => _batches.SelectMany(b => b).ToList();
+    public IReadOnlyList<CheckpointContext> Checkpoints => _checkpoints.ToArray();
 
-    public ErrorContext? Error { get; private set; }
+    public override async ValueTask ProcessBatch(BatchContext context) {
+        _batches.Enqueue(context.Records);
 
-    public CompleteContext? Complete { get; private set; }
-
-    public Record[] Records => _records.ToArray();
-
-    public async ValueTask ProcessRecord(ProcessRecordContext context) {
-        if (OnProcessRecord is not null)
-            await OnProcessRecord(context);
-
-        // Don't enqueue records that won't be tracked (StopBeforeTrack skips tracking)
-        if (context.StopProcessingRequest.Trigger != StopProcessingTrigger.StopBeforeTrack)
-            _records.Enqueue(context.Record);
+        if (OnProcessBatch is not null)
+            await OnProcessBatch(context);
     }
 
-    ValueTask IRecordProcessor.OnError(ErrorContext context) {
-        Error = context;
-        return OnError?.Invoke(context) ?? ValueTask.CompletedTask;
+    public override async ValueTask OnConnected(ConnectedContext context) {
+        Connected = context;
+
+        if (OnConnectedHook is not null)
+            await OnConnectedHook(context);
     }
 
-    ValueTask IRecordProcessor.OnComplete(CompleteContext context) {
-        Complete = context;
-        return OnComplete?.Invoke(context) ?? ValueTask.CompletedTask;
+    public override async ValueTask OnCheckpoint(CheckpointContext context) {
+        _checkpoints.Enqueue(context);
+
+        if (OnCheckpointHook is not null)
+            await OnCheckpointHook(context);
     }
 }

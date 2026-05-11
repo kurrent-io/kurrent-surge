@@ -32,7 +32,7 @@ public sealed record DuckDBConnectionString(
             .Replace("Data Source", DataSourceKey, OrdinalIgnoreCase)
             .Split(';')
             .Select(x => x.Split('='))
-            .ToDictionary(entry => entry[0], entry => entry.Length > 1 ? entry[1] : string.Empty, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(entry => entry[0], entry => entry.Length > 1 ? entry[1] : "", StringComparer.OrdinalIgnoreCase);
 
         if (!config.TryGetValue(DataSourceKey, out var dataSource) || string.IsNullOrEmpty(dataSource))
             throw new ArgumentException($"Connection string '{connectionString}' is not valid, missing data source information.");
