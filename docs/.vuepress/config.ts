@@ -45,14 +45,6 @@ export default defineUserConfig({
         docsDir: ".",
         toc: true,
         sidebar: {
-            "/client/api/": [
-                {
-                    text: "API Reference",
-                    link: "/client/api/",
-                    icon: "code",
-                    collapsible: false,
-                },
-            ],
             "/client/": [
                 {
                     text: "Get started",
@@ -104,6 +96,12 @@ export default defineUserConfig({
                     collapsible: true,
                     children: "structure",
                 },
+                {
+                    text: "API Reference",
+                    link: "/client/api/",
+                    icon: "code",
+                    collapsible: false,
+                },
             ],
             "/processor/": "structure",
         },
@@ -115,10 +113,6 @@ export default defineUserConfig({
             {
                 text: "Processor",
                 link: "/processor/getting-started",
-            },
-            {
-                text: "API Reference",
-                link: "/client/api/",
             },
         ],
         markdown: {
