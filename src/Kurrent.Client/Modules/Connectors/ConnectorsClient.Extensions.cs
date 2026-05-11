@@ -38,11 +38,11 @@ public static partial class ConnectorsClientExtensions {
             ConnectorId connectorId, string name, IConfiguration configuration, CancellationToken ct
         ) => client.Create(connectorId, name, configuration.ToFlatDictionary(), ct);
 
-        public ValueTask<Success> Create(ConnectorId connectorId, string name, string json) =>
-            client.Create(connectorId, name, json.ToFlatDictionary(), CancellationToken.None);
+        public ValueTask<Success> Create(ConnectorId connectorId, string name, string configuration) =>
+            client.Create(connectorId, name, configuration.ToFlatDictionary(), CancellationToken.None);
 
-        public ValueTask<Success> Create(ConnectorId connectorId, string name, string json, CancellationToken ct)
-            => client.Create(connectorId, name, json.ToFlatDictionary(), ct);
+        public ValueTask<Success> Create(ConnectorId connectorId, string name, string configuration, CancellationToken ct)
+            => client.Create(connectorId, name, configuration.ToFlatDictionary(), ct);
 
         #endregion
 
@@ -57,11 +57,11 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Reconfigure(ConnectorId connectorId, IConfiguration configuration, CancellationToken ct)
             => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), ct);
 
-        public ValueTask<Success> Reconfigure(ConnectorId connectorId, string json)
-            => client.Reconfigure(connectorId, json.ToFlatDictionary(), CancellationToken.None);
+        public ValueTask<Success> Reconfigure(ConnectorId connectorId, string configuration)
+            => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), CancellationToken.None);
 
-        public ValueTask<Success> Reconfigure(ConnectorId connectorId, string json, CancellationToken ct)
-            => client.Reconfigure(connectorId, json.ToFlatDictionary(), ct);
+        public ValueTask<Success> Reconfigure(ConnectorId connectorId, string configuration, CancellationToken ct)
+            => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), ct);
 
         #endregion
 
