@@ -81,7 +81,7 @@
   <ItemGroup>
     <Folder Include="Checkpointing\Storage\" />
     <Folder Include="Hosting\" />
-    <Folder Include="Options\" />
+    <Folder Include="Configuration\" />
   </ItemGroup>
 
   <!--
