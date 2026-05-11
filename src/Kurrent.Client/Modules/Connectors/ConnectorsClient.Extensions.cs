@@ -8,25 +8,28 @@ public static partial class ConnectorsClientExtensions {
         #region ->> Create <<-
 
         public ValueTask<Success> Create(ConnectorId id) =>
-            client.Create(id, [], CancellationToken.None);
+            client.Create(id, id.Value, [], CancellationToken.None);
 
         public ValueTask<Success> Create(ConnectorId id, CancellationToken ct) =>
-            client.Create(id, [], ct);
+            client.Create(id, id.Value, [], ct);
 
         public ValueTask<Success> Create(ConnectorId id, Dictionary<string, string> configuration) =>
-            client.Create(id, configuration, CancellationToken.None);
+            client.Create(id, id.Value, configuration, CancellationToken.None);
+
+        public ValueTask<Success> Create(ConnectorId id, Dictionary<string, string> configuration, CancellationToken ct) =>
+            client.Create(id, id.Value, configuration, ct);
 
         public ValueTask<Success> Create(ConnectorId id, IConfiguration configuration) =>
-            client.Create(id, configuration.ToFlatDictionary(), CancellationToken.None);
+            client.Create(id, id.Value, configuration.ToFlatDictionary(), CancellationToken.None);
 
         public ValueTask<Success> Create(ConnectorId id, IConfiguration configuration, CancellationToken ct) =>
-            client.Create(id, configuration.ToFlatDictionary(), ct);
+            client.Create(id, id.Value, configuration.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Create(ConnectorId id, string configuration) =>
-            client.Create(id, configuration.ToFlatDictionary(), CancellationToken.None);
+            client.Create(id, id.Value, configuration.ToFlatDictionary(), CancellationToken.None);
 
         public ValueTask<Success> Create(ConnectorId id, string configuration, CancellationToken ct) =>
-            client.Create(id, configuration.ToFlatDictionary(), ct);
+            client.Create(id, id.Value, configuration.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Create(ConnectorId id, string name, Dictionary<string, string> configuration) =>
             client.Create(id, name, configuration, CancellationToken.None);

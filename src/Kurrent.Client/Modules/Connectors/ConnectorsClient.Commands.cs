@@ -9,16 +9,6 @@ public partial class ConnectorsClient {
     #region ->> Create <<-
 
     /// <summary>
-    /// Creates a new connector with the specified settings. The server uses the connector id as the display name.
-    /// </summary>
-    /// <param name="id">Unique identifier for the connector.</param>
-    /// <param name="settings">Configuration settings for the connector.</param>
-    /// <param name="ct">Token to cancel the operation.</param>
-    /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
-    public ValueTask<Success> Create(ConnectorId id, Dictionary<string, string> settings, CancellationToken ct)
-        => CreateCore(id, name: null, settings, ct);
-
-    /// <summary>
     /// Creates a new connector with the specified display name and settings.
     /// </summary>
     /// <param name="id">Unique identifier for the connector.</param>
@@ -26,23 +16,18 @@ public partial class ConnectorsClient {
     /// <param name="settings">Configuration settings for the connector.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
-    public ValueTask<Success> Create(ConnectorId id, string name, Dictionary<string, string> settings, CancellationToken ct) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        return CreateCore(id, name, settings, ct);
-    }
-
-    async ValueTask<Success> CreateCore(
-        ConnectorId id, string? name, Dictionary<string, string> settings, CancellationToken ct
+    public async ValueTask<Success> Create(
+        ConnectorId id, string name, Dictionary<string, string> settings, CancellationToken ct
     ) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
-        var request = new Commands.CreateConnector {
-            ConnectorId = id
-        };
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        if (name is not null)
-            request.Name = name;
+        var request = new Commands.CreateConnector {
+            ConnectorId = id,
+            Name        = name
+        };
 
         foreach (var (key, value) in settings)
             request.Settings[key] = value;
