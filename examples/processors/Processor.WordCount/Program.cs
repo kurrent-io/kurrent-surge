@@ -1,8 +1,8 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
-using Kurrent.Processors;
-using Kurrent.Processors.Models;
+using Kurrent.Streaming;
+using Kurrent.Streaming.Models;
 using Processor.WordCount;
 using Processor.WordCount.Events;
 using Refit;

@@ -84,7 +84,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Client" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Processors" />
+    <InternalsVisibleTo Include="Kurrent.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit.Hosting" />
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />

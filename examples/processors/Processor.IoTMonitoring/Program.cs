@@ -1,5 +1,5 @@
 using Kurrent.Client.Streams;
-using Kurrent.Processors;
+using Kurrent.Streaming;
 using Processor.IoTMonitoring;
 using Serilog;
 

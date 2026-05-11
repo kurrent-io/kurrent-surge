@@ -1,6 +1,6 @@
 // // ReSharper disable ClassNeverInstantiated.Global
 //
-// using Kurrent.Processors;
+// using Kurrent.Streaming;
 // using Transfermarkt.Domain;
 //
 // namespace Processor.AspNetMinimal;
