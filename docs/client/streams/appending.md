@@ -45,9 +45,9 @@ var result = await client.Streams.AppendStream(request);
 
 `WithMessage` is the payload-only shortcut. Reach for `WithRecord` when you need to control more than just the payload.
 
-## Set ids, metadata, and timestamps
+## Customize a record
 
-Build a full record when you need a deterministic id, custom metadata, or an explicit timestamp:
+Use the full record builder when you need more control than `WithMessage` provides:
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
