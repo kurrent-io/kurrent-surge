@@ -21,9 +21,14 @@ public class GetSchemaTests {
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(
-			    schemaName, schemaDefinition, SchemaDataFormat.Json,
-			    CompatibilityMode.Backward, description, tags, ct
-		    );
+                CreateSchemaRequest.For(schemaName)
+                    .WithDefinition(schemaDefinition)
+                    .WithDataFormat(SchemaDataFormat.Json)
+                    .WithCompatibility(CompatibilityMode.Backward)
+                    .WithDescription(description)
+                    .WithTags(tags)
+                    .Build(),
+                ct);
 
         await KurrentDBTestFixture.WaitForEventualConsistency(ct);
 

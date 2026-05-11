@@ -10,12 +10,14 @@ public sealed class SchemaService(RegistryClient registry, ILogger<SchemaService
         CompatibilityMode compatibility, string domain, string team
     ) {
         var result = await registry.CreateSchema(
-            schemaName, definition, SchemaDataFormat.Json, compatibility,
-            description: description,
-            tags: new Dictionary<string, string> {
-                ["domain"] = domain,
-                ["team"]   = team
-            });
+            CreateSchemaRequest.For(schemaName)
+                .WithDefinition(definition)
+                .WithDataFormat(SchemaDataFormat.Json)
+                .WithCompatibility(compatibility)
+                .WithDescription(description)
+                .WithTag("domain", domain)
+                .WithTag("team", team)
+                .Build());
 
         logger.LogSchemaRegistered(schemaName, result.VersionNumber, result.VersionId);
         return result;
@@ -61,10 +63,10 @@ public sealed class SchemaService(RegistryClient registry, ILogger<SchemaService
         await registry.GetSchemaVersionById(versionId);
 
     public async Task<IReadOnlyList<Schema>> Discover(string? prefix = null, string? team = null) {
-        var tags = team is not null
-            ? new Dictionary<string, string> { ["team"] = team }
-            : null;
-        return await registry.ListSchemas(schemaNamePrefix: prefix, tags: tags);
+        var builder = ListSchemasRequest.New;
+        if (prefix is not null) builder = builder.WithPrefix(prefix);
+        if (team is not null)   builder = builder.WithTag("team", team);
+        return await registry.ListSchemas(builder.Build());
     }
 
     public async Task Delete(SchemaName schemaName) {

@@ -1,7 +1,6 @@
 using Google.Protobuf;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Client.Registry;
@@ -12,44 +11,34 @@ public partial class RegistryClient {
     /// <summary>
     /// Creates a new schema in the registry with the provided details.
     /// </summary>
-    /// <param name="schemaName">Unique name of the schema to create.</param>
-    /// <param name="schemaDefinition">Schema definition in string format.</param>
-    /// <param name="dataFormat">Format of the schema, such as Json, Protobuf, Avro, or Bytes.</param>
-    /// <param name="compatibilityMode">Compatibility mode for the schema.</param>
-    /// <param name="description">Human-readable description of the schema.</param>
-    /// <param name="tags">Key-value pairs that provide additional metadata or categorization for the schema.</param>
+    /// <param name="request">The schema details to register. Use <see cref="CreateSchemaRequest.For"/> to build one fluently.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="SchemaVersionDescriptor"/> representing the newly created schema version.</returns>
     public async ValueTask<SchemaVersionDescriptor> CreateSchema(
-        SchemaName schemaName, string schemaDefinition, SchemaDataFormat dataFormat,
-        CompatibilityMode compatibilityMode, string description,
-        IReadOnlyDictionary<string, string> tags, CancellationToken ct = default
+        CreateSchemaRequest request, CancellationToken ct = default
     ) {
-        if (schemaName.IsUnset)
-            throw new ArgumentException("Schema name cannot be empty.", nameof(schemaName));
-
-        ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
+        request.EnsureValid();
 
         var details = new Contracts.SchemaDetails {
-            DataFormat    = (Contracts.SchemaDataFormat)dataFormat,
-            Compatibility = (Contracts.CompatibilityMode)compatibilityMode,
+            DataFormat    = (Contracts.SchemaDataFormat)request.DataFormat,
+            Compatibility = (Contracts.CompatibilityMode)request.CompatibilityMode,
         };
 
-        if (!string.IsNullOrEmpty(description))
-            details.Description = description;
+        if (!string.IsNullOrEmpty(request.Description))
+            details.Description = request.Description;
 
-        foreach (var (key, value) in tags)
+        foreach (var (key, value) in request.Tags)
             details.Tags.Add(key, value);
 
-        var request = new Contracts.CreateSchemaRequest {
-            SchemaName       = schemaName,
+        var rpc = new Contracts.CreateSchemaRequest {
+            SchemaName       = request.SchemaName,
             Details          = details,
-            SchemaDefinition = ByteString.CopyFromUtf8(schemaDefinition)
+            SchemaDefinition = ByteString.CopyFromUtf8(request.SchemaDefinition)
         };
 
         try {
             var response = await ServiceClient
-                .CreateSchemaAsync(request, cancellationToken: ct)
+                .CreateSchemaAsync(rpc, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return response.ToSchemaVersionDescriptor();
@@ -59,7 +48,7 @@ public partial class RegistryClient {
                 SchemaAlreadyExistsException.From,
 
                 // StatusCode fallbacks
-                StatusCode.AlreadyExists.MapTo(new SchemaAlreadyExistsException(schemaName)));
+                StatusCode.AlreadyExists.MapTo(new SchemaAlreadyExistsException(request.SchemaName)));
         }
     }
 

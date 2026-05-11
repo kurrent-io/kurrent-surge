@@ -143,33 +143,27 @@ public partial class RegistryClient {
     /// <summary>
     /// Checks the compatibility of a schema definition against a given schema identifier and data format.
     /// </summary>
-    /// <param name="identifier">Schema identifier, which can either be a schema name or a schema version id.</param>
-    /// <param name="schemaDefinition">Schema definition to check for compatibility in string format.</param>
-    /// <param name="dataFormat">Format of the schema, such as Json, Protobuf, Avro, or Bytes.</param>
+    /// <param name="request">The compatibility check to perform. Use <see cref="CheckSchemaCompatibilityRequest.For"/> to build one fluently.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="SchemaVersionId"/> on success, indicating the compatible schema version.</returns>
     public async ValueTask<SchemaVersionId> CheckSchemaCompatibility(
-        SchemaIdentifier identifier, string schemaDefinition, SchemaDataFormat dataFormat,
-        CancellationToken ct = default
+        CheckSchemaCompatibilityRequest request, CancellationToken ct = default
     ) {
-        if (identifier.IsUnset)
-            throw new ArgumentException("Schema identifier cannot be empty.", nameof(identifier));
+        request.EnsureValid();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(schemaDefinition);
-
-        var request = new Contracts.CheckSchemaCompatibilityRequest {
-            Definition = ByteString.CopyFromUtf8(schemaDefinition),
-            DataFormat = (Contracts.SchemaDataFormat)dataFormat
+        var rpc = new Contracts.CheckSchemaCompatibilityRequest {
+            Definition = ByteString.CopyFromUtf8(request.SchemaDefinition),
+            DataFormat = (Contracts.SchemaDataFormat)request.DataFormat
         };
 
-        identifier.Switch(
-            sn => request.SchemaName = sn,
-            sv => request.SchemaVersionId = sv
+        request.Identifier.Switch(
+            sn => rpc.SchemaName = sn,
+            sv => rpc.SchemaVersionId = sv
         );
 
         try {
             var response = await ServiceClient
-                .CheckSchemaCompatibilityAsync(request, cancellationToken: ct)
+                .CheckSchemaCompatibilityAsync(rpc, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             if (response.ResultCase is Contracts.CheckSchemaCompatibilityResponse.ResultOneofCase.Success)
@@ -184,8 +178,8 @@ public partial class RegistryClient {
                 SchemaAlreadyExistsException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema '{identifier}' was not found.")),
-                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema '{identifier}' has been deleted.")));
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema '{request.Identifier}' was not found.")),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema '{request.Identifier}' has been deleted.")));
         }
     }
 
@@ -194,27 +188,27 @@ public partial class RegistryClient {
     #region ->> ListSchemas <<-
 
     /// <summary>
-    /// Lists schemas in the registry, filtered by name prefix and tags.
+    /// Lists schemas in the registry, optionally filtered by name prefix and tags.
     /// </summary>
-    /// <param name="schemaNamePrefix">Prefix to filter schemas by name. Only schemas whose names start with this prefix are returned. Pass null for no prefix filter.</param>
-    /// <param name="tags">Key-value pairs to filter schemas by tags. Only schemas matching all specified tags are returned. Pass null for no tag filter.</param>
+    /// <param name="request">The filter to apply. Use <see cref="ListSchemasRequest.New"/> to build one, or pass an empty request for no filtering.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>An <see cref="IReadOnlyList{Schema}"/> containing the matching schemas.</returns>
     public async ValueTask<IReadOnlyList<Schema>> ListSchemas(
-        string? schemaNamePrefix, IReadOnlyDictionary<string, string>? tags, CancellationToken ct = default
+        ListSchemasRequest request, CancellationToken ct = default
     ) {
-        var request = new Contracts.ListSchemasRequest();
+        request.EnsureValid();
 
-        if (schemaNamePrefix is not null)
-            request.SchemaNamePrefix = schemaNamePrefix;
+        var rpc = new Contracts.ListSchemasRequest();
 
-        if (tags is not null)
-            foreach (var (key, value) in tags)
-                request.SchemaTags.Add(key, value);
+        if (!string.IsNullOrEmpty(request.SchemaNamePrefix))
+            rpc.SchemaNamePrefix = request.SchemaNamePrefix;
+
+        foreach (var (key, value) in request.Tags)
+            rpc.SchemaTags.Add(key, value);
 
         try {
             var response = await ServiceClient
-                .ListSchemasAsync(request, cancellationToken: ct)
+                .ListSchemasAsync(rpc, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return response.ToSchemas();
