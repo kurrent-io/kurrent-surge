@@ -13,24 +13,47 @@ public class IndexesClient : ClientModuleBase {
     IndexesServiceClient ServiceClient { get; }
 
     /// <summary>
-    /// Creates a new secondary index with the specified configuration.
+    /// Creates a new secondary index with the specified configuration. The server decides
+    /// whether to start the index immediately after creation.
     /// </summary>
     /// <param name="name">The unique name of the index to create.</param>
     /// <param name="filter">The filter expression that determines which events are included in the index.</param>
     /// <param name="fields">The fields to index, each with a name, selector, and type.</param>
-    /// <param name="start">Whether to start the index immediately after creation. Defaults to true if not specified.</param>
     /// <param name="cancellationToken">
     /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
     /// </param>
-    /// <returns>
-    /// A <see cref="Result{Success, CreateIndexError}"/> indicating the outcome of the index creation.
-    /// </returns>
-    public async ValueTask Create(
+    public ValueTask Create(
         string name,
         string filter,
         IEnumerable<IndexField> fields,
-        bool? start = null,
         CancellationToken cancellationToken = default
+    ) => CreateCore(name, filter, fields, start: null, cancellationToken);
+
+    /// <summary>
+    /// Creates a new secondary index with the specified configuration, explicitly controlling
+    /// whether the index starts processing immediately after creation.
+    /// </summary>
+    /// <param name="name">The unique name of the index to create.</param>
+    /// <param name="filter">The filter expression that determines which events are included in the index.</param>
+    /// <param name="fields">The fields to index, each with a name, selector, and type.</param>
+    /// <param name="start">Whether to start the index immediately after creation.</param>
+    /// <param name="cancellationToken">
+    /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
+    /// </param>
+    public ValueTask Create(
+        string name,
+        string filter,
+        IEnumerable<IndexField> fields,
+        bool start,
+        CancellationToken cancellationToken = default
+    ) => CreateCore(name, filter, fields, start, cancellationToken);
+
+    async ValueTask CreateCore(
+        string name,
+        string filter,
+        IEnumerable<IndexField> fields,
+        bool? start,
+        CancellationToken cancellationToken
     ) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(filter);
@@ -54,13 +77,6 @@ public class IndexesClient : ClientModuleBase {
             throw ex.AsWellKnownException();
         }
     }
-
-    public ValueTask Create(
-        string name,
-        string filter,
-        IEnumerable<IndexField> fields,
-        CancellationToken cancellationToken = default
-    ) => Create(name, filter, fields, start: null, cancellationToken);
 
     /// <summary>
     /// Starts an existing secondary index.
