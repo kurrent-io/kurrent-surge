@@ -11,7 +11,7 @@ Commands throw on failure. See [Error handling](./error-handling.md) for the ful
 A connector needs an id and a settings dictionary. Keys are camelCase, with colons grouping related options.
 
 ```csharp
-var settings = new Dictionary<string, string> {
+Dictionary<string, string> configuration = new() {
     ["instanceTypeName"]        = "kafka-sink",
     ["topic"]                   = "orders",
     ["bootstrapServers"]        = "kafka.internal:9092",
@@ -20,11 +20,7 @@ var settings = new Dictionary<string, string> {
     ["compression:type"]        = "gzip"
 };
 
-await client.Connectors.Create(
-    id: "orders-to-kafka",
-    name: "Orders to Kafka",
-    settings: settings
-);
+await client.Connectors.Create("orders-to-kafka", "Orders to Kafka", configuration);
 ```
 
 Available keys are documented per connector type. For example, see the [Kafka sink reference](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/kafka.html).
@@ -33,8 +29,8 @@ Available keys are documented per connector type. For example, see the [Kafka si
 Omit the name to reuse the connector id as the display name. Both forms exist as short extensions:
 
 ```csharp
-await client.Connectors.Create("orders-to-kafka");           // empty settings, id used as the name
-await client.Connectors.Create("orders-to-kafka", settings); // settings, id used as the name
+await client.Connectors.Create("orders-to-kafka");                // empty configuration, id used as the name
+await client.Connectors.Create("orders-to-kafka", configuration); // configuration, id used as the name
 ```
 :::
 
@@ -43,12 +39,9 @@ await client.Connectors.Create("orders-to-kafka", settings); // settings, id use
 Create accepts any `IConfiguration` (including an `IConfigurationSection`) and flattens it to settings using `:` as the key separator.
 
 ```csharp
-var settings = builder.Configuration.GetSection("Connector:Settings");
+var configuration = builder.Configuration.GetSection("Connector:Settings");
 
-await client.Connectors.Create(
-    id: "orders-to-kafka",
-    configuration: settings
-);
+await client.Connectors.Create("orders-to-kafka", configuration);
 ```
 
 ### From JSON
@@ -56,7 +49,7 @@ await client.Connectors.Create(
 Pass a JSON string directly. Nested objects produce colon-separated keys, arrays use numeric indices.
 
 ```csharp
-const string json = """
+const string configuration = """
     {
         "instanceTypeName": "kafka-sink",
         "topic": "orders",
@@ -65,10 +58,7 @@ const string json = """
     }
     """;
 
-await client.Connectors.Create(
-    id: "orders-to-kafka",
-    configuration: json
-);
+await client.Connectors.Create("orders-to-kafka", configuration);
 ```
 
 ## Reconfigure
@@ -76,12 +66,9 @@ await client.Connectors.Create(
 Reconfigure replaces the connector's settings. The connector keeps its id, name, and current state.
 
 ```csharp
-await client.Connectors.Reconfigure(
-    id: "orders-to-kafka",
-    settings: new Dictionary<string, string> {
-        ["topic"] = "orders-v2"
-    }
-);
+await client.Connectors.Reconfigure("orders-to-kafka", new() {
+    ["topic"] = "orders-v2"
+});
 ```
 
 Reconfigure accepts the same input shapes as Create: a dictionary, an `IConfiguration`, or a JSON string.
@@ -91,7 +78,7 @@ Reconfigure accepts the same input shapes as Create: a dictionary, an `IConfigur
 Rename updates the human-readable display name. The id itself is immutable.
 
 ```csharp
-await client.Connectors.Rename("orders-to-kafka", "Orders to Kafka (prod)");
+await client.Connectors.Rename("orders-to-kafka", "Orders Stream → Kafka Sink");
 ```
 
 ## Start, stop, reset
@@ -106,7 +93,7 @@ await client.Connectors.Stop("orders-to-kafka");
 Start can resume from a specific log position:
 
 ```csharp
-await client.Connectors.Start("orders-to-kafka", position: 12_345);
+await client.Connectors.Start("orders-to-kafka", 12_345);
 ```
 
 Reset rewinds the connector's stored position. The connector must be stopped first.
@@ -120,7 +107,7 @@ await client.Connectors.Start("orders-to-kafka");
 Pass a log position to rewind to a specific offset:
 
 ```csharp
-await client.Connectors.Reset("orders-to-kafka", position: 0);
+await client.Connectors.Reset("orders-to-kafka", 0);
 ```
 
 Positions must be concrete non-negative values. Sentinel positions (`Unset`, `Earliest`, `Latest`) throw `ArgumentOutOfRangeException`.
