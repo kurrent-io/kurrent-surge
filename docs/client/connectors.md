@@ -21,7 +21,7 @@ var settings = new Dictionary<string, string> {
 };
 
 await client.Connectors.Create(
-    connectorId: "orders-to-kafka",
+    id: "orders-to-kafka",
     name: "Orders to Kafka",
     settings: settings
 );
@@ -30,11 +30,11 @@ await client.Connectors.Create(
 Available keys are documented per connector type. For example, see the [Kafka sink reference](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/kafka.html).
 
 ::: tip
-Omit the name to let the server use the connector id as the display name. Both forms exist as short extensions:
+Omit the name to reuse the connector id as the display name. Both forms exist as short extensions:
 
 ```csharp
-await client.Connectors.Create("orders-to-kafka");           // empty settings, server names it after the id
-await client.Connectors.Create("orders-to-kafka", settings); // settings, server names it after the id
+await client.Connectors.Create("orders-to-kafka");           // empty settings, id used as the name
+await client.Connectors.Create("orders-to-kafka", settings); // settings, id used as the name
 ```
 :::
 
@@ -46,7 +46,7 @@ Create accepts any `IConfiguration` (including an `IConfigurationSection`) and f
 var section = builder.Configuration.GetSection("Connector");
 
 await client.Connectors.Create(
-    connectorId: section["Id"]!,
+    id: section["Id"]!,
     configuration: section.GetSection("Settings")
 );
 ```
@@ -66,8 +66,8 @@ const string json = """
     """;
 
 await client.Connectors.Create(
-    connectorId: "orders-to-kafka",
-    json: json
+    id: "orders-to-kafka",
+    configuration: json
 );
 ```
 
@@ -77,7 +77,7 @@ Reconfigure replaces the connector's settings. The connector keeps its id, name,
 
 ```csharp
 await client.Connectors.Reconfigure(
-    connectorId: "orders-to-kafka",
+    id: "orders-to-kafka",
     settings: new Dictionary<string, string> {
         ["topic"] = "orders-v2"
     }
@@ -106,7 +106,7 @@ await client.Connectors.Stop("orders-to-kafka");
 Start can resume from a specific log position:
 
 ```csharp
-await client.Connectors.Start("orders-to-kafka", logPosition: 12_345);
+await client.Connectors.Start("orders-to-kafka", position: 12_345);
 ```
 
 Reset rewinds the connector's stored position. The connector must be stopped first.
@@ -120,8 +120,10 @@ await client.Connectors.Start("orders-to-kafka");
 Pass a log position to rewind to a specific offset:
 
 ```csharp
-await client.Connectors.Reset("orders-to-kafka", logPosition: 0);
+await client.Connectors.Reset("orders-to-kafka", position: 0);
 ```
+
+Positions must be concrete non-negative values. Sentinel positions (`Unset`, `Earliest`, `Latest`) throw `ArgumentOutOfRangeException`.
 
 :::: warning
 Reset fails if the connector is still running. Always stop it before resetting.
@@ -137,12 +139,13 @@ Delete is a soft delete. The record is kept with `DeleteTime` set, and List excl
 
 ## Exceptions
 
-| Exception                         | Thrown by                                                                       | When                                               |
-|-----------------------------------|---------------------------------------------------------------------------------|----------------------------------------------------|
-| `ConnectorAlreadyExistsException` | `Create`                                                                        | A connector with this id already exists.           |
-| `ConnectorNotFoundException`      | `Reconfigure`, `Rename`, `Start`, `Stop`, `Reset`, `Delete`, `GetSettings`      | No connector with this id exists.                  |
-| `ConnectorDeletedException`       | `Reconfigure`, `Rename`, `Start`, `Stop`, `Reset`, `GetSettings`                | The connector was soft-deleted.                    |
-| `ArgumentException`               | `Create`, `Rename`                                                              | `connectorId` is empty or `name` is null or blank. |
+| Exception                         | Thrown by                                                                                      | When                                                                              |
+|-----------------------------------|------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
+| `ConnectorAlreadyExistsException` | `Create`                                                                                       | A connector with this id already exists.                                          |
+| `ConnectorNotFoundException`      | `Reconfigure`, `Rename`, `Start`, `Stop`, `Reset`, `Delete`, `GetSettings`, `GetConfiguration` | No connector with this id exists.                                                 |
+| `ConnectorDeletedException`       | `Reconfigure`, `Rename`, `Start`, `Stop`, `Reset`, `Delete`, `GetSettings`, `GetConfiguration` | The connector was soft-deleted.                                                   |
+| `ArgumentException`               | All methods                                                                                    | The id is empty. `Create` and `Rename` also throw when the name is null or blank. |
+| `ArgumentOutOfRangeException`     | `Start`, `Reset`                                                                               | The log position is a sentinel value (`Unset`, `Earliest`, `Latest`) or negative. |
 
 ## List
 
@@ -171,23 +174,24 @@ if (page.HasMorePages)
     Console.WriteLine("More pages available");
 ```
 
-| Property            | Type                            | Description                                                  |
-|---------------------|---------------------------------|--------------------------------------------------------------|
-| `States`            | `IReadOnlyList<ConnectorState>` | Filter by state. Default: empty (matches all).               |
-| `InstanceTypeNames` | `IReadOnlyList<string>`         | Filter by connector type, e.g. `kafka-sink`. Default: empty. |
-| `ConnectorIds`      | `IReadOnlyList<string>`         | Filter by specific ids. Default: empty.                      |
-| `IncludeSettings`   | `bool`                          | Populate `Settings` on each result. Default: `false`.        |
-| `ShowDeleted`       | `bool`                          | Include soft-deleted connectors. Default: `false`.           |
-| `Page`              | `int`                           | Page number (1-based). Default: `1`.                         |
-| `PageSize`          | `int`                           | Items per page. Default: server setting.                     |
+| Property               | Type                            | Description                                                          |
+|------------------------|---------------------------------|----------------------------------------------------------------------|
+| `States`               | `IReadOnlyList<ConnectorState>` | Filter by state. Default: empty (matches all).                       |
+| `InstanceTypeNames`    | `IReadOnlyList<string>`         | Filter by connector type, e.g. `kafka-sink`. Default: empty.         |
+| `ConnectorIds`         | `IReadOnlyList<ConnectorId>`    | Filter by specific ids. Default: empty.                              |
+| `IncludeSettings`      | `bool`                          | Populate `Settings` on each result. Default: `false`.                |
+| `IncludeConfiguration` | `bool`                          | Populate hierarchical `Configuration` on each result. Default: `false`. |
+| `ShowDeleted`          | `bool`                          | Include soft-deleted connectors. Default: `false`.                   |
+| `Page`                 | `int`                           | Page number (1-based). Default: `1`.                                 |
+| `PageSize`             | `int`                           | Items per page. Default: `50`.                                       |
 
 The result is a `ConnectorListResult`:
 
 ```csharp
 public record ConnectorListResult {
-    public IReadOnlyList<ConnectorDetails> Items     { get; }
-    public int                             TotalSize { get; }
-    public bool                            HasMorePages => Items.Count > 0 && TotalSize > Items.Count;
+    public required IReadOnlyList<ConnectorDetails> Items     { get; init; }
+    public int                                      TotalSize { get; init; }
+    public bool                                     HasMorePages => Items.Count > 0 && TotalSize > Items.Count;
 }
 ```
 
@@ -197,7 +201,7 @@ List does not throw on empty results. It returns an empty `Items` list with `Tot
 
 ## Get settings
 
-Fetch the settings for a single connector. Cheaper than calling List with `IncludeSettings`.
+Fetch the flat settings for a single connector. Cheaper than calling List with `IncludeSettings`.
 
 ```csharp
 var result = await client.Connectors.GetSettings("orders-to-kafka");
@@ -208,26 +212,45 @@ foreach (var (key, value) in result.Settings)
 Console.WriteLine("Updated at {0}", result.SettingsUpdateTime);
 ```
 
+## Get configuration
+
+Fetch the hierarchical configuration for a single connector. Returned as a Protobuf `Struct`, which preserves nesting and types.
+
+```csharp
+var result = await client.Connectors.GetConfiguration("orders-to-kafka");
+
+Console.WriteLine(result.Configuration);
+Console.WriteLine("Updated at {0}", result.ConfigurationUpdateTime);
+```
+
+Flatten the `Struct` back to a `Dictionary<string, string>` with the same key shape as settings:
+
+```csharp
+var flat = result.Configuration.FlattenStruct();
+```
+
 ## Connector details
 
 Each item returned by List is a `ConnectorDetails`:
 
-| Property                              | Type                                  | Description                                                              |
-|---------------------------------------|---------------------------------------|--------------------------------------------------------------------------|
-| `ConnectorId`                         | `string`                              | Connector identifier.                                                    |
-| `Name`                                | `string`                              | Display name.                                                            |
-| `InstanceTypeName`                    | `string`                              | Connector implementation type, e.g. `kafka-sink`.                        |
-| `State`                               | `ConnectorState`                      | Current state. See [Connector states](#connector-states).                |
-| `StateUpdateTime`                     | `DateTimeOffset`                      | When the state last changed.                                             |
-| `Position`                            | `LogPosition`                         | Last processed log position.                                             |
-| `PositionUpdateTime`                  | `DateTimeOffset`                      | When the position last advanced.                                         |
-| `Settings`                            | `IReadOnlyDictionary<string, string>` | Flat settings. Populated only when listed with `IncludeSettings = true`. |
-| `SettingsUpdateTime`                  | `DateTimeOffset`                      | When the settings last changed.                                          |
-| `CreateTime`                          | `DateTimeOffset`                      | When the connector was created.                                          |
-| `UpdateTime`                          | `DateTimeOffset`                      | When the connector was last modified.                                    |
-| `DeleteTime`                          | `DateTimeOffset`                      | Soft-delete timestamp. Equals `default(DateTimeOffset)` while active.    |
-| `ErrorDetails`                        | `string?`                             | Last error message reported by the connector, or `null` if none.         |
-| `IsRunning`, `IsStopped`, `IsDeleted` | `bool`                                | Shortcuts for the corresponding state and delete checks.                 |
+| Property                              | Type                                  | Description                                                                                |
+|---------------------------------------|---------------------------------------|--------------------------------------------------------------------------------------------|
+| `ConnectorId`                         | `ConnectorId`                         | Connector identifier.                                                                      |
+| `Name`                                | `string`                              | Display name.                                                                              |
+| `InstanceTypeName`                    | `string`                              | Connector implementation type, e.g. `kafka-sink`.                                          |
+| `State`                               | `ConnectorState`                      | Current state. See [Connector states](#connector-states).                                  |
+| `StateUpdateTime`                     | `DateTimeOffset`                      | When the state last changed.                                                               |
+| `Position`                            | `LogPosition`                         | Last processed log position.                                                               |
+| `PositionUpdateTime`                  | `DateTimeOffset`                      | When the position last advanced.                                                           |
+| `Settings`                            | `IReadOnlyDictionary<string, string>` | Flat settings. Populated only when listed with `IncludeSettings = true`.                   |
+| `SettingsUpdateTime`                  | `DateTimeOffset`                      | When the settings last changed.                                                            |
+| `Configuration`                       | `Struct?`                             | Hierarchical configuration. Populated only when listed with `IncludeConfiguration = true`. |
+| `ConfigurationUpdateTime`             | `DateTimeOffset`                      | When the configuration last changed.                                                       |
+| `CreateTime`                          | `DateTimeOffset`                      | When the connector was created.                                                            |
+| `UpdateTime`                          | `DateTimeOffset`                      | When the connector was last modified.                                                      |
+| `DeleteTime`                          | `DateTimeOffset`                      | Soft-delete timestamp. Equals `default(DateTimeOffset)` while active.                      |
+| `ErrorDetails`                        | `string?`                             | Last error message reported by the connector, or `null` if none.                           |
+| `IsRunning`, `IsStopped`, `IsDeleted` | `bool`                                | Shortcuts for the corresponding state and delete checks.                                   |
 
 ## Connector states
 
