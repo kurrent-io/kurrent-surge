@@ -43,11 +43,11 @@ await client.Connectors.Create("orders-to-kafka", settings); // settings, id use
 Create accepts any `IConfiguration` (including an `IConfigurationSection`) and flattens it to settings using `:` as the key separator.
 
 ```csharp
-var section = builder.Configuration.GetSection("Connector");
+var settings = builder.Configuration.GetSection("Connector:Settings");
 
 await client.Connectors.Create(
-    id: section["Id"]!,
-    configuration: section.GetSection("Settings")
+    id: "orders-to-kafka",
+    configuration: settings
 );
 ```
 
