@@ -2,7 +2,7 @@
 
 <CopyMarkdownButton />
 
-Secondary indexes let you query records by a payload field instead of by stream name. You define an index with a filter and a list of fields to project, then read the matching records back through the standard read APIs.
+Secondary indexes let you query records by a payload field instead of by stream name. Define one with a filter and a list of fields to project, and read the matching records back through the standard read APIs.
 
 Access the module through `client.Indexes`:
 
@@ -14,25 +14,41 @@ Operations throw on failure. See [Error handling](./error-handling.md) for the e
 
 ## Create an index
 
+Build a `CreateIndexRequest` and pass it to the client.
+
 ```csharp
 await client.Indexes.Create(
-    name: "ORDERS_BY_CUSTOMER",
-    filter: "schema_name = 'OrderPlaced'",
-    fields: [
-        new IndexField("customer_id", "data.customerId", IndexFieldType.String),
-        new IndexField("amount",      "data.amount",     IndexFieldType.Double)
-    ]
-);
+    CreateIndexRequest.For("ORDERS_BY_CUSTOMER")
+        .WithFilter("schema_name = 'OrderPlaced'")
+        .WithField("customer_id", "data.customerId", IndexFieldType.String)
+        .WithField("amount",      "data.amount",     IndexFieldType.Double)
+        .Build());
 ```
 
-The index is created and started by default. Pass `start: false` to defer.
+The server starts the index immediately by default. Call `.WithStart(false)` to create it stopped.
 
-| Parameter | Type | Description |
-|---|---|---|
-| `name` | `string` | Unique index name. Use uppercase letters, digits, and underscores (1-63 chars, must start with a letter and end alphanumerically). |
-| `filter` | `string` | DuckDB-compatible expression deciding which records the index contains. Same grammar as [filter expressions](./streams/filters.md#expression-filters). |
-| `fields` | `IEnumerable<IndexField>` | Columns to index. Each has a name, a JSON selector path, and a type. |
-| `start` | `bool?` | Whether to start the index after creation. Defaults to `true` server-side. |
+| Method                                       | Description                                                  |
+|----------------------------------------------|--------------------------------------------------------------|
+| `For(IndexName)`                             | Start the request for the given index name.                  |
+| `WithFilter(string)`                         | DuckDB-compatible expression deciding which records the index contains. Same grammar as [filter expressions](./streams/filters.md#expression-filters). |
+| `WithField(string, string, IndexFieldType)`  | Add one indexed column by name, selector path, and type.     |
+| `WithField(IndexField)`                      | Add a pre-built `IndexField`.                                |
+| `WithFields(IEnumerable<IndexField>)`        | Replace the field list.                                      |
+| `WithStart(bool)`                            | Override the server default. Omit to start immediately.      |
+
+::: tip
+For the common case of name, filter, and fields, an overload skips the builder. A second one takes a trailing `bool start`.
+
+```csharp
+await client.Indexes.Create(
+    "ORDERS_BY_CUSTOMER",
+    "schema_name = 'OrderPlaced'",
+    [
+        new IndexField("customer_id", "data.customerId", IndexFieldType.String),
+        new IndexField("amount",      "data.amount",     IndexFieldType.Double)
+    ]);
+```
+:::
 
 ## Field types
 
@@ -47,30 +63,28 @@ Selector paths are dot-separated and resolve against the decoded JSON payload. `
 
 ## Read from an index
 
-A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it:
+A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it, optionally pairing it with a payload predicate to pre-filter on the indexed columns:
 
 ```csharp
-var request = ReadRecordsRequest.New
+var all = ReadRecordsRequest.New
     .FromPosition(LogPosition.Earliest)
     .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
     .Build();
 
-var stream = client.Streams.ReadRecords(request);
-```
-
-Pair the index filter with a payload predicate to pre-filter on the indexed columns:
-
-```csharp
-var request = ReadRecordsRequest.New
+var highValue = ReadRecordsRequest.New
     .FromPosition(LogPosition.Earliest)
     .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
     .WithFilterExpression("data.amount > 1000")
     .Build();
+
+var stream = client.Streams.ReadRecords(highValue);
 ```
 
 See [Filters](./streams/filters.md) for the full filter expression grammar.
 
-## List indexes
+## Inspect indexes
+
+`List` returns every registered index. `Get` fetches a single one by name.
 
 ```csharp
 var indexes = await client.Indexes.List();
@@ -80,21 +94,15 @@ foreach (var index in indexes) {
     Console.WriteLine("  filter: {0}", index.Filter);
     Console.WriteLine("  fields: {0}", string.Join(", ", index.Fields.Select(f => f.Name)));
 }
+
+var orders = await client.Indexes.Get("ORDERS_BY_CUSTOMER");
 ```
 
-## Get an index
-
-Fetch a single index by name:
-
-```csharp
-var index = await client.Indexes.Get("ORDERS_BY_CUSTOMER");
-```
-
-Both methods return the same `Index` shape:
+Both return the same `Index` shape:
 
 | Property | Type | Description |
 |---|---|---|
-| `Name` | `string` | Index name. |
+| `Name` | `IndexName` | Index name. |
 | `Filter` | `string` | The original filter expression. |
 | `Fields` | `IReadOnlyList<IndexField>` | Indexed columns. |
 | `State` | `IndexState` | `Unspecified`, `Started`, `Stopped`, or `Deleted`. |
@@ -111,7 +119,6 @@ await client.Indexes.Delete("ORDERS_BY_CUSTOMER");
 
 | Method | State after | Notes |
 |---|---|---|
-| `Create(...)` | `Started` (or `Stopped` if `start: false`) | |
 | `Start(name)` | `Started` | |
 | `Stop(name)` | `Stopped` | Pauses ingestion. Resumable. |
 | `Delete(name)` | `Deleted` | Permanent. |
