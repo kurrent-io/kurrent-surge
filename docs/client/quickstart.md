@@ -1,7 +1,3 @@
----
-order: 1
----
-
 # Quickstart
 
 <CopyMarkdownButton />
@@ -46,7 +42,7 @@ Start a single-node KurrentDB instance with [Docker](https://docs.docker.com/get
 ```bash
 docker run --name kurrentdb -d \
     -p 2113:2113 \
-    docker.kurrent.io/kurrent-latest/kurrentdb:latest \
+    kurrentplatform/kurrentdb:latest \
     --insecure
 ```
 

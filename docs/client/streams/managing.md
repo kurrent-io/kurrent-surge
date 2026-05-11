@@ -6,130 +6,101 @@ order: 3
 
 <CopyMarkdownButton />
 
-Stream management operations cover inspecting a stream's state, deleting and tombstoning streams, truncating earlier records, configuring data retention, and attaching custom metadata.
+Stream management covers everything outside of appending and reading: inspecting state, removing data, controlling retention, and attaching metadata.
 
 ## Get stream info
 
-Retrieve metadata and state for a stream:
+`GetStreamInfo` is the safe way to inspect a stream. It returns lifecycle state and metadata for any stream, including streams that have never existed, and never throws for missing streams. Reach for it before branching on existence, building admin views, or asserting state in tests.
 
 ```csharp
 var info = await client.Streams.GetStreamInfo("order-123");
 
-Console.WriteLine($"State:      {info.State}");
-Console.WriteLine($"First rev:  {info.FirstStreamRevision}");
-Console.WriteLine($"Last rev:   {info.LastStreamRevision}");
-Console.WriteLine($"Last write: {info.LastStreamAppendedAt}");
+Console.WriteLine("State:      {0}", info.State);
+Console.WriteLine("First rev:  {0}", info.FirstStreamRevision);
+Console.WriteLine("Last rev:   {0}", info.LastStreamRevision);
+Console.WriteLine("Last write: {0}", info.LastStreamAppendedAt);
 ```
 
-### StreamInfo properties
+A stream's state is one of `Active` (readable and writable), `Deleted` (soft-deleted, can be recreated by appending), `Tombstoned` (permanently removed), or `Missing` (has never existed).
 
-| Property                | Type               | Description                                                                       |
-|-------------------------|--------------------|-----------------------------------------------------------------------------------|
-| `Stream`                | `StreamName`       | Name of the stream.                                                               |
-| `State`                 | `StreamState`      | `Active`, `Deleted`, `Tombstoned`, or `Missing`.                                  |
-| `InfoRevision`          | `Revision`         | Revision of the stream's metadata stream. Used for optimistic concurrency on metadata updates. |
-| `Retention`             | `StreamRetention`  | Retention configuration (max age, max count, truncate before).                    |
-| `Acl`                   | `StreamAcl`        | Access control list applied to the stream.                                        |
-| `Metadata`              | `Metadata`         | User-defined custom metadata.                                                     |
-| `FirstStreamRevision`   | `Revision`         | Revision of the first record in the stream.                                       |
-| `FirstStreamPosition`   | `LogPosition`      | Log position of the first record in the stream.                                   |
-| `FirstStreamAppendedAt` | `DateTime`         | Timestamp of the first record.                                                    |
-| `LastStreamRevision`    | `Revision`         | Revision of the most recent record.                                               |
-| `LastStreamPosition`    | `LogPosition`      | Log position of the most recent record.                                           |
-| `LastStreamAppendedAt`  | `DateTime`         | Timestamp of the most recent record.                                              |
+## Delete vs tombstone
 
-### Stream states
+Two ways to remove a stream. Both record the removal so subscribers see it, but the consequences are very different.
 
-| State        | Description                                                |
-|--------------|------------------------------------------------------------|
-| `Active`     | Stream exists and can be read or written.                  |
-| `Deleted`    | Soft-deleted. Can be recreated by appending new records.   |
-| `Tombstoned` | Permanently deleted. Cannot be recreated.                  |
-| `Missing`    | Stream has never existed.                                  |
+|                  | Soft delete                                  | Tombstone                                |
+|------------------|----------------------------------------------|------------------------------------------|
+| **Reversible**   | Yes (append to recreate)                     | No (permanent)                           |
+| **Stream name**  | Can be reused                                | Reserved forever                         |
+| **Read after**   | `StreamNotFoundException`                    | `StreamTombstonedException`              |
+| **Append after** | Creates a new stream                         | Fails with `StreamTombstonedException`   |
+| **Use case**     | Lifecycle, expiry, undo                      | Compliance, abuse, name reservation      |
 
-## Delete a stream
+::: tip
+Default to soft delete. Tombstone only when you need a guarantee that the data and the name are gone for good.
+:::
 
-A soft delete removes the stream from reads while leaving the name available for reuse.
+## Soft delete
+
+Removes the stream from reads while leaving the name available for reuse. The deletion itself is recorded and the call returns its log position.
 
 ```csharp
 var position = await client.Streams.Delete("order-123");
-
-Console.WriteLine($"Deleted at position: {position}");
 ```
 
-After a soft delete:
+Appending to the same name afterwards recreates the stream. The new stream starts at the next revision after the deleted history. Old records are no longer visible to readers.
 
-- The stream no longer appears in reads.
-- Appending new records to the same stream name **recreates** it.
-- The new stream starts at the next revision. The previous history is no longer visible.
-
-### With a revision check
-
-Pass an expected revision to abort the delete when the stream has moved on.
+To delete conditionally, pass the revision the stream is expected to be at. The call fails with `StreamRevisionConflictException` if another writer has appended since you last read.
 
 ```csharp
 var position = await client.Streams.Delete("order-123", Revision.From(9));
 ```
 
-Fails with `StreamRevisionConflictException` if the stream's current revision does not match.
+Use the conditional form when "delete only if nothing new has arrived" matters. A common case is deleting a per-request or per-job stream after you've read its final state.
 
-## Tombstone a stream
+## Tombstone
 
-Tombstoning permanently deletes a stream. The name is reserved forever and cannot be reused.
+Permanently removes a stream. The name is reserved forever. Reads fail with `StreamTombstonedException`. Future appends fail with the same exception.
 
 ```csharp
 var position = await client.Streams.Tombstone("order-123");
 ```
 
-After a tombstone:
-
-- The stream cannot be read.
-- Any attempt to append to the stream fails with `StreamTombstonedException`.
-- The stream name is permanently reserved.
-
-### With a revision check
+A revision check is supported the same way as for soft delete:
 
 ```csharp
 var position = await client.Streams.Tombstone("order-123", Revision.From(9));
 ```
 
 ::: warning
-Tombstoning is irreversible. The stream name can never be reused. Use a soft delete if you may need to recreate the stream later.
+Tombstoning is irreversible. The name can never be reused on this database. Pick soft delete unless you specifically need this guarantee.
 :::
 
-## Truncate a stream
+## Truncate
 
-Truncation hides records before a specified revision. Records at or after the truncation point remain readable.
+Hides records before a given revision while leaving the stream itself active. Records at or after the truncation point keep responding as normal.
 
 ```csharp
 await client.Streams.Truncate("order-123", Revision.From(50));
 ```
 
-This hides all records with revisions 0 through 49. Records at revision 50 and above remain readable.
+This hides revisions 0 through 49. Revision 50 onwards remains readable. Hidden records become eligible for physical removal at the next scavenge.
 
-Truncation is useful for:
+Truncate is the right tool when records past a certain point are no longer needed but the stream itself is. Common cases:
 
-- Enforcing data retention policies.
-- Removing processed records that are no longer needed.
-- Reducing storage for high-volume streams.
+- Trimming processed work items from a queue stream.
+- Discarding history after snapshotting an aggregate.
+- Enforcing per-stream retention by revision rather than count or age.
 
-## Configure data retention
+## Configure retention
 
-`ConfigureDataRetention` sets `MaxCount` and `MaxAge` on a stream. Records that fall outside these limits are removed during scavenging.
+Sets per-stream retention rules. Records that fall outside the limits become eligible for removal at the next scavenge.
 
-### By max count
+| Field      | Effect                                                |
+|------------|-------------------------------------------------------|
+| `MaxCount` | Keep at most this many records.                       |
+| `MaxAge`   | Keep records younger than this duration.              |
 
-```csharp
-await client.Streams.ConfigureDataRetention("order-123", maxCount: 500);
-```
-
-### By max age
-
-```csharp
-await client.Streams.ConfigureDataRetention("order-123", maxAge: TimeSpan.FromDays(7));
-```
-
-### Both, with a configure callback
+Set one or both:
 
 ```csharp
 await client.Streams.ConfigureDataRetention("order-123", options => {
@@ -138,9 +109,10 @@ await client.Streams.ConfigureDataRetention("order-123", options => {
 });
 ```
 
-### Both, with explicit options and revision
+Single-field overloads are available when only one bound matters.
 
-Pass the current `InfoRevision` for optimistic concurrency. The call fails with `StreamRevisionConflictException` if another writer has changed the metadata stream.
+::: info Concurrency on metadata
+Retention, ACL, and custom metadata are stored on a stream's metadata stream, which has its own revision. Pass the current `InfoRevision` to avoid silently overwriting a concurrent change. The call fails with `StreamRevisionConflictException` if another writer has updated the metadata stream first.
 
 ```csharp
 var info = await client.Streams.GetStreamInfo("order-123");
@@ -150,20 +122,15 @@ await client.Streams.ConfigureDataRetention(
     new StreamRetentionOptions { MaxCount = 500, MaxAge = TimeSpan.FromDays(7) },
     info.InfoRevision);
 ```
+:::
 
-### StreamRetention properties
+## Custom metadata
 
-| Property         | Type        | Description                                                          |
-|------------------|-------------|----------------------------------------------------------------------|
-| `MaxAge`         | `TimeSpan?` | Maximum age of records. Older records are scavenged.                 |
-| `MaxCount`       | `int?`      | Maximum number of records retained in the stream.                    |
-| `TruncateBefore` | `Revision`  | Records before this revision are hidden. Set by `Truncate`.          |
+Attach arbitrary key/value data to a stream. It's stored on the stream's metadata stream alongside retention and ACL, and is returned on `GetStreamInfo`. Typical uses include ownership tags, classification labels, compliance markers, and per-stream application config.
 
-## Set custom metadata
+::: tabs#metadata-modes
 
-Attach arbitrary user-defined metadata to a stream with `SetCustomMetadata`. Custom metadata is stored alongside the stream's retention and ACL configuration on the metadata stream.
-
-### Replace metadata
+@tab Add or update
 
 ```csharp
 var metadata = Metadata.New
@@ -173,9 +140,9 @@ var metadata = Metadata.New
 await client.Streams.SetCustomMetadata("order-123", metadata);
 ```
 
-### Update metadata in place
+Adds or overwrites the keys you provide and writes at the latest revision. Existing keys not in the bag you pass are preserved.
 
-The `Action<Metadata>` overload reads the current metadata, applies your callback, and writes the result. The current `InfoRevision` is used automatically.
+@tab Update via callback
 
 ```csharp
 await client.Streams.SetCustomMetadata("order-123", meta => {
@@ -183,7 +150,9 @@ await client.Streams.SetCustomMetadata("order-123", meta => {
 });
 ```
 
-### With an explicit revision
+Reads the current metadata, applies your function, and writes the result back at the latest revision. Use this when you need imperative control, such as removing a key or applying conditional logic.
+
+@tab Replace with concurrency check
 
 ```csharp
 var info = await client.Streams.GetStreamInfo("order-123");
@@ -191,15 +160,9 @@ var info = await client.Streams.GetStreamInfo("order-123");
 await client.Streams.SetCustomMetadata("order-123", metadata, info.InfoRevision);
 ```
 
-## Delete vs Tombstone
+Full replace at a specific revision. Anything not in the new document is dropped. The call fails with `StreamRevisionConflictException` if another writer has updated the metadata stream since you read `InfoRevision`. Use this when concurrent edits to ACL, retention, or metadata could collide.
 
-|                  | Soft delete                                  | Tombstone                                |
-|------------------|----------------------------------------------|------------------------------------------|
-| **Reversible**   | Yes (append to recreate)                     | No (permanent)                           |
-| **Stream name**  | Can be reused                                | Reserved forever                         |
-| **Read after**   | `StreamNotFoundException`                    | `StreamTombstonedException`              |
-| **Append after** | Creates a new stream                         | Fails with `StreamTombstonedException`   |
-| **Use case**     | Temporary removal, lifecycle management      | Permanent removal, compliance            |
+:::
 
 ## Error handling
 
@@ -213,14 +176,12 @@ catch (StreamNotFoundException) {
     // Stream does not exist
 }
 catch (StreamRevisionConflictException ex) {
-    Console.WriteLine($"Expected {ex.ExpectedRevision}, was {ex.ActualRevision}");
+    Console.WriteLine("Expected {0}, was {1}", ex.ExpectedRevision, ex.ActualRevision);
 }
 catch (StreamTombstonedException) {
     // Stream was permanently deleted
 }
 ```
-
-### Common exceptions
 
 | Exception                         | Cause                                                                       |
 |-----------------------------------|-----------------------------------------------------------------------------|
@@ -229,3 +190,28 @@ catch (StreamTombstonedException) {
 | `StreamTombstonedException`       | Stream was permanently deleted.                                             |
 | `StreamRevisionConflictException` | Current stream or metadata revision did not match the expected revision.    |
 | `OperationCanceledException`      | The cancellation token was cancelled during the operation.                  |
+
+## StreamInfo properties
+
+| Property                | Type               | Description                                                                                    |
+|-------------------------|--------------------|------------------------------------------------------------------------------------------------|
+| `Stream`                | `StreamName`       | Name of the stream.                                                                            |
+| `State`                 | `StreamState`      | `Active`, `Deleted`, `Tombstoned`, or `Missing`.                                               |
+| `InfoRevision`          | `Revision`         | Revision of the stream's metadata stream. Used for optimistic concurrency on metadata updates. |
+| `Retention`             | `StreamRetention`  | Retention configuration (max age, max count, truncate before).                                 |
+| `Acl`                   | `StreamAcl`        | Access control list applied to the stream.                                                     |
+| `Metadata`              | `Metadata`         | User-defined custom metadata.                                                                  |
+| `FirstStreamRevision`   | `Revision`         | Revision of the first record in the stream.                                                    |
+| `FirstStreamPosition`   | `LogPosition`      | Log position of the first record in the stream.                                                |
+| `FirstStreamAppendedAt` | `DateTime`         | Timestamp of the first record.                                                                 |
+| `LastStreamRevision`    | `Revision`         | Revision of the most recent record.                                                            |
+| `LastStreamPosition`    | `LogPosition`      | Log position of the most recent record.                                                        |
+| `LastStreamAppendedAt`  | `DateTime`         | Timestamp of the most recent record.                                                           |
+
+## StreamRetention properties
+
+| Property         | Type        | Description                                                          |
+|------------------|-------------|----------------------------------------------------------------------|
+| `MaxAge`         | `TimeSpan?` | Maximum age of records. Older records are scavenged.                 |
+| `MaxCount`       | `int?`      | Maximum number of records retained in the stream.                    |
+| `TruncateBefore` | `Revision`  | Records before this revision are hidden by `Truncate`.               |

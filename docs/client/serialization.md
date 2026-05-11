@@ -1,51 +1,40 @@
----
-order: 9
----
-
 # Serialization
 
 <CopyMarkdownButton />
 
-Kurrent.Client handles serialization and deserialization of record data automatically. By default, payloads are serialized as JSON using `System.Text.Json`. The client also supports Protocol Buffers and raw byte passthrough, and provides a type mapping system that links your domain types to schema names stored in KurrentDB.
+Kurrent.Client encodes record payloads on append and decodes them on read. JSON is the default. Protocol Buffers and raw byte passthrough are also supported.
 
 ## How it works
 
-When you append a record, the client:
+On append:
 
-1. Resolves the .NET type to a **schema name** stored in KurrentDB.
-2. Serializes the payload using the serializer for the record's **data format**.
-3. Stores the serialized bytes along with the schema name and format metadata.
+1. The .NET type resolves to a schema name through the configured naming strategy or an explicit mapping.
+2. The serializer for the record's data format encodes the payload.
+3. The bytes are stored alongside the schema name and format.
 
-When you read a record, the process reverses:
-
-1. The schema name from the record is resolved back to a .NET type.
-2. The appropriate serializer deserializes the bytes into an instance of that type.
-3. The deserialized object is available on the `Record.Value` property.
+On read the process reverses. The schema name resolves back to a .NET type, the matching serializer decodes the bytes, and the result is exposed on `Record.Value`.
 
 ## Data formats
 
-The `SchemaDataFormat` enum controls which serializer is used for a record:
+Pick a format with `SchemaDataFormat`:
 
 | Value | Content type | Description |
 |-------|-------------|-------------|
-| `Json` | `application/json` | JSON via `System.Text.Json`. This is the default. |
+| `Json` | `application/json` | JSON via System.Text.Json. Default. |
 | `Protobuf` | `application/vnd.google.protobuf` | Protocol Buffers binary format. |
-| `Avro` | `application/vnd.apache.avro+json` | Apache Avro format (reserved). |
-| `Bytes` | `application/octet-stream` | Raw bytes passthrough with no transformation. |
-| `Unspecified` | `application/octet-stream` | No format specified. Used internally. |
+| `Bytes` | `application/octet-stream` | Raw bytes passthrough. |
+| `Avro` | `application/vnd.apache.avro+json` | Reserved. Not implemented. |
 
-Set the data format per record using the `AppendRecord.New` builder.
-
-The default format is JSON, so the format does not need to be specified explicitly:
+JSON is the default and can be omitted on the builder:
 
 ```csharp
-var jsonRecord = AppendRecord.New
+var record = AppendRecord.New
     .ForStream("orders")
     .WithValue(orderPlaced)
     .Build();
 ```
 
-Use `WithDataFormat(SchemaDataFormat.Protobuf)` to serialize a Protocol Buffers message:
+For other formats, call `WithDataFormat`:
 
 ```csharp
 var protoRecord = AppendRecord.New
@@ -53,11 +42,7 @@ var protoRecord = AppendRecord.New
     .WithValue(protoMessage)
     .WithDataFormat(SchemaDataFormat.Protobuf)
     .Build();
-```
 
-Use `WithDataFormat(SchemaDataFormat.Bytes)` to store opaque bytes without transformation:
-
-```csharp
 var bytesRecord = AppendRecord.New
     .ForStream("blobs")
     .WithValue(rawBytes)
@@ -65,31 +50,50 @@ var bytesRecord = AppendRecord.New
     .Build();
 ```
 
-## JSON serialization
+If a value cannot be serialized in the chosen format, the append surfaces the underlying serializer's exception wrapped in `SchemaSerializationFailedException`.
 
-JSON is the default data format. The client uses `System.Text.Json` with sensible defaults configured in `JsonSchemaSerializerOptions`:
+Server-side schema registration and validation only run for JSON today. Records appended in any other format are mapped locally and skip the registry round-trip even when registration or validation is enabled. See [Schema Registry › Client options](./schema-registry/client-options.md).
+
+## JSON
+
+The JSON serializer is configured by `JsonSchemaSerializerOptions`:
 
 | Setting | Default |
 |---------|---------|
-| `PropertyNamingPolicy` | `camelCase` |
-| `DictionaryKeyPolicy` | `camelCase` |
-| `PropertyNameCaseInsensitive` | `false` |
-| `DefaultIgnoreCondition` | `WhenWritingNull` |
-| `UnmappedMemberHandling` | `Skip` |
-| `NumberHandling` | `AllowReadingFromString` |
-| Enum serialization | `JsonStringEnumConverter` with camelCase |
-| NodaTime | Configured via `NodaTime.Serialization.SystemTextJson` |
+| PropertyNamingPolicy | camelCase |
+| DictionaryKeyPolicy | camelCase |
+| PropertyNameCaseInsensitive | false |
+| DefaultIgnoreCondition | WhenWritingNull |
+| UnmappedMemberHandling | Skip |
+| UnknownTypeHandling | JsonNode |
+| NumberHandling | AllowReadingFromString |
+| TimeSpan converters | ISO-8601 (nullable and non-nullable) |
+| NodaTime | Configured via NodaTime.Serialization.SystemTextJson (TZDB) |
+| UseProtobufFormatter | true |
 
-### Protobuf JSON interop
+Type resolution chains the internal `KurrentJsonContext` source generator first, then any user-supplied `JsonSerializerContext` instances, and finally falls back to reflection. Apply your own converters or source-gen settings on the contexts you register.
 
-When a message implements `Google.Protobuf.IMessage` and `UseProtobufFormatter` is enabled (the default), the JSON serializer uses Protocol Buffers' own `JsonFormatter` and `JsonParser` for serialization and deserialization. This ensures Protobuf messages serialized as JSON follow the canonical Protobuf JSON mapping, while still being stored with `SchemaDataFormat.Json`.
+When a value implements `Google.Protobuf.IMessage` and `UseProtobufFormatter` is enabled (the default), the JSON serializer delegates to Protobuf's `JsonFormatter` and `JsonParser`. The record is still stored as JSON, but the encoding follows the canonical Protobuf JSON mapping.
 
-## Protobuf serialization
-
-To serialize records as Protocol Buffers binary format, your message types must implement `Google.Protobuf.IMessage` (generated from `.proto` files).
+For AOT scenarios, plug your own source-gen context onto the JSON options. Each registered context is added to the resolver chain alongside the internal context and the reflection fallback:
 
 ```csharp
-// Assuming OrderPlaced is a generated Protobuf message type
+[JsonSerializable(typeof(OrderPlaced))]
+[JsonSerializable(typeof(OrderConfirmed))]
+public partial class OrdersJsonContext : JsonSerializerContext;
+
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
+        UserJsonContexts = [OrdersJsonContext.Default]
+    });
+```
+
+## Protocol Buffers
+
+Protobuf requires types generated from `.proto` files that implement `Google.Protobuf.IMessage`:
+
+```csharp
 var record = AppendRecord.New
     .ForStream("order-123")
     .WithValue(new OrderPlaced { OrderId = "order-123", Product = "Widget" })
@@ -99,13 +103,11 @@ var record = AppendRecord.New
 await client.Streams.AppendStream(record);
 ```
 
-The `ProtobufSchemaSerializer` uses the type's generated `Parser` to deserialize and `ToByteArray()` to serialize.
+Encoding calls `ToByteArray()` on the message. Decoding uses the type's generated `Parser`.
 
 ## Raw bytes
 
-Use `SchemaDataFormat.Bytes` when you want to handle serialization yourself or store opaque binary data. The `BytesPassthroughSerializer` accepts and returns the bytes without transformation.
-
-Supported input types: `byte[]`, `ReadOnlyMemory<byte>`, `Memory<byte>`, `ReadOnlySequence<byte>`, and `ArraySegment<byte>`.
+`SchemaDataFormat.Bytes` skips serialization. Use it when the payload is already encoded or when you want to handle serialization yourself. Accepted input types: `byte[]`, `ReadOnlyMemory<byte>`, `Memory<byte>`, `ReadOnlySequence<byte>`, and `ArraySegment<byte>`.
 
 ```csharp
 var payload = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"data\"}");
@@ -118,19 +120,20 @@ var record = AppendRecord.New
 ```
 
 ::: warning
-Records stored with `SchemaDataFormat.Bytes` are not automatically decoded when reading. The raw bytes are available on `Record.Data`, but `Record.Value` will not be populated and `Record.IsDecoded` will return `false`.
+Records stored as raw bytes are not decoded on read. The bytes are available on `Record.Data`, but `Record.Value` stays empty and `Record.IsDecoded` returns false. `TryDecode` always returns false for byte records.
 :::
 
-## Message type mapping
+## Avro
 
-The `MessageTypeMapper` maintains a bidirectional mapping between schema names stored in KurrentDB and .NET types. This mapping is what allows the client to deserialize records back into strongly-typed objects.
+Avro is reserved in `SchemaDataFormat` but no serializer is wired today. Choosing it on append throws `SchemaSerializerNotFoundException`.
 
-### Auto-mapping
+## Type mapping
 
-By default, the client automatically maps types to schema names the first time they are encountered during serialization. The schema name is derived from the .NET type using a naming strategy. This means you can append and read records without any upfront registration:
+`MessageTypeMapper` holds a bidirectional map between schema names stored in KurrentDB and .NET types. Encoding picks the schema name for an outgoing payload. Decoding picks the .NET type for an incoming record.
+
+By default the client auto-maps a type the first time it appears. The schema name comes from the active naming strategy, so no upfront registration is required:
 
 ```csharp
-// The client auto-maps OrderPlaced to its schema name on first use.
 var record = AppendRecord.New
     .ForStream("order-123")
     .WithValue(new OrderPlaced { OrderId = "order-123" })
@@ -139,109 +142,77 @@ var record = AppendRecord.New
 await client.Streams.AppendStream(record);
 ```
 
-### Explicit mapping with MessageTypeMapper
+Auto-mapping is convenient but lazy. A record can only be decoded once the type has been seen at least once in the current process, or registered explicitly up front.
 
-For full control over which types are mapped and what schema names they use, configure mappings on `KurrentClientOptions.Schema.Mapper` before creating the client. The mapper is mutable, so you can register types directly:
+A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Client setup › Service-provider overrides](./client-setup.md#service-provider-overrides).
 
-```csharp
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => {
-        opts.Schema.Mapper.Map<OrderPlaced>();
-        opts.Schema.Mapper.Map<OrderConfirmed>();
-        opts.Schema.Mapper.Map<OrderShipped>();
-    });
-```
+## Registering types
 
-`Map<T>()` (no argument) uses the type's `FullName` as the schema name. Pass a `SchemaName` to override it:
+The recommended way to populate the mapper is `MessageTypeMapper.Create`, which exposes a builder that respects the configured naming strategy:
 
 ```csharp
-opts.Schema.Mapper.Map<OrderPlaced>("order-placed");
-opts.Schema.Mapper.Map<OrderConfirmed>("order-confirmed");
-```
-
-For a builder-style configuration, `MessageTypeMapper.Builder` provides chained registration with a configurable naming strategy:
-
-```csharp
-var mapper = new MessageTypeMapper.Builder()
+var mapper = MessageTypeMapper.Create(m => m
     .WithStrategy(SchemaNameStrategies.Namespace("acme"))
     .Map<OrderPlaced>()
     .Map<OrderConfirmed>()
-    .Build();
+    .Map<OrderShipped>("order.shipped.v1"));
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
     opts => opts.Schema.Mapper = mapper);
 ```
 
-You can also register a `MessageTypeMapper` in DI and have `AddKurrentClient` apply it automatically. See [Client setup › Service-provider overrides](./client-setup.md#service-provider-overrides).
+Inside the builder, `Map<T>()` runs the strategy to derive a schema name. Pass a string to override.
 
-### MessageTypeMapper.Builder API
+The standalone `Map<T>()` method on the schema options' mapper works differently. It always uses `typeof(T).FullName` as the schema name and ignores the configured strategy:
 
-| Method                                | Description                                                                  |
-|---------------------------------------|------------------------------------------------------------------------------|
-| `Map<T>(string? schemaName = null)`   | Maps a type to a schema name. Auto-generates the name if not provided.       |
-| `TryMap<T>(string? schemaName = null)`| Maps a type if not already mapped. Does not throw on duplicates.             |
-| `WithStrategy(ISchemaNameStrategy)`   | Sets the naming strategy used for auto-generated schema names.                |
-| `Build()`                             | Returns the configured `MessageTypeMapper`.                                   |
+```csharp
+opts.Schema.NameStrategy = SchemaNameStrategies.Category();
 
-### MessageTypeMapper API
+opts.Schema.Mapper.Map<OrderPlaced>();              // "Acme.Orders.OrderPlaced" (FullName)
+opts.Schema.Mapper.Map<OrderPlaced>("order-placed"); // "order-placed"
+```
 
-The `MessageTypeMapper` is the underlying mapping store. Key methods:
+If you want the strategy applied, build the mapper through `Create` or `new MessageTypeMapper.Builder()` and assign the result. Mixing the two patterns produces inconsistent names for the same type.
 
-| Method                                    | Description                                                                                  |
-|-------------------------------------------|----------------------------------------------------------------------------------------------|
-| `Map(SchemaName, Type)`                   | Adds a mapping. Returns a `MapMessageTypeResult` (success or `MessageTypeConflictException`).|
-| `Map<T>(SchemaName)`                      | Generic overload of `Map`.                                                                   |
-| `Map<T>()`                                | Maps `T` using the type's `FullName` as the schema name.                                     |
-| `TryMap(SchemaName, Type)`                | Adds a mapping if the schema name is not already mapped. Returns `false` if already present. |
-| `TryMap<T>(SchemaName)`                   | Generic overload of `TryMap`.                                                                |
-| `TryGetMessageType(SchemaName, out Type)` | Looks up the .NET type for a schema name.                                                    |
-| `TryGetSchemaName(Type, out SchemaName)`  | Looks up the schema name for a .NET type.                                                    |
+## Mapper API
 
-## Schema name strategies
+| Method | Behavior |
+|--------|----------|
+| `Map(name, type)` | Adds a mapping. Returns `MapMessageTypeResult` carrying success or `MessageTypeConflictException`. Returns success when the same mapping already exists. |
+| `Map<T>()` | Maps `T` using `typeof(T).FullName`. Strategy is ignored. |
+| `Map<T>(name)` | Maps `T` to the given schema name. |
+| `TryMap(name, type)` | Returns true on add, false when the same mapping already exists. **Throws** `MessageTypeConflictException` when a different type already holds that name. |
+| `TryMap<T>(name)` | Same semantics as `TryMap(name, typeof(T))`. |
+| `TryGetMessageType(name, out type)` | Looks up the .NET type for a schema name. |
+| `TryGetSchemaName(type, out name)` | Looks up the schema name for a .NET type. |
+| `GetOrResolveMessageType(name)` | Returns the mapped type or throws `MessageTypeResolutionException`. |
 
-A schema name strategy determines how .NET types are converted to schema names. The default strategy uses the type's namespace and name.
+The `Map`/`TryMap` asymmetry is intentional. `Map` returns a result so callers can choose how to react. `TryMap` raises on a real conflict but treats an idempotent re-registration as a no-op. When in doubt, prefer the builder.
 
-Configure the strategy on the schema options:
+## Naming strategies
+
+A naming strategy decides how a .NET type becomes a schema name when no explicit name is supplied. The default uses the type's namespace and name. Override on the schema options:
 
 ```csharp
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => {
-        opts.Schema.NameStrategy = SchemaNameStrategies.Category();
-        opts.Schema.Mapper.Map<OrderPlaced>();
-        opts.Schema.Mapper.Map<OrderConfirmed>();
-    });
+    opts => opts.Schema.NameStrategy = SchemaNameStrategies.Category());
 ```
 
-Or pre-build a mapper that owns its own strategy via `MessageTypeMapper.Builder`:
+`SchemaNameStrategies` provides four factories. Examples assume type `Acme.Orders.OrderPlaced` and stream `order-123`:
 
-```csharp
-var mapper = new MessageTypeMapper.Builder()
-    .WithStrategy(SchemaNameStrategies.Category())
-    .Map<OrderPlaced>()
-    .Map<OrderConfirmed>()
-    .Build();
-```
+| Strategy | Output |
+|----------|--------|
+| `TypeName()` (default) | `Acme.Orders.OrderPlaced` |
+| `Category()` | `order.OrderPlaced` |
+| `Namespace("acme")` | `acme.OrderPlaced` |
+| `NamespaceCategory("acme")` | `acme.order.OrderPlaced` |
 
-### Built-in strategies
+Each factory accepts a `SchemaNameOutputFormat` that transforms the generated name. Examples below all use `TypeName()`:
 
-| Strategy | Example input | Example output |
-|----------|--------------|----------------|
-| `SchemaNameStrategies.TypeName()` | `Acme.Orders.OrderPlaced` | `Acme.Orders.OrderPlaced` |
-| `SchemaNameStrategies.Category()` | Stream `order-123`, type `OrderPlaced` | `order.OrderPlaced` |
-| `SchemaNameStrategies.Namespace("acme")` | Type `OrderPlaced` | `acme.OrderPlaced` |
-| `SchemaNameStrategies.NamespaceCategory("acme")` | Stream `order-123`, type `OrderPlaced` | `acme.order.OrderPlaced` |
-
-The default strategy is `TypeName()`, which uses `MessageSchemaNameStrategy`. It generates `{Namespace}.{TypeName}` from the .NET type.
-
-### Output formats
-
-Each strategy accepts an optional `SchemaNameOutputFormat` parameter that transforms the generated name:
-
-| Format | Example |
-|--------|---------|
+| Format | Output |
+|--------|--------|
 | `None` (default) | `Acme.Orders.OrderPlaced` |
 | `KebabCase` | `acme-orders.order-placed` |
 | `SnakeCase` | `acme_orders.order_placed` |
@@ -249,117 +220,73 @@ Each strategy accepts an optional `SchemaNameOutputFormat` parameter that transf
 
 ```csharp
 opts.Schema.NameStrategy = SchemaNameStrategies.Namespace("acme", SchemaNameOutputFormat.KebabCase);
-opts.Schema.Mapper.Map<OrderPlaced>();
 
-// Schema name: "acme.order-placed"
+// Auto-mapped schema name for OrderPlaced: "acme.order-placed"
 ```
 
-## Reading and deserializing records
+`Category` and `NamespaceCategory` derive the category from the stream name. They throw `ArgumentException` if the stream is empty, so use them only when every record has a stream segment to derive from.
 
-When reading records from a stream, each `Record` carries both the raw bytes and the deserialized value:
+## Reading records
+
+Each `Record` carries both raw bytes and the deserialized value:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Record.Data` | `ReadOnlyMemory<byte>` | The raw serialized bytes of the record. |
-| `Record.Value` | `object?` | The deserialized message, or `null` if not yet decoded. |
-| `Record.ValueType` | `Type` | The .NET type of the deserialized value. |
-| `Record.IsDecoded` | `bool` | `true` if `Value` has been populated. |
-| `Record.Schema` | `RecordSchemaInfo` | Schema metadata: name, format, and version. |
+| `Data` | `ReadOnlyMemory<byte>` | The raw serialized bytes. |
+| `Value` | `object?` | The deserialized message, or null if not decoded. |
+| `ValueType` | `Type` | The .NET type of the deserialized value. |
+| `IsDecoded` | `bool` | True when `Value` is populated. |
+| `Schema` | `RecordSchemaInfo` | Schema metadata: name, format, version. |
+| `TypeName` | `string` | CLR type name when decoded, otherwise the wire-level schema name. |
 
-### Automatic decoding
-
-Records are decoded automatically when the schema name is mapped to a known .NET type. If the type mapping exists (either through explicit registration or auto-mapping), `Record.Value` is populated with the deserialized object:
+When the schema name resolves to a known .NET type, the record is decoded automatically:
 
 ```csharp
 await foreach (var item in stream) {
     item.Switch(
         record => {
-            if (record.IsDecoded) {
-                // Value is the deserialized domain object
-                Console.WriteLine($"Type: {record.ValueType.Name}, Value: {record.Value}");
-            }
+            if (record.IsDecoded)
+                Console.WriteLine("Type: {0}, Value: {1}", record.ValueType.Name, record.Value);
         },
         heartbeat => { }
     );
 }
 ```
 
-### On-demand decoding with TryDecode
-
-If a record was not automatically decoded (for example, because the type mapping was not available at read time), you can attempt decoding later:
+If decoding was skipped because the type mapping was missing at read time, register the type and call `TryDecode` on demand:
 
 ```csharp
+opts.Schema.Mapper.Map<OrderPlaced>();
+
 await foreach (var item in stream) {
     item.Switch(
         async record => {
-            if (!record.IsDecoded) {
-                var decoded = await record.TryDecode();
-                if (decoded) {
-                    Console.WriteLine($"Decoded: {record.Value}");
-                }
-            }
+            if (!record.IsDecoded && await record.TryDecode())
+                Console.WriteLine("Decoded: {0}", record.Value);
         },
         heartbeat => { }
     );
 }
 ```
 
-`TryDecode` returns `true` if decoding succeeded, `false` otherwise. For records stored with `SchemaDataFormat.Bytes`, `TryDecode` always returns `false`. Use `Record.Data` to access the raw bytes directly.
+`TryDecode` returns true on success, false otherwise. Records stored as raw bytes always return false. Read them directly from `Record.Data`.
 
-### Accessing schema metadata
+::: tip
+For zero-overhead casting on a known type, use the `record.As<T>()` extension.
+:::
 
-Every record carries schema information in `Record.Schema`:
-
-```csharp
-var schemaInfo = record.Schema;
-
-Console.WriteLine($"Schema name: {schemaInfo.SchemaName}");
-Console.WriteLine($"Data format: {schemaInfo.SchemaFormat}");
-Console.WriteLine($"Has version: {schemaInfo.HasSchemaId}");
-```
-
-## Schema registration options
-
-The `SchemaRegistrationOptions` record controls how the client handles schema registration and validation. Several presets are available:
-
-| Preset | Auto-map | Registration | Validation |
-|--------|----------|-------------|------------|
-| `SchemaRegistrationOptions.AutoMap` | Yes | Manual | Disabled |
-| `SchemaRegistrationOptions.ManualMap` | No | Manual | Disabled |
-| `SchemaRegistrationOptions.AutoRegister` | Yes | Auto | Enabled |
-| `SchemaRegistrationOptions.ManualRegister` | No | Manual | Enabled |
-| `SchemaRegistrationOptions.ServerPolicy` | Yes | Server policy | Enabled |
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `AutoMapMessages` | `bool` | `true` | Automatically map .NET types to schema names on first encounter. |
-| `RegistrationMode` | `SchemaRegistrationMode` | `Manual` | Controls whether schemas are auto-registered with the schema registry. |
-| `ValidationMode` | `SchemaValidationMode` | `Disabled` | Controls whether schemas are validated against the registry. |
-| `SchemaNameStrategy` | `ISchemaNameStrategy` | `MessageSchemaNameStrategy` | Strategy for generating schema names. |
-
-## Client-level schema configuration
-
-Set `KurrentClientOptions.Schema` to choose how the client handles schema registration and validation. Use one of the static presets, or assign a custom `KurrentClientSchemaOptions`:
+Schema metadata is on `Record.Schema`:
 
 ```csharp
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.Schema = KurrentClientSchemaOptions.Disabled);
+var info = record.Schema;
+
+Console.WriteLine("Schema name: {0}", info.SchemaName);
+Console.WriteLine("Data format: {0}", info.SchemaFormat);
+Console.WriteLine("Has version: {0}", info.HasSchemaId);
 ```
 
-The `KurrentClientSchemaOptions` presets:
+## Schema registry interactions
 
-| Preset                      | AutoRegister | PreValidate | Description                                       |
-|-----------------------------|--------------|-------------|---------------------------------------------------|
-| `FullValidation`            | `true`       | `true`      | Default. Auto-register and validate schemas.      |
-| `NoAutomaticRegistration`   | `false`      | `true`      | Manual registration with validation.              |
-| `NoValidation`              | `true`       | `false`     | Auto-register without validation.                 |
-| `Disabled`                  | `false`      | `false`     | No registration or validation.                    |
+To control how the client registers schemas with the server or validates messages against them on append, see [Schema Registry › Client options](./schema-registry/client-options.md).
 
-`KurrentClientSchemaOptions` also exposes `NameStrategy`, `Mapper`, `Json`, and `Protobuf`. Use `with` to override individual properties:
-
-```csharp
-opts.Schema = KurrentClientSchemaOptions.NoAutomaticRegistration with {
-    NameStrategy = SchemaNameStrategies.Namespace("acme")
-};
-```
+Server-side registration and validation only run for JSON today. Protobuf and bytes payloads still flow through the mapper and naming strategy locally, but the schema registry is not contacted. Avro is reserved but not implemented.

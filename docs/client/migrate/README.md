@@ -1,6 +1,5 @@
 ---
 title: Migrate your project
-order: 11
 index: false
 ---
 

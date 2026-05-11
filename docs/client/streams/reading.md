@@ -108,11 +108,13 @@ var stream = client.Streams.ReadRecords(LogPosition.Earliest);
 
 ### Key positions
 
-| Value                    | Description                       |
-|--------------------------|-----------------------------------|
-| `LogPosition.Earliest`   | Beginning of the log (position 0) |
-| `LogPosition.Latest`     | End of the log                    |
-| `LogPosition.From(long)` | A specific position               |
+`LogPosition` exposes three values you can pass to `FromPosition`:
+
+| Value          | Description                       |
+|----------------|-----------------------------------|
+| `Earliest`     | Beginning of the log (position 0) |
+| `Latest`       | End of the log                    |
+| `From(long)`   | A specific position               |
 
 ## Builder methods
 

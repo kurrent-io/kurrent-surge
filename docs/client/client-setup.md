@@ -1,30 +1,22 @@
----
-order: 2
----
-
 # Client setup
 
 <CopyMarkdownButton />
 
-`KurrentClient` is the entry point to KurrentDB. A single instance handles connections, retries, serialization, and routing for your entire application, and is configured through a `KurrentClientOptions` record.
+A single `KurrentClient` instance handles connections, retries, serialization, and routing for your entire application. Configure it through a connection string or a `KurrentClientOptions` record.
 
-## Connect to a local development node
+## Local development
 
-For local development with KurrentDB running in Docker (as in the [Quickstart](./quickstart.md)), the client only needs the address and a flag to disable TLS. You can supply this through a connection string or build the options programmatically. If your app uses dependency injection, skip ahead to [Register with dependency injection](#register-with-dependency-injection).
+For a node started with the [Quickstart](./quickstart.md) (Docker, no TLS), the client only needs the address and a flag to disable TLS.
 
 ::: tabs#connect-local
 
 @tab Connection string
-
-The connection string is the most concise option. The `?tls=false` query disables TLS for plaintext local development.
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 ```
 
 @tab Options
-
-Build a `KurrentClientOptions` record when you want to set fields directly without going through a string. `KurrentClientSecurityOptions.Insecure` disables TLS without you having to remember the query parameter.
 
 ```csharp
 var options = new KurrentClientOptions {
@@ -37,17 +29,15 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
-`KurrentClient.Create` parses the connection string, configures a gRPC channel, and applies sensible defaults for resilience and serialization.
+If your app uses dependency injection, skip to [Register with dependency injection](#register-with-dependency-injection).
 
-## Authenticate with basic credentials
+## Connect with username and password
 
-The default scheme `kurrentdb` enables TLS automatically, and the client refuses to connect to a plaintext endpoint when TLS is on.
+The default `kurrentdb` scheme enables TLS automatically. The client refuses plaintext when TLS is on.
 
 ::: tabs#auth-basic
 
 @tab Connection string
-
-Embed the username and password in the connection string.
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://admin:changeit@kurrentdb.internal:2113");
@@ -61,8 +51,6 @@ await using var client = KurrentClient.Create("kurrentdb://admin:changeit@kurren
 
 @tab Options
 
-Use the `KurrentClientSecurityOptions.Basic` factory to configure transport and credentials in one call.
-
 ```csharp
 var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
     Security = KurrentClientSecurityOptions.Basic("admin", "changeit")
@@ -73,23 +61,19 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
-## Authenticate with mutual TLS
+## Connect with mutual TLS
 
-If your cluster uses certificate-based authentication, point the client at the client certificate and key.
+For certificate-based authentication, point the client at a client certificate and key.
 
 ::: tabs#auth-mtls
 
 @tab Connection string
-
-Pass the certificate and key paths as query parameters. TLS is on by default with the `kurrentdb` scheme.
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://kurrentdb.internal:2113?userCertFile=/certs/client.crt&userKeyFile=/certs/client.key");
 ```
 
 @tab Options
-
-Use the `KurrentClientSecurityOptions.MutualTls` factory to configure both transport and client authentication in one call. A custom CA can be supplied through `rootCaPath`.
 
 ```csharp
 var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
@@ -104,7 +88,7 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
-If neither factory fits your setup (for example, basic auth over a private CA), compose `TransportSecurity` and `ClientCredentials` directly:
+For combinations the factories don't cover (basic auth over a private CA, for example), compose transport and authentication directly:
 
 ```csharp
 var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
@@ -115,9 +99,9 @@ var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") 
 };
 ```
 
-## Discover cluster nodes
+## Connect to a cluster
 
-For clustered deployments, switch the scheme to `kurrentdb+discover` and list the seed nodes. The client uses gossip to discover the full cluster and routes operations based on `nodePreference`.
+For multi-node deployments, switch the scheme to `kurrentdb+discover` and list the seed nodes. The client uses gossip to discover the full cluster, then routes operations based on the configured preference.
 
 ::: tabs#cluster-discovery
 
@@ -148,6 +132,8 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
+Available node preferences:
+
 | Preference        | Description                          |
 |-------------------|--------------------------------------|
 | `Leader`          | Always route to the cluster leader   |
@@ -155,7 +141,7 @@ await using var client = KurrentClient.Create(options);
 | `ReadOnlyReplica` | Prefer a read-only replica           |
 | `Random`          | Pick any reachable node (default)    |
 
-For an mTLS cluster, combine the patterns above:
+For an mTLS cluster, combine certificate auth with discovery:
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb+discover://node1:2113,node2:2113,node3:2113?userCertFile=/certs/client.crt&userKeyFile=/certs/client.key&nodePreference=Follower");
@@ -163,13 +149,13 @@ await using var client = KurrentClient.Create("kurrentdb+discover://node1:2113,n
 
 ## Register with dependency injection
 
-`AddKurrentClient` registers `KurrentClient` as a singleton in `IServiceCollection`. One instance is thread-safe and reuses a single gRPC channel, so it serves the whole application. Each overload suits a different configuration source.
+`AddKurrentClient` registers a singleton client in `IServiceCollection`. One instance is thread-safe and reuses a single gRPC channel, so it serves the whole application.
 
 ::: tabs#di-overloads
 
 @tab From appsettings.json
 
-The parameterless overload reads the connection string from `ConnectionStrings:KurrentDB` in `IConfiguration`. Add the entry to your `appsettings.json`:
+The parameterless overload reads `ConnectionStrings:KurrentDB` from `IConfiguration`:
 
 ```json
 {
@@ -179,8 +165,6 @@ The parameterless overload reads the connection string from `ConnectionStrings:K
 }
 ```
 
-Then register the client with no arguments:
-
 ```csharp
 services.AddKurrentClient();
 ```
@@ -189,15 +173,11 @@ If neither a connection string nor a `KurrentClientOptions` instance is register
 
 @tab From a connection string
 
-Pass the connection string directly when you don't need it in configuration:
-
 ```csharp
 services.AddKurrentClient("kurrentdb://admin:changeit@kurrentdb.internal:2113");
 ```
 
 @tab From an options instance
-
-Construct a `KurrentClientOptions` record for full programmatic control:
 
 ```csharp
 services.AddKurrentClient(new KurrentClientOptions {
@@ -209,7 +189,7 @@ services.AddKurrentClient(new KurrentClientOptions {
 
 :::
 
-Each overload also accepts a configure callback as a final argument. The callback runs after options are resolved from the service provider and configuration, so anything you set here overrides earlier values:
+Each overload accepts a configure callback as a final argument. The callback runs after options are resolved, so anything set there takes precedence:
 
 ```csharp
 services.AddKurrentClient(opts => {
@@ -219,9 +199,7 @@ services.AddKurrentClient(opts => {
 
 All overloads use `TryAddSingleton`, so subsequent calls are ignored when a client is already registered.
 
-### Service-provider overrides
-
-Whichever overload you choose, the registration applies these services to the options before constructing the client. Each one overrides any value already set on the options.
+Registration also pulls these services from the container and applies them to the options, overriding any value already set:
 
 | Service             | Applied to                |
 |---------------------|---------------------------|
@@ -229,11 +207,7 @@ Whichever overload you choose, the registration applies these services to the op
 | `ILoggerFactory`    | `options.LoggerFactory`   |
 | `IMetadataDecoder`  | `options.MetadataDecoder` |
 
-Registering `ILoggerFactory` in DI is enough to wire it into the client. No separate call is needed.
-
-### Configure logging outside DI
-
-When constructing a client without a service provider, assign `LoggerFactory` directly:
+A registered `ILoggerFactory` wires logging into the client automatically. Outside DI, assign it on the options:
 
 ```csharp
 await using var client = KurrentClient.Create(
@@ -244,7 +218,7 @@ await using var client = KurrentClient.Create(
 
 ## Tune resilience
 
-The client ships with predefined resilience profiles for common scenarios:
+The client ships predefined profiles for common scenarios:
 
 | Profile            | Retries     | Deadline    | Use for                                          |
 |--------------------|-------------|-------------|--------------------------------------------------|
@@ -264,7 +238,7 @@ await using var client = KurrentClient.Create(
     opts => opts.Resilience = KurrentClientResilienceOptions.HighAvailability);
 ```
 
-Tune individual settings on top of a profile with `with`:
+Override individual settings on top of a profile:
 
 ```csharp
 await using var client = KurrentClient.Create(
@@ -276,11 +250,11 @@ await using var client = KurrentClient.Create(
     });
 ```
 
-`KurrentClient.Create(connectionString, configure)` parses the string into options first and then runs your callback, so anything you set in the callback wins.
+The two-argument `Create` overload parses the connection string into options first, then runs the callback, so anything set in the callback wins.
 
 ## Connection string reference
 
-The parameters below apply to every connection string, regardless of whether you are connecting to a local node, a single production server, or a cluster. Parameter names are case-insensitive.
+These parameters apply to every connection string, whether you target a local node, a single production server, or a cluster. Names are case-insensitive.
 
 | Parameter             | Type   | Default  | Description                                                                     |
 |-----------------------|--------|----------|---------------------------------------------------------------------------------|
@@ -298,4 +272,4 @@ The parameters below apply to every connection string, regardless of whether you
 | `gossipTimeout`       | int    | `5000`   | Individual discovery attempt timeout in milliseconds                            |
 | `nodePreference`      | enum   | `Random` | Node selection for reads (`Leader` / `Follower` / `ReadOnlyReplica` / `Random`) |
 
-Supported schemes are `kurrentdb` and `kurrentdb+discover`.
+Supported schemes: `kurrentdb` and `kurrentdb+discover`.

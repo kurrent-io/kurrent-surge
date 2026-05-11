@@ -6,7 +6,7 @@ order: 4
 
 <CopyMarkdownButton />
 
-Filters narrow the set of records returned from a read. They work against named streams, the global log, and secondary index streams. The same `IRecordFilter` types apply across `ReadStream` and `ReadRecords` (and their request builders).
+Filters narrow the records returned from a read. The same filter types apply to `ReadRecords` (global log) and `ReadStream` (single stream), and to subscriptions built on top of them.
 
 ```csharp
 var request = ReadRecordsRequest.New
@@ -14,61 +14,60 @@ var request = ReadRecordsRequest.New
     .WithFilter(RecordFilter.ByCategory("order"))
     .Build();
 
-var stream = client.Streams.ReadRecords(request);
+await foreach (var item in client.Streams.ReadRecords(request)) {
+    // ...
+}
 ```
 
 ## Factory methods
 
 `RecordFilter` is the entry point. Each factory returns an `IRecordFilter` you pass to `WithFilter`.
 
-| Factory | Targets | Description |
+| Factory | Resolves to | Description |
 |---|---|---|
-| `RecordFilter.None` | `$all` | Matches every record. |
-| `RecordFilter.ByStream(string)` | named stream | Exact match on a single stream. Rejects names that start with `$idx-`. |
-| `RecordFilter.ByCategory(string)` | `$idx-ce-{category}` | All streams sharing a category prefix (KurrentDB stream names follow the convention `category-id`). |
-| `RecordFilter.BySchema(string)` | `$idx-et-{schema}` | All records of a given schema name. |
-| `RecordFilter.ByUserIndex(string)` | `$idx-user-{name}` | A user-defined secondary index. |
-| `RecordFilter.ByStreamPattern(string)` | `$all` | Regex match on stream names. Rejects patterns that target index streams. |
-| `RecordFilter.ByExpression(string)` | depends on expression | DuckDB-compatible filter expression. The client extracts a server-side component when possible. |
+| `None` | `$all` | Matches every record. |
+| `ByStream(name)` | named stream | Exact match on a single stream. Rejects names starting with `$idx-`. |
+| `ByCategory(category)` | `$idx-ce-{category}` | All streams sharing a category prefix. |
+| `BySchema(schema)` | `$idx-et-{schema}` | All records of a given schema name. |
+| `ByUserIndex(name)` | `$idx-user-{name}` | A user-defined secondary index. |
+| `ByStreamPattern(regex)` | `$all` | Regex match on stream names. Rejects patterns targeting index streams. |
+| `ByExpression(sql)` | depends on expression | DuckDB-compatible SQL expression. The client pushes down what the server can evaluate. |
 
-`ByCategory`, `BySchema`, and `ByUserIndex` route through the server's secondary-index dispatch path. They are the recommended way to read across many streams and significantly cheaper than scanning `$all`.
+`ByCategory`, `BySchema`, and `ByUserIndex` route through the server's secondary-index dispatch path. They are the right way to read across many streams and significantly cheaper than scanning `$all`.
 
-## Stream filters
+## Match a single stream
 
 ```csharp
-RecordFilter.ByStream("order-123");
+var filter = RecordFilter.ByStream("order-123");
 ```
 
-Sets `TargetStream`, so the client routes the read directly to the named stream.
+The filter resolves to the named stream, so reads route directly to it without scanning `$all`.
 
-To match by pattern instead:
+## Match across streams
+
+For multi-stream reads, prefer the index helpers over hand-built patterns.
+
+```csharp
+var byCategory  = RecordFilter.ByCategory("order");           // all "order-*" streams
+var bySchema    = RecordFilter.BySchema("OrderPlaced");       // all OrderPlaced records
+var byUserIndex = RecordFilter.ByUserIndex("HighValueOrders");
+```
+
+Passing an `$idx-*` stream name to `ByStream` or `ByStreamPattern` throws `ArgumentException` with a redirect to the correct factory.
+
+## Match by regex
+
+Use `ByStreamPattern` only when an index helper does not fit. Patterns are standard .NET regex.
 
 ```csharp
 var filter = RecordFilter.ByStreamPattern(@"^order-\d+$");
 ```
 
-Patterns are standard .NET regex. Use `(?i)` for case-insensitive matching. Anchored literal patterns (e.g. `^order-123$`) are detected and routed as direct stream reads. Wildcards and alternations fall back to `$all` with client-side matching.
+Anchored literal patterns (`^order-123$`) are recognized and routed as direct stream reads. Wildcards, alternation, and case-insensitive modifiers fall back to `$all` with client-side matching. Use `(?i)` for case-insensitive matches.
 
-## Index filters
+## Match by expression
 
-For multi-stream reads, use the index helpers instead of building patterns by hand.
-
-```csharp
-// All records in streams matching "order-*"
-var byCategory = RecordFilter.ByCategory("order");
-
-// All OrderPlaced records across every stream
-var byType = RecordFilter.BySchema("OrderPlaced");
-
-// A user-defined secondary index
-var byUserIndex = RecordFilter.ByUserIndex("HighValueOrders");
-```
-
-Passing an `$idx-*` stream name to `ByStream` or `ByStreamPattern` throws `ArgumentException` with a redirect to the correct factory. Use the factories directly.
-
-## Expression filters
-
-`ByExpression` takes a DuckDB-style SQL expression. The expression can reference stream metadata, the decoded payload, and record metadata.
+`ByExpression` takes a DuckDB-compatible SQL expression. The expression can reference stream metadata, the decoded payload, and record metadata.
 
 ```csharp
 var filter = RecordFilter.ByExpression(
@@ -81,11 +80,24 @@ var request = ReadRecordsRequest.New
     .Build();
 ```
 
-The expression is parsed at construction. The client analyzes the AST and pushes down what the server can evaluate (typically stream and schema predicates), running the rest client-side after decoding.
+The expression is parsed at construction. The client analyzes the AST, pushes down stream and schema predicates the server can evaluate, and runs the rest client-side after decoding.
 
-### Property aliases
+To pass the expression directly:
 
-Expressions reference record properties by alias. The standard map:
+```csharp
+var request = ReadRecordsRequest.New
+    .FromPosition(LogPosition.Earliest)
+    .WithFilterExpression("stream LIKE 'order-%' AND schema_name = 'OrderPlaced'")
+    .Build();
+```
+
+`WithFilterExpression` is shorthand for `WithFilter(RecordFilter.ByExpression(...))`.
+
+When an expression references `data.*`, decoding must remain enabled (the default). `SkipDecoding()` makes payload predicates always evaluate to false.
+
+## Expression properties
+
+Expressions reference record properties by alias.
 
 | Alias | Source |
 |---|---|
@@ -107,51 +119,40 @@ RecordFilter.ByExpression("props.tenant = 'acme' AND ts > 1700000000000");
 RecordFilter.ByExpression("data.address.city = 'Berlin'");
 ```
 
-When an expression references `data.*`, decoding must be enabled (the default). Setting `SkipDecoding()` on the request makes payload predicates always fail.
+## Filters on stream reads
 
-## Filter expressions on the request builder
+`ReadStreamRequest.WithFilter` accepts a filter only if it does not contradict the stream being read. Allowed combinations:
 
-You can pass an expression string directly without building a filter object:
+| Filter | Allowed on `ReadStreamRequest` |
+|---|---|
+| `RecordFilter.None` | Yes |
+| `ByStream(s)` where `s` matches `ForStream(s)` | Yes |
+| `ByExpression` whose server filter resolves to the same stream | Yes |
+| Any filter targeting a different stream or `$all` | No, fails validation at `Build()` |
+
+For multi-stream and index reads, use `ReadRecordsRequest`. The client collapses index-targeted requests into a direct read on the resolved index stream.
 
 ```csharp
 var request = ReadRecordsRequest.New
     .FromPosition(LogPosition.Earliest)
-    .WithFilterExpression("stream like 'order-%' AND schema_name = 'OrderPlaced'")
+    .WithFilter(RecordFilter.BySchema("OrderPlaced"))
     .Build();
 ```
 
-`WithFilterExpression` is shorthand for `WithFilter(RecordFilter.ByExpression(...))`.
-
 ## Inspecting a filter
 
-Every filter exposes the original expression and the target stream it resolved to:
+Every filter exposes read-only properties used by request shaping.
+
+| Property | Description |
+|---|---|
+| `Expression` | The regex pattern (`StreamFilter`) or SQL string (`ExpressionFilter`) the filter evaluates. |
+| `TargetStream` | The stream the filter resolves to. `$all` for filters without a single target. |
+| `IsStreamFilter` | True when the filter resolves to a single stream (named or index). |
+| `IsIndexFilter` | True when that stream is a `$idx-*` index. |
 
 ```csharp
 var filter = RecordFilter.ByCategory("order");
 
-Console.WriteLine("Expression:    {0}", filter.Expression);
-Console.WriteLine("Target stream: {0}", filter.TargetStream);
-Console.WriteLine("Index filter:  {0}", filter.IsIndexFilter);
+Console.WriteLine("Target: {0}", filter.TargetStream);  // $idx-ce-order
+Console.WriteLine("Index?  {0}", filter.IsIndexFilter); // True
 ```
-
-`IsStreamFilter` is true when the filter resolves to a single stream (named or index). `IsIndexFilter` is true when that stream is a `$idx-*` index. Reading code uses these flags to route requests through the right server endpoint.
-
-## Combining filters with reads
-
-Filters apply uniformly across read APIs.
-
-```csharp
-// Stream read, narrowed by schema name
-var streamRequest = ReadStreamRequest.New
-    .ForStream("order-123")
-    .WithFilter(RecordFilter.BySchema("OrderPlaced"))
-    .Build();
-
-// Global log, narrowed by category
-var logRequest = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByCategory("order"))
-    .Build();
-```
-
-When a filter targets a single stream (named or index), `ReadRecords` and `ReadStream` collapse to a direct stream read on the resolved `TargetStream`. No special handling is required from the caller.

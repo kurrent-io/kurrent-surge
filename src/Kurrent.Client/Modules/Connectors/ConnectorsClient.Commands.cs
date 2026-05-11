@@ -1,7 +1,7 @@
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
-using Contracts = KurrentDB.Connectors.Management.Contracts;
+using Kurrent.Client.Streams;
 using Commands = KurrentDB.Connectors.Management.Contracts.Commands;
 
 namespace Kurrent.Client.Connectors;
@@ -60,7 +60,7 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
     public async ValueTask<Success> Create(
         ConnectorId connectorId,
-        string? name,
+        string name,
         Struct configuration,
         CancellationToken cancellationToken = default
     ) {
@@ -215,7 +215,7 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
     public async ValueTask<Success> Start(
         ConnectorId connectorId,
-        ulong? logPosition = null,
+        LogPosition? logPosition = null,
         CancellationToken cancellationToken = default
     ) {
         if (connectorId.IsUnset)
