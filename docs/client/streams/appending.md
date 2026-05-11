@@ -145,7 +145,51 @@ await client.Streams.AppendRecords(
         .Build());
 ```
 
-Available checks: `StreamAtRevision`, `StreamExists`, `StreamDoesNotExist`, `StreamIsDeleted`, `StreamIsTombstoned`.
+See [Guard a multi-stream transaction](#guard-a-multi-stream-transaction) for the full set of checks and how violations surface.
+
+## Guard a multi-stream transaction
+
+Each consistency check is a pre-commit assertion the server evaluates against the current state of a stream. If any check on an `AppendRecords` request fails, the whole transaction is rejected. `ExpectingState` on a single-stream `AppendStream` is sugar for the same mechanism, applied to one stream.
+
+The most useful check is `StreamAtRevision`, which asserts a stream has not moved since you last read it. Pair it with a write to a different stream to enforce a multi-aggregate invariant atomically. Below, a transfer event is written only if the inventory stream is still at the revision that was read:
+
+```csharp
+var inventory = await client.Streams.ReadStreamEdge($"inventory-{sku}", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
+
+var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
+
+await client.Streams.AppendRecords(
+    AppendRecordsRequest.New()
+        .WithRecord(transferEvent, "transfer-log")
+        .WithChecks(ConsistencyCheck.StreamAtRevision($"inventory-{sku}", inventory.Revision))
+        .Build());
+```
+
+Combine several checks in one request with `WithChecks`. Each check targets a stream independently, so revision pins and existence assertions can mix freely:
+
+```csharp
+await client.Streams.AppendRecords(
+    AppendRecordsRequest.New()
+        .WithRecord(orderEvent, $"order-{orderId}")
+        .WithChecks(
+            ConsistencyCheck.StreamAtRevision($"cart-{cartId}", cartRevision),
+            ConsistencyCheck.StreamDoesNotExist($"order-{orderId}"))
+        .Build());
+```
+
+`WithCheck` adds a single check if you prefer one-at-a-time composition.
+
+Available checks:
+
+| Factory                              | Asserts                                         |
+|--------------------------------------|-------------------------------------------------|
+| `StreamAtRevision(stream, revision)` | Current revision matches exactly                |
+| `StreamExists(stream)`               | Stream has at least one record                  |
+| `StreamDoesNotExist(stream)`         | Stream has no records, or has been deleted      |
+| `StreamIsDeleted(stream)`            | Stream is soft-deleted                          |
+| `StreamIsTombstoned(stream)`         | Stream is permanently deleted                   |
+
+When a check fails, `AppendRecords` throws `AppendConsistencyViolationException` carrying one violation per failed check, each with the stream, expected state, and actual state. See [Handle append errors](#handle-append-errors) for the catch pattern, and the [cross-stream consistency check matrix](#cross-stream-consistency-check) for which expected and actual combinations pass.
 
 ## Append non-JSON payloads
 
