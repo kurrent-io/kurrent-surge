@@ -12,8 +12,11 @@ public static class ConfigurationExtensions {
     /// Converts a flat dictionary to a hierarchical Protobuf Struct.
     /// Keys using ':' as separator are converted to nested objects.
     /// </summary>
-    public static Struct ToProtobufStruct(this IReadOnlyDictionary<string, string?> configuration) =>
-        new ConfigurationBuilder().AddInMemoryCollection(configuration).Build().ToProtobufStruct();
+    public static Struct ToProtobufStruct(this IReadOnlyDictionary<string, string> configuration) =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(configuration.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value)))
+            .Build()
+            .ToProtobufStruct();
 
     /// <summary>
     /// Converts an IConfiguration to a Protobuf Struct, preserving the hierarchical structure.
@@ -64,8 +67,8 @@ public static class ConfigurationExtensions {
     /// <summary>
     /// Flattens a hierarchical Protobuf Struct into a flat dictionary using ':' as key separator.
     /// </summary>
-    public static Dictionary<string, string?> FlattenStruct(this Struct source) {
-        var dictionary = new Dictionary<string, string?>();
+    public static Dictionary<string, string> FlattenStruct(this Struct source) {
+        var dictionary = new Dictionary<string, string>();
         FlattenStruct(source, string.Empty, dictionary);
         return dictionary;
     }
@@ -73,17 +76,17 @@ public static class ConfigurationExtensions {
     /// <summary>
     /// Flattens a hierarchical Protobuf Struct into a flat dictionary with a key prefix.
     /// </summary>
-    public static void FlattenStruct(Struct source, string prefix, Dictionary<string, string?> dictionary) {
+    public static void FlattenStruct(Struct source, string prefix, Dictionary<string, string> dictionary) {
         foreach (var field in source.Fields) {
             var key = string.IsNullOrEmpty(prefix) ? field.Key : $"{prefix}:{field.Key}";
             FlattenValue(field.Value, key, dictionary);
         }
     }
 
-    static void FlattenValue(Value value, string key, Dictionary<string, string?> dictionary) {
+    static void FlattenValue(Value value, string key, Dictionary<string, string> dictionary) {
         switch (value.KindCase) {
             case Value.KindOneofCase.NullValue:
-                dictionary[key] = null;
+                dictionary[key] = "";
                 break;
 
             case Value.KindOneofCase.NumberValue:
