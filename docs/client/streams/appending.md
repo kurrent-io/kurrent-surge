@@ -279,20 +279,6 @@ See [Append-specific exceptions](#reference) below for the exception raised on e
 
 ## Reference
 
-`AppendRecord.New` builder methods:
-
-| Method                              | Description                                                            |
-|-------------------------------------|------------------------------------------------------------------------|
-| `ForStream(StreamName)`             | Set the destination stream                                             |
-| `WithId(Guid)`                      | Set a specific record id (auto-generated if omitted)                   |
-| `WithValue(object)`                 | Set the payload                                                        |
-| `WithDataFormat(SchemaDataFormat)`  | Override serialization format (`Json`, `Protobuf`, `Avro`, `Bytes`)    |
-| `WithMetadata(Metadata)`            | Replace metadata wholesale                                             |
-| `WithMetadata<T>(string, T)`        | Add or update a single metadata entry                                  |
-| `WithTimestamp(DateTimeOffset)`     | Override the record timestamp                                          |
-
-`Build()` throws `ValidationException` if the value is missing. The destination stream is enforced when the record joins a request, so a record without `ForStream` is valid as long as the request supplies one.
-
 Expected stream state values:
 
 | Value              | Check performed                    |
