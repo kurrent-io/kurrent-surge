@@ -13,8 +13,8 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Create(ConnectorId connectorId, CancellationToken ct) =>
             client.Create(connectorId, [], ct);
 
-        public ValueTask<Success> Create(ConnectorId connectorId, Dictionary<string, string> settings) =>
-            client.Create(connectorId, settings, CancellationToken.None);
+        public ValueTask<Success> Create(ConnectorId connectorId, Dictionary<string, string> configuration) =>
+            client.Create(connectorId, configuration, CancellationToken.None);
 
         public ValueTask<Success> Create(ConnectorId connectorId, IConfiguration configuration) =>
             client.Create(connectorId, configuration.ToFlatDictionary(), CancellationToken.None);
@@ -28,8 +28,8 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Create(ConnectorId connectorId, string configuration, CancellationToken ct) =>
             client.Create(connectorId, configuration.ToFlatDictionary(), ct);
 
-        public ValueTask<Success> Create(ConnectorId connectorId, string name, Dictionary<string, string> settings) =>
-            client.Create(connectorId, name, settings, CancellationToken.None);
+        public ValueTask<Success> Create(ConnectorId connectorId, string name, Dictionary<string, string> configuration) =>
+            client.Create(connectorId, name, configuration, CancellationToken.None);
 
         public ValueTask<Success> Create(ConnectorId connectorId, string name, IConfiguration configuration) =>
             client.Create(connectorId, name, configuration.ToFlatDictionary(), CancellationToken.None);
@@ -48,8 +48,8 @@ public static partial class ConnectorsClientExtensions {
 
         #region ->> Reconfigure <<-
 
-        public ValueTask<Success> Reconfigure(ConnectorId connectorId, Dictionary<string, string> settings)
-            => client.Reconfigure(connectorId, settings, CancellationToken.None);
+        public ValueTask<Success> Reconfigure(ConnectorId connectorId, Dictionary<string, string> configuration)
+            => client.Reconfigure(connectorId, configuration, CancellationToken.None);
 
         public ValueTask<Success> Reconfigure(ConnectorId connectorId, IConfiguration configuration)
             => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), CancellationToken.None);
