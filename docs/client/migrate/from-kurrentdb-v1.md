@@ -234,7 +234,7 @@ var record = AppendRecord.New
 var result = await client.Streams.AppendStream(record);
 ```
 
-`AppendRecord` handles JSON serialization automatically. The schema name is derived from the .NET type using the configured naming strategy. See [Serialization](../serialization.md) for how to control this.
+`AppendRecord` handles JSON serialization automatically. The schema name is derived from the .NET type using the configured naming strategy. See [Serialization](../serialization/README.md) for how to control this.
 
 ### Reading
 

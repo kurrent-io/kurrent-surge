@@ -85,7 +85,13 @@ export default defineUserConfig({
                     text: "Concepts",
                     collapsible: false,
                     children: [
-                        "serialization",
+                        {
+                            text: "Serialization",
+                            prefix: "serialization/",
+                            link: "serialization/",
+                            collapsible: true,
+                            children: "structure",
+                        },
                         "error-handling",
                     ],
                 },

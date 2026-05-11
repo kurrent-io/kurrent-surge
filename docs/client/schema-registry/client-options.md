@@ -1,5 +1,5 @@
 ---
-order: 3
+order: 4
 ---
 
 # Client options
@@ -8,7 +8,7 @@ order: 3
 
 `KurrentClientOptions.Schema` controls how the client interacts with the registry on append: whether new schemas are auto-registered the first time the client sees them, and whether outgoing messages are validated against the registered schema before they leave the client. Set it once on the client and every module picks it up.
 
-For serialization itself (data formats, type mapping, name strategies), see [Serialization](../serialization.md).
+For serialization itself (data formats, type mapping, name strategies), see [Serialization](../serialization/README.md).
 
 ## Presets
 
@@ -37,4 +37,4 @@ opts.Schema = KurrentClientSchemaOptions.NoAutomaticRegistration with {
 };
 ```
 
-The registration and validation behavior of the preset is preserved. Only the property you assign changes. See [Serialization](../serialization.md) for the available strategies and mapper APIs.
+The registration and validation behavior of the preset is preserved. Only the property you assign changes. See [Serialization](../serialization/README.md) for the available strategies and mapper APIs.

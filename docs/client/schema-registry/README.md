@@ -7,27 +7,23 @@ index: false
 
 <CopyMarkdownButton />
 
-The schema registry stores reusable schema definitions and validates new versions against compatibility rules. Use it to coordinate event evolution across producers and consumers without breaking either side.
+The schema registry stores reusable schema definitions and validates new versions against compatibility rules. Use it to coordinate event evolution across producers and consumers without breaking either side. All operations live on `client.Registry`.
 
-All operations live on `client.Registry`.
+## In this section
 
-## Concepts
+- [How it works](./how-it-works.md) — what the registry stores, how validation runs on append, where the pieces live.
+- [Getting started](./getting-started/README.md) — practical guides for creating, getting, updating, and deleting schemas.
+- [Compatibility modes](./compatibility-modes.md) — evolution rules, mode trade-offs, and the error model.
+- [Client options](./client-options.md) — auto-registration and pre-validation behavior at the client level.
 
-A **schema** has a name, a data format (`Json`, `Protobuf`, `Avro`, `Bytes`), a compatibility mode, and one or more versions. Each **version** has its own id and definition. Once a schema is created, future versions must satisfy its compatibility mode (Backward, Forward, Full, etc.).
-
-The client interacts with the registry on append:
-
-- **Auto-register** schemas the first time they are seen.
-- **Pre-validate** outgoing messages against the registered schema.
-
-Both are on by default. See [Client options](./client-options.md) to change that behavior.
+For the encode and decode side (data formats, type mapping, name strategies), see [Serialization](../serialization/README.md).
 
 ## Quick example
 
-Create a schema with backward compatibility:
+Create a schema with backward compatibility, then register a new version:
 
 ```csharp
-var schemaJson = """
+var v1 = """
     {
         "type": "object",
         "properties": {
@@ -38,16 +34,12 @@ var schemaJson = """
     }
     """;
 
-var descriptor = await client.Registry.CreateSchema(
-    "order-placed", schemaJson, SchemaDataFormat.Json, CompatibilityMode.Backward);
+await client.Registry.CreateSchema(
+    "order-placed", v1, SchemaDataFormat.Json, CompatibilityMode.Backward);
 
-Console.WriteLine("Created version {0}", descriptor.VersionNumber);
+var v2 = await client.Registry.RegisterSchemaVersion("order-placed", updatedJson);
+
+Console.WriteLine("Registered version {0}", v2.VersionNumber);
 ```
 
-## In this section
-
-- [Manage](./managing-schemas.md) — create, get, list, register versions, delete.
-- [Compatibility](./compatibility.md) — evolution rules and the `CheckSchemaCompatibility` operation.
-- [Client options](./client-options.md) — auto-registration and pre-validation behavior.
-
-For the encode/decode side (data formats, type mapping, name strategies), see [Serialization](../serialization.md).
+The full walkthrough lives in [Getting started](./getting-started/README.md).
