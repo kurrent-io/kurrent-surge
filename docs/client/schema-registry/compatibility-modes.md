@@ -97,19 +97,17 @@ The rules per change are the same as `Full`, applied against every prior version
 
 ## Reference
 
-The seven modes in one table. The numeric values correspond to the `CompatibilityMode` enum on the wire.
+The seven modes in one table.
 
-| Mode          | Value | Reads previous | Read by previous | Applied against        |
-|---------------|-------|----------------|------------------|------------------------|
-| `None`        | 7     | n/a            | n/a              | No check               |
-| `Backward`    | 1     | Yes            | No               | Previous version       |
-| `BackwardAll` | 4     | Yes            | No               | Every previous version |
-| `Forward`     | 2     | No             | Yes              | Previous version       |
-| `ForwardAll`  | 5     | No             | Yes              | Every previous version |
-| `Full`        | 3     | Yes            | Yes              | Previous version       |
-| `FullAll`     | 6     | Yes            | Yes              | Every previous version |
-
-`Unspecified` (0) is the proto default and should not be used.
+| Mode          | Reads previous | Read by previous | Applied against        |
+|---------------|----------------|------------------|------------------------|
+| `None`        | n/a            | n/a              | No check               |
+| `Backward`    | Yes            | No               | Previous version       |
+| `BackwardAll` | Yes            | No               | Every previous version |
+| `Forward`     | No             | Yes              | Previous version       |
+| `ForwardAll`  | No             | Yes              | Every previous version |
+| `Full`        | Yes            | Yes              | Previous version       |
+| `FullAll`     | Yes            | Yes              | Every previous version |
 
 ## Choosing a mode
 
