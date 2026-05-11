@@ -65,7 +65,7 @@ Validation runs again when the request reaches the server, so passing a record b
 
 ## gRPC and connectivity errors
 
-Errors that originate from the underlying gRPC channel (network failures, deadline exceeded, server errors that do not map to a domain exception) surface as `Grpc.Core.RpcException` or specific connectivity exceptions. The resilience profile (`KurrentClientResilienceOptions`) controls retries and deadlines for these categories. See [Connect › Tune resilience](./connect.md#tune-resilience).
+Errors that originate from the underlying gRPC channel (network failures, deadline exceeded, server errors that do not map to a domain exception) surface as `Grpc.Core.RpcException` or specific connectivity exceptions. The resilience profile (`KurrentClientResilienceOptions`) controls retries and deadlines for these categories. See [Connection Options › Tune resilience](./connect/connection-options.md#tune-resilience).
 
 ## Subscriptions and async enumerables
 

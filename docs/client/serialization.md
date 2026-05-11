@@ -144,7 +144,7 @@ await client.Streams.AppendStream(record);
 
 Auto-mapping is convenient but lazy. A record can only be decoded once the type has been seen at least once in the current process, or registered explicitly up front.
 
-A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Connect › Service-provider overrides](./connect.md#service-provider-overrides).
+A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Create a Client › Service provider overrides](./connect/create-a-client.md#service-provider-overrides).
 
 ## Registering types
 

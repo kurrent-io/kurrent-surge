@@ -1,37 +1,14 @@
-# Connect
+---
+order: 3
+---
+
+# Connection Options
 
 <CopyMarkdownButton />
 
-A single `KurrentClient` instance handles connections, retries, serialization, and routing for your entire application. Configure it through a connection string or a `KurrentClientOptions` record.
+Connection options control how the client authenticates, secures its transport, and recovers from failures. They apply on top of any [connection target](./connection-targets.md) and can be set in the connection string or on `KurrentClientOptions`.
 
-## Local development
-
-For a node started with the [Quickstart](./quickstart.md) (Docker, no TLS), the client only needs the address and a flag to disable TLS.
-
-::: tabs#connect-local
-
-@tab Connection string
-
-```csharp
-await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
-```
-
-@tab Options
-
-```csharp
-var options = new KurrentClientOptions {
-    Endpoints = [new("localhost", 2113)],
-    Security  = KurrentClientSecurityOptions.Insecure
-};
-
-await using var client = KurrentClient.Create(options);
-```
-
-:::
-
-If your app uses dependency injection, skip to [Register with dependency injection](#register-with-dependency-injection).
-
-## Connect with username and password
+## Username and password
 
 The default `kurrentdb` scheme enables TLS automatically. The client refuses plaintext when TLS is on.
 
@@ -61,7 +38,7 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
-## Connect with mutual TLS
+## Mutual TLS
 
 For certificate-based authentication, point the client at a client certificate and key.
 
@@ -88,7 +65,7 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
-For combinations the factories don't cover (basic auth over a private CA, for example), compose transport and authentication directly:
+For combinations the factories do not cover (basic auth over a private CA, for example), compose transport and authentication directly:
 
 ```csharp
 var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
@@ -99,121 +76,10 @@ var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") 
 };
 ```
 
-## Connect to a cluster
-
-For multi-node deployments, switch the scheme to `kurrentdb+discover` and list the seed nodes. The client uses gossip to discover the full cluster, then routes operations based on the configured preference.
-
-::: tabs#cluster-discovery
-
-@tab Connection string
-
-```csharp
-await using var client = KurrentClient.Create("kurrentdb+discover://admin:changeit@node1:2113,node2:2113,node3:2113?nodePreference=Follower");
-```
-
-@tab Options
-
-```csharp
-var options = new KurrentClientOptions {
-    ConnectionScheme = KurrentConnectionScheme.Discover,
-    Endpoints        = [
-        new("node1", 2113),
-        new("node2", 2113),
-        new("node3", 2113)
-    ],
-    Security = KurrentClientSecurityOptions.Basic("admin", "changeit"),
-    Gossip   = KurrentClientGossipOptions.Default with {
-        ReadPreference = NodePreference.Follower
-    }
-};
-
-await using var client = KurrentClient.Create(options);
-```
-
-:::
-
-Available node preferences:
-
-| Preference        | Description                          |
-|-------------------|--------------------------------------|
-| `Leader`          | Always route to the cluster leader   |
-| `Follower`        | Prefer a follower for reads          |
-| `ReadOnlyReplica` | Prefer a read-only replica           |
-| `Random`          | Pick any reachable node (default)    |
-
 For an mTLS cluster, combine certificate auth with discovery:
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb+discover://node1:2113,node2:2113,node3:2113?userCertFile=/certs/client.crt&userKeyFile=/certs/client.key&nodePreference=Follower");
-```
-
-## Register with dependency injection
-
-`AddKurrentClient` registers a singleton client in `IServiceCollection`. One instance is thread-safe and reuses a single gRPC channel, so it serves the whole application.
-
-::: tabs#di-overloads
-
-@tab From appsettings.json
-
-The parameterless overload reads `ConnectionStrings:KurrentDB` from `IConfiguration`:
-
-```json
-{
-  "ConnectionStrings": {
-    "KurrentDB": "kurrentdb://admin:changeit@kurrentdb.internal:2113"
-  }
-}
-```
-
-```csharp
-services.AddKurrentClient();
-```
-
-If neither a connection string nor a `KurrentClientOptions` instance is registered, this overload throws at registration time.
-
-@tab From a connection string
-
-```csharp
-services.AddKurrentClient("kurrentdb://admin:changeit@kurrentdb.internal:2113");
-```
-
-@tab From an options instance
-
-```csharp
-services.AddKurrentClient(new KurrentClientOptions {
-    ConnectionName = "my-service",
-    Endpoints      = [new("kurrentdb.internal", 2113)],
-    Resilience     = KurrentClientResilienceOptions.HighAvailability
-});
-```
-
-:::
-
-Each overload accepts a configure callback as a final argument. The callback runs after options are resolved, so anything set there takes precedence:
-
-```csharp
-services.AddKurrentClient(opts => {
-    opts.Resilience = KurrentClientResilienceOptions.HighAvailability;
-});
-```
-
-All overloads use `TryAddSingleton`, so subsequent calls are ignored when a client is already registered.
-
-Registration also pulls these services from the container and applies them to the options, overriding any value already set:
-
-| Service             | Applied to                |
-|---------------------|---------------------------|
-| `MessageTypeMapper` | `options.Schema.Mapper`   |
-| `ILoggerFactory`    | `options.LoggerFactory`   |
-| `IMetadataDecoder`  | `options.MetadataDecoder` |
-
-A registered `ILoggerFactory` wires logging into the client automatically. Outside DI, assign it on the options:
-
-```csharp
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.LoggerFactory = loggerFactory
-);
 ```
 
 ## Tune resilience

@@ -59,7 +59,12 @@ export default defineUserConfig({
                     collapsible: false,
                     children: [
                         "quickstart",
-                        "connect",
+                        {
+                            text: "Connect",
+                            prefix: "connect/",
+                            collapsible: true,
+                            children: "structure",
+                        },
                     ],
                 },
                 {

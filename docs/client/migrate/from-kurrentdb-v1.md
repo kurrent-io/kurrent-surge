@@ -85,7 +85,7 @@ var client1 = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tl
 var client2 = KurrentClient.Create("kurrentdb+discover://admin:changeit@node1:2113,node2:2113,node3:2113");
 ```
 
-All connection string parameters (`Tls`, `TlsVerifyCert`, `KeepAliveInterval`, `NodePreference`, etc.) work identically. See [Connect](../connect.md) for the full parameter reference.
+All connection string parameters (`Tls`, `TlsVerifyCert`, `KeepAliveInterval`, `NodePreference`, etc.) work identically. See [Connection Options](../connect/connection-options.md) for the full parameter reference.
 
 ## Client initialization
 
@@ -176,7 +176,7 @@ var options = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2
 };
 ```
 
-See [Connect](../connect.md) for the full options reference.
+See [Connection Options](../connect/connection-options.md) for the full options reference.
 
 ## Error handling
 
@@ -286,7 +286,7 @@ services.AddKurrentClient(opts => {
 });
 ```
 
-The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Connect › Register with dependency injection](../connect.md#register-with-dependency-injection).
+The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Create a Client › Register with dependency injection](../connect/create-a-client.md#register-with-dependency-injection).
 
 ## Migration checklist
 
