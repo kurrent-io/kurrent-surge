@@ -93,7 +93,7 @@ var client2 = KurrentClient.Create("esdb+discover://admin:changeit@node1:2113,no
 var client3 = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 ```
 
-All connection string parameters (`Tls`, `TlsVerifyCert`, `KeepAliveInterval`, `NodePreference`, etc.) work identically across schemes. See [Client setup](../client-setup.md) for the full parameter reference.
+All connection string parameters (`Tls`, `TlsVerifyCert`, `KeepAliveInterval`, `NodePreference`, etc.) work identically across schemes. See [Connect](../connect.md) for the full parameter reference.
 
 ::: tip
 Legacy connection strings stored in environment variables, configuration files, or secrets managers do not need to be changed immediately. The client normalizes all schemes internally.
@@ -188,7 +188,7 @@ var options = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2
 };
 ```
 
-See [Client setup](../client-setup.md) for the full options reference.
+See [Connect](../connect.md) for the full options reference.
 
 ## Error handling
 
@@ -298,7 +298,7 @@ services.AddKurrentClient(opts => {
 });
 ```
 
-The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Client setup › Register with dependency injection](../client-setup.md#register-with-dependency-injection).
+The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Connect › Register with dependency injection](../connect.md#register-with-dependency-injection).
 
 ## Migration checklist
 

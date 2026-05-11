@@ -59,7 +59,7 @@ export default defineUserConfig({
                     collapsible: false,
                     children: [
                         "quickstart",
-                        "client-setup",
+                        "connect",
                     ],
                 },
                 {

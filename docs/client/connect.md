@@ -1,4 +1,4 @@
-# Client setup
+# Connect
 
 <CopyMarkdownButton />
 
