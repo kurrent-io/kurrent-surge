@@ -136,19 +136,19 @@ public partial class ConnectorsClient {
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
     public ValueTask<Success> Start(ConnectorId id, CancellationToken ct = default) =>
-        StartCore(id, logPosition: null, ct);
+        StartCore(id, position: null, ct);
 
     /// <summary>
     /// Starts a connector from a specific log position.
     /// </summary>
     /// <param name="id">Unique identifier of the connector to start.</param>
-    /// <param name="logPosition">Log position to start processing from.</param>
+    /// <param name="position">Log position to start processing from.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
-    public ValueTask<Success> Start(ConnectorId id, LogPosition logPosition, CancellationToken ct = default)
-        => StartCore(id, logPosition, ct);
+    public ValueTask<Success> Start(ConnectorId id, LogPosition position, CancellationToken ct = default)
+        => StartCore(id, position, ct);
 
-    async ValueTask<Success> StartCore(ConnectorId id, LogPosition? logPosition, CancellationToken ct) {
+    async ValueTask<Success> StartCore(ConnectorId id, LogPosition? position, CancellationToken ct) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
@@ -156,9 +156,10 @@ public partial class ConnectorsClient {
             ConnectorId = id
         };
 
-        if (logPosition.HasValue) {
+        if (position.HasValue) {
+            position.Value.EnsureAbsolute();
             request.StartFrom = new() {
-                LogPosition = logPosition.Value
+                LogPosition = position.Value
             };
         }
 
@@ -191,19 +192,19 @@ public partial class ConnectorsClient {
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
     public ValueTask<Success> Reset(ConnectorId id, CancellationToken ct = default)
-        => ResetCore(id, logPosition: null, ct);
+        => ResetCore(id, position: null, ct);
 
     /// <summary>
     /// Resets a connector to a specific log position.
     /// </summary>
     /// <param name="id">Unique identifier of the connector to reset.</param>
-    /// <param name="logPosition">Log position to reset processing to.</param>
+    /// <param name="position">Log position to reset processing to.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
-    public ValueTask<Success> Reset(ConnectorId id, LogPosition logPosition, CancellationToken ct = default)
-        => ResetCore(id, logPosition, ct);
+    public ValueTask<Success> Reset(ConnectorId id, LogPosition position, CancellationToken ct = default)
+        => ResetCore(id, position, ct);
 
-    async ValueTask<Success> ResetCore(ConnectorId id, LogPosition? logPosition, CancellationToken ct) {
+    async ValueTask<Success> ResetCore(ConnectorId id, LogPosition? position, CancellationToken ct) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
@@ -211,9 +212,10 @@ public partial class ConnectorsClient {
             ConnectorId = id
         };
 
-        if (logPosition.HasValue) {
+        if (position.HasValue) {
+            position.Value.EnsureAbsolute();
             request.StartFrom = new() {
-                LogPosition = logPosition.Value
+                LogPosition = position.Value
             };
         }
 

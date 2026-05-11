@@ -141,7 +141,7 @@ public class ConnectorCommandTests {
 			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Reset(connectorId, logPosition: 0, ct);
+			.Reset(connectorId, position: 0, ct);
 	}
 
 	[Test]
@@ -153,7 +153,7 @@ public class ConnectorCommandTests {
 			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Start(connectorId, logPosition: 0, ct);
+			.Start(connectorId, position: 0, ct);
 	}
 
 	[Test]
