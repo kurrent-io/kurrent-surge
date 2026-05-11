@@ -67,15 +67,13 @@ public static partial class ConnectorsClientExtensions {
 
         #region ->> Delete <<-
 
-        public ValueTask<Success> Delete(ConnectorId connectorId)
-            => client.Delete(connectorId, CancellationToken.None);
+        public ValueTask<Success> Delete(ConnectorId connectorId) => client.Delete(connectorId, CancellationToken.None);
 
         #endregion
 
         #region ->> Start <<-
 
-        public ValueTask<Success> Start(ConnectorId connectorId)
-            => client.Start(connectorId, CancellationToken.None);
+        public ValueTask<Success> Start(ConnectorId connectorId) => client.Start(connectorId, CancellationToken.None);
 
         public ValueTask<Success> Start(ConnectorId connectorId, LogPosition logPosition)
             => client.Start(connectorId, logPosition, CancellationToken.None);
