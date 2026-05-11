@@ -1,5 +1,5 @@
-using Google.Protobuf.WellKnownTypes;
 using Kurrent.Client.Streams;
+using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Connectors;
 
@@ -23,14 +23,25 @@ public static partial class ConnectorsClientExtensions {
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
-            Struct configuration
-        ) => client.Create(connectorId, configuration.FlattenStruct(), CancellationToken.None);
+            IConfiguration configuration
+        ) => client.Create(connectorId, configuration.ToFlatDictionary(), CancellationToken.None);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
-            Struct configuration,
+            IConfiguration configuration,
             CancellationToken cancellationToken
-        ) => client.Create(connectorId, configuration.FlattenStruct(), cancellationToken);
+        ) => client.Create(connectorId, configuration.ToFlatDictionary(), cancellationToken);
+
+        public ValueTask<Success> Create(
+            ConnectorId connectorId,
+            string json
+        ) => client.Create(connectorId, json.ToFlatDictionary(), CancellationToken.None);
+
+        public ValueTask<Success> Create(
+            ConnectorId connectorId,
+            string json,
+            CancellationToken cancellationToken
+        ) => client.Create(connectorId, json.ToFlatDictionary(), cancellationToken);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
@@ -41,15 +52,28 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Create(
             ConnectorId connectorId,
             string name,
-            Struct configuration
-        ) => client.Create(connectorId, name, configuration.FlattenStruct(), CancellationToken.None);
+            IConfiguration configuration
+        ) => client.Create(connectorId, name, configuration.ToFlatDictionary(), CancellationToken.None);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
             string name,
-            Struct configuration,
+            IConfiguration configuration,
             CancellationToken cancellationToken
-        ) => client.Create(connectorId, name, configuration.FlattenStruct(), cancellationToken);
+        ) => client.Create(connectorId, name, configuration.ToFlatDictionary(), cancellationToken);
+
+        public ValueTask<Success> Create(
+            ConnectorId connectorId,
+            string name,
+            string json
+        ) => client.Create(connectorId, name, json.ToFlatDictionary(), CancellationToken.None);
+
+        public ValueTask<Success> Create(
+            ConnectorId connectorId,
+            string name,
+            string json,
+            CancellationToken cancellationToken
+        ) => client.Create(connectorId, name, json.ToFlatDictionary(), cancellationToken);
 
         #endregion
 
@@ -62,14 +86,25 @@ public static partial class ConnectorsClientExtensions {
 
         public ValueTask<Success> Reconfigure(
             ConnectorId connectorId,
-            Struct configuration
-        ) => client.Reconfigure(connectorId, configuration.FlattenStruct(), CancellationToken.None);
+            IConfiguration configuration
+        ) => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), CancellationToken.None);
 
         public ValueTask<Success> Reconfigure(
             ConnectorId connectorId,
-            Struct configuration,
+            IConfiguration configuration,
             CancellationToken cancellationToken
-        ) => client.Reconfigure(connectorId, configuration.FlattenStruct(), cancellationToken);
+        ) => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), cancellationToken);
+
+        public ValueTask<Success> Reconfigure(
+            ConnectorId connectorId,
+            string json
+        ) => client.Reconfigure(connectorId, json.ToFlatDictionary(), CancellationToken.None);
+
+        public ValueTask<Success> Reconfigure(
+            ConnectorId connectorId,
+            string json,
+            CancellationToken cancellationToken
+        ) => client.Reconfigure(connectorId, json.ToFlatDictionary(), cancellationToken);
 
         #endregion
 

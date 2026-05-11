@@ -1,6 +1,7 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Sdk.Testkit.Fixtures;
+using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Tests.Connectors;
 
@@ -50,7 +51,7 @@ public class ConnectorCommandTests {
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);
 
-		var updatedSettings = new Dictionary<string, string?>(settings) {
+		var updatedSettings = new Dictionary<string, string>(settings) {
 			["subscription:filter:expression"] = "updated-"
 		};
 
@@ -66,10 +67,11 @@ public class ConnectorCommandTests {
 		await Fixture.Client.Connectors
 			.Create(connectorId, configuration, ct);
 
-		var updatedSettings = new Dictionary<string, string?>(KurrentDBTestFixture.NewConnectorSettings()) {
-			["subscription:filter:expression"] = "updated-"
-		};
-		var updatedConfiguration = updatedSettings.ToProtobufStruct();
+		var updatedConfiguration = new ConfigurationBuilder()
+			.AddInMemoryCollection(KurrentDBTestFixture.NewConnectorSettings()
+				.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value))
+				.Append(new KeyValuePair<string, string?>("subscription:filter:expression", "updated-")))
+			.Build();
 
 		await Fixture.Client.Connectors
 			.Reconfigure(connectorId, updatedConfiguration, ct);
