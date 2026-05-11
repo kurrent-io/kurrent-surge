@@ -2,7 +2,7 @@
 order: 2
 ---
 
-# Reading records
+# Read
 
 <CopyMarkdownButton />
 

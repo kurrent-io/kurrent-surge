@@ -2,7 +2,7 @@
 order: 1
 ---
 
-# Managing schemas
+# Manage
 
 <CopyMarkdownButton />
 

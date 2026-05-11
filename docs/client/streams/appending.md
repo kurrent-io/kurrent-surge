@@ -2,7 +2,7 @@
 order: 1
 ---
 
-# Appending records
+# Append
 
 <CopyMarkdownButton />
 

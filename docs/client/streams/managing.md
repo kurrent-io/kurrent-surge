@@ -2,7 +2,7 @@
 order: 3
 ---
 
-# Managing streams
+# Manage
 
 <CopyMarkdownButton />
 

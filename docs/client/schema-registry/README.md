@@ -46,7 +46,7 @@ Console.WriteLine("Created version {0}", descriptor.VersionNumber);
 
 ## In this section
 
-- [Managing schemas](./managing-schemas.md) — create, get, list, register versions, delete.
+- [Manage](./managing-schemas.md) — create, get, list, register versions, delete.
 - [Compatibility](./compatibility.md) — evolution rules and the `CheckSchemaCompatibility` operation.
 - [Client options](./client-options.md) — auto-registration and pre-validation behavior.
 
