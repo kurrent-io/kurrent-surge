@@ -12,11 +12,11 @@ public partial class ConnectorsClient {
     /// Lists connectors based on the specified filtering criteria.
     /// </summary>
     /// <param name="options">Options for filtering and pagination of connectors.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="ConnectorListResult"/> containing the matching connectors.</returns>
     public async ValueTask<ConnectorListResult> List(
         ConnectorListOptions options,
-        CancellationToken cancellationToken
+        CancellationToken ct
     ) {
         var request = new Queries.ListConnectors();
 
@@ -40,7 +40,7 @@ public partial class ConnectorsClient {
 
         try {
             var response = await QueryServiceClient
-                .ListAsync(request, cancellationToken: cancellationToken)
+                .ListAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return new() {
@@ -61,11 +61,11 @@ public partial class ConnectorsClient {
     /// Retrieves the configuration settings for a specific connector.
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to get settings for.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="ConnectorSettingsResult"/> containing the connector settings.</returns>
     public async ValueTask<ConnectorSettingsResult> GetSettings(
         ConnectorId connectorId,
-        CancellationToken cancellationToken
+        CancellationToken ct
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
@@ -76,7 +76,7 @@ public partial class ConnectorsClient {
 
         try {
             var response = await QueryServiceClient
-                .GetSettingsAsync(request, cancellationToken: cancellationToken)
+                .GetSettingsAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return new() {
@@ -103,11 +103,11 @@ public partial class ConnectorsClient {
     /// Retrieves the hierarchical configuration for a specific connector.
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to get configuration for.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="ConnectorConfigurationResult"/> containing the connector configuration.</returns>
     public async ValueTask<ConnectorConfigurationResult> GetConfiguration(
         ConnectorId connectorId,
-        CancellationToken cancellationToken
+        CancellationToken ct
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
@@ -118,7 +118,7 @@ public partial class ConnectorsClient {
 
         try {
             var response = await QueryServiceClient
-                .GetConfigurationAsync(request, cancellationToken: cancellationToken)
+                .GetConfigurationAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return new() {

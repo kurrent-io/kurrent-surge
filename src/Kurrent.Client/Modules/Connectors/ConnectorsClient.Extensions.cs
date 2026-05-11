@@ -13,8 +13,8 @@ public static partial class ConnectorsClientExtensions {
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
-            CancellationToken cancellationToken
-        ) => client.Create(connectorId, [], cancellationToken);
+            CancellationToken ct
+        ) => client.Create(connectorId, [], ct);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
@@ -29,8 +29,8 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Create(
             ConnectorId connectorId,
             IConfiguration configuration,
-            CancellationToken cancellationToken
-        ) => client.Create(connectorId, configuration.ToFlatDictionary(), cancellationToken);
+            CancellationToken ct
+        ) => client.Create(connectorId, configuration.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
@@ -40,8 +40,8 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Create(
             ConnectorId connectorId,
             string json,
-            CancellationToken cancellationToken
-        ) => client.Create(connectorId, json.ToFlatDictionary(), cancellationToken);
+            CancellationToken ct
+        ) => client.Create(connectorId, json.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
@@ -59,8 +59,8 @@ public static partial class ConnectorsClientExtensions {
             ConnectorId connectorId,
             string name,
             IConfiguration configuration,
-            CancellationToken cancellationToken
-        ) => client.Create(connectorId, name, configuration.ToFlatDictionary(), cancellationToken);
+            CancellationToken ct
+        ) => client.Create(connectorId, name, configuration.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Create(
             ConnectorId connectorId,
@@ -72,8 +72,8 @@ public static partial class ConnectorsClientExtensions {
             ConnectorId connectorId,
             string name,
             string json,
-            CancellationToken cancellationToken
-        ) => client.Create(connectorId, name, json.ToFlatDictionary(), cancellationToken);
+            CancellationToken ct
+        ) => client.Create(connectorId, name, json.ToFlatDictionary(), ct);
 
         #endregion
 
@@ -92,8 +92,8 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Reconfigure(
             ConnectorId connectorId,
             IConfiguration configuration,
-            CancellationToken cancellationToken
-        ) => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), cancellationToken);
+            CancellationToken ct
+        ) => client.Reconfigure(connectorId, configuration.ToFlatDictionary(), ct);
 
         public ValueTask<Success> Reconfigure(
             ConnectorId connectorId,
@@ -103,8 +103,8 @@ public static partial class ConnectorsClientExtensions {
         public ValueTask<Success> Reconfigure(
             ConnectorId connectorId,
             string json,
-            CancellationToken cancellationToken
-        ) => client.Reconfigure(connectorId, json.ToFlatDictionary(), cancellationToken);
+            CancellationToken ct
+        ) => client.Reconfigure(connectorId, json.ToFlatDictionary(), ct);
 
         #endregion
 
@@ -165,8 +165,8 @@ public static partial class ConnectorsClientExtensions {
         ) => client.List(new ConnectorListOptions(), CancellationToken.None);
 
         public ValueTask<ConnectorListResult> List(
-            CancellationToken cancellationToken
-        ) => client.List(new ConnectorListOptions(), cancellationToken);
+            CancellationToken ct
+        ) => client.List(new ConnectorListOptions(), ct);
 
         public ValueTask<ConnectorListResult> List(
             ConnectorListOptions options
