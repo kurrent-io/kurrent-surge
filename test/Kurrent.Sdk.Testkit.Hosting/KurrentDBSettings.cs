@@ -149,6 +149,11 @@ public sealed class ClusterTopologySettings {
         get => _nodes;
         set => _nodes = value;
     }
+    
+    /// <summary>
+    /// Returns the total number of nodes in the cluster, including read-only replicas.
+    /// </summary>
+    internal int TotalNodeCount => Nodes + Replicas;
 }
 
 public sealed class NodeSettings {

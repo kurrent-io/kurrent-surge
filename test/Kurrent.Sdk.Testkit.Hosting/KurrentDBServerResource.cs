@@ -1,8 +1,8 @@
 // ReSharper disable CheckNamespace
 
-#pragma warning disable ASPIREATS001 // AspireExport is experimental
-
 using Kurrent.Sdk.Testkit.Hosting;
+
+#pragma warning disable ASPIREATS001 // AspireExport is experimental
 
 namespace Aspire.Hosting.ApplicationModel;
 
@@ -14,29 +14,33 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
     public const int    DefaultHttpPort     = 2113;
 
     readonly List<KurrentDBResource> _nodes = [];
-
-    public KurrentDBServerResource(string name, ParameterResource userName, ParameterResource password, bool tlsEnabled = true) : base(name) {
-        TlsEnabled        = tlsEnabled;
-        UserNameParameter  = userName;
-        PasswordParameter  = password;
+    
+    public KurrentDBServerResource(string name, KurrentDBSettings settings) : base(name) {
+        Settings = settings;
         
-        CertsHostPath = Path.Combine(AppContext.BaseDirectory, "certs", name);
+        var userNameParameter = new ParameterResource($"{name}-username", _ => settings.Credentials.UserName, secret: true);
+        var passwordParameter = new ParameterResource($"{name}-password", _ => settings.Credentials.Password, secret: true);
+        
+        UserNameParameter = userNameParameter;
+        PasswordParameter = passwordParameter;
+
+        CertsHostPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "aspire", "kurrentdb", "certs", name);
     }
+    
+    KurrentDBSettings Settings { get; }
 
     public string CertsHostPath { get; }
 
     public IReadOnlyList<KurrentDBResource> Nodes => _nodes;
 
-    public bool TlsEnabled { get; }
+    public bool TlsEnabled => Settings.TlsEnabled;
 
     public ParameterResource UserNameParameter { get; }
 
     public ParameterResource PasswordParameter { get; }
-
-    public OpenTelemetrySettings OpenTelemetry { get; internal set; } = new();
-
-    public int ClusterSize => _nodes.Count;
-
+    
     public string GossipSeeds => string.Join(", ", _nodes.Select(n => $"{n.Name}:{DefaultHttpPort}"));
 
     public KurrentDBResource AddNode(string nodeName, int priority = 0) {

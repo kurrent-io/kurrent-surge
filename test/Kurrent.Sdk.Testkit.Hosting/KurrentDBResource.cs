@@ -2,6 +2,8 @@
 
 #pragma warning disable ASPIREATS001 // AspireExport is experimental
 
+using Kurrent.Sdk.Testkit.Hosting;
+
 namespace Aspire.Hosting.ApplicationModel;
 
 [AspireExport(ExposeProperties = true)]
@@ -30,8 +32,8 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
     public ReferenceExpression ConnectionStringExpression =>
         Parent.BuildConnectionString(this);
 
-    public void ConfigureEnvironment(EnvironmentCallbackContext ctx) {
-        var variables = Parent.TlsEnabled
+    public void ConfigureEnvironment(EnvironmentCallbackContext ctx, KurrentDBSettings settings) {
+        var variables = settings.TlsEnabled
             ? NodeConfiguration.Secure
             : NodeConfiguration.Insecure;
         
@@ -42,7 +44,7 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
                 ctx.EnvironmentVariables.Remove(key);
         }
 
-        ctx.EnvironmentVariables["KURRENTDB_CLUSTER_SIZE"]                     = Parent.ClusterSize.ToString();
+        ctx.EnvironmentVariables["KURRENTDB_CLUSTER_SIZE"]                     = settings.Topology.Nodes.ToString();
         ctx.EnvironmentVariables["KURRENTDB_DISCOVER_VIA_DNS"]                 = "false";
         ctx.EnvironmentVariables["KURRENTDB_GOSSIP_SEED"]                      = Parent.GossipSeeds;
         ctx.EnvironmentVariables["KURRENTDB_NODE_HOST_ADVERTISE_AS"]           = Name;
@@ -54,13 +56,11 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
         if (Priority != 0)
             ctx.EnvironmentVariables["KURRENTDB_NODE_PRIORITY"] = Priority.ToString();
 
-        var otel = Parent.OpenTelemetry;
-
-        if (otel.IsEnabled) {
-            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"]   = otel.Endpoint;
-            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]    = otel.LogsEnabled.ToString().ToLowerInvariant();
-            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__METRICS__ENABLED"] = otel.MetricsEnabled.ToString().ToLowerInvariant();
-            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__TRACES__ENABLED"]  = otel.TracesEnabled.ToString().ToLowerInvariant();
+        if (settings.OpenTelemetry.IsEnabled) {
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"]   = settings.OpenTelemetry.Endpoint;
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]    = settings.OpenTelemetry.LogsEnabled.ToString().ToLowerInvariant();
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__METRICS__ENABLED"] = settings.OpenTelemetry.MetricsEnabled.ToString().ToLowerInvariant();
+            ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__TRACES__ENABLED"]  = settings.OpenTelemetry.TracesEnabled.ToString().ToLowerInvariant();
         }
     }
 

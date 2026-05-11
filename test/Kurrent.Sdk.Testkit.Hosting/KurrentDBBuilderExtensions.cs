@@ -15,27 +15,20 @@ public static class KurrentDBBuilderExtensions {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         settings.EnsureValid();
-
-        var userNameParameter = new ParameterResource($"{name}-username", _ => settings.Credentials.UserName, secret: true);
-        var passwordParameter = new ParameterResource($"{name}-password", _ => settings.Credentials.Password, secret: true);
-
+        
         app.Services.AddResourceConnectionProvider();
 
-        var topology  = settings.Topology;
-        var nodeCount = topology.Nodes + topology.Replicas;
-        var server = new KurrentDBServerResource(name, userNameParameter, passwordParameter, settings.TlsEnabled) {
-            OpenTelemetry = settings.OpenTelemetry
-        };
+        var server = new KurrentDBServerResource(name, settings);
 
-        var serverBuilder = app.AddResource(server).ExcludeFromManifest();
-
-        var certsHostPath = Path.Combine(AppContext.BaseDirectory, "certs", name);
+        var serverBuilder = app
+            .AddResource(server)
+            .ExcludeFromManifest();
 
         var certGen = settings.TlsEnabled
-            ? app.AddCertificateGenerator(name, certsHostPath, server)
+            ? app.AddCertificateGenerator(name, server.CertsHostPath, server)
             : null;
 
-        for (var i = 0; i < nodeCount; i++) {
+        for (var i = 0; i < settings.Topology.TotalNodeCount; i++) {
             var nodeBuilder = serverBuilder.AddNode(i, settings);
 
             if (certGen is not null)
@@ -71,6 +64,8 @@ public static class KurrentDBBuilderExtensions {
         var isReplica = nodeIndex >=  settings.Topology.Nodes;
         var nodeName  = isReplica ? $"{server.Name}-ro{nodeIndex + 1:00}" : $"{server.Name}-{nodeIndex + 1:00}";
         var priority  = settings.Topology.NodeConfigurations[nodeIndex].Priority;
+        // var node =   new KurrentDBResource(nodeName, server, priority);
+        
         var node      = server.AddNode(nodeName, priority);
 
         var builder = app
@@ -78,15 +73,13 @@ public static class KurrentDBBuilderExtensions {
             .WithHttpEndpoint(targetPort: KurrentDBServerResource.DefaultHttpPort)
             .WithImage(settings.Container.Image, settings.Container.Tag)
             .WithImageRegistry(settings.Container.Registry)
-            .WithEnvironment(node.ConfigureEnvironment)
+            .WithEnvironment(ctx => node.ConfigureEnvironment(ctx, settings))
             .WithLifetime(ContainerLifetime.Persistent);
 
         if (server.TlsEnabled) {
-            var certsHostPath = Path.Combine(AppContext.BaseDirectory, "certs", server.Name);
-
             builder
                 .WithEndpoint("http", ep => { ep.UriScheme = "https"; ep.TlsEnabled = true; })
-                .WithBindMount(certsHostPath, "/etc/kurrentdb/certs", isReadOnly: true);
+                .WithBindMount(server.CertsHostPath, "/etc/kurrentdb/certs", isReadOnly: true);
         }
 
         var healthCheckKey = $"{node.Name}_check";
@@ -110,6 +103,26 @@ public static class KurrentDBBuilderExtensions {
         return builder;
     }
 
+    public static IResourceBuilder<KurrentDBServerResource> WithClusterHealthCheck(
+        this IResourceBuilder<KurrentDBServerResource> serverBuilder
+    ) {
+        var app    = serverBuilder.ApplicationBuilder;
+        var server = serverBuilder.Resource;
+
+        app.Services.AddHttpClient(KurrentDBClusterHealthCheck.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler {
+                ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+            });
+
+        var healthCheckKey = $"{server.Name}_cluster_check";
+
+        app.Services
+            .AddHealthChecks()
+            .AddTypeActivatedCheck<KurrentDBClusterHealthCheck>(healthCheckKey, server);
+
+        return serverBuilder.WithHealthCheck(healthCheckKey);
+    }
+
     static IResourceBuilder<ExecutableResource> AddCertificateGenerator(
         this IDistributedApplicationBuilder app,
         string name,
@@ -122,11 +135,12 @@ public static class KurrentDBBuilderExtensions {
             name: $"{name}-certs", command: "/bin/bash", workingDirectory: ".");
 
         certGen.WithArgs(context => {
+            
             var dnsNames = string.Join(",", server.Nodes
                 .Select(r => r.Name)
                 .Distinct(StringComparer.Ordinal)
                 .Prepend("localhost"));
-
+            
             context.Args.Add(scriptPath);
             context.Args.Add("--output");
             context.Args.Add(certsHostPath);
