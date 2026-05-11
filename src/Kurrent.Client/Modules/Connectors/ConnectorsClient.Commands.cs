@@ -244,13 +244,13 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
     public ValueTask<Success> Reset(
         ConnectorId connectorId,
-        ulong logPosition,
+        LogPosition logPosition,
         CancellationToken ct
     ) => ResetCore(connectorId, logPosition, ct);
 
     async ValueTask<Success> ResetCore(
         ConnectorId connectorId,
-        ulong? logPosition,
+        LogPosition? logPosition,
         CancellationToken ct
     ) {
         if (connectorId.IsUnset)

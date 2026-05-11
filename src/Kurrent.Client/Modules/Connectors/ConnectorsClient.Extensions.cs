@@ -137,7 +137,7 @@ public static partial class ConnectorsClientExtensions {
 
         public ValueTask<Success> Reset(
             ConnectorId connectorId,
-            ulong logPosition
+            LogPosition logPosition
         ) => client.Reset(connectorId, logPosition, CancellationToken.None);
 
         #endregion
