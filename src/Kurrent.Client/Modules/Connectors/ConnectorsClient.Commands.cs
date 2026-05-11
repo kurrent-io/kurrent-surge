@@ -17,7 +17,7 @@ public partial class ConnectorsClient {
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
     public async ValueTask<Success> Create(
-        ConnectorId id, string name, Dictionary<string, string> settings, CancellationToken ct
+        ConnectorId id, string name, Dictionary<string, string> settings, CancellationToken ct = default
     ) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
@@ -59,7 +59,7 @@ public partial class ConnectorsClient {
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reconfigured successfully.</returns>
     public async ValueTask<Success> Reconfigure(
-        ConnectorId id, Dictionary<string, string> settings, CancellationToken ct
+        ConnectorId id, Dictionary<string, string> settings, CancellationToken ct = default
     ) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
@@ -99,7 +99,7 @@ public partial class ConnectorsClient {
     /// <param name="id">Unique identifier of the connector to delete.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was deleted successfully.</returns>
-    public async ValueTask<Success> Delete(ConnectorId id, CancellationToken ct) {
+    public async ValueTask<Success> Delete(ConnectorId id, CancellationToken ct = default) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
@@ -135,7 +135,7 @@ public partial class ConnectorsClient {
     /// <param name="id">Unique identifier of the connector to start.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
-    public ValueTask<Success> Start(ConnectorId id, CancellationToken ct) =>
+    public ValueTask<Success> Start(ConnectorId id, CancellationToken ct = default) =>
         StartCore(id, logPosition: null, ct);
 
     /// <summary>
@@ -145,7 +145,7 @@ public partial class ConnectorsClient {
     /// <param name="logPosition">Log position to start processing from.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
-    public ValueTask<Success> Start(ConnectorId id, LogPosition logPosition, CancellationToken ct)
+    public ValueTask<Success> Start(ConnectorId id, LogPosition logPosition, CancellationToken ct = default)
         => StartCore(id, logPosition, ct);
 
     async ValueTask<Success> StartCore(ConnectorId id, LogPosition? logPosition, CancellationToken ct) {
@@ -190,7 +190,7 @@ public partial class ConnectorsClient {
     /// <param name="id">Unique identifier of the connector to reset.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
-    public ValueTask<Success> Reset(ConnectorId id, CancellationToken ct)
+    public ValueTask<Success> Reset(ConnectorId id, CancellationToken ct = default)
         => ResetCore(id, logPosition: null, ct);
 
     /// <summary>
@@ -200,7 +200,7 @@ public partial class ConnectorsClient {
     /// <param name="logPosition">Log position to reset processing to.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
-    public ValueTask<Success> Reset(ConnectorId id, LogPosition logPosition, CancellationToken ct)
+    public ValueTask<Success> Reset(ConnectorId id, LogPosition logPosition, CancellationToken ct = default)
         => ResetCore(id, logPosition, ct);
 
     async ValueTask<Success> ResetCore(ConnectorId id, LogPosition? logPosition, CancellationToken ct) {
@@ -245,7 +245,7 @@ public partial class ConnectorsClient {
     /// <param name="id">Unique identifier of the connector to stop.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was stopped successfully.</returns>
-    public async ValueTask<Success> Stop(ConnectorId id, CancellationToken ct) {
+    public async ValueTask<Success> Stop(ConnectorId id, CancellationToken ct = default) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
@@ -282,7 +282,7 @@ public partial class ConnectorsClient {
     /// <param name="name">New display name for the connector.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was renamed successfully.</returns>
-    public async ValueTask<Success> Rename(ConnectorId id, string name, CancellationToken ct) {
+    public async ValueTask<Success> Rename(ConnectorId id, string name, CancellationToken ct = default) {
         if (id.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(id));
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

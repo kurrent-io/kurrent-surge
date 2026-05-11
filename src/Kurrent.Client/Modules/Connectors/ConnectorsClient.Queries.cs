@@ -16,7 +16,7 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="ConnectorListResult"/> containing the matching connectors.</returns>
     public async ValueTask<ConnectorListResult> List(
         ConnectorListOptions options,
-        CancellationToken ct
+        CancellationToken ct = default
     ) {
         var request = new Queries.ListConnectors();
 
@@ -65,7 +65,7 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="ConnectorSettingsResult"/> containing the connector settings.</returns>
     public async ValueTask<ConnectorSettingsResult> GetSettings(
         ConnectorId connectorId,
-        CancellationToken ct
+        CancellationToken ct = default
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
@@ -107,7 +107,7 @@ public partial class ConnectorsClient {
     /// <returns>A <see cref="ConnectorConfigurationResult"/> containing the connector configuration.</returns>
     public async ValueTask<ConnectorConfigurationResult> GetConfiguration(
         ConnectorId connectorId,
-        CancellationToken ct
+        CancellationToken ct = default
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
