@@ -4,7 +4,6 @@ using Humanizer;
 using Kurrent.Sdk.Testkit.Hosting;
 using Kurrent.Testing.Testkit;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -12,19 +11,13 @@ using TUnit.Core.Interfaces;
 
 namespace Kurrent.Sdk.Testkit.Fixtures;
 
-
 /// <summary>
-/// A fixture that manages the lifecycle of an Aspire distributed application for testing.
-/// Implements <see cref="IAsyncInitializer"/> and <see cref="IAsyncDisposable"/> to integrate
-/// with TUnit's lifecycle automatically.
+/// Base fixture that manages the lifecycle of an Aspire distributed application for testing.
+/// Subclass <see cref="AspireFixture"/> (inline resource registration) or
+/// <see cref="AspireFixture{T}"/> (AppHost project reference) — they differ only in how the
+/// <see cref="IDistributedApplicationTestingBuilder"/> is created.
 /// </summary>
-/// <remarks>
-/// <para>
-/// Use directly with <c>[ClassDataSource&lt;AspireFixture&lt;Projects.MyAppHost&gt;&gt;(Shared = SharedType.PerTestSession)]</c>
-/// or subclass to customize behavior via the virtual configuration hooks.
-/// </para>
-/// </remarks>
-public abstract class AspireFixture : IAsyncInitializer, IAsyncDisposable {
+public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
     protected virtual string ApplicationName => field ??= GetType().Name;
 
     protected AspireFixtureOptions Options { get; init; } = new();
@@ -40,10 +33,10 @@ public abstract class AspireFixture : IAsyncInitializer, IAsyncDisposable {
     /// </summary>
     protected Action<IDistributedApplicationTestingBuilder> ConfigureBuilder { get; init; } = __ => { };
 
-    /// <summary>
-    /// Final hook to allow custom setup logic after the application is built but before it starts.
-    /// </summary>
-    protected Func<ValueTask> OnSetup { get; init; } = () => ValueTask.CompletedTask;
+    // /// <summary>
+    // /// Final hook to allow custom setup logic after the application is built but before it starts.
+    // /// </summary>
+    // protected Func<ValueTask> OnSetup { get; init; } = () => ValueTask.CompletedTask;
 
     /// <summary>
     /// Hook that runs after all resources are ready. Use for connection string resolution
@@ -59,9 +52,6 @@ public abstract class AspireFixture : IAsyncInitializer, IAsyncDisposable {
     /// <summary>
     /// The Aspire distributed application instance managed by this fixture.
     /// </summary>
-    /// <remarks>
-    /// Tests can use this property to interact with the application, query resource states, collect logs, etc.
-    /// </remarks>
     public DistributedApplication App { get; private set; } = null!;
 
     /// <summary>
@@ -74,78 +64,74 @@ public abstract class AspireFixture : IAsyncInitializer, IAsyncDisposable {
     /// The collection of resources registered in the application.
     /// </summary>
     public IResourceCollection Resources => AppModel.Resources;
-    
+
     public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
 
-    public ILogger Logger => field ??= TestkitExecutionContext.Logger; //Factory.CreateLogger(ApplicationName);
-    
+    public ILogger Logger => field ??= TestkitExecutionContext.Logger;
+
     /// <summary>
     /// The <see cref="FakeTimeProvider"/> instance that allows tests to manipulate
     /// time within the Aspire application.
     /// </summary>
     public FakeTimeProvider Time { get; private set; } = null!;
-    
+
+    /// <summary>
+    /// Creates the <see cref="IDistributedApplicationTestingBuilder"/>.
+    /// Override in subclasses to control how the builder is created.
+    /// </summary>
+    protected abstract Task<IDistributedApplicationTestingBuilder> CreateBuilderAsync(
+        Action<DistributedApplicationOptions, HostApplicationBuilderSettings> configure);
+
     async Task IAsyncInitializer.InitializeAsync() {
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug("Initializing fixture...");
+        
+        var builder = await CreateBuilderAsync((options, settings) => {
+            settings.ApplicationName      = ApplicationName;
+            options.EnableResourceLogging = false;
+            options.DisableDashboard      = true;
 
-        // ReSharper disable once MethodHasAsyncOverload
-        var builder = DistributedApplicationTestingBuilder.Create([], (options, settings) => {
-            // Make the application name available in the AppHost's configuration
-            // and settings for logging, metrics, etc.
-            settings.ApplicationName = ApplicationName;
-            
-            // Enable resource logging for better diagnostics on startup issues
-            options.EnableResourceLogging = false; 
-            
-            // disable the dashboard since we use the aspire cli
-            options.DisableDashboard = true;
-            
-            // All custom configuration hooks run after these defaults are applied,
-            // so they can override as needed
             try {
                 ConfigureAppHost(options, settings);
             } catch (Exception ex) {
                 Logger.LogError(ex, "Failed to configure aspire app host");
                 throw;
             }
-        });
-        
+        }).ConfigureAwait(false);
+
         builder.Services.AddSingleton(TestkitExecutionContext.LoggerFactory);
-        
+
         builder.Services
-            .AddSingleton(Time = new(DateTimeOffset.UtcNow))
+            .AddSingleton(Time = new FakeTimeProvider(DateTimeOffset.UtcNow))
             .AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeTimeProvider>());
-        
-        // allow tests to further customize the builder (e.g. register test services)
-        // in a safe way with error handling
+
         try {
             ConfigureBuilder(builder);
         } catch (Exception ex) {
             Logger.LogError(ex, "Failed to configure aspire app builder");
             throw;
         }
-        
+
         using var cts = new CancellationTokenSource(Options.StartupTimeout);
-        
+
         App = await builder.BuildAsync(cts.Token).ConfigureAwait(false);
 
         Logger.LogInformation("Aspire app built in {Elapsed}", stopwatch.Elapsed.Humanize());
 
-        try {
-            await OnSetup().ConfigureAwait(false);
-        } catch (Exception ex) {
-            Logger.LogError(ex, "Failed to setup fixture");
-            throw;
-        }
+        // try {
+        //     await OnSetup().ConfigureAwait(false);
+        // } catch (Exception ex) {
+        //     Logger.LogError(ex, "Failed to setup fixture");
+        //     throw;
+        // }
 
         Logger.LogInformation("Starting application with resources: {ResourceList}",
             string.Join(", ", AppModel.Resources.Select(r => r.Name)));
 
         try {
             await App.StartAsync(cts.Token).ConfigureAwait(false);
-            
+
             Logger.LogInformation(
                 "Aspire app started in {Elapsed}. Waiting for resources (behavior: {WaitBehavior})...",
                 stopwatch.Elapsed.Humanize(), Options.WaitBehavior);
@@ -195,6 +181,25 @@ public abstract class AspireFixture : IAsyncInitializer, IAsyncDisposable {
         App.GetConnectionStringAsync(resourceName, cancellationToken);
 }
 
+/// <summary>
+/// Aspire fixture that creates resources inline via <see cref="AspireFixtureBase.ConfigureBuilder"/>.
+/// No AppHost project reference needed.
+/// </summary>
+public abstract class AspireFixture : AspireFixtureBase {
+    protected override Task<IDistributedApplicationTestingBuilder> CreateBuilderAsync(
+        Action<DistributedApplicationOptions, HostApplicationBuilderSettings> configure
+    ) => Task.FromResult(DistributedApplicationTestingBuilder.Create([], configure));
+}
+
+/// <summary>
+/// Aspire fixture that loads resources from an AppHost project via <typeparamref name="T"/>.
+/// </summary>
+public abstract class AspireFixture<T> : AspireFixtureBase {
+    protected override Task<IDistributedApplicationTestingBuilder> CreateBuilderAsync(
+        Action<DistributedApplicationOptions, HostApplicationBuilderSettings> configure
+    ) => DistributedApplicationTestingBuilder.CreateAsync<T>([], configure);
+}
+
 public sealed record AspireFixtureOptions {
     /// <summary>
     /// Maximum time allowed for the application to start and all resources to become ready.
@@ -207,7 +212,6 @@ public sealed record AspireFixtureOptions {
     /// Default: 60 seconds.
     /// </summary>
     public TimeSpan ShutdownTimeout { get; init; } = TimeSpan.FromSeconds(60);
-
     
     /// <summary>
     /// How to wait for resources.

@@ -29,6 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="gencert.sh" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\scripts\gencert.sh" Link="gencert.sh" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

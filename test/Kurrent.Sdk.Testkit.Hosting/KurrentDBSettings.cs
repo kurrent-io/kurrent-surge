@@ -36,12 +36,12 @@ public class KurrentDBSettings {
     /// <summary>
     /// The username for the KurrentDB resource. Cannot be empty.
     /// </summary>
-    public string UserName { get; set; } = KurrentDBResource.DefaultUserName;
+    public string UserName { get; set; } = KurrentDBServerResource.DefaultUserName;
 
     /// <summary>
     /// The password for the KurrentDB resource. Can be empty but is not advised.
     /// </summary>
-    public string Password { get; set; } = KurrentDBResource.DefaultPassword;
+    public string Password { get; set; } = KurrentDBServerResource.DefaultPassword;
 
     /// <summary>
     /// Gets or sets a boolean value that indicates whether the KurrentDB health check is disabled or not.
@@ -59,9 +59,7 @@ public class KurrentDBSettings {
     /// </value>
     public TimeSpan? HealthCheckTimeout { get; set; }
 
-    public string Image { get; init; } = KurrentDBContainerImageTags.Nightly.Image;
-
-    public string Tag   { get; init; } = KurrentDBContainerImageTags.Nightly.Tag;
+    public string Tag { get; init; } = KurrentDBContainerImageTags.Tag;
 
     #region ->> Fluent API <<-
 
@@ -129,10 +127,6 @@ public class KurrentDBSettings {
         ArgumentOutOfRangeException.ThrowIfLessThan(Topology.Nodes, 1);
         ArgumentOutOfRangeException.ThrowIfNegative(Topology.Replicas);
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(ContainerImage.Registry);
-        ArgumentException.ThrowIfNullOrWhiteSpace(ContainerImage.Image);
-        ArgumentException.ThrowIfNullOrWhiteSpace(ContainerImage.Tag);
-
         if (Topology is { Replicas: > 0, Nodes: < 3 })
             throw new ArgumentException("Read-only replicas require a cluster of at least 3 nodes.");
 
@@ -180,7 +174,7 @@ public sealed class ClusterBuilder {
 public sealed class ContainerImageSettings {
     public string Registry { get; set; } = KurrentDBContainerImageTags.Registry;
 
-    public string Image { get; set; } = KurrentDBContainerImageTags.Nightly.Image;
+    public string Image { get; set; } = KurrentDBContainerImageTags.Image;
 
-    public string Tag { get; set; } = KurrentDBContainerImageTags.Nightly.Tag;
+    public string Tag { get; set; } = KurrentDBContainerImageTags.Tag;
 }

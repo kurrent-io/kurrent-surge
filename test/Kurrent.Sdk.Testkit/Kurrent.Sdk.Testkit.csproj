@@ -30,9 +30,6 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
   </ItemGroup>
   
-  <ItemGroup>
-    <None Update="gencert.sh" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
   
   <ItemGroup>
     <Folder Include="Aspire\Hosting\" />

@@ -296,10 +296,36 @@ public static class AspireExtensions {
             return connString ?? throw new ApplicationException($"Resource '{resource.Name}' connection string not available");
         }
 
-        public async ValueTask<string?> GetRequiredConnectionString(TimeSpan timeout) {
+        public async ValueTask<string> GetRequiredConnectionString(TimeSpan timeout) {
             using var cts = new CancellationTokenSource(timeout);
             return await resource.GetRequiredConnectionString(cts.Token).ConfigureAwait(false);
         }
+    }
+    
+    extension( DistributedApplicationModel appModel) {
+        public ValueTask<string?> GetConnectionString<T>(string resourceName, CancellationToken ct = default) where T : IResourceWithConnectionString =>
+            appModel.Resources.OfType<T>().Single(r => r.Name == resourceName).GetConnectionString(ct);
+
+        public ValueTask<string?> GetConnectionString<T>(string resourceName, TimeSpan timeout) where T : IResourceWithConnectionString =>
+            appModel.Resources.OfType<T>().Single(r => r.Name == resourceName).GetConnectionString(timeout);
+        
+        public ValueTask<string?> GetConnectionString<T>(CancellationToken ct = default) where T : IResourceWithConnectionString =>
+            appModel.GetConnectionString<T>(typeof(T).Name.ToLowerInvariant(), ct);
+
+        public ValueTask<string?> GetConnectionString<T>(TimeSpan timeout) where T : IResourceWithConnectionString =>
+            appModel.GetConnectionString<T>(typeof(T).Name.ToLowerInvariant(), timeout);
+        
+        public ValueTask<string> GetRequiredConnectionString<T>(string resourceName, CancellationToken ct = default) where T : IResourceWithConnectionString =>
+            appModel.Resources.OfType<T>().Single(r => r.Name == resourceName).GetRequiredConnectionString(ct);
+
+        public ValueTask<string> GetRequiredConnectionString<T>(string resourceName, TimeSpan timeout) where T : IResourceWithConnectionString =>
+            appModel.Resources.OfType<T>().Single(r => r.Name == resourceName).GetRequiredConnectionString(timeout);
+        
+        public ValueTask<string> GetRequiredConnectionString<T>(CancellationToken ct = default) where T : IResourceWithConnectionString =>
+            appModel.GetRequiredConnectionString<T>(typeof(T).Name.ToLowerInvariant(), ct);
+
+        public ValueTask<string> GetRequiredConnectionString<T>(TimeSpan timeout) where T : IResourceWithConnectionString =>
+            appModel.GetRequiredConnectionString<T>(typeof(T).Name.ToLowerInvariant(), timeout);
     }
 }
 
