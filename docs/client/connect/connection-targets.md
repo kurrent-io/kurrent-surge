@@ -100,4 +100,4 @@ Available node preferences:
 | `ReadOnlyReplica` | Prefer a read-only replica           |
 | `Random`          | Pick any reachable node (default)    |
 
-For custom CA, mutual TLS, and other security configuration, see [Connection Options](./connection-options.md).
+For custom CA, mutual TLS, and other security configuration, see [Security](./security.md).

@@ -46,7 +46,7 @@ docker run --name kurrentdb -d \
     --insecure
 ```
 
-For production deployments, see [Connection Targets](./connect/connection-targets.md) and [Connection Options](./connect/connection-options.md) to set up TLS, authentication, and clustering.
+For production deployments, see [Connection Targets](./connect/connection-targets.md) for clustering and [Security](./connect/security.md) for TLS and authentication.
 
 ## Append records from the producer
 

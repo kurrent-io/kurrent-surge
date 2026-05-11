@@ -31,7 +31,7 @@ await using var client = KurrentClient.Create(options);
 
 :::
 
-For the scheme and endpoints to use against different deployments, see [Connection Targets](./connection-targets.md). For TLS, authentication, and resilience tuning, see [Connection Options](./connection-options.md).
+For the scheme and endpoints to use against different deployments, see [Connection Targets](./connection-targets.md). For TLS and authentication, see [Security](./security.md). For retries, deadlines, and channel tuning, see [Connection Options](./connection-options.md).
 
 ## Register with dependency injection
 
