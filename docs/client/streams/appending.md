@@ -235,33 +235,45 @@ See [Error handling](../error-handling.md) for the full throwing model, validati
 
 ## Stream state matrix
 
-Every append compares an *expected* state against the *actual* state of the stream and rejects the operation on a mismatch. The rules differ slightly for the stream being appended to versus read-only consistency checks on other streams. In the matrices below, ✅ means the check passes and ❌ means the operation is rejected with a stream state violation.
+Every append compares an *expected* state against the *actual* state of the stream and rejects the operation on a mismatch. The rules differ slightly for the stream being appended to versus read-only consistency checks on other streams. ✅ means the check passes, and ❌ means the operation is rejected with a stream state violation.
 
 ### Append target
 
 Applied to the stream being appended to. A tombstoned stream rejects every append.
 
-| Expected ↓ / Actual → | Revision M  | No stream | Deleted | Tombstoned |
-|:----------------------|:-----------:|:---------:|:-------:|:----------:|
-| `Revision.From(N)`    | ✅ if M = N  |     ❌     |    ❌    |     ❌      |
-| `NoStream`            |      ❌      |     ✅     |    ✅    |     ❌      |
-| `Any`                 |      ✅      |     ✅     |    ✅    |     ❌      |
-| `Exists`              |      ✅      |     ❌     |    ❌    |     ❌      |
-| `Deleted`             |      ❌      |     ❌     |    ✅    |     ❌      |
-| `Tombstoned`          |      ❌      |     ❌     |    ❌    |     ❌      |
+<table>
+<thead>
+<tr><th rowspan="2">Expected</th><th colspan="4" align="center">Actual</th></tr>
+<tr><th align="center">Revision M</th><th align="center">No stream</th><th align="center">Deleted</th><th align="center">Tombstoned</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Revision.From(N)</code></td><td align="center">✅ if M = N</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
+<tr><td><code>NoStream</code></td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td><td align="center">❌</td></tr>
+<tr><td><code>Any</code></td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td><td align="center">❌</td></tr>
+<tr><td><code>Exists</code></td><td align="center">✅</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
+<tr><td><code>Deleted</code></td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td><td align="center">❌</td></tr>
+<tr><td><code>Tombstoned</code></td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
+</tbody>
+</table>
 
 ### Cross-stream consistency check
 
 Applied as a read-only check on another stream in an `AppendRecords` transaction. `NoStream` and `Any` are also satisfied when the stream has been deleted or tombstoned, because the check is asserting absence rather than guarding a write.
 
-| Expected ↓ / Actual → | Revision M  | No stream | Deleted | Tombstoned |
-|:----------------------|:-----------:|:---------:|:-------:|:----------:|
-| `Revision.From(N)`    | ✅ if M = N  |     ❌     |    ❌    |     ❌      |
-| `NoStream`            |      ❌      |     ✅     |    ✅    |     ✅      |
-| `Any`                 |      ✅      |     ✅     |    ✅    |     ✅      |
-| `Exists`              |      ✅      |     ❌     |    ❌    |     ❌      |
-| `Deleted`             |      ❌      |     ❌     |    ✅    |     ❌      |
-| `Tombstoned`          |      ❌      |     ❌     |    ❌    |     ✅      |
+<table>
+<thead>
+<tr><th rowspan="2">Expected</th><th colspan="4" align="center">Actual</th></tr>
+<tr><th align="center">Revision M</th><th align="center">No stream</th><th align="center">Deleted</th><th align="center">Tombstoned</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Revision.From(N)</code></td><td align="center">✅ if M = N</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
+<tr><td><code>NoStream</code></td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr>
+<tr><td><code>Any</code></td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr>
+<tr><td><code>Exists</code></td><td align="center">✅</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
+<tr><td><code>Deleted</code></td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td><td align="center">❌</td></tr>
+<tr><td><code>Tombstoned</code></td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td></tr>
+</tbody>
+</table>
 
 See [Append-specific exceptions](#reference) below for the exception raised on each rejection.
 
