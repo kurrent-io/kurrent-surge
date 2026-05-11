@@ -4,7 +4,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Projections;
 using Kurrent.Projections.DuckDB;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Processors.Tests.Projections.DuckDB;
 
@@ -13,8 +13,8 @@ namespace Kurrent.Processors.Tests.Projections.DuckDB;
 [Category("Integration")]
 [Timeout(30_000)]
 public class DuckDBProjectionTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [ClassDataSource<DuckDBTestFixture>(Shared = SharedType.None)]
     public required DuckDBTestFixture DuckDB { get; [UsedImplicitly] init; }

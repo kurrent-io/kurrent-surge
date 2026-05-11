@@ -1,13 +1,13 @@
 using Kurrent.Client.Streams;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Secure;
 
 [Category("Secure")]
 [Category("Integration")]
 public class TransportTests {
-    [ClassDataSource<KurrentDBSecureTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBSecureTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBSecureFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBSecureFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask reads_back_over_tls(CancellationToken ct) {

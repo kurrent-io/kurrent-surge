@@ -2,7 +2,7 @@ using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Processors.Tests;
@@ -11,8 +11,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Integration")]
 [Timeout(120_000)]
 public class DroneIntegrationTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     #region ->> processing <<-
 

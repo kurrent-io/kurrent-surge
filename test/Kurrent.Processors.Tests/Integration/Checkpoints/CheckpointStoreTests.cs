@@ -1,9 +1,9 @@
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Models;
-using Kurrent.Testing.Testkit;
+using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.Logging;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Processors.Tests;
 
@@ -14,8 +14,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 [Category("Integration")]
 public class CheckpointStoreTests {
-	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
 	KurrentDBCheckpointStore CreateStore(string processorId, int partitionCount = 8, int maxCount = 100) =>
         new(

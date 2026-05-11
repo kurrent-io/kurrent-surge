@@ -5,8 +5,8 @@ using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Gateway;
 using Kurrent.Processors.Models;
 using Kurrent.Processors.Options;
-using Kurrent.Sdk.Testkit.Fixtures;
-using Kurrent.Testing.Testkit;
+using Kurrent.Testkit.Aspire;
+using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Processors.Tests;
@@ -14,8 +14,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Processors")]
 [Category("Integration")]
 public class CheckpointerTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     Checkpointer CreateCheckpointer(
         string processorId,

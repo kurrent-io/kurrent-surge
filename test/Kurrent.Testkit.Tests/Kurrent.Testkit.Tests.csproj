@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

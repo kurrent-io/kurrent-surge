@@ -1,4 +1,4 @@
-﻿using Kurrent.Testing.Testkit;
+﻿using Kurrent.Testkit.Testkit;
 using Kurrent.Testkit.TUnit;
 using Microsoft.Extensions.Logging;
 

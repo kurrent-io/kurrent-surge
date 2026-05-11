@@ -1,15 +1,15 @@
 using System.Diagnostics;
-using Aspire.Hosting.Testing;
 using Humanizer;
-using Kurrent.Sdk.Testkit.Hosting;
-using Kurrent.Testing.Testkit;
+using Aspire.Hosting.KurrentDB;
+using Aspire.Hosting.Testing;
+using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using TUnit.Core.Interfaces;
 
-namespace Kurrent.Sdk.Testkit.Fixtures;
+namespace Kurrent.Testkit.Aspire;
 
 /// <summary>
 /// Base fixture that manages the lifecycle of an Aspire distributed application for testing.

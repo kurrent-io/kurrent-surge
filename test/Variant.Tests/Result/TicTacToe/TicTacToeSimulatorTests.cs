@@ -1,6 +1,6 @@
 // // ReSharper disable CheckNamespace
 //
-// using Kurrent.Testing.Sample.Games.TicTacToe;
+// using Kurrent.Teskit.Sample.Games.TicTacToe;
 //
 // namespace TicTacToe;
 //

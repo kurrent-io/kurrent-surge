@@ -1,4 +1,4 @@
-// using Kurrent.Testing.TUnit;
+// using Kurrent.Teskit.TUnit;
 // using KurrentDB.Client;
 //
 // using static KurrentDB.Client.ClusterMessages.VNodeState;

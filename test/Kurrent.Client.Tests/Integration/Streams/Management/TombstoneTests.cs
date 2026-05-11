@@ -1,5 +1,5 @@
 using Kurrent.Client.Exceptions;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -7,8 +7,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Tombstone")]
 [Category("Integration")]
 public class TombstoneTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask tombstones_existing_stream_without_specifing_revision(CancellationToken ct) {

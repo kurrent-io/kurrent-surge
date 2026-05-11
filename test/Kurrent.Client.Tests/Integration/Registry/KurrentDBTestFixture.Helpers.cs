@@ -2,14 +2,14 @@
 
 using Google.Protobuf;
 using NJsonSchema;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
 public static class KurrentDBTestFixtureRegistryExtensions {
     static readonly TimeSpan EventualConsistencyDelay = TimeSpan.FromMilliseconds(200);
 
-    extension(KurrentDBTestFixture) {
+    extension(KurrentDBFixture) {
 
         /// <summary>
         /// Waits for the schema registry read model to catch up after a state-changing operation.

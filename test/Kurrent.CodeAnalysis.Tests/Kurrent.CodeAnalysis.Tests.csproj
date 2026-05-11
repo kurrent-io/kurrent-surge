@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Indexes;
 
@@ -9,8 +9,8 @@ namespace Kurrent.Client.Tests.Indexes;
 public class StartStopIndexTests {
     const int TestTimeoutMs = 20_000;
 
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test, Timeout(TestTimeoutMs)]
     public async ValueTask stops_and_starts_an_index(CancellationToken ct) {

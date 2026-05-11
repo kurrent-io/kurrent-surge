@@ -1,7 +1,7 @@
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Processors.Tests;
 
@@ -9,8 +9,8 @@ namespace Kurrent.Processors.Tests;
 [Category("Integration")]
 [Timeout(30_000)]
 public class DroneBatchedIntegrationTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     #region ->> processing <<-
 

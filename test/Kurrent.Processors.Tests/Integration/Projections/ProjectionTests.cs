@@ -4,7 +4,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Models;
 using Kurrent.Projections;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Processors.Tests.Projections;
 
@@ -12,8 +12,8 @@ namespace Kurrent.Processors.Tests.Projections;
 [Category("Integration")]
 [Timeout(30_000)]
 public class ProjectionTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask generic_projection_dispatches_typed_handlers_and_fallback(CancellationToken ct) {

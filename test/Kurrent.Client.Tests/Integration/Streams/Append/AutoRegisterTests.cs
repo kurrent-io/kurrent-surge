@@ -4,7 +4,7 @@ using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -12,8 +12,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("Integration")]
 public class AutoRegisterTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     // Each test scopes its schemas to a unique namespace so the registry never sees a
     // collision across tests, which lets the assertion `LatestSchemaVersion == 1` stay
@@ -47,7 +47,7 @@ public class AutoRegisterTests {
         // Act
         await client.Streams.AppendStream(request, ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         // Assert
         var schemaName = nameStrategy.GenerateSchemaName(data.Records[0].Value!.GetType());
@@ -91,7 +91,7 @@ public class AutoRegisterTests {
         await client.Streams.AppendStream(
             AppendStreamRequest.For(data.Stream).WithRecords([sameType[1]]).Build(), ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         // Assert
         var schemaName = nameStrategy.GenerateSchemaName(typeof(LapCompleted));
@@ -136,11 +136,11 @@ public class AutoRegisterTests {
 
         await Fixture.Client.Registry.CreateSchema(
             schemaName,
-            KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson(),
+            KurrentDBFixture.NewJsonSchemaDefinition().ToJson(),
             SchemaDataFormat.Json,
             ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;

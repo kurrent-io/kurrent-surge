@@ -1,6 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Testing.Containers.KurrentDB;
+using Kurrent.Testkit.Containers.KurrentDB;
 using Testing.ArcadeRacer;
 
 namespace Benchmarks.Infrastructure;

@@ -8,12 +8,12 @@
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
     <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
-    <ProjectReference Include="..\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="FakeItEasy" />
-    <Using Include="Kurrent.Testing" />
+    <Using Include="Kurrent.Testkit" />
     <Using Include="TUnit" />
   </ItemGroup>
 
