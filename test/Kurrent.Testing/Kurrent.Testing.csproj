@@ -40,6 +40,7 @@
     <PackageReference Include="Serilog.Sinks.Observable" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
     <PackageReference Include="Serilog.Sinks.Seq" />
+    <PackageReference Include="SharpCompress" />
     <PackageReference Include="shortid" />
     <PackageReference Include="System.Reactive" />
     <PackageReference Include="TUnit.Assertions" />
