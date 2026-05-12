@@ -1,13 +1,13 @@
 // ReSharper disable CheckNamespace
 
 using Kurrent.Client.Connectors;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
 public static class KurrentDBTestFixtureConnectorExtensions {
-	extension(KurrentDBTestFixture) {
+	extension(KurrentDBFixture) {
         public static string NewConnectorId() => $"test-connector-{Guid.NewGuid():N}";
 
         public static string NewConnectorName() => $"Test Connector {Guid.NewGuid():N}";
@@ -22,7 +22,7 @@ public static class KurrentDBTestFixtureConnectorExtensions {
 
         public static IConfiguration NewConnectorConfiguration() =>
             new ConfigurationBuilder()
-                .AddInMemoryCollection(KurrentDBTestFixture.NewConnectorSettings()
+                .AddInMemoryCollection(KurrentDBFixture.NewConnectorSettings()
                     .Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value)))
                 .Build();
     }

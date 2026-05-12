@@ -10,7 +10,7 @@ namespace Kurrent.Client.Streams;
 /// Single source of truth for the legacy (V1 gRPC) Streams protocol mapping.
 /// Replaces the two drifted copies:
 ///   - src/Kurrent.Client/Modules/Streams/Models/Maps/StreamsClientV1Mapper.cs
-///   - src/Kurrent.Processors/Models/StreamsClientV1Mapper.cs
+///   - src/Kurrent.Streaming/Models/StreamsClientV1Mapper.cs
 ///
 /// Both one-shot reads (Client) and live subscriptions (Processors) route through
 /// <see cref="Requests.ApplyLogReadShape"/>, which encodes every KurrentDB server

@@ -14,11 +14,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
-    <ProjectReference Include="..\..\src\Kurrent.Processors\Kurrent.Processors.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Streaming\Kurrent.Streaming.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
-    <ProjectReference Include="..\..\test\Kurrent.Testing\Kurrent.Testing.csproj" />
+    <ProjectReference Include="..\..\test\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

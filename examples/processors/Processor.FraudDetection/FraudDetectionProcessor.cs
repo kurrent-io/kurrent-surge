@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Kurrent.Processors;
+using Kurrent.Streaming;
 using Microsoft.Extensions.Logging;
 using Processor.FraudDetection.Events;
 

@@ -2,7 +2,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -11,8 +11,8 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Read")]
 [Category("Integration")]
 public class ReadTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask reads_log(CancellationToken ct) {

@@ -2,25 +2,25 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]
 public class GetSchemaVersionTests {
-	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask get_latest_schema_by_name(CancellationToken ct) {
-		var schemaName       = KurrentDBTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBFixture.NewJsonSchemaDefinition().ToJson();
 
         await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, ct);
@@ -34,13 +34,13 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_name_and_version(CancellationToken ct) {
-        var schemaName       = KurrentDBTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
+        var schemaName       = KurrentDBFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBFixture.NewJsonSchemaDefinition().ToJson();
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersion(schemaName, schemaVersion.VersionNumber, ct);
@@ -54,13 +54,13 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_id(CancellationToken ct) {
-		var schemaName       = KurrentDBTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBFixture.NewJsonSchemaDefinition().ToJson();
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
 			.GetSchemaVersionById(schemaVersion.VersionId, ct);
@@ -74,7 +74,7 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_name_fails_on_unknown_name(CancellationToken ct) {
-		var nonExistentSchemaName = KurrentDBTestFixture.NewSchemaName();
+		var nonExistentSchemaName = KurrentDBFixture.NewSchemaName();
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry
@@ -83,13 +83,13 @@ public class GetSchemaVersionTests {
 
 	[Test]
 	public async ValueTask get_schema_by_name_fails_on_invalid_version(CancellationToken ct) {
-		var schemaName       = KurrentDBTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBFixture.NewJsonSchemaDefinition().ToJson();
 
         await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		const int nonExistentVersionNumber = 999;
 

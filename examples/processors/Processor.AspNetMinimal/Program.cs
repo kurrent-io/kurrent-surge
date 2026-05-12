@@ -1,6 +1,6 @@
-using Kurrent.Processors.Models;
+using Kurrent.Streaming.Models;
 using Processor.AspNetMinimal;
-using static Kurrent.Processors.Checkpointing.Contracts;
+using static Kurrent.Streaming.Checkpointing.Contracts;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -16,7 +16,7 @@ try {
         prx.Connection(
             "kurrentdb://admin:changeit@localhost:2113?tls=false",
             opts => opts.Schema.Mapper
-                .Map<PartitionsCheckpointed>("Kurrent.Processors.Checkpointing.PartitionsCheckpointed"));
+                .Map<PartitionsCheckpointed>("Kurrent.Streaming.Checkpointing.PartitionsCheckpointed"));
         
         prx.ProcessorId                  = $"transfer-processor-{Guid.NewGuid().ToString()[..8]}";
         prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;

@@ -1,20 +1,20 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Connectors;
 
 [Category("Connectors")]
 [Category("Integration")]
 public class ConnectorQueryTests {
-	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask lists_connectors(CancellationToken ct) {
-        var connectorId = KurrentDBTestFixture.NewConnectorId();
-        var name        = KurrentDBTestFixture.NewConnectorName();
-        var settings    = KurrentDBTestFixture.NewConnectorSettings();
+        var connectorId = KurrentDBFixture.NewConnectorId();
+        var name        = KurrentDBFixture.NewConnectorName();
+        var settings    = KurrentDBFixture.NewConnectorSettings();
 
         await Fixture.Client.Connectors
             .Create(connectorId, name, settings, ct);

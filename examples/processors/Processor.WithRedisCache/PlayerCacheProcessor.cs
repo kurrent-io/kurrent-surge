@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Kurrent.Processors;
+using Kurrent.Streaming;
 using StackExchange.Redis;
 using Transfermarkt.Domain;
 

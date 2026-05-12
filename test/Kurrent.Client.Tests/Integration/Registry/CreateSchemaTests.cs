@@ -2,20 +2,20 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]
 public class CreateSchemaTests {
-	[ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-	public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
 	public async ValueTask registers_initial_version_of_new_schema(CancellationToken ct) {
-		var schemaName       = KurrentDBTestFixture.NewSchemaName();
-		var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
+		var schemaName       = KurrentDBFixture.NewSchemaName();
+		var schemaDefinition = KurrentDBFixture.NewJsonSchemaDefinition().ToJson();
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
@@ -23,7 +23,7 @@ public class CreateSchemaTests {
 		await Assert.That(schemaVersion.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(schemaVersion.VersionNumber).IsEqualTo(1);
 
-        await KurrentDBTestFixture.WaitForEventualConsistency(ct);
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         var version = await Fixture.Client.Registry
             .GetSchemaVersionById(schemaVersion.VersionId, ct);
@@ -37,8 +37,8 @@ public class CreateSchemaTests {
 
 	[Test]
 	public async ValueTask fails_to_create_schema_when_schema_already_exists(CancellationToken ct) {
-        var schemaName       = KurrentDBTestFixture.NewSchemaName();
-        var schemaDefinition = KurrentDBTestFixture.NewJsonSchemaDefinition().ToJson();
+        var schemaName       = KurrentDBFixture.NewSchemaName();
+        var schemaDefinition = KurrentDBFixture.NewJsonSchemaDefinition().ToJson();
 
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
