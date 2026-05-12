@@ -8,26 +8,9 @@ order: 2
 
 `MessageTypeMapper` holds a bidirectional map between schema names stored in KurrentDB and .NET types. Encoding picks the schema name for an outgoing payload. Decoding picks the .NET type for an incoming record.
 
-## Auto-mapping
-
-By default the client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no upfront registration is required:
-
-```csharp
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new OrderPlaced("order-123", "Widget"))
-    .Build();
-
-await client.Streams.AppendStream(record);
-```
-
-Auto-mapping is convenient but lazy. A record can only be decoded once the .NET type has been seen at least once in the current process, or registered explicitly up front. Workers that start cold and read events for types they have never produced themselves arrive undecoded until you map the type.
-
-A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Create a Client](../connect/create-a-client.md#service-provider-overrides).
-
 ## Register types up front
 
-The recommended way to populate the mapper is `MessageTypeMapper.Create`, which exposes a builder that respects the configured naming strategy:
+The recommended path is `MessageTypeMapper.Create`, which exposes a builder that respects the configured naming strategy:
 
 ```csharp
 var mapper = MessageTypeMapper.Create(m => m
@@ -43,6 +26,8 @@ await using var client = KurrentClient.Create(
 
 Inside the builder, `Map<T>()` runs the strategy to derive a schema name. Pass a string to override.
 
+Up-front registration matters for cold workers. A consumer that starts and reads events for a type it has never produced sees those events arrive raw until the mapping exists. Registering everything you expect to receive at startup avoids this entirely.
+
 The standalone `Map<T>()` method on the schema options' mapper works differently. It always uses `typeof(T).FullName` as the schema name and ignores the configured strategy:
 
 ```csharp
@@ -53,6 +38,21 @@ opts.Schema.Mapper.Map<OrderPlaced>("order-placed"); // "order-placed"
 ```
 
 If you want the strategy applied, build the mapper through `Create` or `new MessageTypeMapper.Builder()` and assign the result. Mixing the two entry points (builder `Map<T>()` that respects the strategy, and standalone mapper `Map<T>()` that uses `FullName`) produces inconsistent names for the same type.
+
+## Auto-mapping
+
+For prototypes and dev loops the client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so nothing has to be registered first:
+
+```csharp
+var record = AppendRecord.New
+    .ForStream("order-123")
+    .WithValue(new OrderPlaced("order-123", "Widget"))
+    .Build();
+
+await client.Streams.AppendStream(record);
+```
+
+Auto-mapping is lazy. A record can only be decoded once the .NET type has been seen at least once in the current process. For long-lived consumers, prefer up-front registration.
 
 ## Mapper API
 
@@ -77,3 +77,7 @@ The `Map`/`TryMap` asymmetry is intentional. `Map` returns a result so callers c
 | `MessageTypeResolutionException`     | `GetOrResolveMessageType` cannot resolve a schema name.                        |
 | `MessageTypeMapNotFoundException`    | `GetSchemaName` cannot find the type, with throw-when-missing enabled.         |
 | `SchemaNameMapNotFoundException`     | `GetMessageType` cannot find the schema name, with throw-when-missing enabled. |
+
+## Registration
+
+A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Create a Client](../connect/create-a-client.md#service-provider-overrides).

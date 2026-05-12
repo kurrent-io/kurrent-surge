@@ -10,65 +10,181 @@ Every record carries a string identity for its type, the **schema name**. Reader
 
 By default Kurrent derives the schema name from the type itself. You can pick a different strategy or override the name per type.
 
-Let's say you have a basic record type in the `Acme.Orders` namespace:
+Let's say you have a basic record type in the `Shop.Orders` namespace:
 
 ```csharp
-namespace Acme.Orders;
+namespace Shop.Orders;
 
 public record OrderPlaced(string OrderId, string Product);
 ```
 
-By default, Kurrent identifies this type using its .NET full name, so a record of `OrderPlaced` produces a schema name of `Acme.Orders.OrderPlaced`.
+By default, Kurrent identifies this type using its .NET full name, so a record of `OrderPlaced` produces a schema name of `Shop.Orders.OrderPlaced`.
 
-## Strategies
+Four strategies ship with the SDK, each composable with one of four output formats: raw, kebab-case, snake_case, or URN. The detailed sections below show every strategy applied to two sample messages, expanded across all four formats.
 
-The active strategy is set on the client options. Four factories ship on `SchemaNameStrategies`. Examples below assume the type is `Acme.Orders.OrderPlaced` and the stream is `order-123`.
+## Choosing a strategy
 
-| Strategy                    | Output                          |
-|-----------------------------|---------------------------------|
-| `TypeName()` (default)      | `Acme.Orders.OrderPlaced`       |
-| `Category()`                | `order.OrderPlaced`             |
-| `Namespace("acme")`         | `acme.OrderPlaced`              |
-| `NamespaceCategory("acme")` | `acme.order.OrderPlaced`        |
+The right choice depends on your architecture, the messages crossing service boundaries, and how schemas evolve.
 
-**TypeName** keeps the .NET namespace and class name as the wire identifier. Best for internal-only events where types double as the contract, strongly-typed microservice meshes that share a code-level vocabulary, and DDD systems with stable class names. Costs are verbose names, tight coupling to code structure, and friction when refactoring a class moves the schema name with it.
+| Architecture                                              | Strategy                       |
+|-----------------------------------------------------------|--------------------------------|
+| Message-driven monolith, internal events                  | Type name                      |
+| Event-sourced platform with stream categories             | Stream category                |
+| Multi-tenant or multi-environment system                  | Fixed namespace                |
+| Multi-tenant event-sourced platform with bounded contexts | Namespace and category         |
+| Anything that needs URN-style identifiers downstream      | Any strategy with `Urn` format |
 
-**Category** uses the segment before the first hyphen in the stream name as the prefix and drops the .NET namespace. Best for event-sourced systems where streams are organized by aggregate or domain, and where type names are unique inside each category. Costs are potential collisions across domains and less explicit service ownership in the name.
+For most event-driven systems, **Stream category** is the recommended default. It aligns with how streams are naturally organized, keeps names concise, and avoids coupling the wire contract to .NET code structure. For rapid prototyping or message-driven monoliths, **Type name** is zero-configuration and produces strong type safety without further setup. For platforms with tenant isolation as a first-class requirement, start with **Namespace and category** even though it carries higher upfront cost, because retrofitting tenant boundaries later is far more expensive.
 
-**Namespace** ignores the .NET namespace and substitutes a fixed identifier you pass in. Best for multi-tenant platforms, hybrid cloud or environment-specific isolation, and cross-service vocabularies that need a stable external label independent of code structure. Costs are explicit namespace coordination and the risk of namespace proliferation as the organization grows.
+The most important factor is consistency. A simple strategy applied uniformly beats a sophisticated one applied unevenly. For moves that span schema names (renames, version bumps, switching strategies on a live stream), see [Schema evolution](./schema-evolution.md).
 
-**NamespaceCategory** combines a fixed namespace with the stream category. Best for multi-tenant event-sourced platforms where you need tenant isolation alongside domain grouping, and for systems with bounded contexts per tenant. Costs are higher schema complexity and the need to coordinate both namespaces and categories.
+## Setting the strategy
 
-`Category` and `NamespaceCategory` derive the category from the stream name (everything before the first `-`). They throw `ArgumentException` when the stream is empty, so reach for them only when every record has a stream segment to derive from.
-
-Set the strategy on the client:
+Set the strategy on the client options. The four factories on `SchemaNameStrategies` (`TypeName`, `Category`, `Namespace`, `NamespaceCategory`) each accept an optional output format.
 
 ```csharp
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.Schema.NameStrategy = SchemaNameStrategies.Category());
+    opts => opts.Schema.NameStrategy = SchemaNameStrategies.Category(SchemaNameOutputFormat.KebabCase));
 ```
 
-## Output formats
+The category-based strategies (`Category` and `NamespaceCategory`) both derive their prefix from the stream and throw when the stream is empty. Use them only when every record carries a stream segment to derive from.
 
-Every factory accepts a `SchemaNameOutputFormat` that transforms the generated name. Examples below all use `TypeName()`.
+## Type name (default)
 
-| Format             | Output                                            |
-|--------------------|---------------------------------------------------|
-| `None` (default)   | `Acme.Orders.OrderPlaced`                         |
-| `KebabCase`        | `acme.orders.order-placed`                        |
-| `SnakeCase`        | `acme.orders.order_placed`                        |
-| `Urn`              | `urn:schemas-kurrent:acme.orders:order-placed`    |
+Generates the schema name from the .NET full type name. No configuration required.
 
-Casing transforms apply per identifier. Dots between namespace segments are preserved, so `Acme.Orders` stays `acme.orders` rather than collapsing into `acme-orders`. The `Urn` format wraps the kebab-cased components in a `urn:schemas-kurrent:` prefix, useful when downstream systems expect URN-style identifiers.
+::: warning
+Fully-qualified .NET names tie the wire contract to your code structure. Renaming a class or moving it to a different namespace renames the schema, which breaks consumers reading the old name. For anything beyond prototyping, prefer **Stream category** or another strategy that decouples the wire name from .NET identifiers.
+:::
 
-Combine a strategy with a format:
+### Use when
 
-```csharp
-opts.Schema.NameStrategy = SchemaNameStrategies.Namespace("acme", SchemaNameOutputFormat.KebabCase);
+- Building strongly-typed microservice meshes that share a code-level vocabulary
+- Working with internal-only systems where types double as the contract
+- Practicing Domain-Driven Design with stable class names
+- Prioritizing zero-configuration setup
 
-// Auto-mapped schema name for OrderPlaced: "acme.order-placed"
-```
+### Trade-offs
+
+| Pros                                     | Cons                                          |
+|------------------------------------------|-----------------------------------------------|
+| Maps directly to .NET types              | Verbose names                                 |
+| Clear ownership boundaries               | Tightly coupled to code structure             |
+| Natural fit for strongly-typed systems   | Renaming a class renames the schema           |
+| Zero-configuration setup                 | Requires consistent class naming across teams |
+
+### Examples
+
+| Message                              | Format    | Schema name                                             |
+|--------------------------------------|-----------|---------------------------------------------------------|
+| `Shop.Orders.OrderPlaced`            | None      | Shop.Orders.OrderPlaced                                 |
+|                                      | KebabCase | shop.orders.order-placed                                |
+|                                      | SnakeCase | shop.orders.order_placed                                |
+|                                      | Urn       | urn:schemas-kurrent:shop.orders:order-placed            |
+| `Billing.Payments.PaymentAuthorized` | None      | Billing.Payments.PaymentAuthorized                      |
+|                                      | KebabCase | billing.payments.payment-authorized                     |
+|                                      | SnakeCase | billing.payments.payment_authorized                     |
+|                                      | Urn       | urn:schemas-kurrent:billing.payments:payment-authorized |
+
+## Stream category
+
+Pulls the category from the stream name (everything before the first hyphen) and joins it with the short type name. The .NET namespace is discarded.
+
+### Use when
+
+- Building event-sourced systems with stream-per-aggregate layout
+- Organizing streams by domain category on platforms like KurrentDB
+- Wanting concise, domain-aligned schema names
+- Reducing coupling to .NET code structure
+
+### Trade-offs
+
+| Pros                                    | Cons                                           |
+|-----------------------------------------|------------------------------------------------|
+| Concise, readable schema names          | Potential naming collisions across domains     |
+| Stable across class refactors           | Less explicit service ownership in the name    |
+| Aligns with stream-per-aggregate layout | Requires every record to have a stream segment |
+| Easy to discover by domain              | Categories must be coordinated across teams    |
+
+### Examples
+
+| Message                              | Stream         | Format    | Schema name                                    |
+|--------------------------------------|----------------|-----------|------------------------------------------------|
+| `Shop.Orders.OrderPlaced`            | `order-7f3a`   | None      | order.OrderPlaced                              |
+|                                      |                | KebabCase | order.order-placed                             |
+|                                      |                | SnakeCase | order.order_placed                             |
+|                                      |                | Urn       | urn:schemas-kurrent:order:order-placed         |
+| `Billing.Payments.PaymentAuthorized` | `payment-92ab` | None      | payment.PaymentAuthorized                      |
+|                                      |                | KebabCase | payment.payment-authorized                     |
+|                                      |                | SnakeCase | payment.payment_authorized                     |
+|                                      |                | Urn       | urn:schemas-kurrent:payment:payment-authorized |
+
+## Fixed namespace
+
+Replaces the .NET namespace with a label you provide. The label is the same for every record going through the client.
+
+### Use when
+
+- Building multi-tenant platforms where each tenant needs its own namespace
+- Managing hybrid cloud or environment-specific schema isolation
+- Establishing a cross-service vocabulary independent of code structure
+- Planning ahead for organizational changes that might rename .NET assemblies
+
+### Trade-offs
+
+| Pros                                            | Cons                                             |
+|-------------------------------------------------|--------------------------------------------------|
+| Maximum naming flexibility                      | Requires explicit namespace coordination         |
+| Strong tenant or environment isolation          | One client emits exactly one namespace           |
+| Decoupled from .NET code structure              | Risk of namespace proliferation as the org grows |
+| Stable across services that share the namespace | Cross-tenant lookups need extra metadata         |
+
+### Examples
+
+| Message                              | Namespace | Format    | Schema name                                 |
+|--------------------------------------|-----------|-----------|---------------------------------------------|
+| `Shop.Orders.OrderPlaced`            | `acme`    | None      | acme.OrderPlaced                            |
+|                                      |           | KebabCase | acme.order-placed                           |
+|                                      |           | SnakeCase | acme.order_placed                           |
+|                                      |           | Urn       | urn:schemas-kurrent:acme:order-placed       |
+| `Billing.Payments.PaymentAuthorized` | `acme`    | None      | acme.PaymentAuthorized                      |
+|                                      |           | KebabCase | acme.payment-authorized                     |
+|                                      |           | SnakeCase | acme.payment_authorized                     |
+|                                      |           | Urn       | urn:schemas-kurrent:acme:payment-authorized |
+
+## Namespace and category
+
+Combines a fixed namespace label with the stream category, then appends the short type name. Needs both a non-empty stream and a namespace label.
+
+### Use when
+
+- Running multi-tenant event-sourced platforms with bounded contexts per tenant
+- Managing complex domain hierarchies across different environments
+- Needing tenant isolation alongside domain grouping
+- Implementing event-driven architectures with clear isolation requirements
+
+### Trade-offs
+
+| Pros                                      | Cons                                                    |
+|-------------------------------------------|---------------------------------------------------------|
+| Tenant isolation plus domain organization | Most complex name structure of the four                 |
+| Strong multi-tenant boundaries            | Requires coordination of both namespaces and categories |
+| Clear bounded contexts per tenant         | Steeper learning curve for new team members             |
+| Scales well for large platforms           | Schema resolution involves both pieces                  |
+
+### Examples
+
+| Message                              | Namespace | Stream         | Format    | Schema name                                         |
+|--------------------------------------|-----------|----------------|-----------|-----------------------------------------------------|
+| `Shop.Orders.OrderPlaced`            | `acme`    | `order-7f3a`   | None      | acme.order.OrderPlaced                              |
+|                                      |           |                | KebabCase | acme.order.order-placed                             |
+|                                      |           |                | SnakeCase | acme.order.order_placed                             |
+|                                      |           |                | Urn       | urn:schemas-kurrent:acme.order:order-placed         |
+| `Billing.Payments.PaymentAuthorized` | `acme`    | `payment-92ab` | None      | acme.payment.PaymentAuthorized                      |
+|                                      |           |                | KebabCase | acme.payment.payment-authorized                     |
+|                                      |           |                | SnakeCase | acme.payment.payment_authorized                     |
+|                                      |           |                | Urn       | urn:schemas-kurrent:acme.payment:payment-authorized |
 
 ## Overriding the name per type
 
@@ -81,19 +197,3 @@ opts.Schema.Mapper = MessageTypeMapper.Create(m => m
 ```
 
 The string passed to `Map<T>` becomes the wire-level schema name and bypasses the active strategy. See [Type mapping](./type-mapping.md) for the full mapper API.
-
-## Picking a strategy
-
-The right strategy depends on your architecture, the messages crossing service boundaries, and how schemas evolve. Start with the table below, then verify the choice against your discovery, isolation, and versioning needs.
-
-| Architecture                                                  | Reach for                   |
-|---------------------------------------------------------------|-----------------------------|
-| Message-driven monolith, internal events                      | `TypeName()`                |
-| Event-sourced platform with stream categories                 | `Category()`                |
-| Multi-tenant or multi-environment system, code-agnostic names | `Namespace("acme")`         |
-| Multi-tenant event-sourced platform with bounded contexts     | `NamespaceCategory("acme")` |
-| Anything that needs URN-style identifiers downstream          | Any strategy with `Urn`     |
-
-For most event-driven systems, `Category()` is the recommended default. It aligns with how streams are naturally organized, keeps names concise, and avoids coupling the wire contract to .NET code structure. For rapid prototyping or message-driven monoliths, `TypeName()` is zero-configuration and produces strong type safety without further setup. For platforms with tenant isolation as a first-class requirement, start with `NamespaceCategory()` even though it carries a higher upfront cost, because retrofitting tenant boundaries later is far more expensive.
-
-The most important factor is consistency. A simple strategy applied uniformly beats a sophisticated one applied unevenly. Once a stream contains records under a given strategy, switching strategies changes the schema names produced for new records. Consumers that still need to decode the old records must keep the old mapping available, either through explicit registration or by sharing the same strategy.
