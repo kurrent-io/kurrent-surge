@@ -6,7 +6,7 @@ order: 4
 
 <CopyMarkdownButton />
 
-Each `Record` returned by a read carries both the raw bytes and the deserialized value. The decoder runs eagerly when the schema name resolves to a known .NET type. When the type mapping is missing at read time, the record arrives undecoded and you can decode on demand.
+Each `Record` returned by a read carries both the raw bytes and the deserialized value. The decoder runs eagerly when the schema name resolves to a known .NET type. When the read is configured with `SkipDecoding`, records arrive raw and can be decoded on demand. Without `SkipDecoding`, an unresolvable schema name surfaces as `SchemaDeserializationFailedException` during iteration.
 
 ## Record properties
 
@@ -37,26 +37,28 @@ When every type is registered up front (see [Type mapping](./type-system/type-ma
 
 ## Decode on demand
 
-If a record arrives undecoded because the type mapping was missing, register the type and call `TryDecode`. The call returns true on success and false otherwise.
+When a read is configured with `SkipDecoding`, records arrive with `Value` empty and `IsDecoded` false. Register the type and call `TryDecode`. The call returns true on success and false otherwise.
 
 ```csharp
 opts.Schema.Mapper.Map<OrderPlaced>();
 
 await foreach (var item in stream) {
-    item.Switch(
+    await item.SwitchAsync(
         async record => {
             if (!record.IsDecoded && await record.TryDecode())
                 Console.WriteLine("Decoded: {0}", record.Value);
         },
-        heartbeat => { }
+        heartbeat => ValueTask.CompletedTask
     );
 }
 ```
 
+Use `SwitchAsync` (not `Switch`) when a handler needs to `await`. `Switch` takes `Action<T>` and would not await the inner work.
+
 Records stored as raw bytes always return false from `TryDecode`. Read them directly from `Record.Data`. See [Raw bytes](./data-formats/bytes.md).
 
 ::: tip
-For zero-overhead casting on a known type, use the `record.As<T>()` extension.
+For zero-overhead casting on a known type, use `record.As<T>()`.
 :::
 
 ## Schema metadata

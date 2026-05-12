@@ -55,4 +55,4 @@ var bytesRecord = AppendRecord.New
     .Build();
 ```
 
-If a value cannot be serialized in the chosen format, the append surfaces the underlying serializer's exception wrapped in `SchemaSerializationFailedException`. Choosing `Avro` throws `SchemaSerializerNotFoundException`.
+If a value cannot be serialized in the chosen format, the serializer raises `SchemaSerializationFailedException`. Choosing `Avro` raises `SchemaSerializerNotFoundException`. Both reach the caller wrapped in an `ArgumentException` whose `InnerException` carries the original.

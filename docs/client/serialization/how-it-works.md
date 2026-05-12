@@ -43,7 +43,7 @@ When you read a record, the steps reverse:
 2. **Decode the payload.** The serializer for the record's data format produces a .NET value.
 3. **Expose the result.** The deserialized value lands on `Record.Value`. Raw bytes are still available on `Record.Data`.
 
-When the type mapping is missing at read time, the record arrives undecoded. Register the type and call `TryDecode` on demand. See [Reading records](./reading-records.md).
+When the read is configured with `SkipDecoding`, records arrive raw. Call `TryDecode` to decode on demand. See [Reading records](./reading-records.md).
 
 ## Where the pieces live
 
@@ -60,7 +60,7 @@ The registry module and the serialization stack are independent. Serialization t
 
 ## Serializer errors
 
-If a value cannot be encoded in the chosen format, the append surfaces the underlying serializer's exception wrapped in `SchemaSerializationFailedException`. Choosing a format with no serializer wired (currently `Avro`) throws `SchemaSerializerNotFoundException`.
+If the value cannot be encoded in the chosen format, the underlying serializer's exception is wrapped in `SchemaSerializationFailedException`. Choosing a format with no serializer wired (currently `Avro`) raises `SchemaSerializerNotFoundException`. On the append path, both surface to the caller wrapped in an `ArgumentException` whose `InnerException` carries the original.
 
 ## Registry interaction today
 

@@ -34,9 +34,11 @@ Every factory accepts a `SchemaNameOutputFormat` that transforms the generated n
 | Format             | Output                                            |
 |--------------------|---------------------------------------------------|
 | `None` (default)   | `Acme.Orders.OrderPlaced`                         |
-| `KebabCase`        | `acme-orders.order-placed`                        |
-| `SnakeCase`        | `acme_orders.order_placed`                        |
-| `Urn`              | `urn:schemas-kurrent:acme-orders:order-placed`    |
+| `KebabCase`        | `acme.orders.order-placed`                        |
+| `SnakeCase`        | `acme.orders.order_placed`                        |
+| `Urn`              | `urn:schemas-kurrent:acme.orders:order-placed`    |
+
+Casing transforms apply per identifier. Dots between namespace segments are preserved, so `Acme.Orders` stays `acme.orders` rather than collapsing into `acme-orders`.
 
 Combine a strategy with a format:
 

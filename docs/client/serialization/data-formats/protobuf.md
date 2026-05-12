@@ -37,3 +37,5 @@ If you need server-side schema validation, [JSON](./json.md) is the only format 
 | Exception                            | When it fires                                                  |
 |--------------------------------------|----------------------------------------------------------------|
 | `SchemaSerializationFailedException` | The Protobuf encoder threw while serializing the value.        |
+
+On the append path the exception reaches the caller wrapped in an `ArgumentException` whose `InnerException` carries the original.
