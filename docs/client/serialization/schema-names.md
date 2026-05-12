@@ -6,7 +6,9 @@ order: 1
 
 <CopyMarkdownButton />
 
-Every record carries a string identity for its type, the **schema name**. The schema name is what readers use to resolve the .NET type to decode into. By default Kurrent derives the schema name from the type itself. You can pick a different strategy or override the name per type.
+Every record carries a string identity for its type, the **schema name**. Readers use it to resolve which .NET type to decode into, and the [schema registry](../schema-registry/README.md) uses it as the key for storage, governance, and version management. The schema name is what shows up in tooling, in cross-service contracts, and in the registry, so picking a strategy up front pays off later.
+
+By default Kurrent derives the schema name from the type itself. You can pick a different strategy or override the name per type.
 
 Let's say you have a basic record type in the `Acme.Orders` namespace:
 
@@ -29,6 +31,14 @@ The active strategy is set on the client options. Four factories ship on `Schema
 | `Namespace("acme")`         | `acme.OrderPlaced`              |
 | `NamespaceCategory("acme")` | `acme.order.OrderPlaced`        |
 
+**TypeName** keeps the .NET namespace and class name as the wire identifier. Best for internal-only events where types double as the contract, strongly-typed microservice meshes that share a code-level vocabulary, and DDD systems with stable class names. Costs are verbose names, tight coupling to code structure, and friction when refactoring a class moves the schema name with it.
+
+**Category** uses the segment before the first hyphen in the stream name as the prefix and drops the .NET namespace. Best for event-sourced systems where streams are organized by aggregate or domain, and where type names are unique inside each category. Costs are potential collisions across domains and less explicit service ownership in the name.
+
+**Namespace** ignores the .NET namespace and substitutes a fixed identifier you pass in. Best for multi-tenant platforms, hybrid cloud or environment-specific isolation, and cross-service vocabularies that need a stable external label independent of code structure. Costs are explicit namespace coordination and the risk of namespace proliferation as the organization grows.
+
+**NamespaceCategory** combines a fixed namespace with the stream category. Best for multi-tenant event-sourced platforms where you need tenant isolation alongside domain grouping, and for systems with bounded contexts per tenant. Costs are higher schema complexity and the need to coordinate both namespaces and categories.
+
 `Category` and `NamespaceCategory` derive the category from the stream name (everything before the first `-`). They throw `ArgumentException` when the stream is empty, so reach for them only when every record has a stream segment to derive from.
 
 Set the strategy on the client:
@@ -50,7 +60,7 @@ Every factory accepts a `SchemaNameOutputFormat` that transforms the generated n
 | `SnakeCase`        | `acme.orders.order_placed`                        |
 | `Urn`              | `urn:schemas-kurrent:acme.orders:order-placed`    |
 
-Casing transforms apply per identifier. Dots between namespace segments are preserved, so `Acme.Orders` stays `acme.orders` rather than collapsing into `acme-orders`.
+Casing transforms apply per identifier. Dots between namespace segments are preserved, so `Acme.Orders` stays `acme.orders` rather than collapsing into `acme-orders`. The `Urn` format wraps the kebab-cased components in a `urn:schemas-kurrent:` prefix, useful when downstream systems expect URN-style identifiers.
 
 Combine a strategy with a format:
 
@@ -74,12 +84,16 @@ The string passed to `Map<T>` becomes the wire-level schema name and bypasses th
 
 ## Picking a strategy
 
-| Scenario                                                | Reach for                  |
-|---------------------------------------------------------|----------------------------|
-| Internal-only events, CLR identity preserved            | `TypeName()`               |
-| Events grouped by stream category, type name is unique  | `Category()`               |
-| Cross-service vocabulary that doesn't track namespaces  | `Namespace("acme")`        |
-| Multi-domain vocabulary scoped by stream category       | `NamespaceCategory("acme")` |
-| Stable URN-style identifiers                            | Any strategy with `Urn`    |
+The right strategy depends on your architecture, the messages crossing service boundaries, and how schemas evolve. Start with the table below, then verify the choice against your discovery, isolation, and versioning needs.
 
-Once a stream contains records under a given strategy, switching strategies changes the schema names produced for new records. Consumers that still need to decode the old records must keep the old mapping available, either through explicit registration or by sharing the same strategy.
+| Architecture                                                  | Reach for                   |
+|---------------------------------------------------------------|-----------------------------|
+| Message-driven monolith, internal events                      | `TypeName()`                |
+| Event-sourced platform with stream categories                 | `Category()`                |
+| Multi-tenant or multi-environment system, code-agnostic names | `Namespace("acme")`         |
+| Multi-tenant event-sourced platform with bounded contexts     | `NamespaceCategory("acme")` |
+| Anything that needs URN-style identifiers downstream          | Any strategy with `Urn`     |
+
+For most event-driven systems, `Category()` is the recommended default. It aligns with how streams are naturally organized, keeps names concise, and avoids coupling the wire contract to .NET code structure. For rapid prototyping or message-driven monoliths, `TypeName()` is zero-configuration and produces strong type safety without further setup. For platforms with tenant isolation as a first-class requirement, start with `NamespaceCategory()` even though it carries a higher upfront cost, because retrofitting tenant boundaries later is far more expensive.
+
+The most important factor is consistency. A simple strategy applied uniformly beats a sophisticated one applied unevenly. Once a stream contains records under a given strategy, switching strategies changes the schema names produced for new records. Consumers that still need to decode the old records must keep the old mapping available, either through explicit registration or by sharing the same strategy.
