@@ -1,19 +1,19 @@
 using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Processors.Models;
+using Kurrent.Streaming.Models;
 using Microsoft.Extensions.Logging;
-using Kurrent.Sdk.Testkit.Fixtures;
+using Kurrent.Testkit.Aspire;
 using TUnit.Assertions.Enums;
 
-namespace Kurrent.Processors.Tests;
+namespace Kurrent.Streaming.Tests;
 
-[Category("Processors")]
+[Category("Streaming")]
 [Category("Integration")]
 [Timeout(30_000)]
 public class StreamSubscriptionTests {
-    [ClassDataSource<KurrentDBTestFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBTestFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask records_are_processed(CancellationToken ct) {
