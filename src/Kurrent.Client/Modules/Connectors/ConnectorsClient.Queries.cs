@@ -6,41 +6,41 @@ using Queries = KurrentDB.Connectors.Management.Contracts.Queries;
 namespace Kurrent.Client.Connectors;
 
 public partial class ConnectorsClient {
+    #region ->> List <<-
+
     /// <summary>
     /// Lists connectors based on the specified filtering criteria.
     /// </summary>
     /// <param name="options">Options for filtering and pagination of connectors.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="ConnectorListResult"/> containing the matching connectors.</returns>
     public async ValueTask<ConnectorListResult> List(
-        ConnectorListOptions? options = null,
-        CancellationToken cancellationToken = default
+        ConnectorListOptions options,
+        CancellationToken ct = default
     ) {
         var request = new Queries.ListConnectors();
 
-        if (options is not null) {
-            foreach (var state in options.States)
-                request.State.Add((KurrentDB.Connectors.Management.Contracts.ConnectorState)(int)state);
+        foreach (var state in options.States)
+            request.State.Add((KurrentDB.Connectors.Management.Contracts.ConnectorState)(int)state);
 
-            foreach (var instanceType in options.InstanceTypeNames)
-                request.InstanceTypeName.Add(instanceType);
+        foreach (var instanceType in options.InstanceTypeNames)
+            request.InstanceTypeName.Add(instanceType);
 
-            foreach (var connectorId in options.ConnectorIds)
-                request.ConnectorId.Add(connectorId);
+        foreach (var connectorId in options.ConnectorIds)
+            request.ConnectorId.Add(connectorId);
 
-            request.IncludeSettings      = options.IncludeSettings;
-            request.IncludeConfiguration = options.IncludeConfiguration;
-            request.ShowDeleted          = options.ShowDeleted;
+        request.IncludeSettings      = options.IncludeSettings;
+        request.IncludeConfiguration = options.IncludeConfiguration;
+        request.ShowDeleted          = options.ShowDeleted;
 
-            request.Paging = new() {
-                Page     = options.Page,
-                PageSize = options.PageSize
-            };
-        }
+        request.Paging = new() {
+            Page     = options.Page,
+            PageSize = options.PageSize
+        };
 
         try {
             var response = await QueryServiceClient
-                .ListAsync(request, cancellationToken: cancellationToken)
+                .ListAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return new() {
@@ -53,15 +53,19 @@ public partial class ConnectorsClient {
         }
     }
 
+    #endregion
+
+    #region ->> GetSettings <<-
+
     /// <summary>
     /// Retrieves the configuration settings for a specific connector.
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to get settings for.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="ConnectorSettingsResult"/> containing the connector settings.</returns>
     public async ValueTask<ConnectorSettingsResult> GetSettings(
         ConnectorId connectorId,
-        CancellationToken cancellationToken = default
+        CancellationToken ct = default
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
@@ -72,7 +76,7 @@ public partial class ConnectorsClient {
 
         try {
             var response = await QueryServiceClient
-                .GetSettingsAsync(request, cancellationToken: cancellationToken)
+                .GetSettingsAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return new() {
@@ -91,15 +95,19 @@ public partial class ConnectorsClient {
         }
     }
 
+    #endregion
+
+    #region ->> GetConfiguration <<-
+
     /// <summary>
     /// Retrieves the hierarchical configuration for a specific connector.
     /// </summary>
     /// <param name="connectorId">Unique identifier of the connector to get configuration for.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="ConnectorConfigurationResult"/> containing the connector configuration.</returns>
     public async ValueTask<ConnectorConfigurationResult> GetConfiguration(
         ConnectorId connectorId,
-        CancellationToken cancellationToken = default
+        CancellationToken ct = default
     ) {
         if (connectorId.IsUnset)
             throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
@@ -110,7 +118,7 @@ public partial class ConnectorsClient {
 
         try {
             var response = await QueryServiceClient
-                .GetConfigurationAsync(request, cancellationToken: cancellationToken)
+                .GetConfigurationAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return new() {
@@ -128,6 +136,10 @@ public partial class ConnectorsClient {
                 StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
         }
     }
+
+    #endregion
+
+    #region ->> Mappers <<-
 
     static ConnectorDetails MapConnector(Queries.Connector connector) =>
         new() {
@@ -151,4 +163,6 @@ public partial class ConnectorsClient {
     static IReadOnlyDictionary<string, string> MapSettings(
         Google.Protobuf.Collections.MapField<string, string> settings
     ) => new Dictionary<string, string>(settings);
+
+    #endregion
 }

@@ -1,8 +1,8 @@
 // ReSharper disable CheckNamespace
 
-using Google.Protobuf.WellKnownTypes;
 using Kurrent.Client.Connectors;
 using Kurrent.Testkit.Aspire;
+using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Tests.Fixtures;
 
@@ -12,7 +12,7 @@ public static class KurrentDBTestFixtureConnectorExtensions {
 
         public static string NewConnectorName() => $"Test Connector {Guid.NewGuid():N}";
 
-        public static Dictionary<string, string?> NewConnectorSettings() => new() {
+        public static Dictionary<string, string> NewConnectorSettings() => new() {
             ["instanceTypeName"]               = "serilog-sink",
             ["subscription:filter:scope"]      = "stream",
             ["subscription:filter:filterType"] = "prefix",
@@ -20,7 +20,10 @@ public static class KurrentDBTestFixtureConnectorExtensions {
             ["subscription:initialPosition"]   = "latest"
         };
 
-        public static Struct NewConnectorConfiguration() =>
-            KurrentDBFixture.NewConnectorSettings().ToProtobufStruct();
+        public static IConfiguration NewConnectorConfiguration() =>
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(KurrentDBFixture.NewConnectorSettings()
+                    .Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value)))
+                .Build();
     }
 }

@@ -1,6 +1,7 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit.Aspire;
+using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Tests.Connectors;
 
@@ -31,6 +32,24 @@ public class ConnectorCommandTests {
 	}
 
 	[Test]
+	public async ValueTask creates_connector_with_json(CancellationToken ct) {
+		var connectorId = KurrentDBFixture.NewConnectorId();
+		var name        = KurrentDBFixture.NewConnectorName();
+		const string json = """
+			{
+				"instanceTypeName": "serilog-sink",
+				"subscription": {
+					"filter": { "scope": "stream", "filterType": "prefix", "expression": "test-" },
+					"initialPosition": "latest"
+				}
+			}
+			""";
+
+		await Fixture.Client.Connectors
+			.Create(connectorId, name, json, ct);
+	}
+
+	[Test]
 	public async ValueTask deletes_existing_connector(CancellationToken ct) {
 		var connectorId = KurrentDBFixture.NewConnectorId();
 		var settings    = KurrentDBFixture.NewConnectorSettings();
@@ -50,7 +69,7 @@ public class ConnectorCommandTests {
 		await Fixture.Client.Connectors
 			.Create(connectorId, settings, ct);
 
-		var updatedSettings = new Dictionary<string, string?>(settings) {
+		var updatedSettings = new Dictionary<string, string>(settings) {
 			["subscription:filter:expression"] = "updated-"
 		};
 
@@ -66,13 +85,36 @@ public class ConnectorCommandTests {
 		await Fixture.Client.Connectors
 			.Create(connectorId, configuration, ct);
 
-		var updatedSettings = new Dictionary<string, string?>(KurrentDBFixture.NewConnectorSettings()) {
-			["subscription:filter:expression"] = "updated-"
-		};
-		var updatedConfiguration = updatedSettings.ToProtobufStruct();
+		var updatedConfiguration = new ConfigurationBuilder()
+			.AddInMemoryCollection(KurrentDBFixture.NewConnectorSettings()
+				.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value))
+				.Append(new KeyValuePair<string, string?>("subscription:filter:expression", "updated-")))
+			.Build();
 
 		await Fixture.Client.Connectors
 			.Reconfigure(connectorId, updatedConfiguration, ct);
+	}
+
+	[Test]
+	public async ValueTask reconfigures_existing_connector_with_json(CancellationToken ct) {
+		var connectorId = KurrentDBFixture.NewConnectorId();
+		var settings    = KurrentDBFixture.NewConnectorSettings();
+
+		await Fixture.Client.Connectors
+			.Create(connectorId, settings, ct);
+
+		const string updatedJson = """
+			{
+				"instanceTypeName": "serilog-sink",
+				"subscription": {
+					"filter": { "scope": "stream", "filterType": "prefix", "expression": "updated-" },
+					"initialPosition": "latest"
+				}
+			}
+			""";
+
+		await Fixture.Client.Connectors
+			.Reconfigure(connectorId, updatedJson, ct);
 	}
 
 	[Test]
@@ -99,7 +141,7 @@ public class ConnectorCommandTests {
 			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Reset(connectorId, logPosition: 0, ct);
+			.Reset(connectorId, position: 0, ct);
 	}
 
 	[Test]
@@ -111,7 +153,7 @@ public class ConnectorCommandTests {
 			.Create(connectorId, settings, ct);
 
 		await Fixture.Client.Connectors
-			.Start(connectorId, logPosition: 0, ct);
+			.Start(connectorId, position: 0, ct);
 	}
 
 	[Test]

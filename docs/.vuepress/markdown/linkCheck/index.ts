@@ -36,7 +36,9 @@ function checkLink(token: MdToken, attrName: string, env: MarkdownEnv) {
 }
 
 export function ensureLocalLink(href: string, env: MarkdownEnv, ignorePlaceholders: boolean) {
-    if (ignorePlaceholders && (href.startsWith("@") || env.filePathRelative!.startsWith("samples"))) return;
+    // Virtual pages (e.g. plugin-generated API reference) have no file on disk to resolve relative links against.
+    if (!env.filePath || !env.filePathRelative) return;
+    if (ignorePlaceholders && (href.startsWith("@") || env.filePathRelative.startsWith("samples"))) return;
     // check the link
     const split = href.split("#");
     const currentPath = href[0] == "/" ? path.resolve(__dirname, "../../..") : path.dirname(env.filePath!);

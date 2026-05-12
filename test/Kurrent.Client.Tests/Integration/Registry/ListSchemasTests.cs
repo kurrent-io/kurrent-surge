@@ -27,7 +27,7 @@ public class ListSchemasTests {
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct);
+			.ListSchemas(prefix, ct);
 
 		await Assert.That(schemas.Count).IsGreaterThanOrEqualTo(2);
 		await Assert.That(schemas).Contains(s => s.SchemaName.Value == schemaName1);
@@ -45,7 +45,7 @@ public class ListSchemasTests {
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
-			.ListSchemas(cancellationToken: ct);
+			.ListSchemas(ct);
 
 		await Assert.That(schemas.Count).IsGreaterThanOrEqualTo(1);
 	}
@@ -66,7 +66,7 @@ public class ListSchemasTests {
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: prefix, cancellationToken: ct);
+			.ListSchemas(prefix, ct);
 
 		await Assert.That(schemas).Contains(s => s.SchemaName.Value == matchingName);
 		await Assert.That(schemas).DoesNotContain(s => s.SchemaName.Value == nonMatchingName);
@@ -84,7 +84,7 @@ public class ListSchemasTests {
 		var untaggedName = $"{prefix}-untagged";
 
 		await Fixture.Client.Registry
-			.CreateSchema(taggedName, schemaDefinition, SchemaDataFormat.Json, tags: tags, cancellationToken: ct);
+			.CreateSchema(taggedName, schemaDefinition, SchemaDataFormat.Json, tags, ct);
 
 		await Fixture.Client.Registry
 			.CreateSchema(untaggedName, schemaDefinition, SchemaDataFormat.Json, ct);
@@ -92,7 +92,7 @@ public class ListSchemasTests {
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var schemas = await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: prefix, tags: tags, cancellationToken: ct);
+			.ListSchemas(prefix, tags, ct);
 
 		await Assert.That(schemas).Contains(s => s.SchemaName.Value == taggedName);
 		await Assert.That(schemas).DoesNotContain(s => s.SchemaName.Value == untaggedName);
@@ -103,7 +103,7 @@ public class ListSchemasTests {
 		var nonExistentPrefix = $"no-match-{Guid.NewGuid():N}";
 
 		var schemas = await Fixture.Client.Registry
-			.ListSchemas(schemaNamePrefix: nonExistentPrefix, cancellationToken: ct);
+			.ListSchemas(nonExistentPrefix, ct);
 
 		await Assert.That(schemas.Count).IsEqualTo(0);
 	}

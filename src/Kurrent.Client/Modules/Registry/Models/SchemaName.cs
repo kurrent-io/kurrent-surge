@@ -1,20 +1,22 @@
 namespace Kurrent.Client.Registry;
 
-public readonly record struct SchemaName(string Value) {
+public readonly record struct SchemaName {
     public static readonly SchemaName Unset = new("");
 
-    public bool IsUnset => this == Unset;
+    SchemaName(string value) => Value = value;
 
-    public string Value { get; } = Value;
+    public string Value { get; }
+
+    public bool IsUnset => string.IsNullOrEmpty(Value);
 
     public override string ToString() => Value;
 
-    public static SchemaName From(string value) {
-        return string.IsNullOrWhiteSpace(value)
+    public static SchemaName From(string value) =>
+        string.IsNullOrWhiteSpace(value)
             ? throw new ArgumentException($"SchemaName '{value}' is not valid.", nameof(value))
             : new(value);
-    }
 
-    public static implicit operator SchemaName(string _)  => From(_);
-    public static implicit operator string(SchemaName id) => id.ToString();
+    public static implicit operator SchemaName(string _) => From(_);
+
+    public static implicit operator string(SchemaName name) => name.Value;
 }

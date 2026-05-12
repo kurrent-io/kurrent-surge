@@ -1,4 +1,4 @@
-using Google.Protobuf.WellKnownTypes;
+using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Connectors;
 
@@ -6,40 +6,40 @@ public static partial class ConnectorsClientExtensions {
     extension(ConnectorsClient client) {
         #region ->> Create <<-
 
-        public ValueTask<Success> Create(
-            ConnectorId connectorId,
-            Dictionary<string, string?> settings,
-            CancellationToken cancellationToken = default
-        ) => client.Create(connectorId, null, settings, cancellationToken);
+        public ValueTask<Success> Create(ConnectorId id, CancellationToken ct = default) =>
+            client.Create(id, id.Value, [], ct);
 
-        public ValueTask<Success> Create(
-            ConnectorId connectorId,
-            Struct configuration,
-            CancellationToken cancellationToken = default
-        ) => client.Create(connectorId, null, configuration, cancellationToken);
+        public ValueTask<Success> Create(ConnectorId id, Dictionary<string, string> configuration, CancellationToken ct = default) =>
+            client.Create(id, id.Value, configuration, ct);
 
-        public ValueTask<Success> Create(
-            ConnectorId connectorId,
-            CancellationToken cancellationToken = default
-        ) => client.Create(connectorId, null, [], cancellationToken);
+        public ValueTask<Success> Create(ConnectorId id, IConfiguration configuration, CancellationToken ct = default) =>
+            client.Create(id, id.Value, configuration.ToFlatDictionary(), ct);
 
-        #endregion
+        public ValueTask<Success> Create(ConnectorId id, string configuration, CancellationToken ct = default) =>
+            client.Create(id, id.Value, configuration.ToFlatDictionary(), ct);
 
-        #region ->> Start <<-
+        public ValueTask<Success> Create(ConnectorId id, string name, IConfiguration configuration, CancellationToken ct = default) =>
+            client.Create(id, name, configuration.ToFlatDictionary(), ct);
 
-        public ValueTask<Success> Start(
-            ConnectorId connectorId,
-            CancellationToken cancellationToken = default
-        ) => client.Start(connectorId, null, cancellationToken);
+        public ValueTask<Success> Create(ConnectorId id, string name, string configuration, CancellationToken ct = default) =>
+            client.Create(id, name, configuration.ToFlatDictionary(), ct);
 
         #endregion
 
-        #region ->> Reset <<-
+        #region ->> Reconfigure <<-
 
-        public ValueTask<Success> Reset(
-            ConnectorId connectorId,
-            CancellationToken cancellationToken = default
-        ) => client.Reset(connectorId, null, cancellationToken);
+        public ValueTask<Success> Reconfigure(ConnectorId id, IConfiguration configuration, CancellationToken ct = default) =>
+            client.Reconfigure(id, configuration.ToFlatDictionary(), ct);
+
+        public ValueTask<Success> Reconfigure(ConnectorId id, string configuration, CancellationToken ct = default) =>
+            client.Reconfigure(id, configuration.ToFlatDictionary(), ct);
+
+        #endregion
+
+        #region ->> List <<-
+
+        public ValueTask<ConnectorListResult> List(CancellationToken ct = default) =>
+            client.List(new ConnectorListOptions(), ct);
 
         #endregion
     }
