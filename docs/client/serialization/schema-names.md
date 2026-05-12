@@ -19,7 +19,11 @@ By default Kurrent derives the schema name from the .NET full type name. A recor
 | [Fixed namespace](#fixed-namespace)               | Type, namespace label         | `{label}.{TypeName}`            | Multi-tenant or environment-isolated platforms             |
 | [Namespace and category](#namespace-and-category) | Type, stream, namespace label | `{label}.{category}.{TypeName}` | Multi-tenant event-sourced platforms with bounded contexts |
 
-For most event-driven systems, **Stream category** is the recommended default. It aligns with how streams are naturally organized and keeps names concise without tying the wire contract to .NET code structure. For rapid prototyping or message-driven monoliths, **Type name** requires zero configuration. For platforms with tenant isolation as a first-class requirement, start with **Namespace and category**, because retrofitting tenant boundaries later is far more expensive than absorbing the upfront cost.
+::: tip Recommended starting points
+- **Event-driven systems**: **Stream category** is the recommended default. It aligns with how streams are naturally organized and keeps names concise without tying the wire contract to .NET code structure.
+- **Prototyping or message-driven monoliths**: **Type name** requires zero configuration.
+- **Tenant isolation as a first-class requirement**: start with **Namespace and category**. Retrofitting tenant boundaries later is far more expensive than absorbing the upfront cost.
+:::
 
 The most important factor is consistency. A simple strategy applied uniformly beats a sophisticated one applied unevenly. For renames, version bumps, or switching strategies on a live stream, see [Schema evolution](./schema-evolution.md).
 
