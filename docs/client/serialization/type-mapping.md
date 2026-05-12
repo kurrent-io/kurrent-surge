@@ -6,42 +6,65 @@ order: 2
 
 <CopyMarkdownButton />
 
-`MessageTypeMapper` holds a bidirectional map between schema names stored in KurrentDB and .NET types. Encoding picks the schema name for an outgoing payload. Decoding picks the .NET type for an incoming record.
+The mapper is the contract between your .NET code and the schema names KurrentDB stores. Code changes constantly. Schema names live forever. The mapper is where those two timelines meet.
 
-## Register types up front
+## The contract problem
 
-The recommended path is `MessageTypeMapper.Create`, which exposes a builder that respects the configured naming strategy:
+Every record on a stream carries a schema name. That name is part of the wire contract: cross-language consumers index on it, the registry stores schemas under it, replay tools group records by it. Once a record is written, its schema name is permanent.
+
+.NET types change all the time. You rename `OrderShipped` to `OrderShippedV2` during a refactor. You move `Shop.Orders.OrderPlaced` to a new namespace. You split an assembly. Without something in between, every one of those changes silently breaks consumers reading the old records.
+
+The mapper is that something in between. It's a bidirectional dictionary: encode picks the schema name for an outgoing .NET type, decode picks the .NET type for an incoming schema name. Renaming a class doesn't change the wire contract, because the mapper holds the wire name independently.
+
+## The cold consumer problem
+
+A consumer that starts up fresh and reads events for a .NET type it has never produced sees those events arrive raw. The serializer has no way to guess what `order.placed.v1` should decode into. It hands you bytes and the schema name, but no `OrderPlaced` instance.
+
+This is the most common surprise in event-driven systems. Producer-only services work fine. Consumers that share types with producers through a NuGet package work fine. The trouble starts when a brand-new consumer rolls out against streams that already exist.
+
+The fix is to register every type the consumer might receive at startup. Once registered, records arrive decoded the first time.
 
 ```csharp
 var mapper = MessageTypeMapper.Create(m => m
-    .WithStrategy(SchemaNameStrategies.Namespace("acme"))
     .Map<OrderPlaced>()
     .Map<OrderConfirmed>()
-    .Map<OrderShipped>("order.shipped.v1"));
+    .Map<OrderShipped>());
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
     opts => opts.Schema.Mapper = mapper);
 ```
 
-Inside the builder, `Map<T>()` runs the strategy to derive a schema name. Pass a string to override.
+The builder honors the configured naming strategy, so the generated schema names match what producers using the same strategy emit.
 
-Up-front registration matters for cold workers. A consumer that starts and reads events for a type it has never produced sees those events arrive raw until the mapping exists. Registering everything you expect to receive at startup avoids this entirely.
+## Pinning a name explicitly
 
-The standalone `Map<T>()` method on the schema options' mapper works differently. It always uses `typeof(T).FullName` as the schema name and ignores the configured strategy:
+The naming strategy gives you a default. The mapper is where you override it. Common reasons:
+
+**Cross-language consumers read the stream.** A Go service indexing on `order.placed.v1` doesn't care about your .NET namespaces. Pick a stable, language-neutral name and pin it.
 
 ```csharp
-opts.Schema.NameStrategy = SchemaNameStrategies.Category();
-
-opts.Schema.Mapper.Map<OrderPlaced>();               // "Acme.Orders.OrderPlaced" (FullName)
-opts.Schema.Mapper.Map<OrderPlaced>("order-placed"); // "order-placed"
+.Map<OrderPlaced>("order.placed.v1")
 ```
 
-If you want the strategy applied, build the mapper through `Create` or `new MessageTypeMapper.Builder()` and assign the result. Mixing the two entry points (builder `Map<T>()` that respects the strategy, and standalone mapper `Map<T>()` that uses `FullName`) produces inconsistent names for the same type.
+**A .NET rename has to leave the wire contract intact.** Six months of records sit on the stream under `order.shipped.v1`. The class is now `OrderShippedV2` because the team agreed on a clearer name. Pin the old wire name and the rename ships safely.
 
-## Auto-mapping
+```csharp
+.Map<OrderShippedV2>("order.shipped.v1")
+```
 
-For prototypes and dev loops the client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so nothing has to be registered first:
+**Two versions of an event coexist on the same stream.** When a shape change is not backward compatible, both versions live on the stream until v1 ages out. Each version is a distinct .NET type with a distinct schema name.
+
+```csharp
+.Map<OrderShippedV1>("order.shipped.v1")
+.Map<OrderShippedV2>("order.shipped.v2")
+```
+
+For the full story on evolving stored events, see [Schema evolution](./schema-evolution.md).
+
+## Auto-mapping is for prototypes
+
+The client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no setup is needed.
 
 ```csharp
 var record = AppendRecord.New
@@ -52,31 +75,7 @@ var record = AppendRecord.New
 await client.Streams.AppendStream(record);
 ```
 
-Auto-mapping is lazy. A record can only be decoded once the .NET type has been seen at least once in the current process. For long-lived consumers, prefer up-front registration.
-
-## Mapper API
-
-| Method                              | Behavior                                                                                              |
-|-------------------------------------|-------------------------------------------------------------------------------------------------------|
-| `Map(name, type)`                   | Adds a mapping. Returns `MapMessageTypeResult` carrying success or `MessageTypeConflictException`. Returns success when the same mapping already exists. |
-| `Map<T>()`                          | Maps `T` using `typeof(T).FullName`. Strategy is ignored.                                             |
-| `Map<T>(name)`                      | Maps `T` to the given schema name.                                                                    |
-| `TryMap(name, type)`                | Returns true on add, false when the same mapping already exists. Throws `MessageTypeConflictException` when a different type already holds that name. |
-| `TryMap<T>(name)`                   | Same semantics as `TryMap(name, typeof(T))`.                                                          |
-| `TryGetMessageType(name, out type)` | Looks up the .NET type for a schema name.                                                             |
-| `TryGetSchemaName(type, out name)`  | Looks up the schema name for a .NET type.                                                             |
-| `GetOrResolveMessageType(name)`     | Returns the mapped type or throws `MessageTypeResolutionException`.                                   |
-
-The `Map`/`TryMap` asymmetry is intentional. `Map` returns a result so callers can choose how to react. `TryMap` raises on a real conflict but treats an idempotent re-registration as a no-op. When in doubt, prefer the builder.
-
-## Errors
-
-| Exception                            | When it fires                                                                  |
-|--------------------------------------|--------------------------------------------------------------------------------|
-| `MessageTypeConflictException`       | A schema name is already mapped to a different .NET type.                      |
-| `MessageTypeResolutionException`     | `GetOrResolveMessageType` cannot resolve a schema name.                        |
-| `MessageTypeMapNotFoundException`    | `GetSchemaName` cannot find the type, with throw-when-missing enabled.         |
-| `SchemaNameMapNotFoundException`     | `GetMessageType` cannot find the schema name, with throw-when-missing enabled. |
+Auto-mapping is lazy. A record can only be decoded once its .NET type has been seen at least once in the current process. The cold consumer problem still applies: a consumer-only service never triggers auto-mapping, because no `AppendStream` ever runs locally. For anything beyond a dev loop, register up front.
 
 ## Registration
 
