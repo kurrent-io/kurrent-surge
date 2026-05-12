@@ -319,7 +319,61 @@ await KurrentProcessor.Create(new OrderProcessor(), opts => {
     .RunWithGracefulShutdownAsync(shutdownTimeout: TimeSpan.FromSeconds(15));
 ```
 
-## Dependency injection
+## Complete example
+
+```csharp
+public class OrderProcessor : IRecordProcessor {
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        context.Logger.LogInformation(
+            "[{Type}] Stream={Stream} Position={Position}",
+            context.Record.TypeName,
+            context.Record.Stream,
+            context.Record.Position
+        );
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnCheckpoint(CheckpointContext context) {
+        context.Logger.LogInformation(
+            "Checkpoint {Id} ({Trigger})",
+            context.CheckpointId,
+            context.Trigger
+        );
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask OnComplete(CompleteContext context) {
+        var t = context.Progress.Throughput;
+        context.Logger.LogInformation(
+            "Done: {Records} records, {Rps:F1} rec/s, {Elapsed}",
+            t.TotalRecords,
+            t.RecordsPerSecond,
+            t.Elapsed
+        );
+        return ValueTask.CompletedTask;
+    }
+}
+
+await KurrentProcessor.Create(new OrderProcessor(), opts => {
+        opts.Connection("kurrentdb://localhost:2113?tls=false");
+        opts.ProcessorId                  = "order-processor";
+        opts.Subscription.Filter          = RecordFilter.ByStreamPrefix("order-");
+        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        opts.Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)));
+    })
+    .RunWithGracefulShutdownAsync();
+```
+
+This processor will:
+
+1. Connect to a local KurrentDB instance.
+2. Subscribe to all streams starting with `order-`.
+3. Process records from the beginning (`Earliest`).
+4. Automatically checkpoint every 10 seconds.
+5. Perform a final checkpoint on graceful shutdown.
+6. Resume from the last checkpoint on restart.
+
+## Registration
 
 For ASP.NET Core and hosted-service scenarios, register processors with `AddKurrentProcessor<T>`. Each registration becomes its own hosted service. The configure callback receives a `ProcessorOptions` (and optionally an `IServiceProvider`) to set up the connection and behavior:
 
@@ -384,57 +438,3 @@ Settings under `Kurrent:Processors:{TypeName}` in `IConfiguration` are bound ont
   }
 }
 ```
-
-## Complete example
-
-```csharp
-public class OrderProcessor : IRecordProcessor {
-    public ValueTask ProcessRecord(ProcessRecordContext context) {
-        context.Logger.LogInformation(
-            "[{Type}] Stream={Stream} Position={Position}",
-            context.Record.TypeName,
-            context.Record.Stream,
-            context.Record.Position
-        );
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask OnCheckpoint(CheckpointContext context) {
-        context.Logger.LogInformation(
-            "Checkpoint {Id} ({Trigger})",
-            context.CheckpointId,
-            context.Trigger
-        );
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask OnComplete(CompleteContext context) {
-        var t = context.Progress.Throughput;
-        context.Logger.LogInformation(
-            "Done: {Records} records, {Rps:F1} rec/s, {Elapsed}",
-            t.TotalRecords,
-            t.RecordsPerSecond,
-            t.Elapsed
-        );
-        return ValueTask.CompletedTask;
-    }
-}
-
-await KurrentProcessor.Create(new OrderProcessor(), opts => {
-        opts.Connection("kurrentdb://localhost:2113?tls=false");
-        opts.ProcessorId                  = "order-processor";
-        opts.Subscription.Filter          = RecordFilter.ByStreamPrefix("order-");
-        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-        opts.Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)));
-    })
-    .RunWithGracefulShutdownAsync();
-```
-
-This processor will:
-
-1. Connect to a local KurrentDB instance.
-2. Subscribe to all streams starting with `order-`.
-3. Process records from the beginning (`Earliest`).
-4. Automatically checkpoint every 10 seconds.
-5. Perform a final checkpoint on graceful shutdown.
-6. Resume from the last checkpoint on restart.

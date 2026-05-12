@@ -33,7 +33,7 @@ await using var client = KurrentClient.Create(options);
 
 For the scheme and endpoints to use against different deployments, see [Connection Targets](./connection-targets.md). For TLS and authentication, see [Security](./security.md). For retries, deadlines, and channel tuning, see [Connection Options](./connection-options.md).
 
-## Register with dependency injection
+## Registration
 
 `AddKurrentClient` registers a singleton client in `IServiceCollection`. One instance is thread-safe and reuses a single gRPC channel, so it serves the whole application.
 
@@ -85,7 +85,7 @@ services.AddKurrentClient(opts => {
 
 All overloads use `TryAddSingleton`, so subsequent calls are ignored when a client is already registered.
 
-## Service provider overrides
+### Service provider overrides
 
 Registration also pulls these services from the container and applies them to the options, overriding any value already set:
 

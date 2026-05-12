@@ -264,7 +264,7 @@ await foreach (var item in stream) {
 
 Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`. For a quick read of an entire stream, the `ReadStreamRecords` extension skips the builder.
 
-## Dependency injection
+## Registration
 
 **Old:**
 
@@ -286,7 +286,7 @@ services.AddKurrentClient(opts => {
 });
 ```
 
-The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Create a Client › Register with dependency injection](../connect/create-a-client.md#register-with-dependency-injection).
+The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Create a Client › Registration](../connect/create-a-client.md#registration).
 
 ## Migration checklist
 
@@ -338,7 +338,7 @@ Replace catches of `WrongExpectedVersionException` with `StreamRevisionConflictE
 
 ### 8. Update DI registration
 
-Replace `services.AddKurrentDBClient(...)` with `services.AddKurrentClient(...)`. See [Dependency injection](#dependency-injection).
+Replace `services.AddKurrentDBClient(...)` with `services.AddKurrentClient(...)`. See [Registration](#registration).
 
 ### 9. Build and verify
 
