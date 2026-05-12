@@ -1,10 +1,10 @@
 ---
-title: Data formats
-order: 2
+title: Formats
+order: 3
 index: false
 ---
 
-# Data formats
+# Formats
 
 <CopyMarkdownButton />
 
@@ -28,31 +28,8 @@ index: false
 
 JSON is the only format that participates in registry validation today. Protobuf and bytes still flow through the type mapper and naming strategy locally but skip the registry round-trip even when auto-register and pre-validate are on. See [Schema Registry › Client options](../../schema-registry/client-options.md).
 
-## Setting the format
+## Errors
 
-JSON is the default and can be omitted:
+If a value cannot be serialized in the chosen format, the serializer raises `SchemaSerializationFailedException`. Choosing `Avro` raises `SchemaSerializerNotFoundException`. On the append path both reach the caller wrapped in an `ArgumentException` whose `InnerException` carries the original.
 
-```csharp
-var record = AppendRecord.New
-    .ForStream("orders")
-    .WithValue(orderPlaced)
-    .Build();
-```
-
-For other formats, call `WithDataFormat`:
-
-```csharp
-var protoRecord = AppendRecord.New
-    .ForStream("orders")
-    .WithValue(protoMessage)
-    .WithDataFormat(SchemaDataFormat.Protobuf)
-    .Build();
-
-var bytesRecord = AppendRecord.New
-    .ForStream("blobs")
-    .WithValue(rawBytes)
-    .WithDataFormat(SchemaDataFormat.Bytes)
-    .Build();
-```
-
-If a value cannot be serialized in the chosen format, the serializer raises `SchemaSerializationFailedException`. Choosing `Avro` raises `SchemaSerializerNotFoundException`. Both reach the caller wrapped in an `ArgumentException` whose `InnerException` carries the original.
+The per-format pages cover the specifics: [JSON](./json.md), [Protocol Buffers](./protobuf.md), [Raw bytes](./bytes.md), [Avro](./avro.md).

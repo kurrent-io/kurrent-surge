@@ -23,7 +23,7 @@ Any other type for a `Bytes` record produces an assertion failure in debug build
 ## Append a bytes record
 
 ```csharp
-var payload = System.Text.Encoding.UTF8.GetBytes("{\"custom\":\"data\"}");
+byte[] payload = Encoding.UTF8.GetBytes("{\"custom\":\"data\"}");
 
 var record = AppendRecord.New
     .ForStream("blobs")
@@ -47,7 +47,7 @@ await foreach (var item in stream) {
     item.Switch(
         record => {
             if (record.Schema.SchemaFormat == SchemaDataFormat.Bytes) {
-                var payload = record.Data;
+                ReadOnlyMemory<byte> payload = record.Data;
                 // decode however you like
             }
         },
@@ -58,4 +58,4 @@ await foreach (var item in stream) {
 
 ## Registry integration
 
-Bytes records are not registered or validated. The registry does not have a definition to check against. Auto-register and pre-validate flags are no-ops for bytes payloads.
+Bytes records are not registered or validated. The registry has no definition to check against. The `AutoRegister` and `PreValidate` flags are no-ops for bytes payloads.

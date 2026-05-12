@@ -2,13 +2,13 @@
 order: 4
 ---
 
-# Reading records
+# Decoding records
 
 <CopyMarkdownButton />
 
 Each `Record` returned by a read carries both the raw bytes and the deserialized value. The decoder runs eagerly when the schema name resolves to a known .NET type. When the read is configured with `SkipDecoding`, records arrive raw and can be decoded on demand. Without `SkipDecoding`, an unresolvable schema name surfaces as `SchemaDeserializationFailedException` during iteration.
 
-## Record properties
+## Record shape
 
 | Property    | Type                   | Description                                              |
 |-------------|------------------------|----------------------------------------------------------|
@@ -20,6 +20,8 @@ Each `Record` returned by a read carries both the raw bytes and the deserialized
 | `TypeName`  | `string`               | CLR type name when decoded, otherwise the wire schema name. |
 
 ## Iterating decoded values
+
+Reads yield a discriminated union of `Record` and `Heartbeat` items. `Switch` dispatches on the case so the inner lambdas receive the typed value directly. Heartbeats keep long-running subscriptions warm and carry no payload.
 
 ```csharp
 await foreach (var item in stream) {
@@ -33,7 +35,7 @@ await foreach (var item in stream) {
 }
 ```
 
-When every type is registered up front (see [Type mapping](./type-system/type-mapping.md)), records arrive decoded and `IsDecoded` is true.
+When every type is registered up front (see [Type mapping](./type-mapping.md)), records arrive decoded and `IsDecoded` is true.
 
 ## Decode on demand
 
@@ -53,9 +55,9 @@ await foreach (var item in stream) {
 }
 ```
 
-Use `SwitchAsync` (not `Switch`) when a handler needs to `await`. `Switch` takes `Action<T>` and would not await the inner work.
+Use `SwitchAsync` (not `Switch`) when a handler needs to `await`. `Switch` takes an `Action<T>` and would not await the inner work.
 
-Records stored as raw bytes always return false from `TryDecode`. Read them directly from `Record.Data`. See [Raw bytes](./data-formats/bytes.md).
+Records stored as raw bytes always return false from `TryDecode`. Read them directly from `Record.Data`. See [Raw bytes](./formats/bytes.md).
 
 ::: tip
 For zero-overhead casting on a known type, use `record.As<T>()`.
@@ -66,7 +68,7 @@ For zero-overhead casting on a known type, use `record.As<T>()`.
 Schema information for the record is on `Record.Schema`:
 
 ```csharp
-var info = record.Schema;
+RecordSchemaInfo info = record.Schema;
 
 Console.WriteLine("Schema name: {0}", info.SchemaName);
 Console.WriteLine("Data format: {0}", info.SchemaFormat);

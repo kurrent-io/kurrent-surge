@@ -6,7 +6,7 @@ order: 2
 
 <CopyMarkdownButton />
 
-Protocol Buffers binary encoding for record payloads. Pick `SchemaDataFormat.Protobuf` when you already have `.proto` types and a toolchain that produces generated C# types implementing `Google.Protobuf.IMessage`.
+Pick `SchemaDataFormat.Protobuf` when you already have `.proto` types and a toolchain that produces generated C# types implementing `Google.Protobuf.IMessage`.
 
 ## Requirements
 
@@ -26,9 +26,25 @@ await client.Streams.AppendStream(record);
 
 Encoding calls `ToByteArray()` on the message. Decoding uses the type's generated `Parser`.
 
+## AOT-friendly parser registration
+
+In AOT scenarios, register an explicit `ProtoSerializerContext` so the runtime can locate parsers and descriptors without reflection. Each `Register` call pairs the generated `Parser` with the matching `Descriptor`:
+
+```csharp
+var protoContext = new ProtoSerializerContext()
+    .Register(OrderPlaced.Parser, OrderPlaced.Descriptor)
+    .Register(OrderConfirmed.Parser, OrderConfirmed.Descriptor);
+
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.Schema.Protobuf = ProtobufSchemaSerializerOptions.Default with {
+        Context = protoContext
+    });
+```
+
 ## Registry integration
 
-Protobuf records are not registered or validated against the schema registry today. Auto-register and pre-validate flags on `KurrentClientOptions.Schema` are no-ops for Protobuf payloads. The local mapper and naming strategy still resolve the schema name on the wire, so reads still decode automatically when the type is mapped.
+Protobuf records are not registered or validated against the schema registry today. The `AutoRegister` and `PreValidate` flags on `KurrentClientOptions.Schema` are no-ops for Protobuf payloads. The local mapper and naming strategy still resolve the schema name on the wire, so reads still decode automatically when the type is mapped.
 
 If you need server-side schema validation, [JSON](./json.md) is the only format that supports it today.
 

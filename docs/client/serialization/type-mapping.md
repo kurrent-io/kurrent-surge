@@ -1,5 +1,5 @@
 ---
-order: 1
+order: 2
 ---
 
 # Type mapping
@@ -10,20 +10,20 @@ order: 1
 
 ## Auto-mapping
 
-By default the client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./naming-strategies.md), so no upfront registration is required:
+By default the client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no upfront registration is required:
 
 ```csharp
 var record = AppendRecord.New
     .ForStream("order-123")
-    .WithValue(new OrderPlaced { OrderId = "order-123" })
+    .WithValue(new OrderPlaced("order-123", "Widget"))
     .Build();
 
 await client.Streams.AppendStream(record);
 ```
 
-Auto-mapping is convenient but lazy. A record can only be decoded once the .NET type has been seen at least once in the current process, or registered explicitly up front. Workers that start cold and read events for types they have never produced themselves will arrive undecoded until you map the type.
+Auto-mapping is convenient but lazy. A record can only be decoded once the .NET type has been seen at least once in the current process, or registered explicitly up front. Workers that start cold and read events for types they have never produced themselves arrive undecoded until you map the type.
 
-A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Create a Client › Service provider overrides](../../connect/create-a-client.md#service-provider-overrides).
+A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Create a Client](../connect/create-a-client.md#service-provider-overrides).
 
 ## Register types up front
 
@@ -48,11 +48,11 @@ The standalone `Map<T>()` method on the schema options' mapper works differently
 ```csharp
 opts.Schema.NameStrategy = SchemaNameStrategies.Category();
 
-opts.Schema.Mapper.Map<OrderPlaced>();              // "Acme.Orders.OrderPlaced" (FullName)
+opts.Schema.Mapper.Map<OrderPlaced>();               // "Acme.Orders.OrderPlaced" (FullName)
 opts.Schema.Mapper.Map<OrderPlaced>("order-placed"); // "order-placed"
 ```
 
-If you want the strategy applied, build the mapper through `Create` or `new MessageTypeMapper.Builder()` and assign the result. Mixing the two patterns produces inconsistent names for the same type.
+If you want the strategy applied, build the mapper through `Create` or `new MessageTypeMapper.Builder()` and assign the result. Mixing the two entry points (builder `Map<T>()` that respects the strategy, and standalone mapper `Map<T>()` that uses `FullName`) produces inconsistent names for the same type.
 
 ## Mapper API
 
@@ -61,7 +61,7 @@ If you want the strategy applied, build the mapper through `Create` or `new Mess
 | `Map(name, type)`                   | Adds a mapping. Returns `MapMessageTypeResult` carrying success or `MessageTypeConflictException`. Returns success when the same mapping already exists. |
 | `Map<T>()`                          | Maps `T` using `typeof(T).FullName`. Strategy is ignored.                                             |
 | `Map<T>(name)`                      | Maps `T` to the given schema name.                                                                    |
-| `TryMap(name, type)`                | Returns true on add, false when the same mapping already exists. **Throws** `MessageTypeConflictException` when a different type already holds that name. |
+| `TryMap(name, type)`                | Returns true on add, false when the same mapping already exists. Throws `MessageTypeConflictException` when a different type already holds that name. |
 | `TryMap<T>(name)`                   | Same semantics as `TryMap(name, typeof(T))`.                                                          |
 | `TryGetMessageType(name, out type)` | Looks up the .NET type for a schema name.                                                             |
 | `TryGetSchemaName(type, out name)`  | Looks up the schema name for a .NET type.                                                             |
@@ -75,5 +75,5 @@ The `Map`/`TryMap` asymmetry is intentional. `Map` returns a result so callers c
 |--------------------------------------|--------------------------------------------------------------------------------|
 | `MessageTypeConflictException`       | A schema name is already mapped to a different .NET type.                      |
 | `MessageTypeResolutionException`     | `GetOrResolveMessageType` cannot resolve a schema name.                        |
-| `MessageTypeMapNotFoundException`    | `GetSchemaName(type, throwWhenMissing: true)` cannot find the type.            |
-| `SchemaNameMapNotFoundException`     | `GetMessageType(name, throwWhenMissing: true)` cannot find the schema name.    |
+| `MessageTypeMapNotFoundException`    | `GetSchemaName` cannot find the type, with throw-when-missing enabled.         |
+| `SchemaNameMapNotFoundException`     | `GetMessageType` cannot find the schema name, with throw-when-missing enabled. |

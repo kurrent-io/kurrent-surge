@@ -6,9 +6,11 @@ order: 1
 
 <CopyMarkdownButton />
 
-JSON is the default format. Records appended without an explicit `WithDataFormat` call are encoded as JSON using System.Text.Json. JSON is also the only format that participates in server-side schema registration and validation today.
+::: tip
+JSON is the default serializer. Records appended without an explicit `WithDataFormat` call are encoded as JSON using `System.Text.Json`. JSON is also the only format that participates in server-side schema registration and validation today.
+:::
 
-## Default behavior
+## Append a JSON record
 
 ```csharp
 var record = AppendRecord.New
@@ -21,9 +23,9 @@ await client.Streams.AppendStream(record);
 
 The content type on the wire is `application/json`.
 
-## Serializer options
+## Tuning the serializer
 
-The JSON serializer is configured by `JsonSchemaSerializerOptions`.
+The JSON serializer is configured by `JsonSchemaSerializerOptions` on the client's schema options.
 
 | Setting                       | Default                                       |
 |-------------------------------|-----------------------------------------------|
@@ -37,6 +39,16 @@ The JSON serializer is configured by `JsonSchemaSerializerOptions`.
 | TimeSpan converters           | ISO-8601 (nullable and non-nullable)          |
 | NodaTime                      | Configured via `NodaTime.Serialization.SystemTextJson` (TZDB) |
 | `UseProtobufFormatter`        | `true`                                        |
+
+Pass a customized options record on the client:
+
+```csharp
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
+        UseProtobufFormatter = false
+    });
+```
 
 ## Type resolution
 
@@ -68,9 +80,9 @@ Multiple contexts can be supplied. The reflection fallback handles types not cov
 
 ## Protobuf JSON formatter
 
-When a value implements `Google.Protobuf.IMessage` and `UseProtobufFormatter` is enabled (the default), the JSON serializer delegates to Protobuf's `JsonFormatter` and `JsonParser`. The record is still stored as JSON, but the encoding follows the canonical Protobuf JSON mapping.
+When a value implements `Google.Protobuf.IMessage` and `UseProtobufFormatter` is enabled (the default), the JSON serializer delegates to Protobuf's canonical JSON mapping rather than vanilla `System.Text.Json` reflection. The record is still stored as JSON. The encoding differs only for protobuf-generated types.
 
-Disable the formatter when you want vanilla System.Text.Json behavior on protobuf-generated types:
+Disable the formatter when you want straight `System.Text.Json` behavior on those types:
 
 ```csharp
 opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
@@ -80,4 +92,4 @@ opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
 
 ## Registry integration
 
-JSON records participate fully in the registry. With `AutoRegister` on, the first append for a type creates a schema. With `PreValidate` on, every outgoing payload is validated against the registered schema before it leaves the client. See [Schema Registry › How it works](../../schema-registry/how-it-works.md).
+JSON records participate fully in the [schema registry](../../schema-registry/README.md). With `AutoRegister` on, the first append for a type creates a schema. With `PreValidate` on, every outgoing payload is validated against the registered schema before it leaves the client.
