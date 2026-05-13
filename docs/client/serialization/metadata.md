@@ -18,7 +18,7 @@ Metadata is always JSON, so you can inspect it with any JSON tool, regardless of
 var metadata = new Metadata()
     .With("correlationId", Guid.NewGuid())
     .With("tenant", "acme")
-    .With("issuedAt", DateTimeOffset.UtcNow);
+    .With("occurredAt", DateTimeOffset.UtcNow);
 
 var record = AppendRecord.New
     .ForStream("order-7f3a")
@@ -50,31 +50,36 @@ If you need every value as a string (for log output or observability exports), c
 
 ## Customizing the decoder
 
-The default decoder parses JSON, so for most projects you won't need to touch it. The common reason to plug in a custom decoder is to enrich every record as it comes in: stamping a decoded-at timestamp, an environment tag, or anything else you want on every record. Wrap the default decoder with your own `IMetadataDecoder`:
+The default decoder parses JSON, so for most projects you won't need to touch it. The common reason to plug in a custom decoder is backward compatibility: aliasing keys from an older metadata convention so consumers don't have to know about both. Wrap the default decoder with your own `IMetadataDecoder`:
 
 ```csharp
-public sealed class EnrichingMetadataDecoder(IMetadataDecoder inner) : IMetadataDecoder {
+public sealed class LegacyKeyAliasDecoder(IMetadataDecoder inner) : IMetadataDecoder {
     public async ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
         var decoded = await inner.Decode(bytes, context);
-        return decoded
-            .With("decodedAt", DateTimeOffset.UtcNow)
-            .With("environment", Environment.GetEnvironmentVariable("ENV") ?? "local");
+
+        // Older records used "corrId". Alias it to the canonical key.
+        if (!decoded.ContainsKey("correlationId") && decoded.TryGetValue<Guid>("corrId", out var legacy))
+            decoded.With("correlationId", legacy);
+
+        return decoded;
     }
 }
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.MetadataDecoder = new EnrichingMetadataDecoder(new DefaultMetadataDecoder()));
+    opts => opts.MetadataDecoder = new LegacyKeyAliasDecoder(new DefaultMetadataDecoder()));
 ```
 
 For non-JSON formats, inherit `MetadataDecoder` and override `DecodeCore`. The base class wraps your parsing in error handling. The decoder runs once per record, so keep it cheap.
 
 ## Registration
 
-`AddKurrentClient` honors any `IMetadataDecoder` registered in DI:
+`AddKurrentClient` honors any `IMetadataDecoder` registered in DI. For decorators like `LegacyKeyAliasDecoder`, register with a factory so the inner decoder is supplied explicitly:
 
 ```csharp
-services.AddSingleton<IMetadataDecoder, MyMetadataDecoder>();
+services.AddSingleton<IMetadataDecoder>(_ =>
+    new LegacyKeyAliasDecoder(new DefaultMetadataDecoder()));
+
 services.AddKurrentClient("kurrentdb://localhost:2113");
 ```
 
