@@ -6,7 +6,7 @@ order: 5
 
 <CopyMarkdownButton />
 
-Each record carries a payload (the message) and a `Metadata` collection that travels alongside it. Metadata is the envelope around the payload: a place to record which conversation a record belongs to, what triggered it, and which trace span emitted it, without leaking any of that into the domain model. It is encoded as JSON regardless of the payload's format.
+Every record carries a `Metadata` collection alongside its payload. Use it to attach anything you want to travel with a record but stay out of the message itself. Metadata is always encoded as JSON, regardless of the payload's format.
 
 ## Shape
 
