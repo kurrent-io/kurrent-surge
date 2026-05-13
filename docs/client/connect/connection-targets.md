@@ -35,7 +35,7 @@ await using var client = KurrentClient.Create(options);
 
 ## Single production node
 
-For a single production node, drop `?tls=false` and supply credentials. The default `kurrentdb` scheme enables TLS automatically, and the client refuses plaintext when TLS is on.
+For a single production node, drop `?tls=false` and supply credentials. The `kurrentdb` scheme enables TLS by default, and the `Basic` preset pairs credentials with standard TLS automatically.
 
 ::: tabs#connect-single
 
