@@ -37,7 +37,7 @@ A consumer that starts up fresh and reads events for a .NET type it has never ap
 
 This is the most common surprise in event-driven systems. Producer-only services work fine. Consumers that share types with producers through a NuGet package work fine. The trouble starts when a brand-new consumer rolls out against streams that already exist.
 
-The fix is to register every type the consumer might receive at startup. Once registered, records arrive decoded the first time.
+Consumers register every type they might receive at startup. Once registered, records arrive decoded the first time.
 
 ```csharp
 var mapper = MessageTypeMapper.Create(m => m
