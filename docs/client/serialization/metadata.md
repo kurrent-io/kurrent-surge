@@ -6,7 +6,9 @@ order: 5
 
 <CopyMarkdownButton />
 
-Every record carries a `Metadata` collection alongside its payload. Use it for data that should travel with the record but stay out of the payload itself. Metadata is always encoded as JSON, regardless of the payload format.
+Every record carries a `Metadata` collection alongside its payload. Use it for data that should travel with the record but stay out of the payload itself: correlation IDs, tenant tags, timestamps, anything you want available without unpacking the message.
+
+Metadata is always JSON, so you can inspect it with any JSON tool, regardless of payload format.
 
 ## Attaching metadata
 
@@ -36,7 +38,7 @@ if (record.Metadata.TryGetValue<Guid>("correlationId", out var correlationId))
     Console.WriteLine("Correlation: {0}", correlationId);
 ```
 
-All three accessors convert from strings via `TypeDescriptor`, so numbers and Guids work even when they arrive as JSON strings. Pick the one that matches how you want to handle a missing key:
+All three accessors handle type conversion automatically, so numbers and Guids stored as JSON strings come back as the type you ask for. Pick the one that matches how you want to handle a missing key:
 
 | Method                           | Behavior                                 |
 |----------------------------------|------------------------------------------|
@@ -44,43 +46,28 @@ All three accessors convert from strings via `TypeDescriptor`, so numbers and Gu
 | `GetValueOrDefault<T>(key, def)` | Returns the typed value or `def`.        |
 | `GetRequiredValue<T>(key)`       | Throws `KeyNotFoundException` if absent. |
 
-## Wire format
-
-Metadata travels as UTF-8 JSON regardless of the payload's data format. A Protobuf record's payload is binary, but its metadata stays JSON, so inspection and tooling behave the same across formats.
-
-Number tokens deserialize as strings, and the typed accessors convert on demand. Guids and ISO-8601 dates are detected automatically. A few system keys (schema name, format, ID) are recognized and typed for you.
-
-## Locking
-
-Lock a metadata instance to prevent further changes:
-
-```csharp
-var locked = metadata.Lock();           // throws on any mutation attempt
-var copy = locked.CreateUnlockedCopy(); // mutable clone
-```
-
-## Stringify
-
-`Stringify` returns a new `Metadata` where every value is its string representation. Dates become ISO-8601, byte arrays become Base64, numbers use invariant-culture formatting. Useful for logging and observability exports.
+If you need every value as a string (for log output or observability exports), call `Stringify()` to get a coerced copy where dates become ISO-8601, byte arrays become Base64, and numbers use invariant-culture formatting.
 
 ## Customizing the decoder
 
-Inbound bytes pass through an `IMetadataDecoder` before becoming a `Metadata` instance. The default parses JSON. Replace it for non-JSON wire formats or to enrich metadata as it's decoded:
+The default decoder parses JSON, so for most projects you won't need to touch it. The common reason to plug in a custom decoder is to enrich every record as it comes in: stamping a decoded-at timestamp, an environment tag, or anything else you want on every record. Wrap the default decoder with your own `IMetadataDecoder`:
 
 ```csharp
-public sealed class MyMetadataDecoder : MetadataDecoder {
-    protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
-        // parse bytes and return a Metadata instance
-        return new Metadata();
+public sealed class EnrichingMetadataDecoder(IMetadataDecoder inner) : IMetadataDecoder {
+    public async ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
+        var decoded = await inner.Decode(bytes, context);
+        return decoded
+            .With("decodedAt", DateTimeOffset.UtcNow)
+            .With("environment", Environment.GetEnvironmentVariable("ENV") ?? "local");
     }
 }
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.MetadataDecoder = new MyMetadataDecoder());
+    opts => opts.MetadataDecoder = new EnrichingMetadataDecoder(new DefaultMetadataDecoder()));
 ```
 
-The base class wraps `DecodeCore` in error handling and attaches the schema name and format when they're missing. The decoder runs once per record, so keep it cheap.
+For non-JSON formats, inherit `MetadataDecoder` and override `DecodeCore`. The base class wraps your parsing in error handling. The decoder runs once per record, so keep it cheap.
 
 ## Registration
 
