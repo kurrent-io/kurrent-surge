@@ -27,20 +27,22 @@ var record = AppendRecord.New
 
 `With` returns the same instance so calls chain. If you already hold a dictionary, pass it to `Metadata.Create` or rely on the implicit conversion.
 
-## Typed reads
+## Reading metadata
 
-When pulling metadata off a record, prefer the typed accessors over casting `Record.Metadata["key"]`:
-
-| Method                           | Behavior                                                                                       |
-|----------------------------------|------------------------------------------------------------------------------------------------|
-| `TryGetValue<T>(key, out value)` | Returns true on success. Converts from strings via `TypeDescriptor` so numbers and Guids work. |
-| `GetValueOrDefault<T>(key, def)` | Returns the typed value or the supplied default.                                               |
-| `GetRequiredValue<T>(key)`       | Returns the typed value or throws `KeyNotFoundException`.                                      |
+Read a value back from metadata:
 
 ```csharp
 if (record.Metadata.TryGetValue<Guid>("correlationId", out var correlationId))
     Console.WriteLine("Correlation: {0}", correlationId);
 ```
+
+All three accessors convert from strings via `TypeDescriptor`, so numbers and Guids work even when they arrive as JSON strings. Pick the one that matches how you want to handle a missing key:
+
+| Method                           | Behavior                                 |
+|----------------------------------|------------------------------------------|
+| `TryGetValue<T>(key, out value)` | Returns true on success.                 |
+| `GetValueOrDefault<T>(key, def)` | Returns the typed value or `def`.        |
+| `GetRequiredValue<T>(key)`       | Throws `KeyNotFoundException` if absent. |
 
 ## Wire format
 
