@@ -6,7 +6,9 @@ order: 4
 
 <CopyMarkdownButton />
 
-Each `Record` returned by a read carries the raw bytes alongside the deserialized value. Decoding happens eagerly by default and can be deferred with `SkipDecoding`. The examples below share this setup:
+Each record returned by a read carries the raw bytes alongside the deserialized value. Decoding happens eagerly by default and can be deferred with `SkipDecoding`.
+
+Say you have an `OrderPlaced` event mapped to its schema:
 
 ```csharp
 public record OrderPlaced(string OrderId, string Item);
@@ -16,7 +18,7 @@ await using var client = KurrentClient.Create(
     opts => opts.Schema.Mapper.Map<OrderPlaced>());
 ```
 
-See [Type mapping](./type-mapping.md) for the full story on the mapper.
+The snippets below build on this. See [Type mapping](./type-mapping.md) for the full story on the mapper.
 
 ## Record shape
 
