@@ -6,7 +6,17 @@ order: 4
 
 <CopyMarkdownButton />
 
-Each `Record` returned by a read carries the raw bytes alongside the deserialized value. Decoding happens eagerly by default and can be deferred with `SkipDecoding`.
+Each `Record` returned by a read carries the raw bytes alongside the deserialized value. Decoding happens eagerly by default and can be deferred with `SkipDecoding`. The examples below share this setup:
+
+```csharp
+public record OrderPlaced(string OrderId, string Item);
+
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.Schema.Mapper.Map<OrderPlaced>());
+```
+
+See [Type mapping](./type-mapping.md) for the full story on the mapper.
 
 ## Record shape
 
@@ -18,18 +28,6 @@ Each `Record` returned by a read carries the raw bytes alongside the deserialize
 | `IsDecoded` | `bool`                 | True when `Value` is populated.                          |
 | `Schema`    | `RecordSchemaInfo`     | Schema metadata: name, format, version.                  |
 | `TypeName`  | `string`               | CLR type name when decoded, otherwise the wire schema name. |
-
-## Set up
-
-Decoding requires the message type registered with the client's mapper. See [Type mapping](./type-mapping.md) for the full story. The examples below share this setup:
-
-```csharp
-public record OrderPlaced(string OrderId, string Item);
-
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.Schema.Mapper.Map<OrderPlaced>());
-```
 
 ## Decode eagerly
 
