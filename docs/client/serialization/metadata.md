@@ -6,13 +6,11 @@ order: 5
 
 <CopyMarkdownButton />
 
-Every record carries a `Metadata` collection alongside its payload. Use it to attach anything you want to travel with a record but stay out of the message itself. Metadata is always encoded as JSON, regardless of the payload's format.
+Every record carries a `Metadata` collection alongside its payload. Use it for data that should travel with the record but stay out of the payload itself. Metadata is always encoded as JSON, regardless of the payload format.
 
-## Shape
+## Attaching metadata
 
-`Metadata` is a string-keyed, object-valued collection with case-insensitive keys. Values can be any common .NET type. The class implements `IEnumerable<KeyValuePair<string, object?>>` and exposes typed accessors.
-
-Attach metadata to an append:
+`Metadata` is a string-keyed collection with case-insensitive keys. Values can be any common .NET type.
 
 ```csharp
 var metadata = new Metadata()
@@ -27,7 +25,7 @@ var record = AppendRecord.New
     .Build();
 ```
 
-`With` returns the same instance for chaining. Pass a `Dictionary<string, object?>` to `Metadata.Create` or rely on the implicit conversion when you already hold a dictionary.
+`With` returns the same instance so calls chain. If you already hold a dictionary, pass it to `Metadata.Create` or rely on the implicit conversion.
 
 ## Typed reads
 
@@ -46,27 +44,31 @@ if (record.Metadata.TryGetValue<Guid>("correlationId", out var correlationId))
 
 ## Wire format
 
-Metadata travels as UTF-8 JSON regardless of the payload's data format. A Protobuf record's payload is binary, but its metadata stays JSON, so inspection and tooling behave the same across formats. Number tokens deserialize as strings (the typed accessors convert on demand), Guids and ISO-8601 dates are detected automatically, and a few system keys (schema name, schema format, schema ID) are recognized and typed.
+Metadata travels as UTF-8 JSON regardless of the payload's data format. A Protobuf record's payload is binary, but its metadata stays JSON, so inspection and tooling behave the same across formats.
 
-## Locking and Stringify
+Number tokens deserialize as strings, and the typed accessors convert on demand. Guids and ISO-8601 dates are detected automatically. A few system keys (schema name, format, ID) are recognized and typed for you.
 
-A `Metadata` instance can be locked to make later mutation explicit:
+## Locking
+
+Lock a metadata instance to prevent further changes:
 
 ```csharp
 var locked = metadata.Lock();           // throws on any mutation attempt
 var copy = locked.CreateUnlockedCopy(); // mutable clone
 ```
 
-`Stringify` returns a new `Metadata` where every value is its string representation: ISO-8601 for dates, Base64 for byte arrays, invariant-culture formatting for numbers. Useful for logging and observability exports.
+## Stringify
+
+`Stringify` returns a new `Metadata` where every value is its string representation. Dates become ISO-8601, byte arrays become Base64, numbers use invariant-culture formatting. Useful for logging and observability exports.
 
 ## Customizing the decoder
 
-Inbound bytes pass through an `IMetadataDecoder` before becoming a `Metadata` instance. The default is `DefaultMetadataDecoder`, which parses JSON. Replace it for non-JSON wire formats or to enrich metadata at decode time:
+Inbound bytes pass through an `IMetadataDecoder` before becoming a `Metadata` instance. The default parses JSON. Replace it for non-JSON wire formats or to enrich metadata as it's decoded:
 
 ```csharp
 public sealed class MyMetadataDecoder : MetadataDecoder {
     protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
-        // parse `bytes` and return a Metadata instance
+        // parse bytes and return a Metadata instance
         return new Metadata();
     }
 }
