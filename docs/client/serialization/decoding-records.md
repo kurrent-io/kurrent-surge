@@ -20,17 +20,6 @@ await using var client = KurrentClient.Create(
 
 The snippets below build on this. See [Type mapping](./type-mapping.md) for the full story on the mapper.
 
-## Record shape
-
-| Property    | Type                   | Description                                              |
-|-------------|------------------------|----------------------------------------------------------|
-| `Data`      | `ReadOnlyMemory<byte>` | The raw serialized bytes.                                |
-| `Value`     | `object?`              | The deserialized message, or null if not decoded.        |
-| `ValueType` | `Type`                 | The .NET type of the deserialized value.                 |
-| `IsDecoded` | `bool`                 | True when `Value` is populated.                          |
-| `Schema`    | `RecordSchemaInfo`     | Schema metadata: name, format, version.                  |
-| `TypeName`  | `string`               | CLR type name when decoded, otherwise the wire schema name. |
-
 ## Decode eagerly
 
 When the schema resolves to a registered type, records arrive decoded and `IsDecoded` is true. If the schema name does not match any registration, iteration throws `SchemaDeserializationFailedException`.
@@ -87,6 +76,17 @@ When you know the runtime type, `record.As<T>()` casts `Value` to `T` with zero 
 ```csharp
 var order = record.As<OrderPlaced>();
 ```
+
+## Record shape
+
+| Property    | Type                   | Description                                              |
+|-------------|------------------------|----------------------------------------------------------|
+| `Data`      | `ReadOnlyMemory<byte>` | The raw serialized bytes.                                |
+| `Value`     | `object?`              | The deserialized message, or null if not decoded.        |
+| `ValueType` | `Type`                 | The .NET type of the deserialized value.                 |
+| `IsDecoded` | `bool`                 | True when `Value` is populated.                          |
+| `Schema`    | `RecordSchemaInfo`     | Schema metadata: name, format, version.                  |
+| `TypeName`  | `string`               | CLR type name when decoded, otherwise the wire schema name. |
 
 ## Schema metadata
 
