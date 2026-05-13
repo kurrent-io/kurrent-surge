@@ -79,4 +79,15 @@ Auto-mapping is lazy. A record can only be decoded once its .NET type has been s
 
 ## Registration
 
-A `MessageTypeMapper` registered in DI is applied automatically by `AddKurrentClient`. See [Create a Client](../connect/create-a-client.md#service-provider-overrides).
+`AddKurrentClient` honors any `MessageTypeMapper` registered in DI:
+
+```csharp
+services.AddSingleton(MessageTypeMapper.Create(m => m
+    .Map<OrderPlaced>()
+    .Map<OrderConfirmed>()
+    .Map<OrderShipped>()));
+
+services.AddKurrentClient("kurrentdb://localhost:2113");
+```
+
+Registering the mapper in DI declares schema names once per service and is the safest default for consumers that read types they don't append locally. Share the same registration between producers and consumers so both sides agree on every wire name. When both DI and the options callback set a mapper, the options callback wins.
