@@ -1,4 +1,4 @@
-# Connectors
+# Manage connectors
 
 <CopyMarkdownButton />
 
