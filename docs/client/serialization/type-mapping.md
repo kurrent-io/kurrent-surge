@@ -62,7 +62,7 @@ The naming strategy gives you a default. The mapper is where you override it. Co
 
 For the full story on evolving stored events, see [Schema evolution](./schema-evolution.md).
 
-## Auto-mapping is for prototypes
+## Auto-mapping
 
 The client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no setup is needed.
 
@@ -75,7 +75,7 @@ var record = AppendRecord.New
 await client.Streams.AppendStream(record);
 ```
 
-Auto-mapping is lazy. A record can only be decoded once its .NET type has been seen at least once in the current process. The cold consumer problem still applies: a consumer-only service never triggers auto-mapping, because no `AppendStream` ever runs locally. For anything beyond a dev loop, register up front.
+Auto-mapping is lazy. A record can only be decoded once its .NET type has been seen at least once in the current process. The cold consumer problem still applies: a consumer-only service never triggers auto-mapping, because no `AppendStream` ever runs locally. Register up front for any service that reads types it doesn't also append.
 
 ## Registration
 
