@@ -16,9 +16,24 @@ Every record on a stream carries a schema name. That name is part of the wire co
 
 The mapper is that something in between. It's a bidirectional dictionary: encode picks the schema name for an outgoing .NET type, decode picks the .NET type for an incoming schema name. Renaming a class doesn't change the wire contract, because the mapper holds the wire name independently.
 
+## Auto-mapping
+
+The client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no setup is needed.
+
+```csharp
+var record = AppendRecord.New
+    .ForStream("order-123")
+    .WithValue(new OrderPlaced("order-123", "Widget"))
+    .Build();
+
+await client.Streams.AppendStream(record);
+```
+
+Auto-mapping is lazy. A record can only be decoded once its .NET type has been seen at least once in the current process. A consumer-only service never triggers auto-mapping, because no `AppendStream` ever runs locally.
+
 ## The cold consumer problem
 
-A consumer that starts up fresh and reads events for a .NET type it has never produced sees those events arrive raw. The serializer has no way to guess what `order.placed.v1` should decode into. It hands you bytes and the schema name, but no `OrderPlaced` instance.
+A consumer that starts up fresh and reads events for a .NET type it has never appended in this process sees those events arrive raw. The serializer has no way to guess what `order.placed.v1` should decode into. It hands you bytes and the schema name, but no `OrderPlaced` instance.
 
 This is the most common surprise in event-driven systems. Producer-only services work fine. Consumers that share types with producers through a NuGet package work fine. The trouble starts when a brand-new consumer rolls out against streams that already exist.
 
@@ -37,7 +52,7 @@ await using var client = KurrentClient.Create(
 
 The builder honors the configured naming strategy, so the generated schema names match what producers using the same strategy emit.
 
-## Pinning a name explicitly
+## Overriding the default name
 
 The naming strategy gives you a default. The mapper is where you override it. Common reasons:
 
@@ -47,7 +62,7 @@ The naming strategy gives you a default. The mapper is where you override it. Co
 .Map<OrderPlaced>("order.placed.v1")
 ```
 
-**A .NET rename has to leave the wire contract intact.** Six months of records sit on the stream under `order.shipped.v1`. The class is now `OrderShippedV2` because the team agreed on a clearer name. Pin the old wire name and the rename ships safely.
+**A .NET class is renamed after records have shipped.** Six months of records sit on the stream under `order.shipped.v1`. The class is now `OrderShippedV2` because the team agreed on a clearer name. Pin the old wire name and the rename ships safely.
 
 ```csharp
 .Map<OrderShippedV2>("order.shipped.v1")
@@ -62,21 +77,6 @@ The naming strategy gives you a default. The mapper is where you override it. Co
 
 For the full story on evolving stored events, see [Schema evolution](./schema-evolution.md).
 
-## Auto-mapping
-
-The client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no setup is needed.
-
-```csharp
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new OrderPlaced("order-123", "Widget"))
-    .Build();
-
-await client.Streams.AppendStream(record);
-```
-
-Auto-mapping is lazy. A record can only be decoded once its .NET type has been seen at least once in the current process. The cold consumer problem still applies: a consumer-only service never triggers auto-mapping, because no `AppendStream` ever runs locally. Register up front for any service that reads types it doesn't also append.
-
 ## Registration
 
 `AddKurrentClient` honors any `MessageTypeMapper` registered in DI:
@@ -90,4 +90,4 @@ services.AddSingleton(MessageTypeMapper.Create(m => m
 services.AddKurrentClient("kurrentdb://localhost:2113");
 ```
 
-Registering the mapper in DI declares schema names once per service and is the safest default for consumers that read types they don't append locally. Share the same registration between producers and consumers so both sides agree on every wire name. When both DI and the options callback set a mapper, the options callback wins.
+Registering the mapper in DI declares schema names once per service and is the safest default for consumers that read types they don't append locally. Share the same registration between producers and consumers so both sides agree on every wire name. When both DI and the options callback set a mapper, the options callback wins. See [Create a Client](../connect/create-a-client.md#service-provider-overrides) for the other services applied from DI.
