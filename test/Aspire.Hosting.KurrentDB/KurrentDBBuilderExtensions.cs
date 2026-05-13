@@ -24,6 +24,8 @@ public static class KurrentDBBuilderExtensions {
             .AddResource(server)
             .ExcludeFromManifest();
 
+        //var certsPath = app.FileSystemService.TempDirectory.CreateTempSubdirectory("aspire-kurrentdb-certs" + name);
+
         var certGen = settings.TlsEnabled
             ? app.AddCertificateGenerator(name, server.CertsHostPath, server)
             : null;
@@ -74,7 +76,7 @@ public static class KurrentDBBuilderExtensions {
             .WithImage(settings.Container.Image, settings.Container.Tag)
             .WithImageRegistry(settings.Container.Registry)
             .WithEnvironment(ctx => node.ConfigureEnvironment(ctx, settings))
-            .WithLifetime(ContainerLifetime.Persistent);
+            .WithLifetime(settings.Lifetime);
 
         if (server.TlsEnabled) {
             builder
@@ -135,7 +137,6 @@ public static class KurrentDBBuilderExtensions {
             name: $"{name}-certs", command: "/bin/bash", workingDirectory: ".");
 
         certGen.WithArgs(context => {
-            
             var dnsNames = string.Join(",", server.Nodes
                 .Select(r => r.Name)
                 .Distinct(StringComparer.Ordinal)

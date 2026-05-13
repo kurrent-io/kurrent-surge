@@ -1,5 +1,3 @@
-using Kurrent.Testkit;
-
 namespace Kurrent.Client.Tests.Legacy;
 
 [Category("Legacy")]

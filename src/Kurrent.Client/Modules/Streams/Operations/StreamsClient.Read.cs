@@ -40,7 +40,11 @@ public partial class StreamsClient {
         var result = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
-
+        
+        // maybe add a strict option that will throw if the record is not found or if it was deleted or tombstoned
+        // when strict is null it would return Record.None
+        // or we could even return a result<record, exception> or IVariant<Record, RecordState>
+        
         if (result.Value is not Record record)
             throw new LogPositionNotFoundException(position);
 
@@ -53,7 +57,7 @@ public partial class StreamsClient {
                 case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
             }
         }
-
+       
         return record;
     }
 

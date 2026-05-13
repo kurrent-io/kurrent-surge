@@ -1,5 +1,3 @@
-using Kurrent.Testkit;
-
 namespace Kurrent.Client.Tests.Internal;
 
 public class AsyncEnumerableExtensionsTests {

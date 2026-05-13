@@ -1,17 +1,16 @@
 using Kurrent.Client.Streams;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Secure;
 
 [Category("Secure")]
 [Category("Integration")]
 public class AuthenticationTests {
-    [ClassDataSource<KurrentDBSecureFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBSecureFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
     public async ValueTask anonymous_client_cannot_append(CancellationToken ct) {
-        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
+        await using var client = KurrentClient.Create(Fixture.AnonymousConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
         });

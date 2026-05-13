@@ -4,59 +4,93 @@ using Kurrent.Client;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Aspire.Hosting.KurrentDB;
+using Kurrent.Testkit.Aspire;
+using Kurrent.Testkit.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Testing.ArcadeRacer;
 
-namespace Kurrent.Testkit.Aspire;
+namespace Kurrent.Sdk.Testkit;
 
 public class KurrentDBFixture : AspireFixture {
-    protected KurrentDBSettings Settings { get; init; } = KurrentDBSettings.SingleNode;
-    
+    protected virtual string ResourceName => KurrentDBServerResource.DefaultResourceName;
+
     public KurrentDBFixture() {
-        Options = new() {
-            StartupTimeout        = TimeSpan.FromMinutes(1),
+        Options = Options with {
             ShouldWaitForResource = r => r is KurrentDBResource
         };
 
         ConfigureBuilder = builder => {
-            builder.AddKurrentDB(KurrentDBServerResource.DefaultResourceName, Settings);
+            var settings = builder.Configuration
+                .GetSection("KurrentDB")
+                .GetOptionsOrDefault<KurrentDBSettings>();
+
+            ConfigureSettings(settings);
+
+            builder.AddKurrentDB(ResourceName, settings);
+
+            builder.Services
+                .AddSingleton(Time = new FakeTimeProvider(DateTimeOffset.UtcNow))
+                .AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeTimeProvider>());
         };
 
         OnStarted = async () => {
-            var db = AppModel.Resources.OfType<KurrentDBServerResource>()
-                .First(r => r.Name == KurrentDBServerResource.DefaultResourceName);
+            ConnectionString = await AppModel
+                .GetRequiredConnectionString<KurrentDBServerResource>(ResourceName);
 
-            ConnectionString = await db.GetRequiredConnectionString();
-
+            AnonymousConnectionString = KurrentClientOptions.Parse(ConnectionString)
+                .With(opts => opts.Security = KurrentClientSecurityOptions.Insecure)
+                .ToString();
+            
             Client = GetNewClient(ConnectionString);
         };
         
-        OnTeardown = async () => {
+        OnStopping = async () => {
             if (Client is { } client)
                 await client.DisposeAsync();
         };
     }
+    
+    protected virtual void ConfigureSettings(KurrentDBSettings settings) { }
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
     [ClassDataSource<ArcadeRacerTestDataSource>(Shared = SharedType.PerTestSession)]
     public required ITestDataSource TestData { get; [UsedImplicitly] init; }
-
+    
+    /// <summary>
+    /// The <see cref="FakeTimeProvider"/> instance that allows tests to manipulate
+    /// time within the Aspire application.
+    /// </summary>
+    public FakeTimeProvider Time { get; private set; } = null!;
+    
     public KurrentClient Client { get; private set; } = null!;
 
     public string ConnectionString { get; private set; } = null!;
+
+    public string AnonymousConnectionString { get; private set; } = null!;
     
     public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
 
-    public KurrentClient GetNewClient(string? connectionString = null) =>
-        KurrentClient.Create(connectionString ?? ConnectionString, opts => {
-            opts.LoggerFactory      = App.Services.GetRequiredService<ILoggerFactory>();
-            opts.Schema.PreValidate = false;
-            opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
+    public KurrentClient GetNewClient(string connectionString, Action<KurrentClientOptions>? configure = null) =>
+        KurrentClient.Create(connectionString, opts => {
+            opts.LoggerFactory = LoggerFactory;
+            opts.Schema        = KurrentClientSchemaOptions.NoValidation;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            configure?.Invoke(opts);
         });
-
+    
+    public KurrentClient GetNewClient(Action<KurrentClientOptions> configure) =>
+        GetNewClient(ConnectionString, configure);
+    
+    public KurrentClient GetNewClient() =>
+        GetNewClient(ConnectionString);
+    
+    public KurrentClient GetNewAnonymousClient() =>
+        GetNewClient(AnonymousConnectionString);
+    
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var request = new ReadRecordsRequest {
             Direction    = ReadDirection.Backwards,
@@ -111,23 +145,30 @@ public class KurrentDBFixture : AspireFixture {
         TestStreams(ct).Take(numberOfStreams).ToListAsync(ct);
 }
 
-public sealed class KurrentDBSecureFixture : KurrentDBFixture {
-    // public KurrentDBSecureTestFixture() {
-    //     Options = new() {
-    //         ResourceTimeout    = TimeSpan.FromMinutes(2),
-    //         WaitBehavior       = ResourceWaitBehavior.Named,
-    //         ResourcesToWaitFor = r => r.OfType<KurrentDBResource>().ToList<IResource>(),
-    //         Args = new[] { KurrentDBAppHostArgs.Tls(true) }
-    //     };
-    //     
-    //     Settings = new KurrentDBSettings { Secure = true, };
-    // }
+public sealed class KurrentDBInsecureFixture : KurrentDBFixture {
+    protected override void ConfigureSettings(KurrentDBSettings settings) =>
+        settings.TlsEnabled = false;
+}
+
+
+/// <summary>
+/// Ephemeral single-node fixture for destructive operations like scavenge.
+/// Uses session-scoped containers that are not reused across test runs.
+/// </summary>
+public sealed class KurrentDBScavengeFixture : KurrentDBFixture {
+    protected override string ResourceName { get; } = $"kdb-{Guid.NewGuid().ToString("N")[..8]}";
+
+    protected override void ConfigureSettings(KurrentDBSettings settings) =>
+        settings.Lifetime = ContainerLifetime.Session;
 }
 
 /// <summary>
 /// Three-node cluster + one replica with TLS enabled.
 /// </summary>
-public sealed class KurrentDBClusterFixture : KurrentDBFixture { 
-    KurrentDBClusterFixture() =>
-        Settings = KurrentDBSettings.DefaultCluster;
+public sealed class KurrentDBClusterFixture : KurrentDBFixture {
+    protected override void ConfigureSettings(KurrentDBSettings settings) {
+        settings.Lifetime   = ContainerLifetime.Persistent;
+        settings.Topology   = new() { Nodes = 3, Replicas = 1 };
+        settings.TlsEnabled = true;
+    }
 }

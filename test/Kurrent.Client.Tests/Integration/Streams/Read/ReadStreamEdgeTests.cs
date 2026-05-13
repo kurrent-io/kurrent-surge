@@ -1,7 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Testkit;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Streams;
 

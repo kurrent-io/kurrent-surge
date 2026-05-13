@@ -17,7 +17,7 @@
     <PackageReference Include="Bogus" />
     <PackageReference Include="DiffEngine" />
     <PackageReference Include="DotNext" />
-    <PackageReference Include="Ductus.FluentDocker" />
+    <PackageReference Include="Grpc.StatusProto" />
     <PackageReference Include="Humanizer.Core" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
@@ -39,12 +39,10 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.Observable" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
-    <PackageReference Include="Serilog.Sinks.Seq" />
     <PackageReference Include="shortid" />
     <PackageReference Include="System.Reactive" />
     <PackageReference Include="TUnit.Assertions" />
     <PackageReference Include="TUnit.Core" />
-    <PackageReference Include="Grpc.StatusProto" />
     <PackageReference Include="TUnit.OpenTelemetry" />
   </ItemGroup>
 

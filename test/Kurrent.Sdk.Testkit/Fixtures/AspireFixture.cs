@@ -3,10 +3,10 @@ using Humanizer;
 using Aspire.Hosting.KurrentDB;
 using Aspire.Hosting.Testing;
 using Kurrent.Testkit.Testkit;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Time.Testing;
 using TUnit.Core.Interfaces;
 
 namespace Kurrent.Testkit.Aspire;
@@ -18,36 +18,47 @@ namespace Kurrent.Testkit.Aspire;
 /// <see cref="IDistributedApplicationTestingBuilder"/> is created.
 /// </summary>
 public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
-    protected virtual string ApplicationName => field ??= GetType().Name;
+    DistributedApplication? _app;
 
-    protected AspireFixtureOptions Options { get; init; } = new();
+    public AspireFixtureBase() {
+        ApplicationName  = GetType().Name.Replace("Fixture", "");
+        Options          = new();
+        ConfigureAppHost = (_, __) => { };
+        ConfigureBuilder = _ => { };
+        OnStarted        = () => ValueTask.CompletedTask;
+        OnStopping       = () => ValueTask.CompletedTask;
+    }
+    
+    protected string ApplicationName { get; private set; }
+
+    protected AspireFixtureOptions Options { get; init; }
 
     /// <summary>
     /// Optional hook to configure the Aspire application host before it's built.
     /// This is where you can set options like disabling the dashboard, configuring logging, etc.
     /// </summary>
-    protected Action<DistributedApplicationOptions, HostApplicationBuilderSettings> ConfigureAppHost { get; init; } = (__, ___) => { };
+    protected Action<DistributedApplicationOptions, HostApplicationBuilderSettings> ConfigureAppHost { get; init; }
 
     /// <summary>
     /// Optional hook to allow further customization of the <see cref="DistributedApplicationTestingBuilder"/> before building the application.
     /// </summary>
-    protected Action<IDistributedApplicationTestingBuilder> ConfigureBuilder { get; init; } = __ => { };
+    protected Action<IDistributedApplicationTestingBuilder> ConfigureBuilder { get; init; }
 
     /// <summary>
     /// Hook that runs after all resources are ready. Use for connection string resolution
     /// and client creation that depend on allocated endpoints.
     /// </summary>
-    protected Func<ValueTask> OnStarted { get; init; } = () => ValueTask.CompletedTask;
+    protected Func<ValueTask> OnStarted { get; init; }
 
     /// <summary>
     /// Final hook to allow custom teardown logic before the application is terminated.
     /// </summary>
-    protected Func<ValueTask> OnTeardown { get; init; } = () => ValueTask.CompletedTask;
+    protected Func<ValueTask> OnStopping { get; init; }
 
     /// <summary>
     /// The Aspire distributed application instance managed by this fixture.
     /// </summary>
-    public DistributedApplication App { get; private set; } = null!;
+    public DistributedApplication App => _app ?? throw new("Fixture not initialized!");
 
     /// <summary>
     /// The Aspire application model containing all registered resources.
@@ -55,20 +66,9 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
     public DistributedApplicationModel AppModel =>
         field ??= App.Services.GetRequiredService<DistributedApplicationModel>();
 
-    /// <summary>
-    /// The collection of resources registered in the application.
-    /// </summary>
-    public IResourceCollection Resources => AppModel.Resources;
-
     public ILoggerFactory LoggerFactory => TestkitExecutionContext.LoggerFactory;
 
-    public ILogger Logger => field ??= TestkitExecutionContext.Logger;
-
-    /// <summary>
-    /// The <see cref="FakeTimeProvider"/> instance that allows tests to manipulate
-    /// time within the Aspire application.
-    /// </summary>
-    public FakeTimeProvider Time { get; private set; } = null!;
+    public ILogger Logger => TestkitExecutionContext.Logger;
 
     /// <summary>
     /// Creates the <see cref="IDistributedApplicationTestingBuilder"/>.
@@ -84,46 +84,34 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
         
         var builder = await CreateBuilderAsync((options, settings) => {
             settings.ApplicationName      = ApplicationName;
-            options.EnableResourceLogging = false;
+            options.EnableResourceLogging = true;
             options.DisableDashboard      = true;
-
+            
+            settings.Configuration ??= new();
+            settings.Configuration.AddConfiguration(TestkitExecutionContext.Configuration);
+            
             try {
                 ConfigureAppHost(options, settings);
+                ApplicationName = settings.ApplicationName;
             } catch (Exception ex) {
-                Logger.LogError(ex, "Failed to configure aspire app host");
-                throw;
+                throw new("ConfigureAppHost failed", ex);
             }
         }).ConfigureAwait(false);
 
         builder.Services.AddSingleton(TestkitExecutionContext.LoggerFactory);
-
-        builder.Services
-            .AddSingleton(Time = new FakeTimeProvider(DateTimeOffset.UtcNow))
-            .AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeTimeProvider>());
-
+        
         try {
             ConfigureBuilder(builder);
         } catch (Exception ex) {
-            Logger.LogError(ex, "Failed to configure aspire app builder");
-            throw;
+            throw new("ConfigureBuilder failed", ex);
         }
 
         using var cts = new CancellationTokenSource(Options.StartupTimeout);
 
-        App = await builder.BuildAsync(cts.Token).ConfigureAwait(false);
+        _app = await builder.BuildAsync(cts.Token).ConfigureAwait(false);
 
         Logger.LogInformation("Aspire app built in {Elapsed}", stopwatch.Elapsed.Humanize());
-
-        // try {
-        //     await OnSetup().ConfigureAwait(false);
-        // } catch (Exception ex) {
-        //     Logger.LogError(ex, "Failed to setup fixture");
-        //     throw;
-        // }
-
-        Logger.LogInformation("Starting application with resources: {ResourceList}",
-            string.Join(", ", AppModel.Resources.Select(r => r.Name)));
-
+        
         try {
             await App.StartAsync(cts.Token).ConfigureAwait(false);
 
@@ -140,8 +128,7 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
             try {
                 await OnStarted().ConfigureAwait(false);
             } catch (Exception ex) {
-                Logger.LogError(ex, "Failed to run post-start setup");
-                throw;
+                throw new("Failed to run post-start setup", ex);
             }
         } catch (OperationCanceledException) when (cts.IsCancellationRequested) {
             throw new TimeoutException(
@@ -151,29 +138,19 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
     }
 
     async ValueTask IAsyncDisposable.DisposeAsync() {
-        if (App is not IAsyncDisposable disposable)
-            return;
-
-        Logger.LogTrace("Tearing down fixture...");
-
+        if (_app is null) return;
+        
         try {
-            await OnTeardown().ConfigureAwait(false);
+            await OnStopping().ConfigureAwait(false);
         } catch (Exception ex) {
-            Logger.LogError(ex, "Failed to teardown fixture");
-            throw;
+            throw new("OnStopping failed", ex);
         }
 
         await App.StopAsync().ConfigureAwait(false);
-        await disposable.DisposeAsync().ConfigureAwait(false);
-
-        Logger.LogInformation("Fixture tear down complete");
+        Logger.LogDebug("Aspire app stopped");
+        await App.DisposeAsync().ConfigureAwait(false);
+        Logger.LogDebug("Fixture disposed");
     }
-
-    /// <summary>
-    /// Gets the connection string for the named resource.
-    /// </summary>
-    public ValueTask<string?> GetConnectionString(string resourceName, CancellationToken cancellationToken = default) =>
-        App.GetConnectionStringAsync(resourceName, cancellationToken);
 }
 
 /// <summary>
@@ -198,15 +175,9 @@ public abstract class AspireFixture<T> : AspireFixtureBase {
 public sealed record AspireFixtureOptions {
     /// <summary>
     /// Maximum time allowed for the application to start and all resources to become ready.
-    /// Default: 60 seconds.
+    /// Default: 30 seconds.
     /// </summary>
-    public TimeSpan StartupTimeout { get; init; } = TimeSpan.FromSeconds(60);
-
-    /// <summary>
-    /// Maximum time allowed for the application to shutdown.
-    /// Default: 60 seconds.
-    /// </summary>
-    public TimeSpan ShutdownTimeout { get; init; } = TimeSpan.FromSeconds(60);
+    public TimeSpan StartupTimeout { get; init; } = TimeSpan.FromSeconds(30);
     
     /// <summary>
     /// How to wait for resources.
@@ -215,7 +186,7 @@ public sealed record AspireFixtureOptions {
 
     /// <summary>
     /// Predicate to determine which resources should be waited for.
-    /// Defaults to all compute resources that are not child resources.
+    /// Defaults to all compute resources.
     /// </summary>
-    public Func<IResource, bool> ShouldWaitForResource { get; init; } = r => r is IComputeResource and not IResourceWithParent;
+    public Func<IResource, bool> ShouldWaitForResource { get; init; } = r => r is IComputeResource;
 }

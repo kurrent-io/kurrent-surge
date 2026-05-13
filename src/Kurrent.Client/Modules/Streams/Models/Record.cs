@@ -17,7 +17,7 @@ public record Record {
 	public static readonly Record None = new();
 
     public Record(IRecordDecoder? decoder = null) =>
-        Decoder = decoder ?? NoOpRecordDecoder.Instance;
+        Decoder = decoder ?? NullableRecordDecoder.Instance;
 
     IRecordDecoder Decoder { get; }
     
@@ -71,6 +71,11 @@ public record Record {
     /// The schema information associated with the record.
     /// </summary>
     public RecordSchemaInfo Schema { get; init; } = RecordSchemaInfo.None;
+
+    /// <summary>
+    /// Indicates whether this record is a link event whose resolved target was unavailable.
+    /// </summary>
+    public bool IsLink { get; init; }
 
     /// <summary>
     /// Indicates whether the record's data has been redacted.
@@ -161,26 +166,12 @@ public interface IRecordDecoder {
 }
 
 sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy? registryPolicy = null) : IRecordDecoder {
-    static readonly SchemaName LinkSchemaName = "$>";
-
     SchemaRegistryPolicy RegistryPolicy { get; } = registryPolicy ?? SchemaRegistryPolicy.NoRequirements;
 
     public async ValueTask<bool> Decode(Record record, CancellationToken ct) {
         if (record.IsDecoded)
             return true;
-
-        if (record.Schema.SchemaName == LinkSchemaName) {
-            record.Value = Encoding.UTF8.GetString(record.Data.Span);
-            return true;
-        }
-
-        // we do not decode bytes - I wonder if we even need to have a bytes serializer at all
-        // currently Deserialize would work and return the bytes as is, but that seems pointless.
-        // because we do not want to copy data to value if its bytes.
-        // full circle.
-        if (record.Schema.SchemaFormat == SchemaDataFormat.Bytes)
-            return false;
-
+        
         var context = new SchemaSerializationContext {
             Stream               = record.Stream,
             RecordSchema         = record.Schema,
@@ -188,23 +179,22 @@ sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaR
             CancellationToken    = ct
         };
 
-        // the deserializer should not even return null.
-        // either throws or returns a value or returns a result <T, Error>
-        // why the fook would we allow nulls here ffs?!
-        record.Value = await serializerProvider
+        var value = await serializerProvider
             .GetSerializer(record.Schema.SchemaFormat)
             .Deserialize(record.Data, context)
             .ConfigureAwait(false)!;
 
-        if (record.Value is not null)
-            record.ValueType = record.Value.GetType();
+        if (value is { } and not ReadOnlyMemory<byte>) {
+            record.Value     = value;
+            record.ValueType = value.GetType();
+        }
 
         return true;
     }
 }
 
-sealed class NoOpRecordDecoder : IRecordDecoder {
-    public static readonly IRecordDecoder Instance = new NoOpRecordDecoder();
+sealed class NullableRecordDecoder : IRecordDecoder {
+    public static readonly IRecordDecoder Instance = new NullableRecordDecoder();
 
     public ValueTask<bool> Decode(Record record, CancellationToken ct) => ValueTask.FromResult(false);
 }

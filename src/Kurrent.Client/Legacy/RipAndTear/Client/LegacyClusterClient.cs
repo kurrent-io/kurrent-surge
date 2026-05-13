@@ -105,6 +105,8 @@ class LegacyClusterClient : IAsyncDisposable {
 
     public string ResolverScheme { get; }
 
+    public Task<ChannelInfo> CurrentChannelAsync => _channelInfoProvider.CurrentAsync;
+
     public static LegacyClusterClient Create(KurrentDBClientSettings settings) => new(settings, [], true);
 
     // public static LegacyClusterClient CreateWithExceptionMapping(KurrentDBClientSettings settings) => new(settings, ExceptionMap, true);

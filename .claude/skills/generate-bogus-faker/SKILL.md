@@ -189,7 +189,7 @@ Produce a complete, compilable C# class following these rules:
 
 - Enable `StrictMode(true)` so Bogus throws a `ValidationException` at generation time if any property lacks a
   `RuleFor` call. This catches missing rules early rather than producing incomplete test data silently
-- Always include a `public static readonly {ModelName}Faker Instance = new();` for easy reuse
+- Always include a `public static {ModelName}Faker New => new();` for easy reuse
 - Prefer `.UseSeed(seed)` per faker over `Randomizer.Seed` for parallel test safety. Global seeds create ordering
   dependencies between tests
 - Map every public settable property with `RuleFor`
@@ -212,7 +212,7 @@ using Bogus.Extensions;
 namespace MyProject.Testing;
 
 public sealed class OrderFaker : Faker<Order> {
-    public static readonly OrderFaker Instance = new();
+    public static OrderFaker New => new();
 
     public OrderFaker() {
         StrictMode(true);
@@ -237,7 +237,7 @@ using Bogus.Extensions;
 namespace MyProject.Testing;
 
 public sealed class CreateOrderCommandFaker : Faker<CreateOrderCommand> {
-    public static readonly CreateOrderCommandFaker Instance = new();
+    public static CreateOrderCommandFaker New => new();
 
     public CreateOrderCommandFaker() {
         StrictMode(true);
@@ -246,7 +246,7 @@ public sealed class CreateOrderCommandFaker : Faker<CreateOrderCommand> {
             Id: f.Random.Guid(),
             CustomerName: f.Name.FullName(),
             Email: f.Internet.Email(),
-            Items: OrderItemFaker.Instance.Generate(3),
+            Items: OrderItemFaker.New.Generate(3),
             PlacedAt: f.Date.Recent()));
     }
 }
@@ -261,7 +261,7 @@ If not, generate one and include it in the output:
 
 ```csharp
 // When Order has a property: Address ShippingAddress
-RuleFor(o => o.ShippingAddress, _ => AddressFaker.Instance.Generate());
+RuleFor(o => o.ShippingAddress, _ => AddressFaker.New.Generate());
 ```
 
 Generate the `AddressFaker` class as well and include both classes in the output.
@@ -272,7 +272,7 @@ Map collection properties by generating the inner type:
 
 ```csharp
 // List<OrderLine> Lines
-RuleFor(o => o.Lines, _ => OrderLineFaker.Instance.Generate(3));
+RuleFor(o => o.Lines, _ => OrderLineFaker.New.Generate(3));
 
 // IReadOnlyList<string> Tags
 RuleFor(o => o.Tags, f => f.Make(3, () => f.Lorem.Word()));
@@ -345,7 +345,7 @@ properties. Add a comment separating base and derived properties:
 
 ```csharp
 public sealed class PremiumCustomerFaker : Faker<PremiumCustomer> {
-    public static readonly PremiumCustomerFaker Instance = new();
+    public static PremiumCustomerFaker New => new();
 
     public PremiumCustomerFaker() {
         StrictMode(true);
@@ -371,16 +371,16 @@ caller controls which concrete type gets generated.
 
 ```csharp
 public sealed class DeviceFaker : Faker<Device> {
-    public static readonly DeviceFaker Instance = new();
+    public static DeviceFaker New => new();
 
     public DeviceFaker(DeviceType? deviceType = null) {
         CustomInstantiator(f => {
             var type = deviceType ?? f.PickRandom<DeviceType>();
             return type switch {
-                DeviceType.Thermostat   => ThermostatFaker.Instance.Generate(),
-                DeviceType.MotionSensor => MotionSensorFaker.Instance.Generate(),
-                DeviceType.SmartLight   => SmartLightFaker.Instance.Generate(),
-                DeviceType.DoorLock     => DoorLockFaker.Instance.Generate(),
+                DeviceType.Thermostat   => ThermostatFaker.New.Generate(),
+                DeviceType.MotionSensor => MotionSensorFaker.New.Generate(),
+                DeviceType.SmartLight   => SmartLightFaker.New.Generate(),
+                DeviceType.DoorLock     => DoorLockFaker.New.Generate(),
                 _                       => throw new ArgumentOutOfRangeException(nameof(type))
             };
         });
@@ -388,7 +388,7 @@ public sealed class DeviceFaker : Faker<Device> {
 }
 ```
 
-Each concrete subtype faker is a standard `Faker<T>` with `StrictMode(true)` and `Instance`. The dispatcher faker
+Each concrete subtype faker is a standard `Faker<T>` with `StrictMode(true)` and `New`. The dispatcher faker
 does not need `RuleFor` calls because construction is fully delegated.
 
 ### Step 6: Present the output
@@ -404,15 +404,15 @@ Present the generated faker class(es) with:
 
 ```csharp
 // Singleton instance
-var single = OrderFaker.Instance.Generate();
-var batch  = OrderFaker.Instance.Generate(50);
+var single = OrderFaker.New.Generate();
+var batch  = OrderFaker.New.Generate(50);
 
 // Custom instance with constructor parameter
 var faker = new OrderFaker(OrderStatus.Processing);
 var single = faker.Generate();
 
 // Override rules for a specific test
-var faker = OrderFaker.Instance
+var faker = OrderFaker.New
     .RuleFor(o => o.Total, f => f.Finance.Amount(100, 10000))
     .RuleFor(o => o.Status, f => f.PickRandom(OrderStatus.Pending, OrderStatus.Processing));
 
@@ -452,9 +452,9 @@ var faker = new Faker<Order>()
 ### Enum selection
 
 ```csharp
-.RuleFor(o => o.Status, f => f.PickRandom<OrderStatus>())            // uniform from all values
+.RuleFor(o => o.Status, f => f.PickRandom<OrderStatus>())              // uniform from all values
 .RuleFor(o => o.Status, f => f.PickRandomWithout(OrderStatus.Deleted)) // exclude specific values
-.RuleFor(o => o.Category, f => f.Random.Enum<Category>())             // alternative syntax
+.RuleFor(o => o.Category, f => f.Random.Enum<Category>())              // alternative syntax
 ```
 
 ### Weighted distribution

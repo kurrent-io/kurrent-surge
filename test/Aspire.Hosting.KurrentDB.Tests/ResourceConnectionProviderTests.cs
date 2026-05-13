@@ -1,5 +1,4 @@
 using Aspire.Hosting.Eventing;
-using Aspire.Hosting.KurrentDB;
 using Aspire.Hosting.Testing;
 using Microsoft.Extensions.DependencyInjection;
 

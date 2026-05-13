@@ -1,37 +1,20 @@
-using Kurrent.Client;
+using System.Diagnostics.CodeAnalysis;
+using Bogus;
 using Kurrent.Client.Streams;
-using Kurrent.Testkit.Containers.KurrentDB;
+using Kurrent.Sdk.Testkit;
 using Testing.ArcadeRacer;
 
 namespace Benchmarks.Infrastructure;
 
-/// <summary>
-/// Shared fixture for benchmarks that manages the KurrentDB container and client.
-/// </summary>
-public sealed class ClientBenchmarkFixture : IAsyncDisposable {
-    readonly KurrentDBTestContainer      _container     = new();
-    readonly Dictionary<int, StreamName> _seededStreams = new();
-
-    KurrentClient? _client;
-
-    public KurrentClient Client =>
-        _client ?? throw new InvalidOperationException("Fixture not initialized. Call InitializeAsync first.");
-
-    public ITestDataSource TestData { get; private set; } = null!;
-
-    public async Task InitializeAsync() {
-        await _container.InitializeAsync().ConfigureAwait(false);
-
-        var connectionString = _container.AuthenticatedConnectionString;
-
-        var opts = KurrentClientOptions.Parse(connectionString);
-        opts.Schema.PreValidate = false;
-        opts.Resilience         = KurrentClientResilienceOptions.NoResilience;
-        _client = KurrentClient.Create(opts);
-
+public sealed class ClientBenchmarkFixture : KurrentDBFixture {
+    [SetsRequiredMembers]
+    public ClientBenchmarkFixture() {
+        Faker    = new BogusFaker();
         TestData = new ArcadeRacerTestDataSource();
     }
-
+    
+    readonly Dictionary<int, StreamName> _seededStreams = new();
+ 
     /// <summary>
     /// Seeds a stream with the specified number of messages.
     /// Caches streams by message count to avoid re-seeding.
@@ -55,11 +38,4 @@ public sealed class ClientBenchmarkFixture : IAsyncDisposable {
     /// Gets all seeded streams for log-level benchmarks.
     /// </summary>
     public IReadOnlyDictionary<int, StreamName> SeededStreams => _seededStreams;
-
-    public async ValueTask DisposeAsync() {
-        if (_client is { })
-            await _client.DisposeAsync().ConfigureAwait(false);
-
-        await _container.DisposeAsync().ConfigureAwait(false);
-    }
 }

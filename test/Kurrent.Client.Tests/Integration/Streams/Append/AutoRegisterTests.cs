@@ -4,7 +4,6 @@ using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testkit.Aspire;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Client.Tests.Streams;

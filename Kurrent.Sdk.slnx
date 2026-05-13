@@ -15,9 +15,7 @@
     <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
   </Folder>
 
-  <Folder Name="/Shared/">
-    <Project Path="src/Kurrent.Toolkit/Kurrent.Toolkit.csproj" />
-  </Folder>
+  <Folder Name="/Shared/" />
   <Folder Name="/Shared/Aspire/">
     <Project Path="test\Aspire.Hosting.KurrentDB.Tests\Aspire.Hosting.KurrentDB.Tests.csproj" />
     <Project Path="test\Aspire.Hosting.KurrentDB\Aspire.Hosting.KurrentDB.csproj" />

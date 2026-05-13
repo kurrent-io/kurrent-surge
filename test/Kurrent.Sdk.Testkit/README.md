@@ -15,11 +15,11 @@ This project uses `Aspire.AppHost.Sdk` with `OutputType=Library` — no `Program
 
 ## Fixtures
 
-| Fixture                  | Topology    | Security |
-|--------------------------|-------------|----------|
-| `KurrentDBFixture`       | Single node | Insecure |
-| `KurrentDBSecureFixture` | Single node | TLS      |
-| `KurrentDBClusterFixture`| 3 nodes     | TLS      |
+| Fixture                   | Topology    | Security |
+|---------------------------|-------------|----------|
+| `KurrentDBFixture`        | Single node | Insecure |
+| `KurrentDBSecureFixture`  | Single node | TLS      |
+| `KurrentDBClusterFixture` | 3 nodes     | TLS      |
 
 `KurrentDBFixture` provides `Client`, `ConnectionString`, `SeedTestStream`, `TestStreams`, `TypeMapper`, and the Arcade Racer test data source.
 

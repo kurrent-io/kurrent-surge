@@ -7,7 +7,6 @@ using Kurrent.Streaming.Diagnostics;
 using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
-using ISubscription = Kurrent.Streaming.Gateway.ISubscription;
 
 namespace Kurrent.Streaming;
 

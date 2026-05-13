@@ -2,7 +2,6 @@
 
 using Google.Protobuf.WellKnownTypes;
 using Kurrent.Client.Connectors;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Fixtures;
 

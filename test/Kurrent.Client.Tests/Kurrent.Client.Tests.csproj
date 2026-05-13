@@ -15,6 +15,7 @@
     <Using Include="TUnit" />
     <Using Include="Kurrent.Testkit" />
     <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+    <Using Include="Kurrent.Sdk.Testkit" />
   </ItemGroup>
 
   <ItemGroup>

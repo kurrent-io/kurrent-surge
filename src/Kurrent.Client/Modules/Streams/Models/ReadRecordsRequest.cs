@@ -138,11 +138,6 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
                 .Must(start => start != LogPosition.Unset,
                     "Start position cannot be Unset when reading records from the log.");
 
-            When(options => options.Direction == ReadDirection.Forwards, () => {
-                RuleFor(options => options.Start)
-                    .Must(start => start != LogPosition.Latest, 
-                        "Start position cannot be Latest when reading forwards.");
-            });
         }
     }
 }

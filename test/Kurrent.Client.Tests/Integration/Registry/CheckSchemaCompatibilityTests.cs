@@ -3,7 +3,6 @@ using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using NJsonSchema;
-using Kurrent.Testkit.Aspire;
 using static Kurrent.Client.Registry.CompatibilityMode;
 
 namespace Kurrent.Client.Tests.Registry;

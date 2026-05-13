@@ -40,7 +40,8 @@ public class KurrentClient : IKurrentClient {
 	        ProtobufMessages.System.Configure(options.Schema.Protobuf.Context);
 
         SerializerProvider = new SchemaSerializerProvider([
-	        new BytesPassthroughSerializer(),
+            new SystemSerializer(),
+            new BytesPassthroughSerializer(),
 	        new JsonSchemaSerializer(options.Schema.Json, schemaManager),
 	        new ProtobufSchemaSerializer(options.Schema.Protobuf, schemaManager)
         ]);

@@ -453,10 +453,11 @@ Temporary Items
 # every commit of these must be intentional (git add -f)
 
 # Claude Code
-.claude/*
+.claude/**
 .claude/worktrees/
 !.claude/settings.json
 !.claude/skills/
+!.claude/context/
 CLAUDE.local.md
 settings.local.json
 

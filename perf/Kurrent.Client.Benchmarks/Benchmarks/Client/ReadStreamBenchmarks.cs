@@ -1,6 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
+using TUnit.Core.Interfaces;
 
 namespace Benchmarks;
 
@@ -22,7 +24,7 @@ public class ReadStreamBenchmarks {
     [GlobalSetup]
     public void Setup() {
         _fixture = new ClientBenchmarkFixture();
-        _fixture.InitializeAsync().GetAwaiter().GetResult();
+        _fixture.As<IAsyncInitializer>().InitializeAsync().GetAwaiter().GetResult();
         _stream = _fixture.SeedStream(MessageCount).GetAwaiter().GetResult();
     }
 
@@ -78,6 +80,7 @@ public class ReadStreamBenchmarks {
 
     [GlobalCleanup]
     public void Cleanup() {
-        _fixture.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _fixture.As<IAsyncDisposable>().DisposeAsync()
+            .AsTask().GetAwaiter().GetResult();
     }
 }

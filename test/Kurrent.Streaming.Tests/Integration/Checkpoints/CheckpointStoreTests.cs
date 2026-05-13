@@ -3,7 +3,6 @@ using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Models;
 using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.Logging;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Streaming.Tests;
 

@@ -4,7 +4,6 @@ using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
 using Kurrent.Projections;
 using Kurrent.Projections.DuckDB;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Streaming.Tests.Projections.DuckDB;
 

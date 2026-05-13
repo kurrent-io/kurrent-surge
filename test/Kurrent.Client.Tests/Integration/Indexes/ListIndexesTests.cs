@@ -1,5 +1,4 @@
 using Kurrent.Client.Indexes;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Indexes;
 
