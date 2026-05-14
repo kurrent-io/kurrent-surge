@@ -2,6 +2,10 @@
 
 using System.Buffers;
 using System.Diagnostics;
+using System.Text;
+using Google.Protobuf;
+using Kurrent.Client.Registry;
+using Kurrent.Client.Schema.Serialization.Protobuf;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Schema.Serialization.Bytes;
@@ -38,5 +42,10 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
 		return new(result);
 	}
 
-    public ValueTask<object?> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) => new(data);
+    public ValueTask<object?> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
+        if (context.RecordSchema.SchemaName == LinkTo.SchemaName)
+            return new(LinkTo.Parse(data.Span));
+
+        return new(data);
+    }
 }
