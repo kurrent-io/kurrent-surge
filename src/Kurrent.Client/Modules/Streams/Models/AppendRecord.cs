@@ -16,7 +16,7 @@ public record AppendRecord : SelfValidating {
         Stream     = StreamName.Unset
     };
 
-    public static Builder New => new();
+    public static Builder New() => new();
 
     /// <summary>
     /// The assigned record id.
@@ -101,28 +101,28 @@ public record AppendRecord : SelfValidating {
             return record;
         }
 
-        public Builder ForStream(StreamName stream) =>
+        public Builder Stream(StreamName stream) =>
             With(r => r with { Stream = stream });
 
-        public Builder WithId(Guid recordId) =>
+        public Builder Id(Guid recordId) =>
             With(r => r with { RecordId = recordId });
 
-        public Builder WithValue(object recordValue) =>
+        public Builder Value(object recordValue) =>
             With(r => r with { Value = recordValue });
 
-        public Builder WithDataFormat(SchemaDataFormat dataFormat) =>
+        public Builder DataFormat(SchemaDataFormat dataFormat) =>
             With(r => r with { DataFormat = dataFormat });
 
-        public Builder WithMetadata(Metadata metadata) =>
+        public Builder AddMetadata(Metadata metadata) =>
             With(r => r with { Metadata = metadata });
 
-        public Builder WithMetadata<T>(string key, T value) =>
+        public Builder AddMetadata<T>(string key, T value) =>
             With(r => r with { Metadata = r.Metadata.With(key, value) });
 
-        public Builder WithTimestamp(DateTimeOffset timestamp) =>
+        public Builder Timestamp(DateTimeOffset timestamp) =>
             With(r => r with { Timestamp = timestamp });
 
-        public Builder WithTimestamp(long timestamp) =>
-            WithTimestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
+        public Builder Timestamp(long timestamp) =>
+            Timestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
     }
 }

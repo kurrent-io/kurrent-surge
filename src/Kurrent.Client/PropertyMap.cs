@@ -104,7 +104,7 @@ public sealed class PropertyMap<T> {
     /// The builder is discarded after this call; the returned map is immutable.
     /// </summary>
     /// <param name="configure">Action that registers accessors via <see cref="Builder.Register{TValue}"/>.</param>
-    public static PropertyMap<T> Build(Action<Builder> configure) {
+    public static PropertyMap<T> Create(Action<Builder> configure) {
         var builder = new Builder();
         configure(builder);
         return builder.Build();
@@ -257,7 +257,7 @@ public sealed class PropertyMap<T> {
         /// to derive (name, key) candidates from dot-paths or bracket notation.
         /// Defaults to <see cref="PathParsers.DuckDb"/>. Pass <c>null</c> to disable path parsing.
         /// </summary>
-        public Builder UsePathParser(IPathParser? parser) {
+        public Builder PathParser(IPathParser? parser) {
             _pathParser = parser;
             return this;
         }

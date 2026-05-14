@@ -11,7 +11,7 @@ public class AppendStreamRequestTests {
     public async ValueTask ensure_valid_stamps_stream_on_all_records() {
         var request = new AppendStreamRequest(
             TestStream,
-            [AppendRecord.New.WithValue("event-1").Build(), AppendRecord.New.WithValue("event-2").Build()],
+            [AppendRecord.New().Value("event-1").Build(), AppendRecord.New().Value("event-2").Build()],
             ExpectedStreamState.Any
         );
 

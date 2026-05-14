@@ -8,7 +8,7 @@ public sealed class OrderService(KurrentClient client, ILogger<OrderService> log
     public async ValueTask<Revision> PlaceOrder(OrderPlaced order) {
         var result = await client.Streams.AppendStream(
             StreamFor(order.OrderId),
-            [AppendRecord.New.WithValue(order).Build()]);
+            [AppendRecord.New().Value(order).Build()]);
 
         logger.LogOrderPlaced(order.OrderId, result.Revision);
         return result.Revision;
@@ -17,8 +17,8 @@ public sealed class OrderService(KurrentClient client, ILogger<OrderService> log
     public async ValueTask<Revision> ShipOrder(OrderShipped shipped) {
         var result = await client.Streams.AppendStream(
             AppendStreamRequest.For(StreamFor(shipped.OrderId))
-                .ExpectingState(ExpectedStreamState.Exists)
-                .WithMessage(shipped)
+                .ExpectedState(ExpectedStreamState.Exists)
+                .AddMessage(shipped)
                 .Build());
 
         logger.LogOrderShipped(shipped.OrderId, shipped.TrackingNumber, result.Revision);

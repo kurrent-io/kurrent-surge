@@ -17,8 +17,8 @@ public class AuthenticationTests {
         });
 
         var req = AppendStreamRequest.For($"secure-auth-{Guid.NewGuid():N}")
-            .WithMessage(new TestEvent("no creds"))
-            .ExpectingState(ExpectedStreamState.NoStream)
+            .AddMessage(new TestEvent("no creds"))
+            .ExpectedState(ExpectedStreamState.NoStream)
             .Build();
 
         await Assert.That(async () => await client.Streams.AppendStream(req, ct))

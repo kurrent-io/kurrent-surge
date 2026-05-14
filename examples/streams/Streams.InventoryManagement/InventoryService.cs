@@ -19,9 +19,9 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         string sku, int quantity, string warehouse, string purchaseOrderId
     ) {
         var result = await client.Streams.AppendStream(
-            AppendRecord.New
-                .ForStream(StreamFor(sku))
-                .WithValue(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow))
+            AppendRecord.New()
+                .Stream(StreamFor(sku))
+                .Value(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow))
                 .Build());
 
         logger.LogStockReceived(quantity, sku, warehouse, purchaseOrderId, result.Revision);
@@ -43,8 +43,8 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
 
         var result = await client.Streams.AppendStream(
             AppendStreamRequest.For(StreamFor(sku))
-                .ExpectingState(revision)
-                .WithMessage(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
+                .ExpectedState(revision)
+                .AddMessage(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
                 .Build());
 
         logger.LogStockShipped(quantity, sku, orderId, result.Revision);
@@ -59,8 +59,8 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     public async ValueTask<Revision> AdjustStock(string sku, int quantity, string reason) {
         var result = await client.Streams.AppendStream(
             AppendStreamRequest.For(StreamFor(sku))
-                .ExpectingState(ExpectedStreamState.Exists)
-                .WithMessage(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
+                .ExpectedState(ExpectedStreamState.Exists)
+                .AddMessage(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
                 .Build());
 
         logger.LogStockAdjusted(sku, quantity, reason, result.Revision);
@@ -83,9 +83,9 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
 
         await client.Streams.AppendRecords(
             AppendRecordsRequest.New()
-                .WithRecord(transferEvent, skuStream)
-                .WithRecord(transferEvent, "transfer-log")
-                .WithChecks(ConsistencyCheck.StreamExists(skuStream))
+                .AddRecord(transferEvent, skuStream)
+                .AddRecord(transferEvent, "transfer-log")
+                .AddChecks(ConsistencyCheck.StreamExists(skuStream))
                 .Build());
 
         logger.LogStockTransferred(quantity, sku, fromWarehouse, toWarehouse);
@@ -148,9 +148,9 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read the last N events from a SKU stream backwards.
     /// </summary>
     public async ValueTask<List<Record>> GetRecentEvents(string sku, int count = 10) {
-        var request = ReadStreamRequest.New.ForStream(StreamFor(sku))
+        var request = ReadStreamRequest.New().Stream(StreamFor(sku))
             .FromEnd()
-            .WithMaxRecords(count)
+            .Limit(count)
             .Build();
 
         return await client.Streams.ReadStream(request)
@@ -163,7 +163,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read recent inventory activity across all SKUs from the global log.
     /// </summary>
     public async ValueTask<List<Record>> GetRecentActivity(int maxRecords = 50) {
-        var req = ReadRecordsRequest.New
+        var req = ReadRecordsRequest.New()
             .Backwards()
             .Limit(maxRecords)
             .Filter("stream like 'inventory-%'")

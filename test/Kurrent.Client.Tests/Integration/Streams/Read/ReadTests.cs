@@ -22,7 +22,7 @@ public class ReadTests {
 
         var simulation = await Fixture.SeedTestStream(10, stoppingToken);
 
-        var options = ReadRecordsRequest.New
+        var options = ReadRecordsRequest.New()
             .FromPosition(lastPosition.LogPosition)
             .Filter($"stream = '{simulation.Stream}'")
             .SkipDecoding()

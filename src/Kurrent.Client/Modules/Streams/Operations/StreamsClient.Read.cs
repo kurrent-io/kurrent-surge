@@ -195,13 +195,13 @@ public static partial class StreamsClientExtensions {
         #region ->> Read Records <<-
 
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
-            client.ReadRecords(ReadRecordsRequest.New.FromPosition(start).Build(), cancellationToken);
+            client.ReadRecords(ReadRecordsRequest.New().FromPosition(start).Build(), cancellationToken);
        
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest.Builder builder, CancellationToken ct = default) =>
             client.ReadRecords(builder.Build(), ct);
         
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Action<ReadRecordsRequest.Builder> configure, CancellationToken ct = default) =>
-            client.ReadRecords(ReadRecordsRequest.New.With(configure).Build(), ct);
+            client.ReadRecords(ReadRecordsRequest.New().With(configure).Build(), ct);
         
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Action<ReadRecordsRequest> configure, CancellationToken ct = default) =>
             client.ReadRecords(new ReadRecordsRequest().With(configure), ct);
@@ -212,13 +212,13 @@ public static partial class StreamsClientExtensions {
 
         public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
             client.ReadStream(
-                ReadStreamRequest.New.ForStream(stream).FromRevision(start).Build(),
+                ReadStreamRequest.New().Stream(stream).FromRevision(start).Build(),
                 cancellationToken
             );
 
         public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
             client.ReadStream(
-                ReadStreamRequest.New.ForStream(stream).Build(),
+                ReadStreamRequest.New().Stream(stream).Build(),
                 cancellationToken
             );
 

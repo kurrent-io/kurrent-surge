@@ -26,7 +26,7 @@ public class ConcurrencyStressTests {
 		for (var i = 0; i < concurrency; i++) {
 			var data = await Fixture.TestData.GenerateSet(ct);
 			tasks[i] = client.Streams
-				.AppendStream(AppendStreamRequest.For(data.Stream).WithRecords(data.Records).Build(), ct)
+				.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct)
 				.AsTask();
 		}
 
@@ -56,8 +56,8 @@ public class ConcurrencyStressTests {
 
 		var tasks = new Task<int>[concurrency];
 
-		var readRequest = ReadStreamRequest.New
-			.ForStream(seeded.Stream)
+		var readRequest = ReadStreamRequest.New()
+			.Stream(seeded.Stream)
 			.SkipDecoding()
 			.Build();
 
@@ -104,12 +104,12 @@ public class ConcurrencyStressTests {
 			var expectedCount = data.Records.Length;
 
 			tasks.Add(client.Streams
-				.AppendStream(AppendStreamRequest.For(stream).WithRecords(data.Records).Build(), ct)
+				.AppendStream(AppendStreamRequest.For(stream).AddRecords(data.Records).Build(), ct)
 				.AsTask()
 				.ContinueWith(async appendTask => {
 					await appendTask;
 
-					var request = ReadStreamRequest.New.ForStream(stream).SkipDecoding().Build();
+					var request = ReadStreamRequest.New().Stream(stream).SkipDecoding().Build();
 
 					var count = await client.Streams
 						.ReadStream(request, ct)
@@ -151,7 +151,7 @@ public class ConcurrencyStressTests {
 			for (var i = 0; i < opsPerClient; i++) {
 				var data = await Fixture.TestData.GenerateSet(ct);
 				tasks.Add(client.Streams
-					.AppendStream(AppendStreamRequest.For(data.Stream).WithRecords(data.Records).Build(), ct)
+					.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct)
 					.AsTask());
 			}
 		}
@@ -188,7 +188,7 @@ public class ConcurrencyStressTests {
 		for (var i = 0; i < concurrency; i++) {
 			var data = await Fixture.TestData.GenerateSet(ct);
 			tasks[i] = client.Streams
-				.AppendStream(AppendStreamRequest.For(data.Stream).WithRecords(data.Records).Build(), ct)
+				.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct)
 				.AsTask();
 		}
 

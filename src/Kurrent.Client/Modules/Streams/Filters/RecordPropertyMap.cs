@@ -11,7 +11,7 @@ public static class RecordPropertyMap {
     /// <summary>
     /// The standard property map for <see cref="Record"/> instances.
     /// </summary>
-    public static readonly PropertyMap<Record> Default = PropertyMap<Record>.Build(
+    public static readonly PropertyMap<Record> Default = PropertyMap<Record>.Create(
         configure: map => map
             .Register(
                 accessor: r => r.Id,

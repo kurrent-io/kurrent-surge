@@ -540,14 +540,7 @@ wip/
 # every commit of these must be intentional (git add -f)
 
 .agents/
-.project/.scratch/
-.project/docs/reference/
-.project/docs/research
-.project/docs/plans/
-.project/docs/features/
-.project/docs/specs/
-.project/docs/adrs/
-.project/docs/benchmarks/
+.project/
 
 # Certificates
 .certs-*/

@@ -40,11 +40,11 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
             var request = events
                 .Aggregate(
                     AppendStreamRequest.For(stream),
-                    (req, evt) => req.WithRecord(rec => rec
-                        .WithId(evt.EventId)
-                        .WithValue(evt)
-                        .WithTimestamp(evt.Timestamp)
-                        .WithMetadata("stream", stream)
+                    (req, evt) => req.AddRecord(rec => rec
+                        .Id(evt.EventId)
+                        .Value(evt)
+                        .Timestamp(evt.Timestamp)
+                        .AddMetadata("stream", stream)
                     ))
                 .Build();
 

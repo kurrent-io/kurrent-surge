@@ -13,9 +13,9 @@ public class TransportTests {
         var stream = $"secure-read-{Guid.NewGuid():N}";
 
         var appendReq = AppendStreamRequest.For(stream)
-            .WithMessage(new TestEvent("event-1", DateTimeOffset.UtcNow))
-            .WithMessage(new TestEvent("event-2", DateTimeOffset.UtcNow))
-            .ExpectingState(ExpectedStreamState.NoStream)
+            .AddMessage(new TestEvent("event-1", DateTimeOffset.UtcNow))
+            .AddMessage(new TestEvent("event-2", DateTimeOffset.UtcNow))
+            .ExpectedState(ExpectedStreamState.NoStream)
             .Build();
 
         await Fixture.Client.Streams.AppendStream(appendReq, ct);

@@ -11,12 +11,12 @@ public class AppendRecordBuilderTests {
         var metadata = new Metadata().With("key", "value");
 
         // Act
-        var record = AppendRecord.New
-            .ForStream("my-stream")
-            .WithValue("payload")
-            .WithDataFormat(SchemaDataFormat.Json)
-            .WithId(recordId)
-            .WithMetadata(metadata)
+        var record = AppendRecord.New()
+            .Stream("my-stream")
+            .Value("payload")
+            .DataFormat(SchemaDataFormat.Json)
+            .Id(recordId)
+            .AddMetadata(metadata)
             .Build();
 
         // Assert
@@ -30,9 +30,9 @@ public class AppendRecordBuilderTests {
     [Test]
     public async ValueTask builder_defaults_to_json_format() {
         // Act
-        var record = AppendRecord.New
-            .WithValue("payload")
-            .ForStream("test-stream")
+        var record = AppendRecord.New()
+            .Value("payload")
+            .Stream("test-stream")
             .Build();
 
         // Assert
@@ -42,9 +42,9 @@ public class AppendRecordBuilderTests {
     [Test]
     public async ValueTask builder_defaults_record_id_to_new_guid() {
         // Act
-        var record = AppendRecord.New
-            .WithValue("payload")
-            .ForStream("test-stream")
+        var record = AppendRecord.New()
+            .Value("payload")
+            .Stream("test-stream")
             .Build();
 
         // Assert
@@ -54,10 +54,10 @@ public class AppendRecordBuilderTests {
     [Test]
     public async ValueTask from_record_initializes_builder_from_existing_record() {
         // Arrange
-        var original = AppendRecord.New
-            .ForStream("original-stream")
-            .WithValue("original-payload")
-            .WithDataFormat(SchemaDataFormat.Json)
+        var original = AppendRecord.New()
+            .Stream("original-stream")
+            .Value("original-payload")
+            .DataFormat(SchemaDataFormat.Json)
             .Build();
 
         // Act
@@ -74,11 +74,11 @@ public class AppendRecordBuilderTests {
     [Test]
     public async ValueTask with_metadata_key_value_merges_into_existing() {
         // Arrange & Act
-        var record = AppendRecord.New
-            .ForStream("test-stream")
-            .WithValue("payload")
-            .WithMetadata(new Metadata().With("existing", "one"))
-            .WithMetadata<string>("added", "two")
+        var record = AppendRecord.New()
+            .Stream("test-stream")
+            .Value("payload")
+            .AddMetadata(new Metadata().With("existing", "one"))
+            .AddMetadata<string>("added", "two")
             .Build();
 
         // Assert
@@ -89,7 +89,7 @@ public class AppendRecordBuilderTests {
     [Test]
     public void build_throws_when_value_is_null() {
         // Arrange
-        var builder = AppendRecord.New.ForStream("test-stream");
+        var builder = AppendRecord.New().Stream("test-stream");
 
         // Act & Assert
         Assert.Throws<ValidationException>(() => builder.Build());

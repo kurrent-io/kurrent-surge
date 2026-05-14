@@ -26,7 +26,7 @@ public sealed class ClientBenchmarkFixture : KurrentDBFixture {
         var data = await new ArcadeRacerTestDataSource().GenerateSet(messageCount, CancellationToken.None);
 
         await Client.Streams
-            .AppendStream(AppendStreamRequest.For(data.Stream).WithRecords(data.Records).Build())
+            .AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build())
             .ConfigureAwait(false);
 
         _seededStreams[messageCount] = data.Stream;

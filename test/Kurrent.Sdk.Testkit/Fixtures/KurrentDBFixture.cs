@@ -114,7 +114,7 @@ public class KurrentDBFixture : AspireFixture {
             ? await TestData.GenerateSet(ct).ConfigureAwait(false)
             : await TestData.GenerateSet(numberOfEvents.Value, ct).ConfigureAwait(false);
 
-        var req = AppendStreamRequest.For(ds.Stream).WithRecords(ds.Records).Build();
+        var req = AppendStreamRequest.For(ds.Stream).AddRecords(ds.Records).Build();
         var rsp = await Client.Streams.AppendStream(req, ct).ConfigureAwait(false);
 
         var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position);

@@ -29,8 +29,8 @@ public class ReadStreamRequestBuilderTests {
         StreamName stream = "my-stream";
 
         // Act
-        var request = ReadStreamRequest.New
-            .ForStream(stream)
+        var request = ReadStreamRequest.New()
+            .Stream(stream)
             .Build();
 
         // Assert
@@ -44,8 +44,8 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public async ValueTask from_start_sets_min_revision_and_forwards_direction() {
         // Arrange & Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
             .FromStart()
             .Build();
 
@@ -57,8 +57,8 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public async ValueTask from_end_sets_max_revision_and_backwards_direction() {
         // Arrange & Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
             .FromEnd()
             .Build();
 
@@ -77,8 +77,8 @@ public class ReadStreamRequestBuilderTests {
         var revision = Revision.From(42);
 
         // Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
             .FromRevision(revision)
             .Build();
 
@@ -93,10 +93,10 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public async ValueTask forward_sets_forwards_direction() {
         // Arrange & Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
             .FromRevision(Revision.From(0))
-            .Forward()
+            .Forwards()
             .Build();
 
         // Assert
@@ -106,8 +106,8 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public async ValueTask backwards_sets_backwards_direction() {
         // Arrange & Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
             .FromEnd()
             .Backwards()
             .Build();
@@ -123,9 +123,9 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public async ValueTask with_max_records_sets_limit() {
         // Arrange & Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
-            .WithMaxRecords(100)
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
+            .Limit(100)
             .Build();
 
         // Assert
@@ -139,8 +139,8 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public async ValueTask skip_decoding_sets_flag_to_true() {
         // Arrange & Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
             .SkipDecoding()
             .Build();
 
@@ -158,9 +158,9 @@ public class ReadStreamRequestBuilderTests {
         var filter = RecordFilter.None;
 
         // Act
-        var request = ReadStreamRequest.New
-            .ForStream("test-stream")
-            .WithFilter(filter)
+        var request = ReadStreamRequest.New()
+            .Stream("test-stream")
+            .Filter(filter)
             .Build();
 
         // Assert
@@ -178,11 +178,11 @@ public class ReadStreamRequestBuilderTests {
         var        revision = Revision.From(10);
 
         // Act
-        var request = ReadStreamRequest.New
-            .ForStream(stream)
+        var request = ReadStreamRequest.New()
+            .Stream(stream)
             .FromRevision(revision)
             .Backwards()
-            .WithMaxRecords(50)
+            .Limit(50)
             .SkipDecoding()
             .Build();
 
@@ -201,7 +201,7 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public void build_throws_when_no_stream_set() {
         // Arrange
-        var builder = ReadStreamRequest.New;
+        var builder = ReadStreamRequest.New();
 
         // Act & Assert
         Assert.Throws<Exception>(() => builder.Build());
@@ -210,7 +210,7 @@ public class ReadStreamRequestBuilderTests {
     [Test]
     public void build_throws_when_stream_is_dollar_all() {
         // Arrange
-        var builder = ReadStreamRequest.New.ForStream("$all");
+        var builder = ReadStreamRequest.New().Stream("$all");
 
         // Act & Assert
         Assert.Throws<Exception>(() => builder.Build());

@@ -7,7 +7,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task resolves_single_alias() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -18,7 +18,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task resolves_multiple_aliases_to_same_accessor() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name", "full_name", "display_name")
         );
 
@@ -31,7 +31,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task resolves_case_insensitively() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -44,7 +44,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task returns_null_for_unrecognized_name() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -55,7 +55,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task resolves_multiple_independent_accessors() {
-        var table = PropertyMap<Target>.Build(map => {
+        var table = PropertyMap<Target>.Create(map => {
             map.Register(t => t.Name, "name");
             map.Register(t => t.Age, "age", "years");
         });
@@ -73,14 +73,14 @@ public class PropertyMapTests {
 
     [Test]
     public void throws_on_duplicate_alias_within_same_register_call() {
-        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Build(map =>
+        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name", "name")
         ));
     }
 
     [Test]
     public void throws_on_duplicate_alias_across_register_calls() {
-        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Build(map => {
+        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Create(map => {
             map.Register(t => t.Name, "name");
             map.Register(t => t.Age, "name");
         }));
@@ -88,7 +88,7 @@ public class PropertyMapTests {
 
     [Test]
     public void throws_on_duplicate_alias_case_insensitive() {
-        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Build(map => {
+        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Create(map => {
             map.Register(t => t.Name, "Name");
             map.Register(t => t.Age, "NAME");
         }));
@@ -100,7 +100,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task has_property_returns_true_for_registered_alias() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name", "display_name")
         );
 
@@ -110,7 +110,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task has_property_returns_false_for_unregistered_name() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -119,7 +119,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task has_property_is_case_insensitive() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -132,7 +132,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task count_reflects_total_alias_count() {
-        var table = PropertyMap<Target>.Build(map => {
+        var table = PropertyMap<Target>.Create(map => {
             map.Register(t => t.Name, "name", "full_name");
             map.Register(t => t.Age, "age");
         });
@@ -142,7 +142,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task empty_table_has_zero_count() {
-        var table = PropertyMap<Target>.Build(_ => { });
+        var table = PropertyMap<Target>.Create(_ => { });
 
         await Assert.That(table.Count).IsEqualTo(0);
     }
@@ -153,7 +153,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task empty_table_returns_null_for_any_name() {
-        var table = PropertyMap<Target>.Build(_ => { });
+        var table = PropertyMap<Target>.Create(_ => { });
 
         var result = table.GetValue("anything", new Target("X", 0, new()));
 
@@ -162,7 +162,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task empty_table_has_property_returns_false() {
-        var table = PropertyMap<Target>.Build(_ => { });
+        var table = PropertyMap<Target>.Create(_ => { });
 
         await Assert.That(table.HasProperty("anything")).IsFalse();
     }
@@ -173,7 +173,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task register_returns_builder_for_chaining() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
                .Register(t => t.Age, "age")
         );
@@ -190,7 +190,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task typed_resolve_returns_string_without_boxing() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -201,7 +201,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task typed_resolve_returns_value_type_without_boxing() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age")
         );
 
@@ -212,7 +212,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task typed_resolve_returns_default_for_unrecognized_name() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -225,7 +225,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task typed_resolve_falls_back_to_untyped_on_type_mismatch() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -237,7 +237,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task typed_resolve_with_multiple_aliases() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age", "years", "how_old")
         );
 
@@ -250,7 +250,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task untyped_resolve_still_works_with_typed_registration() {
-        var table = PropertyMap<Target>.Build(map => {
+        var table = PropertyMap<Target>.Create(map => {
             map.Register(t => t.Name, "name");
             map.Register(t => t.Age, "age");
         });
@@ -268,7 +268,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task keyed_resolve_returns_value_for_key() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags", "metadata")
         );
 
@@ -280,7 +280,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task keyed_resolve_returns_null_when_key_not_found() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
         );
 
@@ -291,7 +291,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task keyed_resolve_without_key_falls_back_to_scalar_path() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => key is not null && t.Tags.TryGetValue(key, out var v) ? v : null, "tags")
         );
 
@@ -303,7 +303,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task keyed_resolve_on_scalar_accessor_ignores_key() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -315,7 +315,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task mixed_scalar_and_keyed_registration() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
                .Register(t => t.Age, "age")
                .RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
@@ -330,7 +330,7 @@ public class PropertyMapTests {
 
     [Test]
     public void keyed_register_throws_on_duplicate_alias() {
-        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Build(map => {
+        Assert.Throws<ArgumentException>(() => PropertyMap<Target>.Create(map => {
             map.Register(t => t.Name, "name");
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "name");
         }));
@@ -338,7 +338,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task keyed_register_returns_builder_for_chaining() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
                .Register(t => t.Name, "name")
         );
@@ -348,7 +348,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task keyed_aliases_count_in_total() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
                .RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags", "metadata")
         );
@@ -362,7 +362,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task span_resolve_returns_same_result_as_string_resolve() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name", "display_name")
         );
 
@@ -374,7 +374,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task span_resolve_returns_null_for_unrecognized_name() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -383,7 +383,7 @@ public class PropertyMapTests {
 
     [Test]
     public async Task span_has_property_matches_string_has_property() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -397,7 +397,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_returns_result_with_value_for_registered_name() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -409,7 +409,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_returns_default_for_unregistered_name() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -421,7 +421,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_result_is_returns_true_for_matching_type() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age")
         );
 
@@ -433,7 +433,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_result_is_returns_false_for_wrong_type() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -444,7 +444,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_result_value_returns_boxed_value() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age")
         );
 
@@ -455,7 +455,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_with_key_returns_keyed_value() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
         );
 
@@ -468,7 +468,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_with_key_on_scalar_ignores_key() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -484,7 +484,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask try_get_decimal_from_int_accessor() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age")
         );
 
@@ -496,7 +496,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask try_get_decimal_from_long_accessor() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => (long)t.Age, "age_long")
         );
 
@@ -508,7 +508,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask try_get_decimal_from_decimal_accessor() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(_ => 3.14m, "pi")
         );
 
@@ -520,7 +520,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask try_get_decimal_from_double_accessor() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(_ => 2.718, "e")
         );
 
@@ -532,7 +532,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask try_get_decimal_returns_false_for_string_accessor() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -543,7 +543,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask try_get_decimal_returns_false_for_empty_result() {
-        var table = PropertyMap<Target>.Build(_ => { });
+        var table = PropertyMap<Target>.Create(_ => { });
 
         var result = table.Find("missing", new Target("", 0, new()));
 
@@ -558,7 +558,7 @@ public class PropertyMapTests {
     public async ValueTask dot_notation_resolves_nested_path() {
         // "data.address.city" splits right-to-left: tries ("data.address", "city") first (miss),
         // then ("data", "address.city") — hits because the keyed accessor handles nested keys.
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((_, key) => key == "address.city" ? "NYC" : null, "data")
         );
 
@@ -571,7 +571,7 @@ public class PropertyMapTests {
     [Test]
     public async ValueTask dot_notation_resolves_deeply_nested_path() {
         // "data.a.b.c.d" splits right-to-left until ("data", "a.b.c.d") matches.
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((_, key) => key == "a.b.c.d" ? "deep" : null, "data")
         );
 
@@ -583,7 +583,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask direct_match_takes_priority_over_path_parsing() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "full.name")
         );
 
@@ -596,7 +596,7 @@ public class PropertyMapTests {
     [Test]
     public async ValueTask dot_notation_resolves_single_segment_key() {
         // DuckDb parser splits on dot — "tags.region" resolves to ("tags", "region")
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
         );
 
@@ -610,7 +610,7 @@ public class PropertyMapTests {
     [Test]
     public async ValueTask dot_notation_resolves_multi_segment_path() {
         // DuckDb parser splits right-to-left on dot — "a.b.c" with "a.b" registered resolves to ("a.b", "c")
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "a.b")
         );
 
@@ -624,7 +624,7 @@ public class PropertyMapTests {
     [Test]
     public async ValueTask bracket_resolves_after_dot_segments_in_name() {
         // "rec.properties" is a literal name alias; bracket parser extracts it as the name part
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "rec.properties")
         );
 
@@ -637,7 +637,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask bracket_resolves_single_quoted_key() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
         );
 
@@ -650,7 +650,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask bracket_resolves_double_quoted_key() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "metadata")
         );
 
@@ -663,7 +663,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask bracket_handles_key_with_dots() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "props")
         );
 
@@ -679,8 +679,8 @@ public class PropertyMapTests {
         // Custom parser that treats '/' as a separator instead of '.'
         var slashParser = new SlashPathParser();
 
-        var table = PropertyMap<Target>.Build(map =>
-            map.UsePathParser(slashParser)
+        var table = PropertyMap<Target>.Create(map =>
+            map.PathParser(slashParser)
                .RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "data")
         );
 
@@ -693,8 +693,8 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask null_path_parser_disables_path_resolution() {
-        var table = PropertyMap<Target>.Build(map =>
-            map.UsePathParser(null)
+        var table = PropertyMap<Target>.Create(map =>
+            map.PathParser(null)
                .RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
         );
 
@@ -724,7 +724,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_with_trim_prefix_strips_and_retries() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -736,7 +736,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_with_trim_suffix_strips_and_retries() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -748,7 +748,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_with_trim_prefix_and_suffix_strips_both() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age")
         );
 
@@ -760,7 +760,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_prefers_direct_match_over_trimmed() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "field_name")
                .Register(t => t.Age, "name")
         );
@@ -773,7 +773,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask find_trim_does_nothing_when_prefix_doesnt_match() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -788,7 +788,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask resolve_returns_value_for_direct_match() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -799,7 +799,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask resolve_returns_value_via_trim_fallback() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Age, "age")
         );
 
@@ -810,7 +810,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask resolve_returns_null_when_nothing_matches() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.Register(t => t.Name, "name")
         );
 
@@ -821,7 +821,7 @@ public class PropertyMapTests {
 
     [Test]
     public async ValueTask resolve_returns_value_via_dot_path() {
-        var table = PropertyMap<Target>.Build(map =>
+        var table = PropertyMap<Target>.Create(map =>
             map.RegisterKeyed((t, key) => t.Tags.TryGetValue(key!, out var v) ? v : null, "tags")
         );
 

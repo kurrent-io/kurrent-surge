@@ -9,7 +9,7 @@ namespace Registry.Quickstart;
 public class IngestionService(KurrentClient client) {
     public async Task WriteReadings(string stream, params TemperatureReading[] readings) {
         var records = readings
-            .Select(r => AppendRecord.New.WithValue(r).Build())
+            .Select(r => AppendRecord.New().Value(r).Build())
             .ToArray();
 
         await client.Streams.AppendStream(stream, records);

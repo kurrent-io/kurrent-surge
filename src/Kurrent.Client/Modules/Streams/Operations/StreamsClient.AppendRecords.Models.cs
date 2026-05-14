@@ -97,49 +97,49 @@ public record AppendRecordsRequest() : SelfValidating {
 
         #region ->> Consistency Checks <<-
 
-        public Builder WithCheck(ConsistencyCheck check) =>
+        public Builder AddCheck(ConsistencyCheck check) =>
             With(r => r with { Checks = r.Checks.Add(check) });
 
-        public Builder WithChecks(params ConsistencyCheck[] checks) =>
+        public Builder AddChecks(params ConsistencyCheck[] checks) =>
             With(r => r with { Checks = r.Checks.AddRange(checks) });
 
         #endregion
 
         #region ->> Records <<-
 
-        public Builder WithRecord(AppendRecord record) =>
+        public Builder AddRecord(AppendRecord record) =>
             With(r => r with { Records = r.Records.Add(record) });
 
-        public Builder WithRecord(AppendRecord.Builder builder) =>
+        public Builder AddRecord(AppendRecord.Builder builder) =>
             With(r => r with { Records = r.Records.Add(builder.Build()) });
 
-        public Builder WithRecord(Action<AppendRecord.Builder> configure) =>
+        public Builder AddRecord(Action<AppendRecord.Builder> configure) =>
             With(r => {
                 var builder = new AppendRecord.Builder();
                 configure(builder);
                 return r with { Records = r.Records.Add(builder.Build()) };
             });
 
-        public Builder WithRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
-            With(r => r with { Records = r.Records.Add(AppendRecord.New.WithValue(value).WithDataFormat(dataFormat).Build()) });
+        public Builder AddRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
+            With(r => r with { Records = r.Records.Add(AppendRecord.New().Value(value).DataFormat(dataFormat).Build()) });
 
-        public Builder WithRecord<T>(T value, StreamName stream, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
-            With(r => r with { Records = r.Records.Add(AppendRecord.New.ForStream(stream).WithValue(value).WithDataFormat(dataFormat).Build()) });
+        public Builder AddRecord<T>(T value, StreamName stream, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
+            With(r => r with { Records = r.Records.Add(AppendRecord.New().Stream(stream).Value(value).DataFormat(dataFormat).Build()) });
 
-        public Builder WithRecords(params AppendRecord[] records) =>
+        public Builder AddRecords(params AppendRecord[] records) =>
             With(r => r with { Records = r.Records.AddRange(records) });
 
-        public Builder WithRecords(IEnumerable<AppendRecord> records) =>
+        public Builder AddRecords(IEnumerable<AppendRecord> records) =>
             With(r => r with { Records = r.Records.AddRange(records) });
 
         #endregion
 
         #region ->> Batch Overrides <<-
 
-        public Builder WithDataFormat(SchemaDataFormat dataFormat) =>
+        public Builder DataFormat(SchemaDataFormat dataFormat) =>
             WithOverride(r => r with { Records = r.Records.Select(rec => rec with { DataFormat = dataFormat }).ToImmutableArray() });
 
-        public Builder WithMetadata(string key, object value) =>
+        public Builder AddMetadata(string key, object value) =>
             WithOverride(r => r with { Records = r.Records.Select(rec => rec with { Metadata = rec.Metadata.With(key, value) }).ToImmutableArray() });
 
         #endregion

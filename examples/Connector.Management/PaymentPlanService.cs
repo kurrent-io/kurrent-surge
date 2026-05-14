@@ -20,8 +20,8 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
             var currency = Currencies[Random.Shared.Next(Currencies.Length)];
 
             await client.Streams.AppendStream(stream, [
-                AppendRecord.New
-                    .WithValue(new PaymentPlanCreated(
+                AppendRecord.New()
+                    .Value(new PaymentPlanCreated(
                         planId,
                         CustomerId: $"cust-{Random.Shared.Next(1, 100):D3}",
                         Amount: Math.Round((Random.Shared.NextDouble() * 500) + 10, 2),
@@ -36,9 +36,9 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
                 stream, currency, planCounter);
 
             if (Random.Shared.NextDouble() > 0.3) {
-                var req = AppendRecord.New
-                    .ForStream(stream)
-                    .WithValue(
+                var req = AppendRecord.New()
+                    .Stream(stream)
+                    .Value(
                         new PaymentCollected(
                             planId,
                             InstallmentNumber: 1,
