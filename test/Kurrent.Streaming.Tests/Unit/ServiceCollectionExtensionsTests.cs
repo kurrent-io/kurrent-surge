@@ -205,24 +205,20 @@ public class ServiceCollectionExtensionsTests {
 
     [Test]
     public async ValueTask try_register_activated_resolves_at_host_start() {
-        // Arrange
+        var constructed = 0;
+
         var services = new ServiceCollection();
         services.AddLogging();
-        services.TryRegisterActivated<Foo>();
-
-        var provider      = services.BuildServiceProvider();
-        var host          = provider.GetServices<IHostedService>().ToArray();
-        var countBefore   = Foo.ConstructedCount;
-
-        // Act
-        await Assert.That(host.Length).IsGreaterThan(0);
+        services.TryRegisterActivated<Foo>(_ => {
+            Interlocked.Increment(ref constructed);
+            return new Foo();
+        });
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        foreach (var h in host)
+        foreach (var h in services.BuildServiceProvider().GetServices<IHostedService>())
             await h.StartAsync(cts.Token);
 
-        // Assert
-        await Assert.That(Foo.ConstructedCount - countBefore).IsEqualTo(1);
+        await Assert.That(constructed).IsEqualTo(1);
     }
 
     [Test]
@@ -295,11 +291,7 @@ public class ServiceCollectionExtensionsTests {
 
     interface IFoo { }
 
-    sealed class Foo : IFoo {
-        public static int ConstructedCount;
-
-        public Foo() => Interlocked.Increment(ref ConstructedCount);
-    }
+    sealed class Foo : IFoo;
 
     sealed class TestHostedService : IHostedService {
         public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
