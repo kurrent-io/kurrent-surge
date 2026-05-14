@@ -6,7 +6,7 @@ order: 1
 
 <CopyMarkdownButton />
 
-Streams hold an ordered sequence of records — events, commands, snapshots, or any other payload an application stores. Use `AppendStream` to write to a single stream and `AppendRecords` to write across several streams in one atomic transaction.
+Streams hold an ordered sequence of records. Use `AppendStream` to write to a single stream and `AppendRecords` to write across several streams in one atomic transaction.
 
 ## Append a single record
 
@@ -25,7 +25,7 @@ Console.WriteLine("Revision: {0}", result.Revision);
 Console.WriteLine("Position: {0}", result.Position);
 ```
 
-Payloads serialize as JSON by default. The stream is created on first append.
+Payloads serialize as JSON by default. The stream is created on first append. The same builder works for events, commands, snapshots, or any other payload shape.
 
 The response carries the target stream, the new revision, and the log position of the last appended record.
 

@@ -37,13 +37,14 @@ A consumer that starts up fresh and reads records of a .NET type it has never ap
 
 This is the most common surprise in event-driven systems. Producer-only services work fine. Consumers that share types with producers through a NuGet package work fine. The trouble starts when a brand-new consumer rolls out against streams that already exist.
 
-Consumers register every type they might receive at startup. Once registered, records arrive decoded the first time.
+Consumers register every type they might receive at startup. Once registered, records arrive decoded the first time. The mapper is payload-agnostic: events, commands, and snapshots register the same way.
 
 ```csharp
 var mapper = MessageTypeMapper.Create(m => m
-    .Map<OrderPlaced>()
-    .Map<OrderConfirmed>()
-    .Map<OrderShipped>());
+    .Map<OrderPlaced>()      // event
+    .Map<OrderShipped>()     // event
+    .Map<PlaceOrder>()       // command
+    .Map<OrderSnapshot>());  // snapshot
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
@@ -84,8 +85,8 @@ For the full story on evolving stored records, see [Schema evolution](./schema-e
 ```csharp
 services.AddSingleton(MessageTypeMapper.Create(m => m
     .Map<OrderPlaced>()
-    .Map<OrderConfirmed>()
-    .Map<OrderShipped>()));
+    .Map<PlaceOrder>()
+    .Map<OrderSnapshot>()));
 
 services.AddKurrentClient("kurrentdb://localhost:2113");
 ```
