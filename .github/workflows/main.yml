@@ -67,14 +67,11 @@ jobs:
         id: version
         uses: ./.github/actions/bumpcraft
 
-      # TODO: re-enable preview publishing when ready to ship 0.1.0-preview.* packages from main
-      # - name: Publish preview packages
-      #   uses: ./.github/actions/dotnet-nuget
-      #   with:
-      #     version: ${{ steps.version.outputs.version }}
-      #     push-to: github nuget
-      #   env:
-      #     NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
+      - name: Publish preview packages
+        uses: ./.github/actions/dotnet-nuget
+        with:
+          version: ${{ steps.version.outputs.version }}
+          push-to: github
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
