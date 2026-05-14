@@ -50,35 +50,77 @@ If you need every value as a string (for log output or observability exports), c
 
 ## Customizing the decoder
 
-The default decoder parses JSON, so for most projects you won't need to touch it. The common reason to plug in a custom decoder is backward compatibility: aliasing keys from an older metadata convention so consumers don't have to know about both. Wrap the default decoder with your own `IMetadataDecoder`:
+The default decoder accepts only flat JSON objects. If you're migrating from a system where metadata was written as a typed object with nested fields, those records won't decode in this SDK without help. A custom decoder reads the legacy shape and produces the flat dictionary consumers expect, so the rest of your code never sees the old structure.
 
-```csharp
-public sealed class LegacyKeyAliasDecoder(IMetadataDecoder inner) : IMetadataDecoder {
-    public async ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
-        var decoded = await inner.Decode(bytes, context);
+Suppose your old records stored metadata as nested groups:
 
-        // Older records used "corrId". Alias it to the canonical key.
-        if (!decoded.ContainsKey("correlationId") && decoded.TryGetValue<Guid>("corrId", out var legacy))
-            decoded.With("correlationId", legacy);
-
-        return decoded;
-    }
+```json
+{
+  "tracking": {
+    "correlationId": "8f3a2e4d-...",
+    "tenant": "acme"
+  },
+  "audit": {
+    "occurredAt": "2026-05-14T10:00:00Z"
+  }
 }
-
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.MetadataDecoder = new LegacyKeyAliasDecoder(new DefaultMetadataDecoder()));
 ```
 
-For non-JSON formats, inherit `MetadataDecoder` and override `DecodeCore`. The base class wraps your parsing in error handling. The decoder runs once per record, so keep it cheap.
+Inherit `MetadataDecoder` and walk the JSON, lifting leaf values to top-level keys:
+
+```csharp
+public sealed class NestedMetadataDecoder : MetadataDecoder {
+    protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
+        Metadata result = new();
+
+        using var doc = JsonDocument.Parse(bytes);
+        Flatten(result, doc.RootElement);
+
+        return result;
+    }
+
+    static void Flatten(Metadata result, JsonElement element) {
+        foreach (var property in element.EnumerateObject()) {
+            switch (property.Value.ValueKind) {
+                case JsonValueKind.Object:
+                    Flatten(result, property.Value);
+                    break;
+                case JsonValueKind.String:
+                    result.With(property.Name, property.Value.GetString());
+                    break;
+                case JsonValueKind.Number:
+                    result.With(property.Name, property.Value.GetRawText());
+                    break;
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    result.With(property.Name, property.Value.GetBoolean());
+                    break;
+            }
+        }
+    }
+}
+```
+
+Inheriting `MetadataDecoder` gives you `MetadataDecodingException` wrapping, so a malformed record surfaces with the stream name and schema attached. Implementing `IMetadataDecoder` directly skips that error wrapping.
+
+Parent group names are dropped during the walk, so two nested groups that share a leaf name will collide on the flat result. Prefix keys with the parent name if your legacy shape has those collisions.
+
+Plug it in when constructing the client:
+
+```csharp
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.MetadataDecoder = new NestedMetadataDecoder());
+```
+
+A flat record decodes correctly through the same path, so the decoder handles both old and new records once installed. Keep it cheap, since it runs once per record.
 
 ## Registration
 
-`AddKurrentClient` honors any `IMetadataDecoder` registered in DI. For decorators like `LegacyKeyAliasDecoder`, register with a factory so the inner decoder is supplied explicitly:
+`AddKurrentClient` honors any `IMetadataDecoder` registered in DI:
 
 ```csharp
-services.AddSingleton<IMetadataDecoder>(_ =>
-    new LegacyKeyAliasDecoder(new DefaultMetadataDecoder()));
+services.AddSingleton<IMetadataDecoder, NestedMetadataDecoder>();
 
 services.AddKurrentClient("kurrentdb://localhost:2113");
 ```
