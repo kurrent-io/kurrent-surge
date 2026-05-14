@@ -6,7 +6,7 @@ order: 6
 
 <CopyMarkdownButton />
 
-Stored events outlive the code that produced them. A consumer running today must decode events that were appended six months ago by a service that may have shipped three releases since. This page covers the four moves that come up most often: adding a field, renaming a .NET type, running multiple versions of the same event, and migrating between naming strategies.
+Stored records outlive the code that produced them. A consumer running today must decode records that were appended six months ago by a service that may have shipped three releases since. This page covers the four moves that come up most often: adding a field, renaming a .NET type, running multiple versions of the same record, and migrating between naming strategies.
 
 The default client configuration auto-registers a schema on the first append of each type and pre-validates every later payload against the registered version. The serializer-level changes shown below therefore have to satisfy the schema's [compatibility mode](../schema-registry/compatibility-modes.md) on the registry. Disabling auto-register or pre-validate shifts that check back to your code. See [Client options](../schema-registry/client-options.md) for the presets.
 
@@ -36,11 +36,11 @@ var mapper = MessageTypeMapper.Create(m => m
     .Map<OrderShippedV2>("order.shipped.v1"));
 ```
 
-The .NET type is now `OrderShippedV2`, but stored records still use `order.shipped.v1`. Consumers decoding old events resolve them to the renamed type. This is the same `Map<T>(name)` overload used to override naming-strategy output for any reason, applied here to absorb a code rename without breaking readers.
+The .NET type is now `OrderShippedV2`, but stored records still use `order.shipped.v1`. Consumers decoding old records resolve them to the renamed type. This is the same `Map<T>(name)` overload used to override naming-strategy output for any reason, applied here to absorb a code rename without breaking readers.
 
 ## Running multiple versions
 
-When the shape of an event changes incompatibly (a renamed field, a different unit, a removed required member), produce a new version under a new schema name and let both versions coexist on the stream:
+When the shape of a record changes incompatibly (a renamed field, a different unit, a removed required member), produce a new version under a new schema name and let both versions coexist on the stream:
 
 ```csharp
 public record OrderShippedV1(string OrderId, string Carrier);
@@ -51,7 +51,7 @@ var mapper = MessageTypeMapper.Create(m => m
     .Map<OrderShippedV2>("order.shipped.v2"));
 ```
 
-Producers append `OrderShippedV2` going forward. Consumers handle both .NET types until v1 events have aged out or are projected forward into v2.
+Producers append `OrderShippedV2` going forward. Consumers handle both .NET types until v1 records have aged out or are projected forward into v2.
 
 Because the two types map to distinct wire names, the registry treats them as independent schemas with no compatibility relationship. That is the point. An incompatible change between v1 and v2 would be rejected by the compatibility check on a single schema, so starting under a new name starts fresh.
 
@@ -72,7 +72,7 @@ await foreach (var record in records) {
 }
 ```
 
-When both versions encode the same semantic event, prefer projecting v1 into v2 in-process so the rest of the handler only deals with the current shape.
+When both versions encode the same domain concept, prefer projecting v1 into v2 in-process so the rest of the handler only deals with the current shape.
 
 ## Migrating naming strategies
 

@@ -6,7 +6,7 @@ order: 1
 
 <CopyMarkdownButton />
 
-Streams hold an ordered sequence of records. Use `AppendStream` to write to a single stream and `AppendRecords` to write across several streams in one atomic transaction.
+Streams hold an ordered sequence of records — events, commands, snapshots, or any other payload an application stores. Use `AppendStream` to write to a single stream and `AppendRecords` to write across several streams in one atomic transaction.
 
 ## Append a single record
 
@@ -89,7 +89,7 @@ var request = AppendStreamRequest.For("order-123")
     .Build();
 ```
 
-Throws `StreamAlreadyExistsException` if the stream already has records. Use this for creation events that must be unique.
+Throws `StreamAlreadyExistsException` if the stream already has records. Use this for the first record on a stream that must not collide.
 
 @tab Stream must exist
 

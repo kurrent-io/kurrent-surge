@@ -8,7 +8,7 @@ order: 4
 
 Each record returned by a read carries the raw bytes alongside the deserialized value. Decoding happens eagerly by default and can be deferred with `SkipDecoding`.
 
-Say you have an `OrderPlaced` event mapped to its schema:
+Say you have an `OrderPlaced` record mapped to its schema:
 
 ```csharp
 public record OrderPlaced(string OrderId, string Item);

@@ -33,7 +33,7 @@ Auto-mapping is lazy. A record can only be decoded once its .NET type has been s
 
 ## The cold consumer problem
 
-A consumer that starts up fresh and reads events for a .NET type it has never appended in this process sees those events arrive raw. The serializer has no way to guess what `order.placed.v1` should decode into. It hands you bytes and the schema name, but no `OrderPlaced` instance.
+A consumer that starts up fresh and reads records of a .NET type it has never appended in this process sees those records arrive raw. The serializer has no way to guess what `order.placed.v1` should decode into. It hands you bytes and the schema name, but no `OrderPlaced` instance.
 
 This is the most common surprise in event-driven systems. Producer-only services work fine. Consumers that share types with producers through a NuGet package work fine. The trouble starts when a brand-new consumer rolls out against streams that already exist.
 
@@ -68,14 +68,14 @@ The naming strategy gives you a default. The mapper is where you override it. Co
 .Map<OrderShippedV2>("order.shipped.v1")
 ```
 
-**Two versions of an event coexist on the same stream.** When a shape change is not backward compatible, both versions live on the stream until v1 ages out. Each version is a distinct .NET type with a distinct schema name.
+**Two versions of the same payload coexist on the same stream.** When a shape change is not backward compatible, both versions live on the stream until v1 ages out. Each version is a distinct .NET type with a distinct schema name.
 
 ```csharp
 .Map<OrderShippedV1>("order.shipped.v1")
 .Map<OrderShippedV2>("order.shipped.v2")
 ```
 
-For the full story on evolving stored events, see [Schema evolution](./schema-evolution.md).
+For the full story on evolving stored records, see [Schema evolution](./schema-evolution.md).
 
 ## Registration
 
