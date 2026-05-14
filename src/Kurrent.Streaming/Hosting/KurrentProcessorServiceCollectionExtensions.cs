@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Streaming.Diagnostics.Metrics;
 using Kurrent.Streaming.Hosting;
@@ -107,9 +108,15 @@ public static class KurrentProcessorServiceCollectionExtensions {
             if (string.IsNullOrWhiteSpace(options.ProcessorId))
                 options.ProcessorId = typeof(TProcessor).Name.ToKebabCase();
 
-            // 4. If still no connection, look it up by processor id then by the default Aspire resource name.
-            if (options.ClientOptions is null && configuration is not null)
-                ResolveClientOptions(options, configuration);
+            // 4. If still no connection, try resolving KurrentClientOptions directly from DI,
+            //    then fall back to IConfiguration lookups by processor id / Aspire resource name.
+            if (options.ClientOptions is null) {
+                var clientOptions = sp.GetService<KurrentClientOptions>();
+                if (clientOptions is not null)
+                    options.Connection(clientOptions);
+                else if (configuration is not null)
+                    ResolveClientOptions(options, configuration);
+            }
 
             // 4. Resolve the processor instance — factory fires once, at host startup.
             var processor = processorFactory(sp);
