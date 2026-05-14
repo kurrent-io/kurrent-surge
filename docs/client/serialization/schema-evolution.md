@@ -8,7 +8,7 @@ order: 6
 
 Stored events outlive the code that produced them. A consumer running today must decode events that were appended six months ago by a service that may have shipped three releases since. This page covers the four moves that come up most often: adding a field, renaming a .NET type, running multiple versions of the same event, and migrating between naming strategies.
 
-For server-side governance (compatibility checks, version pinning), see [Schema Registry](../schema-registry/README.md).
+The default client configuration auto-registers a schema on the first append of each type and pre-validates every later payload against the registered version. The serializer-level changes shown below therefore have to satisfy the schema's [compatibility mode](../schema-registry/compatibility-modes.md) on the registry. Disabling auto-register or pre-validate shifts that check back to your code. See [Client options](../schema-registry/client-options.md) for the presets.
 
 ## Adding a field
 
@@ -53,18 +53,22 @@ var mapper = MessageTypeMapper.Create(m => m
 
 Producers append `OrderShippedV2` going forward. Consumers handle both .NET types until v1 events have aged out or are projected forward into v2.
 
+Because the two types map to distinct wire names, the registry treats them as independent schemas with no compatibility relationship. That is the point. An incompatible change between v1 and v2 would be rejected by the compatibility check on a single schema, so starting under a new name starts fresh.
+
 Dispatch on the deserialized type:
 
 ```csharp
-await foreach (var item in stream) {
-    item.Switch(
-        record => {
-            switch (record.Value) {
-                case OrderShippedV1 v1: Handle(v1); break;
-                case OrderShippedV2 v2: Handle(v2); break;
-            }
-        },
-        heartbeat => { });
+var request = ReadStreamRequest.New.ForStream("order-7f3a").Build();
+
+var records = client.Streams.ReadStream(request)
+    .Where(msg => msg.IsRecord)
+    .Select(msg => msg.AsRecord);
+
+await foreach (var record in records) {
+    switch (record.Value) {
+        case OrderShippedV1 v1: Handle(v1); break;
+        case OrderShippedV2 v2: Handle(v2); break;
+    }
 }
 ```
 
