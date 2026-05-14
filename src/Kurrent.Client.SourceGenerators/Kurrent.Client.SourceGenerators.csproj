@@ -18,11 +18,12 @@
 
   <PropertyGroup>
     <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
+    <GetTargetPathWithTargetPlatformMonikerDependsOn>$(GetTargetPathWithTargetPlatformMonikerDependsOn);GetDependencyTargetPaths</GetTargetPathWithTargetPlatformMonikerDependsOn>
   </PropertyGroup>
 
   <!-- Bundle Kurrent.CodeAnalysis.dll into this generator's analyzer package so Roslyn's
        analyzer loader finds it alongside the generator assembly at build time. -->
-  <Target Name="GetDependencyTargetPaths">
+  <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths->WithMetadataValue('Extension', '.dll'))" IncludeRuntimeDependency="false" />
     </ItemGroup>
