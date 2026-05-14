@@ -127,7 +127,7 @@
   <Target Name="PackSourceGenerators">
     <MSBuild Projects="@(ProjectReference)"
              Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer'"
-             Targets="GetTargetPath"
+             Targets="GetTargetPathWithTargetPlatformMoniker"
              Properties="TargetFramework=netstandard2.0">
       <Output TaskParameter="TargetOutputs" ItemName="_SourceGeneratorAssembly" />
     </MSBuild>
