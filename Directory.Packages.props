@@ -87,6 +87,7 @@
     <PackageVersion Include="Serilog.Sinks.Observable" Version="3.0.0" />
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
     <PackageVersion Include="Serilog.Sinks.Seq" Version="9.0.0" />
+    <PackageVersion Include="SharpCompress" Version="0.48.0" />
     <PackageVersion Include="System.Reactive" Version="6.1.0" />
     <PackageVersion Include="TUnit" Version="1.43.11" />
     <PackageVersion Include="TUnit.Assertions" Version="1.43.11" />

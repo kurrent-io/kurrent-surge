@@ -38,7 +38,7 @@ public class CheckSchemaCompatibilityTests {
 			.ChangeType("gender", JsonObjectType.Integer);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, BackwardAll, cancellationToken: ct);
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, BackwardAll, ct);
 
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -61,7 +61,7 @@ public class CheckSchemaCompatibilityTests {
 		var v2 = v1.AddOptional("address", JsonObjectType.String);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, cancellationToken: ct);
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, ct);
 
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -77,7 +77,7 @@ public class CheckSchemaCompatibilityTests {
 		var v2 = v1.AddRequired("email", JsonObjectType.String);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, cancellationToken: ct);
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, ct);
 
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -101,7 +101,7 @@ public class CheckSchemaCompatibilityTests {
 		var v2 = v1.Remove("phone");
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, cancellationToken: ct);
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, ct);
 
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -117,7 +117,7 @@ public class CheckSchemaCompatibilityTests {
 		var v2 = v1.ChangeType("id", JsonObjectType.Integer);
 
 		await Fixture.Client.Registry
-			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, cancellationToken: ct);
+			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, ct);
 
 		await KurrentDBFixture.WaitForEventualConsistency(ct);
 

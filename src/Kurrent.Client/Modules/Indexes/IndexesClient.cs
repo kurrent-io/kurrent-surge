@@ -15,39 +15,23 @@ public class IndexesClient : ClientModuleBase {
     /// <summary>
     /// Creates a new secondary index with the specified configuration.
     /// </summary>
-    /// <param name="name">The unique name of the index to create.</param>
-    /// <param name="filter">The filter expression that determines which events are included in the index.</param>
-    /// <param name="fields">The fields to index, each with a name, selector, and type.</param>
-    /// <param name="start">Whether to start the index immediately after creation. Defaults to true if not specified.</param>
-    /// <param name="cancellationToken">
-    /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
-    /// </param>
-    /// <returns>
-    /// A <see cref="Result{Success, CreateIndexError}"/> indicating the outcome of the index creation.
-    /// </returns>
-    public async ValueTask Create(
-        string name,
-        string filter,
-        IEnumerable<IndexField> fields,
-        bool? start = null,
-        CancellationToken cancellationToken = default
-    ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentException.ThrowIfNullOrWhiteSpace(filter);
-        ArgumentNullException.ThrowIfNull(fields);
+    /// <param name="request">The index details to create. Use <see cref="CreateIndexRequest.For"/> to build one fluently.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public async ValueTask Create(CreateIndexRequest request, CancellationToken cancellationToken = default) {
+        request.EnsureValid();
 
-        var request = new Contracts.CreateIndexRequest {
-            Name   = name,
-            Filter = filter,
-            Fields = { fields.Select(f => f.ToProto()) }
+        var rpc = new Contracts.CreateIndexRequest {
+            Name   = request.Name,
+            Filter = request.Filter,
+            Fields = { request.Fields.Select(f => f.ToProto()) }
         };
 
-        if (start.HasValue)
-            request.Start = start.Value;
+        if (request.Start.HasValue)
+            rpc.Start = request.Start.Value;
 
         try {
             _ = await ServiceClient
-                .CreateAsync(request, cancellationToken: cancellationToken)
+                .CreateAsync(rpc, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
@@ -55,25 +39,14 @@ public class IndexesClient : ClientModuleBase {
         }
     }
 
-    public ValueTask Create(
-        string name,
-        string filter,
-        IEnumerable<IndexField> fields,
-        CancellationToken cancellationToken = default
-    ) => Create(name, filter, fields, start: null, cancellationToken);
-
     /// <summary>
     /// Starts an existing secondary index.
     /// </summary>
     /// <param name="name">The name of the index to start.</param>
-    /// <param name="cancellationToken">
-    /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
-    /// </param>
-    /// <returns>
-    /// A <see cref="Result{Success, StartIndexError}"/> indicating the outcome of the operation.
-    /// </returns>
-    public async ValueTask Start(string name, CancellationToken cancellationToken = default) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public async ValueTask Start(IndexName name, CancellationToken cancellationToken = default) {
+        if (name.IsUnset)
+            throw new ArgumentException("Index name cannot be empty.", nameof(name));
 
         var request = new Contracts.StartIndexRequest { Name = name };
 
@@ -91,17 +64,10 @@ public class IndexesClient : ClientModuleBase {
     /// Stops an existing secondary index.
     /// </summary>
     /// <param name="name">The name of the index to stop.</param>
-    /// <param name="cancellationToken">
-    /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
-    /// </param>
-    /// <returns>
-    /// A <see cref="Result{Success, StopIndexError}"/> indicating the outcome of the operation.
-    /// </returns>
-    public async ValueTask Stop(
-        string name,
-        CancellationToken cancellationToken = default
-    ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public async ValueTask Stop(IndexName name, CancellationToken cancellationToken = default) {
+        if (name.IsUnset)
+            throw new ArgumentException("Index name cannot be empty.", nameof(name));
 
         var request = new Contracts.StopIndexRequest { Name = name };
 
@@ -119,17 +85,10 @@ public class IndexesClient : ClientModuleBase {
     /// Deletes an existing secondary index.
     /// </summary>
     /// <param name="name">The name of the index to delete.</param>
-    /// <param name="cancellationToken">
-    /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
-    /// </param>
-    /// <returns>
-    /// A <see cref="Result{Success, DeleteIndexError}"/> indicating the outcome of the operation.
-    /// </returns>
-    public async ValueTask Delete(
-        string name,
-        CancellationToken cancellationToken = default
-    ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public async ValueTask Delete(IndexName name, CancellationToken cancellationToken = default) {
+        if (name.IsUnset)
+            throw new ArgumentException("Index name cannot be empty.", nameof(name));
 
         var request = new Contracts.DeleteIndexRequest { Name = name };
 
@@ -173,17 +132,11 @@ public class IndexesClient : ClientModuleBase {
     /// Gets the details of a specific secondary index.
     /// </summary>
     /// <param name="name">The name of the index to retrieve.</param>
-    /// <param name="cancellationToken">
-    /// An optional <see cref="CancellationToken"/> to observe while waiting for the operation to complete.
-    /// </param>
-    /// <returns>
-    /// A <see cref="Result{Index, GetIndexError}"/> containing the index details or an error.
-    /// </returns>
-    public async ValueTask<Index> Get(
-        string name,
-        CancellationToken cancellationToken = default
-    ) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>The <see cref="Index"/> details.</returns>
+    public async ValueTask<Index> Get(IndexName name, CancellationToken cancellationToken = default) {
+        if (name.IsUnset)
+            throw new ArgumentException("Index name cannot be empty.", nameof(name));
 
         var request = new Contracts.GetIndexRequest { Name = name };
 

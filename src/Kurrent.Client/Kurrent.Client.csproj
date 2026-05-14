@@ -108,7 +108,7 @@
     Result: only Kurrent.Variant.dll is embedded. NuGet dependencies remain
     declared in the nuspec and resolved at restore time.
   -->
-  <Target Name="PackProjectDependencies">
+  <Target Name="PackProjectDependencies" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <!-- NuGetPackageId is empty = came from a project reference, not a NuGet package -->
       <_ProjectRefDlls Include="@(ReferenceCopyLocalPaths)"
@@ -135,7 +135,7 @@
   <Target Name="PackSourceGenerators">
     <MSBuild Projects="@(ProjectReference)"
              Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer'"
-             Targets="GetTargetPath"
+             Targets="GetTargetPathWithTargetPlatformMoniker"
              Properties="TargetFramework=netstandard2.0">
       <Output TaskParameter="TargetOutputs" ItemName="_SourceGeneratorAssembly" />
     </MSBuild>

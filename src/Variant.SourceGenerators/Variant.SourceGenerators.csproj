@@ -23,9 +23,10 @@
 
   <PropertyGroup>
     <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
+    <GetTargetPathWithTargetPlatformMonikerDependsOn>$(GetTargetPathWithTargetPlatformMonikerDependsOn);GetDependencyTargetPaths</GetTargetPathWithTargetPlatformMonikerDependsOn>
   </PropertyGroup>
 
-  <Target Name="GetDependencyTargetPaths">
+  <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
     <ItemGroup>
       <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths->WithMetadataValue('Extension', '.dll'))" IncludeRuntimeDependency="false" />
     </ItemGroup>

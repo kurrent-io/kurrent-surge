@@ -22,7 +22,7 @@ public class GetSchemaVersionTests {
         await KurrentDBFixture.WaitForEventualConsistency(ct);
 
 		var version = await Fixture.Client.Registry
-			.GetSchemaVersion(schemaName, cancellationToken: ct);
+			.GetSchemaVersion(schemaName, ct);
 
 		await Assert.That(version.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(version.VersionNumber).IsEqualTo(1);
@@ -77,7 +77,7 @@ public class GetSchemaVersionTests {
 
 		await Assert.ThrowsAsync<SchemaNotFoundException>(
 			async () => await Fixture.Client.Registry
-				.GetSchemaVersion(nonExistentSchemaName, cancellationToken: ct));
+				.GetSchemaVersion(nonExistentSchemaName, ct));
 	}
 
 	[Test]

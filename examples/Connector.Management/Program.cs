@@ -26,7 +26,7 @@ try {
     var config = app.Configuration.GetSection("Connector");
 
     var connectorId = ConnectorId.From(config["Id"]!);
-    var settings    = config.GetSection("Settings").ToProtobufStruct();
+    var settings    = config.GetSection("Settings");
 
     try {
         await client.Connectors.Create(connectorId, settings);

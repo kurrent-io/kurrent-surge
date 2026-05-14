@@ -1,0 +1,7 @@
+# VuePress build output (this project sets `dest: "public"` in config.ts).
+public/
+
+# Generated C# API reference JSON — regenerated from src/ via
+# tools/PackageJsonGenerator/generate.sh, so the C# source is the only
+# source of truth.
+.vuepress/data/pkgs/*.json

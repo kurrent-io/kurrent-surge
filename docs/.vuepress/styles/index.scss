@@ -137,3 +137,49 @@ div[style*="z-index: 2147483647"] {
 .vp-highlight-title {
     font-size: 1.4rem;
 }
+
+/* Stepper layout: numbered circles with a connecting vertical line.
+   Wrap step sections in `<div class="steps">...</div>` in markdown.
+   Each `> h2` becomes a numbered step; nested headings/content render normally. */
+.steps {
+    counter-reset: step;
+    margin: 2rem 0 2rem 1rem;
+    padding-left: 2rem;
+    border-left: 2px solid var(--vp-c-border, var(--c-border, #e5e7eb));
+}
+
+.steps > h2 {
+    counter-increment: step;
+    position: relative;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-top: 2.5rem;
+
+    &::before {
+        content: counter(step);
+        position: absolute;
+        left: -3rem;
+        top: 50%;
+        transform: translateY(-50%);
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+
+        background: var(--vp-c-bg, #fff);
+        border: 2px solid var(--vp-c-accent, #6366f1);
+        color: var(--vp-c-accent, #6366f1);
+
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    &:first-child {
+        margin-top: 0;
+    }
+}

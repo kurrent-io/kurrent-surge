@@ -34,7 +34,6 @@ public class AppendRecordsRequestBuilderTests {
         var request = AppendRecordsRequest.New()
             .WithRecord(ValidRecord("stream-a"))
             .WithRecord(ValidRecord("stream-b"))
-            .WithCheck(ConsistencyCheck.StreamAtRevision("stream-a", 5))
             .Build();
 
         // Assert

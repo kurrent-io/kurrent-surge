@@ -249,7 +249,7 @@ public partial class StreamsClient {
 
     #region ->> Truncate <<-
 
-    public async ValueTask<Success> Truncate(StreamName stream, Revision truncateRevision, CancellationToken cancellationToken) {
+    public async ValueTask<Success> Truncate(StreamName stream, Revision truncateRevision, CancellationToken cancellationToken = default) {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
 
@@ -333,7 +333,7 @@ public partial class StreamsClient {
         StreamName stream,
         StreamRetentionOptions options,
         Revision revision,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken = default
     ) {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
@@ -358,7 +358,7 @@ public partial class StreamsClient {
     public async ValueTask<Revision> ConfigureDataRetention(
         StreamName stream,
         Action<StreamRetentionOptions> configure,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken = default
     ) {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
@@ -382,13 +382,13 @@ public partial class StreamsClient {
             .ConfigureAwait(false);
     }
 
-    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, StreamRetention options, CancellationToken cancellationToken) =>
+    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, StreamRetention options, CancellationToken cancellationToken = default) =>
         ConfigureDataRetention(stream, x => { x.MaxCount = options.MaxCount; x.MaxAge = options.MaxAge; }, cancellationToken);
 
-    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, int maxCount, CancellationToken cancellationToken) =>
+    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, int maxCount, CancellationToken cancellationToken = default) =>
         ConfigureDataRetention(stream, x => x.MaxCount = maxCount, cancellationToken);
 
-    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, TimeSpan maxAge, CancellationToken cancellationToken) =>
+    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, TimeSpan maxAge, CancellationToken cancellationToken = default) =>
         ConfigureDataRetention(stream, x => x.MaxAge = maxAge, cancellationToken);
 
     #endregion

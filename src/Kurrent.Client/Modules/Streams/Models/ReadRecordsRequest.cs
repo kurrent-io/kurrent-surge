@@ -15,10 +15,6 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
     /// <summary>
     /// Starting position for the read operation in the global log.
     /// </summary>
-    /// <remarks>
-    /// When <see cref="Direction"/> is <see cref="ReadDirection.Forwards"/>,
-    /// <see cref="LogPosition.Latest"/> is not allowed.
-    /// </remarks>
     public LogPosition Start { get; init; } = LogPosition.Latest;
 
     /// <summary>
@@ -59,11 +55,6 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
         /// <summary>
         /// Starts reading from the latest position in the global log.
         /// </summary>
-        /// <remarks>
-        /// Use <see cref="Backwards"/> (or <see cref="FromLatestBackwards"/>)
-        /// because <see cref="ReadDirection.Forwards"/> from <see cref="LogPosition.Latest"/>
-        /// is rejected by request validation.
-        /// </remarks>
         public Builder FromLatest() =>
             FromPosition(LogPosition.Latest);
 

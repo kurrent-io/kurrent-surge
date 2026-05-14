@@ -1,89 +1,40 @@
-using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
+using Kurrent.Client.Streams;
 using Commands = KurrentDB.Connectors.Management.Contracts.Commands;
 
 namespace Kurrent.Client.Connectors;
 
 public partial class ConnectorsClient {
+    #region ->> Create <<-
+
     /// <summary>
-    /// Creates a new connector with the specified configuration.
+    /// Creates a new connector with the specified display name and settings.
     /// </summary>
-    /// <param name="connectorId">Unique identifier for the connector.</param>
-    /// <param name="name">Optional human-readable name for the connector.</param>
-    /// <param name="settings">Configuration settings for the connector. Null values are preserved as empty strings.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="id">Unique identifier for the connector.</param>
+    /// <param name="name">Human-readable display name for the connector.</param>
+    /// <param name="settings">Configuration settings for the connector.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
     public async ValueTask<Success> Create(
-        ConnectorId connectorId,
-        string? name,
-        Dictionary<string, string?> settings,
-        CancellationToken cancellationToken = default
+        ConnectorId id, string name, Dictionary<string, string> settings, CancellationToken ct = default
     ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
-        if (settings.Count == 0) {
-            
-        }
-        
-        ArgumentNullException.ThrowIfNull(settings);
-    
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var request = new Commands.CreateConnector {
-            ConnectorId = connectorId
+            ConnectorId = id,
+            Name        = name
         };
-    
-        if (name is not null)
-            request.Name = name;
-    
+
         foreach (var (key, value) in settings)
-            request.Settings[key] = value ?? "";
-    
-        try {
-            await CommandServiceClient
-                .CreateAsync(request, cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-    
-            return Results.Success;
-        }
-        catch (Exception ex) {
-            
-            throw ex.AsWellKnownException(
-                ConnectorAlreadyExistsException.From,
-                // StatusCode fallback
-                StatusCode.AlreadyExists.MapTo(new ConnectorAlreadyExistsException(connectorId)));
-        }
-    }
-
-    /// <summary>
-    /// Creates a new connector with the specified configuration.
-    /// </summary>
-    /// <param name="connectorId">Unique identifier for the connector.</param>
-    /// <param name="name">Optional human-readable name for the connector.</param>
-    /// <param name="configuration">Hierarchical configuration for the connector as a Protobuf Struct.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>A <see cref="Success"/> indicating the connector was created successfully.</returns>
-    public async ValueTask<Success> Create(
-        ConnectorId connectorId,
-        string name,
-        Struct configuration,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
-        ArgumentNullException.ThrowIfNull(configuration);
-
-        var request = new Commands.CreateConnector {
-            ConnectorId   = connectorId,
-            Configuration = configuration
-        };
-
-        if (name is not null)
-            request.Name = name;
+            request.Settings[key] = value;
 
         try {
             await CommandServiceClient
-                .CreateAsync(request, cancellationToken: cancellationToken)
+                .CreateAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -92,36 +43,37 @@ public partial class ConnectorsClient {
             throw ex.ToException(
                 ConnectorAlreadyExistsException.From,
                 // StatusCode fallback
-                StatusCode.AlreadyExists.MapTo(new ConnectorAlreadyExistsException(connectorId)));
+                StatusCode.AlreadyExists.MapTo(new ConnectorAlreadyExistsException(id)));
         }
     }
+
+    #endregion
+
+    #region ->> Reconfigure <<-
 
     /// <summary>
     /// Reconfigures an existing connector with new settings.
     /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to reconfigure.</param>
-    /// <param name="settings">Updated configuration settings. Null values are preserved as empty strings.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="id">Unique identifier of the connector to reconfigure.</param>
+    /// <param name="settings">Updated configuration settings.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reconfigured successfully.</returns>
     public async ValueTask<Success> Reconfigure(
-        ConnectorId connectorId,
-        Dictionary<string, string?> settings,
-        CancellationToken cancellationToken = default
+        ConnectorId id, Dictionary<string, string> settings, CancellationToken ct = default
     ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
-        ArgumentNullException.ThrowIfNull(settings);
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
         var request = new Commands.ReconfigureConnector {
-            ConnectorId = connectorId
+            ConnectorId = id
         };
 
         foreach (var (key, value) in settings)
-            request.Settings[key] = value ?? "";
+            request.Settings[key] = value;
 
         try {
             await CommandServiceClient
-                .ReconfigureAsync(request, cancellationToken: cancellationToken)
+                .ReconfigureAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -132,70 +84,32 @@ public partial class ConnectorsClient {
                 ConnectorDeletedException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
         }
     }
 
-    /// <summary>
-    /// Reconfigures an existing connector with a new hierarchical configuration.
-    /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to reconfigure.</param>
-    /// <param name="configuration">Updated hierarchical configuration as a Protobuf Struct.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
-    /// <returns>A <see cref="Success"/> indicating the connector was reconfigured successfully.</returns>
-    public async ValueTask<Success> Reconfigure(
-        ConnectorId connectorId,
-        Struct configuration,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
-        ArgumentNullException.ThrowIfNull(configuration);
+    #endregion
 
-        var request = new Commands.ReconfigureConnector {
-            ConnectorId   = connectorId,
-            Configuration = configuration
-        };
-
-        try {
-            await CommandServiceClient
-                .ReconfigureAsync(request, cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-
-            return Results.Success;
-        }
-        catch (Exception ex) {
-            throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From,
-
-                // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
-        }
-    }
+    #region ->> Delete <<-
 
     /// <summary>
     /// Deletes an existing connector.
     /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to delete.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="id">Unique identifier of the connector to delete.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was deleted successfully.</returns>
-    public async ValueTask<Success> Delete(
-        ConnectorId connectorId,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+    public async ValueTask<Success> Delete(ConnectorId id, CancellationToken ct = default) {
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
         var request = new Commands.DeleteConnector {
-            ConnectorId = connectorId
+            ConnectorId = id
         };
 
         try {
             await CommandServiceClient
-                .DeleteAsync(request, cancellationToken: cancellationToken)
+                .DeleteAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -206,39 +120,52 @@ public partial class ConnectorsClient {
                 ConnectorDeletedException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
         }
     }
 
+    #endregion
+
+    #region ->> Start <<-
+
     /// <summary>
-    /// Starts a connector, optionally from a specific log position.
+    /// Starts a connector from its last known position.
     /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to start.</param>
-    /// <param name="logPosition">Optional log position to start processing from.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="id">Unique identifier of the connector to start.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
-    public async ValueTask<Success> Start(
-        ConnectorId connectorId,
-        ulong? logPosition = null,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+    public ValueTask<Success> Start(ConnectorId id, CancellationToken ct = default) =>
+        StartCore(id, position: null, ct);
+
+    /// <summary>
+    /// Starts a connector from a specific log position.
+    /// </summary>
+    /// <param name="id">Unique identifier of the connector to start.</param>
+    /// <param name="position">Log position to start processing from.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
+    /// <returns>A <see cref="Success"/> indicating the connector was started successfully.</returns>
+    public ValueTask<Success> Start(ConnectorId id, LogPosition position, CancellationToken ct = default)
+        => StartCore(id, position, ct);
+
+    async ValueTask<Success> StartCore(ConnectorId id, LogPosition? position, CancellationToken ct) {
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
         var request = new Commands.StartConnector {
-            ConnectorId = connectorId
+            ConnectorId = id
         };
 
-        if (logPosition.HasValue) {
+        if (position.HasValue) {
+            position.Value.EnsureAbsolute();
             request.StartFrom = new() {
-                LogPosition = logPosition.Value
+                LogPosition = position.Value
             };
         }
 
         try {
             await CommandServiceClient
-                .StartAsync(request, cancellationToken: cancellationToken)
+                .StartAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -249,39 +176,52 @@ public partial class ConnectorsClient {
                 ConnectorDeletedException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
         }
     }
+
+    #endregion
+
+    #region ->> Reset <<-
 
     /// <summary>
-    /// Resets a connector, optionally to a specific log position.
+    /// Resets a connector to the beginning of the stream.
     /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to reset.</param>
-    /// <param name="logPosition">Optional log position to reset processing to.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="id">Unique identifier of the connector to reset.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
-    public async ValueTask<Success> Reset(
-        ConnectorId connectorId,
-        ulong? logPosition = null,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+    public ValueTask<Success> Reset(ConnectorId id, CancellationToken ct = default)
+        => ResetCore(id, position: null, ct);
+
+    /// <summary>
+    /// Resets a connector to a specific log position.
+    /// </summary>
+    /// <param name="id">Unique identifier of the connector to reset.</param>
+    /// <param name="position">Log position to reset processing to.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
+    /// <returns>A <see cref="Success"/> indicating the connector was reset successfully.</returns>
+    public ValueTask<Success> Reset(ConnectorId id, LogPosition position, CancellationToken ct = default)
+        => ResetCore(id, position, ct);
+
+    async ValueTask<Success> ResetCore(ConnectorId id, LogPosition? position, CancellationToken ct) {
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
         var request = new Commands.ResetConnector {
-            ConnectorId = connectorId
+            ConnectorId = id
         };
 
-        if (logPosition.HasValue) {
+        if (position.HasValue) {
+            position.Value.EnsureAbsolute();
             request.StartFrom = new() {
-                LogPosition = logPosition.Value
+                LogPosition = position.Value
             };
         }
 
         try {
             await CommandServiceClient
-                .ResetAsync(request, cancellationToken: cancellationToken)
+                .ResetAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -292,31 +232,32 @@ public partial class ConnectorsClient {
                 ConnectorDeletedException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
         }
     }
+
+    #endregion
+
+    #region ->> Stop <<-
 
     /// <summary>
     /// Stops a running connector.
     /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to stop.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="id">Unique identifier of the connector to stop.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was stopped successfully.</returns>
-    public async ValueTask<Success> Stop(
-        ConnectorId connectorId,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+    public async ValueTask<Success> Stop(ConnectorId id, CancellationToken ct = default) {
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
 
         var request = new Commands.StopConnector {
-            ConnectorId = connectorId
+            ConnectorId = id
         };
 
         try {
             await CommandServiceClient
-                .StopAsync(request, cancellationToken: cancellationToken)
+                .StopAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -327,35 +268,35 @@ public partial class ConnectorsClient {
                 ConnectorDeletedException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
         }
     }
+
+    #endregion
+
+    #region ->> Rename <<-
 
     /// <summary>
     /// Renames an existing connector.
     /// </summary>
-    /// <param name="connectorId">Unique identifier of the connector to rename.</param>
+    /// <param name="id">Unique identifier of the connector to rename.</param>
     /// <param name="name">New display name for the connector.</param>
-    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="Success"/> indicating the connector was renamed successfully.</returns>
-    public async ValueTask<Success> Rename(
-        ConnectorId connectorId,
-        string name,
-        CancellationToken cancellationToken = default
-    ) {
-        if (connectorId.IsUnset)
-            throw new ArgumentException("Connector id cannot be empty.", nameof(connectorId));
+    public async ValueTask<Success> Rename(ConnectorId id, string name, CancellationToken ct = default) {
+        if (id.IsUnset)
+            throw new ArgumentException("Connector id cannot be empty.", nameof(id));
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var request = new Commands.RenameConnector {
-            ConnectorId = connectorId,
+            ConnectorId = id,
             Name        = name
         };
 
         try {
             await CommandServiceClient
-                .RenameAsync(request, cancellationToken: cancellationToken)
+                .RenameAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
             return Results.Success;
@@ -366,8 +307,10 @@ public partial class ConnectorsClient {
                 ConnectorDeletedException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
+                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
+                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
         }
     }
+
+    #endregion
 }
