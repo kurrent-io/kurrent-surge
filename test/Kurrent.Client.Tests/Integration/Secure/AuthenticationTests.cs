@@ -10,6 +10,7 @@ public class AuthenticationTests {
     public required KurrentDBSecureFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
+    [Skip("KurrentDBSecureFixture currently runs the same insecure image as the base fixture — licensed auth features are not enabled, so anonymous clients are not rejected. Re-enable when the secure fixture enforces authentication.")]
     public async ValueTask anonymous_client_cannot_append(CancellationToken ct) {
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;

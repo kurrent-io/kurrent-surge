@@ -85,10 +85,13 @@ public class ConnectorCommandTests {
 		await Fixture.Client.Connectors
 			.Create(connectorId, configuration, ct);
 
+		var updatedSettings = new Dictionary<string, string>(KurrentDBFixture.NewConnectorSettings()) {
+			["subscription:filter:expression"] = "updated-"
+		};
+
 		var updatedConfiguration = new ConfigurationBuilder()
-			.AddInMemoryCollection(KurrentDBFixture.NewConnectorSettings()
-				.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value))
-				.Append(new KeyValuePair<string, string?>("subscription:filter:expression", "updated-")))
+			.AddInMemoryCollection(updatedSettings
+				.Select(kvp => new KeyValuePair<string, string?>(kvp.Key, kvp.Value)))
 			.Build();
 
 		await Fixture.Client.Connectors
