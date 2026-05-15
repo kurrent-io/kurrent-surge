@@ -97,23 +97,6 @@ public enum StreamState {
     Missing    = -1
 }
 
-// public readonly record struct RecordState(RecordStateKind Kind, StreamName Stream) {                                                                                            
-//     public static RecordState Deleted(StreamName stream) => new(RecordStateKind.Deleted, stream);                                                                                    
-//     public static RecordState Tombstoned(StreamName stream) => new(RecordStateKind.Tombstoned, stream);                                                                                    
-//     public static RecordState NotFound => new(RecordStateKind.NotFound, StreamName.Unset);                                                                           
-// }                                                                                                      
-//                                                                                                          
-// public enum RecordStateKind {                                                                          
-//     Deleted    = -5,                                                                                   
-//     Tombstoned = -6,                                                                                   
-//     NotFound   = -1                                                                                    
-// }  
-
-public abstract record RecordState(StreamName Stream) {                                                
-    public sealed record Deleted(StreamName Stream) : RecordState(Stream);                             
-    public sealed record Tombstoned(StreamName Stream) : RecordState(Stream);                          
-    public sealed record NotFound() : RecordState(StreamName.Unset);                                   
-}   
 
 /// <summary>
 /// Represents the retention configuration for a stream.

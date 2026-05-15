@@ -20,7 +20,7 @@ public class KurrentClientOptionsTests {
         await Assert.That(options.ConnectionScheme).IsEqualTo(KurrentConnectionScheme.Direct);
         await Assert.That(options.Endpoints).HasSingleItem();
         await Assert.That(options.Gossip).IsDeepEquivalentTo(KurrentClientGossipOptions.Default);
-        await Assert.That(options.Security).IsDeepEquivalentTo(KurrentClientSecurityOptions.Default);
+        await Assert.That(options.Security).IsDeepEquivalentTo(KurrentClientSecurityOptions.Tls);
         await Assert.That(options.Resilience).IsDeepEquivalentTo(KurrentClientResilienceOptions.NoResilience);
         await Assert.That(options.Schema).IsDeepEquivalentTo(KurrentClientSchemaOptions.FullValidation);
         await Assert.That(options.Interceptors).IsEmpty();
@@ -84,7 +84,7 @@ public class KurrentClientOptionsTests {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new("localhost", 2113)],
-            Security         = KurrentClientSecurityOptions.Default
+            Security         = KurrentClientSecurityOptions.Tls
         };
 
         await Assert.That(options.HttpUriScheme).IsEqualTo(Uri.UriSchemeHttps);
@@ -98,7 +98,7 @@ public class KurrentClientOptionsTests {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new("localhost", 2113)],
-            Security         = KurrentClientSecurityOptions.Default
+            Security         = KurrentClientSecurityOptions.Tls
         };
 
         await Assert.That(options.Address).IsNotNull();
@@ -359,7 +359,7 @@ public class KurrentClientOptionsTests {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Direct,
             Endpoints        = [new DnsEndPoint("secure-host", 2113)],
-            Security         = KurrentClientSecurityOptions.Default
+            Security         = KurrentClientSecurityOptions.Tls
         };
 
         var address = options.Address;

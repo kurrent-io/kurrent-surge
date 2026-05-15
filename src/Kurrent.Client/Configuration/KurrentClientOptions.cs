@@ -122,7 +122,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// };
     /// </code>
     /// </example>
-    public KurrentClientSecurityOptions Security { get; set; } = KurrentClientSecurityOptions.Default;
+    public KurrentClientSecurityOptions Security { get; set; } = KurrentClientSecurityOptions.Tls;
 
     /// <summary>
     /// Configuration for resilience strategies, including retries, hedging, and jitter.

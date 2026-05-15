@@ -40,7 +40,7 @@ public class KurrentDBFixture : AspireFixture {
                 .GetRequiredConnectionString<KurrentDBServerResource>(ResourceName);
 
             AnonymousConnectionString = KurrentClientOptions.Parse(ConnectionString)
-                .With(opts => opts.Security = KurrentClientSecurityOptions.Insecure)
+                .With(opts => opts.Security = KurrentClientSecurityOptions.Tls)
                 .ToString();
             
             Client = GetNewClient(ConnectionString);

@@ -15,13 +15,14 @@ This project uses `Aspire.AppHost.Sdk` with `OutputType=Library` — no `Program
 
 ## Fixtures
 
-| Fixture                   | Topology    | Security |
-|---------------------------|-------------|----------|
-| `KurrentDBFixture`        | Single node | Insecure |
-| `KurrentDBSecureFixture`  | Single node | TLS      |
-| `KurrentDBClusterFixture` | 3 nodes     | TLS      |
+| Fixture                    | Topology    | Security | Container lifetime |
+|----------------------------|-------------|----------|--------------------|
+| `KurrentDBFixture`         | Single node | TLS      | Persistent         |
+| `KurrentDBInsecureFixture` | Single node | Insecure | Persistent         |
+| `KurrentDBScavengeFixture` | Single node | TLS      | Session            |
+| `KurrentDBClusterFixture`  | 3+1 nodes   | TLS      | Persistent         |
 
-`KurrentDBFixture` provides `Client`, `ConnectionString`, `SeedTestStream`, `TestStreams`, `TypeMapper`, and the Arcade Racer test data source.
+`KurrentDBFixture` is the base class. It provides `Client`, `ConnectionString`, `AnonymousConnectionString`, `SeedTestStream`, `TestStreams`, `TypeMapper`, `Time` (a `FakeTimeProvider`), and the Arcade Racer test data source.
 
 ### Base classes
 
@@ -47,15 +48,17 @@ The fixture starts the Aspire app on first use and shares it across all tests in
 
 ## Adding a new variant
 
-Subclass `KurrentDBFixture` and override `Settings`:
+Subclass `KurrentDBFixture` and override `ConfigureSettings`:
 
 ```csharp
 public sealed class KurrentDBLargeClusterFixture : KurrentDBFixture {
-    KurrentDBLargeClusterFixture() =>
-        Settings = KurrentDBSettings.DefaultCluster;
+    protected override void ConfigureSettings(KurrentDBSettings settings) {
+        settings.Topology = new() { Nodes = 5, Replicas = 2 };
+        settings.Lifetime = ContainerLifetime.Session;
+    }
 }
 ```
 
 ## TLS certificates
 
-One-time host setup: `sudo ./scripts/gencert.sh` (only required if running outside containers).
+TLS certificates are generated automatically by the Aspire test harness — no manual setup required.
