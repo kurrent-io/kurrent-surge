@@ -35,7 +35,9 @@ area-infrastructure:
 area-testing:
   - changed-files:
     - any-glob-to-any-file:
-      - test/Kurrent.Testing/**
+      - test/Kurrent.Testkit/**
+      - test/Kurrent.Testkit.Datasets/**
+      - test/Kurrent.Sdk.Testkit/**
       - test/Aspire.Hosting.KurrentDB/**
       - test/Aspire.Hosting.KurrentDB.Tests/**
 
@@ -43,6 +45,7 @@ area-tooling:
   - changed-files:
     - any-glob-to-any-file:
       - tools/**
+      - .config/**
 
 area-samples:
   - changed-files:
@@ -61,13 +64,3 @@ documentation:
       - README.md
       - CONTRIBUTING.md
       - LICENSE.md
-
-test:
-  - changed-files:
-    - any-glob-to-any-file:
-      - test/**
-
-tooling:
-  - changed-files:
-    - any-glob-to-any-file:
-      - tools/**
