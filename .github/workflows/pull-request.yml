@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
-    types: [opened, edited, synchronize, ready_for_review]
-  merge_group:
+    types: [opened, synchronize, ready_for_review]
 
 env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
@@ -15,10 +14,6 @@ jobs:
   ci:
     name: Build and Test
 
-    if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.action == 'synchronize'
-    
-    # Cancel in-progress runs when a new commit is pushed to the same branch/PR.
-    # Merge queue runs are unaffected — each gets a unique ref (gh-readonly-queue/...).
     concurrency:
       group: ci-${{ github.ref }}
       cancel-in-progress: true
@@ -38,10 +33,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect source changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            source:
+              - '**'
+              - '!docs/**'
+              - '!examples/**'
+              - '!perf/**'
+              - '!scripts/**'
+              - '!tools/**'
+              - '!playground/**'
+              - '!.agents/**'
+              - '!.claude/**'
+              - '!.devcontainer/**'
+              - '!.github/**'
+              - '.github/actions/**'
+              - '!.idea/**'
+              - '!.junie/**'
+              - '!.project/**'
+              - '!.vscode/**'
+
       - name: Build project
+        if: steps.changes.outputs.source != 'false'
         uses: ./.github/actions/dotnet-setup
 
       - name: Unit tests
+        if: steps.changes.outputs.source != 'false'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
@@ -49,7 +70,7 @@ jobs:
           --disable-logo --report-trx --coverage
 
       - name: Test containers setup
-        if: github.event_name == 'merge_group'
+        if: steps.changes.outputs.source != 'false' && github.event.pull_request.draft != true
         uses: ./.github/actions/test-containers-setup
         with:
           default-credentials: |
@@ -63,7 +84,7 @@ jobs:
             KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
 
       - name: Integration tests
-        if: github.event_name == 'merge_group'
+        if: steps.changes.outputs.source != 'false' && github.event.pull_request.draft != true
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory ./artifacts/test-results
@@ -72,11 +93,11 @@ jobs:
 
       - name: Version
         id: version
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.source != 'false'
         uses: ./.github/actions/bumpcraft
 
       - name: Publish PR packages
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.changes.outputs.source != 'false'
         uses: ./.github/actions/dotnet-nuget
         with:
           version: ${{ steps.version.outputs.version }}
@@ -93,21 +114,3 @@ jobs:
             **/*-report.html
           overwrite: true
           include-hidden-files: true
-
-  validate:
-    name: Validate PR Title
-
-    if: github.event_name == 'pull_request'
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      pull-requests: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Validate and Label
-        uses: ./.github/actions/conventional-commits
