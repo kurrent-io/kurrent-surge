@@ -64,7 +64,7 @@ runs:
           (.key | ascii_upcase) as $name |
           (.value | split(":")) as [$ref, $tag] |
           ($tag // "latest") as $tag |
-          ($registries | map(select($ref | startswith(.))) | max_by(length)) as $registry |
+          ($registries | map(. as $reg | select($ref | startswith($reg))) | max_by(length)) as $registry |
           if $registry == null then error("No matching registry for image: \(.value)") else . end |
           ($ref | ltrimstr($registry) | ltrimstr("/")) as $image |
           "\($name)__CONTAINER__REGISTRY=\($registry)",
