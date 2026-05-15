@@ -13,7 +13,7 @@ namespace Kurrent.Client;
 /// </para>
 /// <para>
 /// Several predefined configurations are available as static properties to cover common scenarios:
-/// <see cref="Default"/>, <see cref="Insecure"/>, <see cref="MutualTls"/>.
+/// <see cref="Tls"/>, <see cref="Insecure"/>, <see cref="MutualTls"/>.
 /// </para>
 /// </remarks>
 [PublicAPI]
@@ -45,24 +45,17 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
     public ClientCredentials Authentication { get; set; } = ClientCredentials.None;
 
     /// <summary>
-    /// Default security settings with TLS enabled and server certificate verification.
-    /// No client authentication is configured.
+    /// TLS-only security with server certificate verification and no client authentication.
     /// </summary>
-    /// <returns>
-    /// A new <see cref="KurrentClientSecurityOptions"/> instance with secure-by-default settings.
-    /// </returns>
-    public static KurrentClientSecurityOptions Default =>
+    public static KurrentClientSecurityOptions Tls =>
         new() {
             Transport      = TransportSecurity.Standard,
             Authentication = ClientCredentials.None
         };
 
     /// <summary>
-    /// Insecure settings with TLS disabled. Only use for development.
+    /// Insecure settings with TLS disabled and no authentication. Only use for development.
     /// </summary>
-    /// <returns>
-    /// A new <see cref="KurrentClientSecurityOptions"/> instance with TLS disabled.
-    /// </returns>
     public static KurrentClientSecurityOptions Insecure =>
         new() {
             Transport      = TransportSecurity.None,
@@ -70,14 +63,11 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
         };
 
     /// <summary>
-    /// Mutual TLS authentication settings with client certificates from file paths.
+    /// Mutual TLS authentication with client certificates from file paths.
     /// </summary>
-    /// <param name="clientCertPath">Path to client certificate file</param>
-    /// <param name="clientKeyPath">Path to client private key file</param>
-    /// <param name="rootCaPath">Optional path to root CA certificate</param>
-    /// <returns>
-    /// A new <see cref="KurrentClientSecurityOptions"/> instance configured for mutual TLS authentication.
-    /// </returns>
+    /// <param name="clientCertPath">Path to client certificate file.</param>
+    /// <param name="clientKeyPath">Path to client private key file.</param>
+    /// <param name="rootCaPath">Optional path to root CA certificate.</param>
     public static KurrentClientSecurityOptions MutualTls(string clientCertPath, string clientKeyPath, string? rootCaPath = null) =>
         new() {
             Transport      = rootCaPath is not null ? TransportSecurity.Certificate(rootCaPath) : TransportSecurity.Standard,
@@ -85,13 +75,10 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
         };
 
     /// <summary>
-    /// Mutual TLS authentication settings using X509Certificate2 certificates.
+    /// Mutual TLS authentication using X509Certificate2 instances.
     /// </summary>
-    /// <param name="clientCertificate">Client certificate</param>
-    /// <param name="rootCaCertificate">Optional root CA certificate</param>
-    /// <returns>
-    /// A new <see cref="KurrentClientSecurityOptions"/> instance configured for mutual TLS authentication with certificate objects.
-    /// </returns>
+    /// <param name="clientCertificate">Client certificate.</param>
+    /// <param name="rootCaCertificate">Optional root CA certificate.</param>
     public static KurrentClientSecurityOptions MutualTls(X509Certificate2 clientCertificate, X509Certificate2? rootCaCertificate = null) =>
         new() {
             Transport      = rootCaCertificate is not null ? TransportSecurity.Certificate(rootCaCertificate) : TransportSecurity.Standard,
@@ -99,14 +86,11 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
         };
 
     /// <summary>
-    /// Basic authentication settings with username/password. Enables TLS for secure transmission.
+    /// Username/password authentication over TLS.
     /// </summary>
-    /// <param name="username">Username for authentication</param>
-    /// <param name="password">Password for authentication</param>
-    /// <returns>
-    /// A new <see cref="KurrentClientSecurityOptions"/> instance configured for username/password authentication.
-    /// </returns>
-    public static KurrentClientSecurityOptions Basic(string username, string password) =>
+    /// <param name="username">Username for authentication.</param>
+    /// <param name="password">Password for authentication.</param>
+    public static KurrentClientSecurityOptions Password(string username, string password) =>
         new() {
             Transport      = TransportSecurity.Standard, // Always use TLS with password authentication
             Authentication = new BasicCredentials(username, password)

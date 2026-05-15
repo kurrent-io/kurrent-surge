@@ -13,8 +13,8 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act
@@ -31,8 +31,8 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act
@@ -49,8 +49,8 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act
@@ -70,8 +70,8 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
             .Build();
 
         // act

@@ -37,8 +37,8 @@ public partial class StreamsClient {
     ) =>
         AppendStream(
             AppendStreamRequest.For(stream)
-                .ExpectingState(expectedState)
-                .WithRecords(records)
+                .ExpectedState(expectedState)
+                .AddRecords(records)
                 .Build(),
             cancellationToken);
 
@@ -49,7 +49,7 @@ public partial class StreamsClient {
     ) =>
         AppendStream(
             AppendStreamRequest.For(stream)
-                .WithRecords(records)
+                .AddRecords(records)
                 .Build(),
             cancellationToken
         );
@@ -61,8 +61,8 @@ public partial class StreamsClient {
     ) =>
         AppendStream(
             AppendStreamRequest.For(record.Stream)
-                .ExpectingState(expectedState)
-                .WithRecord(record)
+                .ExpectedState(expectedState)
+                .AddRecord(record)
                 .Build(),
             cancellationToken
         );
@@ -73,7 +73,7 @@ public partial class StreamsClient {
     ) =>
         AppendStream(
             AppendStreamRequest.For(record.Stream)
-                .WithRecord(record)
+                .AddRecord(record)
                 .Build(),
             cancellationToken
         );

@@ -5,7 +5,7 @@ namespace Kurrent.Client.Tests.Modules.Streams;
 [Category("Streams")]
 public class AppendStreamRequestBuilderTests {
     static AppendRecord ValidRecord(string stream = "test-stream") =>
-        AppendRecord.New.WithValue("payload").ForStream(stream).Build();
+        AppendRecord.New().Value("payload").Stream(stream).Build();
 
     #region ->> Build Validation <<-
 
@@ -22,7 +22,7 @@ public class AppendStreamRequestBuilderTests {
     public async ValueTask request_stream_matches_builder_stream() {
         // Arrange & Act
         var request = AppendStreamRequest.For("my-stream")
-            .WithRecord(ValidRecord())
+            .AddRecord(ValidRecord())
             .Build();
 
         // Assert
@@ -43,8 +43,8 @@ public class AppendStreamRequestBuilderTests {
 
         // Act
         var request = AppendStreamRequest.For(expectedStream)
-            .WithRecord(r1)
-            .WithRecord(r2)
+            .AddRecord(r1)
+            .AddRecord(r2)
             .Build();
 
         // Assert
@@ -60,8 +60,8 @@ public class AppendStreamRequestBuilderTests {
     public async ValueTask build_produces_stream_state_check_from_expecting_state() {
         // Arrange & Act
         var request = AppendStreamRequest.For("test-stream")
-            .ExpectingState(ExpectedStreamState.Exists)
-            .WithRecord(ValidRecord())
+            .ExpectedState(ExpectedStreamState.Exists)
+            .AddRecord(ValidRecord())
             .Build();
 
         // Assert
@@ -103,7 +103,7 @@ public class AppendStreamRequestBuilderTests {
     public async ValueTask with_record_action_overload() {
         // Act
         var request = AppendStreamRequest.For("test-stream")
-            .WithRecord(x => x.WithValue("from-action"))
+            .AddRecord(x => x.Value("from-action"))
             .Build();
 
         // Assert
@@ -116,7 +116,7 @@ public class AppendStreamRequestBuilderTests {
     public async ValueTask with_record_value_overload() {
         // Act
         var request = AppendStreamRequest.For("test-stream")
-            .WithMessage("simple-value")
+            .AddMessage("simple-value")
             .Build();
 
         // Assert
@@ -135,7 +135,7 @@ public class AppendStreamRequestBuilderTests {
 
         // Act
         var request = AppendStreamRequest.For("test-stream")
-            .WithRecords([r1, r2, r3])
+            .AddRecords([r1, r2, r3])
             .Build();
 
         // Assert
@@ -149,7 +149,7 @@ public class AppendStreamRequestBuilderTests {
 
         // Act
         var request = AppendStreamRequest.For("test-stream")
-            .WithRecords(records)
+            .AddRecords(records)
             .Build();
 
         // Assert
@@ -163,8 +163,8 @@ public class AppendStreamRequestBuilderTests {
     // [Test]
     // public async ValueTask with_data_format_overrides_all_records() {
     //     // Arrange
-    //     var r1 = AppendRecord.New.WithValue("a").ForStream("s").WithDataFormat(SchemaDataFormat.Json).Build();
-    //     var r2 = AppendRecord.New.WithValue("b").ForStream("s").WithDataFormat(SchemaDataFormat.Json).Build();
+    //     var r1 = AppendRecord.New().Value("a").Stream("s").DataFormat(SchemaDataFormat.Json).Build();
+    //     var r2 = AppendRecord.New().Value("b").Stream("s").DataFormat(SchemaDataFormat.Json).Build();
     //
     //     // Act
     //     var request = AppendStreamRequest.For("test-stream")
@@ -181,10 +181,10 @@ public class AppendStreamRequestBuilderTests {
     // [Test]
     // public async ValueTask preserves_record_data_format_when_no_override() {
     //     // Arrange
-    //     var record = AppendRecord.New
-    //         .WithValue("payload")
-    //         .ForStream("test-stream")
-    //         .WithDataFormat(SchemaDataFormat.Protobuf)
+    //     var record = AppendRecord.New()
+    //         .Value("payload")
+    //         .Stream("test-stream")
+    //         .DataFormat(SchemaDataFormat.Protobuf)
     //         .Build();
     //
     //     // Act
@@ -222,10 +222,10 @@ public class AppendStreamRequestBuilderTests {
     // [Test]
     // public async ValueTask with_metadata_overrides_existing_key() {
     //     // Arrange
-    //     var record = AppendRecord.New
-    //         .ForStream("test-stream")
-    //         .WithValue("payload")
-    //         .WithMetadata("source", "record-level")
+    //     var record = AppendRecord.New()
+    //         .Stream("test-stream")
+    //         .Value("payload")
+    //         .AddMetadata("source", "record-level")
     //         .Build();
     //
     //     var builder = AppendStreamRequest.For("test-stream")

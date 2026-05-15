@@ -7,7 +7,7 @@ public class AppendRecordsRequestTests {
     [Test]
     public async ValueTask ensure_valid_throws_when_record_has_no_stream() {
         var request = new AppendRecordsRequest(
-            [AppendRecord.New.WithValue("event").Build()],
+            [AppendRecord.New().Value("event").Build()],
             []
         );
 

@@ -10,7 +10,7 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
     /// <summary>
     /// Fluent builder for constructing <see cref="ReadRecordsRequest"/> instances.
     /// </summary>
-    public static Builder New => new();
+    public static Builder New() => new();
 
     /// <summary>
     /// Starting position for the read operation in the global log.

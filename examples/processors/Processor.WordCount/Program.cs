@@ -86,7 +86,7 @@ static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageTyp
 
         var req = AppendStreamRequest
             .For(stream)
-            .WithMessage(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow))
+            .AddMessage(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow))
             .Build();
         
         await client.Streams.AppendStream(req, ct);

@@ -29,7 +29,7 @@ public class ReadRecordsRequestBuilderTests {
         var position = LogPosition.From(100);
 
         // Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .FromPosition(position)
             .Build();
 
@@ -40,7 +40,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask from_latest_sets_latest_start_position() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .FromLatest()
             .Backwards()
             .Build();
@@ -52,7 +52,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask from_earliest_sets_earliest_start_position() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .FromEarliest()
             .Build();
 
@@ -63,7 +63,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask from_latest_backwards_sets_latest_start_and_backwards_direction() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .FromLatestBackwards()
             .Build();
 
@@ -75,7 +75,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask from_earliest_forwards_sets_earliest_start_and_forwards_direction() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .FromEarliestForwards()
             .Build();
 
@@ -91,7 +91,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask forward_sets_forwards_direction() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .Forwards()
             .Build();
 
@@ -102,7 +102,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask backwards_sets_backwards_direction() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .Backwards()
             .Build();
 
@@ -117,7 +117,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask with_max_records_sets_limit() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .Limit(200)
             .Build();
 
@@ -132,7 +132,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask skip_decoding_sets_flag_to_true() {
         // Arrange & Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .SkipDecoding()
             .Build();
 
@@ -150,7 +150,7 @@ public class ReadRecordsRequestBuilderTests {
         var filter = RecordFilter.None;
 
         // Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .Filter(filter)
             .Build();
 
@@ -164,7 +164,7 @@ public class ReadRecordsRequestBuilderTests {
         const string expression = "schema_name = 'OrderPlaced'";
 
         // Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .Filter(expression)
             .Build();
 
@@ -183,7 +183,7 @@ public class ReadRecordsRequestBuilderTests {
         var position = LogPosition.From(500);
 
         // Act
-        var request = ReadRecordsRequest.New
+        var request = ReadRecordsRequest.New()
             .FromPosition(position)
             .Backwards()
             .Limit(75)
@@ -204,7 +204,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public void build_throws_when_max_records_is_zero() {
         // Arrange
-        var builder = ReadRecordsRequest.New.Limit(0);
+        var builder = ReadRecordsRequest.New().Limit(0);
 
         // Act & Assert
         Assert.Throws<Exception>(() => builder.Build());
@@ -213,7 +213,7 @@ public class ReadRecordsRequestBuilderTests {
     [Test]
     public async ValueTask build_succeeds_with_default_values() {
         // Arrange
-        var builder = ReadRecordsRequest.New;
+        var builder = ReadRecordsRequest.New();
 
         // Act — should not throw
         var request = builder.Build();

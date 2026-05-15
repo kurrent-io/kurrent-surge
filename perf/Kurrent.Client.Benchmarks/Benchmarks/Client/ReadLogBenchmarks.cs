@@ -33,7 +33,7 @@ public class ReadLogBenchmarks {
     // TODO SS: wrong name or we need proper benchmark for reading with limit, forwards and backwards.
     [Benchmark(Description = "Read $all forward with limit")]
     public async Task<int> read_log_forward() {
-        var builder = ReadRecordsRequest.New
+        var builder = ReadRecordsRequest.New()
             .FromPosition(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
             .Limit(MessageCount);
 

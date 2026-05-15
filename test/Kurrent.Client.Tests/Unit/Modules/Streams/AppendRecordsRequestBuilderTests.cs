@@ -5,7 +5,7 @@ namespace Kurrent.Client.Tests.Modules.Streams;
 [Category("Streams")]
 public class AppendRecordsRequestBuilderTests {
     static AppendRecord ValidRecord(string stream = "test-stream") =>
-        AppendRecord.New.WithValue("payload").ForStream(stream).Build();
+        AppendRecord.New().Value("payload").Stream(stream).Build();
 
     #region ->> Build Validation <<-
 
@@ -22,7 +22,7 @@ public class AppendRecordsRequestBuilderTests {
     public void build_validates_all_records_have_streams() {
         // Arrange
         var builder = AppendRecordsRequest.New()
-            .WithRecord(b => b.WithValue("no-stream-assigned"));
+            .AddRecord(b => b.Value("no-stream-assigned"));
 
         // Act & Assert
         Assert.Throws<Exception>(() => builder.Build());
@@ -32,8 +32,8 @@ public class AppendRecordsRequestBuilderTests {
     public async ValueTask build_succeeds_when_all_records_have_streams() {
         // Arrange & Act
         var request = AppendRecordsRequest.New()
-            .WithRecord(ValidRecord("stream-a"))
-            .WithRecord(ValidRecord("stream-b"))
+            .AddRecord(ValidRecord("stream-a"))
+            .AddRecord(ValidRecord("stream-b"))
             .Build();
 
         // Assert
@@ -53,8 +53,8 @@ public class AppendRecordsRequestBuilderTests {
 
         // Act
         var request = AppendRecordsRequest.New()
-            .WithCheck(check)
-            .WithRecord(ValidRecord())
+            .AddCheck(check)
+            .AddRecord(ValidRecord())
             .Build();
 
         // Assert
@@ -73,8 +73,8 @@ public class AppendRecordsRequestBuilderTests {
 
         // Act
         var request = AppendRecordsRequest.New()
-            .WithChecks(check1, check2)
-            .WithRecord(ValidRecord())
+            .AddChecks(check1, check2)
+            .AddRecord(ValidRecord())
             .Build();
 
         // Assert
@@ -93,9 +93,9 @@ public class AppendRecordsRequestBuilderTests {
 
         // Act
         var request = AppendRecordsRequest.New()
-            .WithDataFormat(SchemaDataFormat.Protobuf)
-            .WithRecord(r1)
-            .WithRecord(r2)
+            .DataFormat(SchemaDataFormat.Protobuf)
+            .AddRecord(r1)
+            .AddRecord(r2)
             .Build();
 
         // Assert
@@ -111,9 +111,9 @@ public class AppendRecordsRequestBuilderTests {
 
         // Act
         var request = AppendRecordsRequest.New()
-            .WithMetadata("source", "batch")
-            .WithRecord(r1)
-            .WithRecord(r2)
+            .AddMetadata("source", "batch")
+            .AddRecord(r1)
+            .AddRecord(r2)
             .Build();
 
         // Assert
@@ -129,7 +129,7 @@ public class AppendRecordsRequestBuilderTests {
     public async ValueTask with_record_action_overload() {
         // Act
         var request = AppendRecordsRequest.New()
-            .WithRecord(b => b.WithValue("from-action").ForStream("test-stream"))
+            .AddRecord(b => b.Value("from-action").Stream("test-stream"))
             .Build();
 
         // Assert
@@ -147,7 +147,7 @@ public class AppendRecordsRequestBuilderTests {
 
         // Act
         var request = AppendRecordsRequest.New()
-            .WithRecords(r1, r2, r3)
+            .AddRecords(r1, r2, r3)
             .Build();
 
         // Assert

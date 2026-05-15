@@ -19,7 +19,7 @@ public class AppendRecordsTests {
 
         foreach (var i in Enumerable.Range(0, streams)) {
             var data = await Fixture.TestData.GenerateSet(ct);
-            builder.WithRecords(data.Records.Take(1));
+            builder.AddRecords(data.Records.Take(1));
         }
 
         var req = builder.Build();
@@ -44,8 +44,8 @@ public class AppendRecordsTests {
         var req = seededStreams
             .Aggregate(
                 new AppendRecordsRequest.Builder(), (builder, seededStream) => builder
-                    .WithRecords(seededStream.Records.Take(1)) // just append the first record again...
-                    .WithChecks(ConsistencyCheck.StreamAtRevision(seededStream.Stream, seededStream.Revision)))
+                    .AddRecords(seededStream.Records.Take(1)) // just append the first record again...
+                    .AddChecks(ConsistencyCheck.StreamAtRevision(seededStream.Stream, seededStream.Revision)))
             .Build();
 
         // Act
