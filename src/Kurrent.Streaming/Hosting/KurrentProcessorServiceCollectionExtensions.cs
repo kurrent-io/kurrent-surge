@@ -14,10 +14,11 @@ namespace Kurrent.Streaming;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every call registers a dedicated <see cref="DroneService{TProcessor}"/>. Each processor
-/// owns its own <see cref="Client.KurrentClient"/> — client instances are never shared across
-/// processors. Duplicate <c>AddKurrentProcessor&lt;T&gt;</c> calls for the same <c>T</c> are no-ops
-/// (first-wins) — deduped by <c>DroneService&lt;T&gt;</c>'s closed type.
+/// Every call registers a dedicated <see cref="DroneService{TProcessor}"/> (for single-record
+/// processors) or <see cref="DroneBatchService{TProcessor}"/> (for batch processors). Each
+/// processor owns its own <see cref="Client.KurrentClient"/> — client instances are never shared
+/// across processors. Duplicate calls for the same <c>T</c> are no-ops (first-wins) — deduped
+/// by the closed hosted-service type.
 /// </para>
 /// <para>
 /// <b>Processor resolution:</b>
@@ -155,6 +156,114 @@ public static class KurrentProcessorServiceCollectionExtensions {
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor =>
         services.AddKurrentProcessor(_ => instance, configure);
+
+    #endregion
+
+    #region ->> Batch — Bare overloads (user must register TProcessor in DI) <<-
+
+    /// <summary>
+    /// Registers a batch processor as a hosted service. <typeparamref name="TProcessor"/> must be
+    /// registered separately via <c>services.AddSingleton&lt;TProcessor&gt;()</c> or equivalent —
+    /// it is resolved at drone startup via <c>sp.GetRequiredService&lt;TProcessor&gt;()</c>.
+    /// </summary>
+    public static IServiceCollection AddKurrentBatchProcessor<TProcessor>(
+        this IServiceCollection services,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor =>
+        services.AddKurrentBatchProcessor<TProcessor>(
+            static sp => sp.GetRequiredService<TProcessor>(),
+            (opts, _) => configure?.Invoke(opts));
+
+    /// <summary>
+    /// Registers a batch processor as a hosted service with <see cref="IServiceProvider"/>-aware configure.
+    /// <typeparamref name="TProcessor"/> must be registered separately in DI.
+    /// </summary>
+    public static IServiceCollection AddKurrentBatchProcessor<TProcessor>(
+        this IServiceCollection services,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor =>
+        services.AddKurrentBatchProcessor<TProcessor>(
+            static sp => sp.GetRequiredService<TProcessor>(),
+            configure);
+
+    #endregion
+
+    #region ->> Batch — Factory overloads <<-
+
+    /// <summary>
+    /// Registers a batch processor as a hosted service using a factory. The factory is invoked once
+    /// per drone at host startup; the processor type is not added to the DI container.
+    /// </summary>
+    public static IServiceCollection AddKurrentBatchProcessor<TProcessor>(
+        this IServiceCollection services,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor =>
+        services.AddKurrentBatchProcessor(processorFactory, (opts, _) => configure?.Invoke(opts));
+
+    /// <summary>
+    /// Registers a batch processor as a hosted service using a factory with <see cref="IServiceProvider"/>-aware configure.
+    /// </summary>
+    public static IServiceCollection AddKurrentBatchProcessor<TProcessor>(
+        this IServiceCollection services,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor {
+        EnsureDiagnosticsRegistered(services);
+
+        services.TryRegisterHostedService<DroneBatchService<TProcessor>>(sp => {
+            var configuration = sp.GetService<IConfiguration>();
+            var options       = new ProcessorOptions();
+
+            if (configuration is not null)
+                options.FromConfiguration(configuration, typeof(TProcessor).Name);
+
+            configure(options, sp);
+
+            if (string.IsNullOrWhiteSpace(options.ProcessorId))
+                options.ProcessorId = typeof(TProcessor).Name.ToKebabCase();
+
+            if (options.ClientOptions is null) {
+                var clientOptions = sp.GetService<KurrentClientOptions>();
+                if (clientOptions is not null)
+                    options.Connection(clientOptions);
+                else if (configuration is not null)
+                    ResolveClientOptions(options, configuration);
+            }
+
+            var processor = processorFactory(sp);
+            var drone     = new KurrentProcessor(options, processor).Build();
+            var logger    = sp.GetRequiredService<ILogger<DroneBatchService<TProcessor>>>();
+            return new DroneBatchService<TProcessor>(drone, logger);
+        });
+
+        return services;
+    }
+
+    #endregion
+
+    #region ->> Batch — Instance overloads <<-
+
+    /// <summary>
+    /// Registers a batch processor as a hosted service using a pre-built instance.
+    /// </summary>
+    public static IServiceCollection AddKurrentBatchProcessor<TProcessor>(
+        this IServiceCollection services,
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor =>
+        services.AddKurrentBatchProcessor(_ => instance, configure);
+
+    /// <summary>
+    /// Registers a batch processor as a hosted service using a pre-built instance with
+    /// <see cref="IServiceProvider"/>-aware configure.
+    /// </summary>
+    public static IServiceCollection AddKurrentBatchProcessor<TProcessor>(
+        this IServiceCollection services,
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor =>
+        services.AddKurrentBatchProcessor(_ => instance, configure);
 
     #endregion
 
