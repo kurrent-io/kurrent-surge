@@ -255,25 +255,23 @@ static class StreamsClientV1Mapper {
         bool skipDecoding = false,
         CancellationToken ct = default
     ) {
-        // If the `ReadEvent` contains a link (type: $>) the event might
-        // be resolved only if `ResolveLinks` was set to true.
-        // In case that the event is there, we simply return it as the record,
-        // plus the link information.
-        // Otherwise the record is a link and then im not sure if the Link
-        // object should contain the exact same information.
-        
-        var link = readEvent is { Link: { } linkEvent, Event: { } }
-            ? new() {
+        // The server always populates at least one of Event or Link:
+        //   Event + Link → resolved link (record is the event, link carries source metadata)
+        //   Link only    → unresolved link (record IS the link itself)
+        //   Event only   → regular event
+        var recorded = readEvent.Event ?? readEvent.Link
+            ?? throw new UnreachableException("ReadEvent has neither Event nor Link.");
+
+        var isLink = readEvent.Event is null;
+
+        var link = readEvent is { Link: { } linkEvent, Event: not null }
+            ? new Link {
                 Name     = linkEvent.Metadata[Constants.Metadata.Type],
                 Position = (long)linkEvent.CommitPosition,
                 Revision = (long)linkEvent.StreamRevision,
                 Stream   = StreamName.From(linkEvent.StreamIdentifier!),
             }
             : Link.Unset;
-        
-        var isLink = readEvent.Event is null && link.IsUnset; // the record will be just the link
-      
-        var recorded = readEvent.Event ?? readEvent.Link;
         
         var stream    = StreamName.From(recorded.StreamIdentifier);
         var recordId  = Uuid.FromDto(recorded.Id).ToGuid();
@@ -293,10 +291,8 @@ static class StreamsClientV1Mapper {
 
         var schema = metadata.ExtractSchemaInfo();
         
-        // create a decoder
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);
 
-        // and we are done
         var record = new Record(decoder) {
             Id        = recordId,
             Position  = RecordPosition.From(position, stream, revision),
@@ -309,7 +305,6 @@ static class StreamsClientV1Mapper {
             IsLink    = isLink
         };
 
-        // now decode the record if required
         if (!skipDecoding)
             await record.TryDecode(ct).ConfigureAwait(false);
 
