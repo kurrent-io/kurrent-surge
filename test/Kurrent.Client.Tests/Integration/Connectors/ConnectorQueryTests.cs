@@ -19,6 +19,8 @@ public class ConnectorQueryTests {
         await Fixture.Client.Connectors
             .Create(connectorId, name, settings, ct);
 
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
+
         var options = new ConnectorListOptions { ConnectorIds = [connectorId] };
 
         var result = await Fixture.Client.Connectors

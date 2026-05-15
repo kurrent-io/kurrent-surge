@@ -1,4 +1,5 @@
 using Kurrent.Client.Indexes;
+using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Indexes;
@@ -21,6 +22,8 @@ public class ListIndexesTests {
 
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'InvoiceCreated'", fields, cancellationToken: ct);
+
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         var indexes = await Fixture.Client.Indexes.List(ct);
 
