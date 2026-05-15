@@ -1,4 +1,4 @@
-client:
+area-client:
   - changed-files:
     - any-glob-to-any-file:
       - src/Kurrent.Client/**
@@ -10,37 +10,13 @@ client:
       - test/Kurrent.CodeAnalysis.Tests/**
       - test/Variant.Tests/**
 
-processing:
+area-streaming:
   - changed-files:
     - any-glob-to-any-file:
-      - src/Kurrent.Processors/**
-      - test/Kurrent.Processors.Tests/**
+      - src/Kurrent.Streaming/**
+      - test/Kurrent.Streaming.Tests/**
 
-contracts:
-  - changed-files:
-      - any-glob-to-any-file: proto/**
-
-cli:
-  - changed-files:
-    - any-glob-to-any-file: src/Kurrent.Cli/**
-
-benchmarks:
-  - changed-files:
-      - any-glob-to-any-file: perf/**
-
-documentation:
-  - changed-files:
-    - any-glob-to-any-file:
-      - docs/**
-      - README.md
-      - CONTRIBUTING.md
-      - LICENSE.md
-
-test:
-  - changed-files:
-    - any-glob-to-any-file: test/**
-
-ci:
+area-infrastructure:
   - changed-files:
     - any-glob-to-any-file:
       - .github/workflows/**
@@ -53,27 +29,45 @@ ci:
       - .config/**
       - global.json
       - nuget.config
+      - Directory.Build.props
+      - Directory.Packages.props
+
+area-testing:
+  - changed-files:
+    - any-glob-to-any-file:
+      - test/Kurrent.Testing/**
+      - test/Aspire.Hosting.KurrentDB/**
+      - test/Aspire.Hosting.KurrentDB.Tests/**
+
+area-tooling:
+  - changed-files:
+    - any-glob-to-any-file:
+      - tools/**
+
+area-samples:
+  - changed-files:
+    - any-glob-to-any-file:
+      - examples/**
+
+perf:
+  - changed-files:
+    - any-glob-to-any-file:
+      - perf/**
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - docs/**
+      - README.md
+      - CONTRIBUTING.md
+      - LICENSE.md
+
+test:
+  - changed-files:
+    - any-glob-to-any-file:
+      - test/**
 
 tooling:
   - changed-files:
-    - any-glob-to-any-file: tools/**
-
-examples:
-  - changed-files:
-    - any-glob-to-any-file: examples/**
-
-agents:
-  - changed-files:
     - any-glob-to-any-file:
-      - .claude/**
-      - .agents/**
-      - .project/**
-      - CLAUDE.md
-      - AGENTS.md
-      - mcp.json
-      - context7.json
-      - .github/copilot-instructions.md
-      - .github/git-commit-instructions.md
-      - .qodo/**
-      - pr_agent.toml
-      - .junie/**
+      - tools/**

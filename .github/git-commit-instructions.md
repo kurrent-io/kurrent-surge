@@ -32,12 +32,10 @@ Expert guidance for creating commit messages that follow the Conventional Commit
 
 While not mandated by the specification, these types are widely adopted:
 
-- **build:** Build system, project files, build scripts
 - **chore:** Routine tasks, maintenance (no production code change)
-- **ci:** CI/CD pipeline changes
+- **ci:** CI/CD, build system, project files, infrastructure, Docker, deployment
 - **deps:** Dependency updates (version bumps, added/removed packages)
 - **docs:** Documentation changes only
-- **infra:** Infrastructure, Docker, Terraform, Kubernetes, deployment
 - **perf:** Performance improvements
 - **refactor:** Code changes that neither fix bugs nor add features
 - **revert:** Reverts a previous commit
@@ -63,7 +61,7 @@ Use dot notation for module-level precision within a package: `type(package.modu
 | Scope        | Area                                |
 |--------------|-------------------------------------|
 | `client`     | Kurrent.Client package              |
-| `processing` | Kurrent.Processing package          |
+| `streaming`  | Kurrent.Streaming package           |
 | `variant`    | Variant discriminated union library |
 | `testing`    | Shared test infrastructure          |
 
@@ -86,8 +84,8 @@ Use `client.module` when the change is scoped to a specific module within the cl
 feat(client.streams): added bidirectional read support
 fix(client.connectors): corrected timeout on status polling
 refactor(client.legacy): extracted shared retry logic
-feat(processing): added dead-letter queue for failed records
-fix(processing): corrected offset drift on partition rebalance
+feat(streaming): added dead-letter queue for failed records
+fix(streaming): corrected offset drift on partition rebalance
 test(testing): added new read test for empty stream
 perf(client.schema): reduced allocations in type mapper lookup
 docs(client.registry): documented schema evolution rules

@@ -7,12 +7,6 @@ on:
     types: [opened, edited, synchronize, ready_for_review]
   merge_group:
 
-# Cancel in-progress runs when a new commit is pushed to the same branch/PR.
-# Merge queue runs are unaffected — each gets a unique ref (gh-readonly-queue/...).
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
@@ -22,6 +16,12 @@ jobs:
     name: Build and Test
 
     if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.action == 'synchronize'
+    
+    # Cancel in-progress runs when a new commit is pushed to the same branch/PR.
+    # Merge queue runs are unaffected — each gets a unique ref (gh-readonly-queue/...).
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: true
 
     runs-on: ubuntu-latest
 
@@ -111,4 +111,3 @@ jobs:
 
       - name: Validate and Label
         uses: ./.github/actions/conventional-commits
-
