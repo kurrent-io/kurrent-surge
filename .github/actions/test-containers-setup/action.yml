@@ -43,12 +43,12 @@ runs:
       shell: bash
       run: |
         if ! command -v yq &>/dev/null; then
-          curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
+          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
         fi
         if ! command -v jq &>/dev/null; then
-          curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o /usr/local/bin/jq
-          chmod +x /usr/local/bin/jq
+          sudo curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o /usr/local/bin/jq
+          sudo chmod +x /usr/local/bin/jq
         fi
 
     - name: Login to registries
