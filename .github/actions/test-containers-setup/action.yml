@@ -43,8 +43,9 @@ runs:
       shell: bash
       run: |
         if ! command -v yq &>/dev/null; then
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+          curl -fsSL -o /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo install /tmp/yq /usr/local/bin/yq
+          rm /tmp/yq
         fi
 
     - name: Login to registries
