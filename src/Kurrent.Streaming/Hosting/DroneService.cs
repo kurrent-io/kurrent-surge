@@ -6,7 +6,7 @@ internal sealed partial class DroneService<TProcessor>(
     IDrone drone,
     ILogger<DroneService<TProcessor>> logger
 ) : BackgroundService
-    where TProcessor : class, IRecordProcessor {
+    where TProcessor : class, IProcessor {
     /// <summary>
     /// The drone this service hosts. Internal for testing purposes.
     /// </summary>
