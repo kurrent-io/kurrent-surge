@@ -14,11 +14,11 @@ namespace Kurrent.Streaming;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every call registers a dedicated <see cref="DroneService{TProcessor}"/> (for single-record
-/// processors) or <see cref="DroneBatchService{TProcessor}"/> (for batch processors). Each
-/// processor owns its own <see cref="Client.KurrentClient"/> — client instances are never shared
-/// across processors. Duplicate calls for the same <c>T</c> are no-ops (first-wins) — deduped
-/// by the closed hosted-service type.
+/// Every call registers a dedicated <see cref="DroneService{TProcessor}"/>. Each processor
+/// owns its own <see cref="Client.KurrentClient"/> — client instances are never shared across
+/// processors. Duplicate <c>AddKurrentProcessor&lt;T&gt;</c> / <c>AddKurrentBatchProcessor&lt;T&gt;</c>
+/// calls for the same <c>T</c> are no-ops (first-wins) — deduped by <c>DroneService&lt;T&gt;</c>'s
+/// closed type.
 /// </para>
 /// <para>
 /// <b>Processor resolution:</b>
