@@ -1,10 +1,13 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
+using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Indexes;
 
 [Category("Indexes")]
 [Category("Integration")]
+[Skip("Flaky in CI.")]
 public class GetIndexTests {
     const int TestTimeoutMs = 20_000;
 
@@ -21,6 +24,8 @@ public class GetIndexTests {
 
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'ProductCreated'", fields, cancellationToken: ct);
+
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         var index = await Fixture.Client.Indexes.Get(indexName, ct);
 

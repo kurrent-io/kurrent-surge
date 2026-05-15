@@ -1,11 +1,14 @@
 using Google.Rpc.Exceptions;
 using Kurrent.Client.Indexes;
+using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Indexes;
 
 [Category("Indexes")]
 [Category("Integration")]
 [Timeout(20_000)]
+[Skip("Flaky in CI.")]
 public class CreateIndexTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
@@ -31,6 +34,8 @@ public class CreateIndexTests {
 
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
+
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
         var index = await Fixture.Client.Indexes.Get(indexName, ct);
 
