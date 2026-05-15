@@ -42,6 +42,9 @@ runs:
     - name: Install yq
       uses: mikefarah/yq@master
 
+    - name: Install jq
+      uses: dcarbone/install-jq-action@v3
+
     - name: Login to registries
       if: inputs.registries != ''
       shell: bash
