@@ -965,7 +965,7 @@ public class ConfigurationTests {
         });
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneBatchService<TestableBatchProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
         await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
@@ -983,7 +983,7 @@ public class ConfigurationTests {
         });
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneBatchService<TestableBatchProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
     }
@@ -998,7 +998,7 @@ public class ConfigurationTests {
         });
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneBatchService<TestableBatchProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("testable-batch-processor");
     }
@@ -1021,7 +1021,7 @@ public class ConfigurationTests {
         var hosted   = provider.GetServices<IHostedService>().ToList();
 
         var expectedRecordService = hosted.OfType<DroneService<TestableRecordProcessor>>().SingleOrDefault();
-        var expectedBatchService  = hosted.OfType<DroneBatchService<TestableBatchProcessor>>().SingleOrDefault();
+        var expectedBatchService  = hosted.OfType<DroneService<TestableBatchProcessor>>().SingleOrDefault();
 
         await Assert.That(expectedRecordService).IsNotNull();
         await Assert.That(expectedBatchService).IsNotNull();
@@ -1051,7 +1051,7 @@ public class ConfigurationTests {
         services.AddKurrentBatchProcessor(new TestableBatchProcessor());
 
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneBatchService<TestableBatchProcessor>>().Single();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("batch-config-processor");
         await Assert.That(droneService.Drone.Options.BufferCapacity).IsEqualTo(2000);

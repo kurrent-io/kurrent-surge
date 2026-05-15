@@ -211,7 +211,7 @@ public static class KurrentProcessorServiceCollectionExtensions {
         where TProcessor : class, IRecordBatchProcessor {
         EnsureDiagnosticsRegistered(services);
 
-        services.TryRegisterHostedService<DroneBatchService<TProcessor>>(sp => {
+        services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
             var configuration = sp.GetService<IConfiguration>();
             var options       = new ProcessorOptions();
 
@@ -233,8 +233,8 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
             var processor = processorFactory(sp);
             var drone     = new KurrentProcessor(options, processor).Build();
-            var logger    = sp.GetRequiredService<ILogger<DroneBatchService<TProcessor>>>();
-            return new DroneBatchService<TProcessor>(drone, logger);
+            var logger    = sp.GetRequiredService<ILogger<DroneService<TProcessor>>>();
+            return new DroneService<TProcessor>(drone, logger);
         });
 
         return services;
