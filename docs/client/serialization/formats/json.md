@@ -7,7 +7,7 @@ order: 1
 <CopyMarkdownButton />
 
 ::: tip
-JSON is the default serializer. Records appended without an explicit `WithDataFormat` call are encoded as JSON using `System.Text.Json`. JSON is also the only format that participates in server-side schema registration and validation today.
+JSON is the default. Records appended without an explicit `WithDataFormat` call are encoded as JSON using `System.Text.Json`. It is also the only format that participates in server-side schema registration and validation today.
 :::
 
 ## Append a JSON record
@@ -23,46 +23,35 @@ await client.Streams.AppendStream(record);
 
 The content type on the wire is `application/json`.
 
-## Tuning the serializer
+## Customize the serializer
 
-The JSON serializer is configured by `JsonSchemaSerializerOptions` on the client's schema options.
-
-| Setting                       | Default                                       |
-|-------------------------------|-----------------------------------------------|
-| `PropertyNamingPolicy`        | `JsonNamingPolicy.CamelCase`                  |
-| `DictionaryKeyPolicy`         | `JsonNamingPolicy.CamelCase`                  |
-| `PropertyNameCaseInsensitive` | `false`                                       |
-| `DefaultIgnoreCondition`      | `JsonIgnoreCondition.WhenWritingNull`         |
-| `UnmappedMemberHandling`      | `JsonUnmappedMemberHandling.Skip`             |
-| `UnknownTypeHandling`         | `JsonUnknownTypeHandling.JsonNode`            |
-| `NumberHandling`              | `JsonNumberHandling.AllowReadingFromString`   |
-| TimeSpan converters           | ISO-8601 (nullable and non-nullable)          |
-| NodaTime                      | Configured via `NodaTime.Serialization.SystemTextJson` (TZDB) |
-| `UseProtobufFormatter`        | `true`                                        |
-
-Pass a customized options record on the client:
+The JSON serializer is configured through `JsonSchemaSerializerOptions` on the client's schema options. Pass a customized record to override any of the defaults:
 
 ```csharp
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
     opts => opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
-        UseProtobufFormatter = false
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     });
 ```
 
-## Type resolution
+Defaults:
 
-The resolver chain runs in this order:
+| Setting                       | Default                                          |
+|-------------------------------|--------------------------------------------------|
+| `PropertyNamingPolicy`        | `JsonNamingPolicy.CamelCase`                     |
+| `DictionaryKeyPolicy`         | `JsonNamingPolicy.CamelCase`                     |
+| `PropertyNameCaseInsensitive` | `false`                                          |
+| `DefaultIgnoreCondition`      | `JsonIgnoreCondition.WhenWritingNull`            |
+| `UnmappedMemberHandling`      | `JsonUnmappedMemberHandling.Skip`                |
+| `UnknownTypeHandling`         | `JsonUnknownTypeHandling.JsonNode`               |
+| `NumberHandling`              | `JsonNumberHandling.AllowReadingFromString`      |
+| TimeSpan converters           | ISO-8601 (nullable and non-nullable)             |
+| NodaTime                      | TZDB via `NodaTime.Serialization.SystemTextJson` |
 
-1. The internal `KurrentJsonContext` source generator.
-2. Any `JsonSerializerContext` instances supplied via `UserJsonContexts`.
-3. Reflection fallback.
+## AOT
 
-Apply your own converters and source-gen settings on the contexts you register. The internal context is always first in the chain, so it can be overridden by user contexts only for types it does not own.
-
-## AOT and source generation
-
-For ahead-of-time scenarios, register a source-generated context. Each context is added to the resolver chain alongside the internal context.
+For ahead-of-time scenarios, register a source-generated `JsonSerializerContext` so reflection is not needed at runtime:
 
 ```csharp
 [JsonSerializable(typeof(OrderPlaced))]
@@ -76,20 +65,8 @@ await using var client = KurrentClient.Create(
     });
 ```
 
-Multiple contexts can be supplied. The reflection fallback handles types not covered by any registered context.
+Multiple contexts can be registered. Types not covered by any registered context fall back to reflection.
 
-## Protobuf JSON formatter
-
-When a value implements `Google.Protobuf.IMessage` and `UseProtobufFormatter` is enabled (the default), the JSON serializer delegates to Protobuf's canonical JSON mapping rather than vanilla `System.Text.Json` reflection. The record is still stored as JSON. The encoding differs only for protobuf-generated types.
-
-Disable the formatter when you want straight `System.Text.Json` behavior on those types:
-
-```csharp
-opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
-    UseProtobufFormatter = false
-};
-```
-
-## Registry integration
+## Registry
 
 JSON records participate fully in the [schema registry](../../schema-registry/README.md). With `AutoRegister` on, the first append for a type creates a schema. With `PreValidate` on, every outgoing payload is validated against the registered schema before it leaves the client.

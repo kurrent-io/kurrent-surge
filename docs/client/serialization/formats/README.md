@@ -8,28 +8,24 @@ index: false
 
 <CopyMarkdownButton />
 
-`SchemaDataFormat` controls how a record's payload is encoded on the wire. The format is set per record on the append builder. JSON is the default and works without configuration.
+Every record carries a data format that tells the client how to encode the payload on append and decode it on read. JSON is the default and works without configuration. Set a different format per record on the append builder when you need it.
 
-| Format     | Content type                       | Status                          |
-|------------|------------------------------------|---------------------------------|
-| [`Json`](./json.md)         | `application/json`                 | Default. Full registry integration. |
-| [`Protobuf`](./protobuf.md) | `application/vnd.google.protobuf`  | Supported. Local mapping only.  |
-| [`Bytes`](./bytes.md)       | `application/octet-stream`         | Passthrough. No decode on read. |
-| [`Avro`](./avro.md)         | `application/vnd.apache.avro+json` | Reserved. Not implemented.      |
+## What's available
 
-## Choosing a format
+| Format                            | Content type                       | Status                                   |
+|-----------------------------------|------------------------------------|------------------------------------------|
+| [JSON](./json.md)                 | `application/json`                 | Default. Works with the schema registry. |
+| [Protocol Buffers](./protobuf.md) | `application/vnd.google.protobuf`  | Supported. Local schema mapping only.    |
+| [Raw bytes](./bytes.md)           | `application/octet-stream`         | Passthrough. Not decoded on read.        |
+| [Avro](./avro.md)                 | `application/vnd.apache.avro+json` | Reserved. Not implemented yet.           |
 
-| If you...                                              | Pick                          |
-|--------------------------------------------------------|-------------------------------|
-| Have no specific format requirement                    | `Json`                        |
-| Need server-side schema registration and validation    | `Json`                        |
-| Already have `.proto` types and a Protobuf toolchain   | `Protobuf`                    |
-| Hold pre-encoded payloads (compressed, encrypted, etc.) | `Bytes`                       |
+## Pick a format
 
-JSON is the only format that participates in registry validation today. Protobuf and bytes still flow through the type mapper and naming strategy locally but skip the registry round-trip even when auto-register and pre-validate are on. See [Schema Registry › Client options](../../schema-registry/client-options.md).
+| If you...                                               | Pick             |
+|---------------------------------------------------------|------------------|
+| Just want something that works                          | JSON             |
+| Want server-side schema registration and validation     | JSON             |
+| Already have `.proto` types and a Protobuf toolchain    | Protocol Buffers |
+| Hold pre-encoded payloads (compressed, encrypted, etc.) | Raw bytes        |
 
-## Errors
-
-If a value cannot be serialized in the chosen format, the serializer raises `SchemaSerializationFailedException`. Choosing `Avro` raises `SchemaSerializerNotFoundException`. On the append path both reach the caller wrapped in an `ArgumentException` whose `InnerException` carries the original.
-
-The per-format pages cover the specifics: [JSON](./json.md), [Protocol Buffers](./protobuf.md), [Raw bytes](./bytes.md), [Avro](./avro.md).
+JSON is the only format that participates in registry validation today. Protocol Buffers and raw bytes still flow through the type mapper and naming strategy locally, so reads decode automatically when the type is mapped. They simply skip the registry round-trip. See [Schema Registry > Client options](../../schema-registry/client-options.md) for the registry flags.
