@@ -55,28 +55,15 @@ The builder honors the configured naming strategy, so the generated schema names
 
 ## Overriding the default name
 
-The naming strategy gives you a default. The mapper is where you override it. Common reasons:
+The naming strategy gives you a default. The mapper is where you override it.
 
-**Cross-language consumers read the stream.** A Go service indexing on `order.placed.v1` doesn't care about your .NET namespaces. Pick a stable, language-neutral name and pin it.
+The most common reason that isn't about evolving an existing stream is cross-language consumers. A Go service indexing on `order.placed.v1` does not care about your .NET namespaces. Pick a stable, language-neutral name and pin it:
 
 ```csharp
 .Map<OrderPlaced>("order.placed.v1")
 ```
 
-**A .NET class is renamed after records have shipped.** Six months of records sit on the stream under `order.shipped.v1`. The class is now `OrderShippedV2` because the team agreed on a clearer name. Pin the old wire name and the rename ships safely.
-
-```csharp
-.Map<OrderShippedV2>("order.shipped.v1")
-```
-
-**Two versions of the same payload coexist on the same stream.** When a shape change is not backward compatible, both versions live on the stream until v1 ages out. Each version is a distinct .NET type with a distinct schema name.
-
-```csharp
-.Map<OrderShippedV1>("order.shipped.v1")
-.Map<OrderShippedV2>("order.shipped.v2")
-```
-
-For the full story on evolving stored records, see [Schema evolution](./schema-evolution.md).
+Renaming a class, running multiple versions of a record on the same stream, and migrating between naming strategies are also mapper overrides. Each is covered end-to-end in [Schema evolution](./schema-evolution.md).
 
 ## Registration
 
