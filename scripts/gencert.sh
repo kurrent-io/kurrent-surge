@@ -170,8 +170,10 @@ ensure_gencert() {
         return
     fi
 
-    local cached
-    cached=$(find "$GENCERT_CACHE_DIR" -name "es-gencert-cli" -type f -perm /111 2>/dev/null | head -1)
+    local cached=""
+    while IFS= read -r -d '' f; do
+        [[ -x "$f" ]] && cached="$f" && break
+    done < <(find "$GENCERT_CACHE_DIR" -name "es-gencert-cli" -type f -print0 2>/dev/null)
     if [[ -n "$cached" ]]; then
         GENCERT_BIN="$cached"
         GENCERT_VERSION=$(basename "$(dirname "$cached")")
