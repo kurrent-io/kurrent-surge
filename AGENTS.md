@@ -72,4 +72,5 @@ Read these before working on related areas. Do not read all upfront.
 | [Architecture](.claude/context/project/architecture.md)               | Before structural changes, new modules, or protocol work |
 | [Kurrent.Client](.claude/context/project/client.md)                   | Before working on the client library                     |
 | [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
+| [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
 | [Versioning](.claude/context/project/versioning.md)                   | Before computing versions or publishing packages         |
