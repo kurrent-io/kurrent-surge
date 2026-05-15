@@ -111,7 +111,7 @@ export default defineUserConfig({
                     children: "structure",
                 },
             ],
-            "/processor/": "structure",
+            "/streaming/": "structure",
         },
         navbar: [
             {
@@ -119,8 +119,8 @@ export default defineUserConfig({
                 link: "/client/quickstart",
             },
             {
-                text: "Processor",
-                link: "/processor/getting-started",
+                text: "Streaming",
+                link: "/streaming/getting-started",
             },
         ],
         markdown: {
