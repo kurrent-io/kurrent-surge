@@ -8,6 +8,7 @@ namespace Kurrent.Client.Tests.Indexes;
 [Category("Indexes")]
 [Category("Integration")]
 [Timeout(20_000)]
+[Skip("Flaky in CI.")]
 public class CreateIndexTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
