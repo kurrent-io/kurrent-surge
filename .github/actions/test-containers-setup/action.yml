@@ -39,6 +39,15 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Install yq
+      shell: bash
+      run: |
+        if ! command -v yq &>/dev/null; then
+          curl -fsSL -o /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo install /tmp/yq /usr/local/bin/yq
+          rm /tmp/yq
+        fi
+
     - name: Login to registries
       if: inputs.registries != ''
       shell: bash
