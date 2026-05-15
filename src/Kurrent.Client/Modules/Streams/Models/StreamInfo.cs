@@ -217,7 +217,7 @@ public record StreamAcl {
         """;
 }
 
-#region ->> Mappings  <<-
+#region ->> Mappings <<-
 
 /// <summary>
 /// Represents metadata associated with a stream in KurrentDB.

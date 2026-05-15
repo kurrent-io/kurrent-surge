@@ -2,10 +2,6 @@
 
 using System.Buffers;
 using System.Diagnostics;
-using System.Text;
-using Google.Protobuf;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema.Serialization.Protobuf;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Schema.Serialization.Bytes;

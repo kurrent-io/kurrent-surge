@@ -1,7 +1,5 @@
 // ReSharper disable CheckNamespace
 
-using Kurrent.Client.Connectors;
-using Kurrent.Testkit.Aspire;
 using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Client.Tests.Fixtures;
