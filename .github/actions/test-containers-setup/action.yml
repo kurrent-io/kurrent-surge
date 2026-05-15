@@ -1,8 +1,9 @@
 name: Test Containers Setup
 description: >
   Logs into one or more Docker registries, pulls images in parallel, and sets
-  TESTCONTAINER_*_IMAGE environment variables for each container used in
-  integration tests.
+  {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} environment variables for each
+  container used in integration tests. Image references are validated against
+  the configured registries.
 
   Registry entries without credentials fall back to default-credentials.
 
@@ -56,10 +57,20 @@ runs:
     - name: Setup test containers environment
       shell: bash
       run: |
-        echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | "TESTCONTAINER_\(.key)_IMAGE=\(.value)"' >> $GITHUB_ENV
+        REGISTRIES=$(printf '%s' '${{ inputs.registries }}' | yq -o=json | jq '[.[].registry]')
 
-        echo "Set the following container variables:"
-        echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | "TESTCONTAINER_\(.key)_IMAGE=\(.value)"'
+        echo '${{ inputs.images }}' | yq -o=json | jq -r --argjson registries "$REGISTRIES" '
+          to_entries[] |
+          (.key | ascii_upcase) as $name |
+          (.value | split(":")) as [$ref, $tag] |
+          ($tag // "latest") as $tag |
+          ($registries | map(select($ref | startswith(.))) | max_by(length)) as $registry |
+          if $registry == null then error("No matching registry for image: \(.value)") else . end |
+          ($ref | ltrimstr($registry) | ltrimstr("/")) as $image |
+          "\($name)__CONTAINER__REGISTRY=\($registry)",
+          "\($name)__CONTAINER__IMAGE=\($image)",
+          "\($name)__CONTAINER__TAG=\($tag)"
+        ' | tee -a $GITHUB_ENV
 
     - name: Pull Docker images
       shell: bash
