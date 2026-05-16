@@ -40,6 +40,13 @@ jobs:
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
+      - name: Enable Automated Test Report Artifact Upload
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5.2.0
         with:
@@ -59,9 +66,13 @@ jobs:
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
-          --results-directory ./artifacts/test-results
-          -- --treenode-filter "/*/*/*/*[Category!=Integration]"
-          --disable-logo --report-trx --coverage
+          --results-directory .artifacts/test-results/unit
+          --
+          --disable-logo
+          --treenode-filter "/*/*/*/*[Category!=Integration]"
+          --coverage --coverage-output "report.cobertura"
+          --report-trx --report-trx-filename "report.trx"
+          --report-html-filename ".artifacts/test-results/unit/report.html"
 
       - name: Test Containers Setup
         if: env.IS_DIRECT_PUSH == 'true'
@@ -81,9 +92,14 @@ jobs:
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
-          --results-directory ./artifacts/test-results
-          -- --treenode-filter "/*/*/*/*[Category=Integration]"
-          --disable-logo --report-trx --coverage --fail-fast
+          --results-directory .artifacts/test-results/integration
+          --
+          --disable-logo
+          --treenode-filter "/*/*/*/*[Category=Integration]"
+          --coverage --coverage-output "report.cobertura"
+          --report-trx --report-trx-filename "report.trx"
+          --report-html-filename ".artifacts/test-results/integration/report.html"
+          --fail-fast
 
       - name: Version
         id: version
@@ -103,6 +119,6 @@ jobs:
           name: artifacts
           path: |
             ./artifacts
-            **/*-report.html
+#            **/*-report.html
           overwrite: true
           include-hidden-files: true
