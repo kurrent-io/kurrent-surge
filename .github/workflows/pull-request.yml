@@ -33,7 +33,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect source changes
+      - name: Detect Changes
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v3
         id: changes
@@ -61,7 +61,7 @@ jobs:
         if: steps.changes.outputs.source != 'false'
         uses: ./.github/actions/dotnet-setup
 
-      - name: Run Tests - Unit
+      - name: Run Unit Tests
         if: steps.changes.outputs.source != 'false'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
@@ -83,7 +83,7 @@ jobs:
           images: |
             KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
 
-      - name: Run Tests - Integration
+      - name: Run Integration Tests 
         if: steps.changes.outputs.source != 'false' && github.event.pull_request.draft != true
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
@@ -96,7 +96,7 @@ jobs:
         if: github.event_name == 'pull_request' && steps.changes.outputs.source != 'false'
         uses: ./.github/actions/bumpcraft
 
-      - name: Publish Packages
+      - name: Publish Preview Packages
         if: github.event_name == 'pull_request' && steps.changes.outputs.source != 'false'
         uses: ./.github/actions/dotnet-nuget
         with:

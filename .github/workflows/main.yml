@@ -15,7 +15,7 @@ env:
 
 jobs:
   main:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
 
     permissions:
       contents: read
@@ -29,11 +29,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build project
+      - name: Build
         uses: ./.github/actions/dotnet-setup
 
       # Tests only run on direct push — merged PRs were already validated by CI
-      - name: Unit tests
+      - name: Run Unit tests
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
@@ -41,7 +41,7 @@ jobs:
           -- --treenode-filter "/*/*/*/*[Category!=Integration]"
           --disable-logo --report-trx --coverage
 
-      - name: Test containers setup
+      - name: Test Containers Setup
         if: env.IS_DIRECT_PUSH == 'true'
         uses: ./.github/actions/test-containers-setup
         with:
@@ -55,7 +55,7 @@ jobs:
           images: |
             KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
 
-      - name: Integration tests
+      - name: Run Integration Tests
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
@@ -67,7 +67,7 @@ jobs:
         id: version
         uses: ./.github/actions/bumpcraft
 
-      - name: Publish preview packages
+      - name: Publish Preview Packages
         uses: ./.github/actions/dotnet-nuget
         with:
           version: ${{ steps.version.outputs.version }}
