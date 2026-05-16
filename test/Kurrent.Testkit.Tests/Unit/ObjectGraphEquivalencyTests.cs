@@ -3,12 +3,11 @@
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedAutoPropertyAccessor.Local
 // ReSharper disable NotAccessedPositionalProperty.Local
-// ReSharper disable CheckNamespace
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
-namespace Kurrent.Testkit.TUnit.Assertions;
+namespace Kurrent.Testkit.Tests;
 
 [Category("Testing")]
 public class ObjectGraphEquivalencyTests {

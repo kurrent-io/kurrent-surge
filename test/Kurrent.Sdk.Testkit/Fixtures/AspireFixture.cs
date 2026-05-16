@@ -2,7 +2,6 @@ using System.Diagnostics;
 using Humanizer;
 using Aspire.Hosting.KurrentDB;
 using Aspire.Hosting.Testing;
-using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

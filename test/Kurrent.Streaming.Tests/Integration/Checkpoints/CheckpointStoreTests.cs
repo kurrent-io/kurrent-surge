@@ -1,7 +1,6 @@
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Models;
-using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Streaming.Tests;

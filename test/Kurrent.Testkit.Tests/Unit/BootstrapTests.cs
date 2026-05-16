@@ -1,5 +1,4 @@
-﻿using Kurrent.Testkit.Testkit;
-using Kurrent.Testkit.TUnit;
+﻿using Kurrent.Testkit.TUnit;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Testkit.Tests;

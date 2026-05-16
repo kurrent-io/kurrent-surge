@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Testkit.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
   </ItemGroup>
 

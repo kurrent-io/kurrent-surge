@@ -5,7 +5,7 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Aspire.Hosting.KurrentDB;
 using Kurrent.Testkit.Aspire;
-using Kurrent.Testkit.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -24,7 +24,8 @@ public class KurrentDBFixture : AspireFixture {
         ConfigureBuilder = builder => {
             var settings = builder.Configuration
                 .GetSection("KurrentDB")
-                .GetOptionsOrDefault<KurrentDBSettings>();
+                .Get<KurrentDBSettings>(opts => opts.BindNonPublicProperties = true) 
+                        ?? new KurrentDBSettings();
 
             ConfigureSettings(settings);
 

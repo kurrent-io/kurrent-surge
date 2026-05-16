@@ -4,10 +4,9 @@ using Serilog;
 using Serilog.Exceptions;
 using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;
-
 using static Serilog.Core.Constants;
 
-namespace Kurrent.Testkit.Testkit;
+namespace Kurrent.Testkit;
 
 public static class TestkitExecutionContext {
     static LoggerConfiguration DefaultLoggerConfig => new LoggerConfiguration()
@@ -30,12 +29,12 @@ public static class TestkitExecutionContext {
             throw new InvalidOperationException("Testkit context already initialized! Check your test setup.");
         }
         
-        Environment.SetEnvironmentVariable("ASPIRE_VERSION_CHECK_DISABLED", "true");
-        Environment.SetEnvironmentVariable("ASPIRE_ALLOW_UNSECURED_TRANSPORT", "true");
-        Environment.SetEnvironmentVariable("ASPIRE_CLI_TELEMETRY_OPTOUT", "true");
-        Environment.SetEnvironmentVariable("ASPIRE_DASHBOARD_TELEMETRY_OPTOUT", "true");
-        Environment.SetEnvironmentVariable("ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS", "true");
-        
+        // Environment.SetEnvironmentVariable("ASPIRE_VERSION_CHECK_DISABLED", "true");
+        // Environment.SetEnvironmentVariable("ASPIRE_ALLOW_UNSECURED_TRANSPORT", "true");
+        // Environment.SetEnvironmentVariable("ASPIRE_CLI_TELEMETRY_OPTOUT", "true");
+        // Environment.SetEnvironmentVariable("ASPIRE_DASHBOARD_TELEMETRY_OPTOUT", "true");
+        // Environment.SetEnvironmentVariable("ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS", "true");
+        //
         // Environment.SetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL", "http://localhost:4317"); // default is http://localhost:18889
        
         // Environment.SetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_ENDPOINT_INSECURE", "true");

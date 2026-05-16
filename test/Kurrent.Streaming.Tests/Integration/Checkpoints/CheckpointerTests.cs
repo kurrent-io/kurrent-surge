@@ -5,7 +5,6 @@ using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
-using Kurrent.Testkit.Testkit;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Streaming.Tests;

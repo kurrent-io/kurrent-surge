@@ -5,7 +5,7 @@ using Kurrent.Testkit.Datasets.ArcadeRacer;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Kurrent.Testkit.Datasets.Tests.ArcadeRacer;
+namespace Kurrent.Testkit.Tests.Datasets.ArcadeRacer;
 
 [Category("ArcadeRacer")]
 public class ArcadeRacerDataSetTests {

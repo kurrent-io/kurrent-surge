@@ -1,6 +1,4 @@
-// ReSharper disable CheckNamespace
-
-namespace Kurrent.Testkit.TUnit.Assertions;
+namespace Kurrent.Testkit.Tests;
 
 [Category("Testing")]
 public class ConditionalAssertionTests {

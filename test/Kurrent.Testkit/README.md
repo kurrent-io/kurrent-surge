@@ -295,26 +295,6 @@ var events = faker.HomeAutomation().Events(home, count: 10);
 // 2. LightStateChanged (Living Room light turns on) - correlated 2-10 seconds later
 ```
 
-## Infrastructure
-
-The testing toolkit includes a docker-compose configuration that runs:
-
-1. **Seq** (http://localhost:5341)
-   - Centralized log aggregation
-   - Rich querying and filtering
-   - Test correlation by TestUid
-
-2. **Aspire Dashboard** (http://localhost:18888)
-   - OpenTelemetry visualization
-   - Distributed tracing
-   - Metrics and logs
-
-Start the infrastructure:
-
-```bash
-docker-compose up -d
-```
-
 ## Contributing
 
 When adding new testing utilities:

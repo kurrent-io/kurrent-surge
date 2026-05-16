@@ -83,7 +83,9 @@ inputs:
         "fix": "bug",
         "docs": "documentation",
         "perf": "optimization",
+        "deps": "dependencies",
         "security": "security",
+        "refactor": "refactor",
         "test": "test"
       }
   scope-labels:
