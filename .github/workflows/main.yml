@@ -31,6 +31,14 @@ jobs:
 
 #      - name: Build
 #        uses: ./.github/actions/dotnet-setup
+      
+      # Resolve environment defaults so subsequent steps can reference them.
+      # DOTNET_MULTILEVEL_LOOKUP=0 prevents the SDK from probing system-wide installs.
+      - name: Prepare environment
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5.2.0
@@ -38,14 +46,12 @@ jobs:
           dotnet-version: 10.x
 
       - name: Restore Dependencies
-        shell: bash
         run: dotnet restore ${{ inputs.restore-args }}
 
       - name: Restore Tools
         uses: ./.github/actions/dotnet-tools
 
       - name: Build
-        shell: bash
         run: dotnet build -c Release --no-restore
 
       # Tests only run on direct push — merged PRs were already validated by CI
