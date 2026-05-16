@@ -95,4 +95,4 @@ runs:
 
     - name: Create Docker Compose symlink
       shell: bash
-      run: sudo ln -s /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+      run: sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
