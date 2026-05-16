@@ -29,11 +29,27 @@ jobs:
         with:
           fetch-depth: 0
 
+#      - name: Build
+#        uses: ./.github/actions/dotnet-setup
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.2.0
+        with:
+          dotnet-version: 10.x
+
+      - name: Restore Dependencies
+        shell: bash
+        run: dotnet restore ${{ inputs.restore-args }}
+
+      - name: Restore Tools
+        uses: ./.github/actions/dotnet-tools
+
       - name: Build
-        uses: ./.github/actions/dotnet-setup
+        shell: bash
+        run: dotnet build -c Release --no-restore
 
       # Tests only run on direct push — merged PRs were already validated by CI
-      - name: Run Unit tests
+      - name: Run Unit Tests
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
