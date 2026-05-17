@@ -14,7 +14,7 @@ runs:
           for name in $(jq -r '.tools | keys[]' "$manifest"); do
             version=$(jq -r --arg n "$name" '.tools[$n].version' "$manifest")
             echo "Installing $name@$version"
-            dotnet tool update -g "$name" --version "$version" -v q --no-cache
+            dotnet tool update -g "$name" --version "$version" --allow-roll-forward -v q --no-cache
           done
         fi
 
