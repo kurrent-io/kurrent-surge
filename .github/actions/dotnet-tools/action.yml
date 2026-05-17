@@ -14,11 +14,17 @@ runs:
 
         manifest=".config/dotnet-tools.json"
         if [ -f "$manifest" ]; then
-          for name in $(jq -r '.tools | keys[]' "$manifest"); do
-            version=$(jq -r --arg n "$name" '.tools[$n].version' "$manifest")
+          tools=$(python3 -c "
+import json
+with open('$manifest') as f:
+    tools = json.load(f).get('tools', {})
+for name, info in tools.items():
+    print(f\"{name} {info['version']}\")
+")
+          while read -r name version; do
             echo "Installing $name@$version"
             dotnet tool update -g "$name" --version "$version" -v q --no-cache
-          done
+          done <<< "$tools"
         fi
 
     # Pack file-based apps (*.cs with ToolCommandName) from tools/ and

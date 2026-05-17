@@ -45,21 +45,8 @@ runs:
         fi
 
         html="${INPUT_TRX%.trx}.html"
-        TrxToExtentReport -t "$INPUT_TRX" -o "$html" -e "$INPUT_ENV"
-        echo "html=$html" >> "$GITHUB_OUTPUT"
-
-    - name: (Experiment) Generate HTML report via dnx
-      shell: bash
-      continue-on-error: true
-      env:
-        INPUT_TRX: ${{ inputs.trx }}
-        INPUT_ENV: ${{ inputs.environment }}
-      run: |
-        if [ ! -f "$INPUT_TRX" ]; then
-          exit 0
-        fi
-        html="${INPUT_TRX%.trx}-dnx.html"
         dnx TrxToExtentReport -y --allow-roll-forward -- -t "$INPUT_TRX" -o "$html" -e "$INPUT_ENV"
+        echo "html=$html" >> "$GITHUB_OUTPUT"
 
     - name: Upload HTML report
       id: upload
