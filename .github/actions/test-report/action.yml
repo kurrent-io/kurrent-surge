@@ -47,6 +47,7 @@ runs:
         html="${INPUT_TRX%.trx}.html"
         dnx TrxToExtentReport -y --allow-roll-forward -- -t "$INPUT_TRX" -o "$html" -e "$INPUT_ENV"
         echo "html=$html" >> "$GITHUB_OUTPUT"
+        echo "results_dir=$(dirname "$INPUT_TRX")" >> "$GITHUB_OUTPUT"
 
     - name: Upload HTML report
       id: upload
@@ -155,3 +156,13 @@ runs:
         existing=$(cat "$GITHUB_STEP_SUMMARY" 2>/dev/null || true)
         { echo "- [${INPUT_NAME}]($url)"; echo "$existing"; } > "$GITHUB_STEP_SUMMARY"
         echo "Uploaded $INPUT_NAME → $url"
+
+    - name: Upload test results
+      if: steps.generate.outputs.html != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.name }}-results
+        path: |
+          ${{ inputs.trx }}
+          ${{ steps.generate.outputs.results_dir }}/*.cobertura
+        if-no-files-found: ignore

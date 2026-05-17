@@ -136,12 +136,3 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           push-to: github
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        with:
-          name: artifacts
-          path: .artifacts
-          overwrite: true
-          include-hidden-files: true
