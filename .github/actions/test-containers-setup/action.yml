@@ -1,23 +1,39 @@
 name: Test Containers Setup
 description: >
-  Logs into Docker registries, pulls images with retry, and sets
+  Logs into one or more Docker registries, pulls images in parallel, and sets
   {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} environment variables for each
-  container used in integration tests.
+  container used in integration tests. Image references are validated against
+  the configured registries.
+
+  Registry entries without credentials fall back to default-credentials.
 
 inputs:
   default-credentials:
     description: >
-      Default username and password for registries that don't specify their own.
+      Default username and password used for registries that don't specify their own.
+      Example:
+        default-credentials: |
+          username: <your-username>
+          password: <your-password>
     required: false
     default: ''
   registries:
     description: >
       YAML list of registries to log into. Per-entry credentials override default-credentials.
+      Example:
+        registries: |
+          - registry: docker.cloudsmith.io
+          - registry: docker.kurrent.io
+            username: <override-username>
+            password: <override-password>
     required: false
     default: ''
   images:
     description: >
       YAML mapping of container names to image references.
+      Example:
+        images: |
+          KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
     required: true
 
 runs:
