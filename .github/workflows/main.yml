@@ -30,13 +30,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Resolve environment defaults so subsequent steps can reference them.
-      # DOTNET_MULTILEVEL_LOOKUP=0 prevents the SDK from probing system-wide installs.
       - name: Prepare Environment
         run: |
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+          bin_dir="$HOME/.local/bin"
+          mkdir -p "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
+          fi
+          if ! command -v yq &>/dev/null; then
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            chmod +x "$bin_dir/yq"
+          fi
 
       - name: Expose Artifact Upload Token
         uses: actions/github-script@v7
@@ -56,7 +66,7 @@ jobs:
       - name: Restore Dependencies
         run: dotnet restore ${{ inputs.restore-args }}
 
-      - name: Restore Tools
+      - name: Install Local Tools
         uses: ./.github/actions/dotnet-tools
 
       - name: Build
