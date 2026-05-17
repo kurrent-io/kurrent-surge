@@ -6,7 +6,6 @@ namespace Kurrent.Client.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]
-[Skip("Flaky in CI.")]
 public class ListSchemasTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

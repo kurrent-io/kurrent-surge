@@ -6,7 +6,6 @@ namespace Kurrent.Client.Tests.Indexes;
 
 [Category("Indexes")]
 [Category("Integration")]
-[Skip("Flaky in CI.")]
 public class StartStopIndexTests {
     const int TestTimeoutMs = 20_000;
 

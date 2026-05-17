@@ -6,7 +6,6 @@ namespace Kurrent.Client.Tests.Connectors;
 
 [Category("Connectors")]
 [Category("Integration")]
-[Skip("Flaky in CI.")]
 public class ConnectorCommandTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
