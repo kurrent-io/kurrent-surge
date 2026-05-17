@@ -12,9 +12,8 @@ env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   IS_DIRECT_PUSH: ${{ github.event.head_commit.committer.username != 'web-flow' }}
-  
-  TUNIT_DISABLE_HTML_REPORTER_TIP: true
-  
+  TUNIT_DISABLE_HTML_REPORTER: true
+
 jobs:
   main:
     runs-on: [self-hosted, linux, x64]
@@ -31,23 +30,20 @@ jobs:
         with:
           fetch-depth: 0
 
-#      - name: Build
-#        uses: ./.github/actions/dotnet-setup
-      
       # Resolve environment defaults so subsequent steps can reference them.
       # DOTNET_MULTILEVEL_LOOKUP=0 prevents the SDK from probing system-wide installs.
-      - name: Prepare environment
+      - name: Prepare Environment
         run: |
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
-#      - name: Enable Automated Test Report Artifact Upload
-#        uses: actions/github-script@v7
-#        with:
-#          script: |
-#            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
-#            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+      - name: Expose Artifact Upload Token
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5.2.0
@@ -72,9 +68,23 @@ jobs:
           --
           --disable-logo
           --treenode-filter "/*/*/*/*[Category!=Integration]"
-          --coverage --coverage-output "report.cobertura"
-          --report-trx --report-trx-filename "report.trx"
-          --report-html-filename ".artifacts/test-results/unit/report.html"
+          --coverage --coverage-output "unit-tests-report.cobertura"
+          --report-trx --report-trx-filename "unit-tests-report.trx"
+
+      - name: Generate Unit Test Report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        run: |
+          trx=".artifacts/test-results/unit/unit-tests-report.trx"
+          html=".artifacts/test-results/unit/unit-tests-report.html"
+          [ -f "$trx" ] && TrxToExtentReport -t "$trx" -o "$html" -e "CI" || true
+
+      - name: Upload Unit Test Report
+        id: unit-report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        uses: ./.github/actions/upload-html-report
+        with:
+          file: .artifacts/test-results/unit/unit-tests-report.html
+          name: unit-test-report
 
       - name: Test Containers Setup
         if: env.IS_DIRECT_PUSH == 'true'
@@ -98,10 +108,35 @@ jobs:
           --
           --disable-logo
           --treenode-filter "/*/*/*/*[Category=Integration]"
-          --coverage --coverage-output "report.cobertura"
-          --report-trx --report-trx-filename "report.trx"
-          --report-html-filename ".artifacts/test-results/integration/report.html"
+          --coverage --coverage-output "integration-tests-report.cobertura"
+          --report-trx --report-trx-filename "integration-tests-report.trx"
           --fail-fast
+
+      - name: Generate Integration Test Report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        run: |
+          trx=".artifacts/test-results/integration/integration-tests-report.trx"
+          html=".artifacts/test-results/integration/integration-tests-report.html"
+          [ -f "$trx" ] && TrxToExtentReport -t "$trx" -o "$html" -e "CI" || true
+
+      - name: Upload Integration Test Report
+        id: integration-report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        uses: ./.github/actions/upload-html-report
+        with:
+          file: .artifacts/test-results/integration/integration-tests-report.html
+          name: integration-test-report
+
+      - name: Test Report Summary
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        run: |
+          echo "## Test Reports" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.unit-report.outputs.url }}" ]; then
+            echo "- [Unit Test Report](${{ steps.unit-report.outputs.url }})" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${{ steps.integration-report.outputs.url }}" ]; then
+            echo "- [Integration Test Report](${{ steps.integration-report.outputs.url }})" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Version
         id: version
@@ -119,8 +154,6 @@ jobs:
         continue-on-error: true
         with:
           name: artifacts
-          path: |
-            ./artifacts
-#            **/*-report.html
+          path: .artifacts
           overwrite: true
           include-hidden-files: true

@@ -8,6 +8,13 @@
         "minver"
       ],
       "rollForward": false
+    },
+    "trxtoextentreport": {
+      "version": "0.0.4",
+      "commands": [
+        "TrxToExtentReport"
+      ],
+      "rollForward": false
     }
   }
 }
