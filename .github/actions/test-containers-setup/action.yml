@@ -42,13 +42,18 @@ runs:
     - name: Install yq and jq
       shell: bash
       run: |
+        bin_dir="$HOME/.local/bin"
+        mkdir -p "$bin_dir"
+        echo "$bin_dir" >> "$GITHUB_PATH"
+        export PATH="$bin_dir:$PATH"
+
         if ! command -v yq &>/dev/null; then
-          sudo curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
+          curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+          chmod +x "$bin_dir/yq"
         fi
         if ! command -v jq &>/dev/null; then
-          sudo curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o /usr/local/bin/jq
-          sudo chmod +x /usr/local/bin/jq
+          curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+          chmod +x "$bin_dir/jq"
         fi
 
     - name: Login to registries
@@ -95,4 +100,4 @@ runs:
 
     - name: Create Docker Compose symlink
       shell: bash
-      run: sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+      run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
