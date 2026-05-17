@@ -165,4 +165,5 @@ runs:
 
         echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
         echo "url=$url" >> "$GITHUB_OUTPUT"
+        echo "- [${INPUT_NAME}]($url)" >> "$GITHUB_STEP_SUMMARY"
         echo "Uploaded $INPUT_NAME → $url"

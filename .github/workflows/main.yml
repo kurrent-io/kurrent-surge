@@ -116,17 +116,6 @@ jobs:
           trx: .artifacts/test-results/integration/integration-tests-report.trx
           name: integration-test-report
 
-      - name: Test Report Summary
-        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        run: |
-          echo "## Test Reports" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.unit-report.outputs.url }}" ]; then
-            echo "- [Unit Test Report](${{ steps.unit-report.outputs.url }})" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -n "${{ steps.integration-report.outputs.url }}" ]; then
-            echo "- [Integration Test Report](${{ steps.integration-report.outputs.url }})" >> $GITHUB_STEP_SUMMARY
-          fi
-
       - name: Version
         id: version
         uses: ./.github/actions/bumpcraft
