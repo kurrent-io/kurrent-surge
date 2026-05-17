@@ -39,6 +39,10 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Create Docker Compose symlink
+      shell: bash
+      run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
+
     - name: Login, configure, and pull
       shell: bash
       run: |
@@ -103,7 +107,3 @@ runs:
           fi
         done
         exit $failed
-
-    - name: Create Docker Compose symlink
-      shell: bash
-      run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
