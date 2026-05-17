@@ -75,14 +75,24 @@ runs:
     - name: Pull Docker images
       shell: bash
       run: |
+        pull_image() {
+          local image="$1" attempt
+          for attempt in 1 2 3; do
+            if docker pull "$image" --quiet; then
+              return 0
+            fi
+            echo "::warning::Pull attempt $attempt failed for $image — retrying in 10s..."
+            sleep 10
+          done
+          return 1
+        }
+
         images=$(echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | .value')
         failed=0
         for image in $images; do
           echo "Pulling $image..."
-          if ! docker pull "$image" --quiet; then
-            registry=$(echo "$image" | cut -d/ -f1)
-            echo "::warning::Failed to pull $image — checking registry:"
-            curl -sS "https://$registry/v2/" 2>&1 | head -1 || true
+          if ! pull_image "$image"; then
+            echo "::warning::All pull attempts failed for $image"
           fi
 
           if ! docker image inspect "$image" > /dev/null 2>&1; then
