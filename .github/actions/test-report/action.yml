@@ -153,8 +153,9 @@ runs:
 
         echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
         echo "url=$url" >> "$GITHUB_OUTPUT"
-        existing=$(cat "$GITHUB_STEP_SUMMARY" 2>/dev/null || true)
-        { echo "- [${INPUT_NAME}]($url)"; echo "$existing"; } > "$GITHUB_STEP_SUMMARY"
+        title=$(echo "$INPUT_NAME" | sed 's/-/ /g; s/\b\(.\)/\u\1/g')
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "📊 [${title}]($url)" >> "$GITHUB_STEP_SUMMARY"
         echo "Uploaded $INPUT_NAME → $url"
 
     - name: Upload test results
