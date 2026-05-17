@@ -7,4 +7,12 @@
   -->
   <Target Name="_CheckForBuildWithNoBuild"
           Condition="'$(NoBuild)' == 'true' AND '$(IsPackable)' == 'true'" />
+
+  <!--
+    Silence "This project cannot be packaged" warnings for non-packable projects
+    when running `dotnet pack` at the solution level.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'true'">
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+  </PropertyGroup>
 </Project>
