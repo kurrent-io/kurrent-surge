@@ -1,65 +1,53 @@
 name: Test Containers Setup
 description: >
-  Logs into one or more Docker registries, pulls images in parallel, and sets
+  Logs into Docker registries, pulls images with retry, and sets
   {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} environment variables for each
-  container used in integration tests. Image references are validated against
-  the configured registries.
-
-  Registry entries without credentials fall back to default-credentials.
+  container used in integration tests.
 
 inputs:
   default-credentials:
     description: >
-      Default username and password used for registries that don't specify their own.
-      Example:
-        default-credentials: |
-          username: <your-username>
-          password: <your-password>
+      Default username and password for registries that don't specify their own.
     required: false
     default: ''
   registries:
     description: >
       YAML list of registries to log into. Per-entry credentials override default-credentials.
-      Example:
-        registries: |
-          - registry: docker.cloudsmith.io
-          - registry: docker.kurrent.io
-            username: <override-username>
-            password: <override-password>
     required: false
     default: ''
   images:
     description: >
       YAML mapping of container names to image references.
-      Example:
-        images: |
-          KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Login to registries
-      if: inputs.registries != ''
+    - name: Login, configure, and pull
       shell: bash
       run: |
+        set -euo pipefail
+
+        # --- Login to registries ---
         default_user=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.username // ""')
         default_pass=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.password // ""')
 
-        printf '%s' '${{ inputs.registries }}' | yq -r '.[] | [.registry, (.username // ""), (.password // "")] | @tsv' | \
-        while IFS=$'\t' read -r registry user pass; do
+        registries_json=$(printf '%s' '${{ inputs.registries }}' | yq -o=json)
+
+        for row in $(echo "$registries_json" | jq -c '.[]'); do
+          registry=$(echo "$row" | jq -r '.registry')
+          user=$(echo "$row" | jq -r '.username // ""')
+          pass=$(echo "$row" | jq -r '.password // ""')
           user="${user:-$default_user}"
           pass="${pass:-$default_pass}"
           echo "Logging into $registry..."
           printf '%s' "$pass" | docker login "$registry" -u "$user" --password-stdin
         done
 
-    - name: Setup test containers environment
-      shell: bash
-      run: |
-        REGISTRIES=$(printf '%s' '${{ inputs.registries }}' | yq -o=json | jq '[.[].registry]')
+        # --- Setup environment variables ---
+        registry_list=$(echo "$registries_json" | jq '[.[].registry]')
 
-        echo '${{ inputs.images }}' | yq -o=json | jq -r --argjson registries "$REGISTRIES" '
+        echo '${{ inputs.images }}' | yq -o=json | jq -r --argjson registries "$registry_list" '
           to_entries[] |
           (.key | ascii_upcase) as $name |
           (.value | split(":")) as [$ref, $tag] |
@@ -72,9 +60,7 @@ runs:
           "\($name)__CONTAINER__TAG=\($tag)"
         ' | tee -a $GITHUB_ENV
 
-    - name: Pull Docker images
-      shell: bash
-      run: |
+        # --- Pull images with retry ---
         pull_image() {
           local image="$1" attempt
           for attempt in 1 2 3; do
