@@ -8,9 +8,10 @@ runs:
   steps:
     - name: Install manifest tools globally
       shell: bash
-      env:
-        DOTNET_ROLL_FORWARD: LatestMajor
       run: |
+        echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+        export PATH="$HOME/.dotnet/tools:$PATH"
+
         manifest=".config/dotnet-tools.json"
         if [ -f "$manifest" ]; then
           for name in $(jq -r '.tools | keys[]' "$manifest"); do
@@ -45,5 +46,3 @@ runs:
 
           rm -rf "$pack_dir"
         fi
-
-        echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"

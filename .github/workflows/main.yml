@@ -48,7 +48,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5.2.0
         with:
-          dotnet-version: 10.x
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
 
       - name: Restore Dependencies
         run: dotnet restore ${{ inputs.restore-args }}
@@ -77,6 +80,14 @@ jobs:
           trx=".artifacts/test-results/unit/unit-tests-report.trx"
           html=".artifacts/test-results/unit/unit-tests-report.html"
           [ -f "$trx" ] && TrxToExtentReport -t "$trx" -o "$html" -e "CI" || true
+
+      - name: (Experiment) Generate Unit Test Report via dnx
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        continue-on-error: true
+        run: |
+          trx=".artifacts/test-results/unit/unit-tests-report.trx"
+          html=".artifacts/test-results/unit/unit-tests-report-dnx.html"
+          [ -f "$trx" ] && dnx TrxToExtentReport -y --allow-roll-forward -- -t "$trx" -o "$html" -e "CI" || true
 
       - name: Upload Unit Test Report
         id: unit-report
