@@ -92,11 +92,17 @@ runs:
     - name: Pull Docker images
       shell: bash
       run: |
+        failed=0
         echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | .value' | while read -r image; do
           echo "Pulling $image..."
-          docker pull $image --quiet &
+          docker pull "$image" --quiet || echo "::warning::Failed to pull $image from registry"
+
+          if ! docker image inspect "$image" > /dev/null 2>&1; then
+            echo "::error::Image $image not available locally — cannot proceed"
+            failed=1
+          fi
         done
-        wait
+        exit $failed
 
     - name: Create Docker Compose symlink
       shell: bash

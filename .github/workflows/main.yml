@@ -74,27 +74,12 @@ jobs:
           --coverage --coverage-output "unit-tests-report.cobertura"
           --report-trx --report-trx-filename "unit-tests-report.trx"
 
-      - name: Generate Unit Test Report
-        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        run: |
-          trx=".artifacts/test-results/unit/unit-tests-report.trx"
-          html=".artifacts/test-results/unit/unit-tests-report.html"
-          [ -f "$trx" ] && TrxToExtentReport -t "$trx" -o "$html" -e "CI" || true
-
-      - name: (Experiment) Generate Unit Test Report via dnx
-        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        continue-on-error: true
-        run: |
-          trx=".artifacts/test-results/unit/unit-tests-report.trx"
-          html=".artifacts/test-results/unit/unit-tests-report-dnx.html"
-          [ -f "$trx" ] && dnx TrxToExtentReport -y --allow-roll-forward -- -t "$trx" -o "$html" -e "CI" || true
-
-      - name: Upload Unit Test Report
+      - name: Unit Test Report
         id: unit-report
         if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        uses: ./.github/actions/upload-html-report
+        uses: ./.github/actions/test-report
         with:
-          file: .artifacts/test-results/unit/unit-tests-report.html
+          trx: .artifacts/test-results/unit/unit-tests-report.trx
           name: unit-test-report
 
       - name: Test Containers Setup
@@ -123,19 +108,12 @@ jobs:
           --report-trx --report-trx-filename "integration-tests-report.trx"
           --fail-fast
 
-      - name: Generate Integration Test Report
-        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        run: |
-          trx=".artifacts/test-results/integration/integration-tests-report.trx"
-          html=".artifacts/test-results/integration/integration-tests-report.html"
-          [ -f "$trx" ] && TrxToExtentReport -t "$trx" -o "$html" -e "CI" || true
-
-      - name: Upload Integration Test Report
+      - name: Integration Test Report
         id: integration-report
         if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        uses: ./.github/actions/upload-html-report
+        uses: ./.github/actions/test-report
         with:
-          file: .artifacts/test-results/integration/integration-tests-report.html
+          trx: .artifacts/test-results/integration/integration-tests-report.trx
           name: integration-test-report
 
       - name: Test Report Summary
