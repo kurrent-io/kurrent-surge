@@ -1,83 +1,59 @@
-# KurrentDB.Testing
+# Kurrent.Testkit
 
-A comprehensive testing toolkit for KurrentDB that provides modern testing infrastructure, test data generation, advanced assertions, and observability integration.
+A testing toolkit for the Kurrent SDK that provides test execution infrastructure, data generation, advanced assertions, and observability integration.
 
 ## Overview
 
-KurrentDB.Testing is an opinionated testing framework designed to standardize and enhance the testing experience across the KurrentDB codebase. It provides:
+Kurrent.Testkit is an opinionated testing library built on TUnit that standardizes the testing experience across the Kurrent SDK codebase. It provides:
 
-- **Modern Testing Framework**: Built on TUnit with enhanced test execution and lifecycle management
-- **Test Environment Management**: Automated configuration, dependency injection, and logging setup
-- **Test Data Generation**: Powerful fake data generation using Bogus with custom DataSets
-- **Advanced Assertions**: Deep object graph comparison with configurable equivalency testing
-- **Observability**: Integrated logging (Serilog), OpenTelemetry, and test correlation via TUnit
-- **Developer Experience**: Rich tooling support with Seq log aggregation and Aspire Dashboard
+- **Test Execution**: Custom test executor with structured logging and gRPC error formatting
+- **Test Data Generation**: Bogus-based fake data with domain-specific datasets (HomeAutomation, ArcadeRacer)
+- **Advanced Assertions**: Deep object graph comparison, conditional assertions, and GUID validation
+- **Test Organization**: Test case generators, assembly-level skip attributes, and test context state management
+- **Observability**: Serilog logging with OpenTelemetry export and per-test correlation
 
-## ⚠️ CRITICAL: Required Setup
+## Required Setup
 
-**Every test project that references KurrentDB.Testing MUST create a `TestEnvironmentWireUp.cs` file to bootstrap the test environment.**
-
-### Minimal Required Version
-
-This is the **absolute minimum** that every test project needs:
+Every test project that references Kurrent.Testkit needs a single assembly attribute in a `TestkitBootstrap.cs` file:
 
 ```csharp
-using KurrentDB.Testing.TUnit;
-using TUnit.Core.Executors;
-
-// Register the toolkit configurator and executor at assembly level
-[assembly: ToolkitTestConfigurator]
-[assembly: TestExecutor<ToolkitTestExecutor>]
-
-namespace YourProject.Tests;
-
-public class TestEnvironmentWireUp {
-    [Before(Assembly)]
-    public static ValueTask BeforeAssembly(AssemblyHookContext context) =>
-        ToolkitTestEnvironment.Initialize(context.Assembly);
-
-    [After(Assembly)]
-    public static ValueTask AfterAssembly(AssemblyHookContext context) =>
-        ToolkitTestEnvironment.Reset(context.Assembly);
-}
+[assembly: TUnit.Core.Executors.TestExecutor<Kurrent.Testkit.TestkitTestExecutor>]
 ```
+
+That's it. The `TestkitExecutionContext` static constructor handles all initialization automatically — configuration loading, Serilog setup, and OpenTelemetry export. No `[Before(Assembly)]` hooks or manual initialization required.
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
-- [Core Features](#core-features)
-- [Test Environment Setup](#test-environment-setup)
+- [Test Execution](#test-execution)
 - [Test Data Generation](#test-data-generation)
 - [Advanced Assertions](#advanced-assertions)
+- [Test Case Generators](#test-case-generators)
+- [Test Context Extensions](#test-context-extensions)
+- [Skipping Tests](#skipping-tests)
 - [Logging & Observability](#logging--observability)
-- [HomeAutomation Sample](#homeautomation-sample)
-- [Infrastructure](#infrastructure)
-- [Contributing](#contributing)
+- [Datasets](#datasets)
 
 ## Getting Started
 
-### 1. Add Package Reference
-
-Add the KurrentDB.Testing project reference to your test project:
+### 1. Add Project Reference
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\KurrentDB.Testing\KurrentDB.Testing.csproj" />
+  <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
 </ItemGroup>
 ```
 
-### 2. Create Test Environment Wire-Up
+### 2. Create Bootstrap File
 
-**This step is MANDATORY.** See the [Required Setup](#️-critical-required-setup) section above for detailed instructions.
-
-At minimum, create a `TestEnvironmentWireUp.cs` file with assembly-level hooks to initialize the test environment. Test-level hooks for logging are optional.
+Create a `TestkitBootstrap.cs` file with the single assembly attribute shown in [Required Setup](#required-setup).
 
 ### 3. Write Your First Test
 
 ```csharp
 public class MyFirstTests {
     [Test]
-    public async ValueTask MyTest_ShouldPass() {
+    public async ValueTask my_test_should_pass() {
         // Arrange
         var expected = "Hello, World!";
 
@@ -90,216 +66,347 @@ public class MyFirstTests {
 }
 ```
 
-## Core Features
+## Test Execution
 
-### Test Environment Management
+### TestkitTestExecutor
 
-The `ToolkitTestEnvironment` class provides:
+The custom test executor (`Kurrent.Testkit.TestkitTestExecutor`) wraps every test invocation to provide:
 
-- **Configuration Management**: Loads `appsettings.json` and environment variables
-- **Logging Setup**: Configures Serilog with multiple sinks (Console, Seq, Debug, Observable)
-- **Service Collection**: Dependency injection support for test services
-- **Test Correlation**: Integrates with TUnit's built-in test correlation - `TestUid` property is automatically added to all log events
+- **Log context injection**: Pushes a `TestUid` property into Serilog's `LogContext` so all log entries during a test are tagged with the test's unique identifier
+- **gRPC error formatting**: Catches `RpcException` and reformats it into a human-readable message with status code, error detail, and status details — instead of a raw gRPC stack trace
 
-### Test Execution
+### TestkitExecutionContext
 
-The `ToolkitTestExecutor` manages test execution lifecycle:
+The `TestkitExecutionContext` static class initializes once (guarded by `Interlocked.CompareExchange`) when the test executor first runs. It sets up:
 
-- Captures test-specific logs in an observable stream
-- Provides scoped logging context per test
-- Integrates with the test environment for consistent setup
-
-### Test Context Extensions
-
-Enhanced test context with utilities:
-
-- `context.InjectItem<T>()`: Store data in test context
-- `context.ExtractItem<T>()`: Retrieve stored data
-- Logging extensions for structured test output
+- **Configuration**: Loads `appsettings.json` and environment-specific overrides via `IConfiguration`
+- **Serilog**: Console output with `TestUid` correlation, OpenTelemetry OTLP export, and enrichers for thread ID, process ID, machine name, and exception details
+- **Public properties**: `Configuration`, `LoggerFactory`, and `Logger` are available for test code
 
 ## Test Data Generation
 
-### Using Bogus with TUnit
+### BogusFaker
 
-Bogus should be used as a TUnit ClassDataSource for test data generation:
+`BogusFaker` is a thin wrapper over Bogus's `Faker` class, living in the `Bogus` namespace for ergonomic access. Use it as a TUnit class data source:
 
 ```csharp
 public class MyTests {
-    [ClassDataSource<BogusFaker>(Shared = SharedType.PerAssembly)]
+    [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; init; }
 
     [Test]
-    public async Task GenerateRandomPerson() {
+    public async ValueTask generates_random_data() {
+        // Arrange
         var name = Faker.Name.FullName();
         var email = Faker.Internet.Email();
 
+        // Act & Assert
         await Assert.That(name).IsNotNull();
     }
 }
 ```
 
-This approach ensures:
-- Faker instances are properly shared across tests
-- Consistent test data generation patterns
-- Better integration with TUnit's lifecycle management
-
 ## Advanced Assertions
 
-### Object Graph Equivalency
+### Deep Object Graph Equivalency
 
-The toolkit provides `ShouldBeEquivalentTo` for deep object comparison:
+`IsDeepEquivalentTo` performs recursive property-by-property comparison between two objects:
 
 ```csharp
 [Test]
-public async Task DeepComparison_ShouldSucceed() {
+public async ValueTask deep_comparison_should_succeed() {
+    // Arrange
     var expected = new Order {
         Id = 1,
-        Items = new List<OrderItem> {
+        Items = [
             new() { ProductId = 100, Quantity = 2 },
             new() { ProductId = 101, Quantity = 1 }
-        }
+        ]
     };
 
+    // Act
     var actual = GetOrder();
 
-    actual.ShouldBeEquivalentTo(expected, config => config
-        .Excluding(x => x.CreatedAt)
+    // Assert
+    await Assert.That(actual).IsDeepEquivalentTo(expected, cfg => cfg
+        .Excluding<Order>(x => x.CreatedAt)
         .WithStringComparison(StringComparison.OrdinalIgnoreCase)
         .WithNumericTolerance(0.01));
 }
 ```
 
-### Configuration Options
+### GUID Assertion
 
 ```csharp
-config => config
-    .Excluding(x => x.Property)              // Exclude specific properties
-    .Excluding("Path.To.Property")           // Exclude by path string
-    .Using<DateTime>((a, e) => a.Date == e.Date)  // Custom comparer
-    .WithStringComparison(StringComparison.OrdinalIgnoreCase)
-    .WithNumericTolerance(0.01)              // Tolerance for numeric comparisons
-    .IgnoringCollectionOrder()               // Order-independent collection comparison
+await Assert.That(record.Id).IsGuid();
 ```
 
-### Subset Assertions
+### Equivalency Configuration
+
+The full set of configuration options for `IsDeepEquivalentTo`:
 
 ```csharp
-[Test]
-public async Task SubsetComparison() {
-    var subset = new[] { 1, 2, 3 };
-    var collection = new[] { 1, 2, 3, 4, 5 };
+cfg => cfg
+    // Member selection
+    .Excluding<T>(x => x.Property)              // Exclude by expression
+    .Excluding("Path.To.Property")              // Exclude by path string
+    .ExcludingMembersNamed("CreatedAt", "Id")   // Exclude by member name
+    .ExcludingType<DateTime>()                  // Exclude all members of a type
+    .Including<T>(x => x.Prop1, x => x.Prop2)  // Include only specific members
+    .Including(member => member.Name != "Skip") // Include by predicate
+    .ExcludingMissingMembers()                  // Ignore members present only on one side
+    .ExcludingNestedObjects()                   // Compare only top-level members
 
-    subset.ShouldBeSubsetOf(collection);
+    // Comparison strategy
+    .Using<DateTime>((a, e) => a.Date == e.Date)  // Custom comparer for a type
+    .ComparingByValue<MyStruct>()               // Use Equals() instead of member comparison
+    .ComparingByMembers<MyClass>()              // Use member comparison instead of Equals()
+    .ComparingEnumsByName()                     // Compare enums by name, not underlying value
+
+    // String handling
+    .WithStringComparison(StringComparison.OrdinalIgnoreCase)
+    .IgnoringNewlineStyle()                     // Normalize \r\n vs \n
+    .IgnoringLeadingWhitespace()
+    .IgnoringTrailingWhitespace()
+
+    // Numeric handling
+    .WithNumericTolerance(0.01)
+
+    // Collection ordering
+    .IgnoringCollectionOrder()                  // Global: order-independent comparison
+    .WithStrictOrdering()                       // Global: order-sensitive comparison
+    .WithStrictOrderingFor("Items")             // Path-specific: strict ordering
+    .WithoutStrictOrderingFor("Tags")           // Path-specific: ignore ordering
+
+    // Recursion
+    .WithMaxRecursionDepth(10)                  // Limit comparison depth
+```
+
+Note: `Including` and `Excluding` (path-based) cannot be used together — they are mutually exclusive modes.
+
+### Conditional Assertions
+
+The `When` / `Otherwise` extensions enable branching assertion logic within a single test:
+
+#### Boolean condition on a completed assertion
+
+```csharp
+// Skips the assertion entirely when condition is false
+await Assert.That(record.Value).IsEquivalentTo(expected).When(!skipDecoding);
+```
+
+#### Boolean condition with assertion factory
+
+```csharp
+await Assert.That(value)
+    .When(!skipDecoding, x => x.IsEquivalentTo(expected))
+    .Otherwise(x => x.IsNull());
+```
+
+#### Predicate condition
+
+```csharp
+await Assert.That(record.Value)
+    .When(x => x is not null, x => x.IsEquivalentTo(expected))
+    .Otherwise(x => x.IsNull());
+```
+
+## Test Case Generators
+
+### TestCaseGenerator
+
+Base classes for providing test case data to parameterized tests. Supports up to 5 type parameters:
+
+```csharp
+class ValidStreamNames : TestCaseGenerator<string> {
+    protected override IEnumerable<string> Data() => [
+        "stream-1",
+        "stream-2",
+        "category-stream"
+    ];
 }
+
+[Test]
+[MethodDataSource<ValidStreamNames>]
+public async ValueTask reads_from_valid_stream(string streamName) {
+    // ...
+}
+```
+
+Multi-parameter variant:
+
+```csharp
+class SchemeAndPort : TestCaseGenerator<string, int> {
+    protected override IEnumerable<(string, int)> Data() => [
+        ("esdb", 2113),
+        ("esdb+discover", 2113)
+    ];
+}
+```
+
+### TestCaseDataGenerator
+
+Wraps data in `TestCase<T>` records that support display names, skip reasons, and categories:
+
+```csharp
+class EdgeCases : TestCaseDataGenerator<string> {
+    protected override IEnumerable<TestCase<string>> Data() => [
+        new("", DisplayName: "empty string"),
+        new(" ", DisplayName: "whitespace", Skip: "Known bug DEV-1234"),
+        new("valid", Categories: ["smoke"])
+    ];
+}
+```
+
+## Test Context Extensions
+
+### State Management
+
+Store and retrieve typed items in the test context's state bag:
+
+```csharp
+// Store
+context.InjectItem(myFixture);
+context.InjectItem(myFixture, key: "custom-key");
+
+// Retrieve (returns null if missing)
+var fixture = context.ExtractItem<MyFixture>();
+
+// Retrieve (throws if missing)
+var fixture = context.ExtractRequiredItem<MyFixture>();
+
+// Try pattern
+if (context.TryExtractItem<MyFixture>(out var fixture)) { ... }
+
+// Check existence
+if (context.ContainsItem<MyFixture>()) { ... }
+```
+
+### TestUid
+
+Every test context exposes a typed `Guid` identifier:
+
+```csharp
+var uid = context.TestUid; // Guid parsed from TestContext.Id
+```
+
+This is the same value injected into Serilog's log context by the test executor.
+
+## Skipping Tests
+
+### SkipAllAttribute
+
+Assembly-level attribute for centralized skip management. Apply multiple instances to create a skip registry:
+
+```csharp
+// Skip all tests in a specific class
+[assembly: SkipAll(typeof(StreamReadTests), "Blocked by DEV-1234")]
+
+// Skip all tests under a namespace prefix
+[assembly: SkipAll("Kurrent.Client.Tests.Integration.Streams", "Server upgrade in progress")]
 ```
 
 ## Logging & Observability
 
-### Test Correlation with TUnit
+### Test Correlation
 
-Test correlation is built into TUnit. The testing toolkit automatically adds a `TestUid` property to all log events, allowing you to correlate logs with specific tests.
-
-All logs generated during test execution are automatically tagged with the test's unique identifier for easy filtering and debugging in Seq or other log aggregation tools.
-
-```csharp
-[Test]
-public async Task MyTest(TestContext context) {
-    // TestUid is automatically added to all logs
-    Log.Information("Processing test");
-
-    // All logs will be tagged with TestUid for correlation
-}
-```
+The test executor automatically pushes a `TestUid` property into Serilog's `LogContext` for every test. All log entries during a test are tagged with this identifier, enabling filtering in Seq or other log aggregation tools.
 
 ### OpenTelemetry Integration
 
-Add OTel metadata to test context:
+Configure OTel service metadata on the test context:
 
 ```csharp
-context.AddOtelServiceMetadata(new OtelServiceMetadata {
-    ServiceName = "MyService",
-    ServiceVersion = "1.0.0"
+context.ConfigureOtel(new OtelServiceMetadata("MyService") {
+    ServiceVersion   = "1.0.0",
+    ServiceNamespace = "Kurrent.Tests"
 });
 ```
 
-## HomeAutomation Sample
-
-The HomeAutomation sample demonstrates a complete implementation of the testing toolkit for a smart home domain.
-
-### Domain Model
-
-- **SmartHome**: Contains rooms and devices
-- **Room**: Physical spaces (Living Room, Kitchen, Bedroom, etc.)
-- **Device**: Smart devices (Thermostat, SmartLight, MotionSensor, DoorLock, etc.)
-- **Events**: Device state changes and readings
-
-### DataSet Usage
+Retrieve it later:
 
 ```csharp
-[Test]
-public async Task GenerateSmartHome() {
-    var faker = new Faker();
+var metadata = context.GetOtelServiceMetadata();
+```
 
-    // Generate a home with 5 rooms, 2 devices per room
-    var home = faker.HomeAutomation().Home(rooms: 5, devicesPerRoom: 2);
+Set just the service name:
 
-    await Assert.That(home.Rooms.Count).IsEqualTo(5);
-    await Assert.That(home.Devices.Count).IsEqualTo(10);
+```csharp
+context.SetOtelServiceName("MyService");
+```
+
+`OtelServiceMetadata` also supports environment variable propagation:
+
+```csharp
+new OtelServiceMetadata("MyService") {
+    ServiceVersion = "1.0.0"
+}.UpdateEnvironmentVariables();
+// Sets OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME
+```
+
+## Datasets
+
+### HomeAutomation
+
+A smart home domain with rooms, devices, and correlated events. Access via the Bogus Faker extension:
+
+```csharp
+var home = Faker.HomeAutomation().Home(rooms: 5, devicesPerRoom: 2);
+var room = Faker.HomeAutomation().Room(RoomType.Kitchen);
+var device = Faker.HomeAutomation().Device(DeviceType.SmartLight);
+```
+
+**Device types**: Thermostat, SmartLight, MotionSensor, DoorLock, SmokeDetector, HumiditySensor, WindowSensor, WaterSensor.
+
+**Events** are generated as infinite `IEnumerable<IHomeAutomationEvent>` streams — take what you need:
+
+```csharp
+// Generate events for a home
+var events = Faker.HomeAutomation().Events(home).Take(50).ToList();
+
+// Generate events for a specific room
+var roomEvents = Faker.HomeAutomation().Events(room).Take(20).ToList();
+
+// Generate events for specific devices
+var deviceEvents = Faker.HomeAutomation().Events(device1, device2).Take(10).ToList();
+```
+
+Events are automatically correlated — motion detection in a room can trigger light state changes in the same room.
+
+### ArcadeRacer
+
+A racing simulation domain with cars, circuits, and race events. Supports both pre-computed (synchronous) and streaming (asynchronous) modes.
+
+**Pre-computed race** — runs the simulation synchronously and returns a complete logbook:
+
+```csharp
+var logbook = Faker.ArcadeRacer().Race
+    .WithCars(6)
+    .WithLaps(5)
+    .WithDifficulty(CircuitDifficulty.Hard)
+    .WithConditions(TimeOfDay.Night, Weather.Rain)
+    .Simulate();
+```
+
+**Streaming race** — produces events on a background task via a bounded channel:
+
+```csharp
+await using var race = ArcadeRaceSimulator.NewStreamingRace(Faker)
+    .WithCars(8)
+    .WithPacing(TimeSpan.FromMilliseconds(100))
+    .Start();
+
+await foreach (var evt in race.RaceEvents(includeRaceFinished: true, ct)) {
+    // Process events as they arrive
 }
 ```
 
-### Generating Specific Device Types
+**Race events**: GridFormed, RaceStarted, LapCompleted, OvertakePerformed, PitStopPerformed, IncidentOccurred, CarRetired, WeatherChanged, RaceFinished.
+
+**Individual fakers** are also exposed for granular control:
 
 ```csharp
-[Test]
-public async Task GenerateOnlyLightsAndSensors() {
-    var faker = new Faker();
-    var allowedTypes = new[] {
-        DeviceType.SmartLight,
-        DeviceType.MotionSensor
-    };
-
-    var home = faker.HomeAutomation().Home(deviceTypes: allowedTypes);
-
-    foreach (var device in home.Devices) {
-        await Assert.That(allowedTypes).Contains(device.DeviceType);
-    }
-}
+var car = Faker.ArcadeRacer().RaceCar.Generate();
+var circuit = Faker.ArcadeRacer().Circuit.Generate();
+var lapEvent = Faker.ArcadeRacer().RaceEvents.LapCompleted.Generate();
 ```
-
-### Generating Events
-
-```csharp
-[Test]
-public async Task GenerateHomeEvents() {
-    var faker = new Faker();
-    var home = faker.HomeAutomation().Home();
-
-    // Generate 50 events for this home's devices
-    var events = faker.HomeAutomation().Events(home, count: 50);
-
-    await Assert.That(events.Count).IsGreaterThanOrEqualTo(50);
-}
-```
-
-### Event Correlation
-
-The HomeAutomation DataSet includes smart event correlation:
-
-```csharp
-// When motion is detected, lights in the same room may turn on
-var events = faker.HomeAutomation().Events(home, count: 10);
-
-// Events are automatically correlated:
-// 1. MotionDetected in Living Room
-// 2. LightStateChanged (Living Room light turns on) - correlated 2-10 seconds later
-```
-
-## Contributing
-
-When adding new testing utilities:
-
-1. Follow the established patterns (DataSets, Extensions, etc.)
-2. Include XML documentation
-3. Add tests demonstrating usage
-4. Update this README with examples

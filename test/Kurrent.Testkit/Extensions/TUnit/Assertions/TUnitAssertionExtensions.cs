@@ -1,5 +1,3 @@
-// ReSharper disable CheckNamespace
-
 using System.Runtime.CompilerServices;
 using TUnit.Assertions.Core;
 

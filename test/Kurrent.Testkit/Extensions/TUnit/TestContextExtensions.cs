@@ -1,5 +1,3 @@
-// ReSharper disable CheckNamespace
-
 namespace Kurrent.Testkit.TUnit;
 
 public static class TestContextExtensions {

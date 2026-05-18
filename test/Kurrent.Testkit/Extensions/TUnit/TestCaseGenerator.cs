@@ -1,4 +1,4 @@
-﻿namespace Kurrent.Testkit;
+﻿namespace Kurrent.Testkit.TUnit;
 
 [PublicAPI]
 public abstract class TestCaseGenerator<T> : DataSourceGeneratorAttribute<T> {

@@ -1,5 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Kurrent.Client.Tests.Internal;
 
+[SuppressMessage("Usage", "TUnit0038:No data source provided")]
 public class AsyncEnumerableExtensionsTests {
     [Test]
     [BatchSizeCases]
