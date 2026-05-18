@@ -70,6 +70,8 @@ Inherit `MetadataDecoder` and walk the JSON, lifting leaf values to top-level ke
 
 ```csharp
 public sealed class NestedMetadataDecoder : MetadataDecoder {
+    public static readonly NestedMetadataDecoder Instance = new();
+
     protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
         Metadata result = new();
 
@@ -101,11 +103,9 @@ public sealed class NestedMetadataDecoder : MetadataDecoder {
 }
 ```
 
-Parent group names are dropped during the walk, so two nested groups that share a leaf name will collide on the flat result. Prefix keys with the parent name to avoid those collisions.
-
 A flat record decodes correctly through the same path, so the decoder handles both old and new records once installed.
 
-The same pattern handles non-JSON metadata. Say a stream holds records appended by an older client that serialized metadata as a protobuf message. This SDK writes metadata as JSON, so reads against that stream surface a `MetadataDecodingException` until you install a decoder that understands the protobuf shape.
+The same pattern handles non-JSON metadata. Say a stream holds records appended by an older client that serialized metadata as a protobuf message. Reads against that stream surface a `MetadataDecodingException` until you install a decoder that understands the protobuf shape.
 
 ```protobuf
 message TrackingMetadata {
@@ -119,6 +119,8 @@ Point the decoder at the generated class and project its fields onto the flat di
 
 ```csharp
 public sealed class ProtoMetadataDecoder : MetadataDecoder {
+    public static readonly ProtoMetadataDecoder Instance = new();
+
     protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
         var parsed = TrackingMetadata.Parser.ParseFrom(bytes.Span);
 
@@ -145,22 +147,22 @@ await foreach (var record in records) {
 
 Inheriting `MetadataDecoder` gives you `MetadataDecodingException` wrapping, so a malformed record surfaces with the stream name and schema attached. Implementing `IMetadataDecoder` directly skips that error wrapping.
 
-Plug it in when constructing the client:
+Expose the decoder as a static `Instance` and pass that to the client. The decoder sits on the hot path of every read and subscription, and the implementations above carry no per-call state, so reusing one object avoids an allocation per registration and signals that the type is safe to share:
 
 ```csharp
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.MetadataDecoder = new NestedMetadataDecoder());
+    opts => opts.MetadataDecoder = NestedMetadataDecoder.Instance);
 ```
 
-Keep the decoder cheap, since it runs once per record.
+Keep the decode work cheap too, since it runs once per record.
 
 ## Registration
 
 `AddKurrentClient` honors any `IMetadataDecoder` registered in DI:
 
 ```csharp
-services.AddSingleton<IMetadataDecoder, NestedMetadataDecoder>();
+services.AddSingleton<IMetadataDecoder>(NestedMetadataDecoder.Instance);
 
 services.AddKurrentClient("kurrentdb://localhost:2113");
 ```
