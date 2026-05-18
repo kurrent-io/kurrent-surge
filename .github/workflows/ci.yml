@@ -58,6 +58,7 @@ jobs:
           fi
 
       - name: Import Variables
+        if: steps.changes.outputs.build == 'true'
         run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
       - name: Setup .NET
