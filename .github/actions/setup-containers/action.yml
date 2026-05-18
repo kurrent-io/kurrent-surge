@@ -70,7 +70,7 @@ runs:
         echo '${{ inputs.images }}' | yq -r '
           to_entries[] |
           (.key | upcase) as $name |
-          (if .value | type == "!!map" then .value.ImageRef else .value end) as $image_ref |
+          (.value.ImageRef // .value) as $image_ref |
           ($image_ref | split(":") | .[0]) as $ref |
           ($image_ref | split(":") | .[1] // "latest") as $tag |
           "\($name) \($ref) \($tag) \($image_ref)"
@@ -112,8 +112,7 @@ runs:
         }
 
         images=$(echo '${{ inputs.images }}' | yq -r '
-          to_entries[] |
-          if .value | type == "!!map" then .value.ImageRef else .value end
+          to_entries[] | .value.ImageRef // .value
         ')
         failed=0
         for image in $images; do
