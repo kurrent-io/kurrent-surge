@@ -40,7 +40,6 @@ jobs:
           filters: .github/ci-path-filters.yml
 
       - name: Prepare Environment
-        if: steps.changes.outputs.build == 'true'
         run: |
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
