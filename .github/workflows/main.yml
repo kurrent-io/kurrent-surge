@@ -13,6 +13,7 @@ env:
   NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   IS_DIRECT_PUSH: ${{ github.event.head_commit.committer.username != 'web-flow' }}
   TUNIT_DISABLE_HTML_REPORTER: true
+  TUNIT_DISABLE_GITHUB_REPORTER: true
 
 jobs:
   main:
@@ -48,15 +49,15 @@ jobs:
             chmod +x "$bin_dir/yq"
           fi
 
-      - name: Expose Artifact Upload Token
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
-            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+      # - name: Expose Artifact Upload Token
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+      #       core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5.2.0
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
             8.x
@@ -64,7 +65,7 @@ jobs:
             10.x
 
       - name: Restore Dependencies
-        run: dotnet restore ${{ inputs.restore-args }}
+        run: dotnet restore
 
       - name: Install Local Tools
         uses: ./.github/actions/dotnet-tools
@@ -79,18 +80,28 @@ jobs:
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
           --results-directory .artifacts/test-results/unit
           --
-          --disable-logo
           --treenode-filter "/*/*/*/*[Category!=Integration]"
-          --coverage --coverage-output "unit-tests-report.cobertura"
           --report-trx --report-trx-filename "unit-tests-report.trx"
 
+      # - name: Unit Test Report
+      #   id: unit-report
+      #   if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+      #   uses: ./.github/actions/test-report
+      #   with:
+      #     trx: .artifacts/test-results/unit/unit-tests-report.trx
+      #     name: unit-test-report
+
       - name: Unit Test Report
-        id: unit-report
         if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        uses: ./.github/actions/test-report
+        uses: dorny/test-reporter@v1
         with:
-          trx: .artifacts/test-results/unit/unit-tests-report.trx
-          name: unit-test-report
+          name: Unit Tests
+          path: .artifacts/test-results/unit/unit-tests-report.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
+          list-tests: failed
+          max-annotations: 50
 
       - name: Test Containers Setup
         if: env.IS_DIRECT_PUSH == 'true'
@@ -104,7 +115,7 @@ jobs:
             - registry: docker.kurrent.io
             - registry: docker.eventstore.com
           images: |
-            KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
+            KurrentDB: docker.kurrent.io/kurrent-latest/kurrentdb:latest
 
       - name: Run Integration Tests
         if: env.IS_DIRECT_PUSH == 'true'
@@ -112,19 +123,29 @@ jobs:
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
           --results-directory .artifacts/test-results/integration
           --
-          --disable-logo
           --treenode-filter "/*/*/*/*[Category=Integration]"
-          --coverage --coverage-output "integration-tests-report.cobertura"
           --report-trx --report-trx-filename "integration-tests-report.trx"
           --fail-fast
 
+      # - name: Integration Test Report
+      #   id: integration-report
+      #   if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+      #   uses: ./.github/actions/test-report
+      #   with:
+      #     trx: .artifacts/test-results/integration/integration-tests-report.trx
+      #     name: integration-test-report
+
       - name: Integration Test Report
-        id: integration-report
         if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
-        uses: ./.github/actions/test-report
+        uses: dorny/test-reporter@v1
         with:
-          trx: .artifacts/test-results/integration/integration-tests-report.trx
-          name: integration-test-report
+          name: Integration Tests
+          path: .artifacts/test-results/integration/integration-tests-report.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
+          list-tests: failed
+          max-annotations: 50
 
       - name: Version
         id: version

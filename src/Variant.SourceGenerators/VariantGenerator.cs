@@ -223,7 +223,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
             case SpecialType.System_String: return "String";
         }
 
-        if (t.IsNullableOfT && t.TypeArguments.Length == 1)
+        if (t is { IsNullableOfT: true, TypeArguments.Length: 1 })
             return $"{GetCleanTypeName(t.TypeArguments[0])}Nullable";
 
         var name = t.Name;
@@ -273,7 +273,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
     static string GetParameterName(TypeSymbol t) {
         string paramNameBase;
 
-        if (t.IsNullableOfT && t.TypeArguments.Length == 1)
+        if (t is { IsNullableOfT: true, TypeArguments.Length: 1 })
             paramNameBase = $"{GetParameterName(t.TypeArguments[0])}Opt";
         else
             switch (t.Special) {

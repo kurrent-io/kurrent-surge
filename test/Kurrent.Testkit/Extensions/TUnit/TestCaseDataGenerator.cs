@@ -1,4 +1,4 @@
-﻿namespace Kurrent.Testkit;
+﻿namespace Kurrent.Testkit.TUnit;
 
 public record TestCase<T>(T Data, string? DisplayName = null, string? Skip = null, string[]? Categories = null)
     : TestDataRow<T>(Data, DisplayName, Skip, Categories);

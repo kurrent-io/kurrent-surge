@@ -33,7 +33,7 @@ public static class ConfigurationExtensions {
     /// </summary>
     public static Dictionary<string, string> FlattenStruct(this Struct source) {
         var dictionary = new Dictionary<string, string>();
-        FlattenStruct(source, string.Empty, dictionary);
+        FlattenStruct(source, "", dictionary);
         return dictionary;
     }
 

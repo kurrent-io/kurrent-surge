@@ -1,5 +1,3 @@
-// ReSharper disable CheckNamespace
-
 using System.Linq.Expressions;
 using System.Reflection;
 

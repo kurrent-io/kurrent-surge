@@ -1,0 +1,118 @@
+name: Build and Test (EnricoMi)
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: main-enricomi-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+  IS_DIRECT_PUSH: ${{ github.event.head_commit.committer.username != 'web-flow' }}
+  TUNIT_DISABLE_HTML_REPORTER: true
+  TUNIT_DISABLE_GITHUB_REPORTER: true
+
+jobs:
+  main:
+    runs-on: [self-hosted, linux, x64]
+
+    permissions:
+      contents: read
+      issues: read
+      packages: write
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Prepare Environment
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+          bin_dir="$HOME/.local/bin"
+          mkdir -p "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
+          fi
+          if ! command -v yq &>/dev/null; then
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            chmod +x "$bin_dir/yq"
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Install Local Tools
+        uses: ./.github/actions/dotnet-tools
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      # Tests only run on direct push — merged PRs were already validated by CI
+      - name: Run Unit Tests
+        if: env.IS_DIRECT_PUSH == 'true'
+        run: >-
+          dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
+          --results-directory .artifacts/test-results/unit
+          --
+          --treenode-filter "/*/*/*/*[Category!=Integration]"
+          --report-trx --report-trx-filename "unit-tests-report.trx"
+
+      - name: Unit Test Report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Unit Tests (EnricoMi)
+          files: .artifacts/test-results/unit/unit-tests-report.trx
+          action_fail_on_inconclusive: false
+
+      - name: Test Containers Setup
+        if: env.IS_DIRECT_PUSH == 'true'
+        uses: ./.github/actions/test-containers-setup
+        with:
+          default-credentials: |
+            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+          registries: |
+            - registry: docker.cloudsmith.io
+            - registry: docker.kurrent.io
+            - registry: docker.eventstore.com
+          images: |
+            KurrentDB: docker.kurrent.io/kurrent-latest/kurrentdb:latest
+
+      - name: Run Integration Tests
+        if: env.IS_DIRECT_PUSH == 'true'
+        run: >-
+          dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
+          --results-directory .artifacts/test-results/integration
+          --
+          --treenode-filter "/*/*/*/*[Category=Integration]"
+          --report-trx --report-trx-filename "integration-tests-report.trx"
+          --fail-fast
+
+      - name: Integration Test Report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Integration Tests (EnricoMi)
+          files: .artifacts/test-results/integration/integration-tests-report.trx
+          action_fail_on_inconclusive: false

@@ -9,10 +9,11 @@
     <PackageTags>kurrent kurrentdb client sdk eventstore event-sourcing</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
-    <!-- Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack -->
-    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>
-    <!-- Embed source generator DLLs into analyzers/dotnet/cs/ during pack -->
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>
+<!--    &lt;!&ndash; Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack &ndash;&gt;-->
+<!--    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>-->
+<!--    &lt;!&ndash; Embed source generator DLLs into analyzers/dotnet/cs/ during pack &ndash;&gt;-->
+<!--    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>-->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <RootNamespace>Kurrent</RootNamespace>
     
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
@@ -90,59 +91,6 @@
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
   </ItemGroup>
 
-  <!--
-    Embed internal project-reference DLLs into the NuGet package.
-
-    Why: Projects like Variant are internal — they can't be published as separate
-    packages. Without this target, NuGet would list them as package dependencies
-    that don't exist on any feed, breaking consumers.
-
-    How it works: MSBuild tags every resolved assembly with NuGetPackageId metadata.
-    NuGet-sourced assemblies get the package id (e.g. "Google.Protobuf").
-    Project-reference assemblies get an empty string.
-    We filter on that to include only project-built DLLs.
-
-    Source generators (ReferenceOutputAssembly="false") never appear in
-    ReferenceCopyLocalPaths, so they are excluded automatically.
-
-    Result: only Kurrent.Variant.dll is embedded. NuGet dependencies remain
-    declared in the nuspec and resolved at restore time.
-  -->
-  <Target Name="PackProjectDependencies" DependsOnTargets="ResolveReferences">
-    <ItemGroup>
-      <!-- NuGetPackageId is empty = came from a project reference, not a NuGet package -->
-      <_ProjectRefDlls Include="@(ReferenceCopyLocalPaths)"
-                       Condition="'%(ReferenceCopyLocalPaths.NuGetPackageId)' == '' AND '%(Extension)' == '.dll'" />
-      <!-- The main assembly is already packed by the SDK -->
-      <_ProjectRefDlls Remove="@(_ProjectRefDlls)"
-                       Condition="'%(FileName)' == '$(AssemblyName)'" />
-      <!-- Ship in lib/{tfm}/ alongside Kurrent.Client.dll -->
-      <BuildOutputInPackage Include="@(_ProjectRefDlls)" />
-    </ItemGroup>
-  </Target>
-
-  <!--
-    Embed source-generator DLLs into analyzers/dotnet/cs/ inside the NuGet package.
-
-    Source generators are referenced with OutputItemType="Analyzer" and
-    ReferenceOutputAssembly="false", so they never appear in ReferenceCopyLocalPaths
-    and are excluded by PackProjectDependencies above. This target collects them
-    separately and places them where NuGet expects Roslyn analyzers.
-
-    TargetFramework=netstandard2.0 is passed explicitly because generator projects
-    target netstandard2.0 (required by Roslyn), not the consuming project's TFMs.
-  -->
-  <Target Name="PackSourceGenerators">
-    <MSBuild Projects="@(ProjectReference)"
-             Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer'"
-             Targets="GetTargetPathWithTargetPlatformMoniker"
-             Properties="TargetFramework=netstandard2.0">
-      <Output TaskParameter="TargetOutputs" ItemName="_SourceGeneratorAssembly" />
-    </MSBuild>
-    <ItemGroup>
-      <TfmSpecificPackageFile Include="@(_SourceGeneratorAssembly)"
-                              PackagePath="analyzers/dotnet/cs" />
-    </ItemGroup>
-  </Target>
+  <Import Project="..\Packable.targets" />
 
 </Project>
