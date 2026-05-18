@@ -9,14 +9,37 @@ public class AppendRecordsTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    [Arguments<int>(2)]
+    public async ValueTask creates_single_stream(CancellationToken ct) {
+        // Arrange
+        var streams = 1;
+        
+        var builder = new AppendRecordsRequest.Builder();
+        
+        foreach (var i in Enumerable.Range(0, streams)) {
+            var data = await Fixture.TestData.GenerateSet(ct);
+            builder.AddRecords(data.Records.Take(1));
+        }
+
+        var req = builder.Build();
+
+        // Act
+        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+
+        // Assert
+        await Assert.That(result.Position).IsGreaterThan(LogPosition.Earliest);
+        await Assert.That(result.Revisions).Count().IsEqualTo(streams);
+    }
+    
+    [Test]
+    [Arguments<int>(1)]
+    [Arguments<int>(3)]
     [Arguments<int>(5)]
-    [Arguments<int>(8)]
-    [Arguments<int>(11)]
-    public async ValueTask creates_multiple_streams(int streams, CancellationToken ct) {
+    [Arguments<int>(7)]
+    [Arguments<int>(9)]
+    public async ValueTask creates_streams(int streams, CancellationToken ct) {
         // Arrange
         var builder = new AppendRecordsRequest.Builder();
-
+        
         foreach (var i in Enumerable.Range(0, streams)) {
             var data = await Fixture.TestData.GenerateSet(ct);
             builder.AddRecords(data.Records.Take(1));

@@ -7,12 +7,12 @@
 # a CA + node certificate pair. Optionally generates user certificates for
 # client certificate authentication and installs the CA into the OS trust store.
 #
-# CA and node certs are only created if they don't already exist in the output
-# directory. User certs are always created/overwritten when requested. To
-# regenerate everything, delete the output directory and run again.
+# Certs are only created if they don't already exist in the output directory.
+# Use --force to regenerate everything (e.g., after changing DNS names).
 #
 # Usage:
 #   ./gencert.sh                                      # CA + node (latest version)
+#   ./gencert.sh --force                              # regenerate all certs
 #   ./gencert.sh --trust                              # + install CA into OS trust store
 #   ./gencert.sh --user-certs admin,invalid           # + user certs (comma-separated)
 #   ./gencert.sh --user-certs admin --user-certs bob  # + user certs (repeated flag)
@@ -28,6 +28,7 @@
 #   --version X.Y.Z       Pin es-gencert-cli version (default: latest GitHub release)
 #   --dns names            Comma-separated DNS names for the node cert (default: localhost)
 #   --output dir           Output directory for certs (default: ./certs)
+#   --force                Regenerate all certs even if they already exist
 #   --user-certs names     Generate user certs; comma-separated or pass the flag multiple times
 #   --trust                Install the CA into the OS trust store (macOS/Linux; requires sudo)
 #   -h, --help             Show help
@@ -41,6 +42,7 @@ GENCERT_VERSION=""
 DNS_NAMES="localhost"
 CERTS_DIR="./certs"
 TRUST=false
+FORCE=false
 USER_CERTS=()
 
 while [[ $# -gt 0 ]]; do
@@ -49,6 +51,7 @@ while [[ $# -gt 0 ]]; do
         --dns)         DNS_NAMES="$2"; shift 2 ;;
         --output)      CERTS_DIR="$2"; shift 2 ;;
         --trust)       TRUST=true; shift ;;
+        --force)       FORCE=true; shift ;;
         --user-certs)
             IFS=',' read -ra names <<< "$2"
             USER_CERTS+=("${names[@]}")
@@ -60,11 +63,13 @@ while [[ $# -gt 0 ]]; do
             echo "  --version X.Y.Z        Pin es-gencert-cli version (default: latest release)"
             echo "  --dns names            DNS names for the node cert (default: localhost)"
             echo "  --output dir           Output directory for certs (default: ./certs)"
+            echo "  --force                Regenerate all certs even if they already exist"
             echo "  --trust                Install the CA into the OS trust store (requires sudo)"
             echo "  --user-certs names     Generate user certs (comma-separated or repeated)"
             echo ""
             echo "Examples:"
             echo "  gencert.sh                                     # CA + node only"
+            echo "  gencert.sh --force                             # regenerate everything"
             echo "  gencert.sh --trust                             # CA + node + install CA"
             echo "  gencert.sh --user-certs admin,invalid          # CA + node + two user certs"
             echo "  gencert.sh --user-certs admin --user-certs bob # same, repeated flag"
@@ -190,33 +195,46 @@ ensure_gencert
 
 mkdir -p "$CERTS_DIR"
 
-if [[ -f "${CERTS_DIR}/ca/ca.crt" && -f "${CERTS_DIR}/ca/ca.key" ]]; then
-    echo ">> CA already exists at ${CERTS_DIR}/ca, skipping."
+echo ">> Certs directory: ${CERTS_DIR}"
+[[ "$FORCE" == true ]] && echo ">> Force mode: regenerating all certificates."
+
+force_flag=()
+[[ "$FORCE" == true ]] && force_flag=(-force)
+
+if [[ "$FORCE" != true && -f "${CERTS_DIR}/ca/ca.crt" && -f "${CERTS_DIR}/ca/ca.key" ]]; then
+    echo ">> CA already exists ($(ls -lh "${CERTS_DIR}/ca/ca.crt" | awk '{print $5, $6, $7, $8}')), skipping."
 else
+    echo ">> Generating CA certificate..."
     "$GENCERT_BIN" create-ca \
         -out "${CERTS_DIR}/ca" \
-        -force
+        "${force_flag[@]}"
 fi
 
-if [[ -f "${CERTS_DIR}/node/node.crt" && -f "${CERTS_DIR}/node/node.key" ]]; then
-    echo ">> Node cert already exists at ${CERTS_DIR}/node, skipping."
+if [[ "$FORCE" != true && -f "${CERTS_DIR}/node/node.crt" && -f "${CERTS_DIR}/node/node.key" ]]; then
+    echo ">> Node cert already exists ($(ls -lh "${CERTS_DIR}/node/node.crt" | awk '{print $5, $6, $7, $8}')), skipping."
 else
+    echo ">> Generating node certificate (DNS: ${DNS_NAMES})..."
     "$GENCERT_BIN" create-node \
         -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
         -ca-key "${CERTS_DIR}/ca/ca.key" \
         -out "${CERTS_DIR}/node" \
         -ip-addresses 127.0.0.1 \
         -dns-names "$DNS_NAMES" \
-        -force
+        "${force_flag[@]}"
 fi
 
 for username in "${USER_CERTS[@]}"; do
-    "$GENCERT_BIN" create-user \
-        -username "$username" \
-        -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
-        -ca-key "${CERTS_DIR}/ca/ca.key" \
-        -out "${CERTS_DIR}/user-${username}" \
-        -force
+    if [[ "$FORCE" != true && -f "${CERTS_DIR}/user-${username}/${username}.crt" && -f "${CERTS_DIR}/user-${username}/${username}.key" ]]; then
+        echo ">> User cert '${username}' already exists ($(ls -lh "${CERTS_DIR}/user-${username}/${username}.crt" | awk '{print $5, $6, $7, $8}')), skipping."
+    else
+        echo ">> Generating user certificate for '${username}'..."
+        "$GENCERT_BIN" create-user \
+            -username "$username" \
+            -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
+            -ca-key "${CERTS_DIR}/ca/ca.key" \
+            -out "${CERTS_DIR}/user-${username}" \
+            "${force_flag[@]}"
+    fi
 done
 
 find "$CERTS_DIR" -type f -exec chmod 666 {} +

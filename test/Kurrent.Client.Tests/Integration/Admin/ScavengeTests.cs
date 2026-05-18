@@ -4,27 +4,26 @@ using Kurrent.Client.Streams;
 using Serilog;
 using TUnit.Core.Interfaces;
 
-namespace Kurrent.Client.Tests.Integration.Admin;
+namespace Kurrent.Client.Tests.Admin;
 
 record ScavengeParallelLimit : IParallelLimit {
     public int Limit => 4;
 }
 
-[Skip("""
-Flaky: each test spins up an ephemeral KurrentDB container where scavenges complete
-almost instantly on an empty database. The $scavenges system stream is populated
-asynchronously by the server after the scavenge finishes, creating a race between
-the gRPC StartScavenge response and the stream becoming readable. Tests that read
-scavenge history or details intermittently fail because the stream doesn't exist yet
-or still shows the scavenge as Running. Needs a server-side guarantee (e.g. scavenge
-completion event flushed before the gRPC response) or a polling-based test harness
-with bounded retries.
-""")]
 [Category("Admin")]
 [Category("Integration")]
 [Timeout(60_000)]
 [ParallelLimiter<ScavengeParallelLimit>]
 public class ScavengeTests {
+    // Flaky: each test spins up an ephemeral KurrentDB container where scavenges complete
+    // almost instantly on an empty database. The $scavenges system stream is populated
+    // asynchronously by the server after the scavenge finishes, creating a race between
+    // the gRPC StartScavenge response and the stream becoming readable. Tests that read
+    // scavenge history or details intermittently fail because the stream doesn't exist yet
+    // or still shows the scavenge as Running. Needs a server-side guarantee (e.g. scavenge
+    // completion event flushed before the gRPC response) or a polling-based test harness
+    // with bounded retries.
+    
     [ClassDataSource<KurrentDBScavengeFixture>]
     public required KurrentDBScavengeFixture Fixture { get; [UsedImplicitly] init; }
 
