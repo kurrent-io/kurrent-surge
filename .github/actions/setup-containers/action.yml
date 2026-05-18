@@ -1,7 +1,7 @@
 name: Test Containers Setup
 description: >
   Logs into one or more Docker registries, pulls images in parallel, and sets
-  {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} environment variables for each
+  {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} and {NAME}__IMAGE_REF environment variables for each
   container used in integration tests. Image references are validated against
   the configured registries.
 
@@ -77,7 +77,8 @@ runs:
           ($ref | ltrimstr($registry) | ltrimstr("/")) as $image |
           "\($name)__CONTAINER__REGISTRY=\($registry)",
           "\($name)__CONTAINER__IMAGE=\($image)",
-          "\($name)__CONTAINER__TAG=\($tag)"
+          "\($name)__CONTAINER__TAG=\($tag)",
+          "\($name)__IMAGE_REF=\(.value)"
         ' | tee -a $GITHUB_ENV
 
         # --- Pull images with retry ---

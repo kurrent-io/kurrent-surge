@@ -26,7 +26,6 @@ area-infrastructure:
       - .github/PULL_REQUEST_TEMPLATE.md
       - scripts/**
       - .devcontainer/**
-      - .config/**
       - global.json
       - nuget.config
       - Directory.Build.props
@@ -45,7 +44,6 @@ area-tooling:
   - changed-files:
     - any-glob-to-any-file:
       - tools/**
-      - .config/**
 
 area-samples:
   - changed-files:

@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
+  KURRENTDB__IMAGE_REF: docker.kurrent.io/kurrent-latest/kurrentdb:latest
+
+jobs:
+  ci:
+#    runs-on: [self-hosted, linux, x64]
+    runs-on: surge-x4-ubuntu
+
+    permissions:
+      contents: read
+      issues: read
+      packages: write
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect Changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: .github/ci-path-filters.yml
+
+      - name: Prepare Environment
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+          bin_dir="$HOME/.local/bin"
+          mkdir -p "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
+          fi
+          if ! command -v yq &>/dev/null; then
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            chmod +x "$bin_dir/yq"
+          fi
+
+      - name: Setup .NET
+        if: steps.changes.outputs.build == 'true'
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore Dependencies
+        if: steps.changes.outputs.build == 'true'
+        run: dotnet restore
+
+      - name: Install Local Tools
+        if: steps.changes.outputs.build == 'true'
+        uses: ./.github/actions/install-tools
+
+      - name: Version
+        if: steps.changes.outputs.build == 'true'
+        id: version
+        uses: ./.github/actions/bumpcraft
+
+      - name: Build
+        if: steps.changes.outputs.build == 'true'
+        run: dotnet build -c Release --no-restore
+
+      - name: Run Unit Tests
+        if: steps.changes.outputs.build == 'true'
+        uses: ./.github/actions/run-tests
+        with:
+          category: unit
+
+      - name: Setup Containers
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/setup-containers
+        with:
+          default-credentials: |
+            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+          registries: |
+            - registry: docker.cloudsmith.io
+            - registry: docker.kurrent.io
+          images: |
+            KurrentDB: ${{ env.KURRENTDB__IMAGE_REF }}
+
+      - name: Run Integration Tests
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+
+      - name: Publish Preview Packages
+        if: steps.changes.outputs.build == 'true'
+        uses: ./.github/actions/publish-packages
+        with:
+          version: ${{ steps.version.outputs.version }}
+          push-to: github

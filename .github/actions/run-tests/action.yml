@@ -1,0 +1,83 @@
+name: Run Tests
+description: >
+  Runs .NET tests by category with convention-driven defaults.
+  Pass a category and the action derives the filter, results directory,
+  report name, and sensible extra arguments automatically.
+
+inputs:
+  category:
+    description: Test category — 'unit' or 'integration'.
+    required: true
+  filter:
+    description: TUnit treenode filter. Overrides the category default.
+    required: false
+    default: ''
+  report-name:
+    description: Check run name for the test report. Overrides the category default.
+    required: false
+    default: ''
+  extra-args:
+    description: Additional TUnit arguments appended after '--' (e.g., '--maximum-parallel-tests 1').
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Configure
+      id: config
+      shell: bash
+      env:
+        INPUT_CATEGORY: ${{ inputs.category }}
+        INPUT_FILTER: ${{ inputs.filter }}
+        INPUT_REPORT_NAME: ${{ inputs.report-name }}
+      run: |
+        case "$INPUT_CATEGORY" in
+          unit)
+            filter="/*/*/*/*[Category!=Integration]"
+            results_dir=".artifacts/test-results/unit"
+            trx_filename="unit-tests-report.trx"
+            check_name="Unit Tests"
+            dotnet_args=""
+            tunit_args=""
+            ;;
+          integration)
+            filter="/*/*/*/*[Category=Integration]"
+            results_dir=".artifacts/test-results/integration"
+            trx_filename="integration-tests-report.trx"
+            check_name="Integration Tests"
+            dotnet_args="-f net10.0"
+            tunit_args="--fail-fast"
+            ;;
+          *)
+            echo "::error::Unknown test category: $INPUT_CATEGORY (expected 'unit' or 'integration')"
+            exit 1
+            ;;
+        esac
+
+        echo "filter=${INPUT_FILTER:-$filter}" >> "$GITHUB_OUTPUT"
+        echo "results-dir=$results_dir" >> "$GITHUB_OUTPUT"
+        echo "trx-filename=$trx_filename" >> "$GITHUB_OUTPUT"
+        echo "check-name=${INPUT_REPORT_NAME:-$check_name}" >> "$GITHUB_OUTPUT"
+        echo "dotnet-args=$dotnet_args" >> "$GITHUB_OUTPUT"
+        echo "tunit-args=$tunit_args" >> "$GITHUB_OUTPUT"
+
+    - name: Run ${{ inputs.category }} tests
+      shell: bash
+      run: >-
+        dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
+        ${{ steps.config.outputs.dotnet-args }}
+        --results-directory ${{ steps.config.outputs.results-dir }}
+        --
+        --treenode-filter "${{ steps.config.outputs.filter }}"
+        --report-trx --report-trx-filename "${{ steps.config.outputs.trx-filename }}"
+        ${{ steps.config.outputs.tunit-args }}
+        ${{ inputs.extra-args }}
+
+    - name: ${{ steps.config.outputs.check-name }} report
+      if: '!cancelled()'
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      with:
+        check_name: ${{ steps.config.outputs.check-name }}
+        files: ${{ steps.config.outputs.results-dir }}/${{ steps.config.outputs.trx-filename }}
+        action_fail_on_inconclusive: false
