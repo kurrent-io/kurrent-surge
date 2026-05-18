@@ -4,7 +4,6 @@ using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testkit.Aspire;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -41,7 +40,7 @@ public class AutoRegisterTests {
         var data = await Fixture.TestData.GenerateRecord(ct);
 
         var request = AppendStreamRequest.For(data.Stream)
-            .WithRecords(data.Records)
+            .AddRecords(data.Records)
             .Build();
 
         // Act
@@ -86,10 +85,10 @@ public class AutoRegisterTests {
 
         // Act
         await client.Streams.AppendStream(
-            AppendStreamRequest.For(data.Stream).WithRecords([sameType[0]]).Build(), ct);
+            AppendStreamRequest.For(data.Stream).AddRecords([sameType[0]]).Build(), ct);
 
         await client.Streams.AppendStream(
-            AppendStreamRequest.For(data.Stream).WithRecords([sameType[1]]).Build(), ct);
+            AppendStreamRequest.For(data.Stream).AddRecords([sameType[1]]).Build(), ct);
 
         await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -114,7 +113,7 @@ public class AutoRegisterTests {
         var data = await Fixture.TestData.GenerateRecord(ct);
 
         var request = AppendStreamRequest.For(data.Stream)
-            .WithRecords(data.Records)
+            .AddRecords(data.Records)
             .Build();
 
         // Act
@@ -155,7 +154,7 @@ public class AutoRegisterTests {
         });
 
         var request = AppendStreamRequest.For(data.Stream)
-            .WithRecords(data.Records)
+            .AddRecords(data.Records)
             .Build();
 
         // Act

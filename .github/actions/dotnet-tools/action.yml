@@ -1,0 +1,39 @@
+name: Restore .NET Tools
+description: >
+  Packs and installs file-based app tools from tools/ as global tools
+  so they appear on PATH directly.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup tools PATH
+      shell: bash
+      run: |
+        echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+        export PATH="$HOME/.dotnet/tools:$PATH"
+
+    # Pack file-based apps (*.cs with ToolCommandName) from tools/ and
+    # install them as global tools so they appear on PATH directly.
+    # Uses `dotnet tool update` to handle both fresh installs and upgrades.
+    - name: Install local tools
+      shell: bash
+      run: |
+        if compgen -G "tools/*.cs" > /dev/null; then
+          pack_dir="$(mktemp -d)"
+          for cs in tools/*.cs; do
+            if grep -q 'ToolCommandName' "$cs"; then
+              echo "Packing $cs"
+              dotnet build "$cs" -v q --nologo
+              dotnet pack "$cs" -o "$pack_dir" --no-build -v q --nologo
+            fi
+          done
+
+          for pkg in "$pack_dir"/*.nupkg; do
+            [ -f "$pkg" ] || continue
+            name=$(basename "$pkg" | sed 's/\.[0-9].*//')
+            echo "Installing tool $name"
+            dotnet tool update -g "$name" --add-source "$pack_dir" --no-cache -v q
+          done
+
+          rm -rf "$pack_dir"
+        fi

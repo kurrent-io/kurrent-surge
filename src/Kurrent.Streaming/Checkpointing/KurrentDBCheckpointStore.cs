@@ -97,7 +97,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     /// <inheritdoc/>
     protected override async ValueTask<ProcessorCheckpoint> OnLoadLatestAsync(CancellationToken ct) {
         try {
-            var readRequest = ReadStreamRequest.New.ForStream(_stream).FromEnd().Build();
+            var readRequest = ReadStreamRequest.New().Stream(_stream).FromEnd().Build();
 
             var partitions      = new Dictionary<int, Contracts.PartitionPosition>();
             var latestTimestamp = DateTimeOffset.MinValue;
@@ -199,11 +199,11 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
 
     AppendStreamRequest CreateAppendRequest<T>(string droneId, T evt) where T : class =>
         AppendStreamRequest.For(_stream)
-            .ExpectingState(ExpectedStreamState.Any)
-            .WithRecord(rec => rec
-                .WithValue(evt)
-                .WithMetadata("processor_id", ProcessorId)
-                .WithMetadata("drone_id", droneId))
+            .ExpectedState(ExpectedStreamState.Any)
+            .AddRecord(rec => rec
+                .Value(evt)
+                .AddMetadata("processor_id", ProcessorId)
+                .AddMetadata("drone_id", droneId))
             .Build();
 
     static Contracts.PartitionPosition[] ToContractPositions(RecordPosition[] positions) =>

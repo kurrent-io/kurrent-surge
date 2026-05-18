@@ -13,8 +13,8 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
             .Build();
 
         // act
@@ -31,8 +31,8 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
             .Build();
 
         // act
@@ -50,8 +50,8 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
         var data             = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, expectedRevision))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamAtRevision(checkedStream, expectedRevision))
             .Build();
 
         // act
@@ -71,8 +71,8 @@ public class WhenExpectingRevisionTests : AppendConsistencyTestBase {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         var req = AppendRecordsRequest.New()
-            .WithRecords(data.Records.ToArray())
-            .WithCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
+            .AddRecords(data.Records.ToArray())
+            .AddCheck(ConsistencyCheck.StreamAtRevision(checkedStream, revision))
             .Build();
 
         // act

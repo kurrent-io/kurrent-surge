@@ -11,6 +11,7 @@
   <ItemGroup>
     <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Sdk.Testkit" />
     <Using Include="TUnit" />
   </ItemGroup>
 

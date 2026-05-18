@@ -38,5 +38,10 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
 		return new(result);
 	}
 
-    public ValueTask<object?> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) => new(data);
+    public ValueTask<object?> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
+        if (context.RecordSchema.SchemaName == LinkTo.SchemaName)
+            return new(LinkTo.Parse(data.Span));
+
+        return new(data);
+    }
 }

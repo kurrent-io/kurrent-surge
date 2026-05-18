@@ -1,16 +1,6 @@
 namespace Aspire.Hosting.KurrentDB;
 
 public class KurrentDBSettings {
-    public static KurrentDBSettings SingleNode => new() {
-        Topology   = new() { Nodes = 1 },
-        TlsEnabled = true
-    };
-
-    public static KurrentDBSettings DefaultCluster => new() {
-        Topology   = new() { Nodes = 3, Replicas = 1 },
-        TlsEnabled = true
-    };
-
     /// <summary>
     /// Represents the cluster topology for the KurrentDB resource, including the number of nodes and read-only replicas.
     /// </summary>
@@ -38,6 +28,12 @@ public class KurrentDBSettings {
     public OpenTelemetrySettings OpenTelemetry { get; set; } = new();
 
     /// <summary>
+    /// The container lifetime for KurrentDB nodes. Default is <see cref="ContainerLifetime.Persistent"/>.
+    /// Set to <see cref="ContainerLifetime.Session"/> for ephemeral containers (e.g., scavenge tests).
+    /// </summary>
+    public ContainerLifetime Lifetime { get; set; } = ContainerLifetime.Persistent;
+
+    /// <summary>
     /// Gets or sets a boolean value that indicates whether the KurrentDB health check is disabled or not.
     /// </summary>
     /// <value>
@@ -54,37 +50,6 @@ public class KurrentDBSettings {
     public TimeSpan? HealthCheckTimeout { get; set; }
 
     #region ->> Fluent API <<-
-
-    /// <summary>
-    /// Sets the cluster size. Must follow the 2n+1 rule (1, 3, 5, 7...).
-    /// Creates default <see cref="NodeSettings"/> for each node.
-    /// </summary>
-    public KurrentDBSettings Cluster(int size) {
-        if (size > 1 && size % 2 == 0)
-            throw new ArgumentException(
-                $"Cluster size must follow the 2n+1 rule (1, 3, 5, 7...): got {size}.", nameof(size));
-
-        Topology.Nodes = size;
-        return this;
-    }
-
-    /// <summary>
-    /// Configures the cluster with granular per-node settings.
-    /// The number of nodes added must follow the 2n+1 rule.
-    /// </summary>
-    public KurrentDBSettings Cluster(Action<ClusterBuilder> configure) {
-        var builder = new ClusterBuilder();
-        configure(builder);
-
-        var count = builder.Build().Count;
-
-        if (count > 1 && count % 2 == 0)
-            throw new ArgumentException(
-                $"Cluster size must follow the 2n+1 rule (1, 3, 5, 7...): got {count} nodes.");
-
-        Topology.NodeConfigurations = builder.Build();
-        return this;
-    }
 
     /// <summary>
     /// Sets the number of read-only replicas.
@@ -128,6 +93,10 @@ public class KurrentDBSettings {
         if (Topology is { Replicas: > 0, Nodes: < 3 })
             throw new ArgumentException("Read-only replicas require a cluster of at least 3 nodes.");
 
+        if (Topology.Nodes > 1 && Topology.Nodes % 2 == 0)
+            throw new ArgumentException(
+                $"Cluster size must follow the 2n+1 rule (1, 3, 5, 7...): got {Topology.Nodes}.", nameof(Topology.Nodes));
+        
         return this;
     }
 }
@@ -158,17 +127,6 @@ public sealed class ClusterTopologySettings {
 
 public sealed class NodeSettings {
     public int Priority { get; set; }
-}
-
-public sealed class ClusterBuilder {
-    readonly List<NodeSettings> _nodes = [];
-
-    public ClusterBuilder AddNode(int priority = 0) {
-        _nodes.Add(new() { Priority = priority });
-        return this;
-    }
-
-    internal List<NodeSettings> Build() => _nodes;
 }
 
 public sealed class CredentialSettings {

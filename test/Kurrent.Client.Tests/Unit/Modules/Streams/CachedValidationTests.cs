@@ -5,7 +5,7 @@ namespace Kurrent.Client.Tests.Modules.Streams;
 [Category("Streams")]
 public class CachedValidationTests {
     static AppendRecord ValidRecord(string stream = "test-stream") =>
-        AppendRecord.New.WithValue("payload").ForStream(stream).Build();
+        AppendRecord.New().Value("payload").Stream(stream).Build();
 
     #region AppendRecord
 

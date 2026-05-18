@@ -1,6 +1,5 @@
 using Kurrent.Client.Connectors;
 using Kurrent.Client.Tests.Fixtures;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Connectors;
 
@@ -19,7 +18,9 @@ public class ConnectorQueryTests {
         await Fixture.Client.Connectors
             .Create(connectorId, name, settings, ct);
 
-        var options = new ConnectorListOptions { ConnectorIds = [connectorId],  };
+        await KurrentDBFixture.WaitForEventualConsistency(ct);
+
+        var options = new ConnectorListOptions { ConnectorIds = [connectorId] };
 
         var result = await Fixture.Client.Connectors
             .List(options, ct);

@@ -68,12 +68,12 @@ CATEGORIES
   in unit runs or is missing from integration runs, it is missing the category attribute.
 
 EXAMPLES
-  test.sh run unit                                          # all unit tests
-  test.sh run integration                                   # all integration tests
-  test.sh run unit --treenode-filter "/*/*/MyTests/*"        # specific class
-  test.sh run integration --timeout 30s --fail-fast          # extra TUnit args
-  test.sh list unit                                         # list all unit tests
-  test.sh list unit --treenode-filter "/*/*/MyTests/*"       # list matching tests
+  test.sh run unit                                       # all unit tests
+  test.sh run integration                                # all integration tests
+  test.sh run unit --treenode-filter "/*/*/MyTests/*"    # specific class
+  test.sh run integration --timeout 30s --fail-fast      # extra TUnit args
+  test.sh list unit                                      # list all unit tests
+  test.sh list unit --treenode-filter "/*/*/MyTests/*"   # list matching tests
 
 FILTER MERGING
   The category filter is always enforced. If you pass --treenode-filter, the

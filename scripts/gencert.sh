@@ -159,19 +159,34 @@ download_gencert() {
 }
 
 ensure_gencert() {
-    local bin="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
-
-    if [[ -x "$bin" ]]; then
+    if [[ -n "$GENCERT_VERSION" ]]; then
+        local bin="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
+        if [[ -x "$bin" ]]; then
+            GENCERT_BIN="$bin"
+            return
+        fi
+        download_gencert
+        GENCERT_BIN="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
         return
     fi
 
+    local cached=""
+    while IFS= read -r -d '' f; do
+        [[ -x "$f" ]] && cached="$f" && break
+    done < <(find "$GENCERT_CACHE_DIR" -name "es-gencert-cli" -type f -print0 2>/dev/null)
+    if [[ -n "$cached" ]]; then
+        GENCERT_BIN="$cached"
+        GENCERT_VERSION=$(basename "$(dirname "$cached")")
+        echo ">> Using cached es-gencert-cli ${GENCERT_VERSION}"
+        return
+    fi
+
+    resolve_version
     download_gencert
+    GENCERT_BIN="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
 }
 
-resolve_version
 ensure_gencert
-
-GENCERT_BIN="${GENCERT_CACHE_DIR}/${GENCERT_VERSION}/es-gencert-cli"
 
 mkdir -p "$CERTS_DIR"
 

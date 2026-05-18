@@ -1,6 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
+using TUnit.Core.Interfaces;
 
 namespace Benchmarks;
 
@@ -24,14 +26,14 @@ public class ReadLogBenchmarks {
     [GlobalSetup]
     public void Setup() {
         _fixture = new ClientBenchmarkFixture();
-        _fixture.InitializeAsync().GetAwaiter().GetResult();
+        _fixture.As<IAsyncInitializer>().InitializeAsync().GetAwaiter().GetResult();
         _ = _fixture.SeedStream(MessageCount).GetAwaiter().GetResult();
     }
 
     // TODO SS: wrong name or we need proper benchmark for reading with limit, forwards and backwards.
     [Benchmark(Description = "Read $all forward with limit")]
     public async Task<int> read_log_forward() {
-        var builder = ReadRecordsRequest.New
+        var builder = ReadRecordsRequest.New()
             .FromPosition(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
             .Limit(MessageCount);
 
@@ -55,6 +57,7 @@ public class ReadLogBenchmarks {
 
     [GlobalCleanup]
     public void Cleanup() {
-        _fixture.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _fixture.As<IAsyncDisposable>().DisposeAsync()
+            .AsTask().GetAwaiter().GetResult();
     }
 }

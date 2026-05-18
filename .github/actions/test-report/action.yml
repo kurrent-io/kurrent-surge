@@ -1,0 +1,169 @@
+name: Generate and Upload Test Report
+description: >
+  Converts a TRX test results file to an HTML report using TrxToExtentReport,
+  then uploads it as a GitHub Actions artifact viewable inline in the browser.
+
+  Requires ACTIONS_RUNTIME_TOKEN and ACTIONS_RESULTS_URL to be exposed for
+  artifact upload. If not available, the HTML report is still generated locally.
+
+inputs:
+  trx:
+    description: Path to the TRX test results file.
+    required: true
+  name:
+    description: Artifact name. Must be unique within the workflow run.
+    required: true
+  environment:
+    description: Environment label shown in the report.
+    required: false
+    default: CI
+
+outputs:
+  url:
+    description: Browsable URL to the uploaded artifact (empty if upload was skipped).
+    value: ${{ steps.upload.outputs.url }}
+  artifact-id:
+    description: GitHub artifact ID (empty if upload was skipped).
+    value: ${{ steps.upload.outputs.artifact_id }}
+  html:
+    description: Path to the generated HTML report.
+    value: ${{ steps.generate.outputs.html }}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate HTML report from TRX
+      id: generate
+      shell: bash
+      env:
+        INPUT_TRX: ${{ inputs.trx }}
+        INPUT_ENV: ${{ inputs.environment }}
+      run: |
+        if [ ! -f "$INPUT_TRX" ]; then
+          echo "::warning::TRX file not found: $INPUT_TRX"
+          exit 0
+        fi
+
+        html="${INPUT_TRX%.trx}.html"
+        dnx TrxToExtentReport -y --allow-roll-forward -- -t "$INPUT_TRX" -o "$html" -e "$INPUT_ENV"
+        echo "html=$html" >> "$GITHUB_OUTPUT"
+        echo "results_dir=$(dirname "$INPUT_TRX")" >> "$GITHUB_OUTPUT"
+
+    - name: Upload HTML report
+      id: upload
+      if: steps.generate.outputs.html != ''
+      shell: bash
+      env:
+        INPUT_FILE: ${{ steps.generate.outputs.html }}
+        INPUT_NAME: ${{ inputs.name }}
+      run: |
+        set -euo pipefail
+
+        if [ ! -f "$INPUT_FILE" ]; then
+          echo "::warning::HTML report not found: $INPUT_FILE"
+          exit 0
+        fi
+
+        if [ -z "${ACTIONS_RUNTIME_TOKEN:-}" ] || [ -z "${ACTIONS_RESULTS_URL:-}" ]; then
+          echo "::warning::ACTIONS_RUNTIME_TOKEN or ACTIONS_RESULTS_URL not set — skipping upload"
+          exit 0
+        fi
+
+        # --- Decode JWT to extract backend IDs ---
+        payload=$(echo "$ACTIONS_RUNTIME_TOKEN" | cut -d. -f2)
+        payload=$(echo "$payload" | tr '_-' '/+')
+        pad=$((4 - ${#payload} % 4))
+        [ "$pad" -lt 4 ] && payload="${payload}$(printf '=%.0s' $(seq 1 $pad))"
+
+        scp=$(echo "$payload" | base64 -d 2>/dev/null | jq -r '.scp // empty')
+        if [ -z "$scp" ]; then
+          echo "::error::Failed to decode ACTIONS_RUNTIME_TOKEN"
+          exit 1
+        fi
+
+        run_backend_id=""
+        job_backend_id=""
+        for scope in $scp; do
+          case "$scope" in
+            Actions.Results:*)
+              run_backend_id=$(echo "$scope" | cut -d: -f2)
+              job_backend_id=$(echo "$scope" | cut -d: -f3)
+              ;;
+          esac
+        done
+
+        if [ -z "$run_backend_id" ] || [ -z "$job_backend_id" ]; then
+          echo "::error::Could not extract backend IDs from token"
+          exit 1
+        fi
+
+        origin=$(echo "$ACTIONS_RESULTS_URL" | sed 's|^\(https\?://[^/]*\).*|\1|')
+
+        # --- CreateArtifact ---
+        create_url="${origin}/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact"
+        create_body=$(jq -n \
+          --arg run "$run_backend_id" \
+          --arg job "$job_backend_id" \
+          --arg name "$INPUT_NAME" \
+          '{workflow_run_backend_id: $run, workflow_job_run_backend_id: $job, name: $name, version: 7, mime_type: "text/html"}')
+
+        create_response=$(curl -sS -X POST "$create_url" \
+          -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$create_body")
+
+        signed_url=$(echo "$create_response" | jq -r '.signed_upload_url // empty')
+        if [ -z "$signed_url" ]; then
+          echo "::warning::CreateArtifact failed: $create_response"
+          exit 0
+        fi
+
+        # --- Upload blob ---
+        curl -sS -X PUT "$signed_url" \
+          -H "Content-Type: text/html" \
+          -H "x-ms-blob-type: BlockBlob" \
+          --data-binary @"$INPUT_FILE"
+
+        # --- FinalizeArtifact ---
+        file_size=$(stat -c%s "$INPUT_FILE")
+        file_hash=$(sha256sum "$INPUT_FILE" | cut -d' ' -f1)
+
+        finalize_url="${origin}/twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact"
+        finalize_body=$(jq -n \
+          --arg run "$run_backend_id" \
+          --arg job "$job_backend_id" \
+          --arg name "$INPUT_NAME" \
+          --arg size "$file_size" \
+          --arg hash "sha256:$file_hash" \
+          '{workflow_run_backend_id: $run, workflow_job_run_backend_id: $job, name: $name, size: $size, hash: $hash}')
+
+        finalize_response=$(curl -sS -X POST "$finalize_url" \
+          -H "Authorization: Bearer $ACTIONS_RUNTIME_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$finalize_body")
+
+        artifact_id=$(echo "$finalize_response" | jq -r '.artifact_id // empty')
+        if [ -z "$artifact_id" ]; then
+          echo "::warning::FinalizeArtifact failed: $finalize_response"
+          exit 0
+        fi
+
+        server_url="${GITHUB_SERVER_URL:-https://github.com}"
+        url="${server_url}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts/${artifact_id}"
+
+        echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
+        echo "url=$url" >> "$GITHUB_OUTPUT"
+        title=$(echo "$INPUT_NAME" | sed 's/-/ /g; s/\b\(.\)/\u\1/g')
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "📊 [${title}]($url)" >> "$GITHUB_STEP_SUMMARY"
+        echo "Uploaded $INPUT_NAME → $url"
+
+    - name: Upload test results
+      if: steps.generate.outputs.html != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.name }}-results
+        path: |
+          ${{ inputs.trx }}
+          ${{ steps.generate.outputs.results_dir }}/*.cobertura
+        if-no-files-found: ignore

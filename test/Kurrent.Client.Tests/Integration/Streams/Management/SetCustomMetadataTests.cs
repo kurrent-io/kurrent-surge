@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Testkit.Aspire;
 using static System.TimeSpan;
 
 namespace Kurrent.Client.Tests.Streams;

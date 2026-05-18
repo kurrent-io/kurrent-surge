@@ -241,7 +241,7 @@ runs:
             args+=(--ignore-height)
           fi
 
-          version=$(dotnet minver "${args[@]}")
+          version=$(dnx minver-cli -y -- "${args[@]}")
           tag="v${version%%-*}"
           bump=""
           parse_semver "$version"

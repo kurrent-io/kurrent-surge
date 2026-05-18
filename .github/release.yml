@@ -5,7 +5,7 @@ changelog:
   categories:
     - title: Breaking Changes
       labels:
-        - breaking-change
+        - breaking
     - title: Added
       labels:
         - enhancement
@@ -14,13 +14,13 @@ changelog:
         - bug
     - title: Performance
       labels:
-        - optimization
+        - perf
     - title: Security
       labels:
         - security
     - title: Dependencies
       labels:
-        - dependencies
+        - deps
     - title: Documentation
       labels:
         - documentation

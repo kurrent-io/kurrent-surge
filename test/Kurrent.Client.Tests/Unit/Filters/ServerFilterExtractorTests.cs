@@ -1,5 +1,4 @@
 using Kurrent.Client.Streams;
-using Kurrent.Testkit;
 
 namespace Kurrent.Client.Tests.Filters;
 

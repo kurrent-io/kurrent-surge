@@ -1,6 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
+using TUnit.Core.Interfaces;
 
 namespace Benchmarks;
 
@@ -22,13 +24,13 @@ public class ReadStreamBenchmarks {
     [GlobalSetup]
     public void Setup() {
         _fixture = new ClientBenchmarkFixture();
-        _fixture.InitializeAsync().GetAwaiter().GetResult();
+        _fixture.As<IAsyncInitializer>().InitializeAsync().GetAwaiter().GetResult();
         _stream = _fixture.SeedStream(MessageCount).GetAwaiter().GetResult();
     }
 
     [Benchmark(Baseline = true, Description = "Read stream")]
     public async Task<int> read_stream() {
-        var builder = ReadStreamRequest.New.ForStream(_stream);
+        var builder = ReadStreamRequest.New().Stream(_stream);
 
         if (SkipDecoding)
             builder.SkipDecoding();
@@ -44,7 +46,7 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Description = "Read stream with LINQ")]
     public async Task<int> read_stream_with_linq() {
-        var builder = ReadStreamRequest.New.ForStream(_stream);
+        var builder = ReadStreamRequest.New().Stream(_stream);
 
         if (SkipDecoding)
             builder.SkipDecoding();
@@ -60,7 +62,7 @@ public class ReadStreamBenchmarks {
 
     // [Benchmark(Description = "Read stream from $all")]
     public async Task<int> read_stream_from_log() {
-        var builder = ReadRecordsRequest.New
+        var builder = ReadRecordsRequest.New()
             .FromPosition(LogPosition.Earliest)
             .Filter(RecordFilter.ByStream(_stream));
 
@@ -78,6 +80,7 @@ public class ReadStreamBenchmarks {
 
     [GlobalCleanup]
     public void Cleanup() {
-        _fixture.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _fixture.As<IAsyncDisposable>().DisposeAsync()
+            .AsTask().GetAwaiter().GetResult();
     }
 }

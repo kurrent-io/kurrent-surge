@@ -887,4 +887,180 @@ public class ConfigurationTests {
 
     #endregion // Configuration Binding Tests
 
+    #region ->> Batch Processor DI Registration Tests <<-
+
+    [Test]
+    public async ValueTask batch_processor_duplicate_registration_is_idempotent() {
+        var services = new ServiceCollection();
+
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), opts => {
+            opts.Connection(TestConnectionString);
+            opts.ProcessorId = "first";
+        });
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), opts => {
+            opts.Connection(TestConnectionString);
+            opts.ProcessorId = "second";
+        });
+
+        var hostedServiceCount = services.Count(d =>
+            d.ServiceType == typeof(IHostedService) &&
+            d.ImplementationFactory is not null);
+
+        await Assert.That(hostedServiceCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async ValueTask batch_processor_duplicate_registration_with_factory_is_idempotent() {
+        var services = new ServiceCollection();
+
+        services.AddKurrentBatchProcessor<TestableBatchProcessor>(
+            _ => new TestableBatchProcessor(),
+            opts => {
+                opts.Connection(TestConnectionString);
+                opts.ProcessorId = "first";
+            });
+        services.AddKurrentBatchProcessor<TestableBatchProcessor>(
+            _ => new TestableBatchProcessor(),
+            opts => {
+                opts.Connection(TestConnectionString);
+                opts.ProcessorId = "second";
+            });
+
+        var hostedServiceCount = services.Count(d =>
+            d.ServiceType == typeof(IHostedService) &&
+            d.ImplementationFactory is not null);
+
+        await Assert.That(hostedServiceCount).IsEqualTo(1);
+    }
+
+    [Test]
+    public async ValueTask batch_processor_configuration_with_service_provider_can_access_services() {
+        var services = new ServiceCollection();
+        services.AddSingleton(new TestSettings { ProcessorId = "batch-configured-id" });
+        services.AddLogging();
+
+        string? capturedId = null;
+
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), (opts, sp) => {
+            var settings = sp.GetRequiredService<TestSettings>();
+            capturedId = settings.ProcessorId;
+            opts.ProcessorId = capturedId;
+            opts.Connection(TestConnectionString);
+        });
+
+        var provider = services.BuildServiceProvider();
+        _ = provider.GetServices<IHostedService>().ToList();
+
+        await Assert.That(capturedId).IsEqualTo("batch-configured-id");
+    }
+
+    [Test]
+    public async ValueTask batch_processor_di_resolves_connection_from_client_options_in_service_provider() {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(KurrentClientOptions.Parse(TestConnectionString));
+
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), opts => {
+            opts.ProcessorId = "batch-sp-resolved";
+        });
+
+        var provider     = services.BuildServiceProvider();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
+
+        await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
+        await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
+    }
+
+    [Test]
+    public async ValueTask batch_processor_di_explicit_connection_wins_over_client_options() {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(KurrentClientOptions.Parse("kurrentdb://other-host:2113"));
+
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), opts => {
+            opts.ProcessorId = "batch-explicit-wins";
+            opts.Connection(TestConnectionString);
+        });
+
+        var provider     = services.BuildServiceProvider();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
+
+        await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
+    }
+
+    [Test]
+    public async ValueTask batch_processor_auto_generates_processor_id_from_type_name() {
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), opts => {
+            opts.Connection(TestConnectionString);
+        });
+
+        var provider     = services.BuildServiceProvider();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
+
+        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("testable-batch-processor");
+    }
+
+    [Test]
+    public async ValueTask batch_and_record_processors_register_independently() {
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
+            opts.Connection(TestConnectionString);
+            opts.ProcessorId = "record-processor";
+        });
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor(), opts => {
+            opts.Connection(TestConnectionString);
+            opts.ProcessorId = "batch-processor";
+        });
+
+        var provider = services.BuildServiceProvider();
+        var hosted   = provider.GetServices<IHostedService>().ToList();
+
+        var expectedRecordService = hosted.OfType<DroneService<TestableRecordProcessor>>().SingleOrDefault();
+        var expectedBatchService  = hosted.OfType<DroneService<TestableBatchProcessor>>().SingleOrDefault();
+
+        await Assert.That(expectedRecordService).IsNotNull();
+        await Assert.That(expectedBatchService).IsNotNull();
+    }
+
+    [Test]
+    public async ValueTask batch_processor_configuration_binding_from_json() {
+        var configuration = BuildJsonConfiguration("""
+            {
+              "Kurrent": {
+                "Processors": {
+                  "TestableBatchProcessor": {
+                    "ProcessorId": "batch-config-processor",
+                    "BufferCapacity": 2000
+                  }
+                }
+              },
+              "ConnectionStrings": {
+                "kurrentdb": "kurrentdb://localhost:2113"
+              }
+            }
+            """);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(configuration);
+        services.AddLogging();
+        services.AddKurrentBatchProcessor(new TestableBatchProcessor());
+
+        var provider     = services.BuildServiceProvider();
+        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
+
+        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("batch-config-processor");
+        await Assert.That(droneService.Drone.Options.BufferCapacity).IsEqualTo(2000);
+    }
+
+    sealed class TestableBatchProcessor() : RecordBatchProcessor(10, TimeSpan.FromMilliseconds(500)) {
+        public override ValueTask ProcessBatch(BatchContext context) => ValueTask.CompletedTask;
+    }
+
+    #endregion // Batch Processor DI Registration Tests
+
 }

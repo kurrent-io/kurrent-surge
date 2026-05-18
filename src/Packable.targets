@@ -1,0 +1,136 @@
+<!--
+  ================================================================
+  Packable.targets — Shared NuGet packaging for Kurrent SDK
+  ================================================================
+
+  WHAT THIS FILE DOES
+  ~~~~~~~~~~~~~~~~~~~
+  Provides two MSBuild targets that embed internal project dependencies
+  into a packable project's NuGet package:
+
+    1. PackProjectDependencies — embeds private project-reference DLLs
+       (e.g. Kurrent.Variant.dll) into lib/{tfm}/ alongside the main assembly.
+
+    2. PackSourceGenerators — embeds Roslyn source-generator DLLs
+       (e.g. Kurrent.Client.SourceGenerators.dll) into analyzers/dotnet/cs/
+       where NuGet's analyzer conventions expect them.
+
+  WHY IT EXISTS
+  ~~~~~~~~~~~~~
+  Several Kurrent SDK packages depend on internal projects (Variant,
+  source generators, CodeAnalysis) that are NOT published as their own
+  NuGet packages. Without these targets, NuGet would list them as package
+  dependencies that don't exist on any feed, breaking consumers.
+
+  HOW TO USE
+  ~~~~~~~~~~
+  1. In your packable .csproj, import this file:
+
+       <Import Project="..\Packable.targets" />
+
+  2. Add your project references with the appropriate metadata:
+
+     For runtime libraries that should be embedded (not published separately):
+
+       <ProjectReference Include="..\Variant\Variant.csproj"
+                         PrivateAssets="all" />
+
+       - PrivateAssets="all" marks the dependency as internal. The DLL will be
+         embedded in lib/{tfm}/ and will NOT appear as a NuGet dependency.
+       - If you omit PrivateAssets="all", the reference becomes a normal NuGet
+         dependency declared in the nuspec — use this for public dependencies
+         like Kurrent.Client from Kurrent.Streaming.
+
+     For source generators:
+
+       <ProjectReference Include="..\MyGenerators\MyGenerators.csproj"
+                         OutputItemType="Analyzer"
+                         ReferenceOutputAssembly="false"
+                         PrivateAssets="all" />
+
+       - OutputItemType="Analyzer" tells MSBuild to load it as an analyzer.
+       - ReferenceOutputAssembly="false" prevents it from being a compile-time
+         reference (generators produce code, they aren't referenced directly).
+       - The generator and all its transitive project dependencies (e.g.
+         Kurrent.CodeAnalysis) are bundled together — see the generator's
+         GetDependencyTargetPaths target for how that works.
+
+  3. That's it. Run `dotnet pack` and verify the nupkg contents:
+
+       dotnet pack -c Release
+       # Inspect the package:
+       unzip -l bin/Release/MyPackage.1.0.0.nupkg | grep -E '\.dll$'
+
+     You should see:
+       lib/net10.0/MyPackage.dll              <- your main assembly
+       lib/net10.0/Kurrent.Variant.dll        <- embedded private dependency
+       analyzers/dotnet/cs/MyGenerators.dll    <- embedded source generator
+       analyzers/dotnet/cs/Kurrent.CodeAnalysis.dll  <- generator dependency
+
+  DECISION LOG
+  ~~~~~~~~~~~~
+  - We filter on PrivateAssets="all" rather than NuGetPackageId metadata
+    because it's explicit — you control what gets embedded via the project
+    reference declaration, not via heuristics on resolved assembly metadata.
+
+  - Source generators use GetTargetPathWithTargetPlatformMoniker (not
+    GetTargetPath) because generator projects hook into that target to
+    report their transitive dependencies (e.g. Kurrent.CodeAnalysis.dll).
+    Using plain GetTargetPath would only return the generator DLL itself.
+
+  - TargetFramework=netstandard2.0 is hardcoded for generators because
+    Roslyn requires analyzers/generators to target netstandard2.0,
+    regardless of the consuming project's target framework.
+-->
+<Project>
+
+  <!-- Register our custom targets with the SDK's pack pipeline -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <!--
+    Embed private project-reference DLLs into lib/{tfm}/.
+
+    Selects ProjectReference items where:
+      - PrivateAssets="all"             (internal, don't declare as NuGet dep)
+      - ReferenceOutputAssembly!="false" (exclude source generators)
+
+    Public project references (no PrivateAssets="all") are left alone — the
+    SDK automatically declares them as NuGet dependencies in the nuspec.
+  -->
+  <Target Name="PackProjectDependencies">
+    <MSBuild Projects="@(ProjectReference)"
+             Condition="'%(ProjectReference.PrivateAssets)' == 'all'
+                        AND '%(ProjectReference.ReferenceOutputAssembly)' != 'false'"
+             Targets="GetTargetPath"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_PrivateProjectAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(_PrivateProjectAssembly)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Embed source-generator DLLs into analyzers/dotnet/cs/.
+
+    Selects ProjectReference items where OutputItemType="Analyzer".
+    These have ReferenceOutputAssembly="false" so they never appear in
+    ReferenceCopyLocalPaths and are excluded by PackProjectDependencies.
+  -->
+  <Target Name="PackSourceGenerators">
+    <MSBuild Projects="@(ProjectReference)"
+             Condition="'%(ProjectReference.OutputItemType)' == 'Analyzer'"
+             Targets="GetTargetPathWithTargetPlatformMoniker"
+             Properties="TargetFramework=netstandard2.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_SourceGeneratorAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_SourceGeneratorAssembly)"
+                              PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+</Project>

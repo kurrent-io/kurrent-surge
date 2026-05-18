@@ -12,10 +12,11 @@ env:
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   IS_DIRECT_PUSH: ${{ github.event.head_commit.committer.username != 'web-flow' }}
+  TUNIT_DISABLE_HTML_REPORTER: true
 
 jobs:
   main:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
 
     permissions:
       contents: read
@@ -29,19 +30,69 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build project
-        uses: ./.github/actions/dotnet-setup
+      - name: Prepare Environment
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+          bin_dir="$HOME/.local/bin"
+          mkdir -p "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
+          fi
+          if ! command -v yq &>/dev/null; then
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            chmod +x "$bin_dir/yq"
+          fi
+
+      - name: Expose Artifact Upload Token
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5.2.0
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore Dependencies
+        run: dotnet restore ${{ inputs.restore-args }}
+
+      - name: Install Local Tools
+        uses: ./.github/actions/dotnet-tools
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
       # Tests only run on direct push — merged PRs were already validated by CI
-      - name: Unit tests
+      - name: Run Unit Tests
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
-          --results-directory ./artifacts/test-results
-          -- --treenode-filter "/*/*/*/*[Category!=Integration]"
-          --disable-logo --report-trx --coverage
+          --results-directory .artifacts/test-results/unit
+          --
+          --disable-logo
+          --treenode-filter "/*/*/*/*[Category!=Integration]"
+          --coverage --coverage-output "unit-tests-report.cobertura"
+          --report-trx --report-trx-filename "unit-tests-report.trx"
 
-      - name: Test containers setup
+      - name: Unit Test Report
+        id: unit-report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        uses: ./.github/actions/test-report
+        with:
+          trx: .artifacts/test-results/unit/unit-tests-report.trx
+          name: unit-test-report
+
+      - name: Test Containers Setup
         if: env.IS_DIRECT_PUSH == 'true'
         uses: ./.github/actions/test-containers-setup
         with:
@@ -55,35 +106,33 @@ jobs:
           images: |
             KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
 
-      - name: Integration tests
+      - name: Run Integration Tests
         if: env.IS_DIRECT_PUSH == 'true'
         run: >-
           dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 -f net10.0
-          --results-directory ./artifacts/test-results
-          -- --treenode-filter "/*/*/*/*[Category=Integration]"
-          --disable-logo --report-trx --coverage --fail-fast
+          --results-directory .artifacts/test-results/integration
+          --
+          --disable-logo
+          --treenode-filter "/*/*/*/*[Category=Integration]"
+          --coverage --coverage-output "integration-tests-report.cobertura"
+          --report-trx --report-trx-filename "integration-tests-report.trx"
+          --fail-fast
+
+      - name: Integration Test Report
+        id: integration-report
+        if: env.IS_DIRECT_PUSH == 'true' && !cancelled()
+        uses: ./.github/actions/test-report
+        with:
+          trx: .artifacts/test-results/integration/integration-tests-report.trx
+          name: integration-test-report
 
       - name: Version
         id: version
         uses: ./.github/actions/bumpcraft
 
-      # TODO: re-enable preview publishing when ready to ship 0.1.0-preview.* packages from main
-      # - name: Publish preview packages
-      #   uses: ./.github/actions/dotnet-nuget
-      #   with:
-      #     version: ${{ steps.version.outputs.version }}
-      #     push-to: github nuget
-      #   env:
-      #     NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        continue-on-error: true
+      - name: Publish Preview Packages
+        uses: ./.github/actions/dotnet-nuget
         with:
-          name: artifacts
-          path: |
-            ./artifacts
-            **/*-report.html
-          overwrite: true
-          include-hidden-files: true
+          version: ${{ steps.version.outputs.version }}
+          push-to: github
+

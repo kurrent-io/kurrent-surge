@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Kurrent.Testkit</RootNamespace>
   </PropertyGroup>
   
   <ItemGroup>

@@ -395,8 +395,8 @@ public partial class StreamsClient {
 
     async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision rev, CancellationToken ct) {
         var request = AppendStreamRequest.For(stream.Metastream)
-            .ExpectingState(rev)
-            .WithMessage(metadata)
+            .ExpectedState(rev)
+            .AddMessage(metadata)
             .Build();
 
         var result = await AppendStream(request, ct).ConfigureAwait(false);

@@ -6,51 +6,49 @@ pipeline for the Kurrent .NET SDK.
 ## Workflow Overview
 
 ```
-  PR opened ──► CI ──► merge queue ──► merged to main ──► Main ──► tag v* ──► Release
-                │         │                                 │                    │
-                │         │                                 │                    │
-           unit tests  + integration              build + version          stable version
-           PR packages   tests                 preview packages           NuGet + GitHub
-           validation                            GitHub + NuGet
-           labeling
+  PR opened ──► CI + Validate ──► merged to main ──► Main ──► tag v* ──► Release
+                    │                                  │                    │
+                    │                                  │                    │
+               unit tests                        build + version       stable version
+             + integration                      preview packages       NuGet + GitHub
+               PR packages                       GitHub Packages
+               validation
+               labeling
 ```
 
 ## Workflows
 
 ### [`pull-request.yml`](pull-request.yml) -- Pull Request Pipeline
 
-Triggers on pull requests, merge queue, and manual dispatch. Handles the full PR lifecycle:
-build, test, package, validate, and label.
-
-**Jobs:**
-
-| Job        | Runs on                   | What it does                                                                                                                  |
-|------------|---------------------------|-------------------------------------------------------------------------------------------------------------------------------|
-| `ci`       | PR, merge queue, dispatch | Build, unit tests, PR packages (`pr.{number}.{run}.{sha}` to GitHub Packages). Integration tests run only in the merge queue. |
-| `validate` | PR opened/edited/ready    | Checks PR title follows [conventional commits](https://www.conventionalcommits.org/) and applies type-based labels.           |
-| `labeler`  | PR target                 | Auto-labels PRs based on changed file paths. Uses `pull_request_target` for fork write access.                                |
+Triggers on pull requests and manual dispatch. Handles the full PR lifecycle: build, test, and
+package. Source change detection skips the pipeline for docs-only changes.
 
 **Event matrix:**
 
-| Event                             | `ci`                     | `validate`                | `labeler`  |
-|-----------------------------------|--------------------------|---------------------------|------------|
-| PR opened/edited/ready_for_review | unit tests + PR packages | conventional commit check | --         |
-| PR synchronize (new commits)      | unit tests + PR packages | --                        | --         |
-| `pull_request_target`             | --                       | --                        | auto-label |
-| merge queue                       | unit + integration tests | --                        | --         |
-| manual dispatch                   | unit tests               | --                        | --         |
+| Event                                              | What runs                              |
+|----------------------------------------------------|----------------------------------------|
+| PR opened/synchronize/ready_for_review (non-draft) | unit + integration tests, PR packages  |
+| PR opened/synchronize (draft)                      | unit tests, PR packages                |
+| Manual dispatch                                    | unit + integration tests               |
+
+PR packages use the version format `pr.{number}.{run}.{sha}` and are published to GitHub Packages.
+
+### [`validate-pr.yml`](validate-pr.yml) -- PR Validation
+
+Triggers on pull requests (opened, edited, synchronize, ready_for_review). Validates the PR title
+follows [conventional commits](https://www.conventionalcommits.org/) and applies type-based labels.
 
 ### [`main.yml`](main.yml) -- Main Branch Pipeline
 
-Triggers on every push to `main`. Builds, versions, and publishes alpha preview packages
-to both GitHub Packages and NuGet.org.
+Triggers on every push to `main`. Builds, versions, and publishes preview packages to GitHub
+Packages.
 
 The workflow detects whether the push came from a merged PR or a direct push:
 
-| Source                            | Tests                                    | Publish                           |
-|-----------------------------------|------------------------------------------|-----------------------------------|
-| Merged PR (committer: `web-flow`) | Skipped -- merge queue already validated | `preview.{run}` to GitHub + NuGet |
-| Direct push (developer)           | Unit + integration tests                 | `preview.{run}` to GitHub + NuGet |
+| Source                            | Tests                                  | Publish                                  |
+|-----------------------------------|----------------------------------------|------------------------------------------|
+| Merged PR (committer: `web-flow`) | Skipped -- PR pipeline already validated | `preview.{run}` to GitHub Packages |
+| Direct push (developer)           | Unit + integration tests               | `preview.{run}` to GitHub Packages       |
 
 Both paths always publish preview packages, ensuring every commit on `main` has a corresponding
 preview package available.
@@ -61,24 +59,24 @@ Triggers on pushing a semver tag (`v*`) or manual dispatch. Uses the
 [`bumpcraft`](../actions/bumpcraft/) action in `release` mode to compute a stable version, then
 builds, publishes to both GitHub Packages and NuGet.org, and creates a GitHub Release.
 
-| Trigger               | Version source       | What happens                                       |
-|-----------------------|----------------------|----------------------------------------------------|
-| Tag push (`v1.2.3`)   | Tag name             | Build, publish, create GitHub Release              |
-| Manual (with version) | Input parameter      | Tag, build, publish, create GitHub Release         |
-| Manual (no version)   | Conventional commits | Compute next version, tag, build, publish          |
+| Trigger               | Version source       | What happens                                        |
+|-----------------------|----------------------|-----------------------------------------------------|
+| Tag push (`v1.2.3`)   | Tag name             | Build, publish, create GitHub Release               |
+| Manual (with version) | Input parameter      | Tag, build, publish, create GitHub Release          |
+| Manual (no version)   | Conventional commits | Compute next version, tag, build, publish           |
 | Manual (dry run)      | Conventional commits | Compute version and build only -- nothing published |
 
 ### [`benchmark.yml`](benchmark.yml) -- Performance Benchmarks
 
-Triggers in the merge queue and on manual dispatch. Runs BenchmarkDotNet benchmarks, generates
-an HTML report, and uploads results as artifacts.
+Triggers on manual dispatch. Runs BenchmarkDotNet benchmarks, generates an HTML report, and uploads
+results as artifacts.
 
 ## Package Version Scheme
 
 | Pipeline | Version format                   | Example                 | Destination                 |
 |----------|----------------------------------|-------------------------|-----------------------------|
 | PR       | `{base}-pr.{number}.{run}.{sha}` | `1.0.0-pr.7.42.abc1234` | GitHub Packages             |
-| Main     | `{base}-preview.{run}`           | `1.0.0-preview.42`      | GitHub Packages + NuGet.org |
+| Main     | `{base}-preview.{run}`           | `1.0.0-preview.42`      | GitHub Packages             |
 | Release  | `{major}.{minor}.{patch}`        | `1.0.0`                 | GitHub Packages + NuGet.org |
 
 All pipelines use the [`bumpcraft`](../actions/bumpcraft/) composite action. Pre-release builds
@@ -94,16 +92,16 @@ Bumpcraft supports both **presets** and **custom templates** for pre-release ide
 
 Use a preset name prefixed with `@` for common conventions:
 
-| Preset       | `pre-release:`                       | `pull-request:`                       |
-|--------------|--------------------------------------|---------------------------------------|
-| `@simple`    | `preview.{run}`                      | `pr.{pr}.{run}`                       |
-|              | → `1.0.0-preview.42`                 | → `1.0.0-pr.7.42`                    |
-| `@traceable` | `preview.{run}.{sha}`                | `pr.{pr}.{run}.{sha}`                 |
-|              | → `1.0.0-preview.42.abc1234`         | → `1.0.0-pr.7.42.abc1234`            |
-| `@dated`     | `preview.{date}.{run}`               | `pr.{pr}.{date}.{run}`                |
-|              | → `1.0.0-preview.26075.42`           | → `1.0.0-pr.7.26075.42`              |
-| `@detailed`  | `preview.{date}.{run}.{sha}`         | `pr.{pr}.{date}.{run}.{sha}`          |
-|              | → `1.0.0-preview.26075.42.abc1234`   | → `1.0.0-pr.7.26075.42.abc1234`      |
+| Preset       | `pre-release:`                     | `pull-request:`                 |
+|--------------|------------------------------------|---------------------------------|
+| `@simple`    | `preview.{run}`                    | `pr.{pr}.{run}`                 |
+|              | → `1.0.0-preview.42`               | → `1.0.0-pr.7.42`               |
+| `@traceable` | `preview.{run}.{sha}`              | `pr.{pr}.{run}.{sha}`           |
+|              | → `1.0.0-preview.42.abc1234`       | → `1.0.0-pr.7.42.abc1234`       |
+| `@dated`     | `preview.{date}.{run}`             | `pr.{pr}.{date}.{run}`          |
+|              | → `1.0.0-preview.26075.42`         | → `1.0.0-pr.7.26075.42`         |
+| `@detailed`  | `preview.{date}.{run}.{sha}`       | `pr.{pr}.{date}.{run}.{sha}`    |
+|              | → `1.0.0-preview.26075.42.abc1234` | → `1.0.0-pr.7.26075.42.abc1234` |
 
 Default configuration (no `.github/version.yml` needed):
 

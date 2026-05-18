@@ -39,10 +39,11 @@ inputs:
     default: ./.artifacts/packages
   pack-args:
     description: >
-      Arguments passed to dotnet pack. Defaults to --no-build (assumes a
-      prior build step). Override to control build behavior or add flags.
+      Arguments passed to dotnet pack. Defaults to `-c Release --no-build`
+      to match the Release build produced by dotnet-setup. Override to
+      control build behavior or add flags.
     required: false
-    default: '--no-build'
+    default: '-c Release --no-build'
 
 outputs:
   packages-path:

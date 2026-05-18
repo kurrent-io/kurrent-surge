@@ -15,9 +15,7 @@
     <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
   </Folder>
 
-  <Folder Name="/Shared/">
-    <Project Path="src/Kurrent.Toolkit/Kurrent.Toolkit.csproj" />
-  </Folder>
+  <Folder Name="/Shared/" />
   <Folder Name="/Shared/Aspire/">
     <Project Path="test\Aspire.Hosting.KurrentDB.Tests\Aspire.Hosting.KurrentDB.Tests.csproj" />
     <Project Path="test\Aspire.Hosting.KurrentDB\Aspire.Hosting.KurrentDB.csproj" />
@@ -38,10 +36,8 @@
     <Project Path="test\Kurrent.Streaming.Tests\Kurrent.Streaming.Tests.csproj" />
   </Folder>
   <Folder Name="/Testkit/">
-    <Project Path="test/Kurrent.Testkit.Datasets.Tests/Kurrent.Testkit.Datasets.Tests.csproj" />
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
     <Project Path="test\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
-    <Project Path="test\Kurrent.Testkit.Datasets\Kurrent.Testkit.Datasets.csproj" />
     <Project Path="test\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </Folder>
 

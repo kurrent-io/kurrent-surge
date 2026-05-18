@@ -1,6 +1,7 @@
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 #pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
+using System.Diagnostics;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
@@ -254,28 +255,17 @@ static class StreamsClientV1Mapper {
         bool skipDecoding = false,
         CancellationToken ct = default
     ) {
-        var recordedEvent = readEvent.Event;
+        // The server always populates at least one of Event or Link:
+        //   Event + Link → resolved link (record is the event, link carries source metadata)
+        //   Link only    → unresolved link (record IS the link itself)
+        //   Event only   → regular event
+        var recorded = readEvent.Event ?? readEvent.Link
+            ?? throw new UnreachableException("ReadEvent has neither Event nor Link.");
 
-        var stream    = StreamName.From(recordedEvent.StreamIdentifier);
-        var recordId  = Uuid.FromDto(recordedEvent.Id).ToGuid();
-        var revision  = Revision.From((long)recordedEvent.StreamRevision);
-        var position  = LogPosition.From((long)recordedEvent.CommitPosition);
-        var data      = recordedEvent.Data.Memory;
-        var timestamp = Convert.ToInt64(recordedEvent.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
+        var isLink = readEvent.Event is null;
 
-        // for v1 this is super weird because we have schema info in metadata
-        // not needed anymore specially in v2 where we have schema as a first class concept
-        var schemaFormat = recordedEvent.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat(); // it will always be json or octet-stream
-        var schemaName   = SchemaName.From(recordedEvent.Metadata[Constants.Metadata.Type]);
-
-        var metadata = await metadataDecoder
-            .Decode(recordedEvent.CustomMetadata.Memory, new(stream, schemaName, schemaFormat))
-            .ConfigureAwait(false);
-
-        var schema = metadata.ExtractSchemaInfo();
-
-        var link = readEvent.Link is { } linkEvent
-            ? new() {
+        var link = readEvent is { Link: { } linkEvent, Event: not null }
+            ? new Link {
                 Name     = linkEvent.Metadata[Constants.Metadata.Type],
                 Position = (long)linkEvent.CommitPosition,
                 Revision = (long)linkEvent.StreamRevision,
@@ -283,22 +273,38 @@ static class StreamsClientV1Mapper {
             }
             : Link.Unset;
         
-        // create a decoder
+        var stream    = StreamName.From(recorded.StreamIdentifier);
+        var recordId  = Uuid.FromDto(recorded.Id).ToGuid();
+        var revision  = Revision.From((long)recorded.StreamRevision);
+        var position  = LogPosition.From((long)recorded.CommitPosition);
+        var data      = recorded.Data.Memory;
+        var timestamp = Convert.ToInt64(recorded.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
+
+        // for v1 this is super weird because we have schema info in metadata
+        // not needed anymore specially in v2 where we have schema as a first class concept
+        var schemaFormat = recorded.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat(); // it will always be json or octet-stream
+        var schemaName   = SchemaName.From(recorded.Metadata[Constants.Metadata.Type]);
+
+        var metadata = await metadataDecoder
+            .Decode(recorded.CustomMetadata.Memory, new(stream, schemaName, schemaFormat))
+            .ConfigureAwait(false);
+
+        var schema = metadata.ExtractSchemaInfo();
+        
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);
 
-        // and we are done
         var record = new Record(decoder) {
-            Id             = recordId,
+            Id        = recordId,
             Position  = RecordPosition.From(position, stream, revision),
             Sequence  = sequenceId,
             Timestamp = timestamp,
             Data      = data,
             Metadata  = metadata,
             Schema    = schema,
-            Link      = link
+            Link      = link,
+            IsLink    = isLink
         };
 
-        // now decode the record if required
         if (!skipDecoding)
             await record.TryDecode(ct).ConfigureAwait(false);
 

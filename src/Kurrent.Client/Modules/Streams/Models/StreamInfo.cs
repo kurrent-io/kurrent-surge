@@ -97,6 +97,7 @@ public enum StreamState {
     Missing    = -1
 }
 
+
 /// <summary>
 /// Represents the retention configuration for a stream.
 /// </summary>
@@ -216,7 +217,7 @@ public record StreamAcl {
         """;
 }
 
-#region ->> Mappings  <<-
+#region ->> Mappings <<-
 
 /// <summary>
 /// Represents metadata associated with a stream in KurrentDB.

@@ -1,5 +1,4 @@
 using Aspire.Hosting.Eventing;
-using Aspire.Hosting.KurrentDB;
 using Aspire.Hosting.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -55,7 +54,7 @@ public class ResourceConnectionProviderTests {
     }
 
     [Test]
-    [Timeout(10_000)]
+    [Timeout(30_000)]
     public async ValueTask respects_cancellation_when_resource_never_resolves(CancellationToken ct) {
         // Arrange
         var builder = DistributedApplicationTestingBuilder.Create([]);

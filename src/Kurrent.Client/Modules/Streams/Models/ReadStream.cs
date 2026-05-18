@@ -17,7 +17,7 @@ namespace Kurrent.Client.Streams;
 
 [PublicAPI]
 public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRequest.Validator> {
-    public static Builder New => new();
+    public static Builder New() => new();
 
     /// <summary>
     /// Name of the stream to read from.
@@ -57,7 +57,7 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
         /// <summary>
         /// Set the stream to read from.
         /// </summary>
-        public Builder ForStream(StreamName stream) =>
+        public Builder Stream(StreamName stream) =>
             With(request => request with { Stream = stream });
 
         /// <summary>
@@ -81,7 +81,7 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
         /// <summary>
         /// Read forwards (toward newer records).
         /// </summary>
-        public Builder Forward() =>
+        public Builder Forwards() =>
             With(request => request with { Direction = ReadDirection.Forwards });
 
         /// <summary>
@@ -93,26 +93,26 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
         /// <summary>
         /// Limit the number of records returned.
         /// </summary>
-        public Builder WithMaxRecords(long maxRecords) =>
+        public Builder Limit(long maxRecords) =>
             With(request => request with { Limit = maxRecords });
 
         /// <summary>
         /// Apply a record filter.
         /// </summary>
-        public Builder WithFilter(IRecordFilter filter) =>
+        public Builder Filter(IRecordFilter filter) =>
             With(request => request with { Filter = filter });
 
         /// <summary>
         /// Apply a filter expression. Sugar for <c>RecordFilter.ByExpression(...)</c>.
         /// </summary>
-        public Builder WithFilterExpression(string expression) =>
+        public Builder Filter(string expression) =>
             With(request => request with { Filter = RecordFilter.ByExpression(expression) });
 
         /// <summary>
         /// Skip record data deserialization.
         /// </summary>
-        public Builder SkipDecoding() =>
-            With(request => request with { SkipDecoding = true });
+        public Builder SkipDecoding(bool skip = true) =>
+            With(request => request with { SkipDecoding = skip });
     }
 
     public class Validator : Validator<Validator, ReadStreamRequest> {

@@ -3,7 +3,6 @@
 using Google.Protobuf;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Client.Registry;

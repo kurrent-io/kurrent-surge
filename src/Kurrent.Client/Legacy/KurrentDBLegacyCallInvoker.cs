@@ -10,182 +10,234 @@ namespace Kurrent.Client.Legacy;
 /// channel information. This provides a bridge between the legacy gossip-based discovery
 /// and modern gRPC client patterns.
 /// </summary>
-/// <remarks>
-/// This implementation ensures that ServerCapabilities are always up-to-date and accessible
-/// in a thread-safe manner. It transparently handles getting the correct channel invoker
-/// from the LegacyClusterClient for each gRPC call.
-/// </remarks>
 sealed class KurrentDBLegacyCallInvoker : CallInvoker, IAsyncDisposable {
-	readonly SemaphoreSlim        _stateLock = new(1, 1);
-	readonly LegacyClusterClient  _legacyClient;
-    readonly bool                 _disposeClient;
+	readonly LegacyClusterClient _legacyClient;
+	readonly bool                _disposeClient;
 
-    volatile ServerCapabilities _currentCapabilities;
-    volatile GrpcChannelOptions _currentChannelOptions;
-    volatile string             _currentChannelTarget;
+	volatile ChannelSnapshot? _snapshot;
 
-    bool _disposed;
+	bool _disposed;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="KurrentDBLegacyCallInvoker"/> class.
-    /// </summary>
-    /// <param name="options">
-    /// The options used to configure the Kurrent client, including security and resilience settings.
-    /// </param>
-    /// <param name="disposeClient">
-    /// Optional; indicates whether the legacy client should be disposed when this invoker is disposed.
-    /// </param>
-    internal KurrentDBLegacyCallInvoker(KurrentClientOptions options, bool disposeClient = true) {
-	    _legacyClient          = LegacyClusterClient.Create(options.ConvertToLegacySettings());
-        _disposeClient         = disposeClient;
-	    _currentCapabilities   = null!;
-        _currentChannelOptions = null!;
-        _currentChannelTarget  = null!;
-    }
+	internal KurrentDBLegacyCallInvoker(KurrentClientOptions options, bool disposeClient = true) {
+		_legacyClient  = LegacyClusterClient.Create(options.ConvertToLegacySettings());
+		_disposeClient = disposeClient;
+	}
 
-    /// <summary>
-    /// Gets the current server capabilities from the connected node.
-    /// </summary>
-    public ServerCapabilities ServerCapabilities {
-        [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-        get {
-            if (_currentCapabilities is not null)
-                return _currentCapabilities;
+	/// <summary>
+	/// Gets the current server capabilities from the connected node.
+	/// </summary>
+	public ServerCapabilities ServerCapabilities {
+		[SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
+		get => TryGetCachedChannel()?.ServerCapabilities
+			?? throw new InvalidOperationException(
+				"Ensure the client is connected before accessing server capabilities.");
+	}
 
-            WithChannelInfoInvoker(CancellationToken.None);
+	/// <summary>
+	/// Gets the current channel options used for gRPC calls.
+	/// </summary>
+	public GrpcChannelOptions ChannelOptions {
+		[SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
+		get => TryGetCachedChannel()?.Options
+			?? throw new InvalidOperationException(
+				"Ensure the client is connected before accessing channel options.");
+	}
 
-            return _currentCapabilities ?? throw new InvalidOperationException(
-                "Ensure the client is connected before accessing server capabilities.");
-        }
-    }
+	/// <summary>
+	/// Gets the current channel target (the address of the connected node).
+	/// </summary>
+	public string ChannelTarget {
+		[SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
+		get => TryGetCachedChannel()?.Channel.Target
+			?? throw new InvalidOperationException(
+				"Ensure the client is connected before accessing the channel target.");
+	}
 
-    /// <summary>
-    /// Gets the current channel options used for gRPC calls.
-    /// This includes the HTTP client and other options necessary for making gRPC calls.
-    /// </summary>
-    public GrpcChannelOptions ChannelOptions {
-        [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-        get {
-            if (_currentChannelOptions is not null)
-                return _currentChannelOptions;
+	/// <summary>
+	/// Pre-warms the connection by resolving the channel info ahead of the first gRPC call.
+	/// </summary>
+	public async ValueTask ConnectAsync(CancellationToken cancellationToken = default) {
+		ObjectDisposedException.ThrowIf(_disposed, this);
+		var info = await _legacyClient.Connect(cancellationToken).ConfigureAwait(false);
+		UpdateSnapshot(info);
+	}
 
-            WithChannelInfoInvoker(CancellationToken.None);
+	/// <summary>
+	/// Forces a refresh of the internal channel info and server capabilities by attempting to reconnect to the cluster.
+	/// </summary>
+	public async Task ForceRefresh(CancellationToken cancellationToken) {
+		ObjectDisposedException.ThrowIf(_disposed, this);
+		var channelInfo = await _legacyClient.ForceReconnect().ConfigureAwait(false);
+		UpdateSnapshot(channelInfo);
+	}
 
-            return _currentChannelOptions ?? throw new InvalidOperationException(
-                "Ensure the client is connected before accessing channel options.");
-        }
-    }
+	ChannelInfo? TryGetCachedChannel() {
+		var snap = _snapshot;
+		if (snap is not null && ReferenceEquals(snap.Source, _legacyClient.CurrentChannelAsync))
+			return snap.Info;
 
-    /// <summary>
-    /// Gets the current channel target (the address of the connected node).
-    /// </summary>
-    public string ChannelTarget {
-        [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-        get {
-            if (_currentChannelTarget is not null)
-                return _currentChannelTarget;
+		return null;
+	}
 
-            WithChannelInfoInvoker(CancellationToken.None);
+	async Task<TResult> ResolveAndCallAsync<TResult>(CancellationToken ct, Func<CallInvoker, TResult> invoke) {
+		ObjectDisposedException.ThrowIf(_disposed, this);
+		var channelInfo = await _legacyClient.Connect(ct).ConfigureAwait(false);
+		UpdateSnapshot(channelInfo);
+		return invoke(channelInfo.CallInvoker);
+	}
 
-            return _currentChannelTarget ?? throw new InvalidOperationException(
-                "Ensure the client is connected before accessing the channel target.");
-        }
-    }
+	void UpdateSnapshot(ChannelInfo info) =>
+		_snapshot = new(Source: _legacyClient.CurrentChannelAsync, Info: info);
 
-    /// <summary>
-    /// Forces a refresh of the internal channel info and server capabilities by attempting to reconnect to the cluster.
-    /// </summary>
-    public async Task ForceRefresh(CancellationToken cancellationToken) {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+	#region ->> CallInvoker Overrides <<-
 
-	    // must be called for every gRPC operation as per requirements
-	    var channelInfo = await _legacyClient.ForceReconnect().ConfigureAwait(false);
+	/// <inheritdoc/>
+	public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
+		Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request
+	) {
+		var cached = TryGetCachedChannel();
+		if (cached is not null)
+			return cached.CallInvoker.AsyncUnaryCall(method, host, options, request);
 
-	    // update capabilities in a thread-safe manner
-		await UpdateChannelInfo(channelInfo, cancellationToken);
-    }
+		var ct      = options.CancellationToken;
+		var pending = ResolveAndCallAsync(ct, inv => inv.AsyncUnaryCall(method, host, options, request));
 
-    /// <summary>
-    /// Gets a channel info invoker safely without deadlock risks.
-    /// <remarks>
-    /// Asynchronously gets the current <see cref="CallInvoker"/> from the legacy cluster client.
-    /// Updates the server capabilities as a side effect.
-    /// </remarks>
-    /// </summary>
-    CallInvoker WithChannelInfoInvoker(CancellationToken cancellationToken) {
-	    ObjectDisposedException.ThrowIf(_disposed, this);
+		return new(
+			pending.ContinueWith(static t => t.Result.ResponseAsync, TaskContinuationOptions.ExecuteSynchronously).Unwrap(),
+			pending.ContinueWith(static t => t.Result.ResponseHeadersAsync, TaskContinuationOptions.ExecuteSynchronously).Unwrap(),
+			() => pending.Result.GetStatus(),
+			() => pending.Result.GetTrailers(),
+			() => { if (pending.IsCompletedSuccessfully) pending.Result.Dispose(); }
+		);
+	}
 
-        // using Task.Run to avoid deadlocks in synchronous contexts,
-	    // this is necessary because the legacy client may block on network operations,
-	    // and we want to ensure we don't block the calling thread.
-	    return Task.Run(
-	        () => GetInvokerAsync().ConfigureAwait(false).GetAwaiter().GetResult(),
-	        cancellationToken
-        ).GetAwaiter().GetResult();
+	/// <inheritdoc/>
+	public override TResponse BlockingUnaryCall<TRequest, TResponse>(
+		Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request
+	) {
+		var cached = TryGetCachedChannel();
+		if (cached is not null)
+			return cached.CallInvoker.BlockingUnaryCall(method, host, options, request);
 
-	    async Task<CallInvoker> GetInvokerAsync() {
-		    // must be called for every gRPC operation as per requirements
-		    var channelInfo = await _legacyClient.Connect(cancellationToken).ConfigureAwait(false);
+		var info = _legacyClient.Connect(options.CancellationToken).GetAwaiter().GetResult();
+		UpdateSnapshot(info);
+		return info.CallInvoker.BlockingUnaryCall(method, host, options, request);
+	}
 
-		    // update capabilities and channel target in a thread-safe manner
-		    await UpdateChannelInfo(channelInfo, cancellationToken);
+	/// <inheritdoc/>
+	public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(
+		Method<TRequest, TResponse> method, string? host, CallOptions options
+	) {
+		var cached = TryGetCachedChannel();
+		if (cached is not null)
+			return cached.CallInvoker.AsyncClientStreamingCall(method, host, options);
 
-		    return channelInfo.CallInvoker;
-	    }
-    }
+		var ct      = options.CancellationToken;
+		var pending = ResolveAndCallAsync(ct, inv => inv.AsyncClientStreamingCall(method, host, options));
 
-    /// <summary>
-    ///  Updates the server capabilities and other properties in a thread-safe manner.
-    /// </summary>
-    async Task UpdateChannelInfo(ChannelInfo channelInfo, CancellationToken cancellationToken = default) {
-        var options      = channelInfo.Options;
-        var capabilities = channelInfo.ServerCapabilities;
-        var target       = channelInfo.Channel.Target;
+		return new(
+			new DeferredStreamWriter<TRequest>(pending.ContinueWith(
+				static t => t.Result.RequestStream, TaskContinuationOptions.ExecuteSynchronously)),
+			pending.ContinueWith(static t => t.Result.ResponseAsync, TaskContinuationOptions.ExecuteSynchronously).Unwrap(),
+			pending.ContinueWith(static t => t.Result.ResponseHeadersAsync, TaskContinuationOptions.ExecuteSynchronously).Unwrap(),
+			() => pending.Result.GetStatus(),
+			() => pending.Result.GetTrailers(),
+			() => { if (pending.IsCompletedSuccessfully) pending.Result.Dispose(); }
+		);
+	}
 
-	    // update capabilities in a thread-safe manner
-	    await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-	    try {
-            _currentChannelOptions = options;
-		    _currentCapabilities   = capabilities;
-            _currentChannelTarget  = target;
-        } finally {
-		    _stateLock.Release();
-	    }
-    }
+	/// <inheritdoc/>
+	public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(
+		Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request
+	) {
+		var cached = TryGetCachedChannel();
+		if (cached is not null)
+			return cached.CallInvoker.AsyncServerStreamingCall(method, host, options, request);
 
-    #region ->> CallInvoker Overrides <<-
+		var ct      = options.CancellationToken;
+		var pending = ResolveAndCallAsync(ct, inv => inv.AsyncServerStreamingCall(method, host, options, request));
 
-    /// <inheritdoc/>
-    public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request) =>
-	    WithChannelInfoInvoker(options.CancellationToken).AsyncUnaryCall(method, host, options, request);
+		return new(
+			new DeferredStreamReader<TResponse>(pending.ContinueWith(
+				static t => t.Result.ResponseStream, TaskContinuationOptions.ExecuteSynchronously)),
+			pending.ContinueWith(static t => t.Result.ResponseHeadersAsync, TaskContinuationOptions.ExecuteSynchronously).Unwrap(),
+			() => pending.Result.GetStatus(),
+			() => pending.Result.GetTrailers(),
+			() => { if (pending.IsCompletedSuccessfully) pending.Result.Dispose(); }
+		);
+	}
 
-    /// <inheritdoc/>
-    public override TResponse BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request) =>
-	    WithChannelInfoInvoker(options.CancellationToken).BlockingUnaryCall(method, host, options, request);
+	/// <inheritdoc/>
+	public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(
+		Method<TRequest, TResponse> method, string? host, CallOptions options
+	) {
+		var cached = TryGetCachedChannel();
+		if (cached is not null)
+			return cached.CallInvoker.AsyncDuplexStreamingCall(method, host, options);
 
-    /// <inheritdoc/>
-    public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options) =>
-	    WithChannelInfoInvoker(options.CancellationToken).AsyncClientStreamingCall(method, host, options);
+		var ct      = options.CancellationToken;
+		var pending = ResolveAndCallAsync(ct, inv => inv.AsyncDuplexStreamingCall(method, host, options));
 
-    /// <inheritdoc/>
-    public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request) =>
-	    WithChannelInfoInvoker(options.CancellationToken).AsyncServerStreamingCall(method, host, options, request);
+		return new(
+			new DeferredStreamWriter<TRequest>(pending.ContinueWith(
+				static t => t.Result.RequestStream, TaskContinuationOptions.ExecuteSynchronously)),
+			new DeferredStreamReader<TResponse>(pending.ContinueWith(
+				static t => t.Result.ResponseStream, TaskContinuationOptions.ExecuteSynchronously)),
+			pending.ContinueWith(static t => t.Result.ResponseHeadersAsync, TaskContinuationOptions.ExecuteSynchronously).Unwrap(),
+			() => pending.Result.GetStatus(),
+			() => pending.Result.GetTrailers(),
+			() => { if (pending.IsCompletedSuccessfully) pending.Result.Dispose(); }
+		);
+	}
 
-    /// <inheritdoc/>
-    public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options) =>
-	    WithChannelInfoInvoker(options.CancellationToken).AsyncDuplexStreamingCall(method, host, options);
+	#endregion
 
-    #endregion
+	#region ->> Deferred Stream Adapters <<-
 
-    /// <inheritdoc/>
-    public async ValueTask DisposeAsync() {
-	    if (_disposed)
-		    return;
+	sealed class DeferredStreamReader<T>(Task<IAsyncStreamReader<T>> pending) : IAsyncStreamReader<T> {
+		IAsyncStreamReader<T>? _inner;
 
-	    _disposed = true;
-	    _stateLock.Dispose();
+		public T Current => (_inner ?? throw new InvalidOperationException("Call MoveNext first.")).Current;
 
-	    if (_disposeClient)
-		    await _legacyClient.DisposeAsync().ConfigureAwait(false);
-    }
+		public async Task<bool> MoveNext(CancellationToken cancellationToken) {
+			_inner ??= await pending.ConfigureAwait(false);
+			return await _inner.MoveNext(cancellationToken).ConfigureAwait(false);
+		}
+	}
+
+	sealed class DeferredStreamWriter<T>(Task<IClientStreamWriter<T>> pending) : IClientStreamWriter<T> {
+		IClientStreamWriter<T>? _inner;
+
+		public WriteOptions? WriteOptions {
+			get => _inner?.WriteOptions;
+			set {
+				if (_inner is not null) _inner.WriteOptions = value;
+			}
+		}
+
+		public async Task WriteAsync(T message) {
+			_inner ??= await pending.ConfigureAwait(false);
+			await _inner.WriteAsync(message).ConfigureAwait(false);
+		}
+
+		public async Task CompleteAsync() {
+			_inner ??= await pending.ConfigureAwait(false);
+			await _inner.CompleteAsync().ConfigureAwait(false);
+		}
+	}
+
+	#endregion
+
+	/// <inheritdoc/>
+	public async ValueTask DisposeAsync() {
+		if (_disposed)
+			return;
+
+		_disposed = true;
+
+		if (_disposeClient)
+			await _legacyClient.DisposeAsync().ConfigureAwait(false);
+	}
+
+	sealed record ChannelSnapshot(Task<ChannelInfo> Source, ChannelInfo Info);
 }

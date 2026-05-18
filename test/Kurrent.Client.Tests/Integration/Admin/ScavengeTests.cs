@@ -1,21 +1,51 @@
 using Kurrent.Client.Admin;
+using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-using Kurrent.Testkit.Aspire;
 using Serilog;
+using TUnit.Core.Interfaces;
 
 namespace Kurrent.Client.Tests.Integration.Admin;
 
+record ScavengeParallelLimit : IParallelLimit {
+    public int Limit => 4;
+}
+
+[Skip("""
+Flaky: each test spins up an ephemeral KurrentDB container where scavenges complete
+almost instantly on an empty database. The $scavenges system stream is populated
+asynchronously by the server after the scavenge finishes, creating a race between
+the gRPC StartScavenge response and the stream becoming readable. Tests that read
+scavenge history or details intermittently fail because the stream doesn't exist yet
+or still shows the scavenge as Running. Needs a server-side guarantee (e.g. scavenge
+completion event flushed before the gRPC response) or a polling-based test harness
+with bounded retries.
+""")]
 [Category("Admin")]
 [Category("Integration")]
-[Timeout(15_000)]
-[NotInParallel(nameof(ScavengeTests))]
-[Skip("Scavenge tests are destructive and impact the shared test database, "
-    + "and are not currently run in CI. They should be run manually when needed.")]
+[Timeout(60_000)]
+[ParallelLimiter<ScavengeParallelLimit>]
 public class ScavengeTests {
-    //TODO SS: Use Aspire instead of fluent docker to allow creating isolated databases for these tests, and remove the Skip attribute.
+    [ClassDataSource<KurrentDBScavengeFixture>]
+    public required KurrentDBScavengeFixture Fixture { get; [UsedImplicitly] init; }
 
-    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
+    async ValueTask RunScavenge(CancellationToken ct) {
+        await Fixture.Client.Admin.StartScavenge(cancellationToken: ct);
+        await WaitForScavengeStream(ct);
+    }
+
+    async ValueTask WaitForScavengeStream(CancellationToken ct) {
+        for (var attempt = 0; attempt < 20; attempt++) {
+            try {
+                var latest = await Fixture.Client.Admin.GetLatestScavenge(ct);
+                if (latest is not null) return;
+            }
+            catch (StreamNotFoundException) {
+                // $scavenges not populated yet
+            }
+
+            await Task.Delay(250, ct);
+        }
+    }
 
     #region ->> Validation <<-
 
@@ -47,7 +77,7 @@ public class ScavengeTests {
             () => Fixture.Client.Admin.GetScavengeDetails("", ct).AsTask());
     }
 
-    #endregion
+    #endregion // Validation
 
     #region ->> Commands <<-
 
@@ -66,7 +96,6 @@ public class ScavengeTests {
     }
 
     [Test]
-    [DependsOn(nameof(start_scavenge_returns_started_or_already_running))]
     public async ValueTask start_scavenge_convenience_overload_returns_response(CancellationToken ct) {
         // Act
         var response = await Fixture.Client.Admin.StartScavenge(ct);
@@ -81,12 +110,11 @@ public class ScavengeTests {
     }
 
     [Test]
-    [DependsOn(nameof(start_scavenge_convenience_overload_returns_response))]
     public async ValueTask stop_scavenge_returns_stop_requested(CancellationToken ct) {
         // Arrange
         var start = await Fixture.Client.Admin.StartScavenge(cancellationToken: ct);
 
-        // Act — returns StopRequested whether the scavenge is still running or already completed
+        // Act
         var stop = await Fixture.Client.Admin.StopScavenge(start.ScavengeId, ct);
 
         // Assert
@@ -95,16 +123,14 @@ public class ScavengeTests {
     }
 
     [Test]
-    [DependsOn(nameof(stop_scavenge_returns_stop_requested))]
     public async ValueTask stop_current_scavenge_returns_stop_requested(CancellationToken ct) {
         // Arrange
         await using var client = Fixture.GetNewClient();
 
-        var start = await client.Admin.StartScavenge(cancellationToken: ct);
+        var start = await Fixture.Client.Admin.StartScavenge(cancellationToken: ct);
         await Assert.That(start.Status is ScavengeResponseStatus.Started or ScavengeResponseStatus.AlreadyRunning).IsTrue();
 
-        // Act — StopCurrentScavenge finds the running scavenge via GetLatestScavenge.
-        // If it completed before the stop call, StopScavenge handles the NotFound gracefully.
+        // Act
         try {
             var stop = await client.Admin.StopCurrentScavenge(ct);
 
@@ -119,24 +145,24 @@ public class ScavengeTests {
     }
 
     [Test]
-    [Skip("Requires isolated database — scavenge events from other tests pollute the index.")]
-    [DependsOn(nameof(stop_current_scavenge_returns_stop_requested), ProceedOnFailure = true)]
     public async ValueTask stop_current_scavenge_throws_when_idle(CancellationToken ct) {
         // Arrange
         await using var client = Fixture.GetNewClient();
 
-        // Act & Assert — GetLatestScavenge returns a non-running scavenge, so StopCurrentScavenge throws
+        // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => client.Admin.StopCurrentScavenge(ct).AsTask());
     }
 
-    #endregion
+    #endregion // Commands
 
     #region ->> Queries <<-
 
     [Test]
-    [DependsOn(nameof(start_scavenge_returns_started_or_already_running))]
     public async ValueTask reads_scavenge_events(CancellationToken ct) {
+        // Arrange
+        await RunScavenge(ct);
+
         // Act
         var messages = Fixture.Client.Streams
             .ReadStreamRecords("$scavenges", Revision.Min, ct);
@@ -160,9 +186,9 @@ public class ScavengeTests {
     }
 
     [Test]
-    [DependsOn(nameof(start_scavenge_returns_started_or_already_running))]
     public async ValueTask get_latest_scavenge_returns_summary(CancellationToken ct) {
         // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
         // Act
@@ -181,9 +207,9 @@ public class ScavengeTests {
     }
 
     [Test]
-    [DependsOn(nameof(start_scavenge_returns_started_or_already_running))]
     public async ValueTask list_scavenges_returns_history(CancellationToken ct) {
         // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
         // Act
@@ -207,9 +233,10 @@ public class ScavengeTests {
     [Test]
     public async ValueTask list_scavenges_take_limits_results(CancellationToken ct) {
         // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
-        // Act — Take(3) should stop reading after 3 summaries and dispose the stream
+        // Act
         var summaries = await client.Admin.ListScavenges(ct).Take(3).ToListAsync(ct);
 
         // Assert
@@ -227,10 +254,13 @@ public class ScavengeTests {
 
     [Test]
     public async ValueTask reads_scavenge_index_backwards(CancellationToken ct) {
-        // Act — backwards read of $scavenges with Take
+        // Arrange
+        await RunScavenge(ct);
+
+        // Act
         var messages = Fixture.Client.Streams
             .ReadStream(
-                ReadStreamRequest.New.ForStream("$scavenges")
+                ReadStreamRequest.New().Stream("$scavenges")
                     .FromEnd()
                     .Build(),
                 ct
@@ -252,9 +282,10 @@ public class ScavengeTests {
     [Test]
     public async ValueTask list_scavenges_take_one_returns_latest(CancellationToken ct) {
         // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
-        // Act — Take(1) is effectively what GetLatestScavenge does
+        // Act
         var summaries = await client.Admin.ListScavenges(ct).Take(1).ToListAsync(ct);
 
         // Assert
@@ -271,12 +302,13 @@ public class ScavengeTests {
     [Test]
     public async ValueTask list_scavenges_are_ordered_newest_first(CancellationToken ct) {
         // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
         // Act
         var summaries = await client.Admin.ListScavenges(ct).Take(5).ToListAsync(ct);
 
-        // Assert — each StartedAt should be >= the next (newest first)
+        // Assert
         for (var i = 0; i < summaries.Count - 1; i++) {
             await Assert.That(summaries[i].StartedAt)
                 .IsGreaterThanOrEqualTo(summaries[i + 1].StartedAt);
@@ -285,14 +317,15 @@ public class ScavengeTests {
 
     [Test]
     public async ValueTask list_scavenges_caches_completed_entries(CancellationToken ct) {
-        // Arrange — same client instance so the cache is shared across calls
+        // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
-        // Act — first call populates cache, second call should serve from cache
+        // Act
         var first  = await client.Admin.ListScavenges(ct).Take(3).ToListAsync(ct);
         var second = await client.Admin.ListScavenges(ct).Take(3).ToListAsync(ct);
 
-        // Assert — same results
+        // Assert
         await Assert.That(second.Count).IsEqualTo(first.Count);
 
         for (var i = 0; i < first.Count; i++)
@@ -300,9 +333,9 @@ public class ScavengeTests {
     }
 
     [Test]
-    [DependsOn(nameof(get_latest_scavenge_returns_summary))]
     public async ValueTask get_scavenge_details_returns_full_projection(CancellationToken ct) {
         // Arrange
+        await RunScavenge(ct);
         await using var client = Fixture.GetNewClient();
 
         var last = await client.Admin.GetLatestScavenge(ct);
@@ -331,5 +364,5 @@ public class ScavengeTests {
         );
     }
 
-    #endregion
+    #endregion // Queries
 }

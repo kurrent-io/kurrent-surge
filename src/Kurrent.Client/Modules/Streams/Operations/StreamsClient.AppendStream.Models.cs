@@ -117,7 +117,7 @@ public record AppendStreamRequest() : SelfValidating {
             return request;
         }
 
-        public Builder ExpectingState(ExpectedStreamState expectedState) {
+        public Builder ExpectedState(ExpectedStreamState expectedState) {
             if (expectedState.Value is Revision revision && revision == Revision.Unset)
                 return this;
 
@@ -129,29 +129,29 @@ public record AppendStreamRequest() : SelfValidating {
 
         #region ->> Records <<-
 
-        public Builder WithRecord(AppendRecord record) =>
+        public Builder AddRecord(AppendRecord record) =>
             With(r => r with { Records = r.Records.Add(record with { Stream = r.Stream }) });
 
-        public Builder WithRecord(Action<AppendRecord.Builder> build) =>
+        public Builder AddRecord(Action<AppendRecord.Builder> build) =>
             With(r => {
                 var builder = new AppendRecord.Builder();
                 build(builder);
-                return r with { Records = r.Records.Add(builder.ForStream(r.Stream).Build()) };
+                return r with { Records = r.Records.Add(builder.Stream(r.Stream).Build()) };
             });
 
-        public Builder WithMessage<T>(T value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
+        public Builder AddMessage<T>(T message, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
             With(r => r with {
                 Records = r.Records.Add(
-                    AppendRecord.New.ForStream(r.Stream).WithValue(value).WithDataFormat(dataFormat).Build())
+                    AppendRecord.New().Stream(r.Stream).Value(message).DataFormat(dataFormat).Build())
             });
 
-        public Builder WithMessage<T>(T value, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
+        public Builder AddMessage<T>(T message, Metadata metadata, SchemaDataFormat dataFormat = SchemaDataFormat.Json) where T : notnull =>
             With(r => r with {
                 Records = r.Records.Add(
-                    AppendRecord.New.ForStream(r.Stream).WithValue(value).WithMetadata(metadata).WithDataFormat(dataFormat).Build())
+                    AppendRecord.New().Stream(r.Stream).Value(message).AddMetadata(metadata).DataFormat(dataFormat).Build())
             });
 
-        public Builder WithRecords(IEnumerable<AppendRecord> records) =>
+        public Builder AddRecords(IEnumerable<AppendRecord> records) =>
             With(r => r with {
                 Records = r.Records.AddRange(records.Select(rec => rec with { Stream = r.Stream }))
             });

@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Workaround for https://github.com/dotnet/sdk/issues/3743
+    dotnet pack with NoBuild propagates into non-packable project references
+    via _GetBuildOutputFilesWithTfm, triggering NETSDK1085. Suppress the guard
+    for non-packable projects since they produce no package output regardless.
+  -->
+  <Target Name="_CheckForBuildWithNoBuild"
+          Condition="'$(NoBuild)' == 'true' AND '$(IsPackable)' == 'true'" />
+
+  <!--
+    Silence "This project cannot be packaged" warnings for non-packable projects
+    when running `dotnet pack` at the solution level.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'true'">
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+  </PropertyGroup>
+</Project>

@@ -59,9 +59,9 @@ public static class SeedData {
 
                     var result = await client.Streams.AppendStream(
                         AppendStreamRequest.For(stream)
-                            .WithMessage(registered)
-                            .WithMessage(transferred)
-                            .ExpectingState(ExpectedStreamState.NoStream)
+                            .AddMessage(registered)
+                            .AddMessage(transferred)
+                            .ExpectedState(ExpectedStreamState.NoStream)
                             .Build()
                     );
 

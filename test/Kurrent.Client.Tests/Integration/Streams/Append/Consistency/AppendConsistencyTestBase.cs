@@ -1,5 +1,4 @@
 using Kurrent.Client.Streams;
-using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -9,7 +8,7 @@ public abstract class AppendConsistencyTestBase {
 
     protected async ValueTask<(StreamName Stream, Revision Revision, LogPosition Position)> SeedActiveStream(CancellationToken ct) {
         var data   = await Fixture.TestData.GenerateSet(ct);
-        var result = await Fixture.Client.Streams.AppendStream(AppendStreamRequest.For(data.Stream).WithRecords(data.Records).Build(), ct);
+        var result = await Fixture.Client.Streams.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct);
         return (data.Stream, result.Revision, result.Position);
     }
 

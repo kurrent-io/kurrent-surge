@@ -9,7 +9,6 @@ namespace Aspire.Hosting.ApplicationModel;
 [AspireExport(ExposeProperties = true)]
 public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionString {
     public const string DefaultResourceName = "kurrentdb";
-  
     public const int    DefaultHttpPort     = 2113;
 
     readonly List<KurrentDBResource> _nodes = [];
