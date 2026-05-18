@@ -43,6 +43,16 @@ runs:
       shell: bash
       run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
 
+    - name: Clean up stale containers and networks
+      shell: bash
+      run: |
+        names=$(echo '${{ inputs.images }}' | yq -r 'keys | .[] | downcase')
+        for name in $names; do
+          docker ps -a --filter "name=$name" --filter "status=exited" --filter "status=created" -q \
+            | xargs -r docker rm -f 2>/dev/null || true
+        done
+        docker network prune -f 2>/dev/null || true
+
     - name: Login, configure, and pull
       shell: bash
       run: |

@@ -25,4 +25,4 @@ jobs:
       run: |
         echo "::add-matcher::.github/workflows/markdownlint-problem-matcher.json"
         npm i -g markdownlint-cli@0.45.0
-        markdownlint --ignore '.dotnet/' --ignore 'tools/' '**/*.md'
+        markdownlint '**/*.md'
