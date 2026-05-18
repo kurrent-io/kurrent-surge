@@ -52,12 +52,12 @@ runs:
         default_user=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.username // ""')
         default_pass=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.password // ""')
 
-        registries_json=$(printf '%s' '${{ inputs.registries }}' | yq -o=json)
+        registry_count=$(printf '%s' '${{ inputs.registries }}' | yq 'length')
 
-        for row in $(echo "$registries_json" | jq -c '.[]'); do
-          registry=$(echo "$row" | jq -r '.registry')
-          user=$(echo "$row" | jq -r '.username // ""')
-          pass=$(echo "$row" | jq -r '.password // ""')
+        for i in $(seq 0 $((registry_count - 1))); do
+          registry=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].registry")
+          user=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].username // \"\"")
+          pass=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].password // \"\"")
           user="${user:-$default_user}"
           pass="${pass:-$default_pass}"
           echo "Logging into $registry..."
@@ -65,21 +65,38 @@ runs:
         done
 
         # --- Setup environment variables ---
-        registry_list=$(echo "$registries_json" | jq '[.[].registry]')
+        registries=$(printf '%s' '${{ inputs.registries }}' | yq -r '.[].registry')
 
-        echo '${{ inputs.images }}' | yq -o=json | jq -r --argjson registries "$registry_list" '
+        echo '${{ inputs.images }}' | yq -r '
           to_entries[] |
-          (.key | ascii_upcase) as $name |
-          (.value | split(":")) as [$ref, $tag] |
-          ($tag // "latest") as $tag |
-          ($registries | map(. as $reg | select($ref | startswith($reg))) | max_by(length)) as $registry |
-          if $registry == null then error("No matching registry for image: \(.value)") else . end |
-          ($ref | ltrimstr($registry) | ltrimstr("/")) as $image |
-          "\($name)__CONTAINER__REGISTRY=\($registry)",
-          "\($name)__CONTAINER__IMAGE=\($image)",
-          "\($name)__CONTAINER__TAG=\($tag)",
-          "\($name)__IMAGE_REF=\(.value)"
-        ' | tee -a $GITHUB_ENV
+          (.key | upcase) as $name |
+          (if .value | type == "!!map" then .value.ImageRef else .value end) as $image_ref |
+          ($image_ref | split(":") | .[0]) as $ref |
+          ($image_ref | split(":") | .[1] // "latest") as $tag |
+          "\($name) \($ref) \($tag) \($image_ref)"
+        ' | while read -r name ref tag image_ref; do
+          matched_registry=""
+          while IFS= read -r reg; do
+            if [[ "$ref" == "$reg"* ]]; then
+              if [ ${#reg} -gt ${#matched_registry} ]; then
+                matched_registry="$reg"
+              fi
+            fi
+          done <<< "$registries"
+
+          if [ -z "$matched_registry" ]; then
+            echo "::error::No matching registry for image: $image_ref"
+            exit 1
+          fi
+
+          image="${ref#"$matched_registry"}"
+          image="${image#/}"
+
+          echo "${name}__CONTAINER__REGISTRY=$matched_registry" | tee -a "$GITHUB_ENV"
+          echo "${name}__CONTAINER__IMAGE=$image" | tee -a "$GITHUB_ENV"
+          echo "${name}__CONTAINER__TAG=$tag" | tee -a "$GITHUB_ENV"
+          echo "${name}__IMAGE_REF=$image_ref" | tee -a "$GITHUB_ENV"
+        done
 
         # --- Pull images with retry ---
         pull_image() {
@@ -94,7 +111,10 @@ runs:
           return 1
         }
 
-        images=$(echo '${{ inputs.images }}' | yq -o=json | jq -r 'to_entries | .[] | .value')
+        images=$(echo '${{ inputs.images }}' | yq -r '
+          to_entries[] |
+          if .value | type == "!!map" then .value.ImageRef else .value end
+        ')
         failed=0
         for image in $images; do
           echo "Pulling $image..."
