@@ -35,7 +35,7 @@ await using var client = KurrentClient.Create(options);
 
 ## Single production node
 
-For a single production node, drop `?tls=false` and supply credentials. The `kurrentdb` scheme enables TLS by default, and the `Basic` preset pairs credentials with standard TLS automatically.
+For a single production node, drop `?tls=false` and supply credentials. The `kurrentdb` scheme enables TLS by default, and the `Password` preset pairs credentials with standard TLS automatically.
 
 ::: tabs#connect-single
 
@@ -50,7 +50,7 @@ await using var client = KurrentClient.Create("kurrentdb://admin:changeit@kurren
 ```csharp
 var options = new KurrentClientOptions {
     Endpoints = [new("kurrentdb.internal", 2113)],
-    Security  = KurrentClientSecurityOptions.Basic("admin", "changeit")
+    Security  = KurrentClientSecurityOptions.Password("admin", "changeit")
 };
 
 await using var client = KurrentClient.Create(options);
@@ -80,7 +80,7 @@ var options = new KurrentClientOptions {
         new("node2", 2113),
         new("node3", 2113)
     ],
-    Security = KurrentClientSecurityOptions.Basic("admin", "changeit"),
+    Security = KurrentClientSecurityOptions.Password("admin", "changeit"),
     Gossip   = KurrentClientGossipOptions.Default with {
         ReadPreference = NodePreference.Follower
     }

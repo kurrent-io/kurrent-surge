@@ -45,13 +45,13 @@ These are the most frequently caught exceptions. All live under `Kurrent.Client.
 
 ## Validation errors
 
-Builders (`AppendRecord.New`, `AppendStreamRequest.For`, `ReadStreamRequest.New`, etc.) call `Build()` synchronously. Invalid configurations throw `ValidationException` with a list of problems describing what is wrong:
+Builders (`AppendRecord.New()`, `AppendStreamRequest.For(...)`, `ReadStreamRequest.New()`, etc.) call `Build()` synchronously. Invalid configurations throw `ValidationException` with a list of problems describing what is wrong:
 
 ```csharp
 try {
-    var record = AppendRecord.New
-        .ForStream("orders")
-        // missing WithValue(...)
+    var record = AppendRecord.New()
+        .Stream("orders")
+        // missing Value(...)
         .Build();
 }
 catch (ValidationException ex) {
@@ -73,7 +73,7 @@ Read methods return `IAsyncEnumerable<ReadRecordsResult>`. The exception is thro
 
 ```csharp
 try {
-    var request = ReadStreamRequest.New.ForStream("order-123").Build();
+    var request = ReadStreamRequest.New().Stream("order-123").Build();
 
     await foreach (var item in client.Streams.ReadStream(request)) {
         // process record / heartbeat

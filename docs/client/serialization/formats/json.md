@@ -7,15 +7,15 @@ order: 1
 <CopyMarkdownButton />
 
 ::: tip
-JSON is the default. Records appended without an explicit `WithDataFormat` call are encoded as JSON using `System.Text.Json`. It is also the only format that participates in server-side schema registration and validation today.
+JSON is the default. Records appended without an explicit `DataFormat` call are encoded as JSON using `System.Text.Json`. It is also the only format that participates in server-side schema registration and validation today.
 :::
 
 ## Append a JSON record
 
 ```csharp
-var record = AppendRecord.New
-    .ForStream("orders")
-    .WithValue(orderPlaced)
+var record = AppendRecord.New()
+    .Stream("orders")
+    .Value(orderPlaced)
     .Build();
 
 await client.Streams.AppendStream(record);

@@ -63,18 +63,17 @@ Selector paths are dot-separated and resolve against the decoded JSON payload. `
 
 ## Read from an index
 
-A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it, optionally pairing it with a payload predicate to pre-filter on the indexed columns:
+A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it. To pre-filter on the indexed columns, pass a single expression that targets the index stream and the payload fields:
 
 ```csharp
-var all = ReadRecordsRequest.New
+var all = ReadRecordsRequest.New()
     .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
+    .Filter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
     .Build();
 
-var highValue = ReadRecordsRequest.New
+var highValue = ReadRecordsRequest.New()
     .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
-    .WithFilterExpression("data.amount > 1000")
+    .Filter("stream = '$idx-user-ORDERS_BY_CUSTOMER' AND data.amount > 1000")
     .Build();
 
 var stream = client.Streams.ReadRecords(highValue);

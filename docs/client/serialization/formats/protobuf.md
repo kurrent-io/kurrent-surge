@@ -11,10 +11,10 @@ Pick `SchemaDataFormat.Protobuf` when you already have `.proto` types and a tool
 ## Append a Protobuf record
 
 ```csharp
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new OrderPlaced { OrderId = "order-123", Product = "Widget" })
-    .WithDataFormat(SchemaDataFormat.Protobuf)
+var record = AppendRecord.New()
+    .Stream("order-123")
+    .Value(new OrderPlaced { OrderId = "order-123", Product = "Widget" })
+    .DataFormat(SchemaDataFormat.Protobuf)
     .Build();
 
 await client.Streams.AppendStream(record);

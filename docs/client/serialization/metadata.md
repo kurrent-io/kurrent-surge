@@ -20,10 +20,10 @@ var metadata = new Metadata()
     .With("tenant", "acme")
     .With("occurredAt", DateTimeOffset.UtcNow);
 
-var record = AppendRecord.New
-    .ForStream("order-7f3a")
-    .WithValue(orderPlaced)
-    .WithMetadata(metadata)
+var record = AppendRecord.New()
+    .Stream("order-7f3a")
+    .Value(orderPlaced)
+    .AddMetadata(metadata)
     .Build();
 ```
 

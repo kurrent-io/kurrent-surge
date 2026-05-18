@@ -50,14 +50,14 @@ For production deployments, see [Connection Targets](./connect/connection-target
 
 ## Append records from the producer
 
-Open `Orders.Producer/Program.cs` and replace its contents. The producer connects to KurrentDB, builds a record with `AppendRecord.New`, and appends it to the `order-123` stream:
+Open `Orders.Producer/Program.cs` and replace its contents. The producer connects to KurrentDB, builds a record with `AppendRecord.New()`, and appends it to the `order-123` stream:
 
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new {
+var record = AppendRecord.New()
+    .Stream("order-123")
+    .Value(new {
         OrderId  = "order-123",
         Product  = "Widget",
         Quantity = 5
@@ -90,7 +90,7 @@ Open `Orders.Consumer/Program.cs` and replace its contents. The consumer connect
 ```csharp
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
-var request = ReadStreamRequest.New.ForStream("order-123").Build();
+var request = ReadStreamRequest.New().Stream("order-123").Build();
 
 var records = await client.Streams.ReadStream(request)
     .Where(msg => msg.IsRecord)

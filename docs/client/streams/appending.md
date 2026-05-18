@@ -13,9 +13,9 @@ Streams hold an ordered sequence of records. Use `AppendStream` to write to a si
 Build a record and pass it to `AppendStream`:
 
 ```csharp
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new { Product = "Widget", Quantity = 5 })
+var record = AppendRecord.New()
+    .Stream("order-123")
+    .Value(new { Product = "Widget", Quantity = 5 })
     .Build();
 
 var result = await client.Streams.AppendStream(record);
@@ -35,33 +35,33 @@ The response carries the target stream, the new revision, and the log position o
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
-    .WithMessage(new { Product = "Gadget", Quantity = 2 })
-    .WithMessage(new { ConfirmedAt = DateTimeOffset.UtcNow })
-    .WithMessage(new { TrackingId = "TRK-789" })
+    .AddMessage(new { Product = "Gadget", Quantity = 2 })
+    .AddMessage(new { ConfirmedAt = DateTimeOffset.UtcNow })
+    .AddMessage(new { TrackingId = "TRK-789" })
     .Build();
 
 var result = await client.Streams.AppendStream(request);
 ```
 
-`WithMessage` is the payload-only shortcut. Reach for `WithRecord` when you need to control more than just the payload.
+`AddMessage` is the payload-only shortcut. Reach for `AddRecord` when you need to control more than just the payload.
 
 ## Attach metadata to a record
 
-Use the full record builder when you need more control than `WithMessage` provides:
+Use the full record builder when you need more control than `AddMessage` provides:
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
-    .WithRecord(AppendRecord.New
-        .WithId(Guid.NewGuid())
-        .WithValue(new { Product = "Gadget" })
-        .WithMetadata("correlation-id", correlationId)
-        .WithMetadata("causation-id", causationId)
-        .WithTimestamp(DateTimeOffset.UtcNow)
+    .AddRecord(AppendRecord.New()
+        .Id(Guid.NewGuid())
+        .Value(new { Product = "Gadget" })
+        .AddMetadata("correlation-id", correlationId)
+        .AddMetadata("causation-id", causationId)
+        .Timestamp(DateTimeOffset.UtcNow)
         .Build())
     .Build();
 ```
 
-The destination stream comes from the request, so the record itself does not need `ForStream`.
+The destination stream comes from the request, so the record itself does not need its own stream set.
 
 ## Guard against concurrent writes
 
@@ -73,8 +73,8 @@ The destination stream comes from the request, so the record itself does not nee
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
-    .ExpectingState(ExpectedStreamState.Any)
-    .WithMessage(payload)
+    .ExpectedState(ExpectedStreamState.Any)
+    .AddMessage(payload)
     .Build();
 ```
 
@@ -84,8 +84,8 @@ The default. The append succeeds whether or not the stream exists.
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
-    .ExpectingState(ExpectedStreamState.NoStream)
-    .WithMessage(new { Product = "Widget", Quantity = 5 })
+    .ExpectedState(ExpectedStreamState.NoStream)
+    .AddMessage(new { Product = "Widget", Quantity = 5 })
     .Build();
 ```
 
@@ -95,8 +95,8 @@ Throws `StreamAlreadyExistsException` if the stream already has records. Use thi
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
-    .ExpectingState(ExpectedStreamState.Exists)
-    .WithMessage(payload)
+    .ExpectedState(ExpectedStreamState.Exists)
+    .AddMessage(payload)
     .Build();
 ```
 
@@ -106,8 +106,8 @@ Throws `StreamNotFoundException` when the stream does not exist.
 
 ```csharp
 var request = AppendStreamRequest.For("order-123")
-    .ExpectingState(Revision.From(4))
-    .WithMessage(payload)
+    .ExpectedState(Revision.From(4))
+    .AddMessage(payload)
     .Build();
 ```
 
@@ -119,8 +119,8 @@ The usual pattern is to read the stream's current revision and append against it
 var last = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
 
 var request = AppendStreamRequest.For("order-123")
-    .ExpectingState(last.Revision)
-    .WithMessage(payload)
+    .ExpectedState(last.Revision)
+    .AddMessage(payload)
     .Build();
 
 var result = await client.Streams.AppendStream(request);
@@ -139,9 +139,9 @@ var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehou
 
 await client.Streams.AppendRecords(
     AppendRecordsRequest.New()
-        .WithRecord(transferEvent, $"inventory-{sku}")
-        .WithRecord(transferEvent, "transfer-log")
-        .WithChecks(ConsistencyCheck.StreamExists($"inventory-{sku}"))
+        .AddRecord(transferEvent, $"inventory-{sku}")
+        .AddRecord(transferEvent, "transfer-log")
+        .AddChecks(ConsistencyCheck.StreamExists($"inventory-{sku}"))
         .Build());
 ```
 
@@ -149,7 +149,7 @@ See [Guard cross-stream consistency](#guard-cross-stream-consistency) for the fu
 
 ## Guard cross-stream consistency
 
-Each consistency check is a pre-commit assertion the server evaluates against the current state of a stream. If any check on an `AppendRecords` request fails, the whole transaction is rejected. `ExpectingState` on a single-stream `AppendStream` is sugar for the same mechanism, applied to one stream.
+Each consistency check is a pre-commit assertion the server evaluates against the current state of a stream. If any check on an `AppendRecords` request fails, the whole transaction is rejected. `ExpectedState` on a single-stream `AppendStream` is sugar for the same mechanism, applied to one stream.
 
 The most useful check is `StreamAtRevision`, which asserts a stream has not moved since you last read it. Pair it with a write to a different stream to enforce a multi-aggregate invariant atomically. Below, a transfer event is written only if the inventory stream is still at the revision that was read:
 
@@ -160,24 +160,24 @@ var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehou
 
 await client.Streams.AppendRecords(
     AppendRecordsRequest.New()
-        .WithRecord(transferEvent, "transfer-log")
-        .WithChecks(ConsistencyCheck.StreamAtRevision($"inventory-{sku}", inventory.Revision))
+        .AddRecord(transferEvent, "transfer-log")
+        .AddChecks(ConsistencyCheck.StreamAtRevision($"inventory-{sku}", inventory.Revision))
         .Build());
 ```
 
-Combine several checks in one request with `WithChecks`. Each check targets a stream independently, so revision pins and existence assertions can mix freely:
+Combine several checks in one request with `AddChecks`. Each check targets a stream independently, so revision pins and existence assertions can mix freely:
 
 ```csharp
 await client.Streams.AppendRecords(
     AppendRecordsRequest.New()
-        .WithRecord(orderEvent, $"order-{orderId}")
-        .WithChecks(
+        .AddRecord(orderEvent, $"order-{orderId}")
+        .AddChecks(
             ConsistencyCheck.StreamAtRevision($"cart-{cartId}", cartRevision),
             ConsistencyCheck.StreamDoesNotExist($"order-{orderId}"))
         .Build());
 ```
 
-`WithCheck` adds a single check if you prefer one-at-a-time composition.
+`AddCheck` adds a single check if you prefer one-at-a-time composition.
 
 Available checks:
 
@@ -193,7 +193,7 @@ When a check fails, `AppendRecords` throws `AppendConsistencyViolationException`
 
 ## Choose a payload format
 
-JSON is the default. Override per record with `WithDataFormat`.
+JSON is the default. Override per record with `DataFormat`.
 
 ::: tabs#data-formats
 
@@ -202,9 +202,9 @@ JSON is the default. Override per record with `WithDataFormat`.
 The default. No format call required.
 
 ```csharp
-var jsonRecord = AppendRecord.New
-    .ForStream("orders")
-    .WithValue(orderPayload)
+var jsonRecord = AppendRecord.New()
+    .Stream("orders")
+    .Value(orderPayload)
     .Build();
 ```
 
@@ -213,10 +213,10 @@ var jsonRecord = AppendRecord.New
 For payloads you have already serialized.
 
 ```csharp
-var bytesRecord = AppendRecord.New
-    .ForStream("blobs")
-    .WithValue(rawBytes)
-    .WithDataFormat(SchemaDataFormat.Bytes)
+var bytesRecord = AppendRecord.New()
+    .Stream("blobs")
+    .Value(rawBytes)
+    .DataFormat(SchemaDataFormat.Bytes)
     .Build();
 ```
 
@@ -225,10 +225,10 @@ var bytesRecord = AppendRecord.New
 For messages generated from `.proto` definitions.
 
 ```csharp
-var protoRecord = AppendRecord.New
-    .ForStream("orders")
-    .WithValue(protobufMessage)
-    .WithDataFormat(SchemaDataFormat.Protobuf)
+var protoRecord = AppendRecord.New()
+    .Stream("orders")
+    .Value(protobufMessage)
+    .DataFormat(SchemaDataFormat.Protobuf)
     .Build();
 ```
 
@@ -237,10 +237,10 @@ var protoRecord = AppendRecord.New
 For Avro-encoded payloads.
 
 ```csharp
-var avroRecord = AppendRecord.New
-    .ForStream("orders")
-    .WithValue(avroPayload)
-    .WithDataFormat(SchemaDataFormat.Avro)
+var avroRecord = AppendRecord.New()
+    .Stream("orders")
+    .Value(avroPayload)
+    .DataFormat(SchemaDataFormat.Avro)
     .Build();
 ```
 

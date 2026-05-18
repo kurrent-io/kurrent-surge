@@ -10,11 +10,11 @@ Records can be read from a single stream with `ReadStream` or from the global lo
 
 ## Read from a stream
 
-Build a request with `ReadStreamRequest.New` and pass it to `ReadStream`:
+Build a request with `ReadStreamRequest.New()` and pass it to `ReadStream`:
 
 ```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
+var request = ReadStreamRequest.New()
+    .Stream("order-123")
     .Build();
 
 var stream = client.Streams.ReadStream(request);
@@ -40,8 +40,8 @@ var stream = client.Streams.ReadStreamRecords("order-123");
 To start partway through the stream, set the revision:
 
 ```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
+var request = ReadStreamRequest.New()
+    .Stream("order-123")
     .FromRevision(Revision.From(5))
     .Build();
 ```
@@ -51,11 +51,11 @@ This reads forwards from revision 5 (inclusive).
 To read newest first, combine `FromEnd()` with `Backwards()` and an upper bound:
 
 ```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
+var request = ReadStreamRequest.New()
+    .Stream("order-123")
     .FromEnd()
     .Backwards()
-    .WithMaxRecords(10)
+    .Limit(10)
     .Build();
 ```
 
@@ -86,10 +86,10 @@ var last  = await client.Streams.ReadLastStreamRecord("order-123");
 
 ## Read from the global log
 
-The global log contains every record across all streams in commit order. Build a request with `ReadRecordsRequest.New` and pass it to `ReadRecords`:
+The global log contains every record across all streams in commit order. Build a request with `ReadRecordsRequest.New()` and pass it to `ReadRecords`:
 
 ```csharp
-var request = ReadRecordsRequest.New
+var request = ReadRecordsRequest.New()
     .FromPosition(LogPosition.Earliest)
     .Build();
 
@@ -147,21 +147,21 @@ var record = await client.Streams.InspectRecord(LogPosition.From(42));
 
 ## Filter results
 
-Filters narrow what a read returns. Apply one with `WithFilter`:
+Filters narrow what a read returns. Apply one with `Filter`:
 
 ```csharp
-var request = ReadRecordsRequest.New
+var request = ReadRecordsRequest.New()
     .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByCategory("order"))
+    .Filter(RecordFilter.ByCategory("order"))
     .Build();
 ```
 
 Or pass a SQL-like expression directly:
 
 ```csharp
-var request = ReadRecordsRequest.New
+var request = ReadRecordsRequest.New()
     .FromPosition(LogPosition.Earliest)
-    .WithFilterExpression("stream LIKE 'order-%'")
+    .Filter("stream LIKE 'order-%'")
     .Build();
 ```
 
@@ -192,7 +192,7 @@ For one-shot reads that just need records, see [Materialize a list](#materialize
 To collect every record into a list, project the stream with LINQ. Drop heartbeats first:
 
 ```csharp
-var request = ReadStreamRequest.New.ForStream("order-123").Build();
+var request = ReadStreamRequest.New().Stream("order-123").Build();
 
 var records = await client.Streams.ReadStream(request)
     .Where(msg => msg.IsRecord)
@@ -214,7 +214,7 @@ Read operations throw on failure. Catch the typed exceptions when you need to ha
 
 ```csharp
 try {
-    var request = ReadStreamRequest.New.ForStream("order-123").Build();
+    var request = ReadStreamRequest.New().Stream("order-123").Build();
 
     await foreach (var item in client.Streams.ReadStream(request)) {
         // ...
@@ -240,21 +240,21 @@ See [Error handling](../error-handling.md) for the full throwing model.
 
 ### Builder methods
 
-`ReadStreamRequest.New` (per-stream) and `ReadRecordsRequest.New` (global log) share most of their fluent surface.
+`ReadStreamRequest.New()` (per-stream) and `ReadRecordsRequest.New()` (global log) share most of their fluent surface.
 
-| Method                         | Applies to     | Description                                          |
-|--------------------------------|----------------|------------------------------------------------------|
-| `ForStream(StreamName)`        | Stream         | Set the stream to read from                          |
-| `FromStart()`                  | Stream         | Start at the first revision, read forwards           |
-| `FromEnd()`                    | Stream         | Start at the last revision, read backwards           |
-| `FromRevision(Revision)`       | Stream         | Start at a specific revision                         |
-| `FromPosition(LogPosition)`    | Global log     | Start at a specific log position                     |
-| `Forward()`                    | Both           | Read in ascending order                              |
-| `Backwards()`                  | Both           | Read in descending order                             |
-| `WithMaxRecords(long)`         | Both           | Limit the number of records returned                 |
-| `WithFilter(IRecordFilter)`    | Both           | Apply a filter                                       |
-| `WithFilterExpression(string)` | Both           | Apply a SQL-like filter expression                   |
-| `SkipDecoding()`               | Both           | Skip payload deserialization for metadata-only reads |
+| Method                       | Applies to | Description                                          |
+|------------------------------|------------|------------------------------------------------------|
+| `Stream(StreamName)`         | Stream     | Set the stream to read from                          |
+| `FromStart()`                | Stream     | Start at the first revision, read forwards           |
+| `FromEnd()`                  | Stream     | Start at the last revision, read backwards           |
+| `FromRevision(Revision)`     | Stream     | Start at a specific revision                         |
+| `FromPosition(LogPosition)`  | Global log | Start at a specific log position                     |
+| `Forwards()`                 | Both       | Read in ascending order                              |
+| `Backwards()`                | Both       | Read in descending order                             |
+| `Limit(long)`                | Both       | Limit the number of records returned                 |
+| `Filter(IRecordFilter)`      | Both       | Apply a filter                                       |
+| `Filter(string)`             | Both       | Apply a SQL-like filter expression                   |
+| `SkipDecoding(bool)`         | Both       | Skip payload deserialization for metadata-only reads |
 
 ### Record properties
 

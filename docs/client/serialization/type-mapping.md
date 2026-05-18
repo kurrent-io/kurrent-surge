@@ -21,9 +21,9 @@ The mapper is that something in between. It's a bidirectional dictionary: encode
 The client auto-maps a type the first time it appears. The schema name comes from the active [naming strategy](./schema-names.md), so no setup is needed.
 
 ```csharp
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new OrderPlaced("order-123", "Widget"))
+var record = AppendRecord.New()
+    .Stream("order-123")
+    .Value(new OrderPlaced("order-123", "Widget"))
     .Build();
 
 await client.Streams.AppendStream(record);

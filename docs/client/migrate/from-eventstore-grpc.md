@@ -173,7 +173,7 @@ await using var client = KurrentClient.Create(
 ```csharp
 var options = new KurrentClientOptions {
     Endpoints  = [new("localhost", 2113)],
-    Security   = KurrentClientSecurityOptions.Basic("admin", "changeit"),
+    Security   = KurrentClientSecurityOptions.Password("admin", "changeit"),
     Resilience = KurrentClientResilienceOptions.HighAvailability
 };
 
@@ -238,9 +238,9 @@ await client.AppendToStreamAsync("order-123", StreamState.Any, new[] { eventData
 **New:**
 
 ```csharp
-var record = AppendRecord.New
-    .ForStream("order-123")
-    .WithValue(new { OrderId = "123" })
+var record = AppendRecord.New()
+    .Stream("order-123")
+    .Value(new { OrderId = "123" })
     .Build();
 
 var result = await client.Streams.AppendStream(record);
@@ -262,7 +262,7 @@ await foreach (var resolvedEvent in events) {
 **New:**
 
 ```csharp
-var request = ReadStreamRequest.New.ForStream("order-123").Build();
+var request = ReadStreamRequest.New().Stream("order-123").Build();
 
 var stream = client.Streams.ReadStream(request);
 
@@ -333,7 +333,7 @@ Replace `EventData` with `AppendRecord` on appends, and use `Record` instead of 
 
 | Old member                                  | New member                                                |
 |---------------------------------------------|-----------------------------------------------------------|
-| `EventData`                                 | `AppendRecord.New.ForStream(...).WithValue(...).Build()`  |
+| `EventData`                                 | `AppendRecord.New().Stream(...).Value(...).Build()`       |
 | `resolvedEvent.Event.EventType`             | `record.TypeName`                                         |
 | `resolvedEvent.Event.OriginalEventNumber`   | `record.Revision`                                         |
 | `resolvedEvent.Event.Position`              | `record.Position`                                         |
@@ -371,7 +371,7 @@ Replace `esdb://` with `kurrentdb://` at your own pace. Both schemes work identi
 | Settings type     | `EventStoreClientSettings`                     | `KurrentClientOptions`                                     |
 | Operation access  | Top-level methods on the client                | Module properties (`client.Streams`, `client.Registry`, …) |
 | Error handling    | Exceptions for expected failures               | Well-typed exceptions per failure case                     |
-| Append model      | `EventData`                                    | `AppendRecord` (built via `AppendRecord.New`)              |
+| Append model      | `EventData`                                    | `AppendRecord` (built via `AppendRecord.New()`)            |
 | Read model        | `ResolvedEvent` / `RecordedEvent`              | `Record` (with `Heartbeat` interleaved on the stream)      |
 | Stream state      | `StreamState`                                  | `ExpectedStreamState`                                      |
 | Stream revision   | `StreamRevision`                               | `Revision`                                                 |
