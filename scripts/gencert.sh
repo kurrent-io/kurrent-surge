@@ -225,9 +225,8 @@ fi
 
 for username in "${USER_CERTS[@]}"; do
     user_dir="${CERTS_DIR}/user-${username}"
-    # es-gencert-cli may name files as {username}.crt or differently — check for any .crt in the output dir
-    if [[ "$FORCE" != true ]] && compgen -G "${user_dir}/*.crt" > /dev/null 2>&1 && compgen -G "${user_dir}/*.key" > /dev/null 2>&1; then
-        echo ">> User cert '${username}' already exists in ${user_dir}, skipping."
+    if [[ "$FORCE" != true && -f "${user_dir}/user-${username}.crt" && -f "${user_dir}/user-${username}.key" ]]; then
+        echo ">> User cert '${username}' already exists ($(ls -lh "${user_dir}/user-${username}.crt" | awk '{print $5, $6, $7, $8}')), skipping."
     else
         echo ">> Generating user certificate for '${username}'..."
         "$GENCERT_BIN" create-user \
