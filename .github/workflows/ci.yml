@@ -33,9 +33,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Import Variables
-        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
-
       - name: Detect Changes
         id: changes
         uses: dorny/paths-filter@v3
@@ -60,6 +57,9 @@ jobs:
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"
           fi
+
+      - name: Import Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
       - name: Setup .NET
         if: steps.changes.outputs.build == 'true'
