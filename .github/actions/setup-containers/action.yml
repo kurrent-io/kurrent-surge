@@ -1,7 +1,7 @@
 name: Setup Containers
 description: >
   Logs into one or more Docker registries, pulls images in parallel, and sets
-  {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} and {NAME}__IMAGE_REF environment variables for each
+  {NAME}_CONTAINER_{REGISTRY,IMAGE,TAG} and {NAME}_IMAGEREF environment variables for each
   container used in integration tests. Image references are validated against
   the configured registries.
 
@@ -114,10 +114,10 @@ runs:
           image="${ref#"$matched_registry"}"
           image="${image#/}"
 
-          echo "${name}__CONTAINER__REGISTRY=$matched_registry" | tee -a "$GITHUB_ENV"
-          echo "${name}__CONTAINER__IMAGE=$image" | tee -a "$GITHUB_ENV"
-          echo "${name}__CONTAINER__TAG=$tag" | tee -a "$GITHUB_ENV"
-          echo "${name}__IMAGE_REF=$image_ref" | tee -a "$GITHUB_ENV"
+          echo "${name}_IMAGEREF=$image_ref" | tee -a "$GITHUB_ENV"
+          echo "${name}_CONTAINER_REGISTRY=$matched_registry" | tee -a "$GITHUB_ENV"
+          echo "${name}_CONTAINER_IMAGE=$image" | tee -a "$GITHUB_ENV"
+          echo "${name}_CONTAINER_TAG=$tag" | tee -a "$GITHUB_ENV"
         done
 
         # --- Pull images with retry ---
