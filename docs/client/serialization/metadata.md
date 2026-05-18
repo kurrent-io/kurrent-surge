@@ -50,9 +50,9 @@ If you need every value as a string (for log output or observability exports), c
 
 ## Customizing the decoder
 
-The default decoder accepts only flat JSON objects. If you're migrating from a system where metadata was written as a typed object with nested fields, those records won't decode in this SDK without help. A custom decoder reads the legacy shape and produces the flat dictionary consumers expect, so the rest of your code never sees the old structure.
+The default decoder accepts only flat JSON objects. If you're migrating from a client that wrote metadata in a different shape, those records won't decode in this SDK without help. A custom decoder reads that shape and produces the flat dictionary consumers expect, so the rest of your code never sees the old structure.
 
-Suppose your old records stored metadata as nested groups:
+Suppose your old records stored metadata as nested JSON groups:
 
 ```json
 {
@@ -101,9 +101,49 @@ public sealed class NestedMetadataDecoder : MetadataDecoder {
 }
 ```
 
-Inheriting `MetadataDecoder` gives you `MetadataDecodingException` wrapping, so a malformed record surfaces with the stream name and schema attached. Implementing `IMetadataDecoder` directly skips that error wrapping.
+Parent group names are dropped during the walk, so two nested groups that share a leaf name will collide on the flat result. Prefix keys with the parent name to avoid those collisions.
 
-Parent group names are dropped during the walk, so two nested groups that share a leaf name will collide on the flat result. Prefix keys with the parent name if your legacy shape has those collisions.
+A flat record decodes correctly through the same path, so the decoder handles both old and new records once installed.
+
+The same pattern handles non-JSON metadata. Say a stream holds records appended by an older client that serialized metadata as a protobuf message. This SDK writes metadata as JSON, so reads against that stream surface a `MetadataDecodingException` until you install a decoder that understands the protobuf shape.
+
+```protobuf
+message TrackingMetadata {
+  string correlation_id = 1;
+  string tenant = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+}
+```
+
+Point the decoder at the generated class and project its fields onto the flat dictionary:
+
+```csharp
+public sealed class ProtoMetadataDecoder : MetadataDecoder {
+    protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
+        var parsed = TrackingMetadata.Parser.ParseFrom(bytes.Span);
+
+        return new Metadata()
+            .With("correlationId", parsed.CorrelationId)
+            .With("tenant", parsed.Tenant)
+            .With("occurredAt", parsed.OccurredAt.ToDateTimeOffset());
+    }
+}
+```
+
+The decoder runs on every record as it streams through reads and subscriptions, so the rest of your code reads `Metadata` the same way it would for any other record:
+
+```csharp
+var records = client.Streams.ReadStreamRecords("order-7f3a")
+    .Where(msg => msg.IsRecord)
+    .Select(msg => msg.AsRecord);
+
+await foreach (var record in records) {
+    var correlationId = record.Metadata.GetRequiredValue<string>("correlationId");
+    Console.WriteLine("Correlation: {0}", correlationId);
+}
+```
+
+Inheriting `MetadataDecoder` gives you `MetadataDecodingException` wrapping, so a malformed record surfaces with the stream name and schema attached. Implementing `IMetadataDecoder` directly skips that error wrapping.
 
 Plug it in when constructing the client:
 
@@ -113,7 +153,7 @@ await using var client = KurrentClient.Create(
     opts => opts.MetadataDecoder = new NestedMetadataDecoder());
 ```
 
-A flat record decodes correctly through the same path, so the decoder handles both old and new records once installed. Keep it cheap, since it runs once per record.
+Keep the decoder cheap, since it runs once per record.
 
 ## Registration
 
