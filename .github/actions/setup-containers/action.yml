@@ -1,4 +1,4 @@
-name: Test Containers Setup
+name: Setup Containers
 description: >
   Logs into one or more Docker registries, pulls images in parallel, and sets
   {NAME}__CONTAINER__{REGISTRY,IMAGE,TAG} and {NAME}__IMAGE_REF environment variables for each
@@ -35,6 +35,12 @@ inputs:
         images: |
           KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
     required: true
+  prune-until:
+    description: >
+      Prune unused images, volumes, and networks older than this duration (e.g., '72h').
+      Disabled when empty.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -43,8 +49,10 @@ runs:
       shell: bash
       run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
 
-    - name: Clean up stale containers and networks
+    - name: Clean up stale Docker resources
       shell: bash
+      env:
+        PRUNE_UNTIL: ${{ inputs.prune-until }}
       run: |
         names=$(echo '${{ inputs.images }}' | yq -r 'keys | .[] | downcase')
         for name in $names; do
@@ -52,6 +60,10 @@ runs:
             | xargs -r docker rm -f 2>/dev/null || true
         done
         docker network prune -f 2>/dev/null || true
+        docker volume prune -f 2>/dev/null || true
+        if [[ -n "$PRUNE_UNTIL" ]]; then
+          docker image prune -f --filter "until=$PRUNE_UNTIL" 2>/dev/null || true
+        fi
 
     - name: Login, configure, and pull
       shell: bash

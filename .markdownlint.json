@@ -1,22 +1,31 @@
 {
-    "default": true,
-    "ul-indent":                       false,
-    "ul-style":                        false,
-    "no-trailing-spaces":              false,
-    "line-length":                     false,
-    "blanks-around-headings":          false,
-    "no-duplicate-heading":            { "siblings_only": true },
-    "no-trailing-punctuation":         false,
-    "blanks-around-fences":            false,
-    "blanks-around-lists":             false,
-    "no-inline-html":                  { "allowed_elements": [ "summary", "details", "kbd", "br" ] },
-    "fenced-code-language":            false,
-    "first-line-heading/first-line-h1": false,
-    "table-column-style":              false,
-    "no-bare-urls":                    false,
-    "single-trailing-newline":         false,
-    "emphasis-style":                  false,
-    "heading-increment":               false,
-    "single-title/single-h1":          false,
-    "no-emphasis-as-heading":          false
+  "default": true,
+  "ul-indent": false,
+  "ul-style": false,
+  "no-trailing-spaces": false,
+  "line-length": false,
+  "blanks-around-headings": false,
+  "no-duplicate-heading": {
+    "siblings_only": true
+  },
+  "no-trailing-punctuation": false,
+  "blanks-around-fences": false,
+  "blanks-around-lists": false,
+  "no-inline-html": {
+    "allowed_elements": [
+      "summary",
+      "details",
+      "kbd",
+      "br"
+    ]
+  },
+  "fenced-code-language": false,
+  "first-line-heading/first-line-h1": false,
+  "table-column-style": false,
+  "no-bare-urls": false,
+  "single-trailing-newline": false,
+  "emphasis-style": false,
+  "heading-increment": false,
+  "single-title/single-h1": false,
+  "no-emphasis-as-heading": false
 }

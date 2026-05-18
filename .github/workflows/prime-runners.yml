@@ -1,0 +1,71 @@
+name: Prime Runners
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      runners: ${{ steps.list.outputs.runners }}
+    steps:
+      - name: List online self-hosted runners
+        id: list
+        env:
+          GH_TOKEN: ${{ secrets.ORG_GH_BOT_AUTOMATION }}
+        run: |
+          runners=$(gh api orgs/kurrent-io/actions/runners \
+            --jq '[.runners[] | select(.status == "online") | .name]')
+          echo "runners=$runners" >> "$GITHUB_OUTPUT"
+
+  warmup:
+    needs: discover
+    strategy:
+      matrix:
+        runner: ${{ fromJSON(needs.discover.outputs.runners) }}
+    runs-on:
+      - self-hosted
+      - ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Export Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+
+      - name: Prepare Environment
+        run: |
+          bin_dir="$HOME/.local/bin"
+          mkdir -p "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
+          fi
+          if ! command -v yq &>/dev/null; then
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            chmod +x "$bin_dir/yq"
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Setup Containers
+        uses: ./.github/actions/setup-containers
+        with:
+          default-credentials: |
+            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+          registries: |
+            - registry: docker.cloudsmith.io
+            - registry: docker.kurrent.io
+          images: ${{ env.TEST_CONTAINERS }}
+          prune-until: '72h'

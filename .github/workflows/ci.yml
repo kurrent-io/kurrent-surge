@@ -33,6 +33,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Import Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+
       - name: Detect Changes
         id: changes
         uses: dorny/paths-filter@v3
@@ -113,4 +116,7 @@ jobs:
         uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
-          push-to: github
+          nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
+          # TODO: change github to nuget when ready to publish publicly
+          push-to: ${{ github.ref == 'refs/heads/main' && 'github' || 'github' }}
+        

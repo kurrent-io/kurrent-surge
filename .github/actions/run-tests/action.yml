@@ -64,6 +64,11 @@ runs:
 
     - name: Run ${{ inputs.category }} tests
       shell: bash
+      env:
+        TUNIT_DISABLE_HTML_REPORTER: true
+        TUNIT_DISABLE_GITHUB_REPORTER: true
+        TUNIT_DISABLE_LOGO: true
+        TESTINGPLATFORM_TELEMETRY_OPTOUT: true
       run: >-
         dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
         ${{ steps.config.outputs.dotnet-args }}

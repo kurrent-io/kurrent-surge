@@ -4,14 +4,7 @@ description: >
   Supports GitHub Packages and NuGet.org as destinations.
 
   Packing runs first (unless disabled), then packages are pushed to each
-  destination declared in push-to. Credentials are read from environment
-  variables — the action never receives secrets as inputs.
-
-  Environment variables:
-    GITHUB_TOKEN  — Required when push-to includes "github". Automatically
-                    available in GitHub Actions workflows.
-    NUGET_API_KEY — Required when push-to includes "nuget". Must be set
-                    explicitly by the caller.
+  destination declared in push-to.
 
   Destinations (push-to, required):
     github — GitHub Packages (https://nuget.pkg.github.com/{owner}/index.json)
@@ -33,10 +26,6 @@ inputs:
     description: Run dotnet pack before pushing. Set to false for push-only.
     required: false
     default: 'true'
-  output:
-    description: Output directory for .nupkg files.
-    required: false
-    default: ./.artifacts/packages
   pack-args:
     description: >
       Arguments passed to dotnet pack. Defaults to `-c Release --no-build`
@@ -44,11 +33,19 @@ inputs:
       control build behavior or add flags.
     required: false
     default: '-c Release --no-build'
+  nuget-api-key:
+    description: API key for NuGet.org. Required when push-to includes 'nuget'.
+    required: false
+    default: ''
+  upload-artifacts:
+    description: Upload packed .nupkg files as a GitHub Actions artifact.
+    required: false
+    default: 'false'
 
 outputs:
   packages-path:
     description: Path to the directory containing the packed .nupkg files.
-    value: ${{ inputs.output }}
+    value: ${{ runner.temp }}/packages
 
 runs:
   using: composite
@@ -56,37 +53,42 @@ runs:
     - name: Pack
       if: inputs.pack == 'true'
       shell: bash
-      run: >-
-        dotnet pack
-        -o ${{ inputs.output }}
-        -p:Version=${{ inputs.version }}
-        ${{ inputs.pack-args }}
+      run: |
+        dotnet pack \
+          -o ${{ runner.temp }}/packages \
+          -p:Version=${{ inputs.version }} \
+          ${{ inputs.pack-args }}
 
-    - name: Push to GitHub Packages
+    - name: Push to GitHub
       if: contains(inputs.push-to, 'github')
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        dotnet nuget push ${{ inputs.output }}/*.nupkg \
+        dotnet nuget push ${{ runner.temp }}/packages/*.nupkg \
           --skip-duplicate \
           --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
           --api-key "$GITHUB_TOKEN"
 
-    - name: Validate NuGet.org credentials
-      if: contains(inputs.push-to, 'nuget')
-      shell: bash
-      run: |
-        if [[ -z "$NUGET_API_KEY" ]]; then
-          echo "::error::NUGET_API_KEY is required when pushing to NuGet.org. Set NUGET_API_KEY as an environment variable in the calling workflow."
-          exit 1
-        fi
-
     - name: Push to NuGet.org
       if: contains(inputs.push-to, 'nuget')
       shell: bash
+      env:
+        NUGET_API_KEY: ${{ inputs.nuget-api-key }}
       run: |
-        dotnet nuget push ${{ inputs.output }}/*.nupkg \
+        if [[ -z "$NUGET_API_KEY" ]]; then
+          echo "::error::nuget-api-key is required when pushing to NuGet.org."
+          exit 1
+        fi
+        dotnet nuget push ${{ runner.temp }}/packages/*.nupkg \
           --skip-duplicate \
           --source https://api.nuget.org/v3/index.json \
           --api-key "$NUGET_API_KEY"
+
+    - name: Upload package artifacts
+      if: inputs.upload-artifacts == 'true' && !failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages
+        path: ${{ runner.temp }}/packages/
+        if-no-files-found: ignore
