@@ -68,4 +68,4 @@ jobs:
             - registry: docker.cloudsmith.io
             - registry: docker.kurrent.io
           images: ${{ env.TEST_CONTAINERS }}
-          prune-until: '72h'
+          prune-older-than: '72h'

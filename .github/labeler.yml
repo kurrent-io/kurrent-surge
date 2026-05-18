@@ -35,7 +35,7 @@ area-testing:
   - changed-files:
     - any-glob-to-any-file:
       - test/Kurrent.Testkit/**
-      - test/Kurrent.Testkit.Datasets/**
+      - test/Kurrent.Testkit.Tests/**
       - test/Kurrent.Sdk.Testkit/**
       - test/Aspire.Hosting.KurrentDB/**
       - test/Aspire.Hosting.KurrentDB.Tests/**

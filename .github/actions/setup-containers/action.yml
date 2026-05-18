@@ -1,9 +1,8 @@
 name: Setup Containers
 description: >
-  Logs into one or more Docker registries, pulls images in parallel, and sets
-  {NAME}_CONTAINER_{REGISTRY,IMAGE,TAG} and {NAME}_IMAGEREF environment variables for each
-  container used in integration tests. Image references are validated against
-  the configured registries.
+  Logs into one or more Docker registries, pulls images, and sets {NAME}_IMAGEREF
+  environment variables for each container used in integration tests.
+  Image references are validated against the configured registries.
 
   Registry entries without credentials fall back to default-credentials.
 
@@ -35,10 +34,11 @@ inputs:
         images: |
           KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
     required: true
-  prune-until:
+  prune-older-than:
     description: >
-      Prune unused images, volumes, and networks older than this duration (e.g., '72h').
-      Disabled when empty.
+      Prune unused Docker images older than this duration (e.g., '72h').
+      Stale containers, unused networks, and volumes are always cleaned up regardless.
+      When empty, image pruning is skipped.
     required: false
     default: ''
 
@@ -52,7 +52,7 @@ runs:
     - name: Clean up stale Docker resources
       shell: bash
       env:
-        PRUNE_UNTIL: ${{ inputs.prune-until }}
+        PRUNE_OLDER_THAN: ${{ inputs.prune-older-than }}
       run: |
         names=$(echo '${{ inputs.images }}' | yq -r 'keys | .[] | downcase')
         for name in $names; do
@@ -61,8 +61,8 @@ runs:
         done
         docker network prune -f 2>/dev/null || true
         docker volume prune -f 2>/dev/null || true
-        if [[ -n "$PRUNE_UNTIL" ]]; then
-          docker image prune -f --filter "until=$PRUNE_UNTIL" 2>/dev/null || true
+        if [[ -n "$PRUNE_OLDER_THAN" ]]; then
+          docker image prune -f --filter "until=$PRUNE_OLDER_THAN" 2>/dev/null || true
         fi
 
     - name: Login, configure, and pull
@@ -86,62 +86,39 @@ runs:
           printf '%s' "$pass" | docker login "$registry" -u "$user" --password-stdin
         done
 
-        # --- Setup environment variables ---
+        # --- Validate and export image refs ---
         registries=$(printf '%s' '${{ inputs.registries }}' | yq -r '.[].registry')
 
         echo '${{ inputs.images }}' | yq -r '
           to_entries[] |
           (.key | upcase) as $name |
           (.value.ImageRef // .value) as $image_ref |
-          ($image_ref | split(":") | .[0]) as $ref |
-          ($image_ref | split(":") | .[1] // "latest") as $tag |
-          "\($name) \($ref) \($tag) \($image_ref)"
-        ' | while read -r name ref tag image_ref; do
-          matched_registry=""
+          "\($name) \($image_ref)"
+        ' | while read -r name image_ref; do
+          matched=false
           while IFS= read -r reg; do
-            if [[ "$ref" == "$reg"* ]]; then
-              if [ ${#reg} -gt ${#matched_registry} ]; then
-                matched_registry="$reg"
-              fi
+            if [[ "$image_ref" == "$reg"* ]]; then
+              matched=true
+              break
             fi
           done <<< "$registries"
 
-          if [ -z "$matched_registry" ]; then
+          if [[ "$matched" != "true" ]]; then
             echo "::error::No matching registry for image: $image_ref"
             exit 1
           fi
 
-          image="${ref#"$matched_registry"}"
-          image="${image#/}"
-
           echo "${name}_IMAGEREF=$image_ref" | tee -a "$GITHUB_ENV"
-          echo "${name}_CONTAINER_REGISTRY=$matched_registry" | tee -a "$GITHUB_ENV"
-          echo "${name}_CONTAINER_IMAGE=$image" | tee -a "$GITHUB_ENV"
-          echo "${name}_CONTAINER_TAG=$tag" | tee -a "$GITHUB_ENV"
         done
 
-        # --- Pull images with retry ---
-        pull_image() {
-          local image="$1" attempt
-          for attempt in 1 2 3; do
-            if docker pull "$image" --quiet; then
-              return 0
-            fi
-            echo "::warning::Pull attempt $attempt failed for $image — retrying in 10s..."
-            sleep 10
-          done
-          return 1
-        }
-
+        # --- Pull images ---
         images=$(echo '${{ inputs.images }}' | yq -r '
           to_entries[] | .value.ImageRef // .value
         ')
         failed=0
         for image in $images; do
           echo "Pulling $image..."
-          if ! pull_image "$image"; then
-            echo "::warning::All pull attempts failed for $image"
-          fi
+          docker pull "$image" --quiet || true
 
           if ! docker image inspect "$image" > /dev/null 2>&1; then
             echo "::error::Image $image not available locally — cannot proceed"
