@@ -39,18 +39,19 @@ Removing a field works in reverse. Roll out the consumer change first so no read
 
 ## Rename a .NET type
 
-You want a new class name in your code, but the database has years of records under the old schema name and you do not want to disturb them.
+You refactored the .NET class name, but the database has years of records under the old schema name and you do not want to disturb them. The event is unchanged. Only the class identifier moved.
 
 Pin the schema name explicitly when you build the mapper:
 
 ```csharp
+// Class was renamed from OrderShippedEvent to OrderShipped.
 var mapper = MessageTypeMapper.Create(m => m
-    .Map<OrderShippedV2>("order.shipped.v1"));
+    .Map<OrderShipped>("order.shipped"));
 ```
 
-What stays compatible: the .NET type is now OrderShippedV2, but appended records still carry the schema name `order.shipped.v1`. Consumers reading older records resolve them to the renamed class. The registry sees no change because the schema name and shape are the same.
+What stays compatible: the .NET type has a new name, but appended records still carry the schema name `order.shipped`. Consumers reading older records resolve them to the renamed class. The registry sees no change because the schema name and shape are the same.
 
-This is the same mapper override you would use any time you want to set a schema name explicitly. Here you are using it to absorb a code rename.
+This is a rename, not an evolution. A v1 record should always deserialize to its v1 type. When the shape itself changes, give it a new schema name and project v1 forward in a handler pipeline ([Run two versions side by side](#run-two-versions-side-by-side)).
 
 ## Run two versions side by side
 
