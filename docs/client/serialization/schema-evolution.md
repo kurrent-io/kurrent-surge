@@ -87,22 +87,23 @@ await foreach (var record in records) {
 
 When both versions encode the same domain concept, project V1 into V2 the moment you read it so the rest of your handler only deals with one shape.
 
-## Migrate to a new naming strategy
+## Adopt a new naming strategy
 
-You changed the naming strategy on a stream that already has records. New records will use the new convention. Old records keep the names they were appended with. Consumers need to resolve both.
+You want new record types to use a different naming convention. Types that already have records on a stream keep their names. Renames happen forward, not backward.
 
-Register the legacy name explicitly while the new strategy generates names for new types:
+Switch the strategy on the options and pin every type that already has records:
 
 ```csharp
 opts.Schema.NameStrategy = SchemaNameStrategies.Category();
 
 opts.Schema.Mapper = MessageTypeMapper.Create(m => m
-    .WithStrategy(SchemaNameStrategies.Category())
-    .Map<OrderPlaced>()
-    .Map<OrderPlaced>("Shop.Orders.OrderPlaced"));
+    .Map<OrderPlaced>("Shop.Orders.OrderPlaced")
+    .Map<OrderShipped>("Shop.Orders.OrderShipped"));
 ```
 
-What stays compatible: both names now resolve to OrderPlaced. The first call sets the encode-side name, used when a new record is appended. The second adds a decode-side entry so consumers can still read records appended under the old convention.
+What stays compatible: pinned types keep their original schema names for both reads and writes, so existing streams continue to work. Types you add later are not in the mapper, so the strategy generates a name for them under the new convention. Old types stay frozen. New types use the new strategy.
+
+If a type genuinely needs a new shape, give it a new schema name and let both live on the stream ([Run two versions side by side](#run-two-versions-side-by-side)).
 
 ## One rule that beats all four
 
