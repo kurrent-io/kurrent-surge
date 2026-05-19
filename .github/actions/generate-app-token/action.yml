@@ -1,0 +1,32 @@
+name: Generate App Token
+description: >
+  Generates a short-lived GitHub App installation token for the kurrent-ci app.
+  Wraps actions/create-github-app-token so all workflows share the same version
+  pin and configuration.
+
+inputs:
+  client-id:
+    description: GitHub App Client ID
+    required: true
+  private-key:
+    description: GitHub App private key (.pem)
+    required: true
+  owner:
+    description: Organization or user that owns the app installation
+    required: true
+
+outputs:
+  token:
+    description: Short-lived installation token
+    value: ${{ steps.generate.outputs.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Generate Token
+      id: generate
+      uses: actions/create-github-app-token@v2
+      with:
+        client-id: ${{ inputs.client-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: ${{ inputs.owner }}
