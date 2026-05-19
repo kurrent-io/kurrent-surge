@@ -31,6 +31,7 @@ jobs:
   warmup:
     needs: discover
     strategy:
+      fail-fast: false
       matrix:
         runner: ${{ fromJSON(needs.discover.outputs.runners) }}
     runs-on:
@@ -60,12 +61,19 @@ jobs:
           bin_dir="$HOME/.local/bin"
           mkdir -p "$bin_dir"
           echo "$bin_dir" >> "$GITHUB_PATH"
+          arch=$(uname -m)
+          case "$arch" in
+            x86_64)  arch_suffix="amd64" ;;
+            aarch64) arch_suffix="arm64" ;;
+            *)       arch_suffix="amd64" ;;
+          esac
+
           if ! command -v jq &>/dev/null; then
-            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$arch_suffix" -o "$bin_dir/jq"
             chmod +x "$bin_dir/jq"
           fi
           if ! command -v yq &>/dev/null; then
-            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$arch_suffix" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"
           fi
 
