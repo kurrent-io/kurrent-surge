@@ -28,7 +28,7 @@
     }
   },
 
-  "onCreateCommand": "dotnet tool restore",
+  "onCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.dotnet /home/vscode/.nuget 2>/dev/null; dotnet tool restore",
   "updateContentCommand": "dotnet restore",
   "postCreateCommand": "dotnet build --no-restore",
   "waitFor": "postCreateCommand"
