@@ -38,21 +38,6 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: .github/ci-path-filters.yml
-          
-      - name: Detect Affected Test Projects
-        id: affected
-        run: |
-          dnx Incrementalist.Cmd -- run --dry -b main -f /tmp/affected-tests.txt
-            
-            if grep -q 'Kurrent.Client.Tests' /tmp/affected-tests.txt 2>/dev/null; then                                                                      
-              echo "run_client=true" >> $GITHUB_OUTPUT                                                                                                       
-            fi                                                                                                                                               
-            if grep -q 'Kurrent.Streaming.Tests' /tmp/affected-tests.txt 2>/dev/null; then                                                                   
-              echo "run_streaming=true" >> $GITHUB_OUTPUT                                                                                                    
-            fi                                                                                                                                               
-            
-            echo "Affected test projects:"                                                                                                                   
-            cat /tmp/affected-tests.txt 
 
       - name: Prepare Environment
         run: |
