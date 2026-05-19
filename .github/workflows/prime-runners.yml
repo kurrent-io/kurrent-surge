@@ -54,6 +54,8 @@ jobs:
       - name: Prepare Environment
         run: |
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
           bin_dir="$HOME/.local/bin"
           mkdir -p "$bin_dir"
