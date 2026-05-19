@@ -7,6 +7,10 @@ on:
       - '.devcontainer/**'
   workflow_dispatch:
 
+concurrency:
+  group: build-devcontainer-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
