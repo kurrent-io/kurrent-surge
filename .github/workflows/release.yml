@@ -63,9 +63,6 @@ jobs:
       - name: Install Local Tools
         uses: ./.github/actions/install-tools
 
-      - name: Build
-        run: dotnet build -c Release --no-restore
-
       - name: Version
         id: version
         uses: ./.github/actions/bumpcraft
@@ -74,6 +71,9 @@ jobs:
           version: ${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run
@@ -86,7 +86,7 @@ jobs:
         uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
-          push-to: github nuget
+          push-to: github
         env:
           NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
 
