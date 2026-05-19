@@ -1,0 +1,20 @@
+name: Test Docker-in-Docker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-dind:
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - name: Check Docker
+        run: |
+          echo "--- Docker version ---"
+          docker version
+          echo "--- Docker info ---"
+          docker info
+          echo "--- Running container ---"
+          docker run --rm alpine echo "Docker-in-Docker works!"
+          echo "--- Running nested docker ---"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker:cli docker ps
