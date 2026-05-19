@@ -1,6 +1,10 @@
 name: Build Devcontainer
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.devcontainer/**'
   workflow_dispatch:
 
 jobs:
@@ -28,10 +32,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ steps.app-token.outputs.token }}
 
-      - name: Pull base image
-        run: docker pull ghcr.io/kurrent-io/devcontainers/dotnet
-
-      - name: Build and run devcontainer
+      - name: Build & Push
         uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
