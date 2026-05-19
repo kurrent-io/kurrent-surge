@@ -1,4 +1,4 @@
-name: Test Devcontainer
+name: Build Devcontainer
 
 on:
   workflow_dispatch:
@@ -21,8 +21,8 @@ jobs:
       - name: Build and run devcontainer
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/kurrent-io/kurrent-sdk-devcontainer
-          cacheFrom: ghcr.io/kurrent-io/kurrent-sdk-devcontainer
+          imageName: ghcr.io/kurrent-io/devcontainers/kurrent-sdk
+          cacheFrom: ghcr.io/kurrent-io/devcontainers/kurrent-sdk
           push: always
           runCmd: |
             echo "--- Environment ---"
