@@ -88,9 +88,9 @@ jobs:
           --exporters json github
           --filter ${{ matrix.filter }}
 
-      - name: Generate Report
+      - name: Generate report
         run: >-
-          benchmark-report
+          dotnet run tools/benchmark-report.cs --
           --input ./artifacts/benchmarks
           --output ./artifacts/benchmarks/report.html
 
