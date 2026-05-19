@@ -2,7 +2,13 @@
   "name": "Kurrent .NET SDK",
 
   "image": "ghcr.io/kurrent-io/devcontainers/dotnet",
-  
+
+  // Docker-in-Docker: Aspire test harness spins up KurrentDB containers
+  // via DistributedApplicationTestingBuilder — needs a Docker daemon inside.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
   // Run as non-root user for security. Change to the actual non-root user
   // in your image if it's not "vscode" (e.g., "dotnet", "dev").
   "remoteUser": "vscode",
@@ -13,6 +19,7 @@
     "storage": "32gb"
   },
 
+  // Forwarded from host env — never hardcode secrets
   "remoteEnv": {
     "NUGET_AUTH_TOKEN": "${localEnv:NUGET_AUTH_TOKEN}",
     "NuGetPackageSourceCredentials_GitHub": "Username=pat;Password=${localEnv:NUGET_AUTH_TOKEN}",
