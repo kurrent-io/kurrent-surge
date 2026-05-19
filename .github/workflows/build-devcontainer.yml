@@ -24,4 +24,4 @@ jobs:
           imageName: ghcr.io/kurrent-io/devcontainers/repo/kurrent-sdk
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repo/kurrent-sdk
           push: always
-          runCmd: dotnet --version
+          runCmd: dotnet --info
