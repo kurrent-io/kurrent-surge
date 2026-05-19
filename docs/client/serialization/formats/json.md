@@ -23,19 +23,9 @@ await client.Streams.AppendStream(record);
 
 The content type on the wire is `application/json`.
 
-## Customize the serializer
+## Defaults
 
-The JSON serializer is configured through `JsonSchemaSerializerOptions` on the client's schema options. Pass a customized record to override any of the defaults:
-
-```csharp
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
-    });
-```
-
-Defaults:
+The JSON serializer ships with these settings:
 
 | Setting                       | Default                                          |
 |-------------------------------|--------------------------------------------------|
@@ -48,6 +38,13 @@ Defaults:
 | `NumberHandling`              | `JsonNumberHandling.AllowReadingFromString`      |
 | TimeSpan converters           | ISO-8601 (nullable and non-nullable)             |
 | NodaTime                      | TZDB via `NodaTime.Serialization.SystemTextJson` |
+
+These settings are baked in. `JsonSchemaSerializerOptions` exposes two knobs:
+
+- `UserJsonContexts`: source-generated `JsonSerializerContext` instances for AOT (see [AOT](#aot)).
+- `UseProtobufFormatter`: formats protobuf messages with the canonical protobuf JSON encoding. Defaults to on.
+
+Runtime overrides for the naming policy, ignore condition, and converters are not exposed today. If you need them, [open an issue](https://github.com/kurrent-io/kurrent-sdk-dotnet/issues).
 
 ## AOT
 
