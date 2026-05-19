@@ -45,5 +45,6 @@ jobs:
         with:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
+          skipContainerUserIdUpdate: true
           push: always
           runCmd: dotnet --info
