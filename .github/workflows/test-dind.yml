@@ -6,7 +6,6 @@ on:
 jobs:
   test-dind:
     runs-on: [self-hosted, linux, x64]
-
     steps:
       - name: Check Docker
         run: |
@@ -18,3 +17,17 @@ jobs:
           docker run --rm alpine echo "Docker-in-Docker works!"
           echo "--- Running nested docker ---"
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock docker:cli docker ps
+
+  test-container-job:
+    runs-on: [self-hosted, linux, x64]
+    container:
+      image: node:22-alpine
+    steps:
+      - name: Check environment
+        run: |
+          echo "--- Node version ---"
+          node --version
+          echo "--- OS ---"
+          cat /etc/os-release
+          echo "--- whoami ---"
+          whoami
