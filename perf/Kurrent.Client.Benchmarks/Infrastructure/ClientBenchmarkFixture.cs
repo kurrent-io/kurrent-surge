@@ -23,15 +23,35 @@ public sealed class ClientBenchmarkFixture : KurrentDBFixture {
         if (_seededStreams.TryGetValue(messageCount, out var existing))
             return existing;
 
-        var data = await new ArcadeRacerTestDataSource().GenerateSet(messageCount, CancellationToken.None);
-
+        var data = await TestData.GenerateSet(messageCount, CancellationToken.None);
+        
         await Client.Streams
-            .AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build())
+            .AppendStream(data.AppendRequest)
             .ConfigureAwait(false);
 
         _seededStreams[messageCount] = data.Stream;
 
         return data.Stream;
+    }
+
+    /// <summary>
+    /// Seeds multiple distinct streams, each with the specified number of messages.
+    /// Does not use the cache — each call produces unique streams.
+    /// </summary>
+    public async Task<StreamName[]> SeedStreams(int streamCount, int messageCount) {
+        var streams = new StreamName[streamCount];
+
+        for (var i = 0; i < streamCount; i++) {
+            var data = await TestData.GenerateSet(messageCount, CancellationToken.None);
+
+            await Client.Streams
+                .AppendStream(data.AppendRequest)
+                .ConfigureAwait(false);
+
+            streams[i] = data.Stream;
+        }
+
+        return streams;
     }
 
     /// <summary>

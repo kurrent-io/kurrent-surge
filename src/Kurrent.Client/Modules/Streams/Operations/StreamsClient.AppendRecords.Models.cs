@@ -103,6 +103,9 @@ public record AppendRecordsRequest() : SelfValidating {
         public Builder AddChecks(params ConsistencyCheck[] checks) =>
             With(r => r with { Checks = r.Checks.AddRange(checks) });
 
+        public Builder AddChecks(IEnumerable<StreamStateCheck> checks) =>
+            With(r => r with { Checks = r.Checks.AddRange(checks.Select(c => (ConsistencyCheck)c)) });
+
         #endregion
 
         #region ->> Records <<-

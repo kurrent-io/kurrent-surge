@@ -3,7 +3,6 @@ using Kurrent.Client.Streams;
 
 namespace Benchmarks;
 
-[MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class ExpressionFilterParseBenchmarks {
     [ParamsSource(nameof(Expressions))]

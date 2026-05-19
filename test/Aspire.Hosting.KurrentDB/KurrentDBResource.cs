@@ -56,6 +56,12 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
         if (Priority != 0)
             ctx.EnvironmentVariables["KURRENTDB_NODE_PRIORITY"] = Priority.ToString();
 
+        if (!string.IsNullOrEmpty(settings.LicenseKey))
+            ctx.EnvironmentVariables["KURRENTDB_LICENSING__LICENSE_KEY"] = settings.LicenseKey;
+
+        ctx.EnvironmentVariables["KURRENTDB_USER_CERTIFICATES__ENABLED"] =
+            settings.UserCertificatesEnabled.ToString().ToLowerInvariant();
+
         if (settings.OpenTelemetry.IsEnabled) {
             ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"]   = settings.OpenTelemetry.Endpoint;
             ctx.EnvironmentVariables["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]    = settings.OpenTelemetry.LogsEnabled.ToString().ToLowerInvariant();

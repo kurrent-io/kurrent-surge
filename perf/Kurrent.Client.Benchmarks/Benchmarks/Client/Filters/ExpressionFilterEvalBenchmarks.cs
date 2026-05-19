@@ -5,7 +5,6 @@ using Kurrent.Client.Tests.Filters;
 
 namespace Benchmarks;
 
-[MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class ExpressionFilterEvalBenchmarks {
     IFilterExpression _filter = null!;

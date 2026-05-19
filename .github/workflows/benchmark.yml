@@ -3,15 +3,35 @@ name: Run Benchmarks
 on:
   workflow_dispatch:
   merge_group:
+  pull_request:
+    branches: [main]
+    types: [labeled]
+  push:
+    branches: [main]
+    paths:
+      - 'perf/**'
 
 env:
-  NuGetAudit: false
   NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
   NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
 
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.label.name == 'run-benchmarks'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - category: general
+            filter: '"*ExpressionFilter*" "*XXHash*"'
+          - category: reads
+            filter: '"*Read*"'
+
+    name: benchmark (${{ matrix.category }})
+    runs-on: [self-hosted, linux, x64]
 
     permissions:
       contents: read
@@ -23,25 +43,60 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build project
-        uses: ./.github/actions/dotnet-setup
+      - name: Prepare Environment
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
-      - name: Run benchmarks
+          bin_dir="$HOME/.local/bin"
+          mkdir -p "$bin_dir"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
+          fi
+          if ! command -v yq &>/dev/null; then
+            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
+            chmod +x "$bin_dir/yq"
+          fi
+
+      - name: Export Repo Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Install Local Tools
+        uses: ./.github/actions/install-tools
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Run Benchmarks
         run: >-
           dotnet run -c Release --no-build --framework net10.0 --project perf/Kurrent.Client.Benchmarks/ --
           --artifacts ./artifacts/benchmarks
           --exporters json github
-          --filter "*"
+          --filter ${{ matrix.filter }}
 
-      - name: Generate report
+      - name: Generate Report
         run: >-
-          dotnet run tools/benchmark-report.cs --
+          benchmark-report
           --input ./artifacts/benchmarks
           --output ./artifacts/benchmarks/report.html
 
       - name: Write summary
         run: |
-          echo "## Benchmark Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Benchmark Results (${{ matrix.category }})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           for report in ./artifacts/benchmarks/results/*-report-github.md; do
@@ -62,6 +117,6 @@ jobs:
         if: ${{ !cancelled() }}
         continue-on-error: true
         with:
-          name: Benchmark Results
+          name: Benchmark Results (${{ matrix.category }})
           path: ./artifacts/benchmarks
           overwrite: true

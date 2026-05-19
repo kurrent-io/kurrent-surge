@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/*']
   pull_request:
-    branches: [main]
+    branches: [main, 'release/*']
     types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
@@ -38,6 +38,21 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: .github/ci-path-filters.yml
+          
+      - name: Detect Affected Test Projects
+        id: affected
+        run: |
+          dnx Incrementalist.Cmd -- run --dry -b main -f /tmp/affected-tests.txt
+            
+            if grep -q 'Kurrent.Client.Tests' /tmp/affected-tests.txt 2>/dev/null; then                                                                      
+              echo "run_client=true" >> $GITHUB_OUTPUT                                                                                                       
+            fi                                                                                                                                               
+            if grep -q 'Kurrent.Streaming.Tests' /tmp/affected-tests.txt 2>/dev/null; then                                                                   
+              echo "run_streaming=true" >> $GITHUB_OUTPUT                                                                                                    
+            fi                                                                                                                                               
+            
+            echo "Affected test projects:"                                                                                                                   
+            cat /tmp/affected-tests.txt 
 
       - name: Prepare Environment
         run: |
@@ -57,9 +72,12 @@ jobs:
             chmod +x "$bin_dir/yq"
           fi
         
-      - name: Import Variables
-        if: steps.changes.outputs.build == 'true'
+      - name: Export Repo Variables
         run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+
+      - name: Trigger Docs Build
+        if: steps.changes.outputs.docs == 'true'
+        run: curl -X POST -d {} "${{ secrets.CLOUDFLARE_BUILD_HOOK }}"
 
       - name: Setup .NET
         if: steps.changes.outputs.build == 'true'

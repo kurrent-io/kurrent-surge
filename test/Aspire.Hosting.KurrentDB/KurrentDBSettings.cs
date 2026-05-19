@@ -22,6 +22,18 @@ public class KurrentDBSettings {
     public bool TlsEnabled { get; set; } = true;
 
     /// <summary>
+    /// The KurrentDB license key. Required for licensed features like UserCertificates,
+    /// AutoScavenge, LDAP/OAuth auth, and licensed connectors.
+    /// </summary>
+    public string? LicenseKey { get; set; }
+
+    /// <summary>
+    /// Enables X.509 user certificate authentication. Requires <see cref="TlsEnabled"/>
+    /// and a valid <see cref="LicenseKey"/>.
+    /// </summary>
+    public bool UserCertificatesEnabled { get; set; }
+
+    /// <summary>
     /// The credentials for the KurrentDB resource.
     /// </summary>
     public CredentialSettings Credentials { get; set; } = new();
@@ -81,6 +93,22 @@ public class KurrentDBSettings {
     }
 
     /// <summary>
+    /// Sets the license key for KurrentDB licensed features.
+    /// </summary>
+    public KurrentDBSettings WithLicenseKey(string licenseKey) {
+        LicenseKey = licenseKey;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables X.509 user certificate authentication.
+    /// </summary>
+    public KurrentDBSettings EnableUserCertificates() {
+        UserCertificatesEnabled = true;
+        return this;
+    }
+
+    /// <summary>
     /// Configures OpenTelemetry export settings for the KurrentDB node.
     /// </summary>
     public KurrentDBSettings WithOpenTelemetry(Action<OpenTelemetrySettings> configure) {
@@ -101,6 +129,12 @@ public class KurrentDBSettings {
         if (Topology.Nodes > 1 && Topology.Nodes % 2 == 0)
             throw new ArgumentException(
                 $"Cluster size must follow the 2n+1 rule (1, 3, 5, 7...): got {Topology.Nodes}.", nameof(Topology.Nodes));
+
+        if (UserCertificatesEnabled && !TlsEnabled)
+            throw new ArgumentException("User certificate authentication requires TLS to be enabled.");
+
+        if (UserCertificatesEnabled && string.IsNullOrEmpty(LicenseKey))
+            throw new ArgumentException("User certificate authentication requires a license key.");
 
         ArgumentException.ThrowIfNullOrWhiteSpace(Container.Registry, "Container.Registry");
         ArgumentException.ThrowIfNullOrWhiteSpace(Container.Image, "Container.Image");
