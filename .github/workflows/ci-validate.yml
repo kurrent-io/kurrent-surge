@@ -1,4 +1,4 @@
-name: CI / Validate PR
+name: CI / Validate
 
 on:
   pull_request:
@@ -21,3 +21,6 @@ jobs:
 
       - name: Validate and Label
         uses: ./.github/actions/conventional-commits
+
+      - name: Markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v19
