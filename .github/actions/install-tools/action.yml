@@ -1,4 +1,4 @@
-name: Restore .NET Tools
+name: Install Local Tools
 description: >
   Packs and installs file-based app tools from tools/ as global tools
   so they appear on PATH directly.
@@ -6,7 +6,7 @@ description: >
 runs:
   using: composite
   steps:
-    - name: Setup tools PATH
+    - name: Setup PATH
       shell: bash
       run: |
         echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
@@ -15,7 +15,7 @@ runs:
     # Pack file-based apps (*.cs with ToolCommandName) from tools/ and
     # install them as global tools so they appear on PATH directly.
     # Uses `dotnet tool update` to handle both fresh installs and upgrades.
-    - name: Install local tools
+    - name: Install
       shell: bash
       run: |
         if compgen -G "tools/*.cs" > /dev/null; then

@@ -1,0 +1,128 @@
+name: Setup Containers
+description: >
+  Logs into one or more Docker registries, pulls images, and sets {NAME}_IMAGEREF
+  environment variables for each container used in integration tests.
+  Image references are validated against the configured registries.
+
+  Registry entries without credentials fall back to default-credentials.
+
+inputs:
+  default-credentials:
+    description: >
+      Default username and password used for registries that don't specify their own.
+      Example:
+        default-credentials: |
+          username: <your-username>
+          password: <your-password>
+    required: false
+    default: ''
+  registries:
+    description: >
+      YAML list of registries to log into. Per-entry credentials override default-credentials.
+      Example:
+        registries: |
+          - registry: docker.cloudsmith.io
+          - registry: docker.kurrent.io
+            username: <override-username>
+            password: <override-password>
+    required: false
+    default: ''
+  images:
+    description: >
+      YAML mapping of container names to image references.
+      Example:
+        images: |
+          KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
+    required: true
+  prune-older-than:
+    description: >
+      Prune unused Docker images older than this duration (e.g., '72h').
+      Stale containers, unused networks, and volumes are always cleaned up regardless.
+      When empty, image pruning is skipped.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Create Docker Compose symlink
+      shell: bash
+      run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
+
+    - name: Clean up stale Docker resources
+      shell: bash
+      env:
+        PRUNE_OLDER_THAN: ${{ inputs.prune-older-than }}
+      run: |
+        names=$(echo '${{ inputs.images }}' | yq -r 'keys | .[] | downcase')
+        for name in $names; do
+          docker ps -a --filter "name=$name" --filter "status=exited" --filter "status=created" -q \
+            | xargs -r docker rm -f 2>/dev/null || true
+        done
+        docker network prune -f 2>/dev/null || true
+        docker volume prune -f 2>/dev/null || true
+        if [[ -n "$PRUNE_OLDER_THAN" ]]; then
+          docker image prune -f --filter "until=$PRUNE_OLDER_THAN" 2>/dev/null || true
+        fi
+
+    - name: Login, configure, and pull
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # --- Login to registries ---
+        default_user=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.username // ""')
+        default_pass=$(printf '%s' '${{ inputs.default-credentials }}' | yq -r '.password // ""')
+
+        registry_count=$(printf '%s' '${{ inputs.registries }}' | yq 'length')
+
+        for i in $(seq 0 $((registry_count - 1))); do
+          registry=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].registry")
+          user=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].username // \"\"")
+          pass=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].password // \"\"")
+          user="${user:-$default_user}"
+          pass="${pass:-$default_pass}"
+          echo "Logging into $registry..."
+          printf '%s' "$pass" | docker login "$registry" -u "$user" --password-stdin
+        done
+
+        # --- Validate and export image refs ---
+        registries=$(printf '%s' '${{ inputs.registries }}' | yq -r '.[].registry')
+
+        echo '${{ inputs.images }}' | yq -r '
+          to_entries[] |
+          (.key | upcase) as $name |
+          (.value.ImageRef // .value) as $image_ref |
+          "\($name) \($image_ref)"
+        ' | while read -r name image_ref; do
+          matched=false
+          while IFS= read -r reg; do
+            if [[ "$image_ref" == "$reg"* ]]; then
+              matched=true
+              break
+            fi
+          done <<< "$registries"
+
+          if [[ "$matched" != "true" ]]; then
+            echo "::error::No matching registry for image: $image_ref"
+            exit 1
+          fi
+
+          echo "${name}_IMAGEREF=$image_ref" | tee -a "$GITHUB_ENV"
+        done
+
+        # --- Pull images ---
+        images=$(echo '${{ inputs.images }}' | yq -r '
+          to_entries[] | .value.ImageRef // .value
+        ')
+        failed=0
+        for image in $images; do
+          echo "Pulling $image..."
+          docker pull "$image" --quiet || true
+
+          if ! docker image inspect "$image" > /dev/null 2>&1; then
+            echo "::error::Image $image not available locally — cannot proceed"
+            failed=1
+          fi
+        done
+        exit $failed

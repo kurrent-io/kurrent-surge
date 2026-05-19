@@ -1,3 +1,4 @@
+using Kurrent.Testkit.Configuration;
 using Kurrent.Testkit.OpenTelemetry;
 using Microsoft.Extensions.Configuration;
 using Serilog;
@@ -58,6 +59,7 @@ public static class TestkitExecutionContext {
             .AddJsonFile($"appsettings.{environment}.json", true)                    // Accept default naming convention
             .AddJsonFile($"appsettings.{environment.ToLowerInvariant()}.json", true) // Linux is case-sensitive
             .AddEnvironmentVariables()
+            .AddNormalizedEnvironmentVariables("KURRENTDB_")
             .Build();
 
         Log.Logger = DefaultLoggerConfig

@@ -24,7 +24,9 @@ public static class KurrentDBBuilderExtensions {
             .AddResource(server)
             .ExcludeFromManifest();
 
-        //var certsPath = app.FileSystemService.TempDirectory.CreateTempSubdirectory("aspire-kurrentdb-certs" + name);
+        // #pragma warning disable ASPIREFILESYSTEM001
+        // var certsPath = app.FileSystemService.TempDirectory.CreateTempSubdirectory("aspire-kurrentdb-certs" + name);
+        // #pragma warning restore ASPIREFILESYSTEM001
 
         var certGen = settings.TlsEnabled
             ? app.AddCertificateGenerator(name, server.CertsHostPath, server)
@@ -68,13 +70,14 @@ public static class KurrentDBBuilderExtensions {
         var priority  = settings.Topology.NodeConfigurations[nodeIndex].Priority;
         // var node =   new KurrentDBResource(nodeName, server, priority);
         
-        var node      = server.AddNode(nodeName, priority);
+        var node = server.AddNode(nodeName, priority);
 
         var builder = app
             .AddResource(node)
             .WithHttpEndpoint(targetPort: KurrentDBServerResource.DefaultHttpPort)
             .WithImage(settings.Container.Image, settings.Container.Tag)
             .WithImageRegistry(settings.Container.Registry)
+            .WithImagePullPolicy(ImagePullPolicy.Default)
             .WithEnvironment(ctx => node.ConfigureEnvironment(ctx, settings))
             .WithLifetime(settings.Lifetime);
 
@@ -158,7 +161,7 @@ public static class KurrentDBBuilderExtensions {
 static class NodeConfiguration {
     public static readonly IReadOnlyDictionary<string, string?> Insecure = new Dictionary<string, string?> {
         ["KURRENTDB_TELEMETRY_OPTOUT"]               = "true",
-        ["KURRENTDB_ALLOW_UNKNOWN_OPTIONS"]          = "true",
+        ["KURRENTDB_ALLOW_UNKNOWN_OPTIONS"]          = "false",
         ["KURRENTDB_MEM_DB"]                         = "false",
         ["KURRENTDB_DISABLE_LOG_FILE"]               = "true",
         ["KURRENTDB_LOG_LEVEL"]                      = "Debug",
@@ -175,6 +178,7 @@ static class NodeConfiguration {
 
     public static readonly IReadOnlyDictionary<string, string?> Secure = new Dictionary<string, string?>(Insecure) {
         ["KURRENTDB_INSECURE"]                       = "false",
+        ["KURRENTDB_USER_CERTIFICATES__ENABLED"]     = "true",
         ["KURRENTDB_TRUSTED_ROOT_CERTIFICATES_PATH"] = "/etc/kurrentdb/certs/ca",
         ["KURRENTDB_CERTIFICATE_FILE"]               = "/etc/kurrentdb/certs/node/node.crt",
         ["KURRENTDB_CERTIFICATE_PRIVATE_KEY_FILE"]   = "/etc/kurrentdb/certs/node/node.key"

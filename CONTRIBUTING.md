@@ -1,4 +1,4 @@
-.# Contributor Guidelines
+# Contributor Guidelines
 
 - **Repository:** KurrentDB .NET Client
 - **Primary Language:** C# 14 (.NET 8.0/9.0/10.0)

@@ -36,7 +36,7 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Build project
+      - name: Build
         uses: ./.github/actions/dotnet-setup
 
       - name: Version
@@ -54,16 +54,16 @@ jobs:
           git tag "${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
 
-      - name: Publish packages
+      - name: Publish Packages
         if: ${{ !inputs.dry_run }}
-        uses: ./.github/actions/dotnet-nuget
+        uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
           push-to: github nuget
         env:
           NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
 
-      - name: Create GitHub Release
+      - name: Create Release
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

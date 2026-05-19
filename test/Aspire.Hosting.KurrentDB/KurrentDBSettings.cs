@@ -1,6 +1,11 @@
 namespace Aspire.Hosting.KurrentDB;
 
 public class KurrentDBSettings {
+    public string ImageRef {
+        get => Container.ImageRef;
+        set => Container.ImageRef = value;
+    }
+    
     /// <summary>
     /// Represents the cluster topology for the KurrentDB resource, including the number of nodes and read-only replicas.
     /// </summary>
@@ -96,7 +101,16 @@ public class KurrentDBSettings {
         if (Topology.Nodes > 1 && Topology.Nodes % 2 == 0)
             throw new ArgumentException(
                 $"Cluster size must follow the 2n+1 rule (1, 3, 5, 7...): got {Topology.Nodes}.", nameof(Topology.Nodes));
-        
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(Container.Registry, "Container.Registry");
+        ArgumentException.ThrowIfNullOrWhiteSpace(Container.Image, "Container.Image");
+        ArgumentException.ThrowIfNullOrWhiteSpace(Container.Tag, "Container.Tag");
+
+        if (!Container.Registry.Contains('.') && !Container.Registry.Contains(':') && Container.Registry != "localhost")
+            throw new ArgumentException(
+                $"Container registry must be a valid hostname (contain '.' or ':') or 'localhost': got '{Container.Registry}'.",
+                "Container.Registry");
+
         return this;
     }
 }
@@ -144,6 +158,42 @@ public sealed class ContainerSettings {
     public string Image { get; set; } = KurrentDBContainerImageTags.Image;
 
     public string Tag { get; set; } = KurrentDBContainerImageTags.Tag;
+
+    public string ImageRef {
+        get => string.IsNullOrEmpty(Registry) ? $"{Image}:{Tag}" : $"{Registry}/{Image}:{Tag}";
+        set {
+            if (string.IsNullOrWhiteSpace(value)) return;
+
+            var lastSlash = value.LastIndexOf('/');
+            var lastColon = value.LastIndexOf(':');
+
+            string refPart;
+
+            if (lastColon > lastSlash) {
+                refPart = value[..lastColon];
+                Tag     = value[(lastColon + 1)..];
+            } else {
+                refPart = value;
+                Tag     = "latest";
+            }
+
+            var firstSlash = refPart.IndexOf('/');
+
+            if (firstSlash > 0) {
+                var firstSegment = refPart[..firstSlash];
+
+                // Docker convention: first path segment is a registry if it contains '.' or ':'
+                if (firstSegment.Contains('.') || firstSegment.Contains(':') || firstSegment == "localhost") {
+                    Registry = firstSegment;
+                    Image    = refPart[(firstSlash + 1)..];
+                    return;
+                }
+            }
+
+            Registry = "";
+            Image    = refPart;
+        }
+    }
 }
 
 public sealed class OpenTelemetrySettings {

@@ -26,7 +26,6 @@ area-infrastructure:
       - .github/PULL_REQUEST_TEMPLATE.md
       - scripts/**
       - .devcontainer/**
-      - .config/**
       - global.json
       - nuget.config
       - Directory.Build.props
@@ -36,7 +35,7 @@ area-testing:
   - changed-files:
     - any-glob-to-any-file:
       - test/Kurrent.Testkit/**
-      - test/Kurrent.Testkit.Datasets/**
+      - test/Kurrent.Testkit.Tests/**
       - test/Kurrent.Sdk.Testkit/**
       - test/Aspire.Hosting.KurrentDB/**
       - test/Aspire.Hosting.KurrentDB.Tests/**
@@ -45,7 +44,6 @@ area-tooling:
   - changed-files:
     - any-glob-to-any-file:
       - tools/**
-      - .config/**
 
 area-samples:
   - changed-files:

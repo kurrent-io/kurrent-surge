@@ -1,0 +1,9 @@
+build:
+  - 'src/**'
+  - 'test/**'
+  - 'proto/**'
+  - 'Directory.Build.props'
+  - 'Directory.Packages.props'
+  - 'global.json'
+  - 'nuget.config'
+  - '.github/**'
