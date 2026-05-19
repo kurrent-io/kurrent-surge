@@ -27,7 +27,7 @@ The set of supported formats is fixed (JSON, Protobuf, Bytes). What you tune liv
 
 - [Schema names](./schema-names.md): how a .NET type becomes a wire-level identifier, the four naming strategies, and output formats.
 - [Type mapping](./type-mapping.md): the bidirectional map between schema names and .NET types, used on encode and decode.
-- [Formats](./formats/README.md): JSON, Protocol Buffers, raw bytes, and Avro.
+- [Formats](./formats/README.md): JSON, Protocol Buffers, and raw bytes.
 - [Decoding records](./decoding-records.md): record shape, eager decode, decode on demand.
 - [Metadata](./metadata.md): record metadata shape, wire format, customizing the inbound decoder.
 - [Schema evolution](./schema-evolution.md): adding fields, renaming types, versioning, migrating strategies.

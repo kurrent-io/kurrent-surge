@@ -93,7 +93,7 @@ var order = record.As<OrderPlaced>();
 | Property          | Type               | Description                                                         |
 |-------------------|--------------------|---------------------------------------------------------------------|
 | `SchemaName`      | `SchemaName`       | The wire schema name on the record.                                 |
-| `SchemaFormat`    | `SchemaDataFormat` | Data format: `Json`, `Protobuf`, `Avro`, `Bytes`, or `Unspecified`. |
+| `SchemaFormat`    | `SchemaDataFormat` | Data format: `Json`, `Protobuf`, `Bytes`, or `Unspecified`.         |
 | `SchemaVersionId` | `SchemaVersionId`  | Identifier of the registered schema version, or `Unset`.            |
 | `HasSchemaName`   | `bool`             | True when `SchemaName` is set.                                      |
 | `HasSchemaFormat` | `bool`             | True when `SchemaFormat` is not `Unspecified`.                      |

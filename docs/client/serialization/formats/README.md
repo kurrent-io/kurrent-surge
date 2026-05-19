@@ -12,12 +12,11 @@ Every record carries a data format that tells the client how to encode the paylo
 
 ## What's available
 
-| Format                            | Content type                       | Status                                   |
-|-----------------------------------|------------------------------------|------------------------------------------|
-| [JSON](./json.md)                 | `application/json`                 | Default. Works with the schema registry. |
-| [Protocol Buffers](./protobuf.md) | `application/vnd.google.protobuf`  | Supported. Local schema mapping only.    |
-| [Raw bytes](./bytes.md)           | `application/octet-stream`         | Passthrough. Not decoded on read.        |
-| [Avro](./avro.md)                 | `application/vnd.apache.avro+json` | Reserved. Not implemented yet.           |
+| Format                            | Content type                      | Status                                   |
+|-----------------------------------|-----------------------------------|------------------------------------------|
+| [JSON](./json.md)                 | `application/json`                | Default. Works with the schema registry. |
+| [Protocol Buffers](./protobuf.md) | `application/vnd.google.protobuf` | Supported. Local schema mapping only.    |
+| [Raw bytes](./bytes.md)           | `application/octet-stream`        | Passthrough. Not decoded on read.        |
 
 ## Pick a format
 
