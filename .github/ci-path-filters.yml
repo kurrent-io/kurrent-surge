@@ -1,5 +1,8 @@
 build:
   - '.github/**'
+  - '!.github/workflows/build-devcontainer.yml'
+  - '!.github/workflows/test-dind.yml'
+  - '!.github/workflows/prime-runners.yml'
   - 'tools/**'
   - 'src/**'
   - 'test/**'
