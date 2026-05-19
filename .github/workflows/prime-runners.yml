@@ -39,18 +39,8 @@ jobs:
       - ${{ matrix.runner }}
 
     steps:
-      - name: Generate Token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
-
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: false
 
       - name: Prepare Environment
         run: |
