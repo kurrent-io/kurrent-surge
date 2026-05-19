@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.devcontainer/**'
+      - '.devcontainer/devcontainer.json'
   workflow_dispatch:
 
 concurrency:
