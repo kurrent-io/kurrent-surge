@@ -21,15 +21,7 @@ jobs:
       - name: Build and run devcontainer
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/kurrent-io/devcontainers/kurrent-sdk
-          cacheFrom: ghcr.io/kurrent-io/devcontainers/kurrent-sdk
+          imageName: ghcr.io/kurrent-io/devcontainers/repo/kurrent-sdk
+          cacheFrom: ghcr.io/kurrent-io/devcontainers/repo/kurrent-sdk
           push: always
-          runCmd: |
-            echo "--- Environment ---"
-            dotnet --version
-            echo "--- Restore tools ---"
-            dotnet tool restore
-            echo "--- Restore packages ---"
-            dotnet restore
-            echo "--- Build ---"
-            dotnet build --no-restore
+          runCmd: dotnet --version
