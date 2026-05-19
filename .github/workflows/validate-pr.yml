@@ -1,4 +1,4 @@
-name: Validate PR
+name: CI / Validate PR
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   validate:
-    name: Validate PR Title
+    name: Validate PR
 
     runs-on: ubuntu-latest
 
