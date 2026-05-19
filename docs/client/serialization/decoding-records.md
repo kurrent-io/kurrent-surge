@@ -25,9 +25,7 @@ The snippets below build on this. See [Type mapping](./type-mapping.md) for the 
 When the schema resolves to a registered type, records arrive decoded and `IsDecoded` is true. If the schema name does not match any registration, iteration throws `SchemaDeserializationFailedException`.
 
 ```csharp
-var request = ReadStreamRequest.New()
-    .Stream("order-123")
-    .Build();
+var request = new ReadStreamRequest { Stream = "order-123" };
 
 var stream = client.Streams.ReadStream(request);
 
@@ -46,10 +44,10 @@ await foreach (var record in records) {
 With `SkipDecoding` set on the request, records arrive with `Value` empty and `IsDecoded` false. Call `TryDecode` on each record to materialize the value.
 
 ```csharp{3,13}
-var request = ReadStreamRequest.New()
-    .Stream("order-123")
-    .SkipDecoding()
-    .Build();
+var request = new ReadStreamRequest {
+    Stream       = "order-123",
+    SkipDecoding = true
+};
 
 var stream = client.Streams.ReadStream(request);
 

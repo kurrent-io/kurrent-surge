@@ -63,21 +63,19 @@ All three throw `SchemaNotFoundException` for unknown names or numbers, or `Sche
 
 ## List schemas
 
-`ListSchemas` enumerates registered schemas, optionally filtered by name prefix and tags. Tag filters require every specified tag to match. Build a `ListSchemasRequest` to combine filters. The call returns `IReadOnlyList<Schema>`.
+`ListSchemas` enumerates registered schemas, optionally filtered by name prefix and tags. Tag filters require every specified tag to match. Create a `ListSchemasRequest` to combine filters. The call returns `IReadOnlyList<Schema>`.
 
 ```csharp
-var schemas = await client.Registry.ListSchemas(
-    ListSchemasRequest.New
-        .WithPrefix("order-")
-        .WithTag("team", "fulfillment")
-        .Build());
+var schemas = await client.Registry.ListSchemas(new ListSchemasRequest {
+    SchemaNamePrefix = "order-",
+    Tags             = new Dictionary<string, string> { ["team"] = "fulfillment" }
+});
 ```
 
-| Method                              | Description                                                 |
-|-------------------------------------|-------------------------------------------------------------|
-| `WithPrefix(string)`                | Filter by schema name prefix. Empty means no prefix filter. |
-| `WithTag(string, string)`           | Add a single tag entry to the filter.                       |
-| `WithTags(IReadOnlyDictionary<,>)`  | Replace the full tag filter. Empty means no tag filter.     |
+| Property           | Type                                  | Description                                                 |
+|--------------------|---------------------------------------|-------------------------------------------------------------|
+| `SchemaNamePrefix` | `string`                              | Filter by schema name prefix. Empty means no prefix filter. |
+| `Tags`             | `IReadOnlyDictionary<string, string>` | Tag filter. Empty means no tag filter.                      |
 
 A request with no filters returns every registered schema.
 

@@ -13,10 +13,10 @@ JSON is the default. Records appended without an explicit `DataFormat` call are 
 ## Append a JSON record
 
 ```csharp
-var record = AppendRecord.New()
-    .Stream("orders")
-    .Value(orderPlaced)
-    .Build();
+var record = new AppendRecord {
+    Stream = "orders",
+    Value  = orderPlaced
+};
 
 await client.Streams.AppendStream(record);
 ```

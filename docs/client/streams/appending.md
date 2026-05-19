@@ -10,13 +10,13 @@ Streams hold an ordered sequence of records. Use `AppendStream` to write to a si
 
 ## Append a single record
 
-Build a record and pass it to `AppendStream`:
+Create an `AppendRecord` and pass it to `AppendStream`:
 
 ```csharp
-var record = AppendRecord.New()
-    .Stream("order-123")
-    .Value(new { Product = "Widget", Quantity = 5 })
-    .Build();
+var record = new AppendRecord {
+    Stream = "order-123",
+    Value  = new { Product = "Widget", Quantity = 5 }
+};
 
 var result = await client.Streams.AppendStream(record);
 
@@ -25,7 +25,7 @@ Console.WriteLine("Revision: {0}", result.Revision);
 Console.WriteLine("Position: {0}", result.Position);
 ```
 
-Payloads serialize as JSON by default. The stream is created on first append. The same builder works for events, commands, snapshots, or any other payload shape.
+Payloads serialize as JSON by default. The stream is created on first append. The same record type works for events, commands, snapshots, or any other payload shape.
 
 The response carries the target stream, the new revision, and the log position of the last appended record.
 
@@ -47,17 +47,18 @@ var result = await client.Streams.AppendStream(request);
 
 ## Attach metadata to a record
 
-Use the full record builder when you need more control than `AddMessage` provides:
+Pass a fully populated `AppendRecord` when you need more control than `AddMessage` provides:
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
-    .AddRecord(AppendRecord.New()
-        .Id(Guid.NewGuid())
-        .Value(new { Product = "Gadget" })
-        .AddMetadata("correlation-id", correlationId)
-        .AddMetadata("causation-id", causationId)
-        .Timestamp(DateTimeOffset.UtcNow)
-        .Build())
+    .AddRecord(new AppendRecord {
+        RecordId  = Guid.NewGuid(),
+        Value     = new { Product = "Gadget" },
+        Metadata  = new Metadata()
+            .With("correlation-id", correlationId)
+            .With("causation-id", causationId),
+        Timestamp = DateTimeOffset.UtcNow
+    })
     .Build();
 ```
 
@@ -202,10 +203,10 @@ JSON is the default. Override per record with `DataFormat`.
 The default. No format call required.
 
 ```csharp
-var jsonRecord = AppendRecord.New()
-    .Stream("orders")
-    .Value(orderPayload)
-    .Build();
+var jsonRecord = new AppendRecord {
+    Stream = "orders",
+    Value  = orderPayload
+};
 ```
 
 @tab Bytes

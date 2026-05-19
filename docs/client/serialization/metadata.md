@@ -20,11 +20,11 @@ var metadata = new Metadata()
     .With("tenant", "acme")
     .With("occurredAt", DateTimeOffset.UtcNow);
 
-var record = AppendRecord.New()
-    .Stream("order-7f3a")
-    .Value(orderPlaced)
-    .AddMetadata(metadata)
-    .Build();
+var record = new AppendRecord {
+    Stream   = "order-7f3a",
+    Value    = orderPlaced,
+    Metadata = metadata
+};
 ```
 
 `With` returns the same instance so calls chain. If you already hold a dictionary, pass it to `Metadata.Create` or rely on the implicit conversion.

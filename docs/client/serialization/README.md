@@ -45,10 +45,10 @@ await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
     opts => opts.Schema.NameStrategy = SchemaNameStrategies.Category(SchemaNameOutputFormat.KebabCase));
 
-var record = AppendRecord.New()
-    .Stream("order-7f3a")
-    .Value(new OrderPlaced("order-7f3a", "Widget"))
-    .Build();
+var record = new AppendRecord {
+    Stream = "order-7f3a",
+    Value  = new OrderPlaced("order-7f3a", "Widget")
+};
 
 await client.Streams.AppendStream(record);
 ```

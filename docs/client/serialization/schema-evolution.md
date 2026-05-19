@@ -73,9 +73,7 @@ Producers append V2 from now on. The registry treats V1 and V2 as independent sc
 Consumers handle both types until older records age out or get projected forward:
 
 ```csharp
-var request = ReadStreamRequest.New().Stream("order-7f3a").Build();
-
-var records = client.Streams.ReadStream(request)
+var records = client.Streams.ReadStream(new() { Stream = "order-7f3a" })
     .Where(msg => msg.IsRecord)
     .Select(msg => msg.AsRecord);
 

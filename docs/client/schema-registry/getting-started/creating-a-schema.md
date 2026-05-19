@@ -12,7 +12,7 @@ Pick a compatibility mode at creation time. The registry enforces it on every la
 
 ## Register a schema
 
-Build a `CreateSchemaRequest` and pass it to the client.
+Create a `CreateSchemaRequest` and pass it to the client.
 
 ```csharp
 var schemaJson = """
@@ -26,30 +26,29 @@ var schemaJson = """
     }
     """;
 
-var descriptor = await client.Registry.CreateSchema(
-    CreateSchemaRequest.For("order-placed")
-        .WithDefinition(schemaJson)
-        .WithDataFormat(SchemaDataFormat.Json)
-        .WithCompatibility(CompatibilityMode.Backward)
-        .WithDescription("Order placed event")
-        .WithTag("domain", "orders")
-        .Build());
+var descriptor = await client.Registry.CreateSchema(new CreateSchemaRequest {
+    SchemaName        = "order-placed",
+    SchemaDefinition  = schemaJson,
+    DataFormat        = SchemaDataFormat.Json,
+    CompatibilityMode = CompatibilityMode.Backward,
+    Description       = "Order placed event",
+    Tags              = new Dictionary<string, string> { ["domain"] = "orders" }
+});
 
 Console.WriteLine("Created version {0}", descriptor.VersionNumber);
 ```
 
-| Method                                 | Description                                                  |
-|----------------------------------------|--------------------------------------------------------------|
-| `For(SchemaName)`                      | Start the request for the given schema name.                 |
-| `WithDefinition(string)`               | Set the schema definition.                                   |
-| `WithDataFormat(SchemaDataFormat)`     | `Json`, `Protobuf`, `Avro`, or `Bytes`.                      |
-| `WithCompatibility(CompatibilityMode)` | Defaults to `None`. See [Compatibility modes](../compatibility-modes.md). |
-| `WithDescription(string)`              | Human-readable description.                                  |
-| `WithTag(string, string)`              | Add a single tag entry.                                      |
-| `WithTags(IReadOnlyDictionary<,>)`     | Replace the full tag set.                                    |
+| Property            | Type                              | Description                                                  |
+|---------------------|-----------------------------------|--------------------------------------------------------------|
+| `SchemaName`        | `SchemaName`                      | Unique name of the schema.                                   |
+| `SchemaDefinition`  | `string`                          | The schema definition.                                       |
+| `DataFormat`        | `SchemaDataFormat`                | `Json`, `Protobuf`, `Avro`, or `Bytes`.                      |
+| `CompatibilityMode` | `CompatibilityMode`               | Defaults to `None`. See [Compatibility modes](../compatibility-modes.md). |
+| `Description`       | `string`                          | Human-readable description.                                  |
+| `Tags`              | `IReadOnlyDictionary<string, string>` | Tag set associated with the schema.                      |
 
 ::: tip
-For the common case of name, definition, and data format, an overload skips the builder:
+For the common case of name, definition, and data format, an overload skips the request type:
 
 ```csharp
 var descriptor = await client.Registry.CreateSchema(

@@ -238,10 +238,10 @@ await client.AppendToStreamAsync("order-123", StreamState.Any, new[] { eventData
 **New:**
 
 ```csharp
-var record = AppendRecord.New()
-    .Stream("order-123")
-    .Value(new { OrderId = "123" })
-    .Build();
+var record = new AppendRecord {
+    Stream = "order-123",
+    Value  = new { OrderId = "123" }
+};
 
 var result = await client.Streams.AppendStream(record);
 ```
@@ -262,7 +262,7 @@ await foreach (var resolvedEvent in events) {
 **New:**
 
 ```csharp
-var request = ReadStreamRequest.New().Stream("order-123").Build();
+var request = new ReadStreamRequest { Stream = "order-123" };
 
 var stream = client.Streams.ReadStream(request);
 
@@ -274,7 +274,7 @@ await foreach (var item in stream) {
 }
 ```
 
-Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`. For a quick read of an entire stream, the `ReadStreamRecords` extension skips the builder.
+Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`. For a quick read of an entire stream, the `ReadStreamRecords` extension takes just a stream name.
 
 ## Registration
 
@@ -333,7 +333,7 @@ Replace `EventData` with `AppendRecord` on appends, and use `Record` instead of 
 
 | Old member                                  | New member                                                |
 |---------------------------------------------|-----------------------------------------------------------|
-| `EventData`                                 | `AppendRecord.New().Stream(...).Value(...).Build()`       |
+| `EventData`                                 | `new AppendRecord { Stream = ..., Value = ... }`          |
 | `resolvedEvent.Event.EventType`             | `record.TypeName`                                         |
 | `resolvedEvent.Event.OriginalEventNumber`   | `record.Revision`                                         |
 | `resolvedEvent.Event.Position`              | `record.Position`                                         |
@@ -371,7 +371,7 @@ Replace `esdb://` with `kurrentdb://` at your own pace. Both schemes work identi
 | Settings type     | `EventStoreClientSettings`                     | `KurrentClientOptions`                                     |
 | Operation access  | Top-level methods on the client                | Module properties (`client.Streams`, `client.Registry`, …) |
 | Error handling    | Exceptions for expected failures               | Well-typed exceptions per failure case                     |
-| Append model      | `EventData`                                    | `AppendRecord` (built via `AppendRecord.New()`)            |
+| Append model      | `EventData`                                    | `AppendRecord`                                             |
 | Read model        | `ResolvedEvent` / `RecordedEvent`              | `Record` (with `Heartbeat` interleaved on the stream)      |
 | Stream state      | `StreamState`                                  | `ExpectedStreamState`                                      |
 | Stream revision   | `StreamRevision`                               | `Revision`                                                 |
