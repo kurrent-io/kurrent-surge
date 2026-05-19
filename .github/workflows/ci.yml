@@ -12,10 +12,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-
 jobs:
   ci:
     runs-on: [self-hosted, linux, x64]
@@ -28,10 +24,22 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Generate Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           fetch-depth: 0
+
+      - name: Configure NuGet Credentials
+        run: echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
 
       - name: Detect Changes
         id: changes

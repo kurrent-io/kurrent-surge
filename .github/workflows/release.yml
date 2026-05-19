@@ -17,10 +17,6 @@ on:
         type: boolean
         default: false
 
-env:
-  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -30,11 +26,23 @@ jobs:
       packages: write
 
     steps:
+      - name: Generate Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           ref: ${{ github.ref }}
           fetch-depth: 0
+
+      - name: Configure NuGet Credentials
+        run: echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
 
       - name: Build
         uses: ./.github/actions/dotnet-setup
@@ -46,7 +54,7 @@ jobs:
           mode: release
           version: ${{ inputs.version }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run
@@ -66,7 +74,7 @@ jobs:
       - name: Create Release
         if: ${{ !inputs.dry_run }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \
