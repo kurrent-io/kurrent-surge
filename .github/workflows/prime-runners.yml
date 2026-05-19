@@ -41,9 +41,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Export Repo Variables
-        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
-
       - name: Prepare Environment
         run: |
           bin_dir="$HOME/.local/bin"
@@ -57,6 +54,9 @@ jobs:
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"
           fi
+
+      - name: Export Repo Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
