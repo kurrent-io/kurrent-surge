@@ -21,7 +21,7 @@ jobs:
       - name: Build and run devcontainer
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/kurrent-io/devcontainers/repo/kurrent-sdk
-          cacheFrom: ghcr.io/kurrent-io/devcontainers/repo/kurrent-sdk
+          imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
+          cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           push: always
           runCmd: dotnet --info
