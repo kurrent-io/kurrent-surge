@@ -53,6 +53,8 @@ jobs:
 
       - name: Prepare Environment
         run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+
           bin_dir="$HOME/.local/bin"
           mkdir -p "$bin_dir"
           echo "$bin_dir" >> "$GITHUB_PATH"
