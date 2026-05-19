@@ -1,0 +1,25 @@
+name: Test Devcontainer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build and run devcontainer
+        uses: devcontainers/ci@v0.3
+        with:
+          runCmd: |
+            echo "--- Environment ---"
+            dotnet --version
+            echo "--- Restore tools ---"
+            dotnet tool restore
+            echo "--- Restore packages ---"
+            dotnet restore
+            echo "--- Build ---"
+            dotnet build --no-restore
