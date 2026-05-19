@@ -17,7 +17,7 @@ jobs:
         with:
           client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
-          owner: ${{ vars.KURRENT_CI_APP_OWNER }}
+          owner: ${{ github.repository_owner }}
 
       - name: List online self-hosted runners
         id: list
