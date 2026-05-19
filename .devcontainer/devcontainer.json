@@ -2,7 +2,11 @@
   "name": "Kurrent .NET SDK",
 
   "image": "ghcr.io/kurrent-io/devcontainers/dotnet",
-
+  
+  // Run as non-root user for security. Change to the actual non-root user
+  // in your image if it's not "vscode" (e.g., "dotnet", "dev").
+  "remoteUser": "vscode",
+  
   "hostRequirements": {
     "cpus": 4,
     "memory": "16gb",
@@ -11,13 +15,28 @@
 
   "remoteEnv": {
     "NUGET_AUTH_TOKEN": "${localEnv:NUGET_AUTH_TOKEN}",
-    "NuGetPackageSourceCredentials_GitHub": "Username=pat;Password=${localEnv:NUGET_AUTH_TOKEN}"
+    "NuGetPackageSourceCredentials_GitHub": "Username=pat;Password=${localEnv:NUGET_AUTH_TOKEN}",
+    "DOTNET_ENVIRONMENT": "Development",
+    "ASPNETCORE_ENVIRONMENT": "Development"
   },
   "secrets": {
     "NUGET_AUTH_TOKEN": {
       "description": "NuGet feed authentication token"
     }
   },
+
+  // .NET build artifacts hammer the filesystem — named volumes give native
+  // Linux I/O speed instead of going through the macOS virtualisation layer.
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-nuget-packages,target=${containerWorkspaceFolder}/.nuget/packages,type=volume",
+    "source=${localWorkspaceFolderBasename}-nuget-http-cache,target=${containerWorkspaceFolder}/.nuget/http-cache,type=volume"
+  ],
+
+  // No static ports to forward — Aspire allocates all ports dynamically
+  // (KurrentDB, OTLP, etc.) and tests discover them via GetRequiredConnectionString.
+  // The Aspire Dashboard is disabled in test mode (DisableDashboard = true).
+  // Auto-forward any dynamic port silently in case you run something ad-hoc.
+  "otherPortsAttributes": { "onAutoForward": "silent" },
 
   "customizations": {
     "vscode": {
