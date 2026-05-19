@@ -47,4 +47,6 @@ jobs:
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           skipContainerUserIdUpdate: true
           push: always
+          env: |
+            NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
           runCmd: dotnet --info
