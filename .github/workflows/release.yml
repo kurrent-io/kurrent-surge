@@ -43,8 +43,28 @@ jobs:
       - name: Configure NuGet Credentials
         run: echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
 
+      - name: Prepare Environment
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Install Local Tools
+        uses: ./.github/actions/install-tools
+
       - name: Build
-        uses: ./.github/actions/dotnet-setup
+        run: dotnet build -c Release --no-restore
 
       - name: Version
         id: version
