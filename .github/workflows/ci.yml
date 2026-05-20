@@ -77,7 +77,7 @@ jobs:
             chmod +x "$bin_dir/yq"
           fi
         
-      - name: Export Repo Variables
+      - name: Import Repo Variables
         run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
       - name: Trigger Docs Build

@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - '.devcontainer/devcontainer.json'
+      - '.devcontainer/**'
   workflow_dispatch:
 
 concurrency:
-  group: build-devcontainer-${{ github.ref }}
+  group: devcontainer-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -28,16 +28,6 @@ jobs:
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      # Previous devcontainer builds leave root-owned directories in the workspace
-      # (.nuget, obj, bin) via Docker volumes. The runner user has no sudo, so use
-      # a throwaway Docker container running as root to fix ownership.
-      - name: Fix workspace permissions
-        run: |
-          if [ -d "${GITHUB_WORKSPACE}" ]; then
-            docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine \
-              chown -R "$(id -u):$(id -g)" /workspace 2>/dev/null || true
-          fi
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -50,26 +40,16 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull base image
-        run: docker pull ghcr.io/kurrent-io/devcontainers/dotnet
-
-      # The devcontainers/ci action runs `npm install -g @devcontainers/cli`,
-      # which fails with EACCES on self-hosted runners that don't run as root.
-      # Redirect npm's global prefix to a user-writable directory so the
-      # action's own global install succeeds without sudo.
-      - name: Configure npm global prefix
-        run: |
-          mkdir -p "$HOME/.npm-global"
-          npm config set prefix "$HOME/.npm-global"
-          echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
+      - name: Import Repo Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
       - name: Build & Push
         uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
-          skipContainerUserIdUpdate: false
           push: always
+          inheritEnv: true
           env: |
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
             NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
-          runCmd: dotnet --info
