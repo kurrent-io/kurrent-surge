@@ -27,8 +27,6 @@ run() {
     -- \
     --disable-logo \
     --treenode-filter "$filter" \
-    --coverage \
-    --coverage-output "report.cobertura" \
     --report-trx \
     --report-trx-filename "report.trx" \
     --report-html-filename "$results_dir/report.html" \
@@ -89,7 +87,6 @@ RESULTS
 
     report.trx       Test results — always use this to check pass/fail status
     report.html      Interactive HTML report — open in the browser for a visual overview
-    report.cobertura Code coverage binary — requires a coverage tool to read
     output.log       Raw dotnet test output — only for debugging the command itself
 
   The TRX and HTML files contain merged results from all test projects.
@@ -215,7 +212,6 @@ CMD_LINES=(
   "    -- \\"
   "    --disable-logo --log-level Trace --detailed-stacktrace \\"
   "    --treenode-filter \"$FILTER\" \\"
-  "    --coverage --coverage-output \"report.cobertura\" \\"
   "    --report-trx --report-trx-filename \"report.trx\" \\"
   "    --report-html-filename \"$REL_RESULTS/report.html\"${EXTRA}"
 )
