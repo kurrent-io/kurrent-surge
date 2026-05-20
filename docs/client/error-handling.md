@@ -45,23 +45,25 @@ These are the most frequently caught exceptions. All live under `Kurrent.Client.
 
 ## Validation errors
 
-Builders (`AppendRecord.New`, `AppendStreamRequest.For`, `ReadStreamRequest.New`, etc.) call `Build()` synchronously. Invalid configurations throw `ValidationException` with a list of problems describing what is wrong:
+Request types validate themselves before the client sends them. Invalid configurations throw `ValidationException` with a list of problems describing what is wrong:
 
 ```csharp
 try {
-    var record = AppendRecord.New
-        .ForStream("orders")
-        // missing WithValue(...)
-        .Build();
+    var record = new AppendRecord {
+        Stream = "orders"
+        // missing Value
+    };
+
+    await client.Streams.AppendStream(record);
 }
 catch (ValidationException ex) {
     foreach (var problem in ex.Problems) {
-        Console.WriteLine($"{problem.Field}: {problem.Message}");
+        Console.WriteLine("{0}: {1}", problem.Field, problem.Message);
     }
 }
 ```
 
-Validation runs again when the request reaches the server, so passing a record built elsewhere still surfaces the same diagnostics.
+Validation also runs on the server, so a request constructed elsewhere still surfaces the same diagnostics.
 
 ## gRPC and connectivity errors
 
@@ -73,7 +75,7 @@ Read methods return `IAsyncEnumerable<ReadRecordsResult>`. The exception is thro
 
 ```csharp
 try {
-    var request = ReadStreamRequest.New.ForStream("order-123").Build();
+    var request = new ReadStreamRequest { Stream = "order-123" };
 
     await foreach (var item in client.Streams.ReadStream(request)) {
         // process record / heartbeat

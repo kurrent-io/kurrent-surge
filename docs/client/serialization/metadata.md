@@ -6,84 +6,164 @@ order: 5
 
 <CopyMarkdownButton />
 
-Each record carries a payload (the message) and a `Metadata` collection: arbitrary key-value pairs that travel alongside the payload. Common uses include correlation IDs, causation IDs, tenant tags, source markers, and ambient request context. Metadata is encoded as JSON regardless of the payload's format.
+Every record carries a `Metadata` collection alongside its payload. Use it for data that should travel with the record but stay out of the payload itself: correlation IDs, tenant tags, timestamps, anything you want available without unpacking the message.
 
-## Shape
+Metadata is always JSON, so you can inspect it with any JSON tool, regardless of payload format.
 
-`Metadata` is a string-keyed, object-valued collection with case-insensitive keys. Values can be any common .NET type. The class implements `IEnumerable<KeyValuePair<string, object?>>` and exposes typed accessors.
+## Attaching metadata
 
-Attach metadata to an append:
+`Metadata` is a string-keyed collection with case-insensitive keys. Values can be any common .NET type.
 
 ```csharp
 var metadata = new Metadata()
     .With("correlationId", Guid.NewGuid())
     .With("tenant", "acme")
-    .With("issuedAt", DateTimeOffset.UtcNow);
+    .With("occurredAt", DateTimeOffset.UtcNow);
 
-var record = AppendRecord.New
-    .ForStream("order-7f3a")
-    .WithValue(orderPlaced)
-    .WithMetadata(metadata)
-    .Build();
+var record = new AppendRecord {
+    Stream   = "order-7f3a",
+    Value    = orderPlaced,
+    Metadata = metadata
+};
 ```
 
-`With` returns the same instance for chaining. Pass a `Dictionary<string, object?>` to `Metadata.Create` or rely on the implicit conversion when you already hold a dictionary.
+`With` returns the same instance so calls chain. If you already hold a dictionary, pass it to `Metadata.Create` or rely on the implicit conversion.
 
-## Typed reads
+## Reading metadata
 
-When pulling metadata off a record, prefer the typed accessors over casting `Record.Metadata["key"]`:
-
-| Method                           | Behavior                                                                                       |
-|----------------------------------|------------------------------------------------------------------------------------------------|
-| `TryGetValue<T>(key, out value)` | Returns true on success. Converts from strings via `TypeDescriptor` so numbers and Guids work. |
-| `GetValueOrDefault<T>(key, def)` | Returns the typed value or the supplied default.                                               |
-| `GetRequiredValue<T>(key)`       | Returns the typed value or throws `KeyNotFoundException`.                                      |
+Read a value back from metadata:
 
 ```csharp
 if (record.Metadata.TryGetValue<Guid>("correlationId", out var correlationId))
     Console.WriteLine("Correlation: {0}", correlationId);
 ```
 
-## Wire format
+All three accessors handle type conversion automatically, so numbers and Guids stored as JSON strings come back as the type you ask for. Pick the one that matches how you want to handle a missing key:
 
-Metadata travels as UTF-8 JSON regardless of the payload's data format. A Protobuf record's payload is binary, but its metadata stays JSON, so inspection and tooling behave the same across formats. Number tokens deserialize as strings (the typed accessors convert on demand), Guids and ISO-8601 dates are detected automatically, and a few system keys (schema name, schema format, schema ID) are recognized and typed.
+| Method                           | Behavior                                 |
+|----------------------------------|------------------------------------------|
+| `TryGetValue<T>(key, out value)` | Returns true on success.                 |
+| `GetValueOrDefault<T>(key, def)` | Returns the typed value or `def`.        |
+| `GetRequiredValue<T>(key)`       | Throws `KeyNotFoundException` if absent. |
 
-## Locking and Stringify
-
-A `Metadata` instance can be locked to make later mutation explicit:
-
-```csharp
-var locked = metadata.Lock();           // throws on any mutation attempt
-var copy = locked.CreateUnlockedCopy(); // mutable clone
-```
-
-`Stringify` returns a new `Metadata` where every value is its string representation: ISO-8601 for dates, Base64 for byte arrays, invariant-culture formatting for numbers. Useful for logging and observability exports.
+If you need every value as a string (for log output or observability exports), call `Stringify()` to get a coerced copy where dates become ISO-8601, byte arrays become Base64, and numbers use invariant-culture formatting.
 
 ## Customizing the decoder
 
-Inbound bytes pass through an `IMetadataDecoder` before becoming a `Metadata` instance. The default is `DefaultMetadataDecoder`, which parses JSON. Replace it for non-JSON wire formats or to enrich metadata at decode time:
+The default decoder accepts only flat JSON objects. If you're migrating from a client that wrote metadata in a different shape, those records won't decode in this SDK without help. A custom decoder reads that shape and produces the flat dictionary consumers expect, so the rest of your code never sees the old structure.
 
-```csharp
-public sealed class MyMetadataDecoder : MetadataDecoder {
-    protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
-        // parse `bytes` and return a Metadata instance
-        return new Metadata();
-    }
+Suppose your old records stored metadata as nested JSON groups:
+
+```json
+{
+  "tracking": {
+    "correlationId": "8f3a2e4d-...",
+    "tenant": "acme"
+  },
+  "audit": {
+    "occurredAt": "2026-05-14T10:00:00Z"
+  }
 }
-
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.MetadataDecoder = new MyMetadataDecoder());
 ```
 
-The base class wraps `DecodeCore` in error handling and attaches the schema name and format when they're missing. The decoder runs once per record, so keep it cheap.
+Inherit `MetadataDecoder` and walk the JSON, lifting leaf values to top-level keys:
+
+```csharp
+public sealed class NestedMetadataDecoder : MetadataDecoder {
+    public static readonly NestedMetadataDecoder Instance = new();
+
+    protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
+        Metadata result = new();
+
+        using var doc = JsonDocument.Parse(bytes);
+        Flatten(result, doc.RootElement);
+
+        return result;
+    }
+
+    static void Flatten(Metadata result, JsonElement element) {
+        foreach (var property in element.EnumerateObject()) {
+            switch (property.Value.ValueKind) {
+                case JsonValueKind.Object:
+                    Flatten(result, property.Value);
+                    break;
+                case JsonValueKind.String:
+                    result.With(property.Name, property.Value.GetString());
+                    break;
+                case JsonValueKind.Number:
+                    result.With(property.Name, property.Value.GetRawText());
+                    break;
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    result.With(property.Name, property.Value.GetBoolean());
+                    break;
+            }
+        }
+    }
+}
+```
+
+A flat record decodes correctly through the same path, so the decoder handles both old and new records once installed.
+
+The same pattern handles non-JSON metadata. Say a stream holds records appended by an older client that serialized metadata as a protobuf message. Reads against that stream surface a `MetadataDecodingException` until you install a decoder that understands the protobuf shape.
+
+```protobuf
+message TrackingMetadata {
+  string correlation_id = 1;
+  string tenant = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+}
+```
+
+Point the decoder at the generated class and project its fields onto the flat dictionary:
+
+```csharp
+public sealed class ProtoMetadataDecoder : MetadataDecoder {
+    public static readonly ProtoMetadataDecoder Instance = new();
+
+    protected override Metadata DecodeCore(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
+        var parsed = TrackingMetadata.Parser.ParseFrom(bytes.Span);
+
+        return new Metadata()
+            .With("correlationId", parsed.CorrelationId)
+            .With("tenant", parsed.Tenant)
+            .With("occurredAt", parsed.OccurredAt.ToDateTimeOffset());
+    }
+}
+```
+
+The decoder runs on every record as it streams through reads and subscriptions, so the rest of your code reads `Metadata` the same way it would for any other record:
+
+```csharp
+var records = client.Streams.ReadStreamRecords("order-7f3a")
+    .Where(msg => msg.IsRecord)
+    .Select(msg => msg.AsRecord);
+
+await foreach (var record in records) {
+    var correlationId = record.Metadata.GetRequiredValue<string>("correlationId");
+    Console.WriteLine("Correlation: {0}", correlationId);
+}
+```
+
+Inheriting `MetadataDecoder` gives you `MetadataDecodingException` wrapping, so a malformed record surfaces with the stream name and schema attached. Implementing `IMetadataDecoder` directly skips that error wrapping.
+
+Expose the decoder as a static `Instance` and pass that to the client. The decoder sits on the hot path of every read and subscription, and the implementations above carry no per-call state, so reusing one object avoids an allocation per registration and signals that the type is safe to share:
+
+```csharp
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.MetadataDecoder = NestedMetadataDecoder.Instance);
+```
+
+Keep the decode work cheap too, since it runs once per record.
 
 ## Registration
 
 `AddKurrentClient` honors any `IMetadataDecoder` registered in DI:
 
 ```csharp
-services.AddSingleton<IMetadataDecoder, MyMetadataDecoder>();
+services.AddSingleton<IMetadataDecoder>(NestedMetadataDecoder.Instance);
+
 services.AddKurrentClient("kurrentdb://localhost:2113");
 ```
 

@@ -52,7 +52,7 @@ Appending to the same name afterwards recreates the stream. The new stream start
 To delete conditionally, pass the revision the stream is expected to be at. The call fails with `StreamRevisionConflictException` if another writer has appended since you last read.
 
 ```csharp
-var position = await client.Streams.Delete("order-123", Revision.From(9));
+var position = await client.Streams.Delete("order-123", 9);
 ```
 
 Use the conditional form when "delete only if nothing new has arrived" matters. A common case is deleting a per-request or per-job stream after you've read its final state.
@@ -68,7 +68,7 @@ var position = await client.Streams.Tombstone("order-123");
 A revision check is supported the same way as for soft delete:
 
 ```csharp
-var position = await client.Streams.Tombstone("order-123", Revision.From(9));
+var position = await client.Streams.Tombstone("order-123", 9);
 ```
 
 ::: warning
@@ -80,7 +80,7 @@ Tombstoning is irreversible. The name can never be reused on this database. Pick
 Hides records before a given revision while leaving the stream itself active. Records at or after the truncation point keep responding as normal.
 
 ```csharp
-await client.Streams.Truncate("order-123", Revision.From(50));
+await client.Streams.Truncate("order-123", 50);
 ```
 
 This hides revisions 0 through 49. Revision 50 onwards remains readable. Hidden records become eligible for physical removal at the next scavenge.
@@ -170,7 +170,7 @@ Management operations throw on failure. Catch the well-typed exceptions when you
 
 ```csharp
 try {
-    await client.Streams.Delete("order-123", Revision.From(9));
+    await client.Streams.Delete("order-123", 9);
 }
 catch (StreamNotFoundException) {
     // Stream does not exist

@@ -55,7 +55,7 @@ The parameterless overload reads `ConnectionStrings:KurrentDB` from `IConfigurat
 services.AddKurrentClient();
 ```
 
-If neither a connection string nor a `KurrentClientOptions` instance is registered, this overload throws at registration time.
+If neither a connection string nor a `KurrentClientOptions` instance is registered, the client throws on first resolution. The overloads that take a connection string or an options instance validate at registration time instead.
 
 @tab From a connection string
 

@@ -10,12 +10,10 @@ Records can be read from a single stream with `ReadStream` or from the global lo
 
 ## Read from a stream
 
-Build a request with `ReadStreamRequest.New` and pass it to `ReadStream`:
+Create a `ReadStreamRequest` and pass it to `ReadStream`:
 
 ```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
-    .Build();
+var request = new ReadStreamRequest { Stream = "order-123" };
 
 var stream = client.Streams.ReadStream(request);
 
@@ -30,40 +28,45 @@ await foreach (var item in stream) {
 Each result is a `Record` or a `Heartbeat`. Use `Switch` (or pattern matching) to handle both cases. See [Handle heartbeats](#handle-heartbeats) for what heartbeats carry.
 
 ::: tip
-For a simple read from the start of a stream, the `ReadStreamRecords` extension skips the builder:
+For a simple read from the start of a stream, the `ReadStreamRecords` extension takes just a stream name:
 
 ```csharp
 var stream = client.Streams.ReadStreamRecords("order-123");
 ```
 :::
 
-To start partway through the stream, set the revision:
+To start partway through the stream, set `Start`:
 
 ```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
-    .FromRevision(Revision.From(5))
-    .Build();
+var request = new ReadStreamRequest {
+    Stream = "order-123",
+    Start  = 5
+};
 ```
 
 This reads forwards from revision 5 (inclusive).
 
-To read newest first, combine `FromEnd()` with `Backwards()` and an upper bound:
+To read newest first, anchor `Start` at `Revision.Max`, flip the direction, and cap the count:
 
 ```csharp
-var request = ReadStreamRequest.New
-    .ForStream("order-123")
-    .FromEnd()
-    .Backwards()
-    .WithMaxRecords(10)
-    .Build();
+var request = new ReadStreamRequest {
+    Stream    = "order-123",
+    Start     = Revision.Max,
+    Direction = ReadDirection.Backwards,
+    Limit     = 10
+};
 ```
 
 This returns the last 10 records, newest first.
 
 ## Read the first or last record
 
-`ReadStreamEdge` reads a single record at the start or end of a stream:
+`ReadStreamEdge` reads a single record at the start or end of a stream. The direction picks which end:
+
+| Edge   | Direction                  | Returns                              |
+|--------|----------------------------|--------------------------------------|
+| First  | `ReadDirection.Forwards`   | The oldest record in the stream      |
+| Last   | `ReadDirection.Backwards`  | The newest record in the stream      |
 
 ```csharp
 var first = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Forwards,  false, default);
@@ -86,12 +89,10 @@ var last  = await client.Streams.ReadLastStreamRecord("order-123");
 
 ## Read from the global log
 
-The global log contains every record across all streams in commit order. Build a request with `ReadRecordsRequest.New` and pass it to `ReadRecords`:
+The global log contains every record across all streams in commit order. Create a `ReadRecordsRequest` and pass it to `ReadRecords`:
 
 ```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .Build();
+var request = new ReadRecordsRequest { Start = LogPosition.Earliest };
 
 var stream = client.Streams.ReadRecords(request);
 
@@ -103,7 +104,7 @@ await foreach (var item in stream) {
 }
 ```
 
-`LogPosition` exposes three values for `FromPosition`:
+`LogPosition` exposes three values for `Start`:
 
 | Value          | Description                       |
 |----------------|-----------------------------------|
@@ -121,18 +122,21 @@ var stream = client.Streams.ReadRecords(LogPosition.Earliest);
 
 ## Inspect a single record
 
-`InspectRecord` reads one record at a known log position. The `skipDecoding` flag controls whether the payload is deserialized:
+`InspectRecord` reads one record at a known log position. The second argument is `skipDecoding`:
+
+| skipDecoding | Behavior                                            |
+|--------------|-----------------------------------------------------|
+| `true`       | Returns metadata only, leaves the payload as bytes  |
+| `false`      | Deserializes the payload into `Value`               |
 
 ```csharp
-// Metadata only, no payload decode
-var record = await client.Streams.InspectRecord(LogPosition.From(42), true);
+Record metadata = await client.Streams.InspectRecord(LogPosition.From(42), true);
 
-Console.WriteLine("Type:   {0}", record.TypeName);
-Console.WriteLine("Stream: {0}", record.Stream);
-Console.WriteLine("Data:   {0} bytes", record.Data.Length);
+Console.WriteLine("Type:   {0}", metadata.TypeName);
+Console.WriteLine("Stream: {0}", metadata.Stream);
+Console.WriteLine("Data:   {0} bytes", metadata.Data.Length);
 
-// Decode the payload
-var decoded = await client.Streams.InspectRecord(LogPosition.From(42), false);
+Record decoded = await client.Streams.InspectRecord(LogPosition.From(42), false);
 
 Console.WriteLine("Decoded value: {0}", decoded.Value);
 ```
@@ -147,22 +151,22 @@ var record = await client.Streams.InspectRecord(LogPosition.From(42));
 
 ## Filter results
 
-Filters narrow what a read returns. Apply one with `WithFilter`:
+Filters narrow what a read returns. Set `Filter` on the request:
 
 ```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByCategory("order"))
-    .Build();
+var request = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.ByCategory("order")
+};
 ```
 
-Or pass a SQL-like expression directly:
+`RecordFilter.ByExpression` accepts a SQL-like expression directly:
 
 ```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilterExpression("stream LIKE 'order-%'")
-    .Build();
+var request = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.ByExpression("stream LIKE 'order-%'")
+};
 ```
 
 See [Filters](./filters.md) for the full set of factories, the expression language, and which filters are allowed on stream reads.
@@ -192,7 +196,7 @@ For one-shot reads that just need records, see [Materialize a list](#materialize
 To collect every record into a list, project the stream with LINQ. Drop heartbeats first:
 
 ```csharp
-var request = ReadStreamRequest.New.ForStream("order-123").Build();
+var request = new ReadStreamRequest { Stream = "order-123" };
 
 var records = await client.Streams.ReadStream(request)
     .Where(msg => msg.IsRecord)
@@ -214,7 +218,7 @@ Read operations throw on failure. Catch the typed exceptions when you need to ha
 
 ```csharp
 try {
-    var request = ReadStreamRequest.New.ForStream("order-123").Build();
+    var request = new ReadStreamRequest { Stream = "order-123" };
 
     await foreach (var item in client.Streams.ReadStream(request)) {
         // ...
@@ -238,23 +242,18 @@ See [Error handling](../error-handling.md) for the full throwing model.
 
 ## Reference
 
-### Builder methods
+### Request properties
 
-`ReadStreamRequest.New` (per-stream) and `ReadRecordsRequest.New` (global log) share most of their fluent surface.
+`ReadStreamRequest` (per-stream) and `ReadRecordsRequest` (global log) share most of their shape.
 
-| Method                         | Applies to     | Description                                          |
-|--------------------------------|----------------|------------------------------------------------------|
-| `ForStream(StreamName)`        | Stream         | Set the stream to read from                          |
-| `FromStart()`                  | Stream         | Start at the first revision, read forwards           |
-| `FromEnd()`                    | Stream         | Start at the last revision, read backwards           |
-| `FromRevision(Revision)`       | Stream         | Start at a specific revision                         |
-| `FromPosition(LogPosition)`    | Global log     | Start at a specific log position                     |
-| `Forward()`                    | Both           | Read in ascending order                              |
-| `Backwards()`                  | Both           | Read in descending order                             |
-| `WithMaxRecords(long)`         | Both           | Limit the number of records returned                 |
-| `WithFilter(IRecordFilter)`    | Both           | Apply a filter                                       |
-| `WithFilterExpression(string)` | Both           | Apply a SQL-like filter expression                   |
-| `SkipDecoding()`               | Both           | Skip payload deserialization for metadata-only reads |
+| Property       | ReadStreamRequest      | ReadRecordsRequest      | Description                                          |
+|----------------|------------------------|-------------------------|------------------------------------------------------|
+| `Stream`       | `StreamName`           | n/a                     | The stream to read from                              |
+| `Start`        | `Revision`             | `LogPosition`           | Where to begin reading                               |
+| `Direction`    | `ReadDirection`        | `ReadDirection`         | `Forwards` or `Backwards`                            |
+| `Limit`        | `long`                 | `long`                  | Cap on records returned                              |
+| `Filter`       | `IRecordFilter`        | `IRecordFilter`         | Filter applied during the read                       |
+| `SkipDecoding` | `bool`                 | `bool`                  | Skip payload deserialization for metadata-only reads |
 
 ### Record properties
 

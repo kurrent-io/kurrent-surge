@@ -9,10 +9,10 @@ order: 4
 Filters narrow the records returned from a read. The same filter types apply to `ReadRecords` (global log) and `ReadStream` (single stream), and to subscriptions built on top of them.
 
 ```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByCategory("order"))
-    .Build();
+var request = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.ByCategory("order")
+};
 
 await foreach (var item in client.Streams.ReadRecords(request)) {
     // ...
@@ -21,7 +21,7 @@ await foreach (var item in client.Streams.ReadRecords(request)) {
 
 ## Factory methods
 
-`RecordFilter` is the entry point. Each factory returns an `IRecordFilter` you pass to `WithFilter`.
+`RecordFilter` is the entry point. Each factory returns an `IRecordFilter` you assign to `Filter`.
 
 | Factory | Resolves to | Description |
 |---|---|---|
@@ -74,26 +74,24 @@ var filter = RecordFilter.ByExpression(
     "stream = 'order-123' AND schema_name = 'OrderPlaced'"
 );
 
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(filter)
-    .Build();
+var request = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = filter
+};
 ```
 
 The expression is parsed at construction. The client analyzes the AST, pushes down stream and schema predicates the server can evaluate, and runs the rest client-side after decoding.
 
-To pass the expression directly:
+`RecordFilter.ByExpression` also takes the expression directly:
 
 ```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilterExpression("stream LIKE 'order-%' AND schema_name = 'OrderPlaced'")
-    .Build();
+var request = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.ByExpression("stream LIKE 'order-%' AND schema_name = 'OrderPlaced'")
+};
 ```
 
-`WithFilterExpression` is shorthand for `WithFilter(RecordFilter.ByExpression(...))`.
-
-When an expression references `data.*`, decoding must remain enabled (the default). `SkipDecoding()` makes payload predicates always evaluate to false.
+When an expression references `data.*`, decoding must remain enabled (the default). Setting `SkipDecoding = true` makes payload predicates always evaluate to false.
 
 ## Expression properties
 
@@ -121,22 +119,22 @@ RecordFilter.ByExpression("data.address.city = 'Berlin'");
 
 ## Filters on stream reads
 
-`ReadStreamRequest.WithFilter` accepts a filter only if it does not contradict the stream being read. Allowed combinations:
+`ReadStreamRequest.Filter` accepts a filter only if it does not contradict the stream being read. Allowed combinations:
 
 | Filter | Allowed on `ReadStreamRequest` |
 |---|---|
 | `RecordFilter.None` | Yes |
-| `ByStream(s)` where `s` matches `ForStream(s)` | Yes |
+| `ByStream(s)` where `s` matches `Stream(s)` | Yes |
 | `ByExpression` whose server filter resolves to the same stream | Yes |
-| Any filter targeting a different stream or `$all` | No, fails validation at `Build()` |
+| Any filter targeting a different stream or `$all` | No, fails validation when the request is sent |
 
 For multi-stream and index reads, use `ReadRecordsRequest`. The client collapses index-targeted requests into a direct read on the resolved index stream.
 
 ```csharp
-var request = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.BySchema("OrderPlaced"))
-    .Build();
+var request = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.BySchema("OrderPlaced")
+};
 ```
 
 ## Inspecting a filter

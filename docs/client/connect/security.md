@@ -6,11 +6,11 @@ order: 4
 
 <CopyMarkdownButton />
 
-The `kurrentdb` scheme enables TLS by default, and the client refuses to send credentials over an unencrypted connection. Transport (how the channel is encrypted) and authentication (how the client identifies itself) are configured separately, but the presets on `KurrentClientSecurityOptions` set sensible pairings.
+The `kurrentdb` scheme enables TLS by default, and the `Password` preset always pairs username/password credentials with standard TLS. Transport (how the channel is encrypted) and authentication (how the client identifies itself) are configured separately, but the presets on `KurrentClientSecurityOptions` set sensible pairings, and validation warns if you compose basic credentials with an unencrypted transport directly.
 
 ## Authenticate with a username and password
 
-The `Basic` preset enables standard TLS and adds username and password credentials.
+The `Password` preset enables standard TLS and adds username and password credentials.
 
 ::: tabs#auth-basic
 
@@ -24,7 +24,7 @@ await using var client = KurrentClient.Create("kurrentdb://admin:changeit@kurren
 
 ```csharp
 var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
-    Security = KurrentClientSecurityOptions.Basic("admin", "changeit")
+    Security = KurrentClientSecurityOptions.Password("admin", "changeit")
 };
 
 await using var client = KurrentClient.Create(options);
@@ -49,9 +49,9 @@ await using var client = KurrentClient.Create("kurrentdb://kurrentdb.internal:21
 ```csharp
 var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
     Security = KurrentClientSecurityOptions.MutualTls(
-        clientCertPath: "/certs/client.crt",
-        clientKeyPath:  "/certs/client.key",
-        rootCaPath:     "/certs/ca.crt")
+        "/certs/client.crt",
+        "/certs/client.key",
+        "/certs/ca.crt")
 };
 
 await using var client = KurrentClient.Create(options);

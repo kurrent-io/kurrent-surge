@@ -12,26 +12,26 @@ The call returns the matched `SchemaVersionId` on success and throws `SchemaInco
 
 ## Run a compatibility check
 
-Build a `CheckSchemaCompatibilityRequest`, point it at a schema, and submit.
+Create a `CheckSchemaCompatibilityRequest`, point it at a schema, and submit.
 
 ```csharp
-var versionId = await client.Registry.CheckSchemaCompatibility(
-    CheckSchemaCompatibilityRequest.For(SchemaName.From("order-placed"))
-        .WithDefinition(proposedSchema)
-        .WithDataFormat(SchemaDataFormat.Json)
-        .Build());
+var versionId = await client.Registry.CheckSchemaCompatibility(new CheckSchemaCompatibilityRequest {
+    Identifier       = SchemaName.From("order-placed"),
+    SchemaDefinition = proposedSchema,
+    DataFormat       = SchemaDataFormat.Json
+});
 ```
 
-| Method                             | Description                                                      |
-|------------------------------------|------------------------------------------------------------------|
-| `For(SchemaIdentifier)`            | Target schema. Accepts a `SchemaName` or `SchemaVersionId`.      |
-| `WithDefinition(string)`           | The proposed new definition.                                     |
-| `WithDataFormat(SchemaDataFormat)` | `Json`, `Protobuf`, `Avro`, or `Bytes`.                          |
+| Property           | Type               | Description                                                 |
+|--------------------|--------------------|-------------------------------------------------------------|
+| `Identifier`       | `SchemaIdentifier` | Target schema. Accepts a `SchemaName` or `SchemaVersionId`. |
+| `SchemaDefinition` | `string`           | The proposed new definition.                                |
+| `DataFormat`       | `SchemaDataFormat` | `Json`, `Protobuf`, `Avro`, or `Bytes`.                     |
 
 A `SchemaName` checks against the latest registered version. A `SchemaVersionId` checks against a specific one, handy when validating a rollback or a parallel version.
 
 ::: tip
-An overload skips the builder for the common case:
+An overload skips the request type for the common case:
 
 ```csharp
 var versionId = await client.Registry.CheckSchemaCompatibility(

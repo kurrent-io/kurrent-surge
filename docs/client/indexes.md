@@ -14,30 +14,30 @@ Operations throw on failure. See [Error handling](./error-handling.md) for the e
 
 ## Create an index
 
-Build a `CreateIndexRequest` and pass it to the client.
+Create a `CreateIndexRequest` and pass it to the client.
 
 ```csharp
-await client.Indexes.Create(
-    CreateIndexRequest.For("ORDERS_BY_CUSTOMER")
-        .WithFilter("schema_name = 'OrderPlaced'")
-        .WithField("customer_id", "data.customerId", IndexFieldType.String)
-        .WithField("amount",      "data.amount",     IndexFieldType.Double)
-        .Build());
+await client.Indexes.Create(new CreateIndexRequest {
+    Name   = "ORDERS_BY_CUSTOMER",
+    Filter = "schema_name = 'OrderPlaced'",
+    Fields = [
+        new IndexField("customer_id", "data.customerId", IndexFieldType.String),
+        new IndexField("amount",      "data.amount",     IndexFieldType.Double)
+    ]
+});
 ```
 
-The server starts the index immediately by default. Call `.WithStart(false)` to create it stopped.
+The server starts the index immediately by default. Set `Start = false` to create it stopped.
 
-| Method                                       | Description                                                  |
-|----------------------------------------------|--------------------------------------------------------------|
-| `For(IndexName)`                             | Start the request for the given index name.                  |
-| `WithFilter(string)`                         | DuckDB-compatible expression deciding which records the index contains. Same grammar as [filter expressions](./streams/filters.md#expression-filters). |
-| `WithField(string, string, IndexFieldType)`  | Add one indexed column by name, selector path, and type.     |
-| `WithField(IndexField)`                      | Add a pre-built `IndexField`.                                |
-| `WithFields(IEnumerable<IndexField>)`        | Replace the field list.                                      |
-| `WithStart(bool)`                            | Override the server default. Omit to start immediately.      |
+| Property | Type                          | Description                                                  |
+|----------|-------------------------------|--------------------------------------------------------------|
+| `Name`   | `IndexName`                   | Unique name of the index.                                    |
+| `Filter` | `string`                      | DuckDB-compatible expression deciding which records the index contains. Same grammar as [filter expressions](./streams/filters.md#expression-filters). |
+| `Fields` | `IReadOnlyList<IndexField>`   | Indexed columns. Each `IndexField` carries a name, selector path, and `IndexFieldType`. |
+| `Start`  | `bool?`                       | `true` to start on create, `false` to create stopped. Leave `null` for the server default. |
 
 ::: tip
-For the common case of name, filter, and fields, an overload skips the builder. A second one takes a trailing `bool start`.
+For the common case of name, filter, and fields, an overload skips the request type entirely. A second one takes a trailing `bool start`.
 
 ```csharp
 await client.Indexes.Create(
@@ -63,19 +63,18 @@ Selector paths are dot-separated and resolve against the decoded JSON payload. `
 
 ## Read from an index
 
-A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it, optionally pairing it with a payload predicate to pre-filter on the indexed columns:
+A populated index exposes itself as a stream named `$idx-user-{name}`. Use `RecordFilter.ByUserIndex` to read it. To pre-filter on the indexed columns, pass a single expression that targets the index stream and the payload fields:
 
 ```csharp
-var all = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
-    .Build();
+var all = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER")
+};
 
-var highValue = ReadRecordsRequest.New
-    .FromPosition(LogPosition.Earliest)
-    .WithFilter(RecordFilter.ByUserIndex("ORDERS_BY_CUSTOMER"))
-    .WithFilterExpression("data.amount > 1000")
-    .Build();
+var highValue = new ReadRecordsRequest {
+    Start  = LogPosition.Earliest,
+    Filter = RecordFilter.ByExpression("stream = '$idx-user-ORDERS_BY_CUSTOMER' AND data.amount > 1000")
+};
 
 var stream = client.Streams.ReadRecords(highValue);
 ```

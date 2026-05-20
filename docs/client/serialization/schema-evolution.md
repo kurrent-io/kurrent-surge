@@ -6,41 +6,58 @@ order: 6
 
 <CopyMarkdownButton />
 
-Stored events outlive the code that produced them. A consumer running today must decode events that were appended six months ago by a service that may have shipped three releases since. This page covers the four moves that come up most often: adding a field, renaming a .NET type, running multiple versions of the same event, and migrating between naming strategies.
+Records you append today will outlive the code that wrote them. Six months from now, a service running a newer release still has to decode records appended by an older one. Schema evolution is the small set of moves that let your record types change over time without breaking readers.
 
-For server-side governance (compatibility checks, version pinning), see [Schema Registry](../schema-registry/README.md).
+This page covers the four moves that come up most often. Each section below is self-contained, so skip straight to the one that matches your situation.
 
-## Adding a field
+## How records keep their identity
 
-A new optional field is the simplest forward-compatible change. Old consumers ignore the unknown member, and new consumers read it when present and fall back to its default when not.
+Three ideas make the rest of the page work.
 
-`JsonSchemaSerializerOptions.Default` sets `UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip`, so old readers silently discard fields they don't recognize. Producers can append the new field immediately:
+Every record carries a [schema name](./schema-names.md). That name is the string identity the database stores and the key consumers use to resolve which .NET type to decode into. It is not the same thing as the .NET class name, though by default the two are linked.
+
+The schema registry remembers what each schema name looks like. When a producer appends a record, the registry checks the payload against the registered shape. Anything that drifts beyond the configured [compatibility mode](../schema-registry/compatibility-modes.md) is rejected. The default client preset auto-registers a new schema the first time it sees a new type, then validates every later append against it.
+
+The [mapper](./type-mapping.md) is where you control the relationship between a .NET type and its schema name. By default the mapper picks a schema name from a naming strategy, such as the full type name or a category prefix. You can override that for any type when you need to.
+
+With those three in mind, the four moves below are short.
+
+## Add a field
+
+You want to capture one more piece of data on an existing record.
 
 ```csharp
 public record OrderPlaced(
     string OrderId,
     string Product,
-    int Quantity = 1);   // new field, defaulted
+    int Quantity = 1);
 ```
 
-Old consumers continue to decode the record into the previous shape. New consumers see the value when the producer set it, and the default when it didn't.
+What stays compatible: old consumers ignore the new field. The default [JSON serializer](./formats/json.md) is configured to skip unknown members, so a reader still on the previous version decodes everything it knows about and drops the rest. New consumers see the value when the producer set it, and the default when they read an older record that did not.
 
-Removing a field works in reverse: deploy the consumer changes first (so no reader needs the field), then drop it from the producer.
+Removing a field works in reverse. Roll out the consumer change first so no reader still needs the field, then drop it from the producer.
 
-## Renaming a .NET type
+## Rename a .NET type
 
-When a class needs a new name in code but the wire contract must not change, pin the schema name explicitly through the mapper:
+Your domain language sharpened. What you first modelled as `Car` is now `Vehicle` because the team realized trucks and motorcycles belonged in the same model. The records on the stream are the same records. Only the class identifier moved.
+
+Pin the schema name explicitly when you build the mapper:
 
 ```csharp
+// Class was renamed from Car to Vehicle.
 var mapper = MessageTypeMapper.Create(m => m
-    .Map<OrderShippedV2>("order.shipped.v1"));
+    .Map<Vehicle>("vehicle.registered"));
 ```
 
-The .NET type is now `OrderShippedV2`, but stored records still use `order.shipped.v1`. Consumers decoding old events resolve them to the renamed type. This is the same `Map<T>(name)` overload used to override naming-strategy output for any reason, applied here to absorb a code rename without breaking readers.
+What stays compatible: the .NET type has a new name, but appended records still carry the schema name `vehicle.registered`. Consumers reading older records resolve them to the renamed class. The registry sees no change because the schema name and shape are the same.
 
-## Running multiple versions
+This is a rename, not an evolution. The stored shape did not change, only the class name. When the shape itself changes, give it a new schema name and project the old shape forward in a handler pipeline ([Run two versions side by side](#run-two-versions-side-by-side)).
 
-When the shape of an event changes incompatibly (a renamed field, a different unit, a removed required member), produce a new version under a new schema name and let both versions coexist on the stream:
+## Run two versions side by side
+
+The shape change is too big for compatibility mode. You renamed a field, switched units, removed a required member, or otherwise changed the contract in a way the registry will refuse.
+
+Give the new version its own schema name and let both live on the stream:
 
 ```csharp
 public record OrderShippedV1(string OrderId, string Carrier);
@@ -51,40 +68,45 @@ var mapper = MessageTypeMapper.Create(m => m
     .Map<OrderShippedV2>("order.shipped.v2"));
 ```
 
-Producers append `OrderShippedV2` going forward. Consumers handle both .NET types until v1 events have aged out or are projected forward into v2.
+Producers append V2 from now on. The registry treats V1 and V2 as independent schemas, so no compatibility check runs between them. That is the whole point. Starting a new schema name starts fresh.
 
-Dispatch on the deserialized type:
+Consumers handle both types until older records age out or get projected forward:
 
 ```csharp
-await foreach (var item in stream) {
-    item.Switch(
-        record => {
-            switch (record.Value) {
-                case OrderShippedV1 v1: Handle(v1); break;
-                case OrderShippedV2 v2: Handle(v2); break;
-            }
-        },
-        heartbeat => { });
+var records = client.Streams.ReadStream(new() { Stream = "order-7f3a" })
+    .Where(msg => msg.IsRecord)
+    .Select(msg => msg.AsRecord);
+
+await foreach (var record in records) {
+    switch (record.Value) {
+        case OrderShippedV1 v1: Handle(v1); break;
+        case OrderShippedV2 v2: Handle(v2); break;
+    }
 }
 ```
 
-When both versions encode the same semantic event, prefer projecting v1 into v2 in-process so the rest of the handler only deals with the current shape.
+When both versions encode the same domain concept, project V1 into V2 the moment you read it so the rest of your handler only deals with one shape.
 
-## Migrating naming strategies
+## Adopt a new naming strategy
 
-Switching strategies changes the schema names produced for new records. Old records keep the names they were appended with. Consumers that need to read both still have to know how to resolve the old names.
+You want new record types to use a different naming convention. Types that already have records on a stream keep their names. Renames happen forward, not backward.
 
-The safe migration path is to register the legacy names explicitly while the new strategy generates names for new types:
+Switch the strategy on the options and pin every type that already has records:
 
 ```csharp
 opts.Schema.NameStrategy = SchemaNameStrategies.Category();
 
 opts.Schema.Mapper = MessageTypeMapper.Create(m => m
-    .WithStrategy(SchemaNameStrategies.Category())
-    .Map<OrderPlaced>()                            // new: "order.OrderPlaced"
-    .Map<OrderPlaced>("Shop.Orders.OrderPlaced")); // legacy: "Shop.Orders.OrderPlaced"
+    .Map<OrderPlaced>("Shop.Orders.OrderPlaced")
+    .Map<OrderShipped>("Shop.Orders.OrderShipped"));
 ```
 
-Both names now map to the same .NET type. The first call sets the encode-side name (used when the type is appended). The second call adds an additional decode-side entry so old records still resolve.
+What stays compatible: pinned types keep their original schema names for both reads and writes, so existing streams continue to work. Types you add later are not in the mapper, so the strategy generates a name for them under the new convention. Old types stay frozen. New types use the new strategy.
 
-The most important factor across all four moves is consistency. A simple convention applied uniformly outlasts a sophisticated one applied unevenly. When in doubt, write the migration down: name the schemas, name the .NET types, and version the mapping configuration alongside the code.
+If a type genuinely needs a new shape, give it a new schema name and let both live on the stream ([Run two versions side by side](#run-two-versions-side-by-side)).
+
+## One rule that beats all four
+
+Consistency outlasts cleverness. A simple convention applied uniformly will carry you further than a sophisticated one applied unevenly.
+
+When in doubt, write the migration down. Name the schemas, name the .NET types, and keep the mapper configuration versioned alongside the code that depends on it.

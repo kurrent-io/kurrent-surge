@@ -10,7 +10,7 @@ Connection options control how the client handles retries, deadlines, and channe
 
 ## Tune resilience
 
-The client ships predefined profiles for common scenarios:
+No profile is applied automatically. `Resilience` starts as `NoResilience` until you assign one. The client ships predefined profiles for common scenarios:
 
 | Profile            | Retries     | Deadline    | Use for                                          |
 |--------------------|-------------|-------------|--------------------------------------------------|
@@ -36,9 +36,9 @@ Override individual settings on top of a profile:
 await using var client = KurrentClient.Create(
     "kurrentdb://admin:changeit@kurrentdb.internal:2113",
     opts => opts.Resilience = KurrentClientResilienceOptions.HighAvailability with {
-        Deadline          = TimeSpan.FromSeconds(10),
+        Deadline          = TimeSpan.FromSeconds(45),
         KeepAliveInterval = TimeSpan.FromSeconds(30),
-        KeepAliveTimeout  = TimeSpan.FromSeconds(15)
+        KeepAliveTimeout  = TimeSpan.FromSeconds(10)
     });
 ```
 
@@ -46,15 +46,10 @@ The two-argument `Create` overload parses the connection string into options fir
 
 ## Connection string reference
 
-These parameters apply to every connection string, whether you target a local node, a single production server, or a cluster. Names are case-insensitive.
+These parameters apply to every connection string, whether you target a local node, a single production server, or a cluster. Names are case-insensitive. For TLS and authentication parameters, see [Security](./security.md#connection-string-parameters).
 
 | Parameter             | Type   | Default  | Description                                                                     |
 |-----------------------|--------|----------|---------------------------------------------------------------------------------|
-| `tls`                 | bool   | `true`   | Enable TLS transport security                                                   |
-| `tlsVerifyCert`       | bool   | `true`   | Verify the server TLS certificate                                               |
-| `tlsCaFile`           | string | _none_   | Path to a custom CA certificate file                                            |
-| `userCertFile`        | string | _none_   | Path to client certificate (mTLS)                                               |
-| `userKeyFile`         | string | _none_   | Path to client private key (mTLS)                                               |
 | `connectionName`      | string | auto     | Connection identifier for diagnostics                                           |
 | `defaultDeadline`     | int    | `30000`  | Client-side timeout in milliseconds (`-1` = infinite)                           |
 | `keepAliveInterval`   | int    | `60000`  | Keep-alive ping interval in milliseconds (`-1` = infinite)                      |
