@@ -31,8 +31,16 @@ jobs:
           client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
 
-      # Ensure workspace is a git repo so checkout v6 can clean up
-      # auth config from previous runs without failing on --local.
+      # Workaround for actions/checkout v6 bug on self-hosted runners:
+      # checkout deletes the workspace contents (including .git) THEN tries
+      # to run `git config --local` to clean up SSH auth from previous runs,
+      # which fails with "fatal: --local can only be used inside a git
+      # repository". Two mitigations:
+      #   1. git init ensures a .git directory exists before checkout starts
+      #   2. clean: false prevents checkout from deleting .git in the first place
+      # On ephemeral GitHub-hosted runners this never matters because there's
+      # no previous state to clean up. On persistent self-hosted runners, it
+      # blows up without both of these.
       - name: Prepare workspace
         run: git init "${GITHUB_WORKSPACE}" 2>/dev/null || true
 
