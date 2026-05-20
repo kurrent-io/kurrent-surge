@@ -1,29 +1,19 @@
-name: CI / Validate
+name: CI - Checks
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, edited, synchronize, ready_for_review]
-
-concurrency:
-  group: ci-validate-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
-  validate-pr:
-    name: Validate PR
-    runs-on: ubuntu-latest
+  checks:
+    runs-on: [ self-hosted, linux, x64 ]
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/conventional-commits
-
-  markdownlint:
-    name: Markdownlint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+      - uses: actions/labeler@v6
       - uses: DavidAnson/markdownlint-cli2-action@v19
