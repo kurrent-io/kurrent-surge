@@ -28,6 +28,15 @@ jobs:
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      # TODO: Remove after runners are clean. Earlier workflow runs left
+      # root-owned .nuget/ dirs from Docker volume mounts in the workspace.
+      - name: Fix stale workspace permissions
+        run: |
+          if [ -d "${GITHUB_WORKSPACE}/.nuget" ]; then
+            docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine \
+              rm -rf /workspace/.nuget 2>/dev/null || true
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
