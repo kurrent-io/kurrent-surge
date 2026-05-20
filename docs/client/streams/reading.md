@@ -40,7 +40,7 @@ To start partway through the stream, set `Start`:
 ```csharp
 var request = new ReadStreamRequest {
     Stream = "order-123",
-    Start  = Revision.From(5)
+    Start  = 5
 };
 ```
 
@@ -122,18 +122,21 @@ var stream = client.Streams.ReadRecords(LogPosition.Earliest);
 
 ## Inspect a single record
 
-`InspectRecord` reads one record at a known log position. The `skipDecoding` flag controls whether the payload is deserialized:
+`InspectRecord` reads one record at a known log position. The second argument is `skipDecoding`:
+
+| skipDecoding | Behavior                                            |
+|--------------|-----------------------------------------------------|
+| `true`       | Returns metadata only, leaves the payload as bytes  |
+| `false`      | Deserializes the payload into `Value`               |
 
 ```csharp
-// Metadata only, no payload decode
-var record = await client.Streams.InspectRecord(LogPosition.From(42), true);
+Record metadata = await client.Streams.InspectRecord(LogPosition.From(42), true);
 
-Console.WriteLine("Type:   {0}", record.TypeName);
-Console.WriteLine("Stream: {0}", record.Stream);
-Console.WriteLine("Data:   {0} bytes", record.Data.Length);
+Console.WriteLine("Type:   {0}", metadata.TypeName);
+Console.WriteLine("Stream: {0}", metadata.Stream);
+Console.WriteLine("Data:   {0} bytes", metadata.Data.Length);
 
-// Decode the payload
-var decoded = await client.Streams.InspectRecord(LogPosition.From(42), false);
+Record decoded = await client.Streams.InspectRecord(LogPosition.From(42), false);
 
 Console.WriteLine("Decoded value: {0}", decoded.Value);
 ```
