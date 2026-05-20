@@ -66,7 +66,9 @@
     }
   },
 
-  "onCreateCommand": "dotnet tool restore",
+  // Named volumes from the base image metadata (.dotnet/tools, .nuget) persist
+  // across container rebuilds with stale ownership. Fix before running dotnet.
+  "onCreateCommand": "sudo chown -R $(id -u):$(id -g) ~/.dotnet ~/.nuget && dotnet tool restore",
   "updateContentCommand": "dotnet restore",
   "postCreateCommand": "dotnet build --no-restore",
   "waitFor": "postCreateCommand"
