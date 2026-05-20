@@ -61,7 +61,12 @@ This returns the last 10 records, newest first.
 
 ## Read the first or last record
 
-`ReadStreamEdge` reads a single record at the start or end of a stream:
+`ReadStreamEdge` reads a single record at the start or end of a stream. The direction picks which end:
+
+| Edge   | Direction                  | Returns                              |
+|--------|----------------------------|--------------------------------------|
+| First  | `ReadDirection.Forwards`   | The oldest record in the stream      |
+| Last   | `ReadDirection.Backwards`  | The newest record in the stream      |
 
 ```csharp
 var first = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Forwards,  false, default);
