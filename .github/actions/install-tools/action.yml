@@ -23,6 +23,8 @@ runs:
           for cs in tools/*.cs; do
             if grep -q 'ToolCommandName' "$cs"; then
               echo "Packing $cs"
+              # build + pack --no-build: dotnet pack on file-based apps loses the
+              # virtual .csproj before the pack phase on Linux (.NET SDK bug)
               dotnet build "$cs" -v q --nologo
               dotnet pack "$cs" -o "$pack_dir" --no-build -v q --nologo
             fi

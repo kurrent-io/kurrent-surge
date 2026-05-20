@@ -8,7 +8,9 @@ When editing, preserve this bar.
 
 ## Stack
 
-Targets net10.0 only. Use the latest net10 APIs. Source generators are the exception — they target netstandard2.0.
+Targets net10.0 only. Use the latest net10 APIs. Source generators are the exception — they target
+netstandard2.0 (Roslyn requirement). Never pass `--framework` to solution-wide `dotnet build` or `dotnet test`
+— it forces a single TFM onto the whole solution and breaks the source generator projects with `NETSDK1005`.
 
 C# 14 extension members (`extension(Type t)`) are in active use in the Streams module.
 
@@ -20,6 +22,22 @@ Greenfield project: no legacy compatibility constraints, no existing user base.
 
 Test containers are managed by Aspire (`test/Aspire.Hosting.KurrentDB`). TLS certificates are generated
 automatically by the test harness — no manual setup required.
+
+When consolidating multiple experimental versions into a single implementation, do not delete the old files
+until the new version builds and its tests pass.
+
+When a failing test reveals a mismatch between test expectation and code output (e.g. test expects snake_case,
+code produces kebab-case), do not unilaterally change either side. Report the mismatch, offer both options,
+and wait for direction. Heuristics like "majority of call sites" are not permission to decide.
+
+Before referring to any project, file, or path by name — verify it exists on disk. Do not assume sibling
+projects exist from naming convention alone.
+
+Playground, probe, and throwaway projects (`playground/`, `.project/.scratch/`) always target net10.0 — they
+are not consumer-facing, so the minimum-supported TFM rule does not apply.
+
+When debugging CI or workflow issues, create a minimal throwaway workflow targeting just the failing step
+instead of running the full pipeline.
 
 `tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning: `dotnet tool restore`.
 
