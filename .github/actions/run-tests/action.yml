@@ -83,7 +83,7 @@ runs:
     - name: Remove empty TRX files
       if: '!cancelled()'
       shell: bash
-      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm
+      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
 
     - name: ${{ steps.config.outputs.check-name }} report
       if: '!cancelled()'
