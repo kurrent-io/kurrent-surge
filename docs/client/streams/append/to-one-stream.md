@@ -1,19 +1,20 @@
 ---
 order: 1
+title: To one stream
 ---
 
-# Append
+# Append to one stream
 
 <CopyMarkdownButton />
 
-Streams hold an ordered sequence of records. Use `AppendStream` to write to a single stream and `AppendRecords` to write across several streams in one atomic transaction.
+`AppendStream` writes one or more records to a single, named stream. The destination is set once on the request, every record in the batch is stamped with it, and the whole batch commits as one transaction. Reach for [`AppendRecords`](across-streams.md) when a single transaction needs to span more than one stream.
 
 ## Append a single record
 
-Create an `AppendRecord` and pass it to `AppendStream`:
+Create an `AppendRecord` and pass it to `AppendStream`. The record's `Stream` is the target.
 
 ```csharp
-var record = new AppendRecord {
+AppendRecord record = new() {
     Stream = "order-123",
     Value  = new { Product = "Widget", Quantity = 5 }
 };
@@ -31,7 +32,7 @@ The response carries the target stream, the new revision, and the log position o
 
 ## Append a batch to one stream
 
-`AppendStreamRequest.For(stream)` collects multiple records destined for the same stream. They commit together or not at all.
+`AppendStreamRequest.For(stream)` collects multiple records destined for the same stream. They commit together or not at all, and any record's own `Stream` property is overwritten with the request's target.
 
 ```csharp
 var request = AppendStreamRequest.For("order-456")
@@ -117,7 +118,7 @@ Throws `StreamRevisionConflictException` if the current revision is anything oth
 The usual pattern is to read the stream's current revision and append against it:
 
 ```csharp{1,4}
-var last = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
+var last = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, true, default);
 
 var request = AppendStreamRequest.For("order-123")
     .ExpectedState(last.Revision)
@@ -131,67 +132,6 @@ var result = await client.Streams.AppendStream(request);
 
 :::
 
-## Append across multiple streams
-
-`AppendRecords` writes to several streams atomically. Each record carries its own destination, and `ConsistencyCheck` factories attach pre-commit checks evaluated against the current state of the affected streams.
-
-```csharp{5,6}
-var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
-
-await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .AddRecord(transferEvent, $"inventory-{sku}")
-        .AddRecord(transferEvent, "transfer-log")
-        .AddChecks(ConsistencyCheck.StreamExists($"inventory-{sku}"))
-        .Build());
-```
-
-See [Guard cross-stream consistency](#guard-cross-stream-consistency) for the full set of checks and how violations surface.
-
-## Guard cross-stream consistency
-
-Each consistency check is a pre-commit assertion the server evaluates against the current state of a stream. If any check on an `AppendRecords` request fails, the whole transaction is rejected. `ExpectedState` on a single-stream `AppendStream` is sugar for the same mechanism, applied to one stream.
-
-The most useful check is `StreamAtRevision`, which asserts a stream has not moved since you last read it. Pair it with a write to a different stream to enforce a multi-aggregate invariant atomically. Below, a transfer event is written only if the inventory stream is still at the revision that was read:
-
-```csharp
-var inventory = await client.Streams.ReadStreamEdge($"inventory-{sku}", ReadDirection.Backwards, skipDecoding: true, cancellationToken: default);
-
-var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
-
-await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .AddRecord(transferEvent, "transfer-log")
-        .AddChecks(ConsistencyCheck.StreamAtRevision($"inventory-{sku}", inventory.Revision))
-        .Build());
-```
-
-Combine several checks in one request with `AddChecks`. Each check targets a stream independently, so revision pins and existence assertions can mix freely:
-
-```csharp
-await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .AddRecord(orderEvent, $"order-{orderId}")
-        .AddChecks(
-            ConsistencyCheck.StreamAtRevision($"cart-{cartId}", cartRevision),
-            ConsistencyCheck.StreamDoesNotExist($"order-{orderId}"))
-        .Build());
-```
-
-`AddCheck` adds a single check if you prefer one-at-a-time composition.
-
-Available checks:
-
-| Factory                              | Asserts                                         |
-|--------------------------------------|-------------------------------------------------|
-| `StreamAtRevision(stream, revision)` | Current revision matches exactly                |
-| `StreamExists(stream)`               | Stream has at least one record                  |
-| `StreamDoesNotExist(stream)`         | Stream has no records, or has been deleted      |
-| `StreamIsDeleted(stream)`            | Stream is soft-deleted                          |
-| `StreamIsTombstoned(stream)`         | Stream is permanently deleted                   |
-
-When a check fails, `AppendRecords` throws `AppendConsistencyViolationException` carrying one violation per failed check, each with the stream, expected state, and actual state. See [Handle append errors](#handle-append-errors) for the catch pattern, and the [cross-stream check state matrix](#cross-stream-check-state-matrix) for which expected and actual combinations pass.
-
 ## Choose a payload format
 
 JSON is the default. Override per record with `DataFormat`.
@@ -203,7 +143,7 @@ JSON is the default. Override per record with `DataFormat`.
 The default. No format call required.
 
 ```csharp
-var jsonRecord = new AppendRecord {
+AppendRecord jsonRecord = new() {
     Stream = "orders",
     Value  = orderPayload
 };
@@ -249,7 +189,7 @@ var avroRecord = AppendRecord.New()
 
 ## Handle append errors
 
-`AppendStream` throws when the server rejects the append. The exception type tells you why. Concurrency failures carry the stream and, where relevant, both the expected and actual revision.
+`AppendStream` throws a typed exception when the server rejects the append. Concurrency failures carry the stream and, where relevant, both the expected and actual revision.
 
 ```csharp
 try {
@@ -260,27 +200,13 @@ catch (StreamRevisionConflictException ex) {
 }
 ```
 
-`AppendRecords` is different. A single request can include checks against several streams, so it cannot collapse failures into one typed exception. Instead it throws `AppendConsistencyViolationException` carrying every violation:
+A single-stream append collapses any state mismatch into one typed exception. The multi-stream surface in [`AppendRecords`](across-streams.md) cannot do this and instead surfaces violations as a list.
 
-```csharp
-try {
-    await client.Streams.AppendRecords(request);
-}
-catch (AppendConsistencyViolationException ex) {
-    foreach (var violation in ex.Violations) {
-        var state = violation.AsStreamStateViolation;
-        Console.WriteLine(
-            "Stream {0} expected {1}, was {2}",
-            state.Stream, state.ExpectedState, state.ActualState);
-    }
-}
-```
-
-See [Error handling](../error-handling.md) for the full throwing model, validation, and cancellation.
+See [Error handling](../../error-handling.md) for the full throwing model, validation, and cancellation.
 
 ## Reference
 
-Every append compares an *expected* state against the *actual* state of the stream and rejects the operation on a mismatch. The rules differ slightly for the stream being appended to versus read-only consistency checks on other streams. ✅ means the check passes, and ❌ means the operation is rejected with a stream state violation.
+Every append compares an *expected* state against the *actual* state of the target stream and rejects the operation on a mismatch.
 
 ### Expected stream state values
 
@@ -293,7 +219,7 @@ Every append compares an *expected* state against the *actual* state of the stre
 
 ### Append target state matrix
 
-Applied to the stream being appended to. A tombstoned stream rejects every append.
+A tombstoned stream rejects every append. The check passes only where marked with the success glyph below.
 
 <table>
 <thead>
@@ -310,25 +236,6 @@ Applied to the stream being appended to. A tombstoned stream rejects every appen
 </tbody>
 </table>
 
-### Cross-stream check state matrix
-
-Applied as a read-only check on another stream in an `AppendRecords` transaction. `NoStream` and `Any` are also satisfied when the stream has been deleted or tombstoned, because the check is asserting absence rather than guarding a write.
-
-<table>
-<thead>
-<tr><th rowspan="2">Expected</th><th colspan="4" align="center">Actual</th></tr>
-<tr><th align="center">Revision M</th><th align="center">No stream</th><th align="center">Deleted</th><th align="center">Tombstoned</th></tr>
-</thead>
-<tbody>
-<tr><td><code>Revision.From(N)</code></td><td align="center">✅ if M = N</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
-<tr><td><code>NoStream</code></td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr>
-<tr><td><code>Any</code></td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr>
-<tr><td><code>Exists</code></td><td align="center">✅</td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td></tr>
-<tr><td><code>Deleted</code></td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td><td align="center">❌</td></tr>
-<tr><td><code>Tombstoned</code></td><td align="center">❌</td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td></tr>
-</tbody>
-</table>
-
 ### Append-specific exceptions
 
 | Exception                                   | Cause                                                       |
@@ -340,4 +247,3 @@ Applied as a read-only check on another stream in an `AppendRecords` transaction
 | `StreamRevisionConflictException`           | Exact revision was expected, current revision differs       |
 | `MaxAppendRecordSizeExceededException`      | A single record exceeds the server size limit               |
 | `MaxAppendTransactionSizeExceededException` | The transaction exceeds the server size limit               |
-| `AppendConsistencyViolationException`       | One or more `ConsistencyCheck` failed in `AppendRecords`    |

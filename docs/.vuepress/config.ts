@@ -67,7 +67,19 @@ export default defineUserConfig({
                             text: "Streams",
                             prefix: "streams/",
                             collapsible: true,
-                            children: "structure",
+                            children: [
+                                {
+                                    text: "Append",
+                                    prefix: "append/",
+                                    link: "append/",
+                                    collapsible: true,
+                                    children: "structure",
+                                },
+                                "reading",
+                                "managing",
+                                "filters",
+                                "metadata",
+                            ],
                         },
                         "indexes",
                         {
