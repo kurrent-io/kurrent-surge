@@ -28,14 +28,13 @@ jobs:
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      # TODO: Remove after runners are clean. Earlier workflow runs left
-      # root-owned .nuget/ dirs from Docker volume mounts in the workspace.
-      - name: Fix stale workspace permissions
+      # Self-hosted runners may have root-owned artifacts from previous
+      # Docker-based builds. Clean the workspace via a container since
+      # the runner user has no sudo.
+      - name: Clean workspace
         run: |
-          if [ -d "${GITHUB_WORKSPACE}/.nuget" ]; then
-            docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine \
-              rm -rf /workspace/.nuget 2>/dev/null || true
-          fi
+          docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine \
+            sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null; chown -R $(id -u):$(id -g) /workspace" || true
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -50,7 +49,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Import Repo Variables
-        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+        run: |
+          echo '${{ toJSON(vars) }}' | python3 -c "
+          import json, sys
+          for k, v in json.load(sys.stdin).items():
+              print(f'{k}<<EOF')
+              print(v)
+              print('EOF')
+          " >> "$GITHUB_ENV"
 
       - name: Build & Push
         uses: devcontainers/ci@v0.3
