@@ -102,23 +102,21 @@ runs:
 
         if [[ "$TUNIT_ARGS" == *"--fail-fast"* ]]; then
           echo "::error::Test host terminated with $signal_name (exit code $exit_code) during fail-fast cancellation. A test failure triggered --fail-fast, and the test host did not shut down cleanly. Results from the crashed assembly are missing from the report."
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-
-        ## Test Host Crash (fail-fast)
-
-        A test failure triggered **--fail-fast** cancellation, and the test host was killed by **$signal_name** (exit code $exit_code) during shutdown.
-        Results from the crashed assembly are **missing** from the test report below.
-        EOF
+          {
+            echo "## Test Host Crash (fail-fast)"
+            echo ""
+            echo "A test failure triggered **--fail-fast** cancellation, and the test host was killed by **$signal_name** (exit code $exit_code) during shutdown."
+            echo "Results from the crashed assembly are **missing** from the test report below."
+          } >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::error::Test host crashed with $signal_name (exit code $exit_code). Results from the crashed assembly are missing from the test report."
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-
-        ## Test Host Crash
-
-        A test host process was killed by **$signal_name** (exit code $exit_code).
-        Results from the crashed assembly are **missing** from the test report below.
-        See [exit code reference](https://aka.ms/testingplatform/exitcodes) for details.
-        EOF
+          {
+            echo "## Test Host Crash"
+            echo ""
+            echo "A test host process was killed by **$signal_name** (exit code $exit_code)."
+            echo "Results from the crashed assembly are **missing** from the test report below."
+            echo "See [exit code reference](https://aka.ms/testingplatform/exitcodes) for details."
+          } >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Remove empty TRX files
