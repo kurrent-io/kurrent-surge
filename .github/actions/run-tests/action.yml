@@ -64,21 +64,62 @@ runs:
       run: rm -rf ${{ steps.config.outputs.results-dir }}
 
     - name: Run ${{ inputs.category }} tests
+      id: test
       shell: bash
       env:
         TUNIT_DISABLE_HTML_REPORTER: true
         TUNIT_DISABLE_GITHUB_REPORTER: true
         TUNIT_DISABLE_LOGO: true
         TESTINGPLATFORM_TELEMETRY_OPTOUT: true
-      run: >-
-        dotnet test -c Release --no-build --no-progress --ignore-exit-code 8
-        ${{ steps.config.outputs.dotnet-args }}
-        --results-directory ${{ steps.config.outputs.results-dir }}
-        --
-        --treenode-filter "${{ steps.config.outputs.filter }}"
-        --report-trx
-        ${{ steps.config.outputs.tunit-args }}
-        ${{ inputs.extra-args }}
+      run: |
+        dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 \
+          ${{ steps.config.outputs.dotnet-args }} \
+          --results-directory ${{ steps.config.outputs.results-dir }} \
+          -- \
+          --treenode-filter "${{ steps.config.outputs.filter }}" \
+          --report-trx \
+          ${{ steps.config.outputs.tunit-args }} \
+          ${{ inputs.extra-args }} \
+          || exit_code=$?
+        echo "exit-code=${exit_code:-0}" >> "$GITHUB_OUTPUT"
+        exit ${exit_code:-0}
+
+    - name: Annotate test host crash
+      if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
+      shell: bash
+      env:
+        TUNIT_ARGS: ${{ steps.config.outputs.tunit-args }}
+      run: |
+        exit_code=${{ steps.test.outputs.exit-code }}
+        signal=$((exit_code - 128))
+        case $signal in
+          6)  signal_name="SIGABRT" ;;
+          9)  signal_name="SIGKILL" ;;
+          11) signal_name="SIGSEGV" ;;
+          15) signal_name="SIGTERM" ;;
+          *)  signal_name="signal $signal" ;;
+        esac
+
+        if [[ "$TUNIT_ARGS" == *"--fail-fast"* ]]; then
+          echo "::error::Test host terminated with $signal_name (exit code $exit_code) during fail-fast cancellation. A test failure triggered --fail-fast, and the test host did not shut down cleanly. Results from the crashed assembly are missing from the report."
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+
+        ## Test Host Crash (fail-fast)
+
+        A test failure triggered **--fail-fast** cancellation, and the test host was killed by **$signal_name** (exit code $exit_code) during shutdown.
+        Results from the crashed assembly are **missing** from the test report below.
+        EOF
+        else
+          echo "::error::Test host crashed with $signal_name (exit code $exit_code). Results from the crashed assembly are missing from the test report."
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+
+        ## Test Host Crash
+
+        A test host process was killed by **$signal_name** (exit code $exit_code).
+        Results from the crashed assembly are **missing** from the test report below.
+        See [exit code reference](https://aka.ms/testingplatform/exitcodes) for details.
+        EOF
+        fi
 
     - name: Remove empty TRX files
       if: '!cancelled()'
