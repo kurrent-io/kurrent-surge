@@ -66,10 +66,7 @@
     }
   },
 
-  // Volume mounts from the base image metadata create ~/.dotnet/ and ~/.nuget/
-  // as root-owned. In CI, prior container runs leave obj/bin dirs owned by root
-  // in the bind-mounted workspace. Fix all ownership before running dotnet.
-  "onCreateCommand": "sudo chown -R vscode:vscode ~/.dotnet ~/.nuget . && dotnet tool restore",
+  "onCreateCommand": "dotnet tool restore",
   "updateContentCommand": "dotnet restore",
   "postCreateCommand": "dotnet build --no-restore",
   "waitFor": "postCreateCommand"

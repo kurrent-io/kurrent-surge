@@ -28,11 +28,15 @@ jobs:
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      # Previous devcontainer builds create root-owned directories in the workspace
-      # via Docker named volumes (.nuget/packages, .nuget/http-cache). The checkout
-      # action runs as the unprivileged runner user and cannot remove them.
-      - name: Clean workspace
-        run: sudo rm -rf "${GITHUB_WORKSPACE}" && mkdir -p "${GITHUB_WORKSPACE}"
+      # Previous devcontainer builds leave root-owned directories in the workspace
+      # (.nuget, obj, bin) via Docker volumes. The runner user has no sudo, so use
+      # a throwaway Docker container running as root to fix ownership.
+      - name: Fix workspace permissions
+        run: |
+          if [ -d "${GITHUB_WORKSPACE}" ]; then
+            docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine \
+              chown -R "$(id -u):$(id -g)" /workspace 2>/dev/null || true
+          fi
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -64,7 +68,7 @@ jobs:
         with:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
-          skipContainerUserIdUpdate: true
+          skipContainerUserIdUpdate: false
           push: always
           env: |
             NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
