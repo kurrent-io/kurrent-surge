@@ -73,7 +73,6 @@ jobs:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           push: always
-          inheritEnv: true
           # runCmd triggers `devcontainer up` (which runs lifecycle commands
           # including verify.sh via postCreateCommand) instead of just
           # `devcontainer build` which only builds the image.
