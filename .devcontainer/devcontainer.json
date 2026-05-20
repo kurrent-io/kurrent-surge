@@ -3,27 +3,65 @@
 
   "image": "ghcr.io/kurrent-io/devcontainers/dotnet",
 
+  // Docker-in-Docker: Aspire test harness spins up KurrentDB containers
+  // via DistributedApplicationTestingBuilder — needs a Docker daemon inside.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  // Run as non-root user for security. Change to the actual non-root user
+  // in your image if it's not "vscode" (e.g., "dotnet", "dev").
+  "remoteUser": "vscode",
+  
   "hostRequirements": {
     "cpus": 4,
     "memory": "16gb",
     "storage": "32gb"
   },
 
+  // Forwarded from host env — never hardcode secrets
   "remoteEnv": {
     "NUGET_AUTH_TOKEN": "${localEnv:NUGET_AUTH_TOKEN}",
-    "NuGetPackageSourceCredentials_GitHub": "Username=pat;Password=${localEnv:NUGET_AUTH_TOKEN}"
+    "NuGetPackageSourceCredentials_GitHub": "Username=pat;Password=${localEnv:NUGET_AUTH_TOKEN}",
+    "DOTNET_ENVIRONMENT": "Development",
+    "ASPNETCORE_ENVIRONMENT": "Development"
   },
   "secrets": {
     "NUGET_AUTH_TOKEN": {
-      "description": "NuGet feed authentication token"
+      "description": "GitHub PAT for NuGet feed authentication (read:packages scope)"
     }
   },
+
+  // .NET build artifacts hammer the filesystem — named volumes give native
+  // Linux I/O speed instead of going through the macOS virtualisation layer.
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-nuget-packages,target=${containerWorkspaceFolder}/.nuget/packages,type=volume",
+    "source=${localWorkspaceFolderBasename}-nuget-http-cache,target=${containerWorkspaceFolder}/.nuget/http-cache,type=volume"
+  ],
+
+  // No static ports to forward — Aspire allocates all ports dynamically
+  // (KurrentDB, OTLP, etc.) and tests discover them via GetRequiredConnectionString.
+  // The Aspire Dashboard is disabled in test mode (DisableDashboard = true).
+  // Auto-forward any dynamic port silently in case you run something ad-hoc.
+  "otherPortsAttributes": { "onAutoForward": "silent" },
 
   "customizations": {
     "vscode": {
       "settings": {
         "dotnet.defaultSolution": "Kurrent.Sdk.slnx",
         "terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font', 'FiraCode Nerd Font', 'MesloLGS NF', monospace"
+      },
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp"
+      ]
+    },
+    "jetbrains": {
+      "backend": {
+        "settings": {
+          "dotnet.defaultSolution": "Kurrent.Sdk.slnx"
+        },
+        "plugins": []
       }
     }
   },

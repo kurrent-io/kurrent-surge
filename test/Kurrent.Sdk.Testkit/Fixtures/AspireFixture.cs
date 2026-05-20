@@ -80,7 +80,7 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug("Initializing fixture...");
-        
+
         var builder = await CreateBuilderAsync((options, settings) => {
             settings.ApplicationName      = ApplicationName;
             options.EnableResourceLogging = true;

@@ -5,7 +5,7 @@ using Refit;
 
 namespace Aspire.Hosting.KurrentDB;
 
-public sealed partial class KurrentDBClusterHealthCheck(
+sealed partial class KurrentDBClusterHealthCheck(
     KurrentDBServerResource server,
     IHttpClientFactory httpClientFactory,
     ResourceConnectionProvider provider,
@@ -79,19 +79,19 @@ public sealed partial class KurrentDBClusterHealthCheck(
 
     #region ->> Logging <<-
 
-    [LoggerMessage(LogLevel.Debug, "Checking cluster health for {ServerName} via node {NodeName}")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Debug, "Checking cluster health for {ServerName} via node {NodeName}")]
     static partial void LogCheckingClusterHealth(ILogger logger, string serverName, string nodeName);
 
-    [LoggerMessage(LogLevel.Debug, "Gossip endpoint: {BaseUrl}/gossip")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Debug, "Gossip endpoint: {BaseUrl}/gossip")]
     static partial void LogGossipEndpoint(ILogger logger, string baseUrl);
 
-    [LoggerMessage(LogLevel.Warning, "{ServerName} cluster has no leader")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Warning, "{ServerName} cluster has no leader")]
     static partial void LogNoLeader(ILogger logger, string serverName);
 
-    [LoggerMessage(LogLevel.Warning, "{ServerName} cluster degraded: {Alive}/{Total} nodes alive")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Warning, "{ServerName} cluster degraded: {Alive}/{Total} nodes alive")]
     static partial void LogDegraded(ILogger logger, string serverName, int alive, int total);
 
-    [LoggerMessage(LogLevel.Debug, "{ServerName} cluster healthy: {Alive}/{Total} nodes alive")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Debug, "{ServerName} cluster healthy: {Alive}/{Total} nodes alive")]
     static partial void LogHealthy(ILogger logger, string serverName, int alive, int total);
 
     #endregion // Logging

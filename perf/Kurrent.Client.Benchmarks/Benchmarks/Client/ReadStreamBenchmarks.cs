@@ -9,7 +9,6 @@ namespace Benchmarks;
 /// <summary>
 /// Benchmarks for reading from a single named stream with various configurations.
 /// </summary>
-[MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class ReadStreamBenchmarks {
     ClientBenchmarkFixture _fixture = null!;
@@ -22,10 +21,10 @@ public class ReadStreamBenchmarks {
     public bool SkipDecoding { get; set; }
 
     [GlobalSetup]
-    public void Setup() {
+    public async Task Setup() {
         _fixture = new ClientBenchmarkFixture();
-        _fixture.As<IAsyncInitializer>().InitializeAsync().GetAwaiter().GetResult();
-        _stream = _fixture.SeedStream(MessageCount).GetAwaiter().GetResult();
+        await _fixture.As<IAsyncInitializer>().InitializeAsync();
+        _stream = await _fixture.SeedStream(MessageCount);
     }
 
     [Benchmark(Baseline = true, Description = "Read stream")]
@@ -38,7 +37,7 @@ public class ReadStreamBenchmarks {
         var options = builder.Build();
         var count   = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadStream(options))
+        await foreach (var msg in _fixture.Client.Streams.ReadStream(options).ConfigureAwait(false))
             count++;
 
         return count;
@@ -72,15 +71,14 @@ public class ReadStreamBenchmarks {
         var options = builder.Build();
         var count   = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options))
+        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false))
             count++;
 
         return count;
     }
 
     [GlobalCleanup]
-    public void Cleanup() {
-        _fixture.As<IAsyncDisposable>().DisposeAsync()
-            .AsTask().GetAwaiter().GetResult();
+    public async Task Cleanup() {
+        await _fixture.As<IAsyncDisposable>().DisposeAsync();
     }
 }

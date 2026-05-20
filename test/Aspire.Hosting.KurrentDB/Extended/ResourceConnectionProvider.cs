@@ -24,7 +24,7 @@ namespace Aspire.Hosting.KurrentDB;
 /// Register with <see cref="ResourceConnectionProviderExtensions.AddResourceConnectionProvider"/>.
 /// </para>
 /// </remarks>
-public sealed partial class ResourceConnectionProvider(ILogger<ResourceConnectionProvider> logger) : IDistributedApplicationEventingSubscriber {
+sealed partial class ResourceConnectionProvider(ILogger<ResourceConnectionProvider> logger) : IDistributedApplicationEventingSubscriber {
     readonly ConcurrentDictionary<string, string> _connectionStrings = new();
     readonly TaskCompletionSource _ready = new();
 

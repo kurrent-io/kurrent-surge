@@ -1,4 +1,8 @@
 build:
+  - '.github/**'
+  - '!.github/workflows/build-devcontainer.yml'
+  - '!.github/workflows/prime-runners.yml'
+  - 'tools/**'
   - 'src/**'
   - 'test/**'
   - 'proto/**'
@@ -6,4 +10,6 @@ build:
   - 'Directory.Packages.props'
   - 'global.json'
   - 'nuget.config'
-  - '.github/**'
+ 
+docs:
+  - 'docs/**'

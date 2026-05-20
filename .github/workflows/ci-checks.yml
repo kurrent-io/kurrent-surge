@@ -1,0 +1,19 @@
+name: CI - Checks
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, edited, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  checks:
+    runs-on: [ self-hosted, linux, x64 ]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/conventional-commits
+#      - uses: actions/labeler@v6
+      - uses: DavidAnson/markdownlint-cli2-action@v19

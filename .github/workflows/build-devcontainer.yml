@@ -1,0 +1,56 @@
+name: Build Devcontainer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.devcontainer/devcontainer.json'
+  workflow_dispatch:
+
+concurrency:
+  group: build-devcontainer-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - name: Generate Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull base image
+        run: docker pull ghcr.io/kurrent-io/devcontainers/dotnet
+
+      - name: Build & Push
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
+          cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
+          skipContainerUserIdUpdate: true
+          push: always
+          env: |
+            NUGET_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          runCmd: dotnet --info

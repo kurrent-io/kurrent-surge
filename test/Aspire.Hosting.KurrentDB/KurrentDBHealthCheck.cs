@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Aspire.Hosting.KurrentDB;
 
-public sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectionProvider provider, ILoggerFactory loggerFactory) : IHealthCheck {
+sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectionProvider provider, ILoggerFactory loggerFactory) : IHealthCheck {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default) {
         var logger = loggerFactory.CreateLogger<KurrentDBHealthCheck>();
 
@@ -41,10 +41,10 @@ public sealed partial class KurrentDBHealthCheck(string resourceName, ResourceCo
 
     #region ->> Logging <<-
 
-    [LoggerMessage(LogLevel.Debug, "{ResourceName} Checking health...")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Debug, "{ResourceName} Checking health...")]
     static partial void LogResourcenameCheckingHealth(ILogger<KurrentDBHealthCheck> logger, string resourceName);
 
-    [LoggerMessage(LogLevel.Debug, "{ResourceName} ConnectionString: {ConnectionString}")]
+    [LoggerMessage(Microsoft.Extensions.Logging.LogLevel.Debug, "{ResourceName} ConnectionString: {ConnectionString}")]
     static partial void LogResourcenameConnectionstringConnectionstring(ILogger<KurrentDBHealthCheck> logger, string resourceName, string connectionString);
 
     #endregion

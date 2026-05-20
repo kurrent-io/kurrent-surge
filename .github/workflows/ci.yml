@@ -2,19 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/*']
   pull_request:
-    branches: [main]
+    branches: [main, 'release/*']
     types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
 
 jobs:
   ci:
@@ -28,9 +24,18 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Generate Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Detect Changes
@@ -41,6 +46,7 @@ jobs:
 
       - name: Prepare Environment
         run: |
+          echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
@@ -57,9 +63,12 @@ jobs:
             chmod +x "$bin_dir/yq"
           fi
         
-      - name: Import Variables
-        if: steps.changes.outputs.build == 'true'
+      - name: Export Repo Variables
         run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+
+      - name: Trigger Docs Build
+        if: steps.changes.outputs.docs == 'true'
+        run: curl -X POST -d {} "${{ secrets.CLOUDFLARE_BUILD_HOOK }}"
 
       - name: Setup .NET
         if: steps.changes.outputs.build == 'true'

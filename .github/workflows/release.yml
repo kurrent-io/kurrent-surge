@@ -17,10 +17,6 @@ on:
         type: boolean
         default: false
 
-env:
-  NuGetPackageSourceCredentials_KurrentDB: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-  NuGetPackageSourceCredentials_GitHub: Username=${{ vars.ORG_GH_BOT_USERNAME }};Password=${{ secrets.ORG_GH_BOT_AUTOMATION }}
-
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -30,14 +26,42 @@ jobs:
       packages: write
 
     steps:
+      - name: Generate Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          token: ${{ steps.app-token.outputs.token }}
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Build
-        uses: ./.github/actions/dotnet-setup
+      - name: Configure NuGet Credentials
+        run: echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
+
+      - name: Prepare Environment
+        run: |
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Install Local Tools
+        uses: ./.github/actions/install-tools
 
       - name: Version
         id: version
@@ -46,7 +70,10 @@ jobs:
           mode: release
           version: ${{ inputs.version }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run
@@ -59,14 +86,14 @@ jobs:
         uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
-          push-to: github nuget
+          push-to: github
         env:
           NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
 
       - name: Create Release
         if: ${{ !inputs.dry_run }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \

@@ -9,12 +9,11 @@ namespace Benchmarks;
 /// <summary>
 /// Benchmarks for reading from $all log with different filter configurations.
 /// </summary>
-[MemoryDiagnoser]
 [Config(typeof(BenchmarkConfig))]
 public class ReadLogBenchmarks {
     ClientBenchmarkFixture _fixture = null!;
 
-    [Params(10000)]
+    [Params(100, 1000, 5000, 10000)]
     public int MessageCount { get; set; }
 
     [Params(true, false)]
@@ -24,15 +23,14 @@ public class ReadLogBenchmarks {
     public ReadDirection Direction { get; set; }
 
     [GlobalSetup]
-    public void Setup() {
+    public async Task Setup() {
         _fixture = new ClientBenchmarkFixture();
-        _fixture.As<IAsyncInitializer>().InitializeAsync().GetAwaiter().GetResult();
-        _ = _fixture.SeedStream(MessageCount).GetAwaiter().GetResult();
+        await _fixture.As<IAsyncInitializer>().InitializeAsync();
+        _ = await _fixture.SeedStream(MessageCount);
     }
 
-    // TODO SS: wrong name or we need proper benchmark for reading with limit, forwards and backwards.
-    [Benchmark(Description = "Read $all forward with limit")]
-    public async Task<int> read_log_forward() {
+    [Benchmark(Description = "Read $all with limit")]
+    public async Task<int> read_log() {
         var builder = ReadRecordsRequest.New()
             .FromPosition(Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest)
             .Limit(MessageCount);
@@ -46,7 +44,7 @@ public class ReadLogBenchmarks {
         var options = builder.Build();
         var count   = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options)) {
+        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false)) {
             count++;
             if (count >= MessageCount)
                 break;
@@ -56,8 +54,7 @@ public class ReadLogBenchmarks {
     }
 
     [GlobalCleanup]
-    public void Cleanup() {
-        _fixture.As<IAsyncDisposable>().DisposeAsync()
-            .AsTask().GetAwaiter().GetResult();
+    public async Task Cleanup() {
+        await _fixture.As<IAsyncDisposable>().DisposeAsync();
     }
 }

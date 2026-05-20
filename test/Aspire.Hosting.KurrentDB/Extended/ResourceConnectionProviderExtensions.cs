@@ -3,7 +3,7 @@ using Aspire.Hosting.KurrentDB;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
-public static class ResourceConnectionProviderExtensions {
+static class ResourceConnectionProviderExtensions {
     /// <summary>
     /// Registers <see cref="ResourceConnectionProvider"/> as a singleton and as an
     /// <see cref="IDistributedApplicationEventingSubscriber"/> so Aspire invokes it

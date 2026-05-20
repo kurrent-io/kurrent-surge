@@ -11,10 +11,18 @@ jobs:
     outputs:
       runners: ${{ steps.list.outputs.runners }}
     steps:
+      - name: Generate Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: List online self-hosted runners
         id: list
         env:
-          GH_TOKEN: ${{ secrets.ORG_GH_BOT_AUTOMATION }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           runners=$(gh api orgs/kurrent-io/actions/runners \
             --jq '[.runners[] | select(.status == "online") | .name]')
@@ -23,6 +31,7 @@ jobs:
   warmup:
     needs: discover
     strategy:
+      fail-fast: false
       matrix:
         runner: ${{ fromJSON(needs.discover.outputs.runners) }}
     runs-on:
@@ -33,22 +42,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Export Variables
-        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
-
       - name: Prepare Environment
         run: |
-          bin_dir="$HOME/.local/bin"
-          mkdir -p "$bin_dir"
-          echo "$bin_dir" >> "$GITHUB_PATH"
-          if ! command -v jq &>/dev/null; then
-            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
-            chmod +x "$bin_dir/jq"
-          fi
-          if ! command -v yq &>/dev/null; then
-            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
-            chmod +x "$bin_dir/yq"
-          fi
+          echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
+          echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+      - name: Install jq
+        uses: dcarbone/install-jq-action@v3
+
+      - name: Install yq
+        uses: dcarbone/install-yq-action@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # - name: Prepare Environment (manual fallback)
+      #   run: |
+      #     bin_dir="$HOME/.local/bin"
+      #     mkdir -p "$bin_dir"
+      #     echo "$bin_dir" >> "$GITHUB_PATH"
+      #     arch=$(uname -m)
+      #     case "$arch" in
+      #       x86_64)  arch_suffix="amd64" ;;
+      #       aarch64) arch_suffix="arm64" ;;
+      #       *)       arch_suffix="amd64" ;;
+      #     esac
+      #
+      #     if ! command -v jq &>/dev/null; then
+      #       curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$arch_suffix" -o "$bin_dir/jq"
+      #       chmod +x "$bin_dir/jq"
+      #     fi
+      #     if ! command -v yq &>/dev/null; then
+      #       curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$arch_suffix" -o "$bin_dir/yq"
+      #       chmod +x "$bin_dir/yq"
+      #     fi
+
+      - name: Export Repo Variables
+        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -58,7 +96,10 @@ jobs:
             9.x
             10.x
 
-      - name: Setup Containers
+      - name: Restore NuGet Packages
+        run: dotnet restore
+
+      - name: Setup Test Containers
         uses: ./.github/actions/setup-containers
         with:
           default-credentials: |
@@ -69,3 +110,13 @@ jobs:
             - registry: docker.kurrent.io
           images: ${{ env.TEST_CONTAINERS }}
           prune-older-than: '168h'
+
+      - name: Pull CI Images
+        run: |
+          images=(
+            'ghcr.io/enricomi/publish-unit-test-result-action:v2.23.0'
+          )
+          for image in "${images[@]}"; do
+            echo "Pulling $image..."
+            docker pull "$image" --quiet || echo "::warning::Failed to pull $image"
+          done
