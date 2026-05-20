@@ -81,8 +81,15 @@ runs:
 
     - name: ${{ steps.config.outputs.check-name }} report
       if: '!cancelled()'
-      uses: EnricoMi/publish-unit-test-result-action@v2
+      uses: dorny/test-reporter@v3
       with:
-        check_name: ${{ steps.config.outputs.check-name }}
-        files: ${{ steps.config.outputs.results-dir }}/${{ steps.config.outputs.trx-filename }}
-        action_fail_on_inconclusive: false
+        name: ${{ steps.config.outputs.check-name }}
+        path: ${{ steps.config.outputs.results-dir }}/${{ steps.config.outputs.trx-filename }}
+        reporter: dotnet-trx
+        fail-on-error: false
+        fail-on-empty: false
+        max-annotations: 50
+        list-tests: failed
+        list-suites: failed
+        badge-title: ${{ inputs.category }}
+        report-title: ${{ steps.config.outputs.check-name }}
