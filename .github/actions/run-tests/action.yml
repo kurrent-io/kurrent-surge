@@ -67,7 +67,7 @@ runs:
       id: test
       shell: bash
       env:
-        TUNIT_DISABLE_HTML_REPORTER: true
+        TUNIT_DISABLE_HTML_REPORTER: false
         TUNIT_DISABLE_GITHUB_REPORTER: true
         TUNIT_DISABLE_LOGO: true
         TESTINGPLATFORM_TELEMETRY_OPTOUT: true
@@ -103,19 +103,21 @@ runs:
         if [[ "$TUNIT_ARGS" == *"--fail-fast"* ]]; then
           echo "::error::Test host terminated with $signal_name (exit code $exit_code) during fail-fast cancellation. A test failure triggered --fail-fast, and the test host did not shut down cleanly. Results from the crashed assembly are missing from the report."
           {
-            echo "## Test Host Crash (fail-fast)"
-            echo ""
-            echo "A test failure triggered **--fail-fast** cancellation, and the test host was killed by **$signal_name** (exit code $exit_code) during shutdown."
-            echo "Results from the crashed assembly are **missing** from the test report below."
+            echo "> [!CAUTION]"
+            echo "> **Test Host Crash (fail-fast)**"
+            echo ">"
+            echo "> A test failure triggered \`--fail-fast\` cancellation, and the test host was killed by **$signal_name** (exit code $exit_code) during shutdown."
+            echo "> Results from the crashed assembly are **missing** from the test report below."
           } >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::error::Test host crashed with $signal_name (exit code $exit_code). Results from the crashed assembly are missing from the test report."
           {
-            echo "## Test Host Crash"
-            echo ""
-            echo "A test host process was killed by **$signal_name** (exit code $exit_code)."
-            echo "Results from the crashed assembly are **missing** from the test report below."
-            echo "See [exit code reference](https://aka.ms/testingplatform/exitcodes) for details."
+            echo "> [!CAUTION]"
+            echo "> **Test Host Crash**"
+            echo ">"
+            echo "> A test host process was killed by **$signal_name** (exit code $exit_code)."
+            echo "> Results from the crashed assembly are **missing** from the test report below."
+            echo "> See [exit code reference](https://aka.ms/testingplatform/exitcodes) for details."
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 
@@ -136,5 +138,15 @@ runs:
         max-annotations: 50
         list-tests: failed
         list-suites: failed
+        list-files: failed
         badge-title: ${{ inputs.category }}
         report-title: ${{ steps.config.outputs.check-name }}
+
+    - name: Upload HTML test report
+      if: '!cancelled()'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.category }}-test-report
+        path: ${{ steps.config.outputs.results-dir }}/**/*.html
+        if-no-files-found: ignore
+        retention-days: 14
