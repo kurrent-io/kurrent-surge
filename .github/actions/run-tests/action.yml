@@ -89,6 +89,58 @@ runs:
       shell: bash
       run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
 
+    - name: Synthesize crash TRX
+      if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
+      shell: bash
+      env:
+        TUNIT_ARGS: ${{ steps.config.outputs.tunit-args }}
+        RESULTS_DIR: ${{ steps.config.outputs.results-dir }}
+      run: |
+        exit_code=${{ steps.test.outputs.exit-code }}
+        signal=$((exit_code - 128))
+        case $signal in
+          6)  signal_name="SIGABRT" ;;
+          9)  signal_name="SIGKILL" ;;
+          11) signal_name="SIGSEGV" ;;
+          15) signal_name="SIGTERM" ;;
+          *)  signal_name="signal $signal" ;;
+        esac
+
+        if [[ "$TUNIT_ARGS" == *"--fail-fast"* ]]; then
+          message="Test host terminated with $signal_name (exit code $exit_code) during --fail-fast cancellation. The test host did not shut down cleanly and its results are missing."
+        else
+          message="Test host crashed with $signal_name (exit code $exit_code). Results from the crashed assembly are missing."
+        fi
+
+        echo "::error::$message"
+
+        cat > "$RESULTS_DIR/crashed-test-host.trx" <<TRXEOF
+        <?xml version="1.0" encoding="utf-8"?>
+        <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+          <Results>
+            <UnitTestResult testId="00000000-0000-0000-0000-000000000001"
+                            testName="test_host_crashed_with_${signal_name}"
+                            outcome="Failed"
+                            duration="00:00:00">
+              <Output>
+                <ErrorInfo>
+                  <Message>$message</Message>
+                </ErrorInfo>
+              </Output>
+            </UnitTestResult>
+          </Results>
+          <TestDefinitions>
+            <UnitTest id="00000000-0000-0000-0000-000000000001" name="test_host_crashed_with_${signal_name}">
+              <Execution id="00000000-0000-0000-0000-000000000001" />
+              <TestMethod className="TestHostCrash" name="test_host_crashed_with_${signal_name}" />
+            </UnitTest>
+          </TestDefinitions>
+          <ResultSummary outcome="Failed">
+            <Counters total="1" executed="1" passed="0" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+          </ResultSummary>
+        </TestRun>
+        TRXEOF
+
     - name: ${{ steps.config.outputs.check-name }} report
       if: '!cancelled()'
       uses: dorny/test-reporter@v3
@@ -120,7 +172,6 @@ runs:
         esac
 
         if [[ "$TUNIT_ARGS" == *"--fail-fast"* ]]; then
-          echo "::error::Test host terminated with $signal_name (exit code $exit_code) during fail-fast cancellation. A test failure triggered --fail-fast, and the test host did not shut down cleanly. Results from the crashed assembly are missing from the report."
           {
             echo "> [!CAUTION]"
             echo "> **Test Host Crash (fail-fast)**"
@@ -129,7 +180,6 @@ runs:
             echo "> Results from the crashed assembly are **missing** from the test report above."
           } >> "$GITHUB_STEP_SUMMARY"
         else
-          echo "::error::Test host crashed with $signal_name (exit code $exit_code). Results from the crashed assembly are missing from the test report."
           {
             echo "> [!CAUTION]"
             echo "> **Test Host Crash**"
