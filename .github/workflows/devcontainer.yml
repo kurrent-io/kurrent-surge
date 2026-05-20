@@ -44,6 +44,15 @@ jobs:
       - name: Pull base image
         run: docker pull ghcr.io/kurrent-io/devcontainers/dotnet
 
+      # The devcontainers/ci action tries `npm install -g @devcontainers/cli`,
+      # which fails with EACCES on self-hosted runners that don't run as root.
+      # Pre-installing into a user-writable prefix lets the action's
+      # `isCliInstalled` check find it and skip the global install.
+      - name: Install devcontainer CLI
+        run: |
+          npm install --prefix "$HOME/.npm-global" @devcontainers/cli
+          echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
+
       - name: Build & Push
         uses: devcontainers/ci@v0.3
         with:
