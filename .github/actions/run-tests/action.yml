@@ -53,13 +53,14 @@ runs:
             ;;
         esac
 
+        check_name="${INPUT_REPORT_NAME:-$check_name}"
         if [[ "$tunit_args" == *"--maximum-failed-tests"* ]]; then
           check_name="$check_name (fail fast)"
         fi
 
         echo "filter=${INPUT_FILTER:-$filter}" >> "$GITHUB_OUTPUT"
         echo "results-dir=$results_dir" >> "$GITHUB_OUTPUT"
-        echo "check-name=${INPUT_REPORT_NAME:-$check_name}" >> "$GITHUB_OUTPUT"
+        echo "check-name=$check_name" >> "$GITHUB_OUTPUT"
         echo "dotnet-args=$dotnet_args" >> "$GITHUB_OUTPUT"
         echo "tunit-args=$tunit_args" >> "$GITHUB_OUTPUT"
 
