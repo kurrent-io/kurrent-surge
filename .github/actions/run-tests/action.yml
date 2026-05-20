@@ -84,6 +84,25 @@ runs:
         echo "exit-code=${exit_code:-0}" >> "$GITHUB_OUTPUT"
         exit ${exit_code:-0}
 
+    - name: Remove empty TRX files
+      if: '!cancelled()'
+      shell: bash
+      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
+
+    - name: ${{ steps.config.outputs.check-name }} report
+      if: '!cancelled()'
+      uses: dorny/test-reporter@v3
+      with:
+        name: ${{ steps.config.outputs.check-name }}
+        path: ${{ steps.config.outputs.results-dir }}/**/*.trx
+        reporter: dotnet-trx
+        fail-on-error: false
+        fail-on-empty: false
+        only-summary: true
+        max-annotations: 50
+        badge-title: ${{ inputs.category }}
+        report-title: ${{ steps.config.outputs.check-name }}
+
     - name: Annotate test host crash
       if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
       shell: bash
@@ -107,7 +126,7 @@ runs:
             echo "> **Test Host Crash (fail-fast)**"
             echo ">"
             echo "> A test failure triggered \`--fail-fast\` cancellation, and the test host was killed by **$signal_name** (exit code $exit_code) during shutdown."
-            echo "> Results from the crashed assembly are **missing** from the test report below."
+            echo "> Results from the crashed assembly are **missing** from the test report above."
           } >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::error::Test host crashed with $signal_name (exit code $exit_code). Results from the crashed assembly are missing from the test report."
@@ -116,31 +135,10 @@ runs:
             echo "> **Test Host Crash**"
             echo ">"
             echo "> A test host process was killed by **$signal_name** (exit code $exit_code)."
-            echo "> Results from the crashed assembly are **missing** from the test report below."
+            echo "> Results from the crashed assembly are **missing** from the test report above."
             echo "> See [exit code reference](https://aka.ms/testingplatform/exitcodes) for details."
           } >> "$GITHUB_STEP_SUMMARY"
         fi
-
-    - name: Remove empty TRX files
-      if: '!cancelled()'
-      shell: bash
-      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
-
-    - name: ${{ steps.config.outputs.check-name }} report
-      if: '!cancelled()'
-      uses: dorny/test-reporter@v3
-      with:
-        name: ${{ steps.config.outputs.check-name }}
-        path: ${{ steps.config.outputs.results-dir }}/**/*.trx
-        reporter: dotnet-trx
-        fail-on-error: false
-        fail-on-empty: false
-        max-annotations: 50
-        list-tests: failed
-        list-suites: failed
-        list-files: failed
-        badge-title: ${{ inputs.category }}
-        report-title: ${{ steps.config.outputs.check-name }}
 
     - name: Upload HTML test report
       if: '!cancelled()'
