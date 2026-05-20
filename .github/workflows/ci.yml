@@ -31,6 +31,11 @@ jobs:
           client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
 
+      # Ensure workspace is a git repo so checkout v6 can clean up
+      # auth config from previous runs without failing on --local.
+      - name: Prepare workspace
+        run: git init "${GITHUB_WORKSPACE}" 2>/dev/null || true
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
