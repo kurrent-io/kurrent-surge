@@ -6,7 +6,7 @@ USER vscode
 RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
-RUN brew install gh bun duckdb \
+RUN brew install gh oven-sh/bun/bun duckdb \
     && brew cleanup --prune=all -s \
     && rm -rf "$(brew --cache)"
 

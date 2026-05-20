@@ -65,7 +65,14 @@ jobs:
           python-version: '3.x'
 
       - name: Export Repo Variables
-        run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
+        run: |
+          echo '${{ toJSON(vars) }}' | python3 -c "
+          import json, sys
+          for k, v in json.load(sys.stdin).items():
+              print(f'{k}<<EOF')
+              print(v)
+              print('EOF')
+          " >> "$GITHUB_ENV"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
