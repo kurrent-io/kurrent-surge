@@ -64,27 +64,6 @@ jobs:
         with:
           python-version: '3.x'
 
-      # - name: Prepare Environment (manual fallback)
-      #   run: |
-      #     bin_dir="$HOME/.local/bin"
-      #     mkdir -p "$bin_dir"
-      #     echo "$bin_dir" >> "$GITHUB_PATH"
-      #     arch=$(uname -m)
-      #     case "$arch" in
-      #       x86_64)  arch_suffix="amd64" ;;
-      #       aarch64) arch_suffix="arm64" ;;
-      #       *)       arch_suffix="amd64" ;;
-      #     esac
-      #
-      #     if ! command -v jq &>/dev/null; then
-      #       curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$arch_suffix" -o "$bin_dir/jq"
-      #       chmod +x "$bin_dir/jq"
-      #     fi
-      #     if ! command -v yq &>/dev/null; then
-      #       curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$arch_suffix" -o "$bin_dir/yq"
-      #       chmod +x "$bin_dir/yq"
-      #     fi
-
       - name: Export Repo Variables
         run: echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)<<EOF\n\(.value)\nEOF"' >> $GITHUB_ENV
 
@@ -99,17 +78,16 @@ jobs:
       - name: Restore NuGet Packages
         run: dotnet restore
 
-      - name: Setup Test Containers
+      - name: Pull Test Images
         uses: ./.github/actions/setup-containers
         with:
-          default-credentials: |
-            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
-            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
+          images: ${{ env.TEST_CONTAINERS }}
           registries: |
             - registry: docker.cloudsmith.io
             - registry: docker.kurrent.io
-          images: ${{ env.TEST_CONTAINERS }}
-          prune-older-than: '168h'
+          default-credentials: |
+            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
+            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
 
       - name: Pull CI Images
         run: |
@@ -120,3 +98,9 @@ jobs:
             echo "Pulling $image..."
             docker pull "$image" --quiet || echo "::warning::Failed to pull $image"
           done
+
+      - name: Clean up stale Docker resources
+        run: |
+          docker image prune -af --filter "until=168h"
+          docker network prune -f
+          docker volume prune -f

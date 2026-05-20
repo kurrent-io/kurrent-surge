@@ -29,18 +29,12 @@ inputs:
     default: ''
   images:
     description: >
-      YAML mapping of container names to image references.
+      Newline-separated KEY=VALUE pairs. Each line is exported as an environment
+      variable and the value is pulled as a Docker image.
       Example:
         images: |
-          KurrentDB: docker.kurrent.io/kurrent-staging/kurrentdb:nightly
+          KURRENTDB_IMAGEREF=docker.kurrent.io/kurrent-staging/kurrentdb:ci
     required: true
-  prune-older-than:
-    description: >
-      Prune unused Docker images older than this duration (e.g., '72h').
-      Stale containers, unused networks, and volumes are always cleaned up regardless.
-      When empty, image pruning is skipped.
-    required: false
-    default: ''
 
 runs:
   using: composite
@@ -48,22 +42,6 @@ runs:
     - name: Create Docker Compose symlink
       shell: bash
       run: ln -sf /usr/libexec/docker/cli-plugins/docker-compose "$HOME/.local/bin/docker-compose"
-
-    - name: Clean up stale Docker resources
-      shell: bash
-      env:
-        PRUNE_OLDER_THAN: ${{ inputs.prune-older-than }}
-      run: |
-        names=$(echo '${{ inputs.images }}' | yq -r 'keys | .[] | downcase')
-        for name in $names; do
-          docker ps -a --filter "name=$name" --filter "status=exited" --filter "status=created" -q \
-            | xargs -r docker rm -f 2>/dev/null || true
-        done
-        docker network prune -f 2>/dev/null || true
-        docker volume prune -f 2>/dev/null || true
-        if [[ -n "$PRUNE_OLDER_THAN" ]]; then
-          docker image prune -f --filter "until=$PRUNE_OLDER_THAN" 2>/dev/null || true
-        fi
 
     - name: Login, configure, and pull
       shell: bash
@@ -86,15 +64,13 @@ runs:
           printf '%s' "$pass" | docker login "$registry" -u "$user" --password-stdin
         done
 
-        # --- Validate and export image refs ---
+        # --- Validate, export, and pull image refs ---
         registries=$(printf '%s' '${{ inputs.registries }}' | yq -r '.[].registry')
 
-        echo '${{ inputs.images }}' | yq -r '
-          to_entries[] |
-          (.key | upcase) as $name |
-          (.value.ImageRef // .value) as $image_ref |
-          "\($name) \($image_ref)"
-        ' | while read -r name image_ref; do
+        failed=0
+        while IFS='=' read -r name image_ref; do
+          [[ -z "$name" ]] && continue
+
           matched=false
           while IFS= read -r reg; do
             if [[ "$image_ref" == "$reg"* ]]; then
@@ -108,21 +84,14 @@ runs:
             exit 1
           fi
 
-          echo "${name}_IMAGEREF=$image_ref" | tee -a "$GITHUB_ENV"
-        done
+          echo "$name=$image_ref" | tee -a "$GITHUB_ENV"
 
-        # --- Pull images ---
-        images=$(echo '${{ inputs.images }}' | yq -r '
-          to_entries[] | .value.ImageRef // .value
-        ')
-        failed=0
-        for image in $images; do
-          echo "Pulling $image..."
-          docker pull "$image" --quiet || true
+          echo "Pulling $image_ref..."
+          docker pull "$image_ref" --quiet || true
 
-          if ! docker image inspect "$image" > /dev/null 2>&1; then
-            echo "::error::Image $image not available locally — cannot proceed"
+          if ! docker image inspect "$image_ref" > /dev/null 2>&1; then
+            echo "::error::Image $image_ref not available locally — cannot proceed"
             failed=1
           fi
-        done
+        done <<< '${{ inputs.images }}'
         exit $failed
