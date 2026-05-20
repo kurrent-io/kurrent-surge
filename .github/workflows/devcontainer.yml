@@ -28,13 +28,21 @@ jobs:
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      # Previous devcontainer builds leave Docker volume mount points in the
+      # workspace (.nuget/packages, .nuget/http-cache) that checkout cannot
+      # remove. Clean them up before checkout runs.
+      - name: Clean workspace volumes
+        run: |
+          dir="${GITHUB_WORKSPACE}"
+          if [ -d "$dir" ]; then
+            sudo find "$dir" -mindepth 1 -maxdepth 3 -type d \( -name ".nuget" -o -name "obj" -o -name "bin" \) -exec rm -rf {} + 2>/dev/null || true
+            sudo rm -rf "$dir/.nuget" 2>/dev/null || true
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
           token: ${{ steps.app-token.outputs.token }}
-          # Self-hosted runners may have leftover Docker volume mount points
-          # from previous devcontainer builds that cannot be removed.
-          clean: false
 
       - name: Login to GHCR
         uses: docker/login-action@v4
