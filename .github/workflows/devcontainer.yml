@@ -76,7 +76,6 @@ jobs:
         with:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           imageTag: ${{ steps.tag.outputs.value }}
-          cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           push: always
           # runCmd triggers `devcontainer up` (which runs lifecycle commands
           # including verify.sh via postCreateCommand) instead of just
