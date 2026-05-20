@@ -91,7 +91,12 @@ public class KurrentDBFixture : AspireFixture {
     
     public KurrentClient GetNewAnonymousClient() =>
         GetNewClient(AnonymousConnectionString);
-    
+
+    /// <summary>
+    /// Exposes <see cref="AspireFixtureBase.FormatResourceLogs"/> for testing.
+    /// </summary>
+    public string CollectLogs() => FormatResourceLogs();
+
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var request = new ReadRecordsRequest {
             Direction    = ReadDirection.Backwards,
