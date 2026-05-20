@@ -58,6 +58,15 @@ jobs:
               print('EOF')
           " >> "$GITHUB_ENV"
 
+      # The devcontainers/ci action runs `npm install -g @devcontainers/cli`,
+      # which fails with EACCES on self-hosted runners that don't run as root.
+      # Redirect npm's global prefix to a user-writable directory.
+      - name: Configure npm global prefix
+        run: |
+          mkdir -p "$HOME/.npm-global"
+          npm config set prefix "$HOME/.npm-global"
+          echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
+
       - name: Build & Push
         uses: devcontainers/ci@v0.3
         with:
