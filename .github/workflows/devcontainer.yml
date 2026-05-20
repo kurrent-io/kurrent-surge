@@ -48,6 +48,10 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute image tag
+        id: tag
+        run: echo "value=$(date -u +'%y%j').${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
       - name: Import Repo Variables
         run: |
           echo '${{ toJSON(vars) }}' | python3 -c "
@@ -71,6 +75,7 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
+          imageTag: ${{ steps.tag.outputs.value }}
           cacheFrom: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
           push: always
           # runCmd triggers `devcontainer up` (which runs lifecycle commands
