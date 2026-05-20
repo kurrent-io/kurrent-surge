@@ -76,6 +76,11 @@ runs:
         ${{ steps.config.outputs.tunit-args }}
         ${{ inputs.extra-args }}
 
+    - name: Remove empty TRX files
+      if: '!cancelled()'
+      shell: bash
+      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm
+
     - name: ${{ steps.config.outputs.check-name }} report
       if: '!cancelled()'
       uses: dorny/test-reporter@v3
