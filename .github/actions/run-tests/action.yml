@@ -59,6 +59,10 @@ runs:
         echo "dotnet-args=$dotnet_args" >> "$GITHUB_OUTPUT"
         echo "tunit-args=$tunit_args" >> "$GITHUB_OUTPUT"
 
+    - name: Clean results directory
+      shell: bash
+      run: rm -rf ${{ steps.config.outputs.results-dir }}
+
     - name: Run ${{ inputs.category }} tests
       shell: bash
       env:
