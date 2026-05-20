@@ -28,21 +28,11 @@ jobs:
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      # Previous devcontainer builds leave Docker volume mount points in the
-      # workspace (.nuget/packages, .nuget/http-cache) that checkout cannot
-      # remove with normal rm — they must be unmounted first. Also prune any
-      # stopped devcontainer instances to release the mounts.
-      - name: Clean workspace volumes
-        run: |
-          docker container prune -f 2>/dev/null || true
-          dir="${GITHUB_WORKSPACE}"
-          if [ -d "$dir" ]; then
-            # Unmount any leftover bind/volume mounts inside the workspace
-            mount | grep "$dir" | awk '{print $3}' | sort -r | while read -r mp; do
-              sudo umount -f "$mp" 2>/dev/null || true
-            done
-            sudo rm -rf "$dir/.nuget" 2>/dev/null || true
-          fi
+      # Previous devcontainer builds create root-owned directories in the workspace
+      # via Docker named volumes (.nuget/packages, .nuget/http-cache). The checkout
+      # action runs as the unprivileged runner user and cannot remove them.
+      - name: Clean workspace
+        run: sudo rm -rf "${GITHUB_WORKSPACE}" && mkdir -p "${GITHUB_WORKSPACE}"
 
       - name: Checkout
         uses: actions/checkout@v6
