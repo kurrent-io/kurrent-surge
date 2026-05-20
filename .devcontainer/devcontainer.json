@@ -66,7 +66,9 @@
     }
   },
 
-  "onCreateCommand": "dotnet tool restore",
+  // The dotnet-tools volume mount causes Docker to create ~/.dotnet/ as root.
+  // Fix ownership before running any dotnet commands.
+  "onCreateCommand": "sudo chown -R vscode:vscode ~/.dotnet && dotnet tool restore",
   "updateContentCommand": "dotnet restore",
   "postCreateCommand": "dotnet build --no-restore",
   "waitFor": "postCreateCommand"
