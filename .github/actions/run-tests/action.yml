@@ -58,7 +58,7 @@ runs:
 
         echo "filter=${INPUT_FILTER:-$filter}" >> "$GITHUB_OUTPUT"
         echo "results-dir=$results_dir" >> "$GITHUB_OUTPUT"
-        echo "check-name=$report_name" >> "$GITHUB_OUTPUT"
+        echo "report-name=$report_name" >> "$GITHUB_OUTPUT"
         echo "tunit-args=$tunit_args" >> "$GITHUB_OUTPUT"
 
     - name: Enable automated test report artifact upload
@@ -99,11 +99,11 @@ runs:
       shell: bash
       run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
 
-    - name: ${{ steps.config.outputs.check-name }} report
+    - name: ${{ steps.config.outputs.report-name }} report
       if: '!cancelled()'
       uses: dorny/test-reporter@v3
       with:
-        name: ${{ steps.config.outputs.check-name }}
+        name: ${{ steps.config.outputs.report-name }}
         path: ${{ steps.config.outputs.results-dir }}/**/*.trx
         reporter: dotnet-trx
         fail-on-error: false
@@ -111,7 +111,7 @@ runs:
         only-summary: true
         max-annotations: 50
         badge-title: ${{ inputs.category }}
-        report-title: ${{ steps.config.outputs.check-name }}
+        report-title: ${{ steps.config.outputs.report-name }}
 
     - name: Annotate test host crash
       if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
