@@ -107,7 +107,14 @@ runs:
     - name: ${{ steps.config.outputs.report-name }} summary
       if: '!cancelled()'
       shell: bash
-      run: dnx dotnet-trx -- -p ${{ steps.config.outputs.results-dir }} --output --no-exit-code
+      run: |
+        if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+          export GITHUB_EVENT_NAME=pull_request
+          export GITHUB_REF_NAME=0/merge
+          dnx dotnet-trx -- -p ${{ steps.config.outputs.results-dir }} --output --no-exit-code -r false --gh-comment false
+        else
+          dnx dotnet-trx -- -p ${{ steps.config.outputs.results-dir }} --output --no-exit-code -r false
+        fi
 
     - name: Annotate test host crash
       if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
