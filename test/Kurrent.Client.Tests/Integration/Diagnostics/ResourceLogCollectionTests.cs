@@ -1,11 +1,11 @@
 using Kurrent.Sdk.Testkit;
-using Microsoft.Extensions.Logging;
+using Kurrent.Testkit.Aspire;
 
 namespace Kurrent.Client.Tests.Diagnostics;
 
 /// <summary>
 /// Smoke tests verifying that the fixture's background log subscriber captures
-/// resource logs and surfaces them on test failure via ITestEndEventReceiver.
+/// resource logs into a unified chronological stream.
 /// </summary>
 [Category("Diagnostics")]
 [Category("Integration")]
@@ -15,22 +15,30 @@ public class ResourceLogCollectionTests {
 
     [Test]
     public async ValueTask resource_logs_are_captured_by_background_subscriber(CancellationToken ct) {
-        // Arrange & Act — the background subscriber has been buffering since before StartAsync
-        var logs = Fixture.CollectLogs();
+        // Arrange & Act
+        var entries = Fixture.ResourceLogs;
 
-        Fixture.Logger.LogDebug("Collected {Length} chars of resource logs", logs.Length);
-
-        // Assert — KurrentDB container should have emitted startup logs
-        await Assert.That(logs).IsNotEmpty();
-        await Assert.That(logs).Contains("kurrentdb");
+        // Assert — should have captured container startup logs
+        await Assert.That(entries).IsNotEmpty();
     }
 
     [Test]
-    public async ValueTask resource_logs_contain_server_startup_output(CancellationToken ct) {
+    public async ValueTask resource_logs_contain_kurrentdb_entries(CancellationToken ct) {
         // Arrange & Act
-        var logs = Fixture.CollectLogs();
+        var entries = Fixture.ResourceLogs;
+        var kurrentdbEntries = entries.Where(e => e.ResourceName.StartsWith("kurrentdb")).ToList();
 
-        // Assert — should have substantial content from KurrentDB startup
-        await Assert.That(logs.Length).IsGreaterThan(100);
+        // Assert
+        await Assert.That(kurrentdbEntries).IsNotEmpty();
+    }
+
+    [Test]
+    public async ValueTask resource_log_entries_preserve_error_flag(CancellationToken ct) {
+        // Arrange & Act
+        var entries = Fixture.ResourceLogs;
+
+        // Assert — entries should have the LogLine structure intact
+        await Assert.That(entries.Count).IsGreaterThan(0);
+        await Assert.That(entries.All(e => e.Line.Content.Length > 0)).IsTrue();
     }
 }

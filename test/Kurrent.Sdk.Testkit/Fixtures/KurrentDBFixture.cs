@@ -36,18 +36,18 @@ public class KurrentDBFixture : AspireFixture {
                 .AddSingleton<TimeProvider>(sp => sp.GetRequiredService<FakeTimeProvider>());
         };
 
-        OnStarted = async () => {
+        AfterStart = async () => {
             ConnectionString = await AppModel
                 .GetRequiredConnectionString<KurrentDBServerResource>(ResourceName);
 
             AnonymousConnectionString = KurrentClientOptions.Parse(ConnectionString)
                 .With(opts => opts.Security = KurrentClientSecurityOptions.Tls)
                 .ToString();
-            
+
             Client = GetNewClient(ConnectionString);
         };
-        
-        OnStopping = async () => {
+
+        BeforeStop = async () => {
             if (Client is { } client)
                 await client.DisposeAsync();
         };
@@ -91,11 +91,6 @@ public class KurrentDBFixture : AspireFixture {
     
     public KurrentClient GetNewAnonymousClient() =>
         GetNewClient(AnonymousConnectionString);
-
-    /// <summary>
-    /// Exposes <see cref="AspireFixtureBase.FormatResourceLogs"/> for testing.
-    /// </summary>
-    public string CollectLogs() => FormatResourceLogs();
 
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
         var request = new ReadRecordsRequest {

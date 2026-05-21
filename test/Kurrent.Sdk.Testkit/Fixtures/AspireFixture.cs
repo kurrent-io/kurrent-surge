@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Humanizer;
 using Aspire.Hosting.KurrentDB;
 using Aspire.Hosting.Testing;
@@ -18,16 +20,18 @@ namespace Kurrent.Testkit.Aspire;
 /// <see cref="AspireFixture{T}"/> (AppHost project reference) — they differ only in how the
 /// <see cref="IDistributedApplicationTestingBuilder"/> is created.
 /// </summary>
-public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable, ITestEndEventReceiver {
+public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
     DistributedApplication? _app;
+    bool _initFailed;
 
     public AspireFixtureBase() {
         ApplicationName  = GetType().Name.Replace("Fixture", "");
         Options          = new();
         ConfigureAppHost = (_, __) => { };
         ConfigureBuilder = _ => { };
-        OnStarted        = () => ValueTask.CompletedTask;
-        OnStopping       = () => ValueTask.CompletedTask;
+        BeforeStart      = () => ValueTask.CompletedTask;
+        AfterStart       = () => ValueTask.CompletedTask;
+        BeforeStop       = () => ValueTask.CompletedTask;
     }
     
     protected string ApplicationName { get; private set; }
@@ -46,15 +50,21 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable, I
     protected Action<IDistributedApplicationTestingBuilder> ConfigureBuilder { get; init; }
 
     /// <summary>
+    /// Hook that runs after the app is built but before <see cref="DistributedApplication.StartAsync"/>.
+    /// The <see cref="App"/> and its service provider are available but no containers are running yet.
+    /// </summary>
+    protected Func<ValueTask> BeforeStart { get; init; }
+
+    /// <summary>
     /// Hook that runs after all resources are ready. Use for connection string resolution
     /// and client creation that depend on allocated endpoints.
     /// </summary>
-    protected Func<ValueTask> OnStarted { get; init; }
+    protected Func<ValueTask> AfterStart { get; init; }
 
     /// <summary>
-    /// Final hook to allow custom teardown logic before the application is terminated.
+    /// Hook that runs before the application is stopped. Use for client disposal and cleanup.
     /// </summary>
-    protected Func<ValueTask> OnStopping { get; init; }
+    protected Func<ValueTask> BeforeStop { get; init; }
 
     /// <summary>
     /// The Aspire distributed application instance managed by this fixture.
@@ -83,193 +93,204 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable, I
 
         Logger.LogDebug("Initializing fixture...");
 
-        var builder = await CreateBuilderAsync((options, settings) => {
-            settings.ApplicationName = ApplicationName;
-            options.DisableDashboard = true;
-            
-            settings.Configuration ??= new();
-            settings.Configuration.AddConfiguration(TestkitExecutionContext.Configuration);
-            
+        try {
+            var builder = await CreateBuilderAsync((options, settings) => {
+                settings.ApplicationName = ApplicationName;
+                options.DisableDashboard = true;
+                settings.Configuration ??= new();
+                settings.Configuration.AddConfiguration(TestkitExecutionContext.Configuration);
+
+                try {
+                    ConfigureAppHost(options, settings);
+                    ApplicationName = settings.ApplicationName;
+                } catch (Exception ex) {
+                    throw new AspireFixtureHookException(nameof(ConfigureAppHost), ex);
+                }
+            }).ConfigureAwait(false);
+
+            builder.Services.AddSingleton(TestkitExecutionContext.LoggerFactory);
+
             try {
-                ConfigureAppHost(options, settings);
-                ApplicationName = settings.ApplicationName;
+                ConfigureBuilder(builder);
             } catch (Exception ex) {
-                throw new("ConfigureAppHost failed", ex);
+                throw new AspireFixtureHookException(nameof(ConfigureBuilder), ex);
             }
-        }).ConfigureAwait(false);
 
-        builder.Services.AddSingleton(TestkitExecutionContext.LoggerFactory);
-        
-        try {
-            ConfigureBuilder(builder);
-        } catch (Exception ex) {
-            throw new("ConfigureBuilder failed", ex);
-        }
+            _app = await builder.BuildAsync().ConfigureAwait(false);
 
-        using var cts = new CancellationTokenSource(Options.StartupTimeout);
+            Logger.LogDebug("Aspire app built in {Elapsed}", stopwatch.Elapsed.Humanize());
 
-        _app = await builder.BuildAsync(cts.Token).ConfigureAwait(false);
+            // Subscribe to resource logs BEFORE StartAsync so we're the first subscriber.
+            // DCP only streams container stdout/stderr when subscribers exist, and the
+            // testing framework's ResourceLoggerForwarderService (a hosted service) starts
+            // during StartAsync. By subscribing first we capture the full log stream.
+            _ = StartResourceLogSubscriptions();
 
-        Logger.LogInformation("Aspire app built in {Elapsed}", stopwatch.Elapsed.Humanize());
-
-        // Subscribe to resource logs BEFORE StartAsync so we're the first subscriber.
-        // DCP only streams container stdout/stderr when subscribers exist, and the
-        // testing framework's ResourceLoggerForwarderService (a hosted service) starts
-        // during StartAsync. By subscribing first we capture the full log stream.
-        StartResourceLogSubscriptions();
-
-        try {
-            await App.StartAsync(cts.Token).ConfigureAwait(false);
-
-            Logger.LogInformation(
-                "Aspire app started in {Elapsed}. Waiting for resources (behavior: {WaitBehavior})...",
-                stopwatch.Elapsed.Humanize(), Options.WaitBehavior);
+            try {
+                await BeforeStart().ConfigureAwait(false);
+            } catch (Exception ex) {
+                throw new AspireFixtureHookException(nameof(BeforeStart), ex);
+            }
 
             await App
-                .EnsureResourcesReadyAsync(Options.ShouldWaitForResource, Options.WaitBehavior, cts.Token)
+                .LaunchAsync(Options.StartupTimeout, Options.WaitBehavior, Options.ShouldWaitForResource)
                 .ConfigureAwait(false);
 
-            Logger.LogInformation("All resources ready in {Elapsed}", stopwatch.Elapsed.Humanize());
+            Logger.LogInformation("Aspire app started with all resources ready in {Elapsed}", stopwatch.Elapsed.Humanize());
 
             try {
-                await OnStarted().ConfigureAwait(false);
+                await AfterStart().ConfigureAwait(false);
             } catch (Exception ex) {
-                throw new("Failed to run post-start setup", ex);
+                throw new AspireFixtureHookException(nameof(AfterStart), ex);
             }
-        } catch (OperationCanceledException) when (cts.IsCancellationRequested) {
-            var logs = FormatResourceLogs();
+        } catch (Exception ex) {
+            _initFailed = true;
 
-            throw new TimeoutException(
-                $"Timed out after {Options.StartupTimeout.Humanize()} waiting for application startup.{logs}");
+            if (ex is AspireFixtureInitException)
+                throw;
+
+            throw new AspireFixtureInitException(
+                ResourceLogs, ExpectedLogFilePath, Options.ResourceLogging.MaxExceptionLogLines, ex);
         }
     }
 
+    async ValueTask IAsyncDisposable.DisposeAsync() {
+        if (_app is null) return;
+
+        try {
+            WriteResourceLogFile();
+        } catch (Exception ex) {
+            if (_initFailed) {
+                Logger.LogWarning(ex, "Failed to write resource log file (logs already included in startup exception)");
+            } else {
+                Logger.LogWarning(ex, "Failed to write resource log file, flushing to logger instead");
+                FlushResourceLogs();
+            }
+        }
+
+        try {
+            await BeforeStop().ConfigureAwait(false);
+        } catch (Exception ex) {
+            throw new AspireFixtureHookException(nameof(BeforeStop), ex);
+        }
+
+        try {
+            await App.StopAsync().ConfigureAwait(false);
+            Logger.LogDebug("Aspire app stopped");
+            await App.DisposeAsync().ConfigureAwait(false);
+            Logger.LogDebug("Fixture disposed");
+        }
+        catch (Exception ex) {
+            
+            throw new AspireFixtureTeardownException(ExpectedLogFilePath, ex);
+        }
+    }
+    
     #region ->> Resource Log Collection <<-
 
-    readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _resourceLogs = new();
-    CancellationTokenSource? _logSubscriptionCts;
+    readonly ConcurrentQueue<ResourceLogEntry> _resourceLogs = new();
+    
+    long _logSequence;
+    long _lastFlushedSequence;
+    string? _resolvedLogFilePath;
 
-    /// <summary>
-    /// Maximum number of log lines to surface per resource when dumping on failure.
-    /// </summary>
-    protected int MaxLogLinesPerResource { get; init; } = 50;
+    string? ExpectedLogFilePath =>
+        Options.ResourceLogging.Enabled
+            ? Path.GetFullPath(Path.Combine(Options.ResourceLogging.LogDirectory, $"resource-logs-{TestSessionContext.Current?.Id ?? "unknown"}.jsonl"))
+            : null;
 
     /// <summary>
     /// Watches <see cref="ResourceNotificationService"/> for new resources and subscribes
     /// to their log streams via <see cref="ResourceLoggerService"/>. This mirrors how
     /// Aspire's internal <c>ResourceLoggerForwarderService</c> works — it discovers
     /// resources by their runtime ID (which may differ from the model name) and subscribes
-    /// to their log streams as they appear.
+    /// to their log streams as they appear. All resource logs merge into a single
+    /// chronological stream in <see cref="_resourceLogs"/>.
     /// </summary>
-    void StartResourceLogSubscriptions() {
-        _logSubscriptionCts = new CancellationTokenSource();
-        _ = WatchAndBufferResourceLogsAsync(_logSubscriptionCts.Token);
-    }
-
-    async Task WatchAndBufferResourceLogsAsync(CancellationToken ct) {
+    async Task StartResourceLogSubscriptions() {
         try {
             var notificationService = App.Services.GetRequiredService<ResourceNotificationService>();
-            var loggerService = App.Services.GetRequiredService<ResourceLoggerService>();
-            var subscribedIds = new HashSet<string>();
+            var loggerService       = App.Services.GetRequiredService<ResourceLoggerService>();
+            var subscribedIds       = new HashSet<string>();
 
-            await foreach (var evt in notificationService.WatchAsync(ct).ConfigureAwait(false)) {
-                if (subscribedIds.Add(evt.ResourceId)) {
-                    var queue = _resourceLogs.GetOrAdd(evt.Resource.Name, _ => new());
-                    _ = BufferLogsAsync(loggerService, evt.ResourceId, queue, ct);
+            await foreach (var evt in notificationService.WatchAsync().ConfigureAwait(false)) {
+                if (subscribedIds.Add(evt.ResourceId))
+                    _ = BufferLogsAsync(loggerService, evt.ResourceId, evt.Resource.Name);
+            }
+        } catch (OperationCanceledException) { }
+        
+        
+        async Task BufferLogsAsync(ResourceLoggerService loggerService, string resourceId, string resourceName) {
+            try {
+                // await loggerService.WatchAsync(resourceId)
+                //     .SelectMany(batch => batch.Select(line => new ResourceLogEntry(resourceName, line)))
+                //     .ForEachAsync(entry => _resourceLogs.Enqueue(entry))
+                //     .ConfigureAwait(false);
+                
+                await foreach (var batch in loggerService.WatchAsync(resourceId).ConfigureAwait(false)) {
+                    foreach (var line in batch)
+                        _resourceLogs.Enqueue(new(Interlocked.Increment(ref _logSequence), resourceId, resourceName, line));
                 }
-            }
-        } catch (OperationCanceledException) { }
+            } catch (OperationCanceledException) { }
+        }
     }
+    
+    /// <summary>
+    /// Returns all buffered resource log entries in arrival order.
+    /// </summary>
+    public IReadOnlyList<ResourceLogEntry> ResourceLogs => _resourceLogs.ToArray();
 
-    static async Task BufferLogsAsync(
-        ResourceLoggerService loggerService,
-        string resourceId,
-        ConcurrentQueue<string> queue,
-        CancellationToken ct
-    ) {
-        try {
-            await foreach (var batch in loggerService.WatchAsync(resourceId)
-                .WithCancellation(ct).ConfigureAwait(false)) {
-                foreach (var line in batch)
-                    queue.Enqueue(line.Content);
-            }
-        } catch (OperationCanceledException) { }
+    /// <summary>
+    /// Writes all unflushed resource log entries to the fixture's <see cref="Logger"/>.
+    /// Tracks the last flushed sequence so subsequent calls only emit new entries.
+    /// </summary>
+    public void FlushResourceLogs() {
+        var entries = _resourceLogs
+            .ToArray()
+            .Where(e => e.Sequence > _lastFlushedSequence)
+            .ToArray();
+
+        if (entries.Length == 0) return;
+
+        foreach (var entry in entries) {
+            if (entry.Line.IsErrorMessage)
+                Logger.LogError("[{Resource}] {Content}", entry.ResourceName, entry.Line.Content);
+            else
+                Logger.LogInformation("[{Resource}] {Content}", entry.ResourceName, entry.Line.Content);
+        }
+
+        _lastFlushedSequence = entries[^1].Sequence;
     }
 
     /// <summary>
-    /// Called by TUnit after each test completes. When a test fails, dumps the buffered
-    /// resource logs to the fixture's logger for diagnostic visibility.
+    /// Writes the full chronological resource log stream to a file in the configured directory.
+    /// The filename includes TUnit's <see cref="TestSessionContext.Id"/> for uniqueness per run.
     /// </summary>
-    async ValueTask ITestEndEventReceiver.OnTestEnd(TestContext context) {
-        if (context.Execution.Result?.State is not (TestState.Failed or TestState.Timeout))
-            return;
+    void WriteResourceLogFile() {
+        if (!Options.ResourceLogging.Enabled) return;
+        var dir = Options.ResourceLogging.LogDirectory;
 
-        if (_app is null)
-            return;
+        var entries = _resourceLogs.ToArray();
+        if (entries.Length == 0) return;
 
-        var logs = FormatResourceLogs();
+        var sessionId = TestSessionContext.Current?.Id ?? "unknown";
+        Directory.CreateDirectory(dir);
 
-        if (logs.Length > 0) {
-            Logger.LogError(
-                "Test {TestName} {State} — resource logs:{Logs}",
-                context.Metadata.TestDetails.TestName,
-                context.Execution.Result.State,
-                logs);
+        _resolvedLogFilePath = Path.Combine(dir, $"resource-logs-{sessionId}.jsonl");
+
+        using var fs   = new FileStream(_resolvedLogFilePath, FileMode.Create, FileAccess.Write);
+        using var json = new Utf8JsonWriter(fs, new JsonWriterOptions { SkipValidation = true });
+        foreach (var entry in entries) {
+            JsonSerializer.Serialize(json, entry, ResourceLogJsonContext.Default.ResourceLogEntry);
+            json.Flush();
+            fs.Write("\n"u8);
+            json.Reset();
         }
 
-        await ValueTask.CompletedTask.ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Formats the buffered resource logs for all compute resources into a single
-    /// string block suitable for embedding in log messages or exceptions.
-    /// </summary>
-    protected string FormatResourceLogs() {
-        var sb = new StringBuilder();
-
-        foreach (var (name, queue) in _resourceLogs) {
-            var lines = queue.ToArray();
-            if (lines.Length == 0) continue;
-
-            sb.AppendLine();
-            sb.AppendLine();
-            sb.AppendLine($"--- {name} logs ---");
-
-            if (lines.Length > MaxLogLinesPerResource) {
-                var skipped = lines.Length - MaxLogLinesPerResource;
-                sb.AppendLine($"  ... ({skipped} earlier lines omitted)");
-                foreach (var line in lines.Skip(skipped))
-                    sb.AppendLine($"  {line}");
-            } else {
-                foreach (var line in lines)
-                    sb.AppendLine($"  {line}");
-            }
-        }
-
-        return sb.ToString();
+        Logger.LogInformation("Resource logs written to {Path} ({Count} entries)", _resolvedLogFilePath, entries.Length);
     }
 
     #endregion // Resource Log Collection
-
-    async ValueTask IAsyncDisposable.DisposeAsync() {
-        if (_app is null) return;
-
-        if (_logSubscriptionCts is not null) {
-            await _logSubscriptionCts.CancelAsync().ConfigureAwait(false);
-            _logSubscriptionCts.Dispose();
-        }
-
-        try {
-            await OnStopping().ConfigureAwait(false);
-        } catch (Exception ex) {
-            throw new("OnStopping failed", ex);
-        }
-
-        await App.StopAsync().ConfigureAwait(false);
-        Logger.LogDebug("Aspire app stopped");
-        await App.DisposeAsync().ConfigureAwait(false);
-        Logger.LogDebug("Fixture disposed");
-    }
 }
 
 /// <summary>
@@ -307,5 +328,100 @@ public sealed record AspireFixtureOptions {
     /// Predicate to determine which resources should be waited for.
     /// Defaults to all compute resources.
     /// </summary>
-    public Func<IResource, bool> ShouldWaitForResource { get; init; } = r => r is IComputeResource;
+    public Func<IResource, bool> ShouldWaitForResource { get; init; } = r => r is IComputeResource and not IResourceWithParent;
+
+    /// <summary>
+    /// Resource log collection settings.
+    /// </summary>
+    public ResourceLoggingOptions ResourceLogging { get; init; } = new();
+}
+
+public sealed record ResourceLoggingOptions {
+    /// <summary>
+    /// Whether to write the full chronological resource log file on dispose.
+    /// Default: true.
+    /// </summary>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>
+    /// Number of recent log entries to include in exception messages as a hint.
+    /// These are the last N entries in arrival order across all resources.
+    /// Default: 20.
+    /// </summary>
+    public int MaxExceptionLogLines { get; init; } = 20;
+
+    /// <summary>
+    /// Directory to write the full chronological resource log file on dispose.
+    /// The file is named <c>resource-logs-{session-id}.jsonl</c> using TUnit's
+    /// <see cref="TestSessionContext.Id"/> for uniqueness per test run.
+    /// </summary>
+    public string LogDirectory { get; init; } = ".artifacts/test-results";
+}
+
+/// <summary>
+/// A single log line captured from a resource's stdout/stderr stream.
+/// </summary>
+public readonly record struct ResourceLogEntry(long Sequence, string ResourceId, string ResourceName, LogLine Line);
+
+[JsonSerializable(typeof(ResourceLogEntry))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+partial class ResourceLogJsonContext : JsonSerializerContext;
+
+public class AspireFixtureException(string message, Exception? innerException = null)
+    : Exception(message, innerException);
+
+public sealed class AspireFixtureHookException(string hookName, Exception innerException)
+    : AspireFixtureException($"{hookName} hook failed", innerException);
+
+public class AspireFixtureInitException(
+    IReadOnlyList<ResourceLogEntry> resourceLogs,
+    string? logFilePath,
+    int maxLogLines,
+    Exception innerException
+)
+    : AspireFixtureException(
+        GenerateLogSummary(
+            DefaultMessage, resourceLogs, logFilePath,
+            maxLogLines),
+        innerException) {
+    const string DefaultMessage = "Aspire fixture initialization failed";
+
+    static string GenerateLogSummary(string message, IReadOnlyList<ResourceLogEntry> logs, string? logFilePath, int maxLines) {
+        var sb = new StringBuilder(message);
+
+        if (logs.Count > 0) {
+            sb.AppendLine();
+            sb.AppendLine("--- recent resource logs ---");
+
+            var tail = logs.Count > maxLines ? logs.Skip(logs.Count - maxLines) : logs;
+
+            if (logs.Count > maxLines)
+                sb.AppendLine($"  ... ({logs.Count - maxLines} earlier entries omitted)");
+
+            foreach (var entry in tail) {
+                var prefix = entry.Line.IsErrorMessage ? "ERR" : "INF";
+                sb.AppendLine($"  [{prefix}] [{entry.ResourceName}] {entry.Line.Content}");
+            }
+        }
+
+        if (logFilePath is not null) {
+            var fullPath = Path.GetFullPath(logFilePath);
+            sb.AppendLine();
+            sb.AppendLine($"Full resource logs: {fullPath}");
+        }
+
+        return sb.ToString();
+    }
+}
+
+public sealed class AspireFixtureTeardownException(string? logFilePath, Exception innerException) 
+    : AspireFixtureException(FormatMessage(logFilePath), innerException) {
+    const string DefaultMessage = "Aspire fixture teardown failed";
+
+    static string FormatMessage(string? logFilePath) {
+        if (logFilePath is null) return DefaultMessage;
+
+        var fullPath = Path.GetFullPath(logFilePath);
+        return $"{DefaultMessage}{Environment.NewLine}Full resource logs: {fullPath}";
+    }
 }
