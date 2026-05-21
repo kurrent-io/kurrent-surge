@@ -13,7 +13,7 @@ inputs:
     required: false
     default: ''
   report-name:
-    description: Check run name for the test report. Overrides the category default.
+    description: Sets the test report name. Overrides the category default.
     required: false
     default: ''
   extra-args:
@@ -36,15 +36,13 @@ runs:
           unit)
             filter="/*/*/*/*[Category!=Integration]"
             results_dir=".artifacts/test-results/unit"
-            check_name="Unit Tests"
-            dotnet_args=""
+            report_name="Unit Tests"
             tunit_args=""
             ;;
           integration)
             filter="/*/*/*/*[Category=Integration]"
             results_dir=".artifacts/test-results/integration"
-            check_name="Integration Tests"
-            dotnet_args="-f net10.0"
+            report_name="Integration Tests"
             tunit_args="--maximum-failed-tests 1"
             ;;
           *)
@@ -53,15 +51,14 @@ runs:
             ;;
         esac
 
-        check_name="${INPUT_REPORT_NAME:-$check_name}"
+        report_name="${INPUT_REPORT_NAME:-$report_name}"
         if [[ "$tunit_args" == *"--maximum-failed-tests"* ]]; then
-          check_name="$check_name (fail fast)"
+          report_name="$report_name (fail fast)"
         fi
 
         echo "filter=${INPUT_FILTER:-$filter}" >> "$GITHUB_OUTPUT"
         echo "results-dir=$results_dir" >> "$GITHUB_OUTPUT"
-        echo "check-name=$check_name" >> "$GITHUB_OUTPUT"
-        echo "dotnet-args=$dotnet_args" >> "$GITHUB_OUTPUT"
+        echo "check-name=$report_name" >> "$GITHUB_OUTPUT"
         echo "tunit-args=$tunit_args" >> "$GITHUB_OUTPUT"
 
     - name: Enable automated test report artifact upload
@@ -80,7 +77,7 @@ runs:
       shell: bash
       env:
         TUNIT_DISABLE_HTML_REPORTER: false
-        TUNIT_DISABLE_GITHUB_REPORTER: true
+        TUNIT_DISABLE_GITHUB_REPORTER: false
         TUNIT_DISABLE_LOGO: true
         TESTINGPLATFORM_TELEMETRY_OPTOUT: true
       run: |
