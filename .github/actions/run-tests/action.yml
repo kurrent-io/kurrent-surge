@@ -82,36 +82,35 @@ runs:
         TESTINGPLATFORM_TELEMETRY_OPTOUT: true
       run: |
         dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 \
-          ${{ steps.config.outputs.dotnet-args }} \
           --results-directory ${{ steps.config.outputs.results-dir }} \
           -- \
           --treenode-filter "${{ steps.config.outputs.filter }}" \
           --report-trx \
-          --report-html-filename "${{ steps.config.outputs.filter }}/${{ inputs.category }}/${{ inputs.category }}-report.html" \
+          --report-html-filename "${{ steps.config.outputs.results-dir }}/${{ inputs.category }}-report.html" \
           ${{ steps.config.outputs.tunit-args }} \
           ${{ inputs.extra-args }} \
           || exit_code=$?
         echo "exit-code=${exit_code:-0}" >> "$GITHUB_OUTPUT"
         exit ${exit_code:-0}
 
-    - name: Remove empty TRX files
-      if: '!cancelled()'
-      shell: bash
-      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
+#    - name: Remove empty TRX files
+#      if: '!cancelled()'
+#      shell: bash
+#      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
 
-    - name: ${{ steps.config.outputs.report-name }} report
-      if: '!cancelled()'
-      uses: dorny/test-reporter@v3
-      with:
-        name: ${{ steps.config.outputs.report-name }}
-        path: ${{ steps.config.outputs.results-dir }}/**/*.trx
-        reporter: dotnet-trx
-        fail-on-error: false
-        fail-on-empty: false
-        only-summary: true
-        max-annotations: 50
-        badge-title: ${{ inputs.category }}
-        report-title: ${{ steps.config.outputs.report-name }}
+#    - name: ${{ steps.config.outputs.report-name }} report
+#      if: '!cancelled()'
+#      uses: dorny/test-reporter@v3
+#      with:
+#        name: ${{ steps.config.outputs.report-name }}
+#        path: ${{ steps.config.outputs.results-dir }}/**/*.trx
+#        reporter: dotnet-trx
+#        fail-on-error: false
+#        fail-on-empty: false
+#        only-summary: true
+#        max-annotations: 50
+#        badge-title: ${{ inputs.category }}
+#        report-title: ${{ steps.config.outputs.report-name }}
 
     - name: Annotate test host crash
       if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
