@@ -32,29 +32,16 @@ runs:
         INPUT_FILTER: ${{ inputs.filter }}
         INPUT_REPORT_NAME: ${{ inputs.report-name }}
       run: |
+        results_dir=".artifacts/test-results/$INPUT_CATEGORY"
+
         case "$INPUT_CATEGORY" in
-          unit)
-            filter="/*/*/*/*[Category!=Integration]"
-            results_dir=".artifacts/test-results/unit"
-            report_name="Unit Tests"
-            tunit_args=""
-            ;;
-          integration)
-            filter="/*/*/*/*[Category=Integration]"
-            results_dir=".artifacts/test-results/integration"
-            report_name="Integration Tests"
-            tunit_args="--maximum-failed-tests 1"
-            ;;
-          *)
-            echo "::error::Unknown test category: $INPUT_CATEGORY (expected 'unit' or 'integration')"
-            exit 1
-            ;;
+          unit)        filter="/*/*/*/*[Category!=Integration]" ; tunit_args="" ;;
+          integration) filter="/*/*/*/*[Category=Integration]"  ; tunit_args="--maximum-failed-tests 1" ;;
+          *) echo "::error::Unknown test category: $INPUT_CATEGORY (expected 'unit' or 'integration')"; exit 1 ;;
         esac
 
-        report_name="${INPUT_REPORT_NAME:-$report_name}"
-        if [[ "$tunit_args" == *"--maximum-failed-tests"* ]]; then
-          report_name="$report_name (fail fast)"
-        fi
+        report_name="${INPUT_REPORT_NAME:-${INPUT_CATEGORY^} Tests}"
+        [[ "$tunit_args" == *"--maximum-failed-tests"* ]] && report_name="$report_name (fail fast)"
 
         echo "filter=${INPUT_FILTER:-$filter}" >> "$GITHUB_OUTPUT"
         echo "results-dir=$results_dir" >> "$GITHUB_OUTPUT"
@@ -73,6 +60,7 @@ runs:
         TUNIT_DISABLE_GITHUB_REPORTER: true
         TUNIT_DISABLE_LOGO: true
         TESTINGPLATFORM_TELEMETRY_OPTOUT: true
+        EXTRA_ARGS: ${{ inputs.extra-args }}
       run: |
         dotnet test -c Release --no-build --no-progress --ignore-exit-code 8 \
           --results-directory ${{ steps.config.outputs.results-dir }} \
@@ -80,41 +68,29 @@ runs:
           --treenode-filter "${{ steps.config.outputs.filter }}" \
           --report-trx \
           ${{ steps.config.outputs.tunit-args }} \
-          ${{ inputs.extra-args }} \
+          $EXTRA_ARGS \
           || exit_code=$?
         echo "exit-code=${exit_code:-0}" >> "$GITHUB_OUTPUT"
         exit ${exit_code:-0}
 
-#    - name: Remove empty TRX files
-#      if: '!cancelled()'
-#      shell: bash
-#      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
-
-#    - name: ${{ steps.config.outputs.report-name }} report
-#      if: '!cancelled()'
-#      uses: dorny/test-reporter@v3
-#      with:
-#        name: ${{ steps.config.outputs.report-name }}
-#        path: ${{ steps.config.outputs.results-dir }}/**/*.trx
-#        reporter: dotnet-trx
-#        fail-on-error: false
-#        fail-on-empty: false
-#        only-summary: true
-#        max-annotations: 50
-#        badge-title: ${{ inputs.category }}
-#        report-title: ${{ steps.config.outputs.report-name }}
-
-    - name: ${{ steps.config.outputs.report-name }} summary
+    - name: Remove empty TRX files
       if: '!cancelled()'
       shell: bash
-      run: |
-        if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
-          export GITHUB_EVENT_NAME=pull_request
-          export GITHUB_REF_NAME=0/merge
-          dnx dotnet-trx -- -p ${{ steps.config.outputs.results-dir }} --output --no-exit-code -r false --gh-comment false
-        else
-          dnx dotnet-trx -- -p ${{ steps.config.outputs.results-dir }} --output --no-exit-code -r false
-        fi
+      run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
+
+    - name: ${{ steps.config.outputs.report-name }} report
+      if: '!cancelled()'
+      uses: dorny/test-reporter@v3
+      with:
+        name: ${{ steps.config.outputs.report-name }}
+        path: ${{ steps.config.outputs.results-dir }}/**/*.trx
+        reporter: dotnet-trx
+        fail-on-error: false
+        fail-on-empty: false
+        only-summary: true
+        max-annotations: 50
+        badge-title: ${{ inputs.category }}
+        report-title: ${{ steps.config.outputs.report-name }}
 
     - name: Annotate test host crash
       if: ${{ !cancelled() && steps.test.outputs.exit-code > 128 }}
