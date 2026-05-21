@@ -77,7 +77,7 @@ runs:
       shell: bash
       env:
         TUNIT_DISABLE_HTML_REPORTER: false
-        TUNIT_DISABLE_GITHUB_REPORTER: false
+#        TUNIT_DISABLE_GITHUB_REPORTER: false
         TUNIT_DISABLE_LOGO: true
         TESTINGPLATFORM_TELEMETRY_OPTOUT: true
       run: |
