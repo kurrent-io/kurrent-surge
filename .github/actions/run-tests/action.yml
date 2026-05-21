@@ -64,6 +64,13 @@ runs:
         echo "dotnet-args=$dotnet_args" >> "$GITHUB_OUTPUT"
         echo "tunit-args=$tunit_args" >> "$GITHUB_OUTPUT"
 
+    - name: Enable automated test report artifact upload
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN']);
+          core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL']);
+
     - name: Clean results directory
       shell: bash
       run: rm -rf ${{ steps.config.outputs.results-dir }}
@@ -143,11 +150,11 @@ runs:
           } >> "$GITHUB_STEP_SUMMARY"
         fi
 
-    - name: Upload HTML test report
-      if: '!cancelled()'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.category }}-test-report
-        path: ${{ steps.config.outputs.results-dir }}/**/*.html
-        if-no-files-found: ignore
-        retention-days: 14
+    # - name: Upload HTML test report
+    #   if: '!cancelled()'
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ${{ inputs.category }}-test-report
+    #     path: ${{ steps.config.outputs.results-dir }}/*.html
+    #     if-no-files-found: ignore
+    #     retention-days: 14

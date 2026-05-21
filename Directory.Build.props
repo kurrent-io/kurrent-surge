@@ -20,7 +20,7 @@
     <!-- RS2008: Enable analyzer release tracking for the analyzer project containing rule `[RULE_CODE]` -->
     <!-- TestCaseGenerators - TUnit0001: TUnit0001:Test argument types don't match method parameters -->
     <!-- TestCaseGenerators - TUnit0038: No data source provided -->
-    <NoWarn>$(NoWarn);NETSDK1057;RS2008;TUnit0001;TUnit0038</NoWarn>
+    <NoWarn>$(NoWarn);NETSDK1057;RS2008;TUnit0001;TUnit0038;</NoWarn>
 
     <!-- CI builds -->
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
