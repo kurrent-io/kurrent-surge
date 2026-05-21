@@ -86,7 +86,6 @@ runs:
           -- \
           --treenode-filter "${{ steps.config.outputs.filter }}" \
           --report-trx \
-          --report-html-filename "${{ steps.config.outputs.results-dir }}/${{ inputs.category }}-report.html" \
           ${{ steps.config.outputs.tunit-args }} \
           ${{ inputs.extra-args }} \
           || exit_code=$?
