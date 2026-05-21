@@ -50,7 +50,6 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
           fetch-depth: 0
-          clean: false
 
       - name: Detect Changes
         id: changes

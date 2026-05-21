@@ -60,6 +60,7 @@ ACTIONS
 CATEGORIES
   unit          Exclude tests with [Category("Integration")]
   integration   Include only [Category("Integration")] tests
+  all           Run both unit and integration tests (no category filter)
 
   By convention, all integration tests MUST be decorated with [Category("Integration")].
   Tests without this attribute are treated as unit tests. If an integration test appears
@@ -110,7 +111,7 @@ case "$ACTION" in
   run|list) ;;
   *)
     echo "Unknown action: $ACTION" >&2
-    echo "Usage: test.sh <run|list> <unit|integration> [tunit-args...]" >&2
+    echo "Usage: test.sh <run|list> <unit|integration|all> [tunit-args...]" >&2
     exit 1
     ;;
 esac
@@ -121,9 +122,10 @@ shift 2>/dev/null || true
 case "$CATEGORY" in
   unit)        CATEGORY_PROP="Category!=Integration" ;;
   integration) CATEGORY_PROP="Category=Integration" ;;
+  all)         CATEGORY_PROP="" ;;
   *)
     echo "Unknown category: ${CATEGORY:-<missing>}" >&2
-    echo "Usage: test.sh $ACTION <unit|integration> [tunit-args...]" >&2
+    echo "Usage: test.sh $ACTION <unit|integration|all> [tunit-args...]" >&2
     exit 1
     ;;
 esac
@@ -144,7 +146,10 @@ done
 
 # Append category property to the filter's last segment.
 # If the filter already has properties [X=Y], merge with AND: [(X=Y)&(Category...)].
-if [[ -n "$USER_FILTER" ]]; then
+# When CATEGORY_PROP is empty (all), skip the category constraint entirely.
+if [[ -z "$CATEGORY_PROP" ]]; then
+  FILTER="${USER_FILTER:-/*/*/*/*}"
+elif [[ -n "$USER_FILTER" ]]; then
   if [[ "$USER_FILTER" == *"]" ]]; then
     path="${USER_FILTER%%\[*}"
     props="${USER_FILTER#*\[}" && props="${props%]}"

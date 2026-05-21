@@ -1,0 +1,7 @@
+<Project>
+  <!-- Suppress all warnings in Release for non-packable projects (tests, tools, shared infra).
+       Evaluated in .targets so IsPackable has its final value from each .csproj. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(IsPackable)' != 'true'">
+    <WarningLevel>0</WarningLevel>
+  </PropertyGroup>
+</Project>
