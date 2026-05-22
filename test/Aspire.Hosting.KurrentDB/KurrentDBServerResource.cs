@@ -7,7 +7,7 @@ using Aspire.Hosting.KurrentDB;
 namespace Aspire.Hosting.ApplicationModel;
 
 [AspireExport(ExposeProperties = true)]
-public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionString {
+public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionString, IResourceWithEnvironment {
     public const string DefaultResourceName = "kurrentdb";
     public const int    DefaultHttpPort     = 2113;
 
@@ -27,7 +27,9 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
             "aspire", "kurrentdb", "certs", name);
     }
     
-    KurrentDBSettings Settings { get; }
+    internal KurrentDBSettings Settings { get; }
+
+    internal KurrentServerSettings ServerSettings { get; } = new();
 
     public string CertsHostPath { get; }
 

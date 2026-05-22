@@ -15,7 +15,7 @@ public static class KurrentDBBuilderExtensions {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         settings.EnsureValid();
-        
+
         app.Services.AddResourceConnectionProvider();
 
         var server = new KurrentDBServerResource(name, settings);
@@ -44,6 +44,15 @@ public static class KurrentDBBuilderExtensions {
 
     public static IResourceBuilder<KurrentDBServerResource> AddKurrentDB(
         this IDistributedApplicationBuilder app,
+        [ResourceName] string name = KurrentDBServerResource.DefaultResourceName
+    ) {
+        var settings = new KurrentDBSettings();
+        app.Configuration.GetSection("KurrentDB").Bind(settings);
+        return app.AddKurrentDB(name, settings);
+    }
+
+    public static IResourceBuilder<KurrentDBServerResource> AddKurrentDB(
+        this IDistributedApplicationBuilder app,
         Action<KurrentDBSettings> configure,
         [ResourceName] string name = KurrentDBServerResource.DefaultResourceName
     ) {
@@ -53,23 +62,98 @@ public static class KurrentDBBuilderExtensions {
         return app.AddKurrentDB(name, settings);
     }
 
-    public static IResourceBuilder<KurrentDBServerResource> AddKurrentDB(
-        this IDistributedApplicationBuilder app
-    ) => app.AddKurrentDB(_ => { });
+    #region ->> Builder Extensions <<-
+
+    /// <summary>
+    /// Configures the cluster topology with the specified number of nodes and optional read-only replicas.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> WithCluster(
+        this IResourceBuilder<KurrentDBServerResource> builder,
+        int nodes = 3,
+        int replicas = 0
+    ) {
+        builder.Resource.Settings.Topology.Nodes    = nodes;
+        builder.Resource.Settings.Topology.Replicas = replicas;
+        return builder;
+    }
+
+    /// <summary>
+    /// Sets the credentials for the KurrentDB resource.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> WithCredentials(
+        this IResourceBuilder<KurrentDBServerResource> builder,
+        string userName,
+        string password = "changeit"
+    ) {
+        builder.Resource.Settings.Credentials = new() { UserName = userName, Password = password };
+        return builder;
+    }
+
+    /// <summary>
+    /// Sets the license key for KurrentDB licensed features.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> WithLicenseKey(
+        this IResourceBuilder<KurrentDBServerResource> builder,
+        string licenseKey
+    ) {
+        builder.Resource.Settings.LicenseKey = licenseKey;
+        return builder;
+    }
+
+    /// <summary>
+    /// Disables TLS encryption on all nodes.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> RunInsecure(this IResourceBuilder<KurrentDBServerResource> builder) {
+        builder.Resource.Settings.TlsEnabled = false;
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables X.509 user certificate authentication.
+    /// Requires TLS and a valid license key.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> WithUserCertificates(this IResourceBuilder<KurrentDBServerResource> builder) {
+        builder.Resource.Settings.UserCertificatesEnabled = true;
+        return builder;
+    }
+
+    /// <summary>
+    /// Configures OpenTelemetry export settings for the KurrentDB nodes.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> WithOpenTelemetry(
+        this IResourceBuilder<KurrentDBServerResource> builder,
+        Action<OpenTelemetrySettings> configure
+    ) {
+        configure(builder.Resource.Settings.OpenTelemetry);
+        return builder;
+    }
+
+    /// <summary>
+    /// Configures KurrentDB server settings that map to <c>KURRENTDB_*</c> environment variables.
+    /// </summary>
+    public static IResourceBuilder<KurrentDBServerResource> WithServerSettings(
+        this IResourceBuilder<KurrentDBServerResource> builder,
+        Action<KurrentServerSettings> configure
+    ) {
+        configure(builder.Resource.ServerSettings);
+        return builder;
+    }
+
+    #endregion // Builder Extensions
 
     static IResourceBuilder<KurrentDBResource> AddNode(
         this IResourceBuilder<KurrentDBServerResource> serverBuilder,
         int nodeIndex,
         KurrentDBSettings settings
     ) {
-        var app      = serverBuilder.ApplicationBuilder;
-        var server   = serverBuilder.Resource;
-        
-        var isReplica = nodeIndex >=  settings.Topology.Nodes;
+        var app    = serverBuilder.ApplicationBuilder;
+        var server = serverBuilder.Resource;
+
+        var isReplica = nodeIndex >= settings.Topology.Nodes;
         var nodeName  = isReplica ? $"{server.Name}-ro{nodeIndex + 1:00}" : $"{server.Name}-{nodeIndex + 1:00}";
         var priority  = settings.Topology.NodeConfigurations[nodeIndex].Priority;
         // var node =   new KurrentDBResource(nodeName, server, priority);
-        
+
         var node = server.AddNode(nodeName, priority);
 
         var builder = app
@@ -78,28 +162,39 @@ public static class KurrentDBBuilderExtensions {
             .WithImage(settings.Container.Image, settings.Container.Tag)
             .WithImageRegistry(settings.Container.Registry)
             .WithImagePullPolicy(ImagePullPolicy.Default)
-            .WithEnvironment(ctx => node.ConfigureEnvironment(ctx, settings))
+            .WithEnvironment(async ctx => {
+                node.ConfigureEnvironment(ctx, settings);
+
+                // Fan out env vars set on the server builder via .WithEnvironment()
+                foreach (var annotation in server.Annotations.OfType<EnvironmentCallbackAnnotation>())
+                    await annotation.Callback(ctx);
+            })
             .WithLifetime(settings.Lifetime);
 
-        if (server.TlsEnabled) {
+        if (server.TlsEnabled)
             builder
-                .WithEndpoint("http", ep => { ep.UriScheme = "https"; ep.TlsEnabled = true; })
-                .WithBindMount(server.CertsHostPath, "/etc/kurrentdb/certs", isReadOnly: true);
-        }
+                .WithEndpoint(
+                    "http", callback: ep => {
+                        ep.UriScheme  = "https";
+                        ep.TlsEnabled = true;
+                    })
+                .WithBindMount(server.CertsHostPath, "/etc/kurrentdb/certs", true);
 
         var healthCheckKey = $"{node.Name}_check";
 
-        app.Services
+        app
+            .Services
             .AddHealthChecks()
-            .Add(new HealthCheckRegistration(
-                healthCheckKey,
-                sp => {
-                    var subscriber    = sp.GetRequiredService<ResourceConnectionProvider>();
-                    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-                    return new KurrentDBHealthCheck(node.Name, subscriber, loggerFactory);
-                },
-                failureStatus: HealthStatus.Unhealthy,
-                tags: []));
+            .Add(
+                new(
+                    healthCheckKey,
+                    factory: sp => {
+                        var subscriber    = sp.GetRequiredService<ResourceConnectionProvider>();
+                        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+                        return new KurrentDBHealthCheck(node.Name, subscriber, loggerFactory);
+                    },
+                    HealthStatus.Unhealthy,
+                    []));
 
         builder
             .WithHealthCheck(healthCheckKey)
@@ -108,20 +203,18 @@ public static class KurrentDBBuilderExtensions {
         return builder;
     }
 
-    public static IResourceBuilder<KurrentDBServerResource> WithClusterHealthCheck(
-        this IResourceBuilder<KurrentDBServerResource> serverBuilder
-    ) {
+    public static IResourceBuilder<KurrentDBServerResource> WithClusterHealthCheck(this IResourceBuilder<KurrentDBServerResource> serverBuilder) {
         var app    = serverBuilder.ApplicationBuilder;
         var server = serverBuilder.Resource;
 
-        app.Services.AddHttpClient(KurrentDBClusterHealthCheck.HttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler {
-                ServerCertificateCustomValidationCallback = (_, _, _, _) => true
-            });
+        app
+            .Services.AddHttpClient(KurrentDBClusterHealthCheck.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true });
 
         var healthCheckKey = $"{server.Name}_cluster_check";
 
-        app.Services
+        app
+            .Services
             .AddHealthChecks()
             .AddTypeActivatedCheck<KurrentDBClusterHealthCheck>(healthCheckKey, server);
 
@@ -136,15 +229,16 @@ public static class KurrentDBBuilderExtensions {
     ) {
         var scriptPath = Path.Combine(AppContext.BaseDirectory, "gencert.sh");
 
-        var certGen = app.AddExecutable(
-            name: $"{name}-certs", command: "/bin/bash", workingDirectory: ".");
+        var certGen = app.AddExecutable($"{name}-certs", "/bin/bash", ".");
 
         certGen.WithArgs(context => {
-            var dnsNames = string.Join(",", server.Nodes
-                .Select(r => r.Name)
-                .Distinct(StringComparer.Ordinal)
-                .Prepend("localhost"));
-            
+            var dnsNames = string.Join(
+                ",", server
+                    .Nodes
+                    .Select(r => r.Name)
+                    .Distinct(StringComparer.Ordinal)
+                    .Prepend("localhost"));
+
             context.Args.Add(scriptPath);
             context.Args.Add("--output");
             context.Args.Add(certsHostPath);
@@ -172,7 +266,7 @@ static class NodeConfiguration {
         ["KURRENTDB_INSECURE"]                       = "true",
         ["KURRENTDB_SECONDARY_INDEXING__ENABLED"]    = "true",
         ["KURRENTDB_OPEN_TELEMETRY__OTLP__ENDPOINT"] = null,
-        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "false",
+        ["KURRENTDB_OPEN_TELEMETRY__LOGS__ENABLED"]  = "false"
     };
 
     public static readonly IReadOnlyDictionary<string, string?> Secure = new Dictionary<string, string?>(Insecure) {
