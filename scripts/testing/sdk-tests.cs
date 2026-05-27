@@ -222,11 +222,21 @@ async Task<int> RunTests(string category, string? userFilter, string[] passthrou
     var subtitle = $"{category} tests";
 
     if (trxFiles.Length > 0) {
-        // Generate persistent .md reports (default preset, silent)
-        await Cli.Wrap(trx2md)
+        // Generate persistent .md reports (default preset, silent).
+        // ExecuteBufferedAsync ensures the process fully completes before continuing —
+        // ExecuteAsync can return before file writes are flushed.
+        var trx2mdResult = await Cli.Wrap(trx2md)
             .WithArguments(b => { b.Add("--subtitle").Add(subtitle); foreach (var f in trxFiles) b.Add(f); })
             .WithValidation(CommandResultValidation.None)
-            .ExecuteAsync();
+            .ExecuteBufferedAsync();
+
+        if (trx2mdResult.ExitCode != 0) {
+            AnsiConsole.MarkupLine($"[red]trx2md failed (exit {trx2mdResult.ExitCode})[/]");
+            if (!string.IsNullOrEmpty(trx2mdResult.StandardError))
+                AnsiConsole.MarkupLine($"[red]{Markup.Escape(trx2mdResult.StandardError)}[/]");
+            if (!string.IsNullOrEmpty(trx2mdResult.StandardOutput))
+                AnsiConsole.MarkupLine($"[dim]{Markup.Escape(trx2mdResult.StandardOutput)}[/]");
+        }
 
         // Get the ai summary for terminal display
         var mdReport = await Cli.Wrap(trx2md)
