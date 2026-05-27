@@ -3,7 +3,7 @@ namespace Kurrent.Client;
 /// <summary>
 /// Provides extension methods for URI data string manipulation.
 /// </summary>
-public static class UriDataStringExtensions {
+static class UriDataStringExtensions {
     /// <summary>
     /// Unescapes a URI data string if it contains percent-encoded characters.
     /// If the string does not contain any '%', it is returned পরিবর্তন না করে.

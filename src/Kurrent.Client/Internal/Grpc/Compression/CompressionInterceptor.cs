@@ -6,7 +6,7 @@ namespace Kurrent.Grpc.Compression;
 /// <summary>
 /// A gRPC interceptor that applies compression to outgoing requests using the specified compression provider.
 /// </summary>
-public class CompressionInterceptor : Interceptor {
+class CompressionInterceptor : Interceptor {
 	const string CompressionRequestAlgorithmHeader = "grpc-internal-encoding-request";
 
 	/// <summary>

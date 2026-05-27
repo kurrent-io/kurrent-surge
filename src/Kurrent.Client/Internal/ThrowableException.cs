@@ -7,7 +7,7 @@ public interface IThrowableException<out TSelf> where TSelf : Exception, IThrowa
     static abstract TSelf Create(string message, Exception? innerException = null);
 }
 
-public static class ThrowableExceptionExtensions {
+static class ThrowableExceptionExtensions {
     extension<T>(IThrowableException<T>) where T : Exception, IThrowableException<T> {
         [DoesNotReturn, StackTraceHidden]
         public static void Throw(string message, Exception? innerException = null) =>

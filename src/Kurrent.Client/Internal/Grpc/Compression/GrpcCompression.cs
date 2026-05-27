@@ -5,7 +5,7 @@ using Grpc.Net.Compression;
 
 namespace Kurrent.Grpc.Compression;
 
-public static class GrpcCompression {
+static class GrpcCompression {
 	public const string CompressionRequestAlgorithmHeader = "grpc-internal-encoding-request";
 
 	public static readonly Dictionary<string, ICompressionProvider> FastestCompressionProviders = new(StringComparer.OrdinalIgnoreCase) {
@@ -26,7 +26,7 @@ public static class GrpcCompression {
 		["br"]      = new BrotliCompressionProvider(CompressionLevel.SmallestSize),
 	};
 
-	public enum CompressionMethod {
+	internal enum CompressionMethod {
 		Gzip,
 		Deflate,
 		Brotli

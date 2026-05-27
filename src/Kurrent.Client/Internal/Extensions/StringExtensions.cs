@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Kurrent.Client;
 
-public static class StringExtensions {
+static class StringExtensions {
     extension(string source) {
         /// <summary>
         /// Converts a PascalCase, camelCase, kebab-case, or space-separated string to snake_case.

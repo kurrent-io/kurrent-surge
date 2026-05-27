@@ -1,6 +1,6 @@
 namespace Kurrent.Client;
 
-public static class ObjectExtensions {
+static class ObjectExtensions {
     extension<T>(T source) {
         public ValueTask<T> AsValueTask() => new(source);
     }

@@ -8,9 +8,8 @@ namespace Kurrent.Client;
 /// Represents a parsed KurrentDB connection string with all its components.
 /// Internal detail behind <see cref="KurrentClientOptions.Parse(string)"/>.
 /// </summary>
-internal record KurrentConnectionString {
+record KurrentConnectionString {
     const string SchemeSeparator = "://";
-
     const char UserInfoSeparator = '@';
     const char Colon             = ':';
     const char Slash             = '/';

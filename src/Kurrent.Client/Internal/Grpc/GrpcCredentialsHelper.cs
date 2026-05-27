@@ -3,7 +3,7 @@ using Grpc.Core;
 
 namespace Kurrent.Grpc;
 
-public static class GrpcCredentialsHelper {
+static class GrpcCredentialsHelper {
 	/// <summary>
 	/// Creates Grpc.Core.SslCredentials based on file paths and verification options.
 	/// Configures mutual TLS (mTLS) if both userCertFile and userKeyFile are provided.

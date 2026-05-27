@@ -5,7 +5,7 @@ namespace Kurrent;
 /// task completion and cancellation. This class provides mechanisms for asynchronous
 /// task signalling, cancellation, and disposal, using an underlying <see cref="CancellationTokenSource"/>.
 /// </summary>
-public sealed class TokenCompletionSource : TaskCompletionSource<CancellationToken>, IDisposable {
+sealed class TokenCompletionSource : TaskCompletionSource<CancellationToken>, IDisposable {
     readonly CancellationTokenSource _cts;
     readonly CancellationToken       _token; // cached to avoid ObjectDisposedException
 

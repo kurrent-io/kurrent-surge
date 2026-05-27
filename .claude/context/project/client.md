@@ -18,7 +18,7 @@
 
 ### Streams Module
 
-The most mature module. Split across 15+ partial class files under `Modules/Streams/Operations/`.
+The most mature module. Split across 15+ partial class files under `Modules/Streams/`. See [Module Organization](module-organization.md) for file layout conventions.
 
 **Append** (V2 gRPC): `AppendRecords` (unary, multi-stream atomic), `AppendSession` (client-streaming), `AppendAdapter` (bridges V1-style through V2 session).
 

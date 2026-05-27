@@ -1,6 +1,6 @@
 namespace Kurrent;
 
-public static class CancellationTokenSourceExtensions {
+static class CancellationTokenSourceExtensions {
     extension(CancellationTokenSource) {
         public static CancellationTokenSource CreateShortLived(int delay, CancellationToken ct) {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -29,7 +29,7 @@ public static class CancellationTokenSourceExtensions {
         }
     }
     
-    public delegate Task UnsafeRegisterCallback<in T>(T state, CancellationToken ct);
+    internal delegate Task UnsafeRegisterCallback<in T>(T state, CancellationToken ct);
     
     readonly record struct UnsafeState<T>(T State, UnsafeRegisterCallback<T> Action) {
         public void Deconstruct(out T state, out UnsafeRegisterCallback<T> action) {

@@ -70,7 +70,7 @@ Kurrent.CodeAnalysis                       ← shared Roslyn infrastructure for 
 
 `Kurrent.Client` contains a `Legacy/` folder with V1 gRPC compatibility — not a separate package.
 
-Streams module split across 15+ partial class files. Naming convention: `{Module}Client.{Operation}.cs`, `.Models.cs`, `.Mappers.cs`, `.Extensions.cs`, `.Models.Builders.cs`.
+Streams module split across 15+ partial class files. Naming convention documented in [Module Organization](.claude/context/project/module-organization.md).
 
 Sum types use source-generated `IVariant` discriminated unions. Exception types decorated with `[KurrentOperationError]` get source-generated constructors.
 
@@ -90,4 +90,5 @@ Read these before working on related areas. Do not read all upfront.
 | [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
 | [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
 | [XML Documentation](.claude/context/project/xmldoc.md)               | Before writing or reviewing XML docs on public APIs      |
+| [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module      |
 | [Docs Guidelines](.claude/context/project/docs-guidelines.md)        | Before writing or updating documentation                 |

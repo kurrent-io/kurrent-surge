@@ -1,6 +1,6 @@
 namespace Kurrent;
 
-public delegate Task OnPeriodicTimerTick(CancellationToken cancellationToken);
+delegate Task OnPeriodicTimerTick(CancellationToken cancellationToken);
 
 sealed class AsyncPeriodicTimer : IAsyncDisposable {
     readonly Func<CancellationToken, Task> _getTikTok;

@@ -1,6 +1,6 @@
 namespace Kurrent.Client;
 
-  public static class GracefulAsyncExtensions {
+  static class GracefulAsyncExtensions {
       extension(Task task) {
           /// <summary>
           /// Waits for task completion. Returns false if cancelled (no throw).

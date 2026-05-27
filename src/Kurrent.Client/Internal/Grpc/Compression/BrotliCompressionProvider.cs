@@ -8,7 +8,7 @@ namespace Kurrent.Grpc.Compression;
 /// for gRPC communication. Implements the <see cref="ICompressionProvider"/> interface.
 /// </summary>
 /// <param name="defaultCompressionLevel">The default compression level to use when compressing data.</param>
-public class BrotliCompressionProvider(CompressionLevel? defaultCompressionLevel = null) : ICompressionProvider {
+class BrotliCompressionProvider(CompressionLevel? defaultCompressionLevel = null) : ICompressionProvider {
 	readonly CompressionLevel _defaultCompressionLevel = defaultCompressionLevel ?? CompressionLevel.Fastest;
 
 	public string EncodingName => "br";
