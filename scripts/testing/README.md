@@ -2,18 +2,18 @@
 
 Scripts for running tests and generating reports in the Kurrent SDK.
 
-## sdk-tests.cs
+## test-runner.cs
 
 Canonical test runner for the solution. C# file-based app using CliWrap, Spectre.Console,
 and System.CommandLine. Wraps `dotnet test` with category filtering, unique result folders,
 live status output, and automatic report generation.
 
 ```bash
-dotnet run scripts/testing/sdk-tests.cs -- run unit                                    # all unit tests
-dotnet run scripts/testing/sdk-tests.cs -- run integration                             # all integration tests
-dotnet run scripts/testing/sdk-tests.cs -- run all                                     # everything
-dotnet run scripts/testing/sdk-tests.cs -- run unit --treenode-filter "/*/*/MyTests/*"  # specific class
-dotnet run scripts/testing/sdk-tests.cs -- list unit                                   # list without running
+dotnet scripts/testing/test-runner.cs -- run unit                                    # all unit tests
+dotnet scripts/testing/test-runner.cs -- run integration                             # all integration tests
+dotnet scripts/testing/test-runner.cs -- run all                                     # everything
+dotnet scripts/testing/test-runner.cs -- run unit --treenode-filter "/*/*/MyTests/*"  # specific class
+dotnet scripts/testing/test-runner.cs -- list unit                                   # list without running
 ```
 
 Each run creates a unique folder under `.artifacts/test-results/<run-id>/` containing:
@@ -26,12 +26,12 @@ Each run creates a unique folder under `.artifacts/test-results/<run-id>/` conta
 Extra TUnit args pass through after the category:
 
 ```bash
-dotnet run scripts/testing/sdk-tests.cs -- run integration --timeout 30s --maximum-parallel-tests 1
+dotnet scripts/testing/test-runner.cs -- run integration --timeout 30s --maximum-parallel-tests 1
 ```
 
 ## trx2md.py
 
-Generates markdown test reports from TRX files. Standalone CLI tool — used by `sdk-tests.cs`
+Generates markdown test reports from TRX files. Standalone CLI tool — used by `test-runner.cs`
 automatically, but can also be run directly.
 
 ```bash

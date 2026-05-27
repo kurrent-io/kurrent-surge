@@ -3,7 +3,7 @@
 #:package Spectre.Console@0.55.2
 #:package System.CommandLine@2.0.8
 
-// sdk-tests.cs — Canonical test runner for the Kurrent SDK solution.
+// test-runner.cs — Canonical test runner for the Kurrent SDK solution.
 // C# file-based app using CliWrap, Spectre.Console, and System.CommandLine.
 
 using System.CommandLine;
