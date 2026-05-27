@@ -54,8 +54,10 @@ internal sealed class Appender : IAsyncDisposable {
     public async ValueTask Append(AppendRecord record, Action<AppendResult> callback, CancellationToken ct = default) {
         record.EnsureValid();
 
-        var serialized = await _streams.Mapper
-            .ToContract(record, ct)
+        var ctx = _streams.CreateMappingContext(ct);
+
+        var serialized = await record
+            .ToContract(ctx)
             .ConfigureAwait(false);
 
         var lane = SelectLane(record);
@@ -72,8 +74,10 @@ internal sealed class Appender : IAsyncDisposable {
     public async ValueTask<AppendResult> AppendAsync(AppendRecord record, CancellationToken ct = default) {
         record.EnsureValid();
 
-        var serialized = await _streams.Mapper
-            .ToContract(record, ct)
+        var ctx = _streams.CreateMappingContext(ct);
+
+        var serialized = await record
+            .ToContract(ctx)
             .ConfigureAwait(false);
 
         var tcs  = new TaskCompletionSource<AppendResult>(TaskCreationOptions.RunContinuationsAsynchronously);

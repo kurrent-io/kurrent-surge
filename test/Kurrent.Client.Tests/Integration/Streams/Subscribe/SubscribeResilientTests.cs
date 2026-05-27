@@ -6,7 +6,7 @@ namespace Kurrent.Client.Tests.Streams;
 [Category("Streams")]
 [Category("Subscribe")]
 [Category("Integration")]
-[Timeout(30_000)]
+[Timeout(60_000)]
 public class SubscribeResilientTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

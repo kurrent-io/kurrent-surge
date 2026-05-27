@@ -11,7 +11,6 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Checkpoints;
-using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Kurrent.Variant;
 using KurrentDB.Protocol.V1.Streams;
@@ -94,7 +93,7 @@ static class InternalClientExtensions {
         bool skipDecoding,
         [EnumeratorCancellation] CancellationToken ct
     ) {
-        var request = StreamsClientV1Mapper.Requests.CreateSubscriptionRequest(filter, start, resolveLinks: true);
+        var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(filter, start, resolveLinks: true);
 
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;
@@ -158,14 +157,9 @@ static class InternalClientExtensions {
                         yield return resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext()); break;
 
                     case ReadResp.ContentOneofCase.Event:
-                        var record = await ProtocolMapping
-                            .MapToRecordAsync(
-                                resp.Event,
-                                sequencer.FetchNext(),
-                                serializerProvider, metadataDecoder,
-                                SchemaRegistryPolicy.NoRequirements,
-                                skipDecoding,
-                                ct)
+                        var ctx = new MappingContext(serializerProvider, metadataDecoder, SchemaRegistryPolicy.NoRequirements, ct);
+                        var record = await resp.Event
+                            .MapToRecordAsync(sequencer.FetchNext(), ctx, skipDecoding)
                             .ConfigureAwait(false);
 
                         if (filter.IsMatch(record))

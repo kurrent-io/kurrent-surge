@@ -15,13 +15,13 @@ public class MapToRecordAsyncTests {
         var evt       = readEvent.Event;
 
         // Act
-        var record = await readEvent.MapToRecordAsync(
-            SequenceId.From(1),
+        var ctx = new MappingContext(
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
-            skipDecoding: true
+            CancellationToken.None
         );
+        var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
 
         // Assert
         await Assert.That(record.Id).IsEqualTo(Uuid.FromDto(evt.Id).ToGuid());
@@ -41,13 +41,13 @@ public class MapToRecordAsyncTests {
         var link      = readEvent.Link;
 
         // Act
-        var record = await readEvent.MapToRecordAsync(
-            SequenceId.From(1),
+        var ctx = new MappingContext(
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
-            skipDecoding: true
+            CancellationToken.None
         );
+        var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
 
         // Assert
         await Assert.That(record.Id).IsEqualTo(Uuid.FromDto(evt.Id).ToGuid());
@@ -66,13 +66,13 @@ public class MapToRecordAsyncTests {
         var link      = readEvent.Link;
 
         // Act
-        var record = await readEvent.MapToRecordAsync(
-            SequenceId.From(1),
+        var ctx = new MappingContext(
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
-            skipDecoding: true
+            CancellationToken.None
         );
+        var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
 
         // Assert
         await Assert.That(record.Id).IsEqualTo(Uuid.FromDto(link.Id).ToGuid());
@@ -89,14 +89,14 @@ public class MapToRecordAsyncTests {
         var readEvent = FakeReadEvent.New.WithoutLinkOrEvent().Generate();
         
         // Act & Assert
+        var ctx = new MappingContext(
+            NullSchemaSerializerProvider.Instance,
+            NullMetadataDecoder.Instance,
+            SchemaRegistryPolicy.NoRequirements,
+            CancellationToken.None
+        );
         Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await readEvent.MapToRecordAsync(
-                SequenceId.From(1),
-                NullSchemaSerializerProvider.Instance,
-                NullMetadataDecoder.Instance,
-                SchemaRegistryPolicy.NoRequirements,
-                skipDecoding: true
-            )
+            await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true)
         );
     }
 

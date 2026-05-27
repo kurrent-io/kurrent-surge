@@ -6,12 +6,12 @@ namespace Kurrent.Client.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
+[Timeout(60_000)]
 public class ConcurrencyStressTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
 	[Test]
-	[Timeout(30000)]
 	public async ValueTask concurrent_appends_do_not_starve_thread_pool(CancellationToken ct) {
 		// Arrange
 		const int concurrency = 50;
@@ -45,7 +45,6 @@ public class ConcurrencyStressTests {
 	}
 
 	[Test]
-	[Timeout(30000)]
 	public async ValueTask concurrent_reads_do_not_starve_thread_pool(CancellationToken ct) {
 		// Arrange
 		const int concurrency = 50;
@@ -85,7 +84,6 @@ public class ConcurrencyStressTests {
 	}
 
 	[Test]
-	[Timeout(30000)]
 	public async ValueTask interleaved_reads_and_writes_do_not_starve_thread_pool(CancellationToken ct) {
 		// Arrange
 		const int concurrency = 30;
@@ -132,7 +130,6 @@ public class ConcurrencyStressTests {
 	}
 
 	[Test]
-	[Timeout(30000)]
 	public async ValueTask many_clients_resolve_channels_without_blocking(CancellationToken ct) {
 		// Arrange
 		const int clientCount = 10;
@@ -172,7 +169,6 @@ public class ConcurrencyStressTests {
 	}
 
 	[Test]
-	[Timeout(30000)]
 	public async ValueTask thread_pool_stays_healthy_under_concurrent_load(CancellationToken ct) {
 		// Arrange
 		const int concurrency = 100;

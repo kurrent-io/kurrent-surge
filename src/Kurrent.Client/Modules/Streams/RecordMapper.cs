@@ -17,6 +17,7 @@ sealed class RecordMapper(
 ) {
     public ValueTask<Record> MapAsync(Contracts.ReadResp.Types.ReadEvent readEvent, SequenceId sequenceId, CancellationToken ct) =>
         readEvent.MapToRecordAsync(
-            sequenceId, serializerProvider, metadataDecoder,
-            SchemaRegistryPolicy.NoRequirements, skipDecoding, ct);
+            sequenceId,
+            new MappingContext(serializerProvider, metadataDecoder, SchemaRegistryPolicy.NoRequirements, ct),
+            skipDecoding);
 }

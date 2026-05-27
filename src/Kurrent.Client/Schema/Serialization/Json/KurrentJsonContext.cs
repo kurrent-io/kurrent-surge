@@ -11,4 +11,4 @@ namespace Kurrent.Client.Schema.Serialization.Json;
 	PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
 	DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 	UseStringEnumConverter = true)]
-internal partial class KurrentJsonContext : JsonSerializerContext;
+partial class KurrentJsonContext : JsonSerializerContext;

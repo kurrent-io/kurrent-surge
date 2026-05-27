@@ -8,7 +8,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using Microsoft.Extensions.Logging;
-using static Kurrent.Client.Streams.StreamsClientV1Mapper;
+using static Kurrent.Client.Streams.StreamsClientMapping;
 
 namespace Kurrent.Client.Streams;
 
@@ -155,16 +155,8 @@ public partial class StreamsClient {
             }
         }
 
-        ValueTask<Record> MapToRecordAsync(ReadResp.Types.ReadEvent readEvent, bool skipDecoding) {
-            return readEvent.MapToRecordAsync(
-                SequenceId.Unset,
-                SerializerProvider,
-                MetadataDecoder,
-                SchemaRegistryPolicy.NoRequirements,
-                skipDecoding: skipDecoding,
-                cancellationToken
-            );
-        }
+        ValueTask<Record> MapToRecordAsync(ReadResp.Types.ReadEvent readEvent, bool skipDecoding) =>
+            readEvent.MapToRecordAsync(SequenceId.Unset, CreateMappingContext(cancellationToken), skipDecoding);
     }
 
     #endregion

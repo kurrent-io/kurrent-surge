@@ -1,0 +1,87 @@
+using Google.Protobuf;
+using Kurrent.Client.Schema.Serialization;
+
+using Contracts = KurrentDB.Protocol.V2.Streams;
+
+namespace Kurrent.Client.Streams;
+
+static class AppendRecordsMapping {
+    extension(AppendRecordsRequest source) {
+        public async ValueTask<Contracts.AppendRecordsRequest> ToContract(MappingContext ctx) {
+            var result = new Contracts.AppendRecordsRequest {
+                Records = { Capacity = source.Records.Length }
+            };
+
+            foreach (var record in source.Records)
+                result.Records.Add(await record.ToContract(ctx).ConfigureAwait(false));
+
+            foreach (var check in source.Checks)
+                if (check != ConsistencyCheck.None)
+                    result.Checks.Add(check.ToContract());
+
+            return result;
+        }
+    }
+
+    extension(AppendRecord source) {
+        public async ValueTask<Contracts.AppendRecord> ToContract(MappingContext ctx) {
+            try {
+                var context = new SchemaSerializationContext {
+                    Stream               = source.Stream,
+                    RecordSchema         = new() { SchemaFormat = source.DataFormat },
+                    SchemaRegistryPolicy = ctx.Policy,
+                    CancellationToken    = ctx.CancellationToken
+                };
+
+                var data = await ctx.Serializer
+                    .GetSerializer(source.DataFormat)
+                    .Serialize(source.Value, context)
+                    .ConfigureAwait(false);
+
+                var schemaVersionId = context.RecordSchema.HasSchemaId
+                    ? context.RecordSchema.SchemaVersionId.ToString()
+                    : Guid.NewGuid().ToString();
+
+                var schema = new Contracts.SchemaInfo {
+                    Id     = schemaVersionId,
+                    Name   = context.RecordSchema.SchemaName,
+                    Format = (Contracts.SchemaFormat)context.RecordSchema.SchemaFormat
+                };
+
+                // UnsafeWrap constructs a new ByteString from the given bytes.
+                // The bytes are not copied, and must not be modified while the
+                // ByteString is in use.
+                return new() {
+                    RecordId   = source.RecordId.ToString(),
+                    Data       = UnsafeByteOperations.UnsafeWrap(data),
+                    Schema     = schema,
+                    Properties = { source.Metadata.ToProperties() },
+                    Stream     = source.Stream
+                };
+            }
+            catch (Exception ex) {
+                throw new ArgumentException($"Failed to map AppendRecord for stream '{source.Stream}'", ex);
+            }
+        }
+    }
+
+    extension(ConsistencyCheck source) {
+        public Contracts.ConsistencyCheck ToContract() =>
+            new() {
+                StreamState = source.Value switch {
+                    StreamStateCheck check => new() { Stream = check.Stream, ExpectedState = check.ExpectedState.ToWireValue() },
+                    _                      => throw new ArgumentException($"Unsupported consistency check type: {source.Value.GetType().Name}")
+                }
+            };
+    }
+
+    extension(Contracts.AppendRecordsResponse source) {
+        public AppendRecordsResponse ToResponse() {
+            var revisions = source.Revisions
+                .Select(x => new StreamPosition(x.Stream, x.Revision))
+                .ToArray();
+
+            return new(revisions, source.Position);
+        }
+    }
+}

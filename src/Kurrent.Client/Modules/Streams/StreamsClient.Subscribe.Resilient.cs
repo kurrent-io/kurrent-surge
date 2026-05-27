@@ -58,7 +58,7 @@ public partial class StreamsClient {
         bool skipDecoding,
         SubscribeResilienceOptions? resilience = null,
         bool resolveLinks = true,
-        uint maxSearchWindow = StreamsClientV1Mapper.DefaultMaxSearchWindow,
+        uint maxSearchWindow = StreamsClientMapping.DefaultMaxSearchWindow,
         [EnumeratorCancellation] CancellationToken ct = default
     ) {
         var options = resilience ?? SubscribeResilienceOptions.Default;
@@ -163,7 +163,7 @@ public partial class StreamsClient {
         uint maxSearchWindow,
         CancellationToken ct
     ) {
-        var request = StreamsClientV1Mapper.Requests.CreateSubscriptionRequest(
+        var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
             filter, start, resolveLinks, maxSearchWindow);
 
         var grpcSession = LegacyServiceClient.Read(request, cancellationToken: ct);

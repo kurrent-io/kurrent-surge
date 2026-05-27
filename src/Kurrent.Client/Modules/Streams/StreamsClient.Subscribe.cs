@@ -106,10 +106,10 @@ public partial class StreamsClient {
         RecordPosition start,
         bool skipDecoding,
         bool resolveLinks = true,
-        uint maxSearchWindow = StreamsClientV1Mapper.DefaultMaxSearchWindow, // we must not expose this and make it a max value internally so it never gets used.
+        uint maxSearchWindow = StreamsClientMapping.DefaultMaxSearchWindow, // we must not expose this and make it a max value internally so it never gets used.
         [EnumeratorCancellation] CancellationToken ct = default
     ) {
-        var request = StreamsClientV1Mapper.Requests.CreateSubscriptionRequest(filter, start, resolveLinks, maxSearchWindow);
+        var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(filter, start, resolveLinks, maxSearchWindow);
         
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;
@@ -175,14 +175,9 @@ public partial class StreamsClient {
                         yield return resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext()); break;
 
                     case ReadResp.ContentOneofCase.Event:
-                        var record = await
-                        resp.Event.MapToRecordAsync(
-                                sequencer.FetchNext(),
-                                SerializerProvider,
-                                MetadataDecoder,
-                                SchemaRegistryPolicy.NoRequirements,
-                                skipDecoding,
-                                ct)
+                        var ctx = CreateMappingContext(ct);
+                        var record = await resp.Event
+                            .MapToRecordAsync(sequencer.FetchNext(), ctx, skipDecoding)
                             .ConfigureAwait(false);
 
                         if (filter.IsMatch(record))

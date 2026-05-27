@@ -120,7 +120,7 @@ public abstract class Validator<TValidator, T> : IValidator<TValidator, T>, IVal
 /// <summary>
 /// Non-generic interface for evaluating a rule against an instance.
 /// </summary>
-internal interface IRuleAction<in T> {
+interface IRuleAction<in T> {
     void Evaluate(T instance, List<ValidationProblem> problems);
 }
 

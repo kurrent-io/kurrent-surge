@@ -157,7 +157,7 @@ internal sealed class FlushLane : IAsyncDisposable {
                 .AppendRecordsAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            var result = new AppendResult(_streams.Mapper.ToAppendRecordsResponse(rsp));
+            var result = new AppendResult(rsp.ToResponse());
 
             foreach (var record in batch)
                 record.Callback(result);

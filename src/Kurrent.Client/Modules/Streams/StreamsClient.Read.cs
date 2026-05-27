@@ -13,7 +13,7 @@ using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
 using Microsoft.Extensions.Logging;
-using static Kurrent.Client.Streams.StreamsClientV1Mapper;
+using static Kurrent.Client.Streams.StreamsClientMapping;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
 namespace Kurrent.Client.Streams;
@@ -146,11 +146,7 @@ public partial class StreamsClient {
                     break;
                 case Event:
                     result = await rsp.Event
-                        .MapToRecordAsync(
-                            sequencer.FetchNext(),
-                            SerializerProvider, MetadataDecoder,
-                            SchemaRegistryPolicy.NoRequirements,
-                            skipDecoding, ct)
+                        .MapToRecordAsync(sequencer.FetchNext(), CreateMappingContext(ct), skipDecoding)
                         .ConfigureAwait(false);
 
                     var record = result.AsRecord;

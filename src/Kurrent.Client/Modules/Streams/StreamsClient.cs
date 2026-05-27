@@ -16,12 +16,15 @@ public partial class StreamsClient : ClientModuleBase {
         // Soon enough, the schema registry policy will be retrieved from the server during client initialization (defaults),
         // and then on a per-stream basis during stream operations.
         // For now, we can use a default policy that allows for all operations without enforcement.
-        Mapper = new(SerializerProvider, SchemaRegistryPolicy.NoRequirements);
+        RegistryPolicy = SchemaRegistryPolicy.NoRequirements;
     }
 
     internal StreamsServiceClient       ServiceClient       { get; }
 
     internal LegacyStreamsServiceClient LegacyServiceClient { get; }
 
-    internal StreamsProtocolMapper      Mapper              { get; }
+    SchemaRegistryPolicy                RegistryPolicy      { get; }
+
+    internal MappingContext CreateMappingContext(CancellationToken ct) =>
+        new(SerializerProvider, MetadataDecoder, RegistryPolicy, ct);
 }

@@ -2,18 +2,149 @@ using Kurrent.Validation;
 
 namespace Kurrent.Client.Streams;
 
-// /// <summary>
-// /// Static entry point for building named stream read requests.
-// /// </summary>
-// [PublicAPI]
-// public static class ReadStream {
-//     /// <summary>
-//     /// Start building read request for the specified stream.
-//     /// </summary>
-//     public static ReadStreamRequest.Builder Name(StreamName stream) =>
-//         new ReadStreamRequest.Builder()
-//             .ForStream(stream);
-// }
+/// <summary>
+/// Represents a request to read records from the log.
+/// </summary>
+[PublicAPI]
+public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecordsRequest.Validator> {
+    /// <summary>
+    /// Fluent builder for constructing <see cref="ReadRecordsRequest"/> instances.
+    /// </summary>
+    public static Builder New() => new();
+
+    /// <summary>
+    /// Starting position for the read operation in the global log.
+    /// </summary>
+    public LogPosition Start { get; init; } = LogPosition.Latest;
+
+    /// <summary>
+    /// Maximum number of records to read in this operation.
+    /// </summary>
+    public long Limit { get; init; } = long.MaxValue;
+
+    /// <summary>
+    /// Record filtering criteria to apply during read operations.
+    /// </summary>
+    public RecordFilter Filter { get; init; } = RecordFilter.None;
+
+    /// <summary>
+    /// Direction for reading records through the log.
+    /// </summary>
+    public ReadDirection Direction { get; init; } = ReadDirection.Forwards;
+
+    /// <summary>
+    /// Skip record data deserialization for performance-critical scenarios.
+    /// </summary>
+    public bool SkipDecoding { get; init; }
+
+    /// <summary>
+    /// Resolve link records (<c>$&gt;</c>) to their target events. Index streams (<c>$ce-*</c>,
+    /// <c>$idx-*</c>) contain links; without resolution, consumers see opaque link records
+    /// instead of the underlying events. Default <c>true</c>. Set <c>false</c> for low-level
+    /// inspection of index/projection streams.
+    /// </summary>
+    public bool ResolveLinks { get; init; } = true;
+
+    public class Builder(ReadRecordsRequest request) : FluentBuilder<Builder, ReadRecordsRequest>(request) {
+        public Builder() : this(new()) { }
+
+        /// <inheritdoc />
+        protected override ReadRecordsRequest OnBuild(ReadRecordsRequest request) {
+            request.EnsureValid();
+            return request;
+        }
+
+        /// <summary>
+        /// Sets the starting position for the read operation in the global log.
+        /// </summary>
+        public Builder FromPosition(LogPosition position) =>
+            With(r => r with { Start = position });
+
+        /// <summary>
+        /// Starts reading from the latest position in the global log.
+        /// </summary>
+        public Builder FromLatest() =>
+            FromPosition(LogPosition.Latest);
+
+        /// <summary>
+        /// Starts reading from the earliest position in the global log.
+        /// </summary>
+        public Builder FromEarliest() =>
+            FromPosition(LogPosition.Earliest);
+
+        /// <summary>
+        /// Starts reading backwards from the latest position in the global log.
+        /// </summary>
+        public Builder FromLatestBackwards() =>
+            FromLatest().Backwards();
+
+        /// <summary>
+        /// Starts reading forwards from the earliest position in the global log.
+        /// </summary>
+        public Builder FromEarliestForwards() =>
+            FromEarliest().Forwards();
+
+        /// <summary>
+        /// Sets the direction for reading records through the log.
+        /// </summary>
+        public Builder Direction(ReadDirection direction) =>
+            With(x => x with { Direction = direction });
+
+        /// <summary>
+        /// Read forwards (toward newer records).
+        /// </summary>
+        public Builder Forwards() =>
+            Direction(ReadDirection.Forwards);
+
+        /// <summary>
+        /// Read backwards (toward older records).
+        /// </summary>
+        public Builder Backwards() =>
+            Direction(ReadDirection.Backwards);
+
+        /// <summary>
+        /// Limit the number of records returned.
+        /// </summary>
+        public Builder Limit(long maxRecords) =>
+            With(x => x with { Limit = maxRecords });
+
+        /// <summary>
+        /// Sets record filtering criteria to apply during read operations.
+        /// </summary>
+        public Builder Filter(RecordFilter filter) =>
+            With(x => x with { Filter = filter });
+
+        /// <summary>
+        /// Sets record filtering criteria from a filter expression.
+        /// </summary>
+        public Builder Filter(string expression) =>
+            Filter(RecordFilter.ByExpression(expression));
+
+        /// <summary>
+        /// Sets whether to skip record data deserialization for performance-critical scenarios.
+        /// </summary>
+        public Builder SkipDecoding(bool skip = true) =>
+            With(x => x with { SkipDecoding = skip });
+
+        /// <summary>
+        /// Sets whether to resolve link records to their target events. Default <c>true</c>.
+        /// </summary>
+        public Builder ResolveLinks(bool resolve = true) =>
+            With(x => x with { ResolveLinks = resolve });
+    }
+
+    public class Validator : Validator<Validator, ReadRecordsRequest> {
+        public Validator() {
+            RuleFor(options => options.Limit)
+                .GreaterThanOrEqualTo(1L)
+                .WithMessage("Limit must be at least 1.");
+
+            RuleFor(options => options.Start)
+                .Must(start => start != LogPosition.Unset,
+                    "Start position cannot be Unset when reading records from the log.");
+        }
+    }
+}
 
 [PublicAPI]
 public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRequest.Validator> {
@@ -164,4 +295,3 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
         }
     }
 }
-

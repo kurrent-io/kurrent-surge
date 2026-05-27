@@ -28,24 +28,24 @@ Not every operation needs all file slots. A simple operation may only have the `
 
 ## File Placement Rules
 
-| What you have | Where it goes |
-|---|---|
-| Client methods for an operation | `{Module}Client.{Op}.cs` |
-| Request, response, options for an operation | `{Module}Client.{Op}.Models.cs` |
-| Stateless mapping extensions for an operation | `{Module}Client.{Op}.Mapping.cs` |
-| Convenience overloads (C# 14 `extension(...)`) | `{Module}Client.Extensions.cs` |
-| Domain types shared across operations | `Models/` subfolder, one type per file |
-| Shared stateless mapping extensions | `{Module}Mapping.cs` at module root |
-| Module exceptions | `Exceptions.cs` at module root |
+| What you have                                  | Where it goes                          |
+|------------------------------------------------|----------------------------------------|
+| Client methods for an operation                | `{Module}Client.{Op}.cs`               |
+| Request, response, options for an operation    | `{Module}Client.{Op}.Models.cs`        |
+| Stateless mapping extensions for an operation  | `{Module}Client.{Op}.Mapping.cs`       |
+| Convenience overloads (C# 14 `extension(...)`) | `{Module}Client.Extensions.cs`         |
+| Domain types shared across operations          | `Models/` subfolder, one type per file |
+| Shared stateless mapping extensions            | `{Module}Mapping.cs` at module root    |
+| Module exceptions                              | `Exceptions.cs` at module root         |
 
 ## Naming: Mapping vs Mapper
 
 Two suffixes, each encoding a design constraint:
 
-| Suffix | What it is | Statefulness | Example |
-|---|---|---|---|
+| Suffix     | What it is                                          | Statefulness                             | Example                                                 |
+|------------|-----------------------------------------------------|------------------------------------------|---------------------------------------------------------|
 | `*Mapping` | Stateless extension methods — pure type conversions | None; receives explicit `MappingContext` | `StreamsClient.Append.Mapping.cs`, `ProtocolMapping.cs` |
-| `*Mapper` | Stateful class with injected dependencies | Holds serializers, decoders, policies | Last resort — prefer `MappingContext` pattern |
+| `*Mapper`  | Stateful class with injected dependencies           | Holds serializers, decoders, policies    | Last resort — prefer `MappingContext` pattern           |
 
 Default to `*Mapping`. Only introduce a `*Mapper` class when stateless extensions with a context
 parameter genuinely do not work.
@@ -115,29 +115,14 @@ Modules/Streams/
 ├── StreamsClient.Manage.cs
 ├── StreamsClient.Query.cs
 ├── StreamsClient.Extensions.cs
-├── StreamsMapping.cs                         # shared stateless mapping extensions
+├── StreamsClientMapping.cs               # shared stateless mapping extensions
 ├── Exceptions.cs
 ├── Models/
-│   ├── AppendRecord.cs
-│   ├── ConsistencyViolation.cs
-│   ├── LinkTo.cs
 │   ├── LogPosition.cs
-│   ├── Partition.cs
-│   ├── ReadDirection.cs
-│   ├── ReadRecordsRequest.cs
-│   ├── ReadStream.cs
 │   ├── Record.cs
-│   ├── RecordBatchStream.cs
 │   ├── RecordPosition.cs
-│   ├── RecordSchemaInfo.cs
-│   ├── RecordStream.cs
-│   ├── Revision.cs
-│   ├── SchemaDataFormat.cs
-│   ├── SequenceId.cs
-│   ├── StreamInfo.cs
 │   ├── StreamName.cs
-│   ├── StreamPosition.cs
-│   └── StreamState.cs
+│   └── ... and more
 ├── Filters/
 └── Metadata/
 ```

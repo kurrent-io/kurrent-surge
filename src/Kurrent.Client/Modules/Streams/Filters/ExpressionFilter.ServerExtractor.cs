@@ -8,7 +8,7 @@ namespace Kurrent.Client.Streams;
 /// Extracts server-side filter components from parsed filter expressions.
 /// Stream filters have priority over schema filters to avoid scanning the full $all log.
 /// </summary>
-internal static class ServerFilterExtractor {
+static class ServerFilterExtractor {
     /// <summary>
     /// Extracts a server-side filter from the parsed expression.
     /// Priority: Stream (1) > Category (2) > Index (3) > Schema (4).

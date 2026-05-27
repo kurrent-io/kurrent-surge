@@ -17,16 +17,18 @@ public partial class StreamsClient {
     ) {
         request.EnsureValid();
 
+        var ctx = new MappingContext(SerializerProvider, MetadataDecoder, RegistryPolicy, cancellationToken);
+
         try {
-            var serviceRequest = await Mapper
-                .ToContract(request, cancellationToken)
+            var serviceRequest = await request
+                .ToContract(ctx)
                 .ConfigureAwait(false);
 
             var rsp = await ServiceClient
                 .AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return Mapper.ToAppendRecordsResponse(rsp);
+            return rsp.ToResponse();
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException(
@@ -56,13 +58,14 @@ public partial class StreamsClient {
         AppendRecordsOptions? options,
         CancellationToken cancellationToken = default
     ) {
+        var ctx     = new MappingContext(SerializerProvider, MetadataDecoder, RegistryPolicy, cancellationToken);
         var request = new Contracts.AppendRecordsRequest();
         var count   = 0;
 
         foreach (var record in records) {
             var stamped = ApplyOverrides(record, options);
             ValidateRecord(stamped);
-            request.Records.Add(await Mapper.ToContract(stamped, cancellationToken).ConfigureAwait(false));
+            request.Records.Add(await stamped.ToContract(ctx).ConfigureAwait(false));
             count++;
         }
 
@@ -96,13 +99,14 @@ public partial class StreamsClient {
         AppendRecordsOptions? options,
         CancellationToken cancellationToken = default
     ) {
+        var ctx     = new MappingContext(SerializerProvider, MetadataDecoder, RegistryPolicy, cancellationToken);
         var request = new Contracts.AppendRecordsRequest();
         var count   = 0;
 
         await foreach (var record in records.WithCancellation(cancellationToken).ConfigureAwait(false)) {
             var stamped = ApplyOverrides(record, options);
             ValidateRecord(stamped);
-            request.Records.Add(await Mapper.ToContract(stamped, cancellationToken).ConfigureAwait(false));
+            request.Records.Add(await stamped.ToContract(ctx).ConfigureAwait(false));
             count++;
         }
 
@@ -147,21 +151,9 @@ public partial class StreamsClient {
         if (options?.Checks is not { Length: > 0 } checks)
             return;
 
-        // Mapper.ToContract(check) is a static-like pure mapping — access it
-        // through the instance to keep the existing pattern, but the checks
-        // are small and not worth a separate code path.
         foreach (var check in checks)
             if (check != ConsistencyCheck.None)
-                request.Checks.Add(new Contracts.ConsistencyCheck {
-                    StreamState = check.Value switch {
-                        StreamStateCheck sc => new() {
-                            Stream        = sc.Stream,
-                            ExpectedState = sc.ExpectedState.ToWireValue()
-                        },
-                        _ => throw new ArgumentException(
-                            $"Unsupported consistency check type: {check.Value.GetType().Name}")
-                    }
-                });
+                request.Checks.Add(check.ToContract());
     }
 
     async ValueTask<AppendRecordsResponse> SendAppendRequest(
@@ -172,7 +164,7 @@ public partial class StreamsClient {
                 .AppendRecordsAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Mapper.ToAppendRecordsResponse(rsp);
+            return rsp.ToResponse();
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException(
