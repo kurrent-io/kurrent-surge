@@ -25,6 +25,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NodaTime.Testing" />
+    <PackageReference Include="R3" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 

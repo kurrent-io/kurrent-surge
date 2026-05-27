@@ -89,10 +89,10 @@ public record DroneContext {
             Logger            = Logger,
             CancellationToken = CancellationToken,
             Positions         = positions,
-            CheckpointId      = checkpoint.CheckpointId,
-            Trigger           = checkpoint.Trigger,
+            CheckpointId      = checkpoint.Id,
+            Trigger           = checkpoint.TriggerKind,
             Timestamp         = checkpoint.Timestamp,
-            Reason            = checkpoint.Reason
+            Reason            = (checkpoint as ManualCheckpoint)?.Reason
         };
 
 }

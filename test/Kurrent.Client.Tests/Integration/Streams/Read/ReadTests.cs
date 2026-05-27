@@ -46,7 +46,7 @@ public class ReadTests {
                         // ReSharper disable once AccessToDisposedClosure
                         cancellator.Cancel();
                 },
-                heartbeat => Log.Information("Heartbeat {HeartbeatType} @ {Position}", heartbeat.Type, heartbeat.Position)
+                checkpoint => Log.Information("Checkpoint {Type} @ {Positions}", checkpoint.GetType().Name, checkpoint.Positions)
             );
         }
 

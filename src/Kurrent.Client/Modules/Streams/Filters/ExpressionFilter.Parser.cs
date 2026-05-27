@@ -55,7 +55,6 @@ public static class ExpressionFilterParser {
             return false;
         }
     }
-
 }
 
 /// <summary>
@@ -1166,7 +1165,7 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
 
 /// <summary>
 /// AST node for <c>index = 'name'</c>. This is a routing directive, not a data predicate:
-/// it always returns <c>true</c> client-side. The <see cref="ExpressionFilter.ServerExtractor"/>
+/// it always returns <c>true</c> client-side. The <see cref="ServerFilterExtractor"/>
 /// extracts it to target <c>$idx-user-{IndexName}</c> streams server-side.
 /// </summary>
 public sealed record IndexExpression(string IndexName) : IFilterExpression {
@@ -1201,7 +1200,7 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
 
 #endregion
 
-#region ->> Utilities <<-
+#region ->> Helpers <<-
 
 /// <summary>
 /// Cross-type value comparator for filter evaluation. Comparison priority:
@@ -1302,14 +1301,14 @@ static class FilterExpressionInspector {
     public static bool QueriesData(IFilterExpression expression) =>
         expression switch {
             ComparisonExpression e => IsDataProperty(e.Property),
-            LikeExpression e      => IsDataProperty(e.Property),
-            InExpression e        => IsDataProperty(e.Property),
-            IsNullExpression e    => IsDataProperty(e.Property),
-            BetweenExpression e   => IsDataProperty(e.Property),
-            AndExpression e       => QueriesData(e.Left) || QueriesData(e.Right),
-            OrExpression e        => QueriesData(e.Left) || QueriesData(e.Right),
-            NotExpression e       => QueriesData(e.Inner),
-            _                     => false
+            LikeExpression e       => IsDataProperty(e.Property),
+            InExpression e         => IsDataProperty(e.Property),
+            IsNullExpression e     => IsDataProperty(e.Property),
+            BetweenExpression e    => IsDataProperty(e.Property),
+            AndExpression e        => QueriesData(e.Left) || QueriesData(e.Right),
+            OrExpression e         => QueriesData(e.Left) || QueriesData(e.Right),
+            NotExpression e        => QueriesData(e.Inner),
+            _                      => false
         };
 
     static bool IsDataProperty(PropertyAccess property) =>

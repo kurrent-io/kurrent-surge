@@ -147,7 +147,7 @@ sealed class Drone : IDrone {
         // Skip if we already have a fatal error — the checkpoint hook would fail again.
         if (fatalError is null && _checkpointer.HasPendingPositions) {
             var now = _clock.Now();
-            var checkpoint = new Checkpoint(now, CheckpointTrigger.Shutdown, now.DateTimeOffset, []);
+            Checkpoint checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
 
             await HandleCheckpoint(checkpoint).ConfigureAwait(false);
         }
@@ -306,7 +306,9 @@ sealed class Drone : IDrone {
     }
     
     async ValueTask HandleCheckpoint(Checkpoint checkpoint) {
-        _telemetry.CheckpointInitiated(checkpoint.CheckpointId, checkpoint.Trigger);
+        var trigger = checkpoint.TriggerKind;
+
+        _telemetry.CheckpointInitiated(checkpoint.Id, trigger);
 
         var positions = _checkpointer.PendingPositions();
 
@@ -321,9 +323,7 @@ sealed class Drone : IDrone {
             await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
         }
         catch (Exception ex) {
-            _telemetry.CheckpointFailed(
-                checkpoint.CheckpointId, checkpoint.Trigger, positions,
-                ex);
+            _telemetry.CheckpointFailed(checkpoint.Id, trigger, positions, ex);
 
             if (Options.Debug)
                 throw;
@@ -336,16 +336,14 @@ sealed class Drone : IDrone {
 
         try {
             await _checkpointer
-                .CommitCheckpoint(checkpoint.CheckpointId, positions, checkpointToken)
+                .CommitCheckpoint(checkpoint.Id, positions, checkpointToken)
                 .ConfigureAwait(false);
 
             _progress.TrackCheckpoint(checkpoint, positions);
-            _telemetry.CheckpointComplete(checkpoint.CheckpointId, checkpoint.Trigger, positions);
+            _telemetry.CheckpointComplete(checkpoint.Id, trigger, positions);
         }
         catch (Exception ex) {
-            _telemetry.CheckpointFailed(
-                checkpoint.CheckpointId, checkpoint.Trigger, positions,
-                ex);
+            _telemetry.CheckpointFailed(checkpoint.Id, trigger, positions, ex);
 
             if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
                 throw;

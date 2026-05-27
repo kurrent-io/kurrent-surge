@@ -20,6 +20,15 @@ public record MySuccess(Guid Id);
 
 public record MyWarning(string Text);
 
+// Internal variant referencing internal case types — exercises accessibility matching.
+// If the generator emits `public` on the partial or its members, this fails to compile
+// (CS0262 on the partial, CS0051 on the constructor / property due to internal case types).
+internal readonly partial record struct InternalVariant : IVariant<InternalSerialized, InternalSignal>;
+
+internal readonly record struct InternalSerialized(string Payload);
+
+internal readonly record struct InternalSignal(int Code);
+
 [UsedImplicitly]
 [Category("Variant")]
 public class VariantGenerationTests {
@@ -350,5 +359,38 @@ public class VariantGenerationTests {
         );
 
         await Assert.That(capturedState).IsEqualTo("test_state");
+    }
+
+    // Internal accessibility — compile-time verification is the main check:
+    // the test assembly only builds if the generated partial and its members
+    // honor the user's `internal` modifier (no CS0262/CS0051).
+    [Test]
+    public async Task internal_variant_carries_serialized_case() {
+        InternalVariant variant = new InternalSerialized("payload");
+
+        await Assert.That(variant.IsInternalSerialized).IsTrue();
+        await Assert.That(variant.IsInternalSignal).IsFalse();
+        await Assert.That(variant.AsInternalSerialized.Payload).IsEqualTo("payload");
+    }
+
+    [Test]
+    public async Task internal_variant_carries_signal_case() {
+        InternalVariant variant = new InternalSignal(42);
+
+        await Assert.That(variant.IsInternalSignal).IsTrue();
+        await Assert.That(variant.IsInternalSerialized).IsFalse();
+        await Assert.That(variant.AsInternalSignal.Code).IsEqualTo(42);
+    }
+
+    [Test]
+    public async Task internal_variant_match_returns_correct_value() {
+        InternalVariant variant = new InternalSignal(7);
+
+        var outcome = variant.Match(
+            s => $"serialized:{s.Payload}",
+            x => $"signal:{x.Code}"
+        );
+
+        await Assert.That(outcome).IsEqualTo("signal:7");
     }
 }

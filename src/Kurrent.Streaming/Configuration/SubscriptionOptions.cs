@@ -13,7 +13,7 @@ public record SubscriptionOptions {
     /// (e.g., <c>RecordFilter.ByStream("orders")</c>) or construct an <see cref="ExpressionFilter"/>
     /// directly for SQL-style filtering.
     /// </summary>
-    public IRecordFilter Filter { get; set; } = RecordFilter.None;
+    public RecordFilter Filter { get; set; } = RecordFilter.None;
 
     /// <summary>
     /// Where to start if no checkpoint exists. Default: <see cref="SubscriptionInitialPosition.Latest"/>.

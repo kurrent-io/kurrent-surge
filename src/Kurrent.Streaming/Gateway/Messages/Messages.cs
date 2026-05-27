@@ -1,44 +1,10 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
-using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Processors.Gateway.Messages;
-
-/// <summary>
-/// Unique identifier for a checkpoint.
-/// </summary>
-/// <remarks>
-/// Checkpoint IDs are coordination tokens, not positions.
-/// Drones use these IDs to identify which checkpoint they're responding to.
-/// </remarks>
-[PublicAPI]
-public readonly record struct CheckpointId(string Value) {
-	public static readonly CheckpointId Unset = new("");
-
-	/// <summary>Creates a new unique checkpoint ID.</summary>
-	public static CheckpointId New() => new(Guid.NewGuid().ToString());
-
-    public static CheckpointId From(string value) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
-        return new CheckpointId(value);
-    }
-
-    public static CheckpointId From(ulong value) =>
-        new(value.ToString());
-
-    public static CheckpointId From(long value) =>
-        new(value.ToString());
-
-    /// <summary>True if this checkpoint ID is empty or unset.</summary>
-	public bool IsUnset => string.IsNullOrEmpty(Value);
-
-	public override string ToString() => Value;
-
-	public static implicit operator string(CheckpointId id) => id.Value;
-}
 
 #region ->> Inbound - Control Messages <<-
 
@@ -120,19 +86,29 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 }
 
 
-public readonly record struct Checkpoint(
-    string CheckpointId,
-    CheckpointTrigger Trigger,
-    DateTimeOffset Timestamp,
-    RecordPosition[] Positions
-) {
-    /// <summary>
-    /// Optional reason supplied with manual checkpoints (<see cref="CheckpointTrigger.Manual"/>).
-    /// Null for non-manual triggers.
-    /// </summary>
-    public string? Reason { get; init; }
+// Processor-synthesized checkpoint cases extending client's Checkpoint hierarchy.
+// Server-emitted cases (IntervalCheckpoint, CaughtUpCheckpoint) live in the client.
 
-    // public Dictionary<string, string> Metadata { get; init; } = new();
+public sealed record ManualCheckpoint(CheckpointId Id, DateTimeOffset Timestamp, string? Reason = null)
+    : Checkpoint(Id, Timestamp);
+
+public sealed record ShutdownCheckpoint(CheckpointId Id, DateTimeOffset Timestamp)
+    : Checkpoint(Id, Timestamp);
+
+public sealed record RebalanceCheckpoint(CheckpointId Id, DateTimeOffset Timestamp)
+    : Checkpoint(Id, Timestamp);
+
+static class CheckpointExtensions {
+    extension(Checkpoint cp) {
+        public CheckpointTrigger TriggerKind => cp switch {
+            IntervalCheckpoint  => CheckpointTrigger.Interval,
+            CaughtUpCheckpoint  => CheckpointTrigger.CaughtUp,
+            ManualCheckpoint    => CheckpointTrigger.Manual,
+            ShutdownCheckpoint  => CheckpointTrigger.Shutdown,
+            RebalanceCheckpoint => CheckpointTrigger.Rebalance,
+            _                   => CheckpointTrigger.Unspecified
+        };
+    }
 }
 
 /// <summary>

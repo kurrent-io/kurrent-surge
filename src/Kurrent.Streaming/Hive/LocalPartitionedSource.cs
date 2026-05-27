@@ -58,7 +58,7 @@ sealed class LocalPartitionedSource : ISubscription {
 
 	public async Task Subscribe(
 		RecordPosition    startPosition,
-		IRecordFilter     filter,
+		RecordFilter     filter,
 		bool              skipDecoding,
 		CancellationToken ct
 	) {

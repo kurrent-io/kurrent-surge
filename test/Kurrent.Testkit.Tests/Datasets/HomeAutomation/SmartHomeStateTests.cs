@@ -1,8 +1,9 @@
+using Kurrent.Testkit.Datasets;
 using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Commands;
 using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 
-namespace Kurrent.Testkit.Datasets.HomeAutomation.Tests;
+namespace Kurrent.Testkit.Tests.Datasets.HomeAutomation;
 
 [Category("HomeAutomation")]
 public class SmartHomeStateTests {

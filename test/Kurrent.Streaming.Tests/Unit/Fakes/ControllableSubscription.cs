@@ -21,7 +21,7 @@ sealed class ControllableSubscription : ISubscription {
 	public void SetWriter(ChannelWriter<SubscribeMessage> writer) => _droneWriter = writer;
 
 	public async Task Subscribe(
-		RecordPosition startPosition, IRecordFilter filter,
+		RecordPosition startPosition, RecordFilter filter,
 		bool skipDecoding, CancellationToken ct
 	) {
 		var writer = _droneWriter ?? throw new InvalidOperationException("Writer not set");

@@ -1,7 +1,7 @@
 using Kurrent.Sdk.Testkit;
 using Kurrent.Testkit.Aspire;
 
-namespace Kurrent.Client.Tests.Diagnostics;
+namespace Aspire.Hosting.KurrentDB.Tests;
 
 /// <summary>
 /// Smoke tests verifying that the fixture's background log subscriber captures

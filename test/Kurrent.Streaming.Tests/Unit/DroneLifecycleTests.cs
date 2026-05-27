@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Options;

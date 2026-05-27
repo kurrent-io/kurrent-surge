@@ -1,0 +1,417 @@
+using Kurrent.Client;
+using Kurrent.Client.Streams;
+using Kurrent.Streaming.Experimental.Components.Appender;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
+using Kurrent.Testkit.TUnit;
+
+namespace Kurrent.Streaming.Tests;
+
+[Category("Appender")]
+[Category("Integration")]
+[Timeout(30_000)]
+public class AppenderTests {
+    [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
+    public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
+
+    [Before(Test)]
+    public void RegisterTypes() => Fixture.TypeMapper.Map<RaceCar>();
+
+    AppendRecord NewRecord(StreamName stream, string? orderingKey = null) =>
+        AppendRecord.New()
+            .Stream(stream)
+            .Value(RaceCar.Generate())
+            .OrderingKey(orderingKey)
+            .Build();
+
+    AppendRecord[] NewRecords(StreamName stream, int count, string? orderingKey = null) =>
+        Enumerable.Range(0, count).Select(_ => NewRecord(stream, orderingKey)).ToArray();
+
+    #region ->> Basic Append <<-
+
+    public class RecordCounts : TestCaseGenerator<int> {
+        protected override IEnumerable<int> Data() => [1, 5, 20];
+    }
+
+    [Test]
+    [RecordCounts]
+    public async ValueTask appends_records_with_callback(int count, CancellationToken ct) {
+        // Arrange
+        var stream  = $"appender-cb-{PunyId.New()}";
+        var records = NewRecords(stream, count);
+
+        await using var appender = new Appender(CreateOptions());
+
+        var results = new List<AppendResult>();
+        var done    = new TaskCompletionSource();
+
+        // Act
+        foreach (var record in records) {
+            await appender.Append(record, result => {
+                lock (results) {
+                    results.Add(result);
+                    if (results.Count == records.Length)
+                        done.TrySetResult();
+                }
+            }, ct);
+        }
+
+        await done.Task.WaitAsync(ct);
+
+        // Assert
+        await Assert.That(results).Count().IsEqualTo(records.Length);
+
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        var readRecords = await ReadStream(stream, ct);
+        await Assert.That(readRecords).Count().IsEqualTo(records.Length);
+    }
+
+    [Test]
+    [RecordCounts]
+    public async ValueTask appends_records_with_async_await(int count, CancellationToken ct) {
+        // Arrange
+        var stream  = $"appender-async-{PunyId.New()}";
+        var records = NewRecords(stream, count);
+
+        await using var appender = new Appender(CreateOptions());
+
+        // Act
+        var results = await AppendAll(appender, records, ct);
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        var readRecords = await ReadStream(stream, ct);
+        await Assert.That(readRecords).Count().IsEqualTo(records.Length);
+
+        var readIds = readRecords.Select(r => r.Id).ToHashSet();
+
+        foreach (var record in records)
+            await Assert.That(readIds.Contains(record.RecordId)).IsTrue();
+    }
+
+    public class StreamCounts : TestCaseGenerator<int, int> {
+        protected override IEnumerable<(int, int)> Data() => [
+            (2, 5),
+            (3, 10),
+            (5, 3)
+        ];
+    }
+
+    [Test]
+    [StreamCounts]
+    public async ValueTask appends_to_multiple_streams(int streamCount, int recordsPerStream, CancellationToken ct) {
+        // Arrange
+        var streams = Enumerable.Range(0, streamCount)
+            .Select(i => (StreamName)$"appender-multi-{i}-{PunyId.New()}")
+            .ToArray();
+
+        var allRecords = streams
+            .SelectMany(stream => NewRecords(stream, recordsPerStream))
+            .ToArray();
+
+        await using var appender = new Appender(CreateOptions());
+
+        // Act
+        var results = await AppendAll(appender, allRecords, ct);
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        foreach (var stream in streams)
+            await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(recordsPerStream);
+    }
+
+    #endregion
+
+    #region ->> Batching <<-
+
+    public class BatchSizeCases : TestCaseDataGenerator<(int RecordCount, int MaxBatchCount)> {
+        protected override IEnumerable<TestCase<(int RecordCount, int MaxBatchCount)>> Data() {
+            yield return new((15, 3), DisplayName: "15 records, batch of 3");
+            yield return new((30, 5), DisplayName: "30 records, batch of 5");
+            yield return new((10, 1), DisplayName: "10 records, batch of 1");
+        }
+    }
+
+    [Test]
+    [BatchSizeCases]
+    public async ValueTask dispatches_multiple_small_batches(int recordCount, int maxBatchCount, CancellationToken ct) {
+        // Arrange
+        var stream  = $"appender-batches-{PunyId.New()}";
+        var records = NewRecords(stream, recordCount);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = maxBatchCount;
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
+        }));
+
+        // Act
+        var results = await AppendAll(appender, records, ct);
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(recordCount);
+    }
+
+    public class ByteSizeCases : TestCaseDataGenerator<(int RecordCount, int MaxBatchBytes)> {
+        protected override IEnumerable<TestCase<(int RecordCount, int MaxBatchBytes)>> Data() {
+            // RaceCar serializes to ~200-400 bytes; these thresholds force multiple batches
+            yield return new((20, 1024), DisplayName: "20 records, ~1 KB batch limit");
+            yield return new((12, 2048), DisplayName: "12 records, ~2 KB batch limit");
+            yield return new((10, 4096), DisplayName: "10 records, ~4 KB batch limit");
+        }
+    }
+
+    [Test]
+    [ByteSizeCases]
+    public async ValueTask flushes_when_batch_byte_size_exceeded(
+        int recordCount, int maxBatchBytes, CancellationToken ct
+    ) {
+        // Arrange — small MaxBatchBytes forces multiple flushes based on actual serialized size
+        var stream  = $"appender-bytes-{PunyId.New()}";
+        var records = NewRecords(stream, recordCount);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 1000;
+            opts.MaxBatchBytes = maxBatchBytes;
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
+        }));
+
+        // Act
+        var results = await AppendAll(appender, records, ct);
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(recordCount);
+    }
+
+    [Test]
+    [RecordCounts]
+    public async ValueTask linger_timeout_flushes_partial_batch(int count, CancellationToken ct) {
+        // Arrange — large batch size so the batch never fills; linger forces the flush
+        var stream  = $"appender-linger-{PunyId.New()}";
+        var records = NewRecords(stream, count);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 1000;
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(50);
+        }));
+
+        // Act
+        var results = await AppendAll(appender, records, ct);
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(count);
+    }
+
+    [Test]
+    [RecordCounts]
+    public async ValueTask flush_drains_all_buffered_records(int count, CancellationToken ct) {
+        // Arrange
+        var stream  = $"appender-flush-{PunyId.New()}";
+        var records = NewRecords(stream, count);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.LingerTimeout = TimeSpan.FromSeconds(30);
+        }));
+
+        // Act — append without awaiting, then flush
+        foreach (var record in records)
+            await appender.Append(record, _ => { }, ct);
+
+        await appender.FlushAsync(ct);
+
+        // Assert
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(count);
+    }
+
+    #endregion
+
+    #region ->> Ordering Key <<-
+
+    public class OrderingKeyCounts : TestCaseGenerator<int> {
+        protected override IEnumerable<int> Data() => [5, 10, 20];
+    }
+
+    [Test]
+    [OrderingKeyCounts]
+    public async ValueTask ordering_key_preserves_order_within_same_key(int count, CancellationToken ct) {
+        // Arrange
+        var stream  = $"appender-okey-order-{PunyId.New()}";
+        var records = NewRecords(stream, count, orderingKey: "same-key");
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 3;
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
+        }));
+
+        // Act
+        var results = await AppendAll(appender, records, ct);
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        var readRecords = await ReadStream(stream, ct);
+        await Assert.That(readRecords).Count().IsEqualTo(records.Length);
+
+        for (var i = 0; i < records.Length; i++)
+            await Assert.That(readRecords[i].Id).IsEqualTo(records[i].RecordId);
+    }
+
+    public class KeyCountCases : TestCaseGenerator<int, int> {
+        protected override IEnumerable<(int, int)> Data() => [
+            (2, 5),
+            (3, 10),
+            (4, 8)
+        ];
+    }
+
+    [Test]
+    [KeyCountCases]
+    public async ValueTask different_ordering_keys_are_all_appended_in_order(
+        int keyCount, int recordsPerKey, CancellationToken ct
+    ) {
+        // Arrange — N ordering keys on N separate streams, interleaved
+        var data = Enumerable.Range(0, keyCount)
+            .Select(k => (
+                Stream:  (StreamName)$"appender-okey-{k}-{PunyId.New()}",
+                Key:     $"key-{k}",
+                Records: (AppendRecord[])null!
+            ))
+            .Select(x => x with { Records = NewRecords(x.Stream, recordsPerKey, orderingKey: x.Key) })
+            .ToArray();
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 3;
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
+        }));
+
+        // Act — interleave records across all keys
+        var tasks = new List<ValueTask<AppendResult>>();
+
+        for (var i = 0; i < recordsPerKey; i++)
+            foreach (var entry in data)
+                tasks.Add(appender.AppendAsync(entry.Records[i], ct));
+
+        var results = await Task.WhenAll(tasks.Select(t => t.AsTask()));
+
+        // Assert — all acknowledged
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        // Verify ordering within each key
+        foreach (var entry in data) {
+            var readRecords = await ReadStream(entry.Stream, ct);
+            await Assert.That(readRecords).Count().IsEqualTo(recordsPerKey);
+
+            for (var i = 0; i < recordsPerKey; i++)
+                await Assert.That(readRecords[i].Id).IsEqualTo(entry.Records[i].RecordId);
+        }
+    }
+
+    [Test]
+    [KeyCountCases]
+    public async ValueTask mixed_keyed_and_unkeyed_records_all_appended_in_order(
+        int keyCount, int recordsPerGroup, CancellationToken ct
+    ) {
+        // Arrange — unkeyed stream + N keyed streams, interleaved
+        var unkeyedStream = (StreamName)$"appender-mixed-unkeyed-{PunyId.New()}";
+        var unkeyed       = NewRecords(unkeyedStream, recordsPerGroup);
+
+        var keyed = Enumerable.Range(0, keyCount)
+            .Select(k => (
+                Stream:  (StreamName)$"appender-mixed-keyed-{k}-{PunyId.New()}",
+                Key:     $"key-{k}",
+                Records: (AppendRecord[])null!
+            ))
+            .Select(x => x with { Records = NewRecords(x.Stream, recordsPerGroup, orderingKey: x.Key) })
+            .ToArray();
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 3;
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
+        }));
+
+        // Act — interleave keyed and unkeyed
+        var tasks = new List<ValueTask<AppendResult>>();
+
+        for (var i = 0; i < recordsPerGroup; i++) {
+            tasks.Add(appender.AppendAsync(unkeyed[i], ct));
+
+            foreach (var entry in keyed)
+                tasks.Add(appender.AppendAsync(entry.Records[i], ct));
+        }
+
+        var results = await Task.WhenAll(tasks.Select(t => t.AsTask()));
+
+        // Assert
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        // Verify ordering for unkeyed
+        var readUnkeyed = await ReadStream(unkeyedStream, ct);
+        await Assert.That(readUnkeyed).Count().IsEqualTo(recordsPerGroup);
+
+        for (var i = 0; i < recordsPerGroup; i++)
+            await Assert.That(readUnkeyed[i].Id).IsEqualTo(unkeyed[i].RecordId);
+
+        // Verify ordering for each keyed group
+        foreach (var entry in keyed) {
+            var readRecords = await ReadStream(entry.Stream, ct);
+            await Assert.That(readRecords).Count().IsEqualTo(recordsPerGroup);
+
+            for (var i = 0; i < recordsPerGroup; i++)
+                await Assert.That(readRecords[i].Id).IsEqualTo(entry.Records[i].RecordId);
+        }
+    }
+
+    #endregion
+
+    #region ->> Helpers <<-
+
+    static async Task<AppendResult[]> AppendAll(Appender appender, AppendRecord[] records, CancellationToken ct) {
+        var tasks = records
+            .Select(record => appender.AppendAsync(record, ct))
+            .ToList();
+
+        return await Task.WhenAll(tasks.Select(t => t.AsTask()));
+    }
+
+    async Task<List<Record>> ReadStream(StreamName stream, CancellationToken ct) =>
+        await Fixture.Client.Streams
+            .ReadStreamRecords(stream, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+    AppenderOptions CreateOptions(Action<AppenderOptions>? configure = null) {
+        var options = new AppenderOptions();
+
+        options.Connection(
+            Fixture.ConnectionString,
+            client => {
+                client.LoggerFactory = Fixture.LoggerFactory;
+                client.Schema        = KurrentClientSchemaOptions.NoValidation;
+                client.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            });
+
+        configure?.Invoke(options);
+
+        return options;
+    }
+
+    #endregion
+}

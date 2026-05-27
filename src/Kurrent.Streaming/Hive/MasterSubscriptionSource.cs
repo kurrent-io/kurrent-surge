@@ -135,11 +135,9 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
             try {
                 while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false)) {
                     var now = _clock.Now();
-                    var barrier = new Checkpoint(
-                        now,
-                        CheckpointTrigger.Interval,
-                        now.DateTimeOffset,
-                        []);
+                    Checkpoint barrier = new IntervalCheckpoint(
+                        new CheckpointId(now),
+                        now.DateTimeOffset);
 
                     await FanOutAsync(barrier, ct).ConfigureAwait(false);
                 }

@@ -5,7 +5,7 @@ namespace Kurrent.Streaming.Gateway;
 public interface ISubscription : IAsyncDisposable {
 	Task Subscribe(
 		RecordPosition    startPosition,
-		IRecordFilter     filter,
+		RecordFilter     filter,
 		bool              skipDecoding,
 		CancellationToken ct);
 }

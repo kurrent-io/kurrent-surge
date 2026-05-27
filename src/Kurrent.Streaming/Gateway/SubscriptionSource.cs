@@ -35,7 +35,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
 
     public async Task Subscribe(
         RecordPosition startPosition,
-        IRecordFilter filter,
+        RecordFilter filter,
         bool skipDecoding,
         CancellationToken ct
     ) {
@@ -79,12 +79,6 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
         ValueTask.CompletedTask;
 }
 
-public readonly record struct Connected(SessionId SessionId);
-
-public readonly partial record struct SubscribeMessage : IVariant<Connected, Record, Checkpoint> {
-    public static readonly SubscribeMessage None;
-}
-
 static class InternalClientExtensions {
     /// <summary>
     /// Subscribes to a stream or log via the V1 wire protocol.
@@ -95,14 +89,12 @@ static class InternalClientExtensions {
         this StreamsClient streams,
         ISchemaSerializerProvider serializerProvider,
         IMetadataDecoder metadataDecoder,
-        IRecordFilter filter,
+        RecordFilter filter,
         RecordPosition start,
         bool skipDecoding,
         [EnumeratorCancellation] CancellationToken ct
     ) {
-        var request = filter.IsStreamFilter
-            ? ProtocolMapping.Requests.CreateStreamSubscriptionRequest(filter, start.Revision)
-            : ProtocolMapping.Requests.CreateLogSubscriptionRequest(filter, start.LogPosition);
+        var request = StreamsClientV1Mapper.Requests.CreateSubscriptionRequest(filter, start, resolveLinks: true);
 
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;

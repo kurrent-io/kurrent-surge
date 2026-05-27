@@ -117,8 +117,10 @@ public class ReadWithFilterTests {
         // Act — routes to $all with prefix filter $idx-ce-{category}
         var filter = RecordFilter.ByExpression($"category = '{category}'");
 
-        Log.Information("Category filter targets: {TargetStream}", filter.TargetStream);
-        await Assert.That(filter.TargetStream).IsEqualTo($"$idx-ce-{category}");
+        var exprFilter = (ExpressionFilter)filter;
+        Log.Information("Category filter server filter: {ServerFilter}", exprFilter.ServerFilter);
+        await Assert.That(exprFilter.ServerFilter).IsTypeOf<CategoryFilter>();
+        await Assert.That(((CategoryFilter)exprFilter.ServerFilter).IndexName).IsEqualTo($"$idx-ce-{category}");
 
         // Poll until the secondary index catches up (eventually consistent)
         var ownCount = 0;
@@ -228,8 +230,10 @@ public class ReadWithFilterTests {
         // Act — routes to $all with prefix filter $idx-et-{schema}
         var filter = RecordFilter.ByExpression($"schema_name = '{expectedSchema}'");
 
-        Log.Information("Schema filter targets: {TargetStream}", filter.TargetStream);
-        await Assert.That(filter.TargetStream).IsEqualTo($"$idx-et-{expectedSchema}");
+        var exprFilter = (ExpressionFilter)filter;
+        Log.Information("Schema filter server filter: {ServerFilter}", exprFilter.ServerFilter);
+        await Assert.That(exprFilter.ServerFilter).IsTypeOf<SchemaFilter>();
+        await Assert.That(((SchemaFilter)exprFilter.ServerFilter).IndexName).IsEqualTo($"$idx-et-{expectedSchema}");
 
         // Poll until the secondary index catches up (eventually consistent)
         var records = new List<Record>();
@@ -387,7 +391,7 @@ public class ReadWithFilterTests {
         // with no server-side filter, so we must use CTS to stop reading
         var filter = RecordFilter.ByExpression($"stream = '{sim1.Stream}' OR stream = '{sim2.Stream}'");
 
-        await Assert.That(filter.TargetStream).IsEqualTo("$all");
+        await Assert.That(((ExpressionFilter)filter).ServerFilter).IsTypeOf<EmptyFilter>();
 
         var options = ReadRecordsRequest.New()
             .FromPosition(lastPosition.LogPosition)

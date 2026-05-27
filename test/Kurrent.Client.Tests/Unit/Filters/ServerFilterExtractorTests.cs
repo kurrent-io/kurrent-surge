@@ -7,72 +7,30 @@ public class ServerFilterExtractorTests {
 
     #region Stream Filter Extraction
 
-    public readonly record struct StreamExtractionTestCase(string Description, string Expression, IRecordFilter ExpectedFilter) {
+    public readonly record struct StreamExtractionTestCase(string Description, string Expression, Type ExpectedType, string ExpectedExpression) {
         public override string ToString() => Description;
     }
 
     public class StreamExtractionTestCases : TestCaseGenerator<StreamExtractionTestCase> {
-        // Realistic stream names following KurrentDB convention: {Category}-{Id}
         const string GamesStream    = "Games-D0332EB7480643E481BF3205296958FD";
         const string OrdersStream   = "Orders-A1B2C3D4E5F6789012345678ABCDEF01";
         const string PaymentsStream = "Payments-F9E8D7C6B5A4321098765432FEDCBA98";
 
         protected override IEnumerable<StreamExtractionTestCase> Data() {
-            // Exact stream match - targets specific stream
-            yield return new(
-                "Exact stream match",
-                $"stream = '{GamesStream}'",
-                RecordFilter.ByStream(GamesStream)
-            );
-
-            // LIKE without wildcards - equivalent to exact match
-            yield return new(
-                "LIKE exact match (no wildcards)",
-                $"stream LIKE '{OrdersStream}'",
-                RecordFilter.ByStream(OrdersStream)
-            );
-
-            // Multiple streams - reads from $all with filter (derived regex, no TargetStream)
-            yield return new(
-                "Multiple streams (IN)",
-                $"stream IN ('{OrdersStream}', '{PaymentsStream}')",
-                RecordFilter.ByStreamPattern($"^({OrdersStream}|{PaymentsStream})$")
-            );
-
-            // Category prefix - common pattern for filtering by aggregate type
-            yield return new(
-                "Category prefix (Games-%)",
-                "stream LIKE 'Games-%'",
-                RecordFilter.ByStreamPattern(@"^Games-.*$")
-            );
-
-            // Category prefix - Orders
-            yield return new(
-                "Category prefix (Orders-%)",
-                "stream LIKE 'Orders-%'",
-                RecordFilter.ByStreamPattern(@"^Orders-.*$")
-            );
-
-            // Single char wildcard - matches exactly one character
-            yield return new(
-                "Single char wildcard",
-                "stream LIKE 'Games-_'",
-                RecordFilter.ByStreamPattern(@"^Games-.$")
-            );
-
-            // Case-insensitive category prefix
-            yield return new(
-                "Case-insensitive category prefix",
-                "stream ILIKE 'GAMES-%'",
-                RecordFilter.ByStreamPattern(@"(?i)^GAMES-.*$")
-            );
-
-            // Case-insensitive exact match - no target stream (could match multiple variants)
-            yield return new(
-                "Case-insensitive exact match",
-                $"stream ILIKE '{GamesStream}'",
-                RecordFilter.ByStreamPattern($"(?i)^{GamesStream}$")
-            );
+            // Exact stream match → StreamNameFilter
+            yield return new("Exact stream match",         $"stream = '{GamesStream}'",                       typeof(StreamNameFilter), GamesStream);
+            // LIKE without wildcards produces a regex (^literal$) → StreamRegexFilter
+            yield return new("LIKE exact match (no wildcards)", $"stream LIKE '{OrdersStream}'",               typeof(StreamRegexFilter), $"^{OrdersStream}$");
+            // Multiple streams → StreamRegexFilter with alternation
+            yield return new("Multiple streams (IN)",      $"stream IN ('{OrdersStream}', '{PaymentsStream}')", typeof(StreamRegexFilter), $"^({OrdersStream}|{PaymentsStream})$");
+            // Category prefix → StreamRegexFilter
+            yield return new("Category prefix (Games-%)",  "stream LIKE 'Games-%'",                            typeof(StreamRegexFilter), @"^Games-.*$");
+            yield return new("Category prefix (Orders-%)", "stream LIKE 'Orders-%'",                           typeof(StreamRegexFilter), @"^Orders-.*$");
+            // Single char wildcard → StreamRegexFilter
+            yield return new("Single char wildcard",       "stream LIKE 'Games-_'",                            typeof(StreamRegexFilter), @"^Games-.$");
+            // Case-insensitive → StreamRegexFilter
+            yield return new("Case-insensitive prefix",    "stream ILIKE 'GAMES-%'",                           typeof(StreamRegexFilter), @"(?i)^GAMES-.*$");
+            yield return new("Case-insensitive exact",     $"stream ILIKE '{GamesStream}'",                    typeof(StreamRegexFilter), $"(?i)^{GamesStream}$");
         }
     }
 
@@ -82,8 +40,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression(testcase.Expression);
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter).IsDeepEquivalentTo(testcase.ExpectedFilter);
+        await Assert.That(filter.GetType()).IsEqualTo(testcase.ExpectedType);
+        await Assert.That(filter.Expression).IsEqualTo(testcase.ExpectedExpression);
     }
 
     [Test]
@@ -91,27 +49,25 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("stream = 'Orders-A1B2C3D4E5F6'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("Orders-A1B2C3D4E5F6"));
-        await Assert.That(filter.Expression).IsEqualTo("^Orders-A1B2C3D4E5F6$");
+        await Assert.That(filter).IsTypeOf<StreamNameFilter>();
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("Orders-A1B2C3D4E5F6"));
+        await Assert.That(filter.Expression).IsEqualTo("Orders-A1B2C3D4E5F6");
     }
 
     [Test]
-    public async Task no_target_stream_for_category_prefix() {
+    public async Task category_prefix_returns_stream_regex_filter() {
         var expr   = ParseExpression("stream LIKE 'Orders-%'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamRegexFilter>();
     }
 
     [Test]
-    public async Task no_target_stream_for_in_expression() {
+    public async Task in_expression_returns_stream_regex_filter() {
         var expr   = ParseExpression("stream IN ('Orders-123', 'Payments-456')");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.Log);
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamRegexFilter>();
         await Assert.That(filter.Expression).IsEqualTo("^(Orders-123|Payments-456)$");
     }
 
@@ -120,12 +76,12 @@ public class ServerFilterExtractorTests {
     #region Server-Side Stream Filters
 
     [Test]
-    public async Task converts_stream_equality_to_exact_regex() {
+    public async Task converts_stream_equality_to_stream_name_filter() {
         var expr   = ParseExpression("stream = 'Games-ABC123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo("^Games-ABC123$");
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
+        await Assert.That(filter).IsTypeOf<StreamNameFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("Games-ABC123");
     }
 
     [Test]
@@ -173,8 +129,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(((SchemaFilter)filter).IndexName).IsEqualTo("$idx-et-OrderCreated");
     }
 
     [Test]
@@ -182,8 +138,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("schema = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(((SchemaFilter)filter).IndexName).IsEqualTo("$idx-et-OrderCreated");
     }
 
     [Test]
@@ -213,8 +169,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("category = 'orders'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+        await Assert.That(filter).IsTypeOf<CategoryFilter>();
+        await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
     }
 
     [Test]
@@ -240,8 +196,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("category = 'orders' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+        await Assert.That(filter).IsTypeOf<CategoryFilter>();
+        await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
     }
 
     [Test]
@@ -250,7 +206,7 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-99"));
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("orders-99"));
     }
 
     [Test]
@@ -270,8 +226,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("index = 'orders-by-country'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-orders-by-country"));
+        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
+        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-orders-by-country");
     }
 
     [Test]
@@ -279,8 +235,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("index = 'orders-by-country' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-orders-by-country"));
+        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
+        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-orders-by-country");
     }
 
     [Test]
@@ -288,8 +244,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("category = 'orders' AND index = 'orders-by-country'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+        await Assert.That(filter).IsTypeOf<CategoryFilter>();
+        await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
     }
 
     #endregion
@@ -337,9 +293,9 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND timestamp >= '2024-01-01'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.Expression).IsEqualTo("^Orders-ABC123$");
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("Orders-ABC123"));
+        await Assert.That(filter).IsTypeOf<StreamNameFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("Orders-ABC123");
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("Orders-ABC123"));
     }
 
     [Test]
@@ -347,8 +303,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.Expression).IsEqualTo("^Orders-ABC123$");
+        await Assert.That(filter).IsTypeOf<StreamNameFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("Orders-ABC123");
     }
 
     [Test]
@@ -356,8 +312,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("schema_name = 'OrderCreated' AND properties['userId'] = 'Users-123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-et-OrderCreated"));
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(((SchemaFilter)filter).IndexName).IsEqualTo("$idx-et-OrderCreated");
     }
 
     [Test]
@@ -438,12 +394,12 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task escapes_special_regex_characters() {
+    public async Task exact_stream_match_preserves_special_characters() {
         var expr   = ParseExpression("stream = 'Orders.v1-ABC123'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        // The dot should be escaped in the regex, but '-' doesn't need escaping
-        await Assert.That(filter.Expression).IsEqualTo(@"^Orders\.v1-ABC123$");
+        await Assert.That(filter).IsTypeOf<StreamNameFilter>();
+        await Assert.That(filter.Expression).IsEqualTo("Orders.v1-ABC123");
     }
 
     [Test]
@@ -465,10 +421,11 @@ public class ServerFilterExtractorTests {
     #region RecordFilter Integration
 
     [Test]
-    public async Task expression_filter_extracts_target_stream() {
-        var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
+    public async Task expression_filter_extracts_stream_name_server_filter() {
+        var filter = (ExpressionFilter)RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
 
-        await Assert.That(filter.TargetStream.Value).IsEqualTo("Orders-ABC123");
+        await Assert.That(filter.ServerFilter).IsTypeOf<StreamNameFilter>();
+        await Assert.That(((StreamNameFilter)filter.ServerFilter).TargetStream).IsEqualTo(StreamName.From("Orders-ABC123"));
         await Assert.That(filter.Expression).IsEqualTo("stream = 'Orders-ABC123' AND properties['amount'] > 100");
     }
 
@@ -710,7 +667,7 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-99"));
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("orders-99"));
     }
 
     [Test]
@@ -720,7 +677,7 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-99"));
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("orders-99"));
     }
 
     [Test]
@@ -729,8 +686,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("category = 'orders' AND index = 'my-index' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-ce-orders"));
+        await Assert.That(filter).IsTypeOf<CategoryFilter>();
+        await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
     }
 
     [Test]
@@ -739,8 +696,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("index = 'my-index' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-my-index"));
+        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
+        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-my-index");
     }
 
     #endregion
@@ -748,27 +705,33 @@ public class ServerFilterExtractorTests {
     #region Exact Regex Assertions
 
     [Test]
-    public async Task category_equality_produces_exact_idx_ce_regex() {
+    public async Task category_equality_produces_idx_ce_index_name() {
         var expr   = ParseExpression("category = 'orders'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-ce-orders$");
+        await Assert.That(filter).IsTypeOf<CategoryFilter>();
+        await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
+        await Assert.That(filter.Expression).IsEqualTo("orders");
     }
 
     [Test]
-    public async Task schema_equality_produces_exact_idx_et_regex() {
+    public async Task schema_equality_produces_idx_et_index_name() {
         var expr   = ParseExpression("schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-et-OrderPlaced$");
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(((SchemaFilter)filter).IndexName).IsEqualTo("$idx-et-OrderPlaced");
+        await Assert.That(filter.Expression).IsEqualTo("OrderPlaced");
     }
 
     [Test]
-    public async Task index_produces_exact_idx_user_regex() {
+    public async Task index_produces_idx_user_index_name() {
         var expr   = ParseExpression("index = 'orders-by-country'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter.Expression).IsEqualTo(@"^\$idx-user-orders-by-country$");
+        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
+        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-orders-by-country");
+        await Assert.That(filter.Expression).IsEqualTo("orders-by-country");
     }
 
     #endregion
@@ -801,8 +764,8 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("index = 'my-index' AND position > 100 AND timestamp >= '2024-01-01'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("$idx-user-my-index"));
+        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
+        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-my-index");
     }
 
     #endregion
@@ -816,7 +779,7 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-1"));
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("orders-1"));
     }
 
     [Test]
@@ -826,7 +789,7 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(filter.TargetStream).IsEqualTo(StreamName.From("orders-1"));
+        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("orders-1"));
     }
 
     #endregion

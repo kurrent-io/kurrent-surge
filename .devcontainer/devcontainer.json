@@ -86,12 +86,11 @@
       ]
     },
     "jetbrains": {
-      "backend": {
-        "settings": {
-          "dotnet.defaultSolution": "Kurrent.Sdk.slnx"
-        },
-        "plugins": []
-      }
+      "backend": "Rider",
+      "settings": {
+        "dotnet.defaultSolution": "Kurrent.Sdk.slnx"
+      },
+      "plugins": []
     }
   },
 

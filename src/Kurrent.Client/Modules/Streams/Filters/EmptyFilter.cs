@@ -4,10 +4,8 @@ namespace Kurrent.Client.Streams;
 /// A filter that matches all records.
 /// </summary>
 [PublicAPI]
-public sealed record EmptyFilter : IRecordFilter {
-    public StreamName TargetStream => StreamName.Unset;
+public sealed record EmptyFilter : RecordFilter {
+    public override string Expression { get; init; } = "";
 
-    public string Expression => "";
-
-    public bool IsMatch(Record record) => true;
+    public override bool IsMatch(Record record) => true;
 }

@@ -1,4 +1,5 @@
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams;
 using Microsoft.Extensions.Configuration;
 // ReSharper disable ClassNeverInstantiated.Global
 

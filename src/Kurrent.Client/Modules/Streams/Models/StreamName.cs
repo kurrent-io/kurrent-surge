@@ -65,13 +65,18 @@ public readonly record struct StreamName {
     /// <summary>
     /// Indicates whether the stream is a system stream.
     /// </summary>
-    public bool IsSystemStream { get; private init;}
+    public bool IsSystemStream { get; private init; }
 
     /// <summary>
     /// Indicates whether the stream is an index stream.
     /// </summary>
-    public bool IsIndexStream { get; private init;}
+    public bool IsIndexStream { get; private init; }
 
+    /// <summary>
+    /// Indicates whether the stream is a projected stream
+    /// </summary>
+    public bool IsProjectedStream { get; private init; }
+    
     /// <summary>
     /// Indicates whether the value is uninitialized (i.e., equals <see cref="Unset"/>).
     /// </summary>
@@ -83,8 +88,8 @@ public readonly record struct StreamName {
         if (string.IsNullOrWhiteSpace(value))
             InvalidStreamNameException.Throw("Stream name cannot be null or whitespace.");
 
-        var isSystemStream    = value.StartsWith(SystemStreamPrefix);
         var isIndexStream     = value.StartsWith(IndexStreamPrefix);
+        var isSystemStream    = value.StartsWith(SystemStreamPrefix);
         var isMetadataStream  = value.StartsWith(SystemMetadataStreamPrefix) || value.StartsWith(MetadataStreamPrefix);
         var isProjectedStream = SystemProjectedStreams.Contains(value, StringComparer.OrdinalIgnoreCase);
 
@@ -92,11 +97,12 @@ public readonly record struct StreamName {
             ? ParseCategory(value) : "";
 
         return new() {
-            Value            = value,
-            Category         = category,
-            IsSystemStream   = isSystemStream,
-            IsIndexStream    = isIndexStream,
-            IsMetadataStream = isMetadataStream
+            Value             = value,
+            Category          = category,
+            IsSystemStream    = isSystemStream,
+            IsIndexStream     = isIndexStream,
+            IsMetadataStream  = isMetadataStream,
+            IsProjectedStream = isProjectedStream
         };
 
         static string ParseCategory(ReadOnlySpan<char> streamName, char separator = '-', CategorySeparatorPosition separatorPosition = CategorySeparatorPosition.First) {
@@ -112,7 +118,7 @@ public readonly record struct StreamName {
             return category.ToString();
         }
     }
-
+    
     public static implicit operator StreamName(string stream) => From(stream);
     
     public static implicit operator string(StreamName stream) => stream.Value;

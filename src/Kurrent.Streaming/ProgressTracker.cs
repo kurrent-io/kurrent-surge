@@ -44,8 +44,8 @@ sealed class ProgressTracker {
     public void TrackCheckpoint(Checkpoint checkpoint, RecordPosition[] positions) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint = _totalRecords;
-        _lastCheckpointId        = checkpoint.CheckpointId;
-        _lastCheckpointTrigger   = checkpoint.Trigger;
+        _lastCheckpointId        = checkpoint.Id;
+        _lastCheckpointTrigger   = checkpoint.TriggerKind;
         _lastCheckpointAt        = checkpoint.Timestamp;
 
         foreach (var position in positions)

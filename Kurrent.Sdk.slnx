@@ -10,6 +10,7 @@
   </Folder>
 
   <Folder Name="/Client/">
+    <Project Path="src/Kurrent.Client.Arrow/Kurrent.Client.Arrow.csproj" />
     <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
     <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
     <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />

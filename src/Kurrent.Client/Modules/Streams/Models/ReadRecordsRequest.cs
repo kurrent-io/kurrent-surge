@@ -25,7 +25,7 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
     /// <summary>
     /// Record filtering criteria to apply during read operations.
     /// </summary>
-    public IRecordFilter Filter { get; init; } = RecordFilter.None;
+    public RecordFilter Filter { get; init; } = RecordFilter.None;
 
     /// <summary>
     /// Direction for reading records through the log.
@@ -36,7 +36,15 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
     /// Skip record data deserialization for performance-critical scenarios.
     /// </summary>
     public bool SkipDecoding { get; init; }
-    
+
+    /// <summary>
+    /// Resolve link records (<c>$&gt;</c>) to their target events. Index streams (<c>$ce-*</c>,
+    /// <c>$idx-*</c>) contain links; without resolution, consumers see opaque link records
+    /// instead of the underlying events. Default <c>true</c>. Set <c>false</c> for low-level
+    /// inspection of index/projection streams.
+    /// </summary>
+    public bool ResolveLinks { get; init; } = true;
+
     public class Builder(ReadRecordsRequest request) : FluentBuilder<Builder, ReadRecordsRequest>(request) {
         public Builder() : this(new()) { }
        
@@ -103,7 +111,7 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
         /// <summary>
         /// Sets record filtering criteria to apply during read operations.
         /// </summary>
-        public Builder Filter(IRecordFilter filter) =>
+        public Builder Filter(RecordFilter filter) =>
             With(x => x with { Filter = filter });
 
         /// <summary>
@@ -117,6 +125,12 @@ public record ReadRecordsRequest : SelfValidating<ReadRecordsRequest, ReadRecord
         /// </summary>
         public Builder SkipDecoding(bool skip = true) =>
             With(x => x with { SkipDecoding = skip });
+
+        /// <summary>
+        /// Sets whether to resolve link records to their target events. Default <c>true</c>.
+        /// </summary>
+        public Builder ResolveLinks(bool resolve = true) =>
+            With(x => x with { ResolveLinks = resolve });
     }
     
     public class Validator : Validator<Validator, ReadRecordsRequest> {

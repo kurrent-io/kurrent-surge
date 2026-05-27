@@ -1,70 +1,130 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 
 namespace Kurrent.Client.Streams;
 
 /// <summary>
-/// A filter that matches records by stream name.
+/// Base class for filters that match records by stream name.
 /// </summary>
-[PublicAPI]
-public sealed record StreamFilter : RegexFilter {
-    /// <summary>
-    /// Creates a filter that matches a single stream name exactly.
-    /// TargetStream is set so request-shaping can route through direct stream reads
-    /// (or through the index dispatch path when the name is an <c>$idx-*</c> stream).
-    /// </summary>
-    public StreamFilter(string stream) : base(stream) {
-        TargetStream = stream;
-    }
+public abstract record StreamFilter : RecordFilter {
+    protected Regex Regex { get; init; } = null!;
 
-    /// <summary>
-    /// Creates a filter from a raw regex pattern.
-    /// Automatically derives TargetStream for case-sensitive exact match patterns.
-    /// </summary>
-    /// <param name="pattern">The compiled regex pattern.</param>
-    public StreamFilter(Regex pattern) : base(pattern) {
-        // attempts to extract a literal stream name from an exact-match regex pattern.
-        // returns false for patterns with wildcards, alternation, or case-insensitive modifiers.
-        if (TryIdentifyTargetStream(pattern.ToString(), out var streamName))
-            TargetStream = streamName;
+    public override bool IsMatch(Record record) =>
+        Regex.IsMatch(record.Stream);
 
-        return;
+    protected static void RejectIndexStream(string value, string paramName) {
+        if (value.Contains("$idx-", StringComparison.Ordinal)
+         || value.Contains(@"\$idx-", StringComparison.Ordinal))
+            throw new ArgumentException(GetIndexRedirectMessage(value), paramName);
+        
+        static string GetIndexRedirectMessage(string value) {
+            var redirect = value switch {
+                _ when value.Contains("$idx-ce-",   StringComparison.Ordinal) => $"{nameof(RecordFilter)}.ByCategory",
+                _ when value.Contains("$idx-et-",   StringComparison.Ordinal) => $"{nameof(RecordFilter)}.BySchema",
+                _ when value.Contains("$idx-user-", StringComparison.Ordinal) => $"{nameof(RecordFilter)}.ByUserIndex",
+                _                                                             => $"{nameof(RecordFilter)}.ByCategory/BySchema/ByUserIndex"
+            };
 
-        static bool TryIdentifyTargetStream(string pattern, out string streamName) {
-            streamName = "";
-
-            // Case-insensitive patterns can match multiple stream name variants
-            if (pattern.StartsWith("(?i)", StringComparison.Ordinal))
-                return false;
-
-            // Must be anchored pattern: ^content$
-            if (!pattern.StartsWith('^') || !pattern.EndsWith('$'))
-                return false;
-
-            // Extract content between anchors
-            var content = pattern[1..^1];
-            if (string.IsNullOrEmpty(content))
-                return false;
-
-            // Unescape the content to get the literal value
-            string unescaped;
-            try {
-                unescaped = Regex.Unescape(content);
-            }
-            catch {
-                return false;
-            }
-
-            // Re-escape and compare - if they match, it was a literal pattern
-            var reescaped = Regex.Escape(unescaped);
-            if (reescaped != content)
-                // Pattern contains regex metacharacters (wildcards, alternation, etc.)
-                return false;
-
-            streamName = unescaped;
-
-            return true;
+            return $"'{value}' targets an index stream. Use {redirect} instead.";
         }
     }
+}
 
-    protected override ReadOnlySpan<char> GetMatchValue(Record record) => record.Stream;
+/// <summary>
+/// A filter that matches records by an exact stream name.
+/// Always has a <see cref="TargetStream"/> — routes to a direct stream read.
+/// </summary>
+public sealed partial record StreamNameFilter : StreamFilter {
+    StreamNameFilter() { }
+
+    /// <inheritdoc/>
+    public override string Expression { get; init; } = null!;
+
+    /// <summary>
+    /// The target stream for direct stream read operations.
+    /// </summary>
+    public StreamName TargetStream { get; private init; }
+
+    public static StreamNameFilter Parse(string value) =>
+        TryParse(value, out var filter, out var error)
+            ? filter
+            : throw new ArgumentException(error, nameof(value));
+
+    public static bool TryParse(string value, [NotNullWhen(true)] out StreamNameFilter? filter, out string? error) {
+        filter = null;
+        error  = null;
+
+        value = value.Trim();
+
+        if (value.Length == 0) {
+            error = "Stream name filter value must not be empty.";
+            return false;
+        }
+
+        try {
+            RejectIndexStream(value, nameof(value));
+        }
+        catch (ArgumentException ex) {
+            error = ex.Message;
+            return false;
+        }
+
+        filter = new() {
+            Expression   = value,
+            TargetStream = StreamName.From(value),
+            Regex        = new($"^{Regex.Escape(value)}$", RegexOptions.Compiled)
+        };
+        return true;
+    }
+}
+
+/// <summary>
+/// A filter that matches records where the stream name matches a regex pattern.
+/// Routes through <c>$all</c> with a server-side regex filter.
+/// </summary>
+public sealed partial record StreamRegexFilter : StreamFilter {
+    StreamRegexFilter() { }
+
+    /// <inheritdoc/>
+    public override string Expression { get; init; } = null!;
+
+    public static StreamRegexFilter Parse(string pattern) =>
+        TryParse(pattern, out var filter, out var error)
+            ? filter
+            : throw new ArgumentException(error, nameof(pattern));
+
+    public static bool TryParse(string pattern, [NotNullWhen(true)] out StreamRegexFilter? filter, out string? error) {
+        filter = null;
+        error  = null;
+
+        pattern = pattern.Trim();
+
+        if (pattern.Length == 0) {
+            error = "Stream regex filter pattern must not be empty.";
+            return false;
+        }
+
+        try {
+            RejectIndexStream(pattern, nameof(pattern));
+        }
+        catch (ArgumentException ex) {
+            error = ex.Message;
+            return false;
+        }
+
+        Regex regex;
+        try {
+            regex = new Regex(pattern, RegexOptions.Compiled);
+        }
+        catch (ArgumentException ex) {
+            error = $"Invalid regex pattern '{pattern}': {ex.Message}";
+            return false;
+        }
+
+        filter = new() {
+            Expression = pattern,
+            Regex      = regex
+        };
+        return true;
+    }
 }

@@ -82,7 +82,7 @@
 //     /// <summary>
 //     /// Apply a record filter.
 //     /// </summary>
-//     public LogQueryBuilder WithFilter(IRecordFilter filter) {
+//     public LogQueryBuilder WithFilter(RecordFilter filter) {
 //         _inner = _inner.WithFilter(filter);
 //         return this;
 //     }
@@ -219,7 +219,7 @@
 //     /// <summary>
 //     /// Apply a record filter.
 //     /// </summary>
-//     public StreamQueryBuilder WithFilter(IRecordFilter filter) {
+//     public StreamQueryBuilder WithFilter(RecordFilter filter) {
 //         _inner = _inner.WithFilter(filter);
 //         return this;
 //     }

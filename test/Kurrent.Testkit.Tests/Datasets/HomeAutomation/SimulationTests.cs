@@ -1,8 +1,10 @@
+using Kurrent.Testkit.Datasets;
+using Kurrent.Testkit.Datasets.HomeAutomation;
 using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 using Kurrent.Testkit.Datasets.HomeAutomation.Simulation;
 
-namespace Kurrent.Testkit.Datasets.HomeAutomation.Tests;
+namespace Kurrent.Testkit.Tests.Datasets.HomeAutomation;
 
 [Category("HomeAutomation")]
 public class SimulationTests {

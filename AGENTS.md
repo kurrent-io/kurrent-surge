@@ -65,9 +65,7 @@ Solution-level shared libraries (not published as NuGet packages):
 ```
 Variant / Variant.SourceGenerators         ← discriminated union source generator
 Kurrent.Client.SourceGenerators            ← client-specific source generators
-Kurrent.CodeAnalysis                       ← Roslyn analyzers
-Kurrent.Toolkit                            ← shared internal utilities
-ProtobufTranscoder                         ← protobuf wire-format transcoding (experimental and not in the solution)
+Kurrent.CodeAnalysis                       ← shared Roslyn infrastructure for source generators
 ```
 
 `Kurrent.Client` contains a `Legacy/` folder with V1 gRPC compatibility — not a separate package.

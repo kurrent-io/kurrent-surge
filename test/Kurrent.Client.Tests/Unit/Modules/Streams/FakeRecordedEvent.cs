@@ -8,6 +8,8 @@ using RecordedEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent.Typ
 
 namespace Kurrent.Client.Tests.Modules.Streams;
 
+//TODO SS: This is the way to create fakers. Must refactor it all in one go.
+
 sealed class FakeRecordedEvent : Faker<RecordedEvent> {
     public static FakeRecordedEvent New => new();
 

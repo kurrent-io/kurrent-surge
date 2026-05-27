@@ -33,13 +33,20 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
     public long Limit { get; init; } = long.MaxValue;
 
     /// <summary>Record filtering criteria to apply during read operations.</summary>
-    public IRecordFilter Filter { get; init; } = RecordFilter.None;
+    public RecordFilter Filter { get; init; } = RecordFilter.None;
 
     /// <summary>Direction for reading records through the stream.</summary>
     public ReadDirection Direction { get; init; } = ReadDirection.Forwards;
 
     /// <summary>Skip record data deserialization for performance-critical scenarios.</summary>
     public bool SkipDecoding { get; init; }
+
+    /// <summary>
+    /// Resolve link records (<c>$&gt;</c>) to their target events. Default <c>true</c>.
+    /// Set <c>false</c> when inspecting an index/projection stream and you want the raw
+    /// link records instead of their resolved targets.
+    /// </summary>
+    public bool ResolveLinks { get; init; } = true;
 
     /// <summary>
     /// Fluent builder for constructing <see cref="ReadStreamRequest"/> instances.
@@ -99,7 +106,7 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
         /// <summary>
         /// Apply a record filter.
         /// </summary>
-        public Builder Filter(IRecordFilter filter) =>
+        public Builder Filter(RecordFilter filter) =>
             With(request => request with { Filter = filter });
 
         /// <summary>
@@ -113,6 +120,12 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
         /// </summary>
         public Builder SkipDecoding(bool skip = true) =>
             With(request => request with { SkipDecoding = skip });
+
+        /// <summary>
+        /// Sets whether to resolve link records to their target events. Default <c>true</c>.
+        /// </summary>
+        public Builder ResolveLinks(bool resolve = true) =>
+            With(request => request with { ResolveLinks = resolve });
     }
 
     public class Validator : Validator<Validator, ReadStreamRequest> {
@@ -143,8 +156,8 @@ public record ReadStreamRequest : SelfValidating<ReadStreamRequest, ReadStreamRe
                     .Must(start => start != Revision.Max, "Start revision cannot be Max when reading forwards.");
             });
 
-            When(options => options.Filter.TargetStream != StreamName.Unset, () => {
-                RuleFor(options => options.Filter.TargetStream)
+            When(options => options.Filter is StreamNameFilter, () => {
+                RuleFor(options => ((StreamNameFilter)options.Filter).TargetStream)
                     .Must((opts, targetStream) => targetStream == opts.Stream,
                         "Filter target stream does not match the specified stream to read from.");
             });

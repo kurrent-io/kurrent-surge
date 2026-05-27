@@ -32,99 +32,6 @@ namespace Kurrent.Streaming.Models;
 
 
 static class ProtocolMapping {
-    static readonly Contracts.ReadReq.Types.Options.Types.ControlOption       DefaultControlOption       = new() { Compatibility = 1 };
-    static readonly Contracts.ReadReq.Types.Options.Types.SubscriptionOptions DefaultSubscriptionOptions = new();
-    static readonly Contracts.ReadReq.Types.Options.Types.UUIDOption          DefaultUuidOptions         = new(); // old was { Structured = new() }
-    static readonly Empty                                                     DefaultEmpty               = new();
-
-    internal static class Requests {
-        public static Contracts.ReadReq CreateLogSubscriptionRequest(IRecordFilter filter, LogPosition startFrom) {
-            Debug.Assert(!filter.IsStreamFilter, "Stream filters should not reach CreateLogSubscriptionRequest.");
-            Debug.Assert(startFrom != LogPosition.Unset, "Start position must be resolved before reaching the mapper.");
-
-            var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                Subscription  = DefaultSubscriptionOptions,
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                All           = ConvertToAllOptions(startFrom),
-            }};
-
-            if (ConvertToFilterOptions(filter) is { } options)
-                req.Options.Filter = options;
-            else
-                req.Options.NoFilter = DefaultEmpty;
-
-            return req;
-        }
-
-        public static Contracts.ReadReq CreateStreamSubscriptionRequest(IRecordFilter filter, Revision startFrom) {
-            Debug.Assert(filter.IsStreamFilter, "Only stream filters should reach CreateStreamSubscriptionRequest.");
-            Debug.Assert(startFrom != Revision.Unset, "Start revision must be resolved before reaching the mapper.");
-
-            var req = new Contracts.ReadReq { Options = new Contracts.ReadReq.Types.Options {
-                ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                Subscription  = DefaultSubscriptionOptions,
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                Stream        = ConvertToStreamOptions(filter.TargetStream, startFrom),
-                NoFilter      = DefaultEmpty
-            }};
-
-            return req;
-        }
-
-        static Contracts.ReadReq.Types.Options.Types.AllOptions ConvertToAllOptions(LogPosition start) {
-            Debug.Assert(start != LogPosition.Unset, "Start position must be resolved before reaching the mapper.");
-
-            return start switch {
-                _ when start == LogPosition.Latest   => new() { End   = DefaultEmpty },
-                _ when start == LogPosition.Earliest => new() { Start = DefaultEmpty },
-                _ => new() {
-                    Position = new() {
-                        CommitPosition  = start,
-                        PreparePosition = start
-                    }
-                }
-            };
-        }
-
-        static Contracts.ReadReq.Types.Options.Types.StreamOptions ConvertToStreamOptions(StreamName stream, Revision start) {
-            Debug.Assert(stream != StreamName.Unset, "Stream name must be resolved before reaching the mapper.");
-            Debug.Assert(start != Revision.Unset, "Start revision must be resolved before reaching the mapper.");
-
-            return start switch {
-                _ when start == Revision.Max => new() { StreamIdentifier = stream.Value, End      = DefaultEmpty },
-                _ when start == Revision.Min => new() { StreamIdentifier = stream.Value, Start    = DefaultEmpty },
-                _                            => new() { StreamIdentifier = stream.Value, Revision = (ulong)start.Value }
-            };
-        }
-
-        static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(IRecordFilter filter) {
-            Contracts.ReadReq.Types.Options.Types.FilterOptions? options = filter switch {
-                StreamFilter f => new() { StreamIdentifier = new() { Regex = f.Expression } },
-
-                ExpressionFilter { ServerFilter: StreamFilter f } => new() { StreamIdentifier = new() { Regex = f.Expression } },
-
-                _ => null
-            };
-
-            if (options is null) return null;
-
-            options.Max = uint.MaxValue; // delay as much as we can - will fix on v2
-
-            options.CheckpointIntervalMultiplier = 1;
-
-            return options;
-        }
-    }
-
-    public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) =>
-        new(CheckpointId.New(), CheckpointTrigger.Interval, checkpoint.Timestamp.ToDateTimeOffset(), []);
-
-    public static Checkpoint MapToCheckpoint(this Contracts.ReadResp.Types.CaughtUp caughtUp, SequenceId sequenceId) =>
-        new(CheckpointId.New(), CheckpointTrigger.CaughtUp, caughtUp.Timestamp.ToDateTimeOffset(), []);
-
     public static async ValueTask<Record> MapToRecordAsync(
         this Contracts.ReadResp.Types.ReadEvent readEvent,
         SequenceId sequenceId,
@@ -134,61 +41,56 @@ static class ProtocolMapping {
         bool skipDecoding = false,
         CancellationToken ct = default
     ) {
-        var recordedEvent = readEvent.Event;
+        // The server always populates at least one of Event or Link:
+        //   Event + Link → resolved link (record is the event, link carries source metadata)
+        //   Link only    → unresolved link (record IS the link itself)
+        //   Event only   → regular event
+        var recorded = readEvent.Event ?? readEvent.Link
+            ?? throw new UnreachableException("ReadEvent has neither Event nor Link.");
 
-        // first parse all info
-        var stream    = StreamName.From(recordedEvent.StreamIdentifier);
-        var recordId  = Uuid.FromDto(recordedEvent.Id).ToGuid();
-        var revision  = Revision.From((long)recordedEvent.StreamRevision);
-        var position  = LogPosition.From((long)recordedEvent.CommitPosition);
-        var data      = recordedEvent.Data.Memory;
-        var timestamp = Convert.ToInt64(recordedEvent.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
+        var isLink = readEvent.Event is null;
+
+        var link = readEvent is { Link: { } linkEvent, Event: not null }
+            ? new Link {
+                Name     = linkEvent.Metadata[Constants.Metadata.Type],
+                Position = (long)linkEvent.CommitPosition,
+                Revision = (long)linkEvent.StreamRevision,
+                Stream   = StreamName.From(linkEvent.StreamIdentifier!),
+            }
+            : Link.Unset;
+
+        var stream    = StreamName.From(recorded.StreamIdentifier);
+        var recordId  = Uuid.FromDto(recorded.Id).ToGuid();
+        var revision  = Revision.From((long)recorded.StreamRevision);
+        var position  = LogPosition.From((long)recorded.CommitPosition);
+        var data      = recorded.Data.Memory;
+        var timestamp = Convert.ToInt64(recorded.Metadata[Constants.Metadata.Created]).FromTicksSinceEpoch();
 
         // for v1 this is super weird because we have schema info in metadata
         // not needed anymore specially in v2 where we have schema as a first class concept
-        var schemaFormat = recordedEvent.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat(); // it will always be json or octet-stream
-        var schemaName   = SchemaName.From(recordedEvent.Metadata[Constants.Metadata.Type]);
+        var schemaFormat = recorded.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat(); // it will always be json or octet-stream
+        var schemaName   = SchemaName.From(recorded.Metadata[Constants.Metadata.Type]);
 
         var metadata = await metadataDecoder
-            .Decode(recordedEvent.CustomMetadata.Memory, new MetadataDecoderContext(stream, schemaName, schemaFormat))
+            .Decode(recorded.CustomMetadata.Memory, new MetadataDecoderContext(stream, schemaName, schemaFormat))
             .ConfigureAwait(false);
 
         var schema = metadata.ExtractSchemaInfo();
 
-        var recordPosition = RecordPosition.From(position, stream, revision);
-
-        // var link = readEvent.Link is { } linkEvent
-        //     ? new Link {
-        //         Name     = linkEvent.Metadata[Constants.Metadata.Type],
-        //         Position = (long)linkEvent.CommitPosition,
-        //         Revision = (long)linkEvent.StreamRevision,
-        //         Stream   = StreamName.From(linkEvent.StreamIdentifier!),
-        //     }
-        //     : Link.Unset;
-
-        // var indexRevision = readEvent.HasCommitPosition
-        //     ? Revision.From((long)readEvent.CommitPosition)
-        //     : link.Revision == Revision.Unset ? revision : link.Revision;
-
-        // create a decoder
         IRecordDecoder decoder = new RecordDecoder(serializerProvider, registryPolicy);
 
-        // and we are done
         var record = new Record(decoder) {
-            Id             = recordId,
-            Position       = recordPosition,
-            Sequence       = sequenceId,
-            Timestamp      = timestamp,
-            Data           = data,
-            Metadata       = metadata,
-            Schema         = schema,
-
-            // // what? not sure...
-            // Link           = link,
-            // IndexRevision  = Revision.Unset // indexRevision
+            Id        = recordId,
+            Position  = RecordPosition.From(position, stream, revision),
+            Sequence  = sequenceId,
+            Timestamp = timestamp,
+            Data      = data,
+            Metadata  = metadata,
+            Schema    = schema,
+            Link      = link,
+            IsLink    = isLink
         };
 
-        // now decode the record if required
         if (!skipDecoding)
             await record.TryDecode(ct).ConfigureAwait(false);
 

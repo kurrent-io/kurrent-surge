@@ -156,12 +156,29 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         for (var i = 0; i < t.ContainingTypes.Length; i++)
             containerChain[i] = t.ContainingTypes[i].Name;
 
+        // Match the user's declared accessibility on the partial type and most members so
+        // partial declarations agree (CS0262) and non-public type arguments don't trip
+        // accessibility-consistency checks (CS0051 / CS0057). Exceptions stay `public`:
+        //   * user-defined operators — required by C# (CS0558 / CS9308)
+        //   * IVariant.Value / IVariant.Index — interface members (CS0737)
+        //   * ToString — overrides object.ToString (must match base accessibility)
+        var accessibility = t.OriginalSymbol.DeclaredAccessibility switch {
+            Accessibility.Public               => "public",
+            Accessibility.Internal             => "internal",
+            Accessibility.Protected            => "protected",
+            Accessibility.Private              => "private",
+            Accessibility.ProtectedOrInternal  => "protected internal",
+            Accessibility.ProtectedAndInternal => "private protected",
+            _                                  => "internal"
+        };
+
         return new VariantInfo(
             ClassName: t.Name,
             FullName: t.FullName,
             Namespace: string.IsNullOrEmpty(t.Namespace) ? null : t.Namespace,
             Kind: t.Kind,
             ImplementsIVariantException: implementsIVariantException,
+            Accessibility: accessibility,
             TypeParameterNames: typeParameterNames,
             ContainingTypeNames: containerChain,
             Cases: cases);
@@ -363,6 +380,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
 
     static string GenerateVariantImplementation(VariantInfo info) {
         var className = info.ClassName;
+        var access    = info.Accessibility;
 
         var minimallyQualifiedClassName = info.TypeParameterNames.Length > 0
             ? $"{className}<{string.Join(", ", info.TypeParameterNames)}>"
@@ -400,10 +418,10 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine("[CompilerGenerated]");
 
         if (info.ImplementsIVariantException) {
-            sb.AppendLine($"{baseIndent}public partial class {className} {{");
+            sb.AppendLine($"{baseIndent}{access} partial class {className} {{");
         }
         else {
-            sb.AppendLine($"{baseIndent}public readonly partial record struct {className} {{");
+            sb.AppendLine($"{baseIndent}{access} readonly partial record struct {className} {{");
         }
 
         var memberIndent = $"{baseIndent}    ";
@@ -415,7 +433,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         for (var i = 0; i < info.Cases.Length; i++) {
             var c = info.Cases[i];
 
-            sb.AppendLine($"{memberIndent}public {className}({c.FullyQualifiedName} {c.ParameterName}) {{");
+            sb.AppendLine($"{memberIndent}{access} {className}({c.FullyQualifiedName} {c.ParameterName}) {{");
 
             if (!c.IsValueType && !c.IsNullableOfT && c.IsReferenceType)
                 sb.AppendLine($"{memberIndent}    ArgumentNullException.ThrowIfNull({c.ParameterName});");
@@ -429,21 +447,23 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
 
         GenerateCaseEnum(
-            sb, memberIndent, className,
+            sb, memberIndent, className, access,
             info.Cases);
 
+        // Value and Index implement IVariant (a public interface) — interface members
+        // must be declared public on the implementor regardless of containing accessibility (CS0737).
         sb.AppendLine($"{memberIndent}public object Value => _value;");
         sb.AppendLine($"{memberIndent}public int    Index => _index;");
         sb.AppendLine();
-        sb.AppendLine($"{memberIndent}public {className}Case Case => ({className}Case)_index;");
+        sb.AppendLine($"{memberIndent}{access} {className}Case Case => ({className}Case)_index;");
         sb.AppendLine();
 
         for (var i = 0; i < info.Cases.Length; i++) {
             var c = info.Cases[i];
-            sb.AppendLine($"{memberIndent}public bool Is{c.CleanTypeName} => Case == {className}Case.{c.CleanTypeName};");
+            sb.AppendLine($"{memberIndent}{access} bool Is{c.CleanTypeName} => Case == {className}Case.{c.CleanTypeName};");
 
             sb.AppendLine(
-                $"{memberIndent}public {c.FullyQualifiedName} As{c.CleanTypeName} => Is{c.CleanTypeName} ? ({c.FullyQualifiedName})Value! : throw new InvalidOperationException($\"Cannot return as {c.CleanTypeName} as current type is {{Value?.GetType().Name ?? \"unknown\"}} (Case {{Case}})\");");
+                $"{memberIndent}{access} {c.FullyQualifiedName} As{c.CleanTypeName} => Is{c.CleanTypeName} ? ({c.FullyQualifiedName})Value! : throw new InvalidOperationException($\"Cannot return as {c.CleanTypeName} as current type is {{Value?.GetType().Name ?? \"unknown\"}} (Case {{Case}})\");");
 
             sb.AppendLine();
         }
@@ -451,6 +471,9 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine("#region . Implicit Operators .");
         sb.AppendLine();
 
+        // User-defined operators must be `public` per the C# language spec (CS0558 / CS9308),
+        // regardless of the containing type's accessibility. Effective accessibility is still
+        // bounded by the containing type, so non-public variants remain correctly hidden.
         for (var i = 0; i < info.Cases.Length; i++) {
             var c = info.Cases[i];
             sb.AppendLine($"{memberIndent}public static implicit operator {minimallyQualifiedClassName}({c.FullyQualifiedName} _) => new(_);");
@@ -462,15 +485,15 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
 
         GenerateSwitchMethods(
-            sb, memberIndent, className,
+            sb, memberIndent, className, access,
             info.Cases);
 
         GenerateMatchMethods(
-            sb, memberIndent, className,
+            sb, memberIndent, className, access,
             info.Cases);
 
         if (info.Kind == TypeKind.Struct || info.Kind == TypeKind.RecordStruct)
-            GenerateToStringOverride(sb, memberIndent);
+            GenerateToStringOverride(sb, memberIndent, access);
 
         sb.AppendLine($"{baseIndent}}}");
 
@@ -480,8 +503,8 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         return sb.ToString();
     }
 
-    static void GenerateCaseEnum(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
-        sb.AppendLine($"{indent}public enum {className}Case : byte {{");
+    static void GenerateCaseEnum(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
+        sb.AppendLine($"{indent}{access} enum {className}Case : byte {{");
 
         for (var i = 0; i < cases.Length; i++) {
             var c = cases[i];
@@ -492,11 +515,13 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
     }
 
-    static void GenerateToStringOverride(StringBuilder sb, string indent) {
+    static void GenerateToStringOverride(StringBuilder sb, string indent, string access) {
         sb.AppendLine();
         sb.AppendLine($"{indent}/// <summary>");
         sb.AppendLine($"{indent}/// Returns a string representation of the current variant value.");
         sb.AppendLine($"{indent}/// </summary>");
+        // ToString() overrides object.ToString() which is public — override accessibility
+        // must match the base, so this always emits as `public` regardless of {access}.
         sb.AppendLine($"{indent}public override string? ToString() => _value?.ToString();");
     }
 
@@ -504,12 +529,12 @@ public sealed class VariantGenerator : IIncrementalGenerator {
 
     #region ->> Switch emission <<-
 
-    static void GenerateSwitchMethods(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+    static void GenerateSwitchMethods(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
         sb.AppendLine();
         sb.AppendLine($"{indent}#region . Switch .");
         sb.AppendLine();
 
-        sb.Append($"{indent}public void Switch(");
+        sb.Append($"{indent}{access} void Switch(");
 
         AppendSwitchParameterList(
             sb, cases, async: false,
@@ -528,18 +553,18 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
 
         GenerateSwitchWithState(
-            sb, indent, className,
+            sb, indent, className, access,
             cases);
 
         GenerateSwitchAsync(
-            sb, indent, className,
+            sb, indent, className, access,
             cases);
 
         sb.AppendLine($"{indent}#endregion");
     }
 
-    static void GenerateSwitchWithState(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
-        sb.Append($"{indent}public void Switch<TState>(");
+    static void GenerateSwitchWithState(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}{access} void Switch<TState>(");
 
         AppendSwitchParameterList(
             sb, cases, async: false,
@@ -558,8 +583,8 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
     }
 
-    static void GenerateSwitchAsync(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
-        sb.Append($"{indent}public ValueTask SwitchAsync(");
+    static void GenerateSwitchAsync(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}{access} ValueTask SwitchAsync(");
 
         AppendSwitchParameterList(
             sb, cases, async: true,
@@ -575,7 +600,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine($"{indent}}};");
         sb.AppendLine();
 
-        sb.Append($"{indent}public ValueTask SwitchAsync<TState>(");
+        sb.Append($"{indent}{access} ValueTask SwitchAsync<TState>(");
 
         AppendSwitchParameterList(
             sb, cases, async: true,
@@ -619,12 +644,12 @@ public sealed class VariantGenerator : IIncrementalGenerator {
 
     #region ->> Match emission <<-
 
-    static void GenerateMatchMethods(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
+    static void GenerateMatchMethods(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
         sb.AppendLine();
         sb.AppendLine($"{indent}#region . Match .");
         sb.AppendLine();
 
-        sb.Append($"{indent}public TResult Match<TResult>(");
+        sb.Append($"{indent}{access} TResult Match<TResult>(");
 
         AppendMatchParameterList(
             sb, cases, async: false,
@@ -641,18 +666,18 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
 
         GenerateMatchWithState(
-            sb, indent, className,
+            sb, indent, className, access,
             cases);
 
         GenerateMatchAsync(
-            sb, indent, className,
+            sb, indent, className, access,
             cases);
 
         sb.AppendLine($"{indent}#endregion");
     }
 
-    static void GenerateMatchWithState(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
-        sb.Append($"{indent}public TResult Match<TResult, TState>(");
+    static void GenerateMatchWithState(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}{access} TResult Match<TResult, TState>(");
 
         AppendMatchParameterList(
             sb, cases, async: false,
@@ -669,8 +694,8 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine();
     }
 
-    static void GenerateMatchAsync(StringBuilder sb, string indent, string className, VariantCaseInfo[] cases) {
-        sb.Append($"{indent}public ValueTask<TResult> MatchAsync<TResult>(");
+    static void GenerateMatchAsync(StringBuilder sb, string indent, string className, string access, VariantCaseInfo[] cases) {
+        sb.Append($"{indent}{access} ValueTask<TResult> MatchAsync<TResult>(");
 
         AppendMatchParameterList(
             sb, cases, async: true,
@@ -686,7 +711,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine($"{indent}}};");
         sb.AppendLine();
 
-        sb.Append($"{indent}public ValueTask<TResult> MatchAsync<TResult, TState>(");
+        sb.Append($"{indent}{access} ValueTask<TResult> MatchAsync<TResult, TState>(");
 
         AppendMatchParameterList(
             sb, cases, async: true,
@@ -743,6 +768,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         string? Namespace,
         TypeKind Kind,
         bool ImplementsIVariantException,
+        string Accessibility,
         string[] TypeParameterNames,
         string[] ContainingTypeNames,
         VariantCaseInfo[] Cases
@@ -754,6 +780,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
          && Namespace == other.Namespace
          && Kind == other.Kind
          && ImplementsIVariantException == other.ImplementsIVariantException
+         && Accessibility == other.Accessibility
          && TypeParameterNames.AsSpan().SequenceEqual(other.TypeParameterNames.AsSpan())
          && ContainingTypeNames.AsSpan().SequenceEqual(other.ContainingTypeNames.AsSpan())
          && Cases.AsSpan().SequenceEqual(other.Cases.AsSpan());
@@ -765,6 +792,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
             hash = HashCombine.Add(hash, Namespace);
             hash = HashCombine.Add(hash, Kind);
             hash = HashCombine.Add(hash, ImplementsIVariantException);
+            hash = HashCombine.Add(hash, Accessibility);
             hash = HashCombine.AddRange(hash, TypeParameterNames);
             hash = HashCombine.AddRange(hash, ContainingTypeNames);
             hash = HashCombine.AddRange(hash, Cases);

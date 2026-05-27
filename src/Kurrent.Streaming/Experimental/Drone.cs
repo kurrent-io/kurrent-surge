@@ -223,8 +223,13 @@ public sealed class Drone : IAsyncDisposable {
     }
 
     async ValueTask HandleCheckpoint(Checkpoint checkpoint, CancellationToken ct) {
+        var positions = _checkpointer.PendingPositions();
+
+        if (positions.Length == 0)
+            return;
+
         try {
-            await _processor.OnCheckpoint(_context.ForCheckpoint(checkpoint.Positions, checkpoint)).ConfigureAwait(false);
+            await _processor.OnCheckpoint(_context.ForCheckpoint(positions, checkpoint)).ConfigureAwait(false);
         }
         catch (OperationCanceledException) {
             throw;
@@ -235,7 +240,7 @@ public sealed class Drone : IAsyncDisposable {
         }
 
         await _checkpointer
-            .CommitCheckpoint(checkpoint.CheckpointId, checkpoint.Positions, ct)
+            .CommitCheckpoint(checkpoint.Id, positions, ct)
             .ConfigureAwait(false);
     }
 

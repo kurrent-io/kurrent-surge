@@ -114,7 +114,7 @@ public partial class StreamsClient {
 
     async IAsyncEnumerable<ReadRecordsResult> ReadCore(
         ReadReq request, bool skipDecoding,
-        IRecordFilter filter, [EnumeratorCancellation] CancellationToken ct
+        RecordFilter filter, [EnumeratorCancellation] CancellationToken ct
     ) {
         var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
 
@@ -142,7 +142,7 @@ public partial class StreamsClient {
 
             switch (rsp.ContentCase) {
                 case CaughtUp:
-                    result = rsp.CaughtUp.MapToHeartbeat(sequencer.FetchNext());
+                    result = rsp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
                     break;
                 case Event:
                     result = await rsp.Event

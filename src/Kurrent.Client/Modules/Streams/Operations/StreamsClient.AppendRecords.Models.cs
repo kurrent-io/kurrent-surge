@@ -150,6 +150,29 @@ public record AppendRecordsRequest() : SelfValidating {
 }
 
 /// <summary>
+/// Lightweight options for the streaming <see cref="StreamsClient.AppendRecords(IEnumerable{AppendRecord}, AppendRecordsOptions?, CancellationToken)"/>
+/// overload. Carries consistency checks and optional batch-level overrides without
+/// requiring record materialization.
+/// </summary>
+[PublicAPI]
+public record AppendRecordsOptions {
+    /// <summary>
+    /// Pre-commit consistency checks evaluated before any records are written.
+    /// </summary>
+    public ImmutableArray<ConsistencyCheck> Checks { get; init; } = [];
+
+    /// <summary>
+    /// When set, overrides the <see cref="SchemaDataFormat"/> on every record.
+    /// </summary>
+    public SchemaDataFormat? DataFormat { get; init; }
+
+    /// <summary>
+    /// When set, merges these key-value pairs into every record's metadata.
+    /// </summary>
+    public Metadata? Metadata { get; init; }
+}
+
+/// <summary>
 /// The result of appending records across multiple streams.
 /// </summary>
 [PublicAPI]

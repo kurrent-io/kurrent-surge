@@ -17,7 +17,7 @@ public interface IConsumerMetadata {
 	/// <summary>
 	/// The filter used to filter out the records sent by the server for processing.
 	/// </summary>
-	public IRecordFilter Filter { get; }
+	public RecordFilter Filter { get; }
 }
 
 /// <summary>

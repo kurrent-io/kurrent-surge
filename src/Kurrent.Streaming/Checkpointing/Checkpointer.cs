@@ -114,8 +114,17 @@ public sealed class Checkpointer : IAsyncDisposable {
 			throw new InvalidOperationException("Shutdown has already been issued, cannot raise further checkpoints.");
 
 		var now = _clock.Now();
+        
+		CheckpointId id = new(now);
 
-		var checkpoint = new Checkpoint(now, trigger, now.DateTimeOffset, []) { Reason = reason };
+		Checkpoint checkpoint = trigger switch {
+			CheckpointTrigger.Interval  => new IntervalCheckpoint(id, now.DateTimeOffset),
+			CheckpointTrigger.CaughtUp  => new CaughtUpCheckpoint(id, now.DateTimeOffset),
+			CheckpointTrigger.Manual    => new ManualCheckpoint(id, now.DateTimeOffset, reason),
+			CheckpointTrigger.Shutdown  => new ShutdownCheckpoint(id, now.DateTimeOffset),
+			CheckpointTrigger.Rebalance => new RebalanceCheckpoint(id, now.DateTimeOffset),
+			_                           => throw new ArgumentOutOfRangeException(nameof(trigger), trigger, null)
+		};
 
 		try {
 			await _writer

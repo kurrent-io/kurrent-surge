@@ -79,7 +79,7 @@ public class CheckpointerTests {
 
         channel.Reader.TryRead(out var msg);
         var checkpoint = (Checkpoint)msg.Value;
-        await checkpointer1.CommitCheckpoint(checkpoint.CheckpointId, positions1, ct);
+        await checkpointer1.CommitCheckpoint(checkpoint.Id, positions1, ct);
         await checkpointer1.DisposeAsync();
 
         // Act
@@ -245,8 +245,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Interval);
+        await Assert.That(msg.Value).IsTypeOf<IntervalCheckpoint>();
 
         // Channel still open
         await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsTrue();
@@ -269,8 +268,7 @@ public class CheckpointerTests {
         // Assert
         channel.Reader.TryRead(out var msg);
         var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Shutdown);
-        await Assert.That(checkpoint.Reason).IsEqualTo("test shutdown");
+        await Assert.That(checkpoint).IsTypeOf<ShutdownCheckpoint>();
 
         await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsFalse();
 
@@ -292,7 +290,7 @@ public class CheckpointerTests {
         // Assert
         channel.Reader.TryRead(out var msg);
         var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Rebalance);
+        await Assert.That(checkpoint).IsTypeOf<RebalanceCheckpoint>();
         await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsFalse();
 
         await checkpointer.DisposeAsync();
@@ -345,9 +343,9 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.Manual);
-        await Assert.That(checkpoint.Reason).IsEqualTo("user flush");
+        var checkpoint = msg.Value as ManualCheckpoint;
+        await Assert.That(checkpoint).IsNotNull();
+        await Assert.That(checkpoint!.Reason).IsEqualTo("user flush");
 
         await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsTrue();
 
@@ -368,9 +366,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Trigger).IsEqualTo(CheckpointTrigger.CaughtUp);
-        await Assert.That(checkpoint.Reason).IsEqualTo("live mode");
+        await Assert.That(msg.Value).IsTypeOf<CaughtUpCheckpoint>();
 
         await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsTrue();
 
@@ -397,8 +393,7 @@ public class CheckpointerTests {
         channel.Reader.TryRead(out var msg);
         var checkpoint = (Checkpoint)msg.Value;
 
-        await Assert.That(checkpoint.CheckpointId).IsNotNull();
-        await Assert.That(checkpoint.CheckpointId).IsNotEmpty();
+        await Assert.That(checkpoint.Id.IsUnset).IsFalse();
         await Assert.That(checkpoint.Timestamp).IsGreaterThanOrEqualTo(before);
         await Assert.That(checkpoint.Timestamp).IsLessThanOrEqualTo(after);
 
@@ -443,10 +438,9 @@ public class CheckpointerTests {
         // Act
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval, "periodic flush");
 
-        // Assert
+        // Assert — reason is discarded for Interval checkpoints (only ManualCheckpoint carries Reason)
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Reason).IsEqualTo("periodic flush");
+        await Assert.That(msg.Value).IsTypeOf<IntervalCheckpoint>();
 
         await checkpointer.DisposeAsync();
     }
@@ -465,8 +459,7 @@ public class CheckpointerTests {
 
         // Assert
         channel.Reader.TryRead(out var msg);
-        var checkpoint = (Checkpoint)msg.Value;
-        await Assert.That(checkpoint.Reason).IsNull();
+        await Assert.That(msg.Value).IsTypeOf<IntervalCheckpoint>();
 
         await checkpointer.DisposeAsync();
     }
@@ -509,7 +502,7 @@ public class CheckpointerTests {
         var raised = (Checkpoint)msg.Value;
 
         // Act
-        await checkpointer.CommitCheckpoint(raised.CheckpointId, pendingPositions, ct);
+        await checkpointer.CommitCheckpoint(raised.Id, pendingPositions, ct);
         await checkpointer.DisposeAsync();
 
         // Assert — new checkpointer loads the committed position
@@ -557,7 +550,7 @@ public class CheckpointerTests {
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg);
         var raised = (Checkpoint)msg.Value;
-        await checkpointer.CommitCheckpoint(raised.CheckpointId, pendingPositions1, ct);
+        await checkpointer.CommitCheckpoint(raised.Id, pendingPositions1, ct);
 
         // Track all 3 partitions again in the second round
         checkpointer.Track(RecordPosition.From(LogPosition.From(150), Partition.From(0)));
@@ -568,7 +561,7 @@ public class CheckpointerTests {
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg2);
         var raised2 = (Checkpoint)msg2.Value;
-        await checkpointer.CommitCheckpoint(raised2.CheckpointId, pendingPositions2, ct);
+        await checkpointer.CommitCheckpoint(raised2.Id, pendingPositions2, ct);
 
         await checkpointer.DisposeAsync();
 
@@ -602,7 +595,7 @@ public class CheckpointerTests {
         await checkpointer.RaiseCheckpoint(CheckpointTrigger.Interval);
         channel.Reader.TryRead(out var msg1);
         var raised1 = (Checkpoint)msg1.Value;
-        await checkpointer.CommitCheckpoint(raised1.CheckpointId, pendingPositions1, ct);
+        await checkpointer.CommitCheckpoint(raised1.Id, pendingPositions1, ct);
 
         // Act — only track partition 0, partition 1 is idle
         checkpointer.Track(RecordPosition.From(LogPosition.From(150), Partition.From(0)));

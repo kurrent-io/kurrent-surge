@@ -1,4 +1,5 @@
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams;
 using Kurrent.Streaming.Gateway;
 using Kurrent.Variant;
 

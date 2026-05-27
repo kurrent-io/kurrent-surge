@@ -4,14 +4,11 @@ namespace Kurrent.Client.Streams;
 /// A filter that matches records using SQL-like filter expressions.
 /// </summary>
 [PublicAPI]
-public record ExpressionFilter : IRecordFilter {
+public record ExpressionFilter : RecordFilter {
     readonly IFilterExpression _parsedExpression;
 
     /// <inheritdoc/>
-    public StreamName TargetStream { get; }
-
-    /// <inheritdoc/>
-    public string Expression { get; }
+    public override string Expression { get; init; }
 
     /// <summary>
     /// Returns <c>true</c> if the expression contains predicates that access the record's
@@ -21,9 +18,10 @@ public record ExpressionFilter : IRecordFilter {
 
     /// <summary>
     /// The server-side filter extracted from the expression for optimization.
-    /// This is used by the V1 mapper to send filtering to the server.
+    /// Callers unwrap via <see cref="RecordFilterExtensions.UnwrapFilter(RecordFilter)"/>
+    /// to determine wire routing.
     /// </summary>
-    internal IRecordFilter ServerFilter { get; }
+    internal RecordFilter ServerFilter { get; }
 
     /// <summary>
     /// Creates a filter from a SQL-like expression.
@@ -39,12 +37,9 @@ public record ExpressionFilter : IRecordFilter {
 
         QueriesData  = _parsedExpression.QueriesData;
         ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
-        TargetStream = ServerFilter.TargetStream != StreamName.Unset
-            ? ServerFilter.TargetStream
-            : StreamName.Log;
     }
 
     /// <inheritdoc/>
-    public bool IsMatch(Record record) =>
+    public override bool IsMatch(Record record) =>
         _parsedExpression.IsMatch(record);
 }
