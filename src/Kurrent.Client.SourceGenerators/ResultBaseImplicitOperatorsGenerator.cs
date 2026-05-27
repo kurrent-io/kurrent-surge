@@ -38,7 +38,7 @@ public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator
         title: "ResultBase Implicit Operators",
         messageFormat: "Generated implicit operators for: {0}",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor Failed = new(

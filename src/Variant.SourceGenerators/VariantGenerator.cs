@@ -64,7 +64,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] switch methods generated for: {{0}}",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor MatchMethodsGenerated = new(
@@ -72,7 +72,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] match methods generated for: {{0}}",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor VariantTypeGenerated = new(
@@ -80,7 +80,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] completed 'IVariant' code generation for: {{0}}",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor VariantExceptionTypeGenerated = new(
@@ -88,7 +88,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] completed 'IVariantException' code generation for: {{0}}",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor SourceAdded = new(
@@ -96,7 +96,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] source added: {{0}}",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static readonly DiagnosticDescriptor NoTargetTypesFound = new(
@@ -104,7 +104,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] no target types found for code generation",
         category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Info,
+        defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
 
     static VariantInfo? ExtractVariantInfo(TypeSymbol t) {
