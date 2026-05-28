@@ -14,6 +14,7 @@ Modules/{Module}/
 ├── {Module}Client.{Op}.cs                     # operation methods (one partial per operation)
 ├── {Module}Client.{Op}.Models.cs              # operation-specific types: request, response, options
 ├── {Module}Client.{Op}.Mapping.cs             # stateless mapping extensions for that operation
+├── {Module}Client.{Op}.Extensions.cs          # convenience overloads (C# 14 extension members)
 ├── {Module}Client.Extensions.cs               # convenience overloads (C# 14 extension members)
 ├── Exceptions.cs                              # module-scoped exception types
 ├── Models/                                    # shared domain types used across operations

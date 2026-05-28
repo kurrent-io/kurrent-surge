@@ -9,11 +9,11 @@ and System.CommandLine. Wraps `dotnet test` with category filtering, unique resu
 live status output, and automatic report generation.
 
 ```bash
-dotnet scripts/testing/test-runner.cs -- run unit                                    # all unit tests
-dotnet scripts/testing/test-runner.cs -- run integration                             # all integration tests
-dotnet scripts/testing/test-runner.cs -- run all                                     # everything
+dotnet scripts/testing/test-runner.cs -- run unit                                     # all unit tests
+dotnet scripts/testing/test-runner.cs -- run integration                              # all integration tests
+dotnet scripts/testing/test-runner.cs -- run all                                      # everything
 dotnet scripts/testing/test-runner.cs -- run unit --treenode-filter "/*/*/MyTests/*"  # specific class
-dotnet scripts/testing/test-runner.cs -- list unit                                   # list without running
+dotnet scripts/testing/test-runner.cs -- list unit                                    # list without running
 ```
 
 Each run creates a unique folder under `.artifacts/test-results/<run-id>/` containing:
@@ -53,12 +53,12 @@ automatically, but can also be run directly.
 
 ### Presets
 
-| Preset | Description |
-|--------|-------------|
+| Preset    | Description                                                         |
+|-----------|---------------------------------------------------------------------|
 | `default` | Failed + skipped, full stacks, metadata, grouped by namespace/class |
-| `ai` | Compact, no emoji, inline class names, compressed stacks |
-| `ci` | Failures only, minimal, top 5 slowest |
-| `debug` | Everything including passed, full stacks, no root stripping |
+| `ai`      | Compact, no emoji, inline class names, compressed stacks            |
+| `ci`      | Failures only, minimal, top 5 slowest                               |
+| `debug`   | Everything including passed, full stacks, no root stripping         |
 
 ### Options
 

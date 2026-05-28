@@ -2,7 +2,11 @@
   <Folder Name="/.Solution/">
     <File Path="context7.json" />
     <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
     <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+    <File Path="wrangler.toml" />
   </Folder>
 
   <Folder Name="/Benchmarks/">
@@ -10,36 +14,35 @@
   </Folder>
 
   <Folder Name="/Client/">
+    <Project Path="src/Kurrent.Client/Kurrent.Client.csproj" />
     <Project Path="src/Kurrent.Client.Arrow/Kurrent.Client.Arrow.csproj" />
-    <Project Path="src\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" />
-    <Project Path="src\Kurrent.Client\Kurrent.Client.csproj" />
-    <Project Path="test\Kurrent.Client.Tests\Kurrent.Client.Tests.csproj" />
+    <Project Path="src/Kurrent.Client.SourceGenerators/Kurrent.Client.SourceGenerators.csproj" />
+    <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
   </Folder>
 
   <Folder Name="/Shared/" />
   <Folder Name="/Shared/Aspire/">
-    <Project Path="test\Aspire.Hosting.KurrentDB.Tests\Aspire.Hosting.KurrentDB.Tests.csproj" />
-    <Project Path="test\Aspire.Hosting.KurrentDB\Aspire.Hosting.KurrentDB.csproj" />
+    <Project Path="test/Aspire.Hosting.KurrentDB/Aspire.Hosting.KurrentDB.csproj" />
+    <Project Path="test/Aspire.Hosting.KurrentDB.Tests/Aspire.Hosting.KurrentDB.Tests.csproj" />
   </Folder>
-
   <Folder Name="/Shared/CodeAnalysis/">
-    <Project Path="src\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.csproj" />
-    <Project Path="test\Kurrent.CodeAnalysis.Tests\Kurrent.CodeAnalysis.Tests.csproj" />
+    <Project Path="src/Kurrent.CodeAnalysis/Kurrent.CodeAnalysis.csproj" />
+    <Project Path="test/Kurrent.CodeAnalysis.Tests/Kurrent.CodeAnalysis.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Shared/Testkit/">
+    <Project Path="test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj" />
+    <Project Path="test/Kurrent.Testkit/Kurrent.Testkit.csproj" />
+    <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Shared/Variant/">
+    <Project Path="src/Variant/Variant.csproj" />
+    <Project Path="src/Variant.SourceGenerators/Variant.SourceGenerators.csproj" />
+    <Project Path="test/Variant.Tests/Variant.Tests.csproj" />
   </Folder>
 
-  <Folder Name="/Shared/Variant/">
-    <Project Path="src\Variant.SourceGenerators\Variant.SourceGenerators.csproj" />
-    <Project Path="src\Variant\Variant.csproj" />
-    <Project Path="test\Variant.Tests\Variant.Tests.csproj" />
-  </Folder>
   <Folder Name="/Streaming/">
-    <Project Path="src\Kurrent.Streaming\Kurrent.Streaming.csproj" />
-    <Project Path="test\Kurrent.Streaming.Tests\Kurrent.Streaming.Tests.csproj" />
-  </Folder>
-  <Folder Name="/Testkit/">
-    <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
-    <Project Path="test\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
-    <Project Path="test\Kurrent.Testkit\Kurrent.Testkit.csproj" />
+    <Project Path="src/Kurrent.Streaming/Kurrent.Streaming.csproj" />
+    <Project Path="test/Kurrent.Streaming.Tests/Kurrent.Streaming.Tests.csproj" />
   </Folder>
 
   <Folder Name="/Examples/">
