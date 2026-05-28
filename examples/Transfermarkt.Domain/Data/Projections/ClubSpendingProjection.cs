@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Data.Projections;
 
 /// <summary>
 /// Net transfer spending for a club in a period.

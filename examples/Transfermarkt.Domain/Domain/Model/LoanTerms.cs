@@ -1,35 +1,29 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Terms specific to loan transfers.
 /// </summary>
 [PublicAPI]
-public readonly record struct LoanTerms {
+public readonly record struct LoanTerms(DateOnly LoanEndDate, Money BuyClause, Money ObligationClause) {
     /// <summary>
     /// Represents no loan terms (not a loan).
     /// </summary>
     public static readonly LoanTerms None = new(DateOnly.MinValue, Money.Zero, Money.Zero);
 
-    public LoanTerms(DateOnly loanEndDate, Money buyClause, Money obligationClause) {
-        LoanEndDate      = loanEndDate;
-        BuyClause        = buyClause;
-        ObligationClause = obligationClause;
-    }
-
     /// <summary>
     /// The date when the loan ends.
     /// </summary>
-    public DateOnly LoanEndDate { get; init; }
+    public DateOnly LoanEndDate { get; init; } = LoanEndDate;
 
     /// <summary>
     /// Buy clause amount (option to buy). Zero if no buy clause.
     /// </summary>
-    public Money BuyClause { get; init; }
+    public Money BuyClause { get; init; } = BuyClause;
 
     /// <summary>
     /// Obligation clause amount (obligation to buy if conditions are met). Zero if no obligation clause.
     /// </summary>
-    public Money ObligationClause { get; init; }
+    public Money ObligationClause { get; init; } = ObligationClause;
 
     /// <summary>
     /// Whether this represents actual loan terms.

@@ -1,4 +1,6 @@
 using Kurrent.Client;
+using Transfermarkt.Domain.Events;
+using Transfermarkt.Domain.Model;
 
 namespace Processor.AspNetMinimal;
 

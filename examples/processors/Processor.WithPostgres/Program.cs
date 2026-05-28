@@ -4,7 +4,7 @@ using Kurrent.Streaming;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;
-using Transfermarkt.Domain;
+using Transfermarkt.Domain.Events;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()

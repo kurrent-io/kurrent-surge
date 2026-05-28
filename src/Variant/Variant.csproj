@@ -9,6 +9,13 @@
     <!-- shipped inside another package (Kurrent.Client, Kurrent.Processors) -->
     <DebugType>embedded</DebugType>
   </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Variant.Tests" />
   </ItemGroup>

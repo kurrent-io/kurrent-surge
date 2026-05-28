@@ -1,4 +1,4 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// A football season defined by its date range.

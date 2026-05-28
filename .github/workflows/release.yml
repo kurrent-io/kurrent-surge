@@ -71,7 +71,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Build
-        run: dotnet build -c Release --no-restore
+        run: dotnet build -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run

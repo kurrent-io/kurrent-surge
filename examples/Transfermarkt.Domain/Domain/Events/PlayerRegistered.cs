@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
+using Transfermarkt.Domain.Model;
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Events;
 
 /// <summary>
 /// A player is registered in the system for the first time.

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
+using Transfermarkt.Domain.Model;
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Data.Projections;
 
 /// <summary>
 /// Complete transfer history for a player.

@@ -1,4 +1,4 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Football position as a value object with display name, short code, and category.

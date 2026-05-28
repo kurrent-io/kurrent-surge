@@ -110,7 +110,21 @@ jobs:
 
       - name: Build
         if: steps.changes.outputs.build == 'true'
-        run: dotnet build -c Release --no-restore
+        run: dotnet build -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Pack Local
+        if: steps.changes.outputs.build == 'true'
+        run: >-
+          dotnet pack -c Release --no-build --no-restore
+          -o .artifacts/local-packages
+          -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Build Examples (Package Validation)
+        if: steps.changes.outputs.build == 'true'
+        run: >-
+          dotnet build examples/Examples.slnx -c Release
+          -p:TestPackages=true
+          -p:Version=${{ steps.version.outputs.version }}
 
       - name: Run Unit Tests
         if: steps.changes.outputs.build == 'true'
@@ -140,7 +154,7 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         uses: ./.github/actions/publish-packages
         with:
-          version: ${{ steps.version.outputs.version }}
+          pack: 'false'
           nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
           # TODO: change github to nuget when ready to publish publicly
           push-to: ${{ github.ref == 'refs/heads/main' && 'github' || 'github' }}

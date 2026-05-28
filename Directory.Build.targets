@@ -1,7 +1,129 @@
 <Project>
+
   <!-- Suppress all warnings in Release for non-packable projects (tests, tools, shared infra).
        Evaluated in .targets so IsPackable has its final value from each .csproj. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(IsPackable)' != 'true'">
     <WarningLevel>0</WarningLevel>
   </PropertyGroup>
+
+  <!--
+    Vendor / Bundle / Analyzer infrastructure.
+
+    Metadata flags on references control how they appear in the produced .nupkg:
+
+      PackageReference  Vendor="true"    → ship binaries inside our package,
+                                            hide from nuspec dependencies
+      ProjectReference  Bundle="true"    → ship the project's output + its runtime
+                                            closure inside our package, hide from nuspec
+      ProjectReference  Analyzer="true"  → wire as a source generator; ship nothing;
+                                            hide from nuspec
+  -->
+
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <TargetsForTfmSpecificBuildOutput>
+      $(TargetsForTfmSpecificBuildOutput);_CollectVendoredAndBundledFiles
+    </TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <!--
+    Evaluation-time metadata for flagged references.
+
+    Analyzer: wires into the Roslyn pipeline at evaluation time (must be early).
+    Vendor/Bundle: types flow transitively during build — PrivateAssets is NOT
+    set here. It's set pack-time-only by _SuppressFlaggedDepsFromNuspec so
+    bundled/vendored types remain available to downstream ProjectReference
+    consumers while still being excluded from the nuspec.
+  -->
+  <ItemGroup>
+    <ProjectReference Update="@(ProjectReference->WithMetadataValue('Analyzer', 'true'))"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    Pack-time only: suppress Vendor/Bundle references from the nuspec dependency list.
+    _IsPacking is set by the .NET SDK (7+) when dotnet pack is invoked.
+    Evaluation-time so PrivateAssets is visible to the NuGet dependency walker.
+    Normal builds (dotnet build/run/test) never see _IsPacking=true, so types
+    flow transitively to downstream ProjectReference consumers.
+  -->
+  <ItemGroup Condition="'$(_IsPacking)' == 'true'">
+    <PackageReference Update="@(PackageReference->WithMetadataValue('Vendor', 'true'))"
+                      PrivateAssets="all" />
+    <ProjectReference Update="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    Collect the binaries that need to ship inside the package and place them
+    at the correct package paths (preserving lib/<tfm>/, runtimes/<rid>/native/,
+    satellite directories, etc).
+  -->
+  <Target Name="_CollectVendoredAndBundledFiles"
+          DependsOnTargets="ResolveAssemblyReferences;ResolveTargetingPackAssets">
+
+    <!-- Bundled projects: ask each for its output path directly via GetTargetPath.
+         This resolves AssemblyName correctly regardless of project filename. -->
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
+             Targets="GetTargetPath"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_BundledProjectAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(_BundledProjectAssembly)" />
+    </ItemGroup>
+
+    <!-- Vendored packages: collect from resolved copy-local paths by NuGetPackageId. -->
+    <ItemGroup>
+      <_VendorPkg Include="@(PackageReference->WithMetadataValue('Vendor', 'true'))" />
+      <_FromVendoredPackages
+        Include="@(ReferenceCopyLocalPaths->WithMetadataValue('NuGetPackageId', '%(_VendorPkg.Identity)'))" />
+      <_FromVendoredPackages Remove="@(_FromVendoredPackages)"
+                             Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <!-- Managed DLLs → lib/<tfm>/ (BuildOutputInPackage default) -->
+      <BuildOutputInPackage Include="@(_FromVendoredPackages)"
+            Condition="'%(_FromVendoredPackages.DestinationSubDirectory)' == ''" />
+
+      <!-- Satellite assemblies → lib/<tfm>/<subdir>/ -->
+      <BuildOutputInPackage Include="@(_FromVendoredPackages)"
+            Condition="'%(_FromVendoredPackages.DestinationSubDirectory)' != '' and !$([System.String]::new('%(_FromVendoredPackages.DestinationSubDirectory)').StartsWith('runtimes'))"
+            TargetPath="%(_FromVendoredPackages.DestinationSubDirectory)%(Filename)%(Extension)" />
+
+      <!-- runtimes/<rid>/... lives at the package root, not under lib/ -->
+      <TfmSpecificPackageFile Include="@(_FromVendoredPackages)"
+            Condition="$([System.String]::new('%(_FromVendoredPackages.DestinationSubDirectory)').StartsWith('runtimes'))"
+            PackagePath="%(_FromVendoredPackages.DestinationSubDirectory)" />
+    </ItemGroup>
+
+  </Target>
+
+  <!--
+    ProjectOrPackageReference: declare a dependency by name, resolved as
+    ProjectReference (local dev) or PackageReference (CI / explicit opt-in).
+
+    Usage in csproj:
+      <ProjectOrPackageReference Include="Kurrent.Client" />
+
+    ProjectReference mode (default locally):
+      dotnet build
+      Path derived by convention: src/{Name}/{Name}.csproj
+
+    PackageReference mode (automatic in CI, or manual):
+      dotnet build -p:TestPackages=true
+      Requires packages in .artifacts/packages/.
+      Version comes from Directory.Packages.Versions.props via CPM.
+  -->
+
+  <ItemGroup Condition="'$(TestPackages)' != 'true'">
+    <ProjectReference Include="@(ProjectOrPackageReference -> '$(RepoRoot)/src/%(Identity)/%(Identity).csproj')" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TestPackages)' == 'true'">
+    <PackageReference Include="@(ProjectOrPackageReference)" />
+  </ItemGroup>
+
 </Project>

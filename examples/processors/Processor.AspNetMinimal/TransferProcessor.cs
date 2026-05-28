@@ -1,5 +1,7 @@
 // ReSharper disable ClassNeverInstantiated.Global
 
+using Transfermarkt.Domain.Events;
+
 namespace Processor.AspNetMinimal;
 
 public class TransferProcessor : IRecordProcessor {

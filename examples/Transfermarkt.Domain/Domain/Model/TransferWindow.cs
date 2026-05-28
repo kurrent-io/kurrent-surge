@@ -1,4 +1,4 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Transfer window period within a season.

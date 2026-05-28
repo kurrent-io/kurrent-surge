@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Data;
 
 /// <summary>
 /// A period of time a player spent at a club.

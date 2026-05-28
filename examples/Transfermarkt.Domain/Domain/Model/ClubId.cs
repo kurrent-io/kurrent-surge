@@ -1,10 +1,10 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Strongly-typed identifier for a club.
 /// </summary>
 [PublicAPI]
-public readonly record struct ClubId {
+public readonly record struct ClubId(Guid Value) {
     static readonly Guid UnknownGuid = new("00000000-0000-0000-0000-000000000001");
 
     /// <summary>
@@ -19,12 +19,10 @@ public readonly record struct ClubId {
     /// </summary>
     public static readonly ClubId Unknown = new(UnknownGuid);
 
-    public ClubId(Guid value) => Value = value;
-
     /// <summary>
     /// The underlying GUID value.
     /// </summary>
-    public Guid Value { get; init; }
+    public Guid Value { get; init; } = Value;
 
     /// <summary>
     /// Indicates whether this identifier is unset (no club).

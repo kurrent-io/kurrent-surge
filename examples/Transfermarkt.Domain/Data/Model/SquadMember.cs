@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Data;
 
 /// <summary>
 /// A player in a squad projection.

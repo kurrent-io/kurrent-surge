@@ -3,15 +3,13 @@
   <PropertyGroup>
     <PackageId>Kurrent.Streaming</PackageId>
     <IsPackable>true</IsPackable>
-<!--    &lt;!&ndash; Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack &ndash;&gt;-->
-<!--    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>-->
-<!--    &lt;!&ndash; Embed source generator DLLs into analyzers/dotnet/cs/ during pack &ndash;&gt;-->
-<!--    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>-->
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <Title>Kurrent .NET Processors</Title>
     <Product>Kurrent .NET Processors</Product>
     <Description>An event processing framework for the Kurrent Platform. Build streaming processors with automatic checkpointing and partitioning.</Description>
     <PackageTags>kurrent kurrentdb processors event-processing stream-processing event-sourcing</PackageTags>
+
+<!--    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>-->
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,20 +17,15 @@
   </ItemGroup>
 
   <!-- AOT/Trimming Support -->
-  <!--  <PropertyGroup>-->
-  <!--    <IsTrimmable>true</IsTrimmable>-->
-  <!--    <IsAotCompatible>true</IsAotCompatible>-->
-  <!--    <PublishAot>true</PublishAot>-->
-  <!--    <PublishTrimmed>true</PublishTrimmed>-->
-  <!--  </PropertyGroup>-->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
 
   <ItemGroup>
-    <!-- Source Generators: Embed as analyzer, don't propagate as dependency -->
-    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-
-    <!-- Runtime Library: Include assembly but don't propagate as dependency -->
-    <ProjectReference Include="..\Variant\Variant.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,6 +72,6 @@
     <Folder Include="Configuration\" />
   </ItemGroup>
 
-  <Import Project="..\Packable.targets" />
+
 
 </Project>

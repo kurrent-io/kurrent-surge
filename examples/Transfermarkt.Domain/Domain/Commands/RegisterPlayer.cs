@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
+using Transfermarkt.Domain.Model;
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Commands;
 
 /// <summary>
 /// Command to register a new player in the system.

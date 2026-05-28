@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Dapper;
 using Kurrent.Streaming;
 using Npgsql;
-using Transfermarkt.Domain;
+using Transfermarkt.Domain.Events;
 
 namespace Processor.WithPostgres;
 

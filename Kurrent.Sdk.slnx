@@ -44,6 +44,8 @@
 
   <Folder Name="/Examples/">
     <Project Path="examples/Connector.Management/Connector.Management.csproj" />
+    <Project Path="examples/PackageTest/PackageTest.csproj" />
+    <Project Path="examples/PackageTest.Streaming/PackageTest.Streaming.csproj" />
     <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
   </Folder>
   <Folder Name="/Examples/Processors/">

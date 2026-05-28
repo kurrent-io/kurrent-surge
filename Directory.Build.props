@@ -15,6 +15,9 @@
     <!-- Exclude all .DotSettings files from being included -->
     <DefaultItemExcludes>$(DefaultItemExcludes);**/*.DotSettings</DefaultItemExcludes>
 
+    <!-- AOT/Trimming — surface all warnings, never suppress -->
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+
     <!-- Warnings -->
     <!-- NETSDK1057 - You are using a preview version of .NET -->
     <!-- RS2008: Enable analyzer release tracking for the analyzer project containing rule `[RULE_CODE]` -->

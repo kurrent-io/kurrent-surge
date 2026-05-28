@@ -1,29 +1,24 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Monetary value with currency.
 /// </summary>
 [PublicAPI]
-public readonly record struct Money : IComparable<Money>, IComparable {
+public readonly record struct Money(decimal Amount, Currency Currency) : IComparable<Money>, IComparable {
     /// <summary>
     /// Represents zero money (in EUR).
     /// </summary>
     public static readonly Money Zero = new(0, Currency.EUR);
 
-    public Money(decimal amount, Currency currency) {
-        Amount   = amount;
-        Currency = currency;
-    }
-
     /// <summary>
     /// The monetary amount.
     /// </summary>
-    public decimal Amount { get; init; }
+    public decimal Amount { get; init; } = Amount;
 
     /// <summary>
     /// The currency.
     /// </summary>
-    public Currency Currency { get; init; }
+    public Currency Currency { get; init; } = Currency;
 
     /// <summary>
     /// Whether this represents zero money.

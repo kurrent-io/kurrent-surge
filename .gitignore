@@ -558,3 +558,4 @@ benchmark-*.html
 .dmux/
 skills-lock.json
 .impeccable.md
+.playwright-mcp

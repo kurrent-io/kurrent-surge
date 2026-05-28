@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Player reference data. Updated via events.

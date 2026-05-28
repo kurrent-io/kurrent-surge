@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Domain.Events;
 
 /// <summary>
 /// A player retires from professional football.

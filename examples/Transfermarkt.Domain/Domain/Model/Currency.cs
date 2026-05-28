@@ -1,13 +1,13 @@
 
 // ReSharper disable InconsistentNaming
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Currency using ISO 4217 codes.
 /// </summary>
 [PublicAPI]
-public readonly record struct Currency {
+public readonly record struct Currency(string Code, string Name, string Symbol) {
     /// <summary>
     /// Euro - Primary currency for European football transfers.
     /// </summary>
@@ -40,26 +40,20 @@ public readonly record struct Currency {
 
     static readonly Dictionary<string, Currency> ByCode = All.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
 
-    public Currency(string code, string name, string symbol) {
-        Code   = code;
-        Name   = name;
-        Symbol = symbol;
-    }
-
     /// <summary>
     /// ISO 4217 currency code (e.g., "EUR", "GBP", "USD").
     /// </summary>
-    public string Code { get; init; }
+    public string Code { get; init; } = Code;
 
     /// <summary>
     /// Full currency name.
     /// </summary>
-    public string Name { get; init; }
+    public string Name { get; init; } = Name;
 
     /// <summary>
     /// Currency symbol (e.g., "€", "£", "$").
     /// </summary>
-    public string Symbol { get; init; }
+    public string Symbol { get; init; } = Symbol;
 
     /// <summary>
     /// Gets a currency by its ISO code.

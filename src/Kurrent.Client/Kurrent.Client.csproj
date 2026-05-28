@@ -9,10 +9,6 @@
     <PackageTags>kurrent kurrentdb client sdk eventstore event-sourcing</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
-<!--    &lt;!&ndash; Embed project reference assemblies (e.g. Kurrent.Variant.dll) into lib/{tfm}/ during pack &ndash;&gt;-->
-<!--    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);PackProjectDependencies</TargetsForTfmSpecificBuildOutput>-->
-<!--    &lt;!&ndash; Embed source generator DLLs into analyzers/dotnet/cs/ during pack &ndash;&gt;-->
-<!--    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSourceGenerators</TargetsForTfmSpecificContentInPackage>-->
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <RootNamespace>Kurrent</RootNamespace>
     
@@ -27,23 +23,21 @@
   </ItemGroup>
 
   <!-- AOT/Trimming Support -->
-  <!--  <PropertyGroup>-->
-  <!--    <IsTrimmable>true</IsTrimmable>-->
-  <!--    <IsAotCompatible>true</IsAotCompatible>-->
-  <!--    <PublishAot>true</PublishAot>-->
-  <!--    <PublishTrimmed>true</PublishTrimmed>-->
-  <!--  </PropertyGroup>-->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <ProjectReference Include="..\Variant\Variant.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Api.CommonProtos" />
     <PackageReference Include="Google.Protobuf" />
-    <PackageReference Include="Google.Protobuf.Tools" />
+    <PackageReference Include="Google.Protobuf.Tools" PrivateAssets="All" />
     <PackageReference Include="Grpc.StatusProto" />
     <PackageReference Include="Grpc.Net.ClientFactory" />
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
@@ -93,6 +87,5 @@
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
   </ItemGroup>
 
-  <Import Project="..\Packable.targets" />
 
 </Project>

@@ -4,7 +4,7 @@ using Dapper;
 using Kurrent.Streaming;
 using Npgsql;
 using StackExchange.Redis;
-using Transfermarkt.Domain;
+using Transfermarkt.Domain.Events;
 
 namespace Processor.FullExample;
 

@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Domain.Events;
 
 /// <summary>
 /// A player moves between clubs (or enters/exits the system).

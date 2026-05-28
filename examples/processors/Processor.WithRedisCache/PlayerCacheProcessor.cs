@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Kurrent.Streaming;
 using StackExchange.Redis;
-using Transfermarkt.Domain;
+using Transfermarkt.Domain.Events;
 
 namespace Processor.WithRedisCache;
 

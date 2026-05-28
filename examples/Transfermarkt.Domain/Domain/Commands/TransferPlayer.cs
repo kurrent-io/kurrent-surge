@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Domain.Commands;
 
 /// <summary>
 /// Command to transfer a player between clubs.

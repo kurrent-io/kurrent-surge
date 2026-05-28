@@ -1,10 +1,10 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Country using official FIFA country codes.
 /// </summary>
 [PublicAPI]
-public readonly record struct Country {
+public readonly record struct Country(string Code, string Name, Continent Continent) {
     // ==================== CAF (Africa) - 54 members ====================
     public static readonly Country Algeria                = new("ALG", "Algeria", Continent.Africa);
     public static readonly Country Angola                 = new("ANG", "Angola", Continent.Africa);
@@ -300,26 +300,20 @@ public readonly record struct Country {
 
     static readonly Dictionary<string, Country> ByCode = All.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
 
-    public Country(string code, string name, Continent continent) {
-        Code      = code;
-        Name      = name;
-        Continent = continent;
-    }
-
     /// <summary>
     /// Official FIFA country code (e.g., "BRA", "GER", "ESP").
     /// </summary>
-    public string Code { get; init; }
+    public string Code { get; init; } = Code;
 
     /// <summary>
     /// Full country name.
     /// </summary>
-    public string Name { get; init; }
+    public string Name { get; init; } = Name;
 
     /// <summary>
     /// The continent this country belongs to.
     /// </summary>
-    public Continent Continent { get; init; }
+    public Continent Continent { get; init; } = Continent;
 
     /// <summary>
     /// Whether this is an unknown country.

@@ -6,6 +6,20 @@
         "agent",
         "mcp"
       ]
+    },
+    "kapacitor-review": {
+      "command": "kapacitor",
+      "args": ["mcp", "review"],
+      "description": "PR review context tools — query implementation session transcripts to understand why code was changed"
+    },
+    "kapacitor-sessions": {
+      "command": "kapacitor",
+      "args": ["mcp", "sessions"],
+      "cwd": "${CLAUDE_PROJECT_DIR}"
+    },
+    "pinchtab": {
+      "command": "pinchtab",
+      "args": ["mcp"]
     }
   }
 }

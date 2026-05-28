@@ -3,7 +3,4 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>Transfermarkt</RootNamespace>
   </PropertyGroup>
-  <ItemGroup>
-    <Folder Include="Edge\" />
-  </ItemGroup>
 </Project>

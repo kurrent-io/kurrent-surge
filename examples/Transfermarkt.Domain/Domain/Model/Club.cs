@@ -1,4 +1,4 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Club reference data. Clubs don't have domain events - they're reference data.

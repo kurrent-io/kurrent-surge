@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
+using Transfermarkt.Domain.Events;
+using Transfermarkt.Domain.Model;
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Data.Projections;
 
 /// <summary>
 /// Current squad for a club at a point in time.

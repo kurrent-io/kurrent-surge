@@ -1,4 +1,6 @@
-namespace Transfermarkt.Domain;
+using Transfermarkt.Domain.Model;
+
+namespace Transfermarkt.Domain.Commands;
 
 /// <summary>
 /// Command to return a player from loan to their parent club.

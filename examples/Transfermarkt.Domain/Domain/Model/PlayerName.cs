@@ -1,55 +1,47 @@
 using System.Collections.Immutable;
 
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// A player's name including first name, last name, and optional nicknames.
 /// </summary>
 [PublicAPI]
-public readonly record struct PlayerName {
+public readonly record struct PlayerName(
+    string FirstName,
+    string LastName,
+    ImmutableArray<string> Nicknames,
+    string FullName,
+    string DisplayName
+) {
     /// <summary>
     /// Represents an unknown or unset player name.
     /// </summary>
     public static readonly PlayerName Unknown = new("", "", [], "", "");
 
-    public PlayerName(
-        string firstName,
-        string lastName,
-        ImmutableArray<string> nicknames,
-        string fullName,
-        string displayName
-    ) {
-        FirstName   = firstName;
-        LastName    = lastName;
-        Nicknames   = nicknames;
-        FullName    = fullName;
-        DisplayName = displayName;
-    }
-
     /// <summary>
     /// The player's first name (given name).
     /// </summary>
-    public string FirstName { get; init; }
+    public string FirstName { get; init; } = FirstName;
 
     /// <summary>
     /// The player's last name (family name).
     /// </summary>
-    public string LastName { get; init; }
+    public string LastName { get; init; } = LastName;
 
     /// <summary>
     /// Known nicknames or aliases for the player.
     /// </summary>
-    public ImmutableArray<string> Nicknames { get; init; }
+    public ImmutableArray<string> Nicknames { get; init; } = Nicknames;
 
     /// <summary>
     /// The full name (first + last).
     /// </summary>
-    public string FullName { get; init; }
+    public string FullName { get; init; } = FullName;
 
     /// <summary>
     /// The primary display name (first nickname if available, otherwise full name).
     /// </summary>
-    public string DisplayName { get; init; }
+    public string DisplayName { get; init; } = DisplayName;
 
     /// <summary>
     /// Whether this is an unknown/unset name.

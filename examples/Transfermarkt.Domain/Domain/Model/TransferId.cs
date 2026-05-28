@@ -1,21 +1,19 @@
-namespace Transfermarkt.Domain;
+namespace Transfermarkt.Domain.Model;
 
 /// <summary>
 /// Strongly-typed identifier for a transfer.
 /// </summary>
 [PublicAPI]
-public readonly record struct TransferId {
+public readonly record struct TransferId(Guid Value) {
     /// <summary>
     /// Represents an uninitialized or empty transfer identifier.
     /// </summary>
     public static readonly TransferId None = new(Guid.Empty);
 
-    public TransferId(Guid value) => Value = value;
-
     /// <summary>
     /// The underlying GUID value.
     /// </summary>
-    public Guid Value { get; init; }
+    public Guid Value { get; init; } = Value;
 
     /// <summary>
     /// Indicates whether this identifier is unset.

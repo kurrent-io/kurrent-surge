@@ -46,7 +46,7 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
         messageFormat: $"[{nameof(KurrentOperationErrorGenerator)}] found type: {{0}}",
         category: "CodeGeneration",
         defaultSeverity: DiagnosticSeverity.Hidden,
-        isEnabledByDefault: true);
+        isEnabledByDefault: false);
 
     static readonly DiagnosticDescriptor Failed = new(
         id: "KURRENT500",
@@ -62,7 +62,7 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
         messageFormat: $"[{nameof(KurrentOperationErrorGenerator)}] completed code generation for: {{0}}",
         category: "CodeGeneration",
         defaultSeverity: DiagnosticSeverity.Hidden,
-        isEnabledByDefault: true);
+        isEnabledByDefault: false);
 
     static readonly DiagnosticDescriptor NoTargetTypesFound = new(
         id: "KURRENT404",
@@ -70,7 +70,7 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
         messageFormat: $"[{nameof(KurrentOperationErrorGenerator)}] no target types found for code generation",
         category: "CodeGeneration",
         defaultSeverity: DiagnosticSeverity.Hidden,
-        isEnabledByDefault: true);
+        isEnabledByDefault: false);
 
     static string GenerateImplementation(OperationErrorInfo info) {
         var sourceBuilder = new StringBuilder(
