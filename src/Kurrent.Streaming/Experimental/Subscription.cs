@@ -33,9 +33,8 @@ public sealed class Subscription(KurrentClient client, ProcessorOptions options)
             : RecordPosition.Earliest;
 
         var underlying = _streams.Subscribe(
-            SerializerProvider, MetadataDecoder,
             options.Subscription.Filter, from,
-            options.SkipDecoding, ct);
+            options.SkipDecoding, ct: ct);
 
         var positionsIndex = startPositions
             .ToDictionary(x => x.Partition);

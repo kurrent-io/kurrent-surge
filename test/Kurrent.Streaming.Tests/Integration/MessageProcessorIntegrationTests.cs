@@ -228,8 +228,12 @@ public class MessageProcessorIntegrationTests {
             OnProcessRecord = async ctx => {
                 await ((IRecordProcessor)processor).ProcessRecord(ctx);
 
-                if (ctx.Record.Position.LogPosition >= data.Position)
+                if (ctx.Record.Position.LogPosition >= data.Position) {
+                    // Track explicitly so TestableRecordProcessor still collects
+                    // this record — StopProcessing suppresses auto-collection.
+                    ctx.Track(ctx.Record);
                     ctx.StopProcessing();
+                }
             }
         };
 

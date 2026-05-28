@@ -81,9 +81,8 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
 
         try {
             var subscription = _streams.Subscribe(
-                SerializerProvider, MetadataDecoder,
                 _settings.Subscription.Filter, _lowWatermark,
-                _settings.SkipDecoding, ct);
+                _settings.SkipDecoding, ct: ct);
 
             var connectedHandled = false;
 

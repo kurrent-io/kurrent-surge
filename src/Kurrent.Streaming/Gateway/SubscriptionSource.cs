@@ -1,19 +1,9 @@
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Client;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Legacy;
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Streaming.Options;
-using Kurrent.Variant;
-using KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Streaming.Gateway;
 
@@ -40,9 +30,8 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
     ) {
         try {
             var subscription = _streams.Subscribe(
-                SerializerProvider, MetadataDecoder,
                 filter, startPosition, skipDecoding,
-                ct);
+                ct: ct);
 
             await foreach (var msg in subscription.ConfigureAwait(false)) {
                 if (msg.Value is Record record) {
@@ -76,101 +65,4 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
 
     public ValueTask DisposeAsync() =>
         ValueTask.CompletedTask;
-}
-
-static class InternalClientExtensions {
-    /// <summary>
-    /// Subscribes to a stream or log via the V1 wire protocol.
-    /// Connection phase (first message validation) runs eagerly before any yield,
-    /// so errors throw directly to the caller.
-    /// </summary>
-    public static async IAsyncEnumerable<SubscribeMessage> Subscribe(
-        this StreamsClient streams,
-        ISchemaSerializerProvider serializerProvider,
-        IMetadataDecoder metadataDecoder,
-        RecordFilter filter,
-        RecordPosition start,
-        bool skipDecoding,
-        [EnumeratorCancellation] CancellationToken ct
-    ) {
-        var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(filter, start, resolveLinks: true);
-
-        AsyncServerStreamingCall<ReadResp> grpcSession;
-        SessionId                          sessionId;
-
-        // ── Connection phase ── throws directly to caller, no yield here
-        try {
-            grpcSession = streams.LegacyServiceClient.Read(request, cancellationToken: ct);
-
-            await grpcSession.ResponseStream.MoveNext(ct).ConfigureAwait(false);
-
-            if (grpcSession.ResponseStream.Current?.ContentCase is ReadResp.ContentOneofCase.StreamNotFound) {
-                StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-
-                var info = await streams.GetStreamInfo(stream, ct).ConfigureAwait(false);
-
-                throw info.State switch {
-                    StreamState.Missing    => new StreamNotFoundException(stream),
-                    StreamState.Deleted    => new StreamDeletedException(stream),
-                    StreamState.Tombstoned => new StreamTombstonedException(stream),
-                    StreamState.Active     => new StreamNotFoundException(stream)
-                };
-            }
-
-            if (grpcSession.ResponseStream.Current?.ContentCase is not ReadResp.ContentOneofCase.Confirmation)
-                throw new UnreachableException(
-                    $"EVERYTHING IS BROKEN! First message must be the subscription confirmation but got: " +
-                    $"{grpcSession.ResponseStream.Current?.ContentCase}");
-
-            sessionId = SessionId.From(Guid.Parse(grpcSession.ResponseStream.Current!.Confirmation.SubscriptionId));
-        }
-        catch (RpcException rex) {
-            if (rex.StatusCode == StatusCode.Cancelled)
-                throw new OperationCanceledException(rex.Message, rex);
-
-            if (rex.IsLegacyError(LegacyErrorCodes.StreamDeleted)) {
-                StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
-                throw new StreamTombstonedException(stream);
-            }
-
-            if (rex.IsLegacyError(LegacyErrorCodes.LogPositionNotFound)) {
-                var position = request.Options.All.Position?.CommitPosition ?? LogPosition.Unset;
-                throw new LogPositionNotFoundException(position, rex);
-            }
-
-            throw rex.AsWellKnownException();
-        }
-
-        yield return new Connected(sessionId);
-
-        SequenceGenerator sequencer = new();
-
-        try {
-            while (await grpcSession.ResponseStream.MoveNext(ct).ConfigureAwait(false)) {
-                var resp = grpcSession.ResponseStream.Current;
-
-                switch (resp?.ContentCase) {
-                    case ReadResp.ContentOneofCase.Checkpoint: 
-                        yield return resp.Checkpoint.MapToCheckpoint(sequencer.FetchNext()); break;
-
-                    case ReadResp.ContentOneofCase.CaughtUp: 
-                        yield return resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext()); break;
-
-                    case ReadResp.ContentOneofCase.Event:
-                        var ctx = new MappingContext(serializerProvider, metadataDecoder, SchemaRegistryPolicy.NoRequirements, ct);
-                        var record = await resp.Event
-                            .MapToRecordAsync(sequencer.FetchNext(), ctx, skipDecoding)
-                            .ConfigureAwait(false);
-
-                        if (filter.IsMatch(record))
-                            yield return record;
-
-                    break;
-                }
-            }
-        }
-        finally {
-            grpcSession.Dispose();
-        }
-    }
 }
