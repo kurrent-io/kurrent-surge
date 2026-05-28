@@ -26,9 +26,10 @@ var repoRoot = FindRepoRoot(Environment.CurrentDirectory);
 
 var categoryArg = new Argument<string>("category") { Description = "Test category: unit, integration, or all" };
 var filterOpt = new Option<string?>("--treenode-filter") { Description = "TUnit treenode filter pattern" };
+var htmlReportOpt = new Option<bool>("--html-report") { Description = "Generate TUnit HTML reports (disabled by default)" };
 var extraArgs = new Argument<string[]>("extra") { Arity = ArgumentArity.ZeroOrMore, Description = "Extra TUnit arguments" };
 
-var runCmd = new SysCommand("run", "Execute tests and produce results") { categoryArg, filterOpt, extraArgs };
+var runCmd = new SysCommand("run", "Execute tests and produce results") { categoryArg, filterOpt, htmlReportOpt, extraArgs };
 var listCmd = new SysCommand("list", "Discover and list matching tests without running them") { categoryArg, filterOpt };
 var rootCmd = new RootCommand("Canonical test runner for the Kurrent SDK solution") { runCmd, listCmd };
 
@@ -36,6 +37,7 @@ runCmd.SetAction(async (result, _) => {
     Environment.ExitCode = await RunTests(
         result.GetValue(categoryArg)!,
         result.GetValue(filterOpt),
+        result.GetValue(htmlReportOpt),
         result.GetValue(extraArgs) ?? []);
 });
 
@@ -76,7 +78,7 @@ async Task<int> ListTests(string category, string? userFilter) {
 // Run
 // =============================================================================
 
-async Task<int> RunTests(string category, string? userFilter, string[] passthrough) {
+async Task<int> RunTests(string category, string? userFilter, bool htmlReport, string[] passthrough) {
     var runId = $"{DateTime.Now:yyyyMMdd-HHmmss}-{BitConverter.ToString(RandomNumberGenerator.GetBytes(2)).Replace("-", "").ToLowerInvariant()}";
     var filter = BuildFilter(userFilter, CategoryProp(category));
     var resultsDir = Path.Combine(repoRoot, ".artifacts", "test-results", runId);
@@ -121,6 +123,10 @@ async Task<int> RunTests(string category, string? userFilter, string[] passthrou
     var testCmd = Cli.Wrap("dotnet")
         .WithArguments(dotnetArgs)
         .WithWorkingDirectory(repoRoot)
+        .WithEnvironmentVariables(env => {
+            if (!htmlReport)
+                env.Set("TUNIT_DISABLE_HTML_REPORTER", "true");
+        })
         .WithValidation(CommandResultValidation.None);
 
     await AnsiConsole.Status()
@@ -214,7 +220,7 @@ async Task<int> RunTests(string category, string? userFilter, string[] passthrou
     AnsiConsole.WriteLine();
 
     // --- Post-processing ---
-    PostProcess(resultsDir);
+    PostProcess(resultsDir, htmlReport);
 
     // --- Generate markdown reports ---
     var trxFiles = Directory.GetFiles(resultsDir, "*.trx").OrderBy(f => f).ToArray();
@@ -282,13 +288,15 @@ async Task<int> RunTests(string category, string? userFilter, string[] passthrou
 // Post-Processing
 // =============================================================================
 
-void PostProcess(string resultsDir) {
+void PostProcess(string resultsDir, bool htmlReport) {
     foreach (var dir in Directory.GetDirectories(resultsDir))
         Directory.Delete(dir, recursive: true);
 
-    foreach (var html in Directory.GetFiles(resultsDir, "*-report.html")) {
-        var lower = Path.Combine(Path.GetDirectoryName(html)!, Path.GetFileName(html).ToLowerInvariant());
-        if (html != lower) File.Move(html, lower);
+    if (htmlReport) {
+        foreach (var html in Directory.GetFiles(resultsDir, "*-report.html")) {
+            var lower = Path.Combine(Path.GetDirectoryName(html)!, Path.GetFileName(html).ToLowerInvariant());
+            if (html != lower) File.Move(html, lower);
+        }
     }
 
     var osName = GetShortOsName();
