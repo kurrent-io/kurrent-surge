@@ -25,16 +25,47 @@ Each run creates a unique folder under `.artifacts/test-results/<run-id>/` conta
 
 ### Options
 
-| Flag              | Description                                          |
-|-------------------|------------------------------------------------------|
-| `--treenode-filter` | TUnit treenode filter pattern                      |
-| `--html-report`   | Generate TUnit HTML reports (disabled by default)    |
+| Flag                | Description                                                                 |
+|---------------------|----------------------------------------------------------------------------|
+| `--treenode-filter` | TUnit treenode filter pattern                                              |
+| `--html-report`     | Generate TUnit HTML reports (disabled by default)                          |
+| `--rebuild`         | Force a full from-scratch build (`--no-incremental`) before running tests  |
+
+The runner builds first (`dotnet build -c Release`), then runs the tests with `--no-build`, so the build
+happens exactly once. Pass `--rebuild` to switch that build to `--no-incremental` — needed when you want
+the trim/AOT analyzers to re-run from scratch, since an up-to-date incremental build skips compilation and
+emits no analyzer warnings.
 
 Extra TUnit args pass through after the category:
 
 ```bash
 dotnet scripts/testing/test-runner.cs -- run integration --timeout 30s --maximum-parallel-tests 1
 ```
+
+## aot-report.cs
+
+Generates an AOT/trim compatibility report. C# file-based app, same stack as `test-runner.cs`. It
+discovers every project marked `<IsAotCompatible>true</IsAotCompatible>`, builds each with
+`--no-incremental` (so the trim/AOT analyzers re-run from scratch), parses the `IL####` warnings, and
+writes a markdown report grouped by project.
+
+```bash
+dotnet scripts/testing/aot-report.cs                         # -> .artifacts/aot-report.md
+dotnet scripts/testing/aot-report.cs -- --stdout            # print to stdout instead of writing a file
+dotnet scripts/testing/aot-report.cs -- --output report.md  # write to a specific path
+```
+
+Warnings are split into **own code** (actionable `IL2026`/`IL3050`/`IL2070`/… in our source) and
+**packages** (`IL3058` — dependencies not marked AOT-compatible, listed with their resolved versions).
+The title is derived from the solution file name; known false positives (e.g. compile-only
+`JetBrains.Annotations`) are filtered out; the code legend sits at the end.
+
+### Options
+
+| Flag       | Description                                                  |
+|------------|-------------------------------------------------------------|
+| `--output` | Markdown output path (default: `.artifacts/aot-report.md`)  |
+| `--stdout` | Print the report to stdout instead of writing a file        |
 
 ## trx2md.py
 

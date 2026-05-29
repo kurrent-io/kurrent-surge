@@ -27,9 +27,10 @@ var repoRoot = FindRepoRoot(Environment.CurrentDirectory);
 var categoryArg = new Argument<string>("category") { Description = "Test category: unit, integration, or all" };
 var filterOpt = new Option<string?>("--treenode-filter") { Description = "TUnit treenode filter pattern" };
 var htmlReportOpt = new Option<bool>("--html-report") { Description = "Generate TUnit HTML reports (disabled by default)" };
+var rebuildOpt = new Option<bool>("--rebuild") { Description = "Force a full from-scratch build (--no-incremental) so trim/AOT analyzers re-emit" };
 var extraArgs = new Argument<string[]>("extra") { Arity = ArgumentArity.ZeroOrMore, Description = "Extra TUnit arguments" };
 
-var runCmd = new SysCommand("run", "Execute tests and produce results") { categoryArg, filterOpt, htmlReportOpt, extraArgs };
+var runCmd = new SysCommand("run", "Execute tests and produce results") { categoryArg, filterOpt, htmlReportOpt, rebuildOpt, extraArgs };
 var listCmd = new SysCommand("list", "Discover and list matching tests without running them") { categoryArg, filterOpt };
 var rootCmd = new RootCommand("Canonical test runner for the Kurrent SDK solution") { runCmd, listCmd };
 
@@ -38,6 +39,7 @@ runCmd.SetAction(async (result, _) => {
         result.GetValue(categoryArg)!,
         result.GetValue(filterOpt),
         result.GetValue(htmlReportOpt),
+        result.GetValue(rebuildOpt),
         result.GetValue(extraArgs) ?? []);
 });
 
@@ -78,7 +80,7 @@ async Task<int> ListTests(string category, string? userFilter) {
 // Run
 // =============================================================================
 
-async Task<int> RunTests(string category, string? userFilter, bool htmlReport, string[] passthrough) {
+async Task<int> RunTests(string category, string? userFilter, bool htmlReport, bool rebuild, string[] passthrough) {
     var runId = $"{DateTime.Now:yyyyMMdd-HHmmss}-{BitConverter.ToString(RandomNumberGenerator.GetBytes(2)).Replace("-", "").ToLowerInvariant()}";
     var filter = BuildFilter(userFilter, CategoryProp(category));
     var resultsDir = Path.Combine(repoRoot, ".artifacts", "test-results", runId);
@@ -100,9 +102,51 @@ async Task<int> RunTests(string category, string? userFilter, bool htmlReport, s
     AnsiConsole.Write(headerTable);
     AnsiConsole.WriteLine();
 
-    // --- Build dotnet test args ---
+    // --- Build first, then run tests with --no-build (no second compile) ---
+    // Default build is incremental. --rebuild forces --no-incremental so the trim/AOT
+    // analyzers recompile from scratch and re-emit their warnings into output.log.
+    // Note: we never use `-t:Rebuild` — its Clean/Build steps are unordered across the
+    // solution graph and race-delete dependency ref assemblies (CS0006).
+    var logBuilder = new StringBuilder();
+    var buildExit = 0;
+
+    var buildArgs = new List<string> { "build", "-c", "Release" };
+    if (rebuild) buildArgs.Add("--no-incremental");
+
+    await AnsiConsole.Status()
+        .Spinner(Spinner.Known.Dots)
+        .SpinnerStyle(new Style(Color.Blue))
+        .StartAsync(rebuild ? "[blue]Building (--no-incremental)...[/]" : "[blue]Building...[/]", async _ => {
+            var buildCmd = Cli.Wrap("dotnet")
+                .WithArguments(buildArgs)
+                .WithWorkingDirectory(repoRoot)
+                .WithValidation(CommandResultValidation.None);
+
+            await foreach (var evt in buildCmd.ListenAsync()) {
+                switch (evt) {
+                    case StandardOutputCommandEvent { Text: var line }:
+                        logBuilder.AppendLine(line);
+                        break;
+                    case StandardErrorCommandEvent { Text: var err }:
+                        logBuilder.AppendLine(err);
+                        break;
+                    case ExitedCommandEvent exited:
+                        buildExit = exited.ExitCode;
+                        break;
+                }
+            }
+        });
+
+    if (buildExit != 0) {
+        // Build failed — persist the log and stop before running any tests.
+        await File.WriteAllTextAsync(Path.Combine(resultsDir, "output.log"), logBuilder.ToString());
+        AnsiConsole.MarkupLine($"[red]✗ build failed (exit {buildExit})[/] [dim]— see .artifacts/test-results/{Markup.Escape(runId)}/output.log[/]");
+        return buildExit;
+    }
+
+    // --- Build dotnet test args (--no-build: tests run against the build above) ---
     var dotnetArgs = new List<string> {
-        "test", "-c", "Release",
+        "test", "-c", "Release", "--no-build",
         "--no-progress", "--ignore-exit-code", "8",
         "--results-directory", resultsDir,
         "--",
@@ -112,7 +156,6 @@ async Task<int> RunTests(string category, string? userFilter, bool htmlReport, s
     dotnetArgs.AddRange(passthrough);
 
     // --- Run dotnet test silently with live status ---
-    var logBuilder = new StringBuilder();
     var exitCode = 0;
     var passed = 0;
     var failed = 0;
@@ -132,7 +175,7 @@ async Task<int> RunTests(string category, string? userFilter, bool htmlReport, s
     await AnsiConsole.Status()
         .Spinner(Spinner.Known.Dots)
         .SpinnerStyle(new Style(Color.Blue))
-        .StartAsync("[blue]Building...[/]", async ctx => {
+        .StartAsync("[blue]Running tests...[/]", async ctx => {
             await foreach (var evt in testCmd.ListenAsync()) {
                 switch (evt) {
                     case StandardOutputCommandEvent { Text: var line }:
@@ -264,9 +307,11 @@ async Task<int> RunTests(string category, string? userFilter, bool htmlReport, s
     // --- Command reproduction block ---
     var relResults = $".artifacts/test-results/{runId}";
     var extra = passthrough.Length > 0 ? $" \\\n    {string.Join(' ', passthrough)}" : "";
+    var rebuildFlag = rebuild ? " --no-incremental" : "";
     var cmdText = $"""
+        dotnet build -c Release{rebuildFlag} && \
         dotnet test \
-          -c Release --no-progress --ignore-exit-code 8 \
+          -c Release --no-build --no-progress --ignore-exit-code 8 \
           --results-directory {relResults} \
           -- \
           --disable-logo --log-level Trace --detailed-stacktrace \

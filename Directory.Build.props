@@ -1,13 +1,15 @@
 <Project>
   <PropertyGroup>
-    <AfterMicrosoftNETSdkTargets>$(AfterMicrosoftNETSdkTargets);$(MSBuildThisFileDirectory)src/NonPackable.targets</AfterMicrosoftNETSdkTargets>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;</TargetFrameworks>
+<!--    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>-->
     <LangVersion>preview</LangVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+
+    <AfterMicrosoftNETSdkTargets>$(AfterMicrosoftNETSdkTargets);$(MSBuildThisFileDirectory)src/NonPackable.targets</AfterMicrosoftNETSdkTargets>
 
     <!-- Include only en-US satellite resources to reduce package size -->
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
@@ -17,6 +19,9 @@
 
     <!-- AOT/Trimming — surface all warnings, never suppress -->
     <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <!-- Flag referenced assemblies not marked AOT-compatible (IL3058). Only fires on projects
+         that opt into AOT analysis (IsAotCompatible), so it's inert for tests and netstandard2.0 generators. -->
+    <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
 
     <!-- Warnings -->
     <!-- NETSDK1057 - You are using a preview version of .NET -->
@@ -30,7 +35,6 @@
 
     <!-- Define directories -->
     <RepoRoot>$([System.IO.Directory]::GetParent($(MSBuildThisFileDirectory)).FullName)</RepoRoot>
-
     <SharedDir>$(MSBuildThisFileDirectory)/src/Shared/</SharedDir>
     <TestsSharedDir>$([MSBuild]::NormalizeDirectory($(MSBuildThisFileDirectory), 'tests', 'Shared'))</TestsSharedDir>
   </PropertyGroup>
