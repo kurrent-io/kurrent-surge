@@ -4,8 +4,6 @@ using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Diagnostics;
-using Kurrent.Streaming.Gateway;
-using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 
 namespace Kurrent.Streaming;

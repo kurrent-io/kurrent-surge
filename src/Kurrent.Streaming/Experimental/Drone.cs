@@ -3,7 +3,6 @@ using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Options;
 using Kurrent.Streaming.Partitioning;
 

@@ -1,12 +1,12 @@
 using System.Threading.Channels;
 using Kurrent.Client;
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
+using Polly;
 
 namespace Kurrent.Streaming.Hive;
 
@@ -21,6 +21,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
     readonly ProcessorOptions   _settings;
     readonly HybridLogicalClock _clock;
     readonly ICheckpointStore    _checkpointStore;
+    readonly ResiliencePipeline _pipeline;
 
     readonly Dictionary<string, DroneRegistration>                 _drones = new();
     readonly Dictionary<Partition, ChannelWriter<SubscribeMessage>> _routes = new();
@@ -39,6 +40,7 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
         _settings        = settings;
         _clock           = new HybridLogicalClock(timeProvider);
         _checkpointStore = checkpointStore;
+        _pipeline        = ResilientSubscription.BuildPipeline(settings.Resilience, Logger);
     }
 
     public void RegisterDrone(string droneId, Partition[] partitions, ChannelWriter<SubscribeMessage> writer) {
@@ -76,44 +78,13 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
     }
 
     public async Task RunAsync(CancellationToken ct) {
-        Exception? fault = null;
+        Exception?               fault    = null;
         CancellationTokenSource? timerCts = null;
 
         try {
-            var subscription = _streams.Subscribe(
-                _settings.Subscription.Filter, _lowWatermark,
-                _settings.SkipDecoding, ct: ct);
-
-            var connectedHandled = false;
-
-            await foreach (var msg in subscription.ConfigureAwait(false)) {
-                switch (msg.Value) {
-                    case Connected:
-                        await FanOutAsync(msg, ct).ConfigureAwait(false);
-                        if (!connectedHandled) {
-                            connectedHandled = true;
-                            timerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                            StartFlushTimer(timerCts.Token);
-                        }
-                        break;
-
-                    case Checkpoint:
-                        await FanOutAsync(msg, ct).ConfigureAwait(false);
-                        break;
-
-                    case Record record:
-                        var partition = Partition.From(
-                            PartitionCalculator.XXHash.Calculate(record.Stream, _settings.MaxParallelism));
-
-                        var tagged = record with {
-                            Position = record.Position with { Partition = partition }
-                        };
-
-                        if (_routes.TryGetValue(partition, out var writer))
-                            await writer.WriteAsync(tagged, ct).ConfigureAwait(false);
-                        break;
-                }
-            }
+            await ResilientSubscription
+                .PumpAsync(_streams, _pipeline, _settings.Subscription.Filter, _lowWatermark, _settings.SkipDecoding, Handle, ct)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) {
@@ -123,6 +94,40 @@ sealed class MasterSubscriptionSource : ClientModuleBase, IAsyncDisposable {
             timerCts?.Cancel();
             timerCts?.Dispose();
             CompleteAll(fault);
+        }
+
+        return;
+
+        // Routes each message to its drone(s). Invoked once per message by the resilient pump,
+        // which reconnects transparently on transient errors. Connected fires again on every
+        // reconnect, so the barrier timer starts once (keyed off timerCts, not a per-call flag)
+        // and is torn down only when the pump finally stops.
+        async ValueTask Handle(SubscribeMessage msg, CancellationToken token) {
+            switch (msg.Value) {
+                case Connected:
+                    await FanOutAsync(msg, token).ConfigureAwait(false);
+                    if (timerCts is null) {
+                        timerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        StartFlushTimer(timerCts.Token);
+                    }
+                    break;
+
+                case Checkpoint:
+                    await FanOutAsync(msg, token).ConfigureAwait(false);
+                    break;
+
+                case Record record:
+                    var partition = Partition.From(
+                        PartitionCalculator.XXHash.Calculate(record.Stream, _settings.MaxParallelism));
+
+                    var tagged = record with {
+                        Position = record.Position with { Partition = partition }
+                    };
+
+                    if (_routes.TryGetValue(partition, out var writer))
+                        await writer.WriteAsync(tagged, token).ConfigureAwait(false);
+                    break;
+            }
         }
     }
 

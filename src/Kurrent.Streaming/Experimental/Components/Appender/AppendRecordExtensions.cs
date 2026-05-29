@@ -1,4 +1,3 @@
-using Kurrent.Client;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Streaming.Experimental.Components.Appender;

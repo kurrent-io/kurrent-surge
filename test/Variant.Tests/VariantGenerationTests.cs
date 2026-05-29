@@ -23,11 +23,11 @@ public record MyWarning(string Text);
 // Internal variant referencing internal case types — exercises accessibility matching.
 // If the generator emits `public` on the partial or its members, this fails to compile
 // (CS0262 on the partial, CS0051 on the constructor / property due to internal case types).
-internal readonly partial record struct InternalVariant : IVariant<InternalSerialized, InternalSignal>;
+readonly partial record struct InternalVariant : IVariant<InternalSerialized, InternalSignal>;
 
-internal readonly record struct InternalSerialized(string Payload);
+readonly record struct InternalSerialized(string Payload);
 
-internal readonly record struct InternalSignal(int Code);
+readonly record struct InternalSignal(int Code);
 
 [UsedImplicitly]
 [Category("Variant")]

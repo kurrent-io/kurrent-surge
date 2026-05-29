@@ -4,7 +4,6 @@ using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Partitioning;
 
 namespace Kurrent.Streaming.Hive;

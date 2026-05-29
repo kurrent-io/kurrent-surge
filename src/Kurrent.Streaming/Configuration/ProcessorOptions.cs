@@ -78,6 +78,11 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// </summary>
     public CheckpointOptions Checkpoint { get; init; } = new();
 
+    /// <summary>
+    /// Resilience configuration (subscription reconnection on transient errors).
+    /// </summary>
+    public ResilienceOptions Resilience { get; init; } = new();
+
     #region ->> Connection <<-
 
     /// <summary>
@@ -184,6 +189,21 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
             RuleFor(o => o.Subscription.InitialPosition)
                 .IsInEnum()
                 .WithMessage($"Subscription.InitialPosition must be one of: {string.Join(", ", Enum.GetNames<SubscriptionInitialPosition>())}.");
+
+            RuleFor(o => o.Resilience.MaxRetryAttempts)
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("Resilience.MaxRetryAttempts must be zero or greater.");
+
+            RuleFor(o => o.Resilience.BaseDelay)
+                .GreaterThan(TimeSpan.Zero)
+                .WithMessage("Resilience.BaseDelay must be greater than zero.");
+
+            RuleFor(o => o.Resilience.MaxDelay)
+                .GreaterThanOrEqualTo(o => o.Resilience.BaseDelay)
+                .WithMessage("Resilience.MaxDelay must be greater than or equal to Resilience.BaseDelay.");
+
+            RuleFor(o => o.Resilience.RetryableStatusCodes)
+                .Must(codes => codes.Length > 0, "Resilience.RetryableStatusCodes cannot be empty.");
 
             RuleFor(o => o.ClientOptions)
                 .Must(clientOptions => clientOptions is not null,

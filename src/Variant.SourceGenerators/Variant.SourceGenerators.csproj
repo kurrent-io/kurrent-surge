@@ -3,7 +3,7 @@
     <RootNamespace>Kurrent.Variant.SourceGenerators</RootNamespace>
     <AssemblyName>Kurrent.Variant.SourceGenerators</AssemblyName>
 
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IsPackable>false</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
