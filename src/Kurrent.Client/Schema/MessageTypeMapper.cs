@@ -232,7 +232,7 @@ public class MessageTypeMapper {
     /// </summary>
     public class Builder {
         MessageTypeMapper   Mapper       { get; }      = new();
-        ISchemaNameStrategy NameStrategy { get; set; } = new MessageSchemaNameStrategy();
+        ISchemaNameStrategy NameStrategy { get; set; } = SchemaNameStrategies.TypeName();
 
         /// <summary>
         /// Sets the naming strategy to use for automatic schema name generation.

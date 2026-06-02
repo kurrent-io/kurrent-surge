@@ -26,7 +26,7 @@ public class ConcurrencyStressTests {
 		for (var i = 0; i < concurrency; i++) {
 			var data = await Fixture.TestData.GenerateSet(ct);
 			tasks[i] = client.Streams
-				.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct)
+				.AppendStream(data.Stream, data.Records, ct)
 				.AsTask();
 		}
 
@@ -102,7 +102,7 @@ public class ConcurrencyStressTests {
 			var expectedCount = data.Records.Length;
 
 			tasks.Add(client.Streams
-				.AppendStream(AppendStreamRequest.For(stream).AddRecords(data.Records).Build(), ct)
+				.AppendStream(stream, data.Records, ct)
 				.AsTask()
 				.ContinueWith(async appendTask => {
 					await appendTask;
@@ -148,7 +148,7 @@ public class ConcurrencyStressTests {
 			for (var i = 0; i < opsPerClient; i++) {
 				var data = await Fixture.TestData.GenerateSet(ct);
 				tasks.Add(client.Streams
-					.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct)
+					.AppendStream(data.Stream, data.Records, ct)
 					.AsTask());
 			}
 		}
@@ -184,7 +184,7 @@ public class ConcurrencyStressTests {
 		for (var i = 0; i < concurrency; i++) {
 			var data = await Fixture.TestData.GenerateSet(ct);
 			tasks[i] = client.Streams
-				.AppendStream(AppendStreamRequest.For(data.Stream).AddRecords(data.Records).Build(), ct)
+				.AppendStream(data.Stream, data.Records, ct)
 				.AsTask();
 		}
 

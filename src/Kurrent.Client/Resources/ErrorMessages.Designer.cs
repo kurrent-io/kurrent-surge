@@ -321,9 +321,21 @@ namespace Resources {
             }
         }
 
-        internal static string AppendRecordsRequestEmpty {
+        internal static string AppendRecordsEmpty {
             get {
-                return ResourceManager.GetString("AppendRecordsRequestEmpty", resourceCulture);
+                return ResourceManager.GetString("AppendRecordsEmpty", resourceCulture);
+            }
+        }
+
+        internal static string AppendRecordSizeExceeded {
+            get {
+                return ResourceManager.GetString("AppendRecordSizeExceeded", resourceCulture);
+            }
+        }
+
+        internal static string AppendTransactionSizeExceeded {
+            get {
+                return ResourceManager.GetString("AppendTransactionSizeExceeded", resourceCulture);
             }
         }
     }

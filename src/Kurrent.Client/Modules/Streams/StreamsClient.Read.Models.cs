@@ -2,6 +2,38 @@ using Kurrent.Validation;
 
 namespace Kurrent.Client.Streams;
 
+public record ReadRecordsOptions {
+    /// <summary>
+    /// Starting position for the read operation in the global log.
+    /// </summary>
+    public LogPosition Start { get; init; } = LogPosition.Latest;
+    
+    /// <summary>
+    /// Record filtering criteria to apply during read operations.
+    /// </summary>
+    public RecordFilter Filter { get; init; } = RecordFilter.None;
+
+    /// <summary>
+    /// Direction for reading records through the log.
+    /// </summary>
+    public ReadDirection Direction { get; init; } = ReadDirection.Forwards;
+
+    /// <summary>
+    /// Skip record data deserialization for performance-critical scenarios.
+    /// </summary>
+    public bool SkipDecoding { get; init; }
+
+    /// <summary>
+    /// Resolve link records (<c>$&gt;</c>) to their target events. Index streams (<c>$ce-*</c>,
+    /// <c>$idx-*</c>) contain links; without resolution, consumers see opaque link records
+    /// instead of the underlying events. Default <c>true</c>. Set <c>false</c> for low-level
+    /// inspection of index/projection streams.
+    /// </summary>
+    public bool ResolveLinks { get; init; } = true;
+    
+    public int FilterMaxSearchWindow { get; init; } = 1000;
+}
+
 /// <summary>
 /// Represents a request to read records from the log.
 /// </summary>

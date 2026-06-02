@@ -41,11 +41,13 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
             throw new InvalidOperationException(
                 $"Cannot ship {quantity} units of {sku}: only {currentLevel} in stock.");
 
-        var result = await client.Streams.AppendStream(
-            AppendStreamRequest.For(StreamFor(sku))
-                .ExpectedState(revision)
-                .AddMessage(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
-                .Build());
+        var stream = StreamFor(sku);
+        var record = AppendRecord.New()
+            .Stream(stream)
+            .Value(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
+            .Build();
+
+        var result = await client.Streams.AppendStream(stream, [record], revision);
 
         logger.LogStockShipped(quantity, sku, orderId, result.Revision);
 
@@ -57,11 +59,13 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Uses ExpectedStreamState.Exists to ensure the SKU stream has been created.
     /// </summary>
     public async ValueTask<Revision> AdjustStock(string sku, int quantity, string reason) {
-        var result = await client.Streams.AppendStream(
-            AppendStreamRequest.For(StreamFor(sku))
-                .ExpectedState(ExpectedStreamState.Exists)
-                .AddMessage(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
-                .Build());
+        var stream = StreamFor(sku);
+        var record = AppendRecord.New()
+            .Stream(stream)
+            .Value(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
+            .Build();
+
+        var result = await client.Streams.AppendStream(stream, [record], ExpectedStreamState.Exists);
 
         logger.LogStockAdjusted(sku, quantity, reason, result.Revision);
 
@@ -82,11 +86,12 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         var skuStream = StreamFor(sku);
 
         await client.Streams.AppendRecords(
-            AppendRecordsRequest.New()
-                .AddRecord(transferEvent, skuStream)
-                .AddRecord(transferEvent, "transfer-log")
-                .AddChecks(ConsistencyCheck.StreamExists(skuStream))
-                .Build());
+            new[] {
+                AppendRecord.New().Stream(skuStream).Value(transferEvent).Build(),
+                AppendRecord.New().Stream("transfer-log").Value(transferEvent).Build()
+            },
+            new AppendRecordsOptions().AddChecks(ConsistencyCheck.StreamExists(skuStream)),
+            CancellationToken.None);
 
         logger.LogStockTransferred(quantity, sku, fromWarehouse, toWarehouse);
     }

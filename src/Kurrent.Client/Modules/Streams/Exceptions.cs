@@ -105,9 +105,9 @@ public partial class AppendConsistencyViolationException {
 
 [KurrentOperationError(Contracts.Errors.StreamsError.MaxAppendRecordSizeExceeded)]
 public partial class MaxAppendRecordSizeExceededException {
-    public Guid RecordId         { get; private set; }
-    public int  RecordActualSize { get; private set; }
-    public int  RecordMaxSize    { get; private set; }
+    public Guid RecordId         { get; internal set; }
+    public int  RecordActualSize { get; internal set; }
+    public int  RecordMaxSize    { get; internal set; }
 
     public void AfterParseRpcStatus(Status status, MaxAppendRecordSizeExceededException self) {
         var details = status.GetDetail<Contracts.Errors.AppendRecordSizeExceededErrorDetails>()!;
@@ -119,8 +119,8 @@ public partial class MaxAppendRecordSizeExceededException {
 
 [KurrentOperationError(Contracts.Errors.StreamsError.MaxAppendTransactionSizeExceeded)]
 public partial class MaxAppendTransactionSizeExceededException {
-    public int TransactionActualSize { get; private set; }
-    public int TransactionMaxSize    { get; private set; }
+    public int TransactionActualSize { get; internal set; }
+    public int TransactionMaxSize    { get; internal set; }
 
     public void AfterParseRpcStatus(Status status, MaxAppendTransactionSizeExceededException self) {
         var details = status.GetDetail<Contracts.Errors.AppendTransactionSizeExceededErrorDetails>()!;

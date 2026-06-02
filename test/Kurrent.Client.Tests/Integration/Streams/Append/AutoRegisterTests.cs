@@ -39,12 +39,8 @@ public class AutoRegisterTests {
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
-        var request = AppendStreamRequest.For(data.Stream)
-            .AddRecords(data.Records)
-            .Build();
-
         // Act
-        await client.Streams.AppendStream(request, ct);
+        await client.Streams.AppendStream(data.Stream, data.Records, ct);
 
         await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -84,11 +80,9 @@ public class AutoRegisterTests {
             .ToArray();
 
         // Act
-        await client.Streams.AppendStream(
-            AppendStreamRequest.For(data.Stream).AddRecords([sameType[0]]).Build(), ct);
+        await client.Streams.AppendStream(data.Stream, [sameType[0]], ct);
 
-        await client.Streams.AppendStream(
-            AppendStreamRequest.For(data.Stream).AddRecords([sameType[1]]).Build(), ct);
+        await client.Streams.AppendStream(data.Stream, [sameType[1]], ct);
 
         await KurrentDBFixture.WaitForEventualConsistency(ct);
 
@@ -112,15 +106,11 @@ public class AutoRegisterTests {
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
-        var request = AppendStreamRequest.For(data.Stream)
-            .AddRecords(data.Records)
-            .Build();
-
         // Act
         // The append-record mapper wraps the serializer's exception in an ArgumentException
         // ("Failed to map AppendRecord for stream ..."), so the registration error surfaces as the inner.
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            async () => await client.Streams.AppendStream(request, ct));
+            async () => await client.Streams.AppendStream(data.Stream, data.Records, ct));
 
         // Assert
         await Assert.That(ex?.InnerException).IsTypeOf<AutoRegistrationDisabledException>();
@@ -153,12 +143,8 @@ public class AutoRegisterTests {
             };
         });
 
-        var request = AppendStreamRequest.For(data.Stream)
-            .AddRecords(data.Records)
-            .Build();
-
         // Act
-        await client.Streams.AppendStream(request, ct);
+        await client.Streams.AppendStream(data.Stream, data.Records, ct);
 
         // Assert
         // Auto-register must reuse the pre-existing schema rather than creating a new version.

@@ -6,7 +6,6 @@ using System.Text.Json.Nodes;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Streams.Checkpoints;
 
 namespace Kurrent.Client.Streams;
 
@@ -49,16 +48,6 @@ public record Record {
 	/// The metadata associated with the record, represented as a collection of key-value pairs.
 	/// </summary>
 	public Metadata Metadata { get; init; } = new();
-
-    /// <summary>
-    /// The sequential order of the record in the context of a read operation.
-    /// </summary>
-    /// <remarks>
-    /// The sequence number is on every record returned from a read operation,
-    /// providing a way to track the order of records as they are processed in particular scenarios,
-    /// such as subscriptions or projections.
-    /// </remarks>
-    public SequenceId Sequence { get; init; } = SequenceId.Unset;
 
     /// <summary>
     /// Binary data representation of the record's value.

@@ -5,7 +5,6 @@ using Grpc.Core;
 using Kurrent.Client.Legacy;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using Microsoft.Extensions.Logging;
 using static Kurrent.Client.Streams.StreamsClientMapping;
@@ -386,12 +385,18 @@ public partial class StreamsClient {
     #endregion
 
     async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision rev, CancellationToken ct) {
-        var request = AppendStreamRequest.For(stream.Metastream)
-            .ExpectedState(rev)
-            .AddMessage(metadata)
+        var record = AppendRecord.New()
+            .Stream(stream.Metastream)
+            .Value(metadata)
+            .DataFormat(SchemaDataFormat.Json)
             .Build();
 
-        var result = await AppendStream(request, ct).ConfigureAwait(false);
+        // Revision.Unset means "no optimistic-concurrency expectation". The removed builder dropped an
+        // Unset (or Any) guard; the new core only short-circuits on Any, so branch here to avoid sending
+        // an invalid revision check on the metastream.
+        var result = rev == Revision.Unset
+            ? await AppendStream(stream.Metastream, [record], ct).ConfigureAwait(false)
+            : await AppendStream(stream.Metastream, [record], rev, ct).ConfigureAwait(false);
 
         return result.Revision;
     }

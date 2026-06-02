@@ -212,8 +212,16 @@
     <value>A record must have a destination stream.</value>
     <comment>Validation error when AppendRecord.Stream is None.</comment>
   </data>
-  <data name="AppendRecordsRequestEmpty" xml:space="preserve">
+  <data name="AppendRecordsEmpty" xml:space="preserve">
     <value>At least one record is required.</value>
-    <comment>Validation error when AppendRecordsRequest has no records.</comment>
+    <comment>Validation error when an append has no records.</comment>
+  </data>
+  <data name="AppendRecordSizeExceeded" xml:space="preserve">
+    <value>Record '{0}' size {1} bytes exceeds the maximum append record size of {2} bytes.</value>
+    <comment>Client-side validation when a record's serialized size exceeds the maximum. Parameter {0}: record id, {1}: actual size in bytes, {2}: maximum size in bytes.</comment>
+  </data>
+  <data name="AppendTransactionSizeExceeded" xml:space="preserve">
+    <value>Append transaction size {0} bytes exceeds the maximum append transaction size of {1} bytes.</value>
+    <comment>Client-side validation when the transaction's serialized size exceeds the maximum. Parameter {0}: actual size in bytes, {1}: maximum size in bytes.</comment>
   </data>
 </root>

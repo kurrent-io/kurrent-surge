@@ -94,6 +94,7 @@ static partial class StreamsClientMapping {
             // Stream branch uses options.Start (Revision). LogPosition.Earliest is a safe
             // placeholder for the $all branch — never reached when filter is StreamNameFilter.
             var start = RecordPosition.From(LogPosition.Earliest, options.Stream, options.Start);
+            
             RouteByFilter(req.Options, filter, start);
 
             return req;

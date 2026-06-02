@@ -17,6 +17,4 @@ public record SeededTestStream(TestStream TestStream, Revision Revision, LogPosi
     //     Race.WithExpectedRevision(expectedRevision);
 
     public override string ToString() => $"{Stream} v{Revision.Value} @ {Position.Value}";
-
-    public static implicit operator AppendStreamRequest(SeededTestStream seeded) => seeded.TestStream.AppendRequest;
 }

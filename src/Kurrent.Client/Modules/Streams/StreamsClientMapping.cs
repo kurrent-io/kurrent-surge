@@ -133,11 +133,11 @@ static partial class StreamsClientMapping {
 
             // FilterOptions.window is a oneof of `max` (uint32) or `count` (Empty → server default = 32).
             // We always use `max`: the server default is far too small for sparse filters (excessive
-            // round trips on near-empty pages) and floods subscriptions with IntervalCheckpoints
+            // round trips on near-empty pages) and floods subscriptions with FilterCheckpoints
             // (one every `multiplier × window` scanned records). Explicit `max` gives the SDK full
             // control independent of server-side defaults that may change between versions.
             options.Max = maxSearchWindow;
-            // multiplier = 1 keeps the relationship simple: one IntervalCheckpoint per scan window.
+            // multiplier = 1 keeps the relationship simple: one FilterCheckpoint per scan window.
             options.CheckpointIntervalMultiplier = 1;
             return options;
         }
@@ -177,7 +177,7 @@ static partial class StreamsClientMapping {
 
     #region ->> Response Mapping <<-
     
-    public static IntervalCheckpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
+    public static FilterCheckpoint MapToCheckpoint(this Contracts.ReadResp.Types.Checkpoint checkpoint, SequenceId sequenceId) {
         var position = LogPosition.From((long)checkpoint.CommitPosition);
 
         return new(CheckpointId.New(), checkpoint.Timestamp.ToDateTimeOffset()) {
@@ -248,7 +248,6 @@ static partial class StreamsClientMapping {
         var record = new Record(decoder) {
             Id        = recordId,
             Position  = RecordPosition.From(position, stream, revision),
-            Sequence  = sequenceId,
             Timestamp = timestamp,
             Data      = data,
             Metadata  = metadata,

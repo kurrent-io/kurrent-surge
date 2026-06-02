@@ -6,23 +6,6 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Kurrent.Client.Streams;
 
 static class AppendRecordsMapping {
-    extension(AppendRecordsRequest source) {
-        public async ValueTask<Contracts.AppendRecordsRequest> ToContract(MappingContext ctx) {
-            var result = new Contracts.AppendRecordsRequest {
-                Records = { Capacity = source.Records.Length }
-            };
-
-            foreach (var record in source.Records)
-                result.Records.Add(await record.ToContract(ctx).ConfigureAwait(false));
-
-            foreach (var check in source.Checks)
-                if (check != ConsistencyCheck.None)
-                    result.Checks.Add(check.ToContract());
-
-            return result;
-        }
-    }
-
     extension(AppendRecord source) {
         public async ValueTask<Contracts.AppendRecord> ToContract(MappingContext ctx) {
             try {

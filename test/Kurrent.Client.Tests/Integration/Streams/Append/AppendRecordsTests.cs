@@ -12,18 +12,16 @@ public class AppendRecordsTests {
     public async ValueTask creates_single_stream(CancellationToken ct) {
         // Arrange
         var streams = 1;
-        
-        var builder = new AppendRecordsRequest.Builder();
-        
+
+        var records = new List<AppendRecord>();
+
         foreach (var i in Enumerable.Range(0, streams)) {
             var data = await Fixture.TestData.GenerateSet(ct);
-            builder.AddRecords(data.Records.Take(1));
+            records.AddRange(data.Records.Take(1));
         }
 
-        var req = builder.Build();
-
         // Act
-        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+        var result = await Fixture.Client.Streams.AppendRecords(records, ct);
 
         // Assert
         await Assert.That(result.Position).IsGreaterThan(LogPosition.Earliest);
@@ -38,17 +36,15 @@ public class AppendRecordsTests {
     [Arguments<int>(9)]
     public async ValueTask creates_streams(int streams, CancellationToken ct) {
         // Arrange
-        var builder = new AppendRecordsRequest.Builder();
-        
+        var records = new List<AppendRecord>();
+
         foreach (var i in Enumerable.Range(0, streams)) {
             var data = await Fixture.TestData.GenerateSet(ct);
-            builder.AddRecords(data.Records.Take(1));
+            records.AddRange(data.Records.Take(1));
         }
 
-        var req = builder.Build();
-
         // Act
-        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+        var result = await Fixture.Client.Streams.AppendRecords(records, ct);
 
         // Assert
         await Assert.That(result.Position).IsGreaterThan(LogPosition.Earliest);
@@ -64,15 +60,17 @@ public class AppendRecordsTests {
         // Arrange
         var seededStreams = await Fixture.SeedManyTestStreams(streams, ct);
 
-        var req = seededStreams
-            .Aggregate(
-                new AppendRecordsRequest.Builder(), (builder, seededStream) => builder
-                    .AddRecords(seededStream.Records.Take(1)) // just append the first record again...
-                    .AddChecks(ConsistencyCheck.StreamAtRevision(seededStream.Stream, seededStream.Revision)))
-            .Build();
+        var records = seededStreams
+            .SelectMany(seededStream => seededStream.Records.Take(1)) // just append the first record again...
+            .ToArray();
+
+        var options = new AppendRecordsOptions()
+            .AddChecks(seededStreams
+                .Select(seededStream => (ConsistencyCheck)ConsistencyCheck.StreamAtRevision(seededStream.Stream, seededStream.Revision))
+                .ToArray());
 
         // Act
-        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+        var result = await Fixture.Client.Streams.AppendRecords(records, options, ct);
 
         // Assert
         await Assert.That(result.Revisions).Count().IsEqualTo(streams);

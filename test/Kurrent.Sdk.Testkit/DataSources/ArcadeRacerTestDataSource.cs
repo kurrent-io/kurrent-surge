@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Bogus;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer;
@@ -37,18 +38,17 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
         static TestStream SimulateRace(string raceId, IReadOnlyList<IRaceEvent> events) {
             var stream = $"race-{raceId}";
 
-            var request = events
-                .Aggregate(
-                    AppendStreamRequest.For(stream),
-                    (req, evt) => req.AddRecord(rec => rec
-                        .Id(evt.EventId)
-                        .Value(evt)
-                        .Timestamp(evt.Timestamp)
-                        .AddMetadata("stream", stream)
-                    ))
-                .Build();
+            var records = events
+                .Select(evt => AppendRecord.New()
+                    .Stream(stream)
+                    .Id(evt.EventId)
+                    .Value(evt)
+                    .Timestamp(evt.Timestamp)
+                    .AddMetadata("stream", stream)
+                    .Build())
+                .ToImmutableArray();
 
-            return TestStream.From(request);
+            return TestStream.From(stream, records);
         }
     }
 }

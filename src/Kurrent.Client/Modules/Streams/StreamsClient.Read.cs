@@ -8,7 +8,6 @@ using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Legacy;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
@@ -90,8 +89,11 @@ public partial class StreamsClient {
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return message.IsRecord 
-                ? message.AsRecord 
+            // Check the concrete value, not IsRecord: on an empty read FirstOrDefaultAsync returns a
+            // default ReadRecordsResult whose IsRecord is true (variant default = case 0) with a null
+            // payload, so `IsRecord` would leak that null instead of taking the throw branch.
+            return message.Value is Record record
+                ? record
                 : throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
         }
         catch (Exception ex) {

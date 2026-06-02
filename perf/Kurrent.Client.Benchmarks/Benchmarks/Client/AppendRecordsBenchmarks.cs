@@ -21,8 +21,8 @@ public class AppendRecordsBenchmarks {
     readonly Random _rng = new(42);
 
     ClientBenchmarkFixture _fixture = null!;
-    AppendRecordsRequest _request = null!;
-    AppendRecordsRequest _requestWithChecks = null!;
+    AppendRecord[] _records = null!;
+    AppendRecordsOptions _checks = null!;
 
     /// <summary>
     /// Number of records per stream in each append call.
@@ -70,15 +70,12 @@ public class AppendRecordsBenchmarks {
             }
         }
 
-        // Pre-build both requests — only the gRPC call is measured.
-        _request = AppendRecordsRequest.New()
-            .AddRecords(records)
-            .Build();
+        // Pre-build records and checks — only the gRPC call is measured.
+        _records = records;
 
-        _requestWithChecks = AppendRecordsRequest.New()
-            .AddRecords(records)
-            .AddChecks(streams.Select(ConsistencyCheck.StreamExists))
-            .Build();
+        _checks = new AppendRecordsOptions {
+            Checks = streams.Select(s => (ConsistencyCheck)ConsistencyCheck.StreamExists(s)).ToArray()
+        };
     }
 
     /// <summary>
@@ -88,7 +85,7 @@ public class AppendRecordsBenchmarks {
     [Benchmark(Baseline = true, Description = "Multi-stream append (no checks)")]
     public async Task<AppendRecordsResponse> append_multi_stream() =>
         await _fixture.Client.Streams
-            .AppendRecords(_request)
+            .AppendRecords(_records, CancellationToken.None)
             .ConfigureAwait(false);
 
     /// <summary>
@@ -98,7 +95,7 @@ public class AppendRecordsBenchmarks {
     [Benchmark(Description = "Multi-stream append (stream-exists checks)")]
     public async Task<AppendRecordsResponse> append_multi_stream_with_checks() =>
         await _fixture.Client.Streams
-            .AppendRecords(_requestWithChecks)
+            .AppendRecords(_records, _checks, CancellationToken.None)
             .ConfigureAwait(false);
 
     [GlobalCleanup]
