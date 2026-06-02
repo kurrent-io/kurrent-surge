@@ -70,6 +70,7 @@
     <Folder Include="Checkpointing\Storage\" />
     <Folder Include="Hosting\" />
     <Folder Include="Configuration\" />
+    <Folder Include="Processors\" />
   </ItemGroup>
 
 

@@ -83,6 +83,31 @@ public sealed class Checkpointer : IAsyncDisposable {
 	}
 
 	/// <summary>
+	/// Broadcasts a global scan watermark: advances every given partition to <paramref name="logPosition"/>,
+	/// skipping any already at or past it (and skipping an unset position). Lets a server checkpoint's log
+	/// position fold into all owned partitions so a cold restart skips already-scanned regions. The skip is
+	/// required because the underlying tracker is strictly monotonic — re-tracking a reached position throws.
+	/// </summary>
+	public void AdvanceWatermark(LogPosition logPosition, Partition[] partitions) {
+		EnsureIsInitialized();
+
+		if (logPosition == LogPosition.Unset)
+			return;
+
+		// Current position per partition (last pending, else last flushed) — only advance the ones behind.
+		var current = _tracker.Snapshot().ToDictionary(p => p.Partition);
+
+		foreach (var partition in partitions) {
+			var watermark = RecordPosition.From(logPosition, partition);
+
+			if (current.TryGetValue(partition, out var pos) && watermark <= pos)
+				continue;
+
+			_tracker.Track(watermark);
+		}
+	}
+
+	/// <summary>
 	/// Returns true if there are tracked positions that have not yet been committed.
 	/// </summary>
 	public bool HasPendingPositions => _tracker.HasPendingPositions;
