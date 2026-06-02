@@ -79,6 +79,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Client" />
+    <InternalsVisibleTo Include="Kurrent.Client.Arrow" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />

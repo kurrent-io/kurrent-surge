@@ -12,13 +12,12 @@ public class TransportTests {
     public async ValueTask reads_back_over_tls(CancellationToken ct) {
         var stream = $"secure-read-{Guid.NewGuid():N}";
 
-        var appendReq = AppendStreamRequest.For(stream)
-            .AddMessage(new TestEvent("event-1", DateTimeOffset.UtcNow))
-            .AddMessage(new TestEvent("event-2", DateTimeOffset.UtcNow))
-            .ExpectedState(ExpectedStreamState.NoStream)
-            .Build();
+        var appendRecords = new[] {
+            AppendRecord.New().Stream(stream).Value(new TestEvent("event-1", DateTimeOffset.UtcNow)).Build(),
+            AppendRecord.New().Stream(stream).Value(new TestEvent("event-2", DateTimeOffset.UtcNow)).Build()
+        };
 
-        await Fixture.Client.Streams.AppendStream(appendReq, ct);
+        await Fixture.Client.Streams.AppendStream(stream, appendRecords, ExpectedStreamState.NoStream, ct);
 
         var records = await Fixture.Client.Streams
             .ReadStreamRecords(stream, cancellationToken: ct)

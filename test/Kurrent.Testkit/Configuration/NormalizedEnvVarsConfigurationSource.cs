@@ -71,7 +71,13 @@ sealed class NormalizedEnvVarsConfigurationProvider(
 
             var remaining = key[prefix.Length..];
 
-            if (remaining.Length == 0 || remaining.Length > buffer.Length || remaining[0] == '_')
+            // Skip variables that use double underscores anywhere after the prefix — both a
+            // leading "__" (e.g. KURRENTDB__CONTAINER__REGISTRY) and an internal one
+            // (e.g. KURRENTDB_LICENSING__LICENSE_KEY). Those follow the server's "__" hierarchy
+            // convention and are left to the standard EnvironmentVariablesConfigurationProvider,
+            // which avoids mangling them into junk keys like "LICENSING::LICENSE:KEY".
+            if (remaining.Length == 0 || remaining.Length > buffer.Length ||
+                remaining[0] == '_' || remaining.Contains("__", StringComparison.Ordinal))
                 continue;
 
             var span = buffer[..remaining.Length];
