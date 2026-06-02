@@ -29,6 +29,11 @@ public class KurrentDBFixture : AspireFixture {
 
             ConfigureSettings(settings);
 
+            // The license key is a secret the server reads from its native env var, so source it from
+            // the environment when it wasn't supplied via KurrentDB:LicenseKey configuration. AddKurrentDB
+            // then models it as a secret ParameterResource.
+            settings.LicenseKey ??= Environment.GetEnvironmentVariable("KURRENTDB_LICENSING__LICENSE_KEY");
+
             builder.AddKurrentDB(ResourceName, settings);
 
             builder.Services
@@ -115,8 +120,7 @@ public class KurrentDBFixture : AspireFixture {
             ? await TestData.GenerateSet(ct).ConfigureAwait(false)
             : await TestData.GenerateSet(numberOfEvents.Value, ct).ConfigureAwait(false);
 
-        var req = AppendStreamRequest.For(ds.Stream).AddRecords(ds.Records).Build();
-        var rsp = await Client.Streams.AppendStream(req, ct).ConfigureAwait(false);
+        var rsp = await Client.Streams.AppendStream(ds.Stream, ds.Records, ct).ConfigureAwait(false);
 
         var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position);
 

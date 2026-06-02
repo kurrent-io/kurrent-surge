@@ -18,9 +18,10 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
         
         var userNameParameter = new ParameterResource($"{name}-username", _ => settings.Credentials.UserName, secret: true);
         var passwordParameter = new ParameterResource($"{name}-password", _ => settings.Credentials.Password, secret: true);
-        
-        UserNameParameter = userNameParameter;
-        PasswordParameter = passwordParameter;
+
+        UserNameParameter   = userNameParameter;
+        PasswordParameter   = passwordParameter;
+        LicenseKeyParameter = new ParameterResource($"{name}-license", _ => settings.LicenseKey ?? "", secret: true);
 
         CertsHostPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -40,6 +41,8 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
     public ParameterResource UserNameParameter { get; }
 
     public ParameterResource PasswordParameter { get; }
+
+    public ParameterResource LicenseKeyParameter { get; }
     
     public string GossipSeeds => string.Join(", ", _nodes.Select(n => $"{n.Name}:{DefaultHttpPort}"));
 
