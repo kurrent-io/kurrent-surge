@@ -1,9 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PublishAot>true</PublishAot>
-    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Dapper.AOT</InterceptorsPreviewNamespaces>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
   </ItemGroup>
@@ -11,11 +10,5 @@
   <ItemGroup>
     <PackageReference Include="Apache.Arrow.Adbc.Drivers.FlightSql" />
     <PackageReference Include="Apache.Arrow.Adbc.Client" />
-    <PackageReference Include="Dapper" />
-    <PackageReference Include="Dapper.Advisor">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Dapper.AOT" />
   </ItemGroup>
 </Project>
