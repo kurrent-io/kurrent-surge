@@ -1,7 +1,13 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.3.3">
+<Project Sdk="Aspire.AppHost.Sdk/13.4.0">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsAspireHost>true</IsAspireHost>
+    <!-- Source DCP/Dashboard binaries from the installed Aspire CLI bundle instead of RID-specific
+         NuGet packages. Aspire 13.4's SDK resolves those packages via an in-proc PickBestRid task that
+         fails to bind in our restore context (MSB4036); the CLI-bundle path skips that target entirely.
+         Requires the `aspire` CLI on PATH at build time (else ASPIRE009). See AspireUseCliBundle in
+         https://aspire.dev/get-started/aspire-sdk/. -->
+    <AspireUseCliBundle>true</AspireUseCliBundle>
     <NoWarn>$(NoWarn);ASPIRE002</NoWarn>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
