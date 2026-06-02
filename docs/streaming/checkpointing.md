@@ -41,33 +41,33 @@ await KurrentProcessor.Create(new MyProcessor(), opts => {
 
 ### CheckpointOptions reference
 
-| Property         | Type                       | Default     | Description                                                                                |
-|------------------|----------------------------|-------------|--------------------------------------------------------------------------------------------|
-| `Interval`       | `TimeSpan`                 | 30 seconds  | Time between automatic checkpoints. In JSON config, accepts `"00:00:30"` or `30000` (ms).  |
-| `RetentionCount` | `int`                      | `3`         | Number of completed checkpoint records to retain. Range: 1–100.                            |
-| `FailurePolicy`  | `CheckpointFailurePolicy`  | `Continue`  | What happens when a checkpoint fails. See [Failure policies](#failure-policies).            |
+| Property         | Type                      | Default    | Description                                                                               |
+|------------------|---------------------------|------------|-------------------------------------------------------------------------------------------|
+| `Interval`       | `TimeSpan`                | 30 seconds | Time between automatic checkpoints. In JSON config, accepts `"00:00:30"` or `30000` (ms). |
+| `RetentionCount` | `int`                     | `3`        | Number of completed checkpoint records to retain. Range: 1–100.                           |
+| `FailurePolicy`  | `CheckpointFailurePolicy` | `Continue` | What happens when a checkpoint fails. See [Failure policies](#failure-policies).          |
 
 ### Failure policies
 
 A checkpoint fails when a drone does not acknowledge within the server-side timeout. The timed-out drone is always disconnected. The `CheckpointFailurePolicy` controls what happens to the remaining drones:
 
-| Value      | Behavior                                                                                                                                                          |
-|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Value      | Behavior                                                                                                                                                                                                  |
+|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Continue` | Abort the failed checkpoint and continue processing. The failed drone's partitions are reassigned to remaining drones. The next checkpoint triggers normally. Use when high availability is the priority. |
-| `Fail`     | Stop all drones and put the processor into an idle state. Requires manual intervention to resume. Use when data consistency is critical and downtime is preferable to data loss. |
+| `Fail`     | Stop all drones and put the processor into an idle state. Requires manual intervention to resume. Use when data consistency is critical and downtime is preferable to data loss.                          |
 
 ## Checkpoint triggers
 
 Every checkpoint carries a `CheckpointTrigger` that identifies why it was created. This is available in the `CheckpointContext` passed to `OnCheckpoint` and recorded in `CheckpointProgress` for diagnostics.
 
-| Trigger       | Description                                                                                                              |
-|---------------|--------------------------------------------------------------------------------------------------------------------------|
-| `Unspecified` | Default/fallback value.                                                                                                  |
-| `Rebalance`   | Triggered during partition rebalancing to ensure consistent state across drones before partitions are reassigned.        |
-| `Interval`    | Triggered automatically when the configured `Interval` elapses since the last checkpoint. Subject to retention count.    |
+| Trigger       | Description                                                                                                                                |
+|---------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `Unspecified` | Default/fallback value.                                                                                                                    |
+| `Rebalance`   | Triggered during partition rebalancing to ensure consistent state across drones before partitions are reassigned.                          |
+| `Interval`    | Triggered automatically when the configured `Interval` elapses since the last checkpoint. Subject to retention count.                      |
 | `CaughtUp`    | Triggered exactly once per processor lifecycle when the subscription transitions from historical to live mode. Subject to retention count. |
-| `Savepoint`   | Triggered by an explicit manual API call. Manual savepoints are not auto-deleted and are retained until explicitly removed. |
-| `Shutdown`    | Triggered during graceful shutdown to persist final state. Best-effort. If it fails, positions replay on restart.        |
+| `Savepoint`   | Triggered by an explicit manual API call. Manual savepoints are not auto-deleted and are retained until explicitly removed.                |
+| `Shutdown`    | Triggered during graceful shutdown to persist final state. Best-effort. If it fails, positions replay on restart.                          |
 
 ## CheckpointContext
 
@@ -105,17 +105,17 @@ public class OrderProcessor : IRecordProcessor {
 
 `CheckpointContext` extends `DroneContext`, inheriting identity and cancellation properties:
 
-| Property            | Type                  | Description                                                                                                            |
-|---------------------|-----------------------|------------------------------------------------------------------------------------------------------------------------|
-| `CheckpointId`      | `string`              | Unique identifier for this checkpoint. A coordination token, not a position.                                           |
-| `Trigger`           | `CheckpointTrigger`   | What triggered the checkpoint (Interval, CaughtUp, Rebalance, Savepoint, Shutdown).                                    |
-| `Timestamp`         | `DateTimeOffset`      | When the checkpoint was signaled.                                                                                      |
-| `Positions`         | `PartitionPositions`  | Partition positions captured at signal time.                                                                           |
-| `ProcessorId`       | `ProcessorId`         | The processor group this drone belongs to.                                                                             |
-| `DroneId`           | `string`              | This drone's unique identifier.                                                                                        |
-| `SessionId`         | `SessionId`           | The current session identifier.                                                                                        |
-| `Logger`            | `ILogger`             | Logger instance scoped to the drone.                                                                                   |
-| `CancellationToken` | `CancellationToken`   | Cancellation token for the drone's lifetime. During shutdown checkpoints, this is `CancellationToken.None` so the final flush can complete. |
+| Property            | Type                 | Description                                                                                                                                 |
+|---------------------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `CheckpointId`      | `string`             | Unique identifier for this checkpoint. A coordination token, not a position.                                                                |
+| `Trigger`           | `CheckpointTrigger`  | What triggered the checkpoint (Interval, CaughtUp, Rebalance, Savepoint, Shutdown).                                                         |
+| `Timestamp`         | `DateTimeOffset`     | When the checkpoint was signaled.                                                                                                           |
+| `Positions`         | `PartitionPositions` | Partition positions captured at signal time.                                                                                                |
+| `ProcessorId`       | `ProcessorId`        | The processor group this drone belongs to.                                                                                                  |
+| `DroneId`           | `string`             | This drone's unique identifier.                                                                                                             |
+| `SessionId`         | `SessionId`          | The current session identifier.                                                                                                             |
+| `Logger`            | `ILogger`            | Logger instance scoped to the drone.                                                                                                        |
+| `CancellationToken` | `CancellationToken`  | Cancellation token for the drone's lifetime. During shutdown checkpoints, this is `CancellationToken.None` so the final flush can complete. |
 
 ## Using MessageProcessor
 
@@ -166,37 +166,37 @@ public ValueTask ProcessRecord(ProcessRecordContext context) {
 
 `DroneProgress` is a read-only struct that aggregates throughput metrics, checkpoint status, and per-partition positions into a single snapshot.
 
-| Property / Method                                  | Type                                                  | Description                                                                              |
-|----------------------------------------------------|-------------------------------------------------------|------------------------------------------------------------------------------------------|
-| `Throughput`                                       | `ThroughputMetrics`                                   | Throughput and timing metrics.                                                           |
-| `Checkpoint`                                       | `CheckpointProgress`                                  | Checkpoint progress information.                                                         |
-| `Partitions`                                       | `ImmutableDictionary<Partition, PartitionProgress>`   | Per-partition position tracking.                                                         |
-| `PartitionCount`                                   | `int`                                                 | Number of partitions currently assigned.                                                 |
-| `this[Partition]`                                  | `PartitionProgress`                                   | Gets progress for a specific partition. Throws `KeyNotFoundException` if not found.      |
-| `TryGetPartition(Partition, out PartitionProgress)`| `bool`                                                | Safe lookup for partition progress.                                                      |
-| `LowestCheckpointPartition`                        | `(Partition, PartitionProgress)?`                     | The partition with the lowest flushed position (the one furthest behind).                |
+| Property / Method                                   | Type                                                | Description                                                                         |
+|-----------------------------------------------------|-----------------------------------------------------|-------------------------------------------------------------------------------------|
+| `Throughput`                                        | `ThroughputMetrics`                                 | Throughput and timing metrics.                                                      |
+| `Checkpoint`                                        | `CheckpointProgress`                                | Checkpoint progress information.                                                    |
+| `Partitions`                                        | `ImmutableDictionary<Partition, PartitionProgress>` | Per-partition position tracking.                                                    |
+| `PartitionCount`                                    | `int`                                               | Number of partitions currently assigned.                                            |
+| `this[Partition]`                                   | `PartitionProgress`                                 | Gets progress for a specific partition. Throws `KeyNotFoundException` if not found. |
+| `TryGetPartition(Partition, out PartitionProgress)` | `bool`                                              | Safe lookup for partition progress.                                                 |
+| `LowestCheckpointPartition`                         | `(Partition, PartitionProgress)?`                   | The partition with the lowest flushed position (the one furthest behind).           |
 
 ### ThroughputMetrics
 
 Real-time throughput and timing information computed from the start of the processing session.
 
-| Property           | Type             | Description                                              |
-|--------------------|------------------|----------------------------------------------------------|
+| Property           | Type             | Description                                                  |
+|--------------------|------------------|--------------------------------------------------------------|
 | `TotalRecords`     | `long`           | Total number of records processed since the session started. |
-| `RecordsPerSecond` | `double`         | Average records processed per second.                    |
-| `StartedAt`        | `DateTimeOffset` | When processing started.                                 |
-| `Elapsed`          | `TimeSpan`       | Total elapsed time since processing started.             |
+| `RecordsPerSecond` | `double`         | Average records processed per second.                        |
+| `StartedAt`        | `DateTimeOffset` | When processing started.                                     |
+| `Elapsed`          | `TimeSpan`       | Total elapsed time since processing started.                 |
 
 ### CheckpointProgress
 
 Tracks checkpoint activity for the current session.
 
-| Property                     | Type                | Description                                                                                            |
-|------------------------------|---------------------|--------------------------------------------------------------------------------------------------------|
-| `TotalCheckpoints`           | `long`              | Total number of checkpoints completed.                                                                 |
+| Property                     | Type                | Description                                                                                                         |
+|------------------------------|---------------------|---------------------------------------------------------------------------------------------------------------------|
+| `TotalCheckpoints`           | `long`              | Total number of checkpoints completed.                                                                              |
 | `RecordsSinceLastCheckpoint` | `long`              | Records processed since the last checkpoint committed. Useful for gauging how much work would be replayed on crash. |
-| `LastTrigger`                | `CheckpointTrigger` | What triggered the most recent checkpoint.                                                             |
-| `LastCheckpointAt`           | `DateTimeOffset?`   | When the last checkpoint completed, or `null` if no checkpoints have occurred yet.                     |
+| `LastTrigger`                | `CheckpointTrigger` | What triggered the most recent checkpoint.                                                                          |
+| `LastCheckpointAt`           | `DateTimeOffset?`   | When the last checkpoint completed, or `null` if no checkpoints have occurred yet.                                  |
 
 ### PartitionProgress
 

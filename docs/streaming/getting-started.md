@@ -57,12 +57,6 @@ public interface IRecordProcessor {
 
     // Optional: called when a checkpoint is signaled, before state is persisted.
     ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
-
-    // Optional: called when the drone encounters an unrecoverable error.
-    ValueTask OnError(ErrorContext context) => ValueTask.CompletedTask;
-
-    // Optional: called when the drone completes gracefully (including cancellation).
-    ValueTask OnComplete(CompleteContext context) => ValueTask.CompletedTask;
 }
 ```
 
@@ -70,16 +64,16 @@ public interface IRecordProcessor {
 
 Called each time a record is ready. The `ProcessRecordContext` provides:
 
-| Member                                         | Description                                                                          |
-|------------------------------------------------|--------------------------------------------------------------------------------------|
-| `Record`                                       | The record to process.                                                               |
-| `Progress`                                     | A `DroneProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions. |
-| `Logger`                                       | An `ILogger` instance scoped to the drone.                                           |
-| `CancellationToken`                            | Cancellation token that signals when processing should stop.                         |
-| `StopProcessing()`                             | Immediately stops the drone.                                                         |
-| `StopBeforeTrack(reason?)`                     | Cooperative stop variant that halts before the current record is tracked.            |
-| `StopAfterTrack(reason?)`                      | Cooperative stop variant that halts after the current record is tracked.             |
-| `Checkpoint(reason?)`                          | Requests an immediate checkpoint.                                                    |
+| Member                     | Description                                                                                        |
+|----------------------------|----------------------------------------------------------------------------------------------------|
+| `Record`                   | The record to process.                                                                             |
+| `Progress`                 | A `DroneProgress` snapshot with throughput metrics, checkpoint state, and per-partition positions. |
+| `Logger`                   | An `ILogger` instance scoped to the drone.                                                         |
+| `CancellationToken`        | Cancellation token that signals when processing should stop.                                       |
+| `StopProcessing()`         | Immediately stops the drone.                                                                       |
+| `StopBeforeTrack(reason?)` | Cooperative stop variant that halts before the current record is tracked.                          |
+| `StopAfterTrack(reason?)`  | Cooperative stop variant that halts after the current record is tracked.                           |
+| `Checkpoint(reason?)`      | Requests an immediate checkpoint.                                                                  |
 
 ### OnConnected
 
@@ -89,29 +83,12 @@ Called once after the drone connects to the server, before any records are dispa
 
 Called when the framework signals a checkpoint, before the checkpoint is persisted. Use this to flush external state. The `CheckpointContext` exposes:
 
-| Property       | Description                                                                                |
-|----------------|--------------------------------------------------------------------------------------------|
-| `CheckpointId` | Unique identifier for this checkpoint.                                                     |
+| Property       | Description                                                                                     |
+|----------------|-------------------------------------------------------------------------------------------------|
+| `CheckpointId` | Unique identifier for this checkpoint.                                                          |
 | `Trigger`      | What triggered the checkpoint: `Interval`, `CaughtUp`, `Shutdown`, `Rebalance`, or `Savepoint`. |
-| `Timestamp`    | When the checkpoint was triggered.                                                         |
-| `Positions`    | Partition positions captured at signal time.                                               |
-
-### OnError
-
-Called when the drone hits an unrecoverable error, before transitioning to `Error` status. The `ErrorContext` carries:
-
-| Property   | Description                                                |
-|------------|------------------------------------------------------------|
-| `Error`    | The exception that caused the failure.                     |
-| `Progress` | Final progress snapshot at the time of the error.          |
-
-### OnComplete
-
-Called when the drone completes gracefully (including cancellation). The `CompleteContext` carries:
-
-| Property   | Description                                  |
-|------------|----------------------------------------------|
-| `Progress` | Final progress snapshot at completion.       |
+| `Timestamp`    | When the checkpoint was triggered.                                                              |
+| `Positions`    | Partition positions captured at signal time.                                                    |
 
 All lifecycle contexts inherit from `DroneContext`, which adds `ProcessorId`, `DroneId`, `SessionId`, `Logger`, and `CancellationToken`.
 
@@ -139,26 +116,6 @@ public class OrderProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask OnError(ErrorContext context) {
-        context.Logger.LogError(
-            context.Error,
-            "Processor failed after {Records} records",
-            context.Progress.Throughput.TotalRecords
-        );
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask OnComplete(CompleteContext context) {
-        var throughput = context.Progress.Throughput;
-        context.Logger.LogInformation(
-            "Completed: {Records} records in {Elapsed} ({Rps:F1} records/sec)",
-            throughput.TotalRecords,
-            throughput.Elapsed,
-            throughput.RecordsPerSecond
-        );
-        return ValueTask.CompletedTask;
-    }
-
     static Task HandleRecordAsync(Record record, CancellationToken ct) =>
         Task.CompletedTask;
 }
@@ -169,7 +126,8 @@ public class OrderProcessor : IRecordProcessor {
 `MessageProcessor` registers strongly-typed handlers inline without a dedicated class. `KurrentProcessor.Create(Action<MessageProcessor>, ...)` builds a `MessageProcessor` for you:
 
 ```csharp
-await KurrentProcessor.Create(handlers => handlers
+await KurrentProcessor.Create(
+    handlers => handlers
         .Process<OrderPlaced>(async (msg, ctx) => {
             await HandleOrderPlacedAsync(msg, ctx.CancellationToken);
         })
@@ -179,13 +137,10 @@ await KurrentProcessor.Create(handlers => handlers
         .OnCheckpoint(ctx => {
             ctx.Logger.LogInformation("Checkpoint {Id}", ctx.CheckpointId);
         })
-        .OnError(ctx => {
-            ctx.Logger.LogError(ctx.Error, "Processing failed");
-        }),
     opts => {
         opts.Connection("kurrentdb://localhost:2113");
         opts.ProcessorId                  = "my-processor";
-        opts.Subscription.Filter          = RecordFilter.ByStreamPrefix("order-");
+        opts.Subscription.Filter          = RecordFilter.ByCategory("order");
         opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
     })
     .RunAsync(stoppingToken);
@@ -341,23 +296,12 @@ public class OrderProcessor : IRecordProcessor {
         );
         return ValueTask.CompletedTask;
     }
-
-    public ValueTask OnComplete(CompleteContext context) {
-        var t = context.Progress.Throughput;
-        context.Logger.LogInformation(
-            "Done: {Records} records, {Rps:F1} rec/s, {Elapsed}",
-            t.TotalRecords,
-            t.RecordsPerSecond,
-            t.Elapsed
-        );
-        return ValueTask.CompletedTask;
-    }
 }
 
 await KurrentProcessor.Create(new OrderProcessor(), opts => {
         opts.Connection("kurrentdb://localhost:2113?tls=false");
         opts.ProcessorId                  = "order-processor";
-        opts.Subscription.Filter          = RecordFilter.ByStreamPrefix("order-");
+        opts.Subscription.Filter          = RecordFilter.ByCategory("order");
         opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         opts.Checkpointing(c => c.Interval(TimeSpan.FromSeconds(10)));
     })

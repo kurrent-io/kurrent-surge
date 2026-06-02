@@ -15,15 +15,20 @@ Use this when an invariant spans more than one stream, for example "only emit a 
 
 Each record names its target stream. `ConsistencyCheck` factories attach assertions evaluated against the current state of any stream the transaction touches.
 
-```csharp{5,6}
+```csharp{4,5}
 var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
 
+var records = new[] {
+    new AppendRecord { Stream = $"inventory-{sku}", Value = transferEvent },
+    new AppendRecord { Stream = "transfer-log",     Value = transferEvent }
+};
+
 await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .AddRecord(transferEvent, $"inventory-{sku}")
-        .AddRecord(transferEvent, "transfer-log")
-        .AddChecks(ConsistencyCheck.StreamExists($"inventory-{sku}"))
-        .Build());
+    records,
+    new AppendRecordsOptions {
+        Checks = [ConsistencyCheck.StreamExists($"inventory-{sku}")]
+    },
+    default);
 ```
 
 The request commits if and only if every check passes against the actual stream state at commit time.
@@ -40,25 +45,28 @@ var inventory = await client.Streams.ReadStreamEdge($"inventory-{sku}", ReadDire
 var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
 
 await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .AddRecord(transferEvent, "transfer-log")
-        .AddChecks(ConsistencyCheck.StreamAtRevision($"inventory-{sku}", inventory.Revision))
-        .Build());
+    [new AppendRecord { Stream = "transfer-log", Value = transferEvent }],
+    new AppendRecordsOptions {
+        Checks = [ConsistencyCheck.StreamAtRevision($"inventory-{sku}", inventory.Revision)]
+    },
+    default);
 ```
 
 Combine several checks in one request with `AddChecks`. Each check targets a stream independently, so revision pins and existence assertions can mix freely:
 
 ```csharp
 await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .AddRecord(orderEvent, $"order-{orderId}")
-        .AddChecks(
+    [new AppendRecord { Stream = $"order-{orderId}", Value = orderEvent }],
+    new AppendRecordsOptions {
+        Checks = [
             ConsistencyCheck.StreamAtRevision($"cart-{cartId}", cartRevision),
-            ConsistencyCheck.StreamDoesNotExist($"order-{orderId}"))
-        .Build());
+            ConsistencyCheck.StreamDoesNotExist($"order-{orderId}")
+        ]
+    },
+    default);
 ```
 
-`AddCheck` adds a single check if you prefer one-at-a-time composition.
+Prefer fluent composition? `new AppendRecordsOptions().AddChecks(...)` returns a copy with the checks appended — chain it to add checks a call at a time.
 
 Available checks:
 
@@ -76,7 +84,7 @@ A single `AppendRecords` request can include checks against several streams, so 
 
 ```csharp
 try {
-    await client.Streams.AppendRecords(request);
+    await client.Streams.AppendRecords(records, options, default);
 }
 catch (AppendConsistencyViolationException ex) {
     foreach (var violation in ex.Violations) {
