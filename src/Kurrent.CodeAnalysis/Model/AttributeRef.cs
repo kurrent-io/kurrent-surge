@@ -29,11 +29,9 @@ public sealed record AttributeRef(
             && NamedArgs.AsSpan().SequenceEqual(other.NamedArgs.AsSpan());
     }
 
-    public override int GetHashCode() {
-        var hash = HashCombine.Start;
-        hash = HashCombine.Add(hash, Type);
-        hash = HashCombine.AddRange(hash, ConstructorArgs);
-        hash = HashCombine.AddRange(hash, NamedArgs);
-        return hash;
-    }
+    public override int GetHashCode() =>
+        HashCode.New
+            .Combine(Type)
+            .Combine(ConstructorArgs)
+            .Combine(NamedArgs);
 }

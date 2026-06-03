@@ -178,16 +178,14 @@ public sealed class ResultBaseImplicitOperatorsGenerator : IIncrementalGenerator
                                               && Error == other.Error
                                               && Variants.AsSpan().SequenceEqual(other.Variants.AsSpan());
 
-        public override int GetHashCode() {
-            var hash = HashCombine.Start;
-            hash = HashCombine.Add(hash, Name);
-            hash = HashCombine.Add(hash, FullName);
-            hash = HashCombine.Add(hash, Namespace);
-            hash = HashCombine.Add(hash, Value);
-            hash = HashCombine.Add(hash, Error);
-            hash = HashCombine.AddRange(hash, Variants);
-            return hash;
-        }
+        public override int GetHashCode() =>
+            HashCode.New
+                .Combine(Name)
+                .Combine(FullName)
+                .Combine(Namespace)
+                .Combine(Value)
+                .Combine(Error)
+                .Combine(Variants);
     }
 
     sealed record VariantRef(string Name, string FullName);

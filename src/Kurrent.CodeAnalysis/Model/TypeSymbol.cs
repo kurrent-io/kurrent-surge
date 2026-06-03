@@ -103,12 +103,12 @@ public sealed record TypeSymbol(
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
 
-        return Name                                              == other.Name
-            && Namespace                                         == other.Namespace
-            && FullName                                          == other.FullName
-            && Kind                                              == other.Kind
-            && Traits                                            == other.Traits
-            && Special                                           == other.Special
+        return Name      == other.Name
+            && Namespace == other.Namespace
+            && FullName  == other.FullName
+            && Kind      == other.Kind
+            && Traits    == other.Traits
+            && Special   == other.Special
             && Equals(BaseType, other.BaseType)
             && Equals(ArrayElementType, other.ArrayElementType)
             && TypeArguments.AsSpan().SequenceEqual(other.TypeArguments.AsSpan())
@@ -117,22 +117,20 @@ public sealed record TypeSymbol(
             && ContainingTypes.AsSpan().SequenceEqual(other.ContainingTypes.AsSpan());
     }
 
-    public override int GetHashCode() {
-        var hash = HashCombine.Start;
-        hash = HashCombine.Add(hash, Name);
-        hash = HashCombine.Add(hash, Namespace);
-        hash = HashCombine.Add(hash, FullName);
-        hash = HashCombine.Add(hash, Kind);
-        hash = HashCombine.Add(hash, Traits);
-        hash = HashCombine.Add(hash, Special);
-        hash = HashCombine.Add(hash, BaseType);
-        hash = HashCombine.Add(hash, ArrayElementType);
-        hash = HashCombine.AddRange(hash, TypeArguments);
-        hash = HashCombine.AddRange(hash, Interfaces);
-        hash = HashCombine.AddRange(hash, Attributes);
-        hash = HashCombine.AddRange(hash, ContainingTypes);
-        return hash;
-    }
+    public override int GetHashCode() =>
+        HashCode.New
+            .Combine(Name)
+            .Combine(Namespace)
+            .Combine(FullName)
+            .Combine(Kind)
+            .Combine(Traits)
+            .Combine(Special)
+            .Combine(BaseType)
+            .Combine(ArrayElementType)
+            .Combine(TypeArguments)
+            .Combine(Interfaces)
+            .Combine(Attributes)
+            .Combine(ContainingTypes);
 
     #endregion
 }

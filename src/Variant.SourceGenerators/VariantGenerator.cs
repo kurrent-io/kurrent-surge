@@ -787,19 +787,17 @@ public sealed class VariantGenerator : IIncrementalGenerator {
          && ContainingTypeNames.AsSpan().SequenceEqual(other.ContainingTypeNames.AsSpan())
          && Cases.AsSpan().SequenceEqual(other.Cases.AsSpan());
 
-        public override int GetHashCode() {
-            var hash = HashCombine.Start;
-            hash = HashCombine.Add(hash, ClassName);
-            hash = HashCombine.Add(hash, FullName);
-            hash = HashCombine.Add(hash, Namespace);
-            hash = HashCombine.Add(hash, Kind);
-            hash = HashCombine.Add(hash, ImplementsIVariantException);
-            hash = HashCombine.Add(hash, Accessibility);
-            hash = HashCombine.AddRange(hash, TypeParameterNames);
-            hash = HashCombine.AddRange(hash, ContainingTypeNames);
-            hash = HashCombine.AddRange(hash, Cases);
-            return hash;
-        }
+        public override int GetHashCode() =>
+            HashCode.New
+                .Combine(ClassName)
+                .Combine(FullName)
+                .Combine(Namespace)
+                .Combine(Kind)
+                .Combine(ImplementsIVariantException)
+                .Combine(Accessibility)
+                .Combine(TypeParameterNames)
+                .Combine(ContainingTypeNames)
+                .Combine(Cases);
     }
 
     sealed record VariantCaseInfo(

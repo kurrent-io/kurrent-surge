@@ -25,12 +25,10 @@ public sealed record ContainingTypeRef(
             && TypeParameterNames.AsSpan().SequenceEqual(other.TypeParameterNames.AsSpan());
     }
 
-    public override int GetHashCode() {
-        var hash = HashCombine.Start;
-        hash = HashCombine.Add(hash, Name);
-        hash = HashCombine.Add(hash, Kind);
-        hash = HashCombine.Add(hash, Traits);
-        hash = HashCombine.AddRange(hash, TypeParameterNames);
-        return hash;
-    }
+    public override int GetHashCode() =>
+        HashCode.New
+            .Combine(Name)
+            .Combine(Kind)
+            .Combine(Traits)
+            .Combine(TypeParameterNames);
 }

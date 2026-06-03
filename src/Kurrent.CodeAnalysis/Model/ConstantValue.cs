@@ -24,12 +24,10 @@ public abstract record ConstantValue(string TypeFullName) {
                 && Values.AsSpan().SequenceEqual(other.Values.AsSpan());
         }
 
-        public override int GetHashCode() {
-            var hash = HashCombine.Start;
-            hash = HashCombine.Add(hash, TypeFullName);
-            hash = HashCombine.AddRange(hash, Values);
-            return hash;
-        }
+        public override int GetHashCode() =>
+            HashCode.New
+                .Combine(TypeFullName)
+                .Combine(Values);
     }
 
     public sealed record Enum(long UnderlyingValue, string? MemberName, string TypeFullName) : ConstantValue(TypeFullName);

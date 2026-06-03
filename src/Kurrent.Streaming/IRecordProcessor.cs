@@ -61,7 +61,7 @@ public record DroneContext {
             Progress          = progress
         };
 
-    public BatchContext ForBatch(DroneProgress progress, Kurrent.Client.Processors.Gateway.Messages.RecordBatch records) =>
+    public BatchContext ForBatch(DroneProgress progress, RecordBatch records) =>
         new() {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,

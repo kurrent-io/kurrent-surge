@@ -134,7 +134,7 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
         sourceBuilder.AppendLine();
 
         for (var i = info.Containers.Length - 1; i >= 0; i--) {
-            declarationIndent = declarationIndent.Substring(0, declarationIndent.Length - tab.Length);
+            declarationIndent = declarationIndent[..^tab.Length];
             sourceBuilder.AppendLine($"{memberIndent + declarationIndent}}}");
         }
 
@@ -229,13 +229,11 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
          && Namespace == other.Namespace
          && Containers.AsSpan().SequenceEqual(other.Containers.AsSpan());
 
-        public override int GetHashCode() {
-            var hash = HashCombine.Start;
-            hash = HashCombine.Add(hash, Name);
-            hash = HashCombine.Add(hash, FullName);
-            hash = HashCombine.Add(hash, Namespace);
-            hash = HashCombine.AddRange(hash, Containers);
-            return hash;
-        }
+        public override int GetHashCode() =>
+            HashCode.New
+                .Combine(Name)
+                .Combine(FullName)
+                .Combine(Namespace)
+                .Combine(Containers);
     }
 }
