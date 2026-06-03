@@ -32,7 +32,7 @@ public class ReadStreamBenchmarks {
         var options = new ReadStreamOptions { SkipDecoding = SkipDecoding };
         var count   = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadStream(_stream, options).ConfigureAwait(false))
+        await foreach (var _ in _fixture.Client.Streams.ReadStream(_stream, options).ConfigureAwait(false))
             count++;
 
         return count;
@@ -58,7 +58,7 @@ public class ReadStreamBenchmarks {
         };
         var count = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false))
+        await foreach (var _ in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false))
             count++;
 
         return count;

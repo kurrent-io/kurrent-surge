@@ -5,16 +5,6 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <CollectCoverage Condition="'$(CollectCoverage)' == ''">false</CollectCoverage>
-
-    <!--    <AnalysisLevel>latest</AnalysisLevel>-->
-    <!--    <AnalysisMode>None</AnalysisMode>-->
-    <!--    <AnalysisModeReliability>None</AnalysisModeReliability>-->
-    <!--    <AnalysisModeUsage>None</AnalysisModeUsage>-->
-    <!--    <AnalysisModeDesign>None</AnalysisModeDesign>-->
-    <!--    <AnalysisModeDocumentation>None</AnalysisModeDocumentation>-->
-    <!--    <AnalysisModeStyle>None</AnalysisModeStyle>-->
-    <!--    <AnalysisModeSecurity>None</AnalysisModeSecurity>-->
-
+    <AnalysisMode>Default</AnalysisMode>
   </PropertyGroup>
-
 </Project>

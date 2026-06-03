@@ -1,7 +1,6 @@
 using System.Text;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
-using Kurrent.Client.Streams;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

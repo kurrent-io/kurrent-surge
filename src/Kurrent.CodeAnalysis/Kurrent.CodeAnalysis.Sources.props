@@ -1,0 +1,47 @@
+<Project>
+
+  <!--
+  ================================================================
+  Kurrent.CodeAnalysis as SOURCE
+  ================================================================
+  Compiles the Kurrent.CodeAnalysis helper source DIRECTLY into the importing
+  source-generator assembly instead of referencing a separate Kurrent.CodeAnalysis.dll.
+
+  WHY: source generators run inside Roslyn's isolated analyzer load context. A plain
+  ProjectReference to a helper assembly is NOT reliably made available there — it works
+  under csc / Visual Studio (which honor the GetTargetPath dependency-forwarding trick)
+  but FAILS under Rider / OmniSharp, whose analyzer host does not, producing
+  "Could not load file or assembly 'Kurrent.CodeAnalysis'" at generator init.
+
+  Baking the source in means there is no separate DLL for any host to resolve, so the
+  generators load identically under csc, VS, and Rider. Kurrent.CodeAnalysis.csproj still
+  exists as the canonical home of this source and the target of its unit tests
+  (Kurrent.CodeAnalysis.Tests) — it is just never referenced or packaged as an assembly.
+
+  See: https://andrewlock.net/creating-a-source-generator-part-8-solving-the-source-generator-marker-attribute-problem-part2/
+  -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)**/*.cs"
+             Exclude="$(MSBuildThisFileDirectory)obj/**/*.cs;$(MSBuildThisFileDirectory)bin/**/*.cs"
+             Link="Kurrent.CodeAnalysis/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Packages required to COMPILE that source (previously flowed transitively through the
+       ProjectReference). PolySharp supplies the netstandard2.0 polyfills (record / init /
+       required) the helper source relies on; Microsoft.CodeAnalysis.CSharp is the Roslyn
+       API the generators target. All are compile/analyzer-only — nothing ships. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers">
+      <IncludeAssets>analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="PolySharp">
+      <IncludeAssets>analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PolySharpIncludeRuntimeSupportedAttributes>true</PolySharpIncludeRuntimeSupportedAttributes>
+  </PropertyGroup>
+
+</Project>

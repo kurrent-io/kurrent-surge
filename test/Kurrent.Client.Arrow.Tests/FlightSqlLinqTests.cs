@@ -1,5 +1,4 @@
 using Kurrent.Client.Streams;
-using Testing.ArcadeRacer;
 
 namespace Kurrent.Client.Arrow.Tests;
 

@@ -3,7 +3,8 @@
     <RootNamespace>Kurrent.Variant.SourceGenerators</RootNamespace>
     <AssemblyName>Kurrent.Variant.SourceGenerators</AssemblyName>
 
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <!-- Roslyn source generator: single-targeted netstandard2.0. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IsPackable>false</IsPackable>
     <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -14,24 +15,7 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
     
-  <ItemGroup>
-    <ProjectReference Include="..\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.csproj"
-                      PrivateAssets="all" />
-  </ItemGroup>
-
-  <PropertyGroup>
-    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
-    <GetTargetPathWithTargetPlatformMonikerDependsOn>$(GetTargetPathWithTargetPlatformMonikerDependsOn);GetDependencyTargetPaths</GetTargetPathWithTargetPlatformMonikerDependsOn>
-  </PropertyGroup>
-
-  <!-- Forward Kurrent.CodeAnalysis.dll through GetTargetPath so consumers that reference
-       this generator as OutputItemType="Analyzer" pick it up as an analyzer too. -->
-  <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
-    <ItemGroup>
-      <TargetPathWithTargetPlatformMoniker
-          Include="@(ReferenceCopyLocalPaths)"
-          Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'Kurrent.CodeAnalysis' AND '%(ReferenceCopyLocalPaths.Extension)' == '.dll'"
-          IncludeRuntimeDependency="false" />
-    </ItemGroup>
-  </Target>
+  <!-- Helper code is compiled straight into this generator assembly — no separate
+       Kurrent.CodeAnalysis.dll for the analyzer host to load (works in Rider too). -->
+  <Import Project="..\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.Sources.props" />
 </Project>

@@ -61,7 +61,7 @@ finally {
 return;
 
 static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageTypeMapper mapper, CancellationToken ct) {
-    const int initialBatch = 100;
+    //const int initialBatch = 100;
 
     var delay = TimeSpan.FromSeconds(1);
 

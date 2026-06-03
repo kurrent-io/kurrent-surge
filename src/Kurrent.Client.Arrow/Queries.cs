@@ -132,7 +132,7 @@ public sealed class Queries : IAsyncDisposable {
             return new Metadata();
 
         var metadata = new Metadata();
-        foreach (var (key, node) in obj)
+        foreach (var (key, node) in obj) {
             metadata = metadata.With(key, node switch {
                 JsonValue v when v.TryGetValue<long>(out var l)   => l,
                 JsonValue v when v.TryGetValue<double>(out var d) => d,
@@ -141,6 +141,7 @@ public sealed class Queries : IAsyncDisposable {
                 null                                              => null,
                 _                                                 => node.ToJsonString()
             });
+        }
 
         return metadata;
     }

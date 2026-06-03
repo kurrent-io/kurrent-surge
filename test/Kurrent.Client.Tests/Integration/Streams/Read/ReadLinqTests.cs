@@ -181,7 +181,7 @@ public class ReadLinqTests {
         // Assert
         await Assert.That(revisions.Count).IsEqualTo(data.Records.Length);
         await Assert.That(revisions.First()).IsEqualTo(0L);
-        await Assert.That(revisions.Last()).IsEqualTo((long)(data.Records.Length - 1));
+        await Assert.That(revisions.Last()).IsEqualTo(data.Records.Length - 1);
     }
 
     [Test]

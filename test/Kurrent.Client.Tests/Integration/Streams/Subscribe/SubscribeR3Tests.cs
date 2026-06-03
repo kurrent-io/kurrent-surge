@@ -139,7 +139,7 @@ public class SubscribeR3Tests {
         // Assert — final snapshot has all revisions
         await Assert.That(snapshots.Count).IsEqualTo(data.Records.Length);
         await Assert.That(snapshots).Contains(0L);
-        await Assert.That(snapshots).Contains((long)(data.Records.Length - 1));
+        await Assert.That(snapshots).Contains(data.Records.Length - 1);
     }
 
     [Test]

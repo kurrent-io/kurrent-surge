@@ -1,7 +1,6 @@
 <Project>
   <PropertyGroup>
-    <TargetFrameworks>net10.0;</TargetFrameworks>
-<!--    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>-->
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>preview</LangVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
@@ -26,9 +25,12 @@
     <!-- Warnings -->
     <!-- NETSDK1057 - You are using a preview version of .NET -->
     <!-- RS2008: Enable analyzer release tracking for the analyzer project containing rule `[RULE_CODE]` -->
-    <!-- TestCaseGenerators - TUnit0001: TUnit0001:Test argument types don't match method parameters -->
+    <!-- TestCaseGenerators - TUnit0001: Test argument types don't match method parameters -->
     <!-- TestCaseGenerators - TUnit0038: No data source provided -->
-    <NoWarn>$(NoWarn);NETSDK1057;RS2008;TUnit0001;TUnit0038;</NoWarn>
+    <!-- CS8509: The switch expression does not handle all possible values of its input type (it is not exhaustive) -->
+    <!-- CS8524: The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value -->
+    <!-- IDE0130: namespace doesn't match folder — curated namespaces for now, tighten as we go -->
+    <NoWarn>$(NoWarn);NETSDK1057;RS2008;TUnit0001;TUnit0038;CS8509;CS8524;IDE0130;</NoWarn>
 
     <!-- CI builds -->
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>

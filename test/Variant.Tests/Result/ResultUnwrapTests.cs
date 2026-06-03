@@ -28,7 +28,7 @@ public class ResultUnwrapTests {
         var result = Kurrent.Result.Failure<GameId, InvalidMoveError>(error);
 
         // Act & Assert
-        var exception = await Assert.That(() => result.Unwrap()).ThrowsExactly<InvalidOperationException>();
+        var exception = await Assert.That(result.Unwrap).ThrowsExactly<InvalidOperationException>();
         await Assert.That(exception.Message).Contains(error.GameId.ToString());
         await Assert.That(exception.Message).Contains("Test error");
     }

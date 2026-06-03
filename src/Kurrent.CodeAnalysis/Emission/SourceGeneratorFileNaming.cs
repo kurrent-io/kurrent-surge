@@ -83,7 +83,7 @@ public static class SourceGeneratorFileNaming {
         var parts = new List<string>();
 
         if (!string.IsNullOrEmpty(options.Prefix) && options.UseFoldersForPrefix)
-            parts.Add(ApplyCasing(options.Prefix!, options.LowercasePath));
+            parts.Add(ApplyCasing(options.Prefix, options.LowercasePath));
 
         if (options.UseFoldersForNamespace) {
             var ns = string.IsNullOrEmpty(typeNamespace) ? "Global" : typeNamespace;
@@ -100,7 +100,7 @@ public static class SourceGeneratorFileNaming {
         }
 
         if (!string.IsNullOrEmpty(options.Prefix) && !options.UseFoldersForPrefix) {
-            var prefix = ApplyCasing(options.Prefix!, options.LowercasePath);
+            var prefix = ApplyCasing(options.Prefix, options.LowercasePath);
             return $"{prefix}_{fileName}";
         }
 

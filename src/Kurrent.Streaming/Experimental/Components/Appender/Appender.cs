@@ -45,7 +45,7 @@ interface IAppender : IAsyncDisposable {
 /// with the same key are ordered, different keys may flush in parallel.
 /// Set the ordering key via <c>AppendRecord.New().OrderingKey("key")</c>.
 /// </summary>
-internal sealed class Appender : IAppender {
+sealed class Appender : IAppender {
     readonly AppenderOptions         _options;
     readonly KurrentClient           _client;
     readonly StreamsClient           _streams;

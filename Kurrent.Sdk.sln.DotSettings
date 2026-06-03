@@ -35,14 +35,55 @@
     <s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=ArrangeTypeModifiers/@EntryIndexedValue">WARNING</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=BuiltInTypeReferenceStyle/@EntryIndexedValue">WARNING</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=BuiltInTypeReferenceStyleForMemberAccess/@EntryIndexedValue">WARNING</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=CheckNamespace/@EntryIndexedValue">HINT</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=CSharpBuildCSInvalidModuleName/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=CSharpMissingPluginDependency/@EntryIndexedValue">DO_NOT_SHOW</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EnforceForeachStatementBraces/@EntryIndexedValue">WARNING</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EnforceForStatementBraces/@EntryIndexedValue">WARNING</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EnforceIfStatementBraces/@EntryIndexedValue">WARNING</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002EClientSideDbFunctionCall/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002EModelValidation_002ECircularDependency/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002EModelValidation_002EUnlimitedStringLength/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002ENPlusOne_002EIncompleteDataQuery/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002ENPlusOne_002EIncompleteDataUsage/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002ENPlusOne_002EQuery/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002ENPlusOne_002EUsage/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=EntityFramework_002EUnsupportedServerSideFunctionCall/@EntryIndexedValue">DO_NOT_SHOW</s:String>
     <s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexedValue"></s:String>
     <s:Boolean x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexRemoved">True</s:Boolean>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EAsyncMethodMustBeTask/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EAutoFixture_002EIncorrectArgumentType/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EAutoFixture_002EMissedTestOrTestFixtureAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EAutoFixture_002ERedundantArgumentInInlineAutoDataAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EDuplicateValues/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EIgnoredParameterAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EImplicitUnspecifiedNullValues/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EIncorrectArgumentType/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EIncorrectExpectedResultType/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EIncorrectRangeBounds/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EMethodWithParametersAndTestAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EMissingArgumentsInTestCaseAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EMissingCancelAfterAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ENonPublicMethodWithTestAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ENoValuesProvided/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002EParameterTypeIsNotCompatibleWithAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERangeAttributeBoundsAreOutOfRange/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERangeStepSignMismatch/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERangeStepValueMustNotBeZero/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERangeToValueIsNotReachable/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERedundantArgumentInsteadOfExpectedResult/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERedundantArgumentInTestCaseAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ERedundantExpectedResultInTestCaseAttribute/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ETestCaseAttributeRequiresExpectedResult/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ETestCaseResultPropertyDuplicatesExpectedResult/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ETestCaseResultPropertyIsObsolete/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ETestCaseSourceMustBeFieldPropertyMethod/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ETestCaseSourceMustBeStatic/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=NUnit_002ETestCaseSourceShouldImplementIEnumerable/@EntryIndexedValue">DO_NOT_SHOW</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=SuggestVarOrType_005FBuiltInTypes/@EntryIndexedValue">SUGGESTION</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=SuggestVarOrType_005FElsewhere/@EntryIndexedValue">SUGGESTION</s:String>
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=SuggestVarOrType_005FSimpleTypes/@EntryIndexedValue">SUGGESTION</s:String>
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=Xunit_002EXunitTestWithConsoleOutput/@EntryIndexedValue">DO_NOT_SHOW</s:String>
     <s:String x:Key="/Default/CodeInspection/Highlighting/SweaWarningsMode/@EntryValue">ShowAndRun</s:String>
 	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
 	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=ASP0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -307,6 +348,7 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2263/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2264/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2265/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2266/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2300/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2301/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA2302/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -398,6 +440,83 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA5403/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA5404/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=CA5405/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2026/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2032/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2041/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2043/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2046/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2050/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2055/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2057/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2058/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2059/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2060/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2062/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2063/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2064/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2065/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2066/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2067/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2068/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2069/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2070/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2071/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2072/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2073/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2074/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2075/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2076/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2077/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2078/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2079/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2080/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2081/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2082/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2083/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2084/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2085/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2086/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2087/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2088/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2089/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2090/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2091/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2092/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2093/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2094/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2095/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2096/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2097/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2098/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2099/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2103/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2106/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2110/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2111/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2112/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2113/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2114/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2115/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2116/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2122/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2123/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2124/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2125/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2126/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL2127/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3003/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3004/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3005/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3050/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3051/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3056/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3057/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL3058/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL4000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=IL4001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
 	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1000/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
 	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
 	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=MVC1002/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
@@ -530,6 +649,7 @@
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnitAssertions0011/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnitAssertions0012/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnitAssertions0013/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
+	<s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUnitAssertions0016/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUNU0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
     <s:String x:Key="/Default/CodeInspection/Roslyn/RoslynCustomSeverities/=TUXU0001/@EntryIndexedValue">SET_BY_ROSLYN</s:String>
 	<s:Boolean x:Key="/Default/CodeInspection/Roslyn/UseRoslynInSwea/@EntryValue">True</s:Boolean>
@@ -627,6 +747,7 @@
     <s:String x:Key="/Default/CodeStyle/CodeFormatting/CSharpCodeStyle/NULL_CHECKING_PATTERN_STYLE/@EntryValue">EmptyRecursivePattern</s:String>
     <s:String x:Key="/Default/CodeStyle/CodeFormatting/CSharpCodeStyle/OBJECT_CREATION_WHEN_TYPE_NOT_EVIDENT/@EntryValue">TargetTyped</s:String>
     <s:String x:Key="/Default/CodeStyle/CodeFormatting/CSharpCodeStyle/ThisQualifier/INSTANCE_MEMBERS_QUALIFY_DECLARED_IN/@EntryValue">0</s:String>
+	<s:Boolean x:Key="/Default/CodeStyle/CodeFormatting/CSharpCodeStyle/USE_HEURISTICS_FOR_BODY_STYLE/@EntryValue">False</s:Boolean>
     <s:Boolean x:Key="/Default/CodeStyle/CodeFormatting/CSharpFormat/ALIGN_MULTILINE_BINARY_PATTERNS/@EntryValue">True</s:Boolean>
     <s:Boolean x:Key="/Default/CodeStyle/CodeFormatting/CSharpFormat/ALIGN_MULTILINE_EXTENDS_LIST/@EntryValue">True</s:Boolean>
     <s:Boolean x:Key="/Default/CodeStyle/CodeFormatting/CSharpFormat/ALIGN_MULTLINE_TYPE_PARAMETER_LIST/@EntryValue">True</s:Boolean>

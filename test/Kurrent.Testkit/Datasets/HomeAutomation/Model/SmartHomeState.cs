@@ -68,7 +68,7 @@ public class SmartHomeState {
                 (true, _)                    => new DoorOpened   { Device = info, UserId = cmd.UserId, Timestamp = timestamp },
                 (false, LockStatus.Locked)   => new DoorLocked  { Device = info, UserId = cmd.UserId, Timestamp = timestamp },
                 (false, LockStatus.Unlocked) => state.DoorIsOpen
-                    ? (IHomeAutomationEvent)new DoorClosed   { Device = info, UserId = cmd.UserId, Timestamp = timestamp }
+                    ? new DoorClosed   { Device = info, UserId = cmd.UserId, Timestamp = timestamp }
                     : new DoorUnlocked { Device = info, UserId = cmd.UserId, Timestamp = timestamp },
                 _                            => new DoorUnlocked { Device = info, UserId = cmd.UserId, Timestamp = timestamp }
             },
@@ -91,7 +91,7 @@ public class SmartHomeState {
                     OpenPercentage = cmd.OpenPercentage,
                     Timestamp      = timestamp
                 }
-                : (IHomeAutomationEvent)new WindowClosed {
+                : new WindowClosed {
                     Device    = info,
                     Timestamp = timestamp
                 },
@@ -101,7 +101,7 @@ public class SmartHomeState {
                     SmokeLevel = cmd.SmokeLevel,
                     Timestamp  = timestamp
                 }
-                : (IHomeAutomationEvent)new SmokeAlarmCleared {
+                : new SmokeAlarmCleared {
                     Device    = info,
                     Timestamp = timestamp
                 },
@@ -111,7 +111,7 @@ public class SmartHomeState {
                     MoistureLevel = cmd.MoistureLevel,
                     Timestamp     = timestamp
                 }
-                : (IHomeAutomationEvent)new WaterLeakResolved {
+                : new WaterLeakResolved {
                     Device    = info,
                     Timestamp = timestamp
                 },

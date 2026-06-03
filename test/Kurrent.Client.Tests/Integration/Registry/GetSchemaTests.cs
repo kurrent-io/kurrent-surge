@@ -35,7 +35,7 @@ public class GetSchemaTests {
             .GetSchema(schemaName, ct);
 
 		await Assert.That(schema.LatestSchemaVersion).IsEqualTo(schemaVersion.VersionNumber);
-		await Assert.That(schema.SchemaName.Value).IsEqualTo((string)schemaName);
+		await Assert.That(schema.SchemaName.Value).IsEqualTo(schemaName);
 		await Assert.That(schema.CreatedAt).IsGreaterThan(DateTimeOffset.MinValue);
 		await Assert.That(schema.UpdatedAt).IsGreaterThan(DateTimeOffset.MinValue);
 		await Assert.That(schema.Details.Compatibility).IsEqualTo(CompatibilityMode.Backward);

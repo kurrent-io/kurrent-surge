@@ -39,7 +39,7 @@ public class ReadLogBenchmarks {
         };
         var count = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false)) {
+        await foreach (var _ in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false)) {
             count++;
             if (count >= MessageCount)
                 break;

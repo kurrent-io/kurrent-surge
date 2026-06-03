@@ -6,7 +6,7 @@ namespace Kurrent.Streaming.Experimental.Components.Appender;
 /// Outcome of an appended record. Wraps the server response on success, or
 /// carries error/drop information on failure.
 /// </summary>
-internal sealed record AppendResult {
+sealed record AppendResult {
     AppendResult(AppendResultStatus status) => Status = status;
 
     internal AppendResult(AppendRecordsResponse response) {
@@ -48,7 +48,7 @@ internal sealed record AppendResult {
 /// <summary>
 /// Status of an individual append operation.
 /// </summary>
-internal enum AppendResultStatus {
+enum AppendResultStatus {
     /// <summary>
     /// The record's batch was acknowledged by the server.
     /// </summary>
@@ -69,4 +69,4 @@ internal enum AppendResultStatus {
 /// <summary>
 /// Error information passed to <see cref="AppenderOptions.OnError"/>.
 /// </summary>
-internal sealed record AppendError(Exception Exception);
+sealed record AppendError(Exception Exception);

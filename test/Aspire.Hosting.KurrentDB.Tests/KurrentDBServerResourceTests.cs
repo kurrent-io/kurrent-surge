@@ -1,5 +1,4 @@
 using Aspire.Hosting.Testing;
-using Kurrent.Testkit.TUnit;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Aspire.Hosting.KurrentDB.Tests;
