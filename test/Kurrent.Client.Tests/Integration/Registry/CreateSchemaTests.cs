@@ -22,16 +22,15 @@ public class CreateSchemaTests {
 		await Assert.That(schemaVersion.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 		await Assert.That(schemaVersion.VersionNumber).IsEqualTo(1);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
+		await Eventually(async () => {
+			var version = await Fixture.Client.Registry.GetSchemaVersionById(schemaVersion.VersionId, ct);
 
-        var version = await Fixture.Client.Registry
-            .GetSchemaVersionById(schemaVersion.VersionId, ct);
-
-		await Assert.That(version.VersionId).IsEqualTo(schemaVersion.VersionId);
-		await Assert.That(version.VersionNumber).IsEqualTo(1);
-		await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
-		await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
-		await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
+			await Assert.That(version.VersionId).IsEqualTo(schemaVersion.VersionId);
+			await Assert.That(version.VersionNumber).IsEqualTo(1);
+			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
+			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
+			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
+		}, ct);
 	}
 
 	[Test]

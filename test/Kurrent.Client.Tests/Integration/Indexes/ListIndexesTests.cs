@@ -22,10 +22,10 @@ public class ListIndexesTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'InvoiceCreated'", fields, cancellationToken: ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
+        await Eventually(async () => {
+            var indexes = await Fixture.Client.Indexes.List(ct);
 
-        var indexes = await Fixture.Client.Indexes.List(ct);
-
-        await Assert.That(indexes).Contains(i => i.Name == indexName);
+            await Assert.That(indexes).Contains(i => i.Name == indexName);
+        }, ct);
     }
 }

@@ -17,6 +17,7 @@
     <Using Include="Kurrent.Testkit.TUnit" />
     <Using Include="Kurrent.Testkit.TUnit.Assertions" />
     <Using Include="Kurrent.Sdk.Testkit" />
+    <Using Include="Kurrent.Sdk.Testkit.EventualConsistency" Static="true" />
   </ItemGroup>
 
   <ItemGroup>

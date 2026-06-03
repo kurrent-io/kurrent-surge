@@ -29,19 +29,19 @@ public class GetSchemaTests {
                     .Build(),
                 ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
+		await Eventually(async () => {
+			var schema = await Fixture.Client.Registry
+				.GetSchema(schemaName, ct);
 
-		var schema = await Fixture.Client.Registry
-            .GetSchema(schemaName, ct);
-
-		await Assert.That(schema.LatestSchemaVersion).IsEqualTo(schemaVersion.VersionNumber);
-		await Assert.That(schema.SchemaName.Value).IsEqualTo((string)schemaName);
-		await Assert.That(schema.CreatedAt).IsGreaterThan(DateTimeOffset.MinValue);
-		await Assert.That(schema.UpdatedAt).IsGreaterThan(DateTimeOffset.MinValue);
-		await Assert.That(schema.Details.Compatibility).IsEqualTo(CompatibilityMode.Backward);
-		await Assert.That(schema.Details.Description).IsEqualTo(description);
-		await Assert.That(schema.Details.Tags).IsEquivalentTo(tags);
-		await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
+			await Assert.That(schema.LatestSchemaVersion).IsEqualTo(schemaVersion.VersionNumber);
+			await Assert.That(schema.SchemaName.Value).IsEqualTo((string)schemaName);
+			await Assert.That(schema.CreatedAt).IsGreaterThan(DateTimeOffset.MinValue);
+			await Assert.That(schema.UpdatedAt).IsGreaterThan(DateTimeOffset.MinValue);
+			await Assert.That(schema.Details.Compatibility).IsEqualTo(CompatibilityMode.Backward);
+			await Assert.That(schema.Details.Description).IsEqualTo(description);
+			await Assert.That(schema.Details.Tags).IsEquivalentTo(tags);
+			await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
+		}, ct);
 	}
 
 	[Test]
@@ -60,14 +60,12 @@ public class GetSchemaTests {
 		await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
-
 		await Fixture.Client.Registry
             .DeleteSchema(schemaName, ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
-
-		await Assert.ThrowsAsync<SchemaNotFoundException>(
-			async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
+		await Eventually(
+			async () => await Assert.ThrowsAsync<SchemaNotFoundException>(
+				async () => await Fixture.Client.Registry.GetSchema(schemaName, ct)),
+			ct);
 	}
 }

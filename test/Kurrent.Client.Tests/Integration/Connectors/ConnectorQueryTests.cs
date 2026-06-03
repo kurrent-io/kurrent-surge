@@ -18,14 +18,14 @@ public class ConnectorQueryTests {
         await Fixture.Client.Connectors
             .Create(connectorId, name, settings, ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
-
         var options = new ConnectorListOptions { ConnectorIds = [connectorId] };
 
-        var result = await Fixture.Client.Connectors
-            .List(options, ct);
+        await Eventually(async () => {
+            var result = await Fixture.Client.Connectors
+                .List(options, ct);
 
-        await Assert.That(result.Items).IsNotEmpty();
-        await Assert.That(result.Items).Contains(c => c.ConnectorId == connectorId);
+            await Assert.That(result.Items).IsNotEmpty();
+            await Assert.That(result.Items).Contains(c => c.ConnectorId == connectorId);
+        }, ct);
     }
 }

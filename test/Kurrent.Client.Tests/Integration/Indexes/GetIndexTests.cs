@@ -23,15 +23,15 @@ public class GetIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'ProductCreated'", fields, cancellationToken: ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
+        await Eventually(async () => {
+            var index = await Fixture.Client.Indexes.Get(indexName, ct);
 
-        var index = await Fixture.Client.Indexes.Get(indexName, ct);
-
-        await Assert.That(index.Name).IsEqualTo(indexName);
-        await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'ProductCreated'");
-        await Assert.That(index.Fields).Count().IsEqualTo(1);
-        await Assert.That(index.Fields[0].Name).IsEqualTo("price");
-        await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Int64);
+            await Assert.That(index.Name).IsEqualTo(indexName);
+            await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'ProductCreated'");
+            await Assert.That(index.Fields).Count().IsEqualTo(1);
+            await Assert.That(index.Fields[0].Name).IsEqualTo("price");
+            await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Int64);
+        }, ct);
     }
 
     [Test, Timeout(TestTimeoutMs)]
