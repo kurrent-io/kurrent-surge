@@ -97,12 +97,12 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     /// <inheritdoc/>
     protected override async ValueTask<ProcessorCheckpoint> OnLoadLatestAsync(CancellationToken ct) {
         try {
-            var readRequest = ReadStreamRequest.New().Stream(_stream).FromEnd().Build();
+            var readOptions = new ReadStreamOptions { Start = Revision.Max, Direction = ReadDirection.Backwards };
 
             var partitions      = new Dictionary<int, Contracts.PartitionPosition>();
             var latestTimestamp = DateTimeOffset.MinValue;
 
-            await foreach (var message in _client.ReadStream(readRequest, ct).ConfigureAwait(false)) {
+            await foreach (var message in _client.ReadStream(_stream, readOptions, ct).ConfigureAwait(false)) {
                 if (!message.IsRecord)
                     continue;
 

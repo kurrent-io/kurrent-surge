@@ -26,7 +26,14 @@ sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectio
             });
 
             var hasRecords = await client.Streams
-                .ReadRecords(req => req.FromLatestBackwards().Limit(1).SkipDecoding(), cancellationToken)
+                .ReadRecords(
+                    new ReadRecordsOptions {
+                        Start        = LogPosition.Latest,
+                        Direction    = ReadDirection.Backwards,
+                        Limit        = 1,
+                        SkipDecoding = true
+                    },
+                    cancellationToken)
                 .AnyAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 

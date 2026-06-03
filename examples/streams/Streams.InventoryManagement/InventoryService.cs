@@ -153,12 +153,13 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read the last N events from a SKU stream backwards.
     /// </summary>
     public async ValueTask<List<Record>> GetRecentEvents(string sku, int count = 10) {
-        var request = ReadStreamRequest.New().Stream(StreamFor(sku))
-            .FromEnd()
-            .Limit(count)
-            .Build();
+        var options = new ReadStreamOptions {
+            Start     = Revision.Max,
+            Direction = ReadDirection.Backwards,
+            Limit     = count
+        };
 
-        return await client.Streams.ReadStream(request)
+        return await client.Streams.ReadStream(StreamFor(sku), options)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync();
@@ -168,13 +169,13 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read recent inventory activity across all SKUs from the global log.
     /// </summary>
     public async ValueTask<List<Record>> GetRecentActivity(int maxRecords = 50) {
-        var req = ReadRecordsRequest.New()
-            .Backwards()
-            .Limit(maxRecords)
-            .Filter("stream like 'inventory-%'")
-            .Build();
+        var options = new ReadRecordsOptions {
+            Direction = ReadDirection.Backwards,
+            Limit     = maxRecords,
+            Filter    = RecordFilter.ByExpression("stream like 'inventory-%'")
+        };
 
-        return await client.Streams.ReadRecords(req).ToListAsync();
+        return await client.Streams.ReadRecords(options).ToListAsync();
     }
 
     static StreamName StreamFor(string sku) => $"inventory-{sku}";

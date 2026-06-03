@@ -98,7 +98,7 @@ public class KurrentDBFixture : AspireFixture {
         GetNewClient(AnonymousConnectionString);
 
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
-        var request = new ReadRecordsRequest {
+        var options = new ReadRecordsOptions {
             Direction    = ReadDirection.Backwards,
             Start        = LogPosition.Latest,
             Limit        = 1,
@@ -106,7 +106,7 @@ public class KurrentDBFixture : AspireFixture {
         };
 
         return await Client.Streams
-            .ReadRecords(request, ct)
+            .ReadRecords(options, ct)
             .Select(x => x.AsRecord.Position)
             .FirstAsync(ct)
             .ConfigureAwait(false);

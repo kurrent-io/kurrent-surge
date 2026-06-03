@@ -109,7 +109,7 @@ public partial class StreamsClient {
     public ValueTask<AppendRecordsResponse> AppendRecords(
         IAsyncEnumerable<AppendRecord> records,
         CancellationToken cancellationToken
-    ) => AppendRecords(records, null, cancellationToken);
+    ) => AppendRecords(records, (AppendRecordsOptions?)null, cancellationToken);
     
     /// <summary>
     /// Appends records from an enumerable source with optional consistency checks and
@@ -130,5 +130,25 @@ public partial class StreamsClient {
     public ValueTask<AppendRecordsResponse> AppendRecords(
         IEnumerable<AppendRecord> records,
         CancellationToken cancellationToken
-    ) => AppendRecords(records, null, cancellationToken);
+    ) => AppendRecords(records, (AppendRecordsOptions?)null, cancellationToken);
+
+    /// <summary>
+    /// Appends records from an async enumerable source, configuring the batch options inline
+    /// from a fresh <see cref="AppendRecordsOptions"/>.
+    /// </summary>
+    public ValueTask<AppendRecordsResponse> AppendRecords(
+        IAsyncEnumerable<AppendRecord> records,
+        Func<AppendRecordsOptions, AppendRecordsOptions> configure,
+        CancellationToken cancellationToken
+    ) => AppendRecords(records, configure(new()), cancellationToken);
+
+    /// <summary>
+    /// Appends records from an enumerable source, configuring the batch options inline
+    /// from a fresh <see cref="AppendRecordsOptions"/>.
+    /// </summary>
+    public ValueTask<AppendRecordsResponse> AppendRecords(
+        IEnumerable<AppendRecord> records,
+        Func<AppendRecordsOptions, AppendRecordsOptions> configure,
+        CancellationToken cancellationToken
+    ) => AppendRecords(records.ToAsyncEnumerable(), configure(new()), cancellationToken);
 }

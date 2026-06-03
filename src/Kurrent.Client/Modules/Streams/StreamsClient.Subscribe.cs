@@ -204,7 +204,8 @@ public partial class StreamsClient {
                             // down (cancellation) must not abort this bounded metadata read and leave the
                             // checkpoint without a log position. If the stream has no records, keep it as-is.
                             var last = await ReadStream(
-                                    ReadStreamRequest.New().Stream(stream).FromEnd().Limit(1).SkipDecoding().Build(),
+                                    stream,
+                                    new ReadStreamOptions { Start = Revision.Max, Direction = ReadDirection.Backwards, Limit = 1, SkipDecoding = true },
                                     CancellationToken.None)
                                 .Where(r => r.IsRecord)
                                 .FirstOrDefaultAsync(CancellationToken.None)
