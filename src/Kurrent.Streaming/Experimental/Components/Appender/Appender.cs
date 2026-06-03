@@ -60,7 +60,7 @@ internal sealed class Appender : IAppender {
         _client  = KurrentClient.Create(options.ClientOptions!);
         _streams = _client.Streams;
 
-        // could the default lane be 0 if we simply start the keyed lanes on 1? :)
+        //TODO SS: could the default lane be 0 if we simply start the keyed lanes on 1? :)
         
         _defaultLane = new FlushLane(options, _streams, _stopping.Token);
 

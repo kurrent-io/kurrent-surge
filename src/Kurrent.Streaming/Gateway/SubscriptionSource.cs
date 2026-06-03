@@ -47,9 +47,13 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
         try {
             await _pipeline.ExecuteAsync(
                 async token => {
-                    await foreach (var msg in _streams
-                        .Subscribe(new SubscribeOptions { Filter = filter, Start = cursor, SkipDecoding = skipDecoding }, token)
-                        .ConfigureAwait(false)) {
+                    var options = new SubscribeOptions {
+                        Filter       = filter,
+                        Start        = cursor,
+                        SkipDecoding = skipDecoding
+                    };
+                    
+                    await foreach (var msg in _streams.Subscribe(options, token).ConfigureAwait(false)) {
                         // Tag each record with its partition before handing it downstream; pass
                         // everything else (Connected, Checkpoint) through untouched.
                         if (msg.Value is Record record) {
