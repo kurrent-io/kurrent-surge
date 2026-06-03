@@ -52,7 +52,7 @@ public partial class StreamsClient {
     /// on non-retryable paths.
     /// </para>
     /// </remarks>
-    public async IAsyncEnumerable<SubscribeMessage> SubscribeWithResilience(
+    async IAsyncEnumerable<SubscribeMessage> SubscribeWithResilience(
         RecordFilter filter,
         RecordPosition start,
         bool skipDecoding,
