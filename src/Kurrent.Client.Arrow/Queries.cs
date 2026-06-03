@@ -137,7 +137,7 @@ public sealed class Queries : IAsyncDisposable {
                 JsonValue v when v.TryGetValue<long>(out var l)   => l,
                 JsonValue v when v.TryGetValue<double>(out var d) => d,
                 JsonValue v when v.TryGetValue<bool>(out var b)   => b,
-                JsonValue v when v.TryGetValue<string>(out var s) => (object?)s,
+                JsonValue v when v.TryGetValue<string>(out var s) => s,
                 null                                              => null,
                 _                                                 => node.ToJsonString()
             });
