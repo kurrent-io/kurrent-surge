@@ -222,6 +222,25 @@ public class MessageTypeMappingBuilderTests {
 
     #endregion
 
+    [Test]
+    public async ValueTask map_throws_when_type_already_mapped() {
+        // Act & Assert
+        await Assert.That(() => MessageTypeMapper.Create(m => m
+                .Map<SampleMessage>("a")
+                .Map<SampleMessage>("b")))
+            .ThrowsExactly<MessageTypeConflictException>();
+    }
+
+    [Test]
+    public async ValueTask try_map_throws_when_type_already_mapped() {
+        // Arrange
+        var mapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("a"));
+
+        // Act & Assert
+        await Assert.That(() => mapper.TryMap<SampleMessage>("b"))
+            .ThrowsExactly<MessageTypeConflictException>();
+    }
+
     // Test message types
     record SampleMessage(string Value);
     record AnotherMessage(int Count);

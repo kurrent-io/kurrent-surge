@@ -29,10 +29,13 @@ public class MessageTypeMapper {
         if (TypeMap.TryAdd(schemaName, messageType))
             return Results.Success;
 
-        var mappedType = TypeMap[schemaName];
-        return mappedType != messageType
-	        ? new MessageTypeConflictException(schemaName, mappedType, messageType)
-	        : Results.Success;
+        if (TypeMap.TryGetValue(schemaName, out var mappedType))
+            return mappedType != messageType
+	            ? new MessageTypeConflictException(schemaName, mappedType, messageType)
+	            : Results.Success;
+
+        TypeMap.TryGetKey(messageType, out var existingName);
+        return new MessageTypeConflictException(existingName, messageType, messageType);
     }
 
     /// <summary>
@@ -59,10 +62,13 @@ public class MessageTypeMapper {
 	public bool TryMap(SchemaName schemaName, Type messageType) {
 		if (TypeMap.TryAdd(schemaName, messageType)) return true;
 
-		var mappedType = TypeMap[schemaName];
-		return mappedType != messageType
-            ? throw new MessageTypeConflictException(schemaName, mappedType, messageType)
-            : false;
+		if (TypeMap.TryGetValue(schemaName, out var mappedType))
+			return mappedType != messageType
+				? throw new MessageTypeConflictException(schemaName, mappedType, messageType)
+				: false;
+
+		TypeMap.TryGetKey(messageType, out var existingName);
+		throw new MessageTypeConflictException(existingName, messageType, messageType);
     }
 
 	/// <summary>

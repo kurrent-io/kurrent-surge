@@ -49,7 +49,9 @@ public class MessageTypeConflictException(SchemaName schemaName, Type mappedType
 	public Type MappedType    { get; } = mappedType;
 
 	static string ErrorMessage(SchemaName schemaName, Type registeredType, Type attemptedType) =>
-		$"Schema '{schemaName}' is already mapped with type '{registeredType.FullName}' but attempted to use with incompatible type '{attemptedType.FullName}'";
+		registeredType == attemptedType
+			? $"Type '{attemptedType.FullName}' is already mapped to schema name '{schemaName}'"
+			: $"Schema '{schemaName}' is already mapped with type '{registeredType.FullName}' but attempted to use with incompatible type '{attemptedType.FullName}'";
 }
 
 /// <summary>
