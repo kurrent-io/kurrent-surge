@@ -50,7 +50,7 @@ public sealed class RangeStrategy : IDistributionStrategy {
 
         // Calculate new assignments using contiguous ranges
         var newAssignments = new Dictionary<string, PartitionAssignment>();
-        var transfers = new List<PartitionTransfer>();
+        //var transfers = new List<PartitionTransfer>();
         var transferGroups = new Dictionary<(string from, string to), List<Partition>>();
 
         var droneCount = drones.Length;

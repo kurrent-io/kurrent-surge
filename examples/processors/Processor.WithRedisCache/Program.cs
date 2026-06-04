@@ -23,7 +23,7 @@ try {
     // Register processor as hosted service
     builder.Services.AddSingleton<PlayerCacheProcessor>();
     
-    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>( opts => {
+    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>(opts => {
         opts.Connection("kurrentdb://localhost:2113");
         opts.ProcessorId = "PlayerCacheProcessor-001";
         opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
@@ -47,7 +47,7 @@ try {
     });
 
     // List all cached player keys
-    app.MapGet("/players", async (IConnectionMultiplexer redis) => {
+    app.MapGet("/players", static async (IConnectionMultiplexer redis) => {
         var server = redis.GetServer(redis.GetEndPoints()[0]);
         var keys = server.Keys(pattern: "player:*").Take(100).Select(k => k.ToString()).ToList();
         return Results.Ok(keys);

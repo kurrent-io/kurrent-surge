@@ -18,7 +18,7 @@ public class KurrentClientConfigurationTests {
     public async ValueTask create_with_connection_string_only_parses_and_constructs() {
         // Arrange & Act
         await using var client = KurrentClient.Create("kurrentdb://localhost:2118?tls=false");
-
+        
         // Assert
         await Assert.That(client.Options.Endpoints[0].Host).IsEqualTo("localhost");
         await Assert.That(client.Options.Endpoints[0].Port).IsEqualTo(2118);

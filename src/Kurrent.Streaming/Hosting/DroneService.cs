@@ -2,7 +2,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Kurrent.Streaming.Hosting;
 
-internal sealed partial class DroneService<TProcessor>(
+sealed partial class DroneService<TProcessor>(
     IDrone drone,
     ILogger<DroneService<TProcessor>> logger
 ) : BackgroundService

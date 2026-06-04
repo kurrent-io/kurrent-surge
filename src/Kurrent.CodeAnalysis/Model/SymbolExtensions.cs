@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Kurrent.CodeAnalysis.Extraction;
 
-internal static class SymbolExtensions {
+static class SymbolExtensions {
     public static string GetFullName(this ITypeSymbol symbol) {
         if (symbol is IArrayTypeSymbol arr)
             return arr.ElementType.GetFullName() + "[]";
@@ -100,9 +100,10 @@ internal static class SymbolExtensions {
     static bool IsPartial(ITypeSymbol symbol) {
         foreach (var syntaxRef in symbol.DeclaringSyntaxReferences) {
             if (syntaxRef.GetSyntax() is TypeDeclarationSyntax decl) {
-                foreach (var mod in decl.Modifiers)
+                foreach (var mod in decl.Modifiers) {
                     if (mod.IsKind(SyntaxKind.PartialKeyword))
                         return true;
+                }
             }
         }
 
@@ -112,9 +113,10 @@ internal static class SymbolExtensions {
     static bool IsFileLocal(ITypeSymbol symbol) {
         foreach (var syntaxRef in symbol.DeclaringSyntaxReferences) {
             if (syntaxRef.GetSyntax() is TypeDeclarationSyntax decl) {
-                foreach (var mod in decl.Modifiers)
+                foreach (var mod in decl.Modifiers) {
                     if (mod.IsKind(SyntaxKind.FileKeyword))
                         return true;
+                }
             }
         }
 

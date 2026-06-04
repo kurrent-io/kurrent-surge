@@ -7,19 +7,17 @@ namespace Testing.ArcadeRacer;
 public record TestStream : IEnumerable<AppendRecord> {
     TestStream() { }
 
-    public AppendStreamRequest AppendRequest { get; private init; }
-
     public StreamName Stream { get; private init; }
 
-    public ImmutableArray<AppendRecord> Records => AppendRequest.Records;
+    public ImmutableArray<AppendRecord> Records { get; private init; } = [];
 
     public long LastTimestamp =>
-        AppendRequest.Records.LastOrDefault()?.Timestamp.ToUnixTimeMilliseconds() ?? -1;
+        Records.LastOrDefault()?.Timestamp.ToUnixTimeMilliseconds() ?? -1;
 
-    public static TestStream From(AppendStreamRequest request) =>
+    public static TestStream From(StreamName stream, ImmutableArray<AppendRecord> records) =>
         new() {
-            Stream        = request.Records[0].Stream,
-            AppendRequest = request,
+            Stream  = stream,
+            Records = records,
         };
 
     public IEnumerator<AppendRecord> GetEnumerator() => ((IList<AppendRecord>)Records).GetEnumerator();
@@ -27,6 +25,4 @@ public record TestStream : IEnumerable<AppendRecord> {
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public override string ToString() => $"{Stream} | recs: {Records.Length}";
-
-    public static implicit operator AppendStreamRequest(TestStream testStream) => testStream.AppendRequest;
 }

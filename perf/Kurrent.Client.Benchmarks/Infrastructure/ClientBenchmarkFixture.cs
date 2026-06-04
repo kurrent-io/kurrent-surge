@@ -26,7 +26,7 @@ public sealed class ClientBenchmarkFixture : KurrentDBFixture {
         var data = await TestData.GenerateSet(messageCount, CancellationToken.None);
         
         await Client.Streams
-            .AppendStream(data.AppendRequest)
+            .AppendStream(data.Stream, data.Records)
             .ConfigureAwait(false);
 
         _seededStreams[messageCount] = data.Stream;
@@ -45,7 +45,7 @@ public sealed class ClientBenchmarkFixture : KurrentDBFixture {
             var data = await TestData.GenerateSet(messageCount, CancellationToken.None);
 
             await Client.Streams
-                .AppendStream(data.AppendRequest)
+                .AppendStream(data.Stream, data.Records)
                 .ConfigureAwait(false);
 
             streams[i] = data.Stream;

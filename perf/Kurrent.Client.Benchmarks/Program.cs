@@ -1,5 +1,5 @@
 using BenchmarkDotNet.Running;
 
-var summary = BenchmarkSwitcher
+BenchmarkSwitcher
     .FromAssembly(typeof(Program).Assembly)
     .Run(args);

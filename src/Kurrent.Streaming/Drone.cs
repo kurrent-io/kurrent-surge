@@ -5,15 +5,12 @@ using Kurrent.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Diagnostics;
 using Kurrent.Streaming.Gateway;
-using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 
 namespace Kurrent.Streaming;
 
-using Gateway_ISubscription = Kurrent.Streaming.Gateway.ISubscription;
-
 sealed class Drone : IDrone {
-    readonly Gateway_ISubscription      _subscription;
+    readonly ISubscription      _subscription;
     readonly IProcessor         _processor;
     readonly Checkpointer       _checkpointer;
     readonly StreamsClient      _streams;
@@ -29,7 +26,7 @@ sealed class Drone : IDrone {
 
     public Drone(
         ProcessorOptions options,
-        Gateway_ISubscription subscription,
+        ISubscription subscription,
         Checkpointer checkpointer,
         Channel<SubscribeMessage> channel,
         StreamsClient streams,
@@ -127,10 +124,10 @@ sealed class Drone : IDrone {
 
         try {
             switch (_processor) {
-                case IRecordBatchProcessor batchProcessor: 
+                case IRecordBatchProcessor batchProcessor:
                     await RunBatched(batchProcessor, catchUp).ConfigureAwait(false); break;
 
-                case IRecordProcessor recordProcessor: 
+                case IRecordProcessor recordProcessor:
                     await RunPerRecord(recordProcessor, catchUp).ConfigureAwait(false); break;
             }
         }
@@ -149,14 +146,16 @@ sealed class Drone : IDrone {
             var now = _clock.Now();
             Checkpoint checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
 
-            await HandleCheckpoint(checkpoint).ConfigureAwait(false);
+            await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
         }
 
         await Shutdown(fatalError).ConfigureAwait(false);
     }
 
     async Task RunPerRecord(IRecordProcessor processor, Dictionary<Partition, LogPosition> catchUp) {
-        var stopping = false;
+        // The drone's owned partitions — the broadcast target for server watermarks (see HandleCheckpoint).
+        var partitions = catchUp.Keys.ToArray();
+        var stopping   = false;
 
         await foreach (var msg in _channel.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)) {
             if (stopping && msg.Value is Record)
@@ -183,7 +182,9 @@ sealed class Drone : IDrone {
                     break;
                 }
 
-                case Checkpoint checkpoint: await HandleCheckpoint(checkpoint).ConfigureAwait(false); break;
+                case Checkpoint checkpoint:
+                    await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
+                    break;
             }
         }
         
@@ -219,6 +220,9 @@ sealed class Drone : IDrone {
     }
 
     async Task RunBatched(IRecordBatchProcessor processor, Dictionary<Partition, LogPosition> catchUp) {
+        // The drone's owned partitions — the broadcast target for server watermarks (see HandleCheckpoint).
+        var partitions = catchUp.Keys.ToArray();
+
         var stream = _channel.Reader
             .ReadAllAsync(CancellationToken.None)
             .ReadBatched<SubscribeMessage, Record, BatchedSubscribeMessage>(
@@ -256,7 +260,9 @@ sealed class Drone : IDrone {
                     break;
                 }
 
-                case Checkpoint checkpoint: await HandleCheckpoint(checkpoint).ConfigureAwait(false); break;
+                case Checkpoint checkpoint:
+                    await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
+                    break;
             }
         }
         
@@ -305,10 +311,21 @@ sealed class Drone : IDrone {
         return RecordProcessingResult.Continue;
     }
     
-    async ValueTask HandleCheckpoint(Checkpoint checkpoint) {
+    async ValueTask HandleCheckpoint(Checkpoint checkpoint, Partition[] partitions) {
         var trigger = checkpoint.TriggerKind;
 
         _telemetry.CheckpointInitiated(checkpoint.Id, trigger);
+
+        // Server-emitted log watermarks — FilterCheckpoint and CaughtUpCheckpoint — carry the log position
+        // the shared scan has reached. Expand it across every owned partition before snapshotting so the
+        // user reacts to it like any other checkpoint and a cold restart skips the already-scanned span of
+        // the log. Safe because the channel is read in order: every record at or below this position is
+        // already processed by the time we see the checkpoint. The client resolves a stream CaughtUp's log
+        // position up front (see StreamsClient.Subscribe), so these always carry one; the client-timer
+        // IntervalCheckpoint and processor barriers are not server watermarks.
+        if (checkpoint is FilterCheckpoint or CaughtUpCheckpoint
+         && checkpoint.Positions is [.., var watermark])
+            _checkpointer.AdvanceWatermark(watermark.LogPosition, partitions);
 
         var positions = _checkpointer.PendingPositions();
 

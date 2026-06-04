@@ -1,4 +1,3 @@
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Microsoft.Extensions.Configuration;
 // ReSharper disable ClassNeverInstantiated.Global
@@ -60,7 +59,7 @@ public record SinkCloseContext : SinkContext;
 /// Context provided when flushing the sink.
 /// </summary>
 public record SinkFlushContext : SinkContext {
-    public Checkpoint Checkpoint { get; internal init; }
+    public Checkpoint Checkpoint { get; internal init; } = null!;
 }
 
 /// <summary>

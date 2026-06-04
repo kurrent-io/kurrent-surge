@@ -29,15 +29,10 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Baseline = true, Description = "Read stream")]
     public async Task<int> read_stream() {
-        var builder = ReadStreamRequest.New().Stream(_stream);
-
-        if (SkipDecoding)
-            builder.SkipDecoding();
-
-        var options = builder.Build();
+        var options = new ReadStreamOptions { SkipDecoding = SkipDecoding };
         var count   = 0;
 
-        await foreach (var msg in _fixture.Client.Streams.ReadStream(options).ConfigureAwait(false))
+        await foreach (var _ in _fixture.Client.Streams.ReadStream(_stream, options).ConfigureAwait(false))
             count++;
 
         return count;
@@ -45,15 +40,10 @@ public class ReadStreamBenchmarks {
 
     [Benchmark(Description = "Read stream with LINQ")]
     public async Task<int> read_stream_with_linq() {
-        var builder = ReadStreamRequest.New().Stream(_stream);
-
-        if (SkipDecoding)
-            builder.SkipDecoding();
-
-        var options = builder.Build();
+        var options = new ReadStreamOptions { SkipDecoding = SkipDecoding };
 
         return await _fixture.Client.Streams
-            .ReadStream(options)
+            .ReadStream(_stream, options)
             .Where(m => m.IsRecord)
             .CountAsync()
             .ConfigureAwait(false);
@@ -61,17 +51,14 @@ public class ReadStreamBenchmarks {
 
     // [Benchmark(Description = "Read stream from $all")]
     public async Task<int> read_stream_from_log() {
-        var builder = ReadRecordsRequest.New()
-            .FromPosition(LogPosition.Earliest)
-            .Filter(RecordFilter.ByStream(_stream));
+        var options = new ReadRecordsOptions {
+            Start        = LogPosition.Earliest,
+            Filter       = RecordFilter.ByStream(_stream),
+            SkipDecoding = SkipDecoding
+        };
+        var count = 0;
 
-        if (SkipDecoding)
-            builder.SkipDecoding();
-
-        var options = builder.Build();
-        var count   = 0;
-
-        await foreach (var msg in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false))
+        await foreach (var _ in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false))
             count++;
 
         return count;

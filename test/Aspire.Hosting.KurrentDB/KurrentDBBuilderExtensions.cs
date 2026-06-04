@@ -169,7 +169,12 @@ public static class KurrentDBBuilderExtensions {
                 foreach (var annotation in server.Annotations.OfType<EnvironmentCallbackAnnotation>())
                     await annotation.Callback(ctx);
             })
-            .WithLifetime(settings.Lifetime);
+            .WithLifetime(settings.Lifetime)
+            // Aspire 13.4 makes endpoints on persistent resources proxyless by default. We advertise the proxy host
+            // port to clients via KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS = PrimaryEndpoint.Property(Port), which
+            // only a proxied endpoint allocates — keep the endpoint proxied in both secure and insecure modes.
+            // See https://aspire.dev/get-started/aspire-sdk/ (inner-loop networking: proxyless endpoints).
+            .WithEndpoint("http", ep => ep.IsProxied = true);
 
         if (server.TlsEnabled)
             builder

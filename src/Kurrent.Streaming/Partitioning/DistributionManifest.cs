@@ -16,8 +16,7 @@ public sealed record DistributionManifest {
     /// Empty manifest representing no distribution (initial state).
     /// </summary>
     public static readonly DistributionManifest Empty = new(
-        new Dictionary<string, PartitionAssignment>(),
-        []);
+        new Dictionary<string, PartitionAssignment>(), []);
 
     /// <summary>
     /// Per-drone partition assignments with change tracking.

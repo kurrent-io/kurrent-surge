@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Plain helper library of Roslyn utilities for BUILDING source generators. NOT an
+         analyzer and never packaged: its source is compiled directly into each generator
+         via Kurrent.CodeAnalysis.Sources.props. This project remains only as the source
+         home and the unit-test target (Kurrent.CodeAnalysis.Tests). -->
     <TargetFramework>netstandard2.0</TargetFramework>
     <IsPackable>false</IsPackable>
-    <IsRoslynComponent>true</IsRoslynComponent>
-    <IncludeBuildOutput>true</IncludeBuildOutput>
-    <DevelopmentDependency>false</DevelopmentDependency>
-    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <Description>Thin ergonomic layer over Roslyn's incremental source generator API. Provides value-equatable TypeInfo records, a fluent selector builder, and safe-by-construction cache semantics.</Description>
   </PropertyGroup>
 

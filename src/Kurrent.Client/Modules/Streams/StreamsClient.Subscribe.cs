@@ -3,22 +3,30 @@ using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Legacy;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Variant;
 using KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;
 
-// Checkpoint is a barrier (coordination token). Server-emitted cases carry
-// the position(s) the server has confirmed; processor-synthesized cases
-// (ManualCheckpoint, ShutdownCheckpoint, etc.) leave it empty.
+// Checkpoint is a barrier (coordination token). Server-emitted cases (FilterCheckpoint,
+// CaughtUpCheckpoint) carry the scan position the server has confirmed; the client-side
+// interval timer and processor-synthesized cases (IntervalCheckpoint, ManualCheckpoint,
+// ShutdownCheckpoint, etc.) leave it empty.
 // Streaming extends this hierarchy without touching client.
 public abstract record Checkpoint(CheckpointId Id, DateTimeOffset Timestamp) {
     public IReadOnlyList<RecordPosition> Positions { get; init; } = [];
 }
 
 public sealed record IntervalCheckpoint(CheckpointId Id, DateTimeOffset Timestamp)
+    : Checkpoint(Id, Timestamp);
+
+/// <summary>
+/// Emitted by the server during a filtered subscription over the log: the shared scan has reached
+/// this log position with no further matches in the window. Carries the scan watermark in
+/// <see cref="Checkpoint.Positions"/>; paced by the subscription's max search window.
+/// </summary>
+public sealed record FilterCheckpoint(CheckpointId Id, DateTimeOffset Timestamp)
     : Checkpoint(Id, Timestamp);
 
 public sealed record CaughtUpCheckpoint(CheckpointId Id, DateTimeOffset Timestamp)
@@ -100,16 +108,23 @@ public readonly partial record struct SubscribeMessage : IVariant<Connected, Rec
 
 public readonly record struct Connected(SessionId SessionId);
 
+
+public record SubscribeOptions {
+    public RecordFilter   Filter          { get; init; } = RecordFilter.None;
+    public RecordPosition Start           { get; init; } = RecordPosition.Latest;
+    
+    public bool           SkipDecoding    { get; init; }
+    public bool           ResolveLinks    { get; init; } = true;
+    public uint           MaxSearchWindow { get; init; } = StreamsClientMapping.DefaultMaxSearchWindow;
+}
+
 public partial class StreamsClient {
     public async IAsyncEnumerable<SubscribeMessage> Subscribe(
-        RecordFilter filter,
-        RecordPosition start,
-        bool skipDecoding,
-        bool resolveLinks = true,
-        uint maxSearchWindow = StreamsClientMapping.DefaultMaxSearchWindow, // we must not expose this and make it a max value internally so it never gets used.
+        SubscribeOptions options,
         [EnumeratorCancellation] CancellationToken ct = default
     ) {
-        var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(filter, start, resolveLinks, maxSearchWindow);
+        var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
+            options.Filter, options.Start, options.ResolveLinks, options.MaxSearchWindow);
         
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;
@@ -161,8 +176,6 @@ public partial class StreamsClient {
 
         SequenceGenerator sequencer = new();
 
-        // C# forbids yield inside try/catch, so we use a flag to break out of the
-        // loop on cancellation and handle cleanup in the finally block.
         try {
             while (await grpcSession.ResponseStream.MoveNextSafe(ct).ConfigureAwait(false)) {
                 var resp = grpcSession.ResponseStream.Current;
@@ -171,16 +184,50 @@ public partial class StreamsClient {
                     case ReadResp.ContentOneofCase.Checkpoint:
                         yield return resp.Checkpoint.MapToCheckpoint(sequencer.FetchNext()); break;
 
-                    case ReadResp.ContentOneofCase.CaughtUp:
-                        yield return resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext()); break;
+                    case ReadResp.ContentOneofCase.CaughtUp: {
+                        var checkpoint = resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
+                        var position   = checkpoint.Positions[0];
+
+                        // A stream-subscription CaughtUp carries the stream revision but no log position: it
+                        // marks the live end, where no record exists yet (the revision is the next-expected,
+                        // not a written record). Resolve the watermark by reading the stream's last record so
+                        // every server checkpoint carries a log position, uniform with FilterCheckpoint — the
+                        // processor then treats all server watermarks the same, by type, with no special-casing.
+                        if (position.LogPosition == LogPosition.Unset && position.Revision != Revision.Unset) {
+                            // The V1 CaughtUp message carries the stream revision but no stream name
+                            // (proto/kurrentdb/protocol/v1/streams.proto CaughtUp), so the mapped position has an
+                            // unset stream. This branch only fires for a stream subscription, so recover the name
+                            // from the request — same source as the StreamNotFound branch in the connection phase.
+                            StreamName stream = request.Options.Stream.StreamIdentifier.StreamName.ToStringUtf8();
+
+                            // Read the stream's last record for the watermark. Use None: a subscription winding
+                            // down (cancellation) must not abort this bounded metadata read and leave the
+                            // checkpoint without a log position. If the stream has no records, keep it as-is.
+                            var last = await ReadStream(
+                                    stream,
+                                    new ReadStreamOptions { Start = Revision.Max, Direction = ReadDirection.Backwards, Limit = 1, SkipDecoding = true },
+                                    CancellationToken.None)
+                                .Where(r => r.IsRecord)
+                                .FirstOrDefaultAsync(CancellationToken.None)
+                                .ConfigureAwait(false);
+
+                            // Check the concrete value, not IsRecord: a default ReadRecordsResult (empty
+                            // read) reports IsRecord == true with a null payload.
+                            if (last.Value is Record lastRecord)
+                                checkpoint = checkpoint with { Positions = [lastRecord.Position] };
+                        }
+
+                        yield return checkpoint;
+                        break;
+                    }
 
                     case ReadResp.ContentOneofCase.Event:
                         var ctx = CreateMappingContext(ct);
                         var record = await resp.Event
-                            .MapToRecordAsync(sequencer.FetchNext(), ctx, skipDecoding)
+                            .MapToRecordAsync(sequencer.FetchNext(), ctx, options.SkipDecoding)
                             .ConfigureAwait(false);
 
-                        if (filter.IsMatch(record))
+                        if (options.Filter.IsMatch(record))
                             yield return record;
 
                     break;

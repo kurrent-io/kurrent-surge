@@ -48,7 +48,7 @@ public class ProtobufExtensionsTests {
 		var timestamp = Timestamp.FromDateTime(DateTime.UtcNow);
 
 		// Act
-		var result = ((object)timestamp).EnsureValueIsProtoMessage();
+		var result = timestamp.EnsureValueIsProtoMessage();
 
 		// Assert
 		await Assert.That(result).IsSameReferenceAs(timestamp);

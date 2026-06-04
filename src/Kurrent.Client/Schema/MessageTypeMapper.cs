@@ -45,8 +45,7 @@ public class MessageTypeMapper {
     public MapMessageTypeResult Map<T>(SchemaName schemaName) => Map(schemaName, typeof(T));
 
     public MapMessageTypeResult Map<T>() => Map(SchemaName.From(typeof(T).FullName!), typeof(T));
-
-
+    
     /// <summary>
     /// Attempts to add a mapping between a schema name and a message type.
 	/// </summary>
@@ -232,7 +231,7 @@ public class MessageTypeMapper {
     /// </summary>
     public class Builder {
         MessageTypeMapper   Mapper       { get; }      = new();
-        ISchemaNameStrategy NameStrategy { get; set; } = new MessageSchemaNameStrategy();
+        ISchemaNameStrategy NameStrategy { get; set; } = SchemaNameStrategies.TypeName();
 
         /// <summary>
         /// Sets the naming strategy to use for automatic schema name generation.

@@ -259,9 +259,8 @@ public class ScavengeTests {
         // Act
         var messages = Fixture.Client.Streams
             .ReadStream(
-                ReadStreamRequest.New().Stream("$scavenges")
-                    .FromEnd()
-                    .Build(),
+                "$scavenges",
+                new ReadStreamOptions { Start = Revision.Max, Direction = ReadDirection.Backwards },
                 ct
             );
 

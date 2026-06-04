@@ -90,11 +90,12 @@ public sealed class TypeSelector {
             var matchedAny = false;
 
             foreach (var pattern in group) {
-                foreach (var iface in info.Interfaces)
+                foreach (var iface in info.Interfaces) {
                     if (pattern.Matches(iface)) {
                         matchedAny = true;
                         break;
                     }
+                }
 
                 if (matchedAny)
                     break;
@@ -107,11 +108,12 @@ public sealed class TypeSelector {
         foreach (var predicate in ImplementingPredicates) {
             var matched = false;
 
-            foreach (var iface in info.Interfaces)
+            foreach (var iface in info.Interfaces) {
                 if (predicate(iface)) {
                     matched = true;
                     break;
                 }
+            }
 
             if (!matched)
                 return false;
@@ -121,9 +123,10 @@ public sealed class TypeSelector {
             if (info.BaseType is null)
                 return false;
 
-            foreach (var pattern in DerivingFromPatterns)
+            foreach (var pattern in DerivingFromPatterns) {
                 if (!pattern.Matches(info.BaseType))
                     return false;
+            }
         }
 
         foreach (var predicate in DerivingFromPredicates) {
@@ -131,9 +134,10 @@ public sealed class TypeSelector {
                 return false;
         }
 
-        foreach (var predicate in MatchingPredicates)
+        foreach (var predicate in MatchingPredicates) {
             if (!predicate(info))
                 return false;
+        }
 
         return true;
     }

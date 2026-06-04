@@ -1,4 +1,3 @@
-using Bogus;
 using Kurrent.Testkit.Datasets.HomeAutomation;
 using Kurrent.Testkit.Datasets.HomeAutomation.Model;
 

@@ -16,12 +16,10 @@ public class AuthenticationTests {
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
         });
 
-        var req = AppendStreamRequest.For($"secure-auth-{Guid.NewGuid():N}")
-            .AddMessage(new TestEvent("no creds"))
-            .ExpectedState(ExpectedStreamState.NoStream)
-            .Build();
+        var stream = $"secure-auth-{Guid.NewGuid():N}";
+        var record = AppendRecord.New().Stream(stream).Value(new TestEvent("no creds")).Build();
 
-        await Assert.That(async () => await client.Streams.AppendStream(req, ct))
+        await Assert.That(async () => await client.Streams.AppendStream(stream, [record], ExpectedStreamState.NoStream, ct))
             .ThrowsException();
     }
 

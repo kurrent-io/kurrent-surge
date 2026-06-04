@@ -8,7 +8,6 @@ using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Legacy;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
@@ -90,8 +89,11 @@ public partial class StreamsClient {
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return message.IsRecord 
-                ? message.AsRecord 
+            // Check the concrete value, not IsRecord: on an empty read FirstOrDefaultAsync returns a
+            // default ReadRecordsResult whose IsRecord is true (variant default = case 0) with a null
+            // payload, so `IsRecord` would leak that null instead of taking the throw branch.
+            return message.Value is Record record
+                ? record
                 : throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
         }
         catch (Exception ex) {
@@ -99,17 +101,29 @@ public partial class StreamsClient {
         }
     }
 
-    public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest request, CancellationToken ct = default) {
-        request.EnsureValid();
-        return ReadCore(Requests.CreateReadRecordsRequest(request), request.SkipDecoding, request.Filter, ct);
+    public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsOptions options, CancellationToken ct = default) {
+        options.EnsureValid();
+        return ReadCore(Requests.CreateReadRecordsRequest(options), options.SkipDecoding, options.Filter, ct);
     }
 
-    public IAsyncEnumerable<ReadRecordsResult> ReadStream(ReadStreamRequest request, CancellationToken ct = default) {
-        request.EnsureValid();
+    public IAsyncEnumerable<ReadRecordsResult> ReadStream(StreamName stream, ReadStreamOptions options, CancellationToken ct = default) {
+        // The stream used to live on the options object, so these guards (and the filter/stream
+        // agreement check) were validator rules. With the stream now a method parameter, they move
+        // here — mirroring the same checks ReadStreamEdge already performs against the parameter.
+        if (stream == StreamName.Unset)
+            throw new ArgumentException("Stream name must be specified when reading from a specific stream.", nameof(stream));
 
-        var grpcRequest = Requests.CreateReadStreamRequest(request);
+        if (stream == StreamName.Log)
+            throw new ArgumentException("Stream name cannot be '$all' when reading from a specific stream.", nameof(stream));
 
-        return ReadCore(grpcRequest, request.SkipDecoding, request.Filter, ct);
+        if (options.Filter is StreamNameFilter streamFilter && streamFilter.TargetStream != stream)
+            throw new ArgumentException("Filter target stream does not match the specified stream to read from.", nameof(options));
+
+        options.EnsureValid();
+
+        var grpcRequest = Requests.CreateReadStreamRequest(stream, options);
+
+        return ReadCore(grpcRequest, options.SkipDecoding, options.Filter, ct);
     }
 
     async IAsyncEnumerable<ReadRecordsResult> ReadCore(
@@ -191,32 +205,23 @@ public static partial class StreamsClientExtensions {
         #region ->> Read Records <<-
 
         public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
-            client.ReadRecords(ReadRecordsRequest.New().FromPosition(start).Build(), cancellationToken);
-       
-        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsRequest.Builder builder, CancellationToken ct = default) =>
-            client.ReadRecords(builder.Build(), ct);
-        
-        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Action<ReadRecordsRequest.Builder> configure, CancellationToken ct = default) =>
-            client.ReadRecords(ReadRecordsRequest.New().With(configure).Build(), ct);
-        
-        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Action<ReadRecordsRequest> configure, CancellationToken ct = default) =>
-            client.ReadRecords(new ReadRecordsRequest().With(configure), ct);
+            client.ReadRecords(new ReadRecordsOptions { Start = start }, cancellationToken);
+
+        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Func<ReadRecordsOptions, ReadRecordsOptions> configure, CancellationToken cancellationToken = default) =>
+            client.ReadRecords(configure(new ReadRecordsOptions()), cancellationToken);
 
         #endregion
 
         #region ->> Read Streams <<-
 
+        public IAsyncEnumerable<ReadRecordsResult> ReadStream(StreamName stream, Func<ReadStreamOptions, ReadStreamOptions> configure, CancellationToken cancellationToken = default) =>
+            client.ReadStream(stream, configure(new ReadStreamOptions()), cancellationToken);
+
         public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
-            client.ReadStream(
-                ReadStreamRequest.New().Stream(stream).FromRevision(start).Build(),
-                cancellationToken
-            );
+            client.ReadStream(stream, new ReadStreamOptions { Start = start }, cancellationToken);
 
         public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
-            client.ReadStream(
-                ReadStreamRequest.New().Stream(stream).Build(),
-                cancellationToken
-            );
+            client.ReadStream(stream, new ReadStreamOptions(), cancellationToken);
 
         public ValueTask<Record> ReadFirstStreamRecord(StreamName stream, bool skipDecoding, CancellationToken cancellationToken = default) =>
             client.ReadStreamEdge(stream, ReadDirection.Forwards, skipDecoding, cancellationToken);

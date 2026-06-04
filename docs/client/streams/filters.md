@@ -21,7 +21,7 @@ await foreach (var item in client.Streams.ReadRecords(request)) {
 
 ## Factory methods
 
-`RecordFilter` is the entry point. Each factory returns an `IRecordFilter` you assign to `Filter`.
+`RecordFilter` is the entry point. Each factory returns a `RecordFilter` you assign to `Filter`.
 
 | Factory | Resolves to | Description |
 |---|---|---|
@@ -139,18 +139,34 @@ var request = new ReadRecordsRequest {
 
 ## Inspecting a filter
 
-Every filter exposes read-only properties used by request shaping.
+Every `RecordFilter` exposes two members regardless of concrete type:
 
-| Property | Description |
+| Member | Description |
 |---|---|
-| `Expression` | The regex pattern (`StreamFilter`) or SQL string (`ExpressionFilter`) the filter evaluates. |
-| `TargetStream` | The stream the filter resolves to. `$all` for filters without a single target. |
-| `IsStreamFilter` | True when the filter resolves to a single stream (named or index). |
-| `IsIndexFilter` | True when that stream is a `$idx-*` index. |
+| `Expression` | The original input the filter was built from — stream name, regex pattern, category/schema/index name, or SQL string. |
+| `IsMatch(record)` | Evaluates a record against the filter (client-side). |
 
 ```csharp
-var filter = RecordFilter.ByCategory("order");
+RecordFilter filter = RecordFilter.ByCategory("order");
 
-Console.WriteLine("Target: {0}", filter.TargetStream);  // $idx-ce-order
-Console.WriteLine("Index?  {0}", filter.IsIndexFilter); // True
+Console.WriteLine(filter.Expression); // order
+```
+
+For kind-specific details, match on the concrete type:
+
+| Type | Extra members |
+|---|---|
+| `StreamNameFilter` | `TargetStream` — the single stream the read routes to. |
+| `CategoryFilter` | `CategoryName` — the resolved category. |
+| `SchemaFilter` | `SchemaName` — the resolved schema (event type) name. |
+| `ExpressionFilter` | `QueriesData` — whether the expression reads the decoded payload. |
+| `StreamRegexFilter`, `UserIndexFilter`, `EmptyFilter` | no extra public members. |
+
+```csharp
+switch (filter) {
+    case StreamNameFilter s: Console.WriteLine($"Direct read on {s.TargetStream}"); break;
+    case CategoryFilter c:   Console.WriteLine($"Category {c.CategoryName}");        break;
+    case SchemaFilter sf:    Console.WriteLine($"Schema {sf.SchemaName}");           break;
+    case ExpressionFilter e: Console.WriteLine($"Queries payload: {e.QueriesData}"); break;
+}
 ```

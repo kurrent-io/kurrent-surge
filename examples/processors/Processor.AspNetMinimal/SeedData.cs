@@ -59,13 +59,12 @@ public static class SeedData {
                         TransferredAt = DateTimeOffset.UtcNow
                     };
 
-                    var result = await client.Streams.AppendStream(
-                        AppendStreamRequest.For(stream)
-                            .AddMessage(registered)
-                            .AddMessage(transferred)
-                            .ExpectedState(ExpectedStreamState.NoStream)
-                            .Build()
-                    );
+                    var records = new[] {
+                        AppendRecord.New().Stream(stream).Value(registered).Build(),
+                        AppendRecord.New().Stream(stream).Value(transferred).Build()
+                    };
+
+                    var result = await client.Streams.AppendStream(stream, records, ExpectedStreamState.NoStream);
 
                     Log.Verbose("Seeded {Player} → stream {Stream} at revision {Revision}",
                         $"{p.FirstName} {p.LastName}", stream, result.Revision);

@@ -87,7 +87,7 @@ public readonly record struct PartitionPositions : IReadOnlyDictionary<Partition
 
 
 // Processor-synthesized checkpoint cases extending client's Checkpoint hierarchy.
-// Server-emitted cases (IntervalCheckpoint, CaughtUpCheckpoint) live in the client.
+// Server-emitted cases (FilterCheckpoint, CaughtUpCheckpoint) live in the client.
 
 public sealed record ManualCheckpoint(CheckpointId Id, DateTimeOffset Timestamp, string? Reason = null)
     : Checkpoint(Id, Timestamp);
@@ -102,6 +102,7 @@ static class CheckpointExtensions {
     extension(Checkpoint cp) {
         public CheckpointTrigger TriggerKind => cp switch {
             IntervalCheckpoint  => CheckpointTrigger.Interval,
+            FilterCheckpoint    => CheckpointTrigger.Filter,
             CaughtUpCheckpoint  => CheckpointTrigger.CaughtUp,
             ManualCheckpoint    => CheckpointTrigger.Manual,
             ShutdownCheckpoint  => CheckpointTrigger.Shutdown,
@@ -197,13 +198,27 @@ public enum CheckpointTrigger {
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Triggered automatically by the server based on <see cref="CheckpointOptions.Interval"/>.
+    /// Triggered by the client-side checkpointer timer based on <see cref="CheckpointOptions.Interval"/>.
     /// This is the primary mechanism for regular checkpointing.
     /// </para>
     /// <para>Frequency: Periodic (every interval milliseconds).</para>
     /// <para>Auto-deleted: Yes (subject to retention count).</para>
     /// </remarks>
     Interval = 2,
+
+    /// <summary>
+    /// The server's filtered log scan reached a new position with no matches in the window.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Emitted by the server during a filtered subscription, paced by the subscription's max search
+    /// window (one per scan window). Carries the scan watermark in the checkpoint's positions; the
+    /// drone advances every owned partition to it so a cold restart skips the already-scanned
+    /// (no-match) region.
+    /// </para>
+    /// <para>Frequency: Periodic (every scan window while catching up over a sparse filter).</para>
+    /// </remarks>
+    Filter = 3,
 
     /// <summary>
     /// Subscription caught up to end of a filter, a stream or the log, transitioning to live mode.

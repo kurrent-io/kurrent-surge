@@ -12,7 +12,7 @@ namespace Kurrent.Client.Streams;
 /// </summary>
 [StructLayout(LayoutKind.Auto)]
 public readonly partial record struct ConsistencyViolation : IVariant<StreamStateViolation, QueryPredicateViolation> {
-    public static readonly ConsistencyViolation None = new();
+    public static readonly ConsistencyViolation None;
 
     /// <summary>
     /// Index of the check in the original consistency_checks list.

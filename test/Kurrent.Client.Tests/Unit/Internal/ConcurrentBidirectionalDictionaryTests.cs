@@ -679,7 +679,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
         }
 
         // Reader tasks
-        for (var i = 0; i < numReaderTasks; i++)
+        for (var i = 0; i < numReaderTasks; i++) {
             tasks.Add(
                 Task.Run(() => {
                         // More reads
@@ -695,6 +695,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
                     }
                 )
             );
+        }
 
         await Task.WhenAll(tasks);
 

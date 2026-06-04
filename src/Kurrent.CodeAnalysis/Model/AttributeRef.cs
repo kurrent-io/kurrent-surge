@@ -9,9 +9,10 @@ public sealed record AttributeRef(
         index >= 0 && index < ConstructorArgs.Length ? ConstructorArgs[index] : null;
 
     public ConstantValue? Arg(string name) {
-        foreach (var a in NamedArgs)
+        foreach (var a in NamedArgs) {
             if (a.Name == name)
                 return a.Value;
+        }
 
         return null;
     }

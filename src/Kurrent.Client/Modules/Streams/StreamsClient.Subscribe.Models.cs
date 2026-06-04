@@ -6,8 +6,7 @@ namespace Kurrent.Client.Streams;
 /// Configures the resilience strategy for <see cref="StreamsClient.SubscribeWithResilience"/>.
 /// Controls how and when the subscription reconnects after transient failures.
 /// </summary>
-[PublicAPI]
-public sealed record SubscribeResilienceOptions {
+sealed record SubscribeResilienceOptions {
     /// <summary>
     /// Default profile: retry forever with exponential backoff and jitter.
     /// Suitable for long-running subscriptions that must stay alive.

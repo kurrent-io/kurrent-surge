@@ -43,7 +43,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     async Task ValidateExpressions(string category, string[] expressions) {
         var failures = new List<string>();
 
-        foreach (var expression in expressions)
+        foreach (var expression in expressions) {
             try {
                 await using var cmd = _connection.CreateCommand();
                 cmd.CommandText = $"EXPLAIN SELECT * FROM records WHERE {expression}";
@@ -52,6 +52,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
             catch (Exception ex) {
                 failures.Add($"[{category}] {expression}: {ex.Message}");
             }
+        }
 
         await Assert.That(failures).IsEmpty();
     }

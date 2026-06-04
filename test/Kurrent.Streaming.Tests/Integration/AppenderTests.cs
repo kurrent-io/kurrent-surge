@@ -3,7 +3,6 @@ using Kurrent.Client.Streams;
 using Kurrent.Streaming.Experimental.Components.Appender;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
-using Kurrent.Testkit.TUnit;
 
 namespace Kurrent.Streaming.Tests;
 
@@ -15,7 +14,7 @@ public class AppenderTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Before(Test)]
-    public void RegisterTypes() => Fixture.TypeMapper.Map<RaceCar>();
+    public void RegisterTypes(CancellationToken cancellationToken) => Fixture.TypeMapper.Map<RaceCar>();
 
     AppendRecord NewRecord(StreamName stream, string? orderingKey = null) =>
         AppendRecord.New()
@@ -300,13 +299,12 @@ public class AppenderTests {
         }));
 
         // Act — interleave records across all keys
-        var tasks = new List<ValueTask<AppendResult>>();
+        var tasks = new List<Task<AppendResult>>();
 
         for (var i = 0; i < recordsPerKey; i++)
-            foreach (var entry in data)
-                tasks.Add(appender.AppendAsync(entry.Records[i], ct));
+            tasks.AddRange(data.Select(entry => appender.AppendAsync(entry.Records[i], ct).AsTask()));
 
-        var results = await Task.WhenAll(tasks.Select(t => t.AsTask()));
+        var results = await Task.WhenAll(tasks);
 
         // Assert — all acknowledged
         foreach (var result in results)
@@ -346,16 +344,16 @@ public class AppenderTests {
         }));
 
         // Act — interleave keyed and unkeyed
-        var tasks = new List<ValueTask<AppendResult>>();
+        var tasks = new List<Task<AppendResult>>();
 
         for (var i = 0; i < recordsPerGroup; i++) {
-            tasks.Add(appender.AppendAsync(unkeyed[i], ct));
+            tasks.Add(appender.AppendAsync(unkeyed[i], ct).AsTask());
 
             foreach (var entry in keyed)
-                tasks.Add(appender.AppendAsync(entry.Records[i], ct));
+                tasks.Add(appender.AppendAsync(entry.Records[i], ct).AsTask());
         }
 
-        var results = await Task.WhenAll(tasks.Select(t => t.AsTask()));
+        var results = await Task.WhenAll(tasks);
 
         // Assert
         foreach (var result in results)

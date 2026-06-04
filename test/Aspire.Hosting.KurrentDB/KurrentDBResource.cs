@@ -56,8 +56,11 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
         if (Priority != 0)
             ctx.EnvironmentVariables["KURRENTDB_NODE_PRIORITY"] = Priority.ToString();
 
+        // The license key is a secret, so it flows as a secret ParameterResource (see
+        // KurrentDBServerResource) — Aspire masks it in the dashboard and emits it as a secret
+        // input in the publish manifest rather than inlining the raw value.
         if (!string.IsNullOrEmpty(settings.LicenseKey))
-            ctx.EnvironmentVariables["KURRENTDB_LICENSING__LICENSE_KEY"] = settings.LicenseKey;
+            ctx.EnvironmentVariables["KURRENTDB_LICENSING__LICENSE_KEY"] = Parent.LicenseKeyParameter;
 
         ctx.EnvironmentVariables["KURRENTDB_USER_CERTIFICATES__ENABLED"] =
             settings.UserCertificatesEnabled.ToString().ToLowerInvariant();

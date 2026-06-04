@@ -1,4 +1,6 @@
+using Kurrent.Client.Indexes;
 using Kurrent.Client.Streams;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Testing.ArcadeRacer;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -13,26 +15,42 @@ public class SubscribeLinqTests {
 
     IAsyncEnumerable<SubscribeMessage> SubscribeToStream(SeededTestStream data, CancellationToken ct) =>
         Fixture.Client.Streams.Subscribe(
-            RecordFilter.ByStream(data.Stream),
-            RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-            skipDecoding: true,
-            ct: ct
+            new() {
+                Filter       = RecordFilter.ByStream(data.Stream),
+                Start        = RecordPosition.Earliest,
+                SkipDecoding = true
+            },
+            ct
         );
 
-    IAsyncEnumerable<SubscribeMessage> SubscribeToLog(SeededTestStream data, LogPosition after, CancellationToken ct) =>
+    IAsyncEnumerable<SubscribeMessage> SubscribeToLog(SeededTestStream data, RecordPosition after, CancellationToken ct) =>
         Fixture.Client.Streams.Subscribe(
-            RecordFilter.ByExpression($"stream LIKE '{data.Stream}%'"),
-            RecordPosition.From(after),
-            skipDecoding: true,
-            ct: ct
+            new() {
+                Filter       = RecordFilter.ByExpression($"stream LIKE '{data.Stream}%'"),
+                Start        = after,
+                SkipDecoding = true
+            },
+            ct
         );
 
-    IAsyncEnumerable<SubscribeMessage> SubscribeToIndex(LogPosition after, CancellationToken ct) =>
+    IAsyncEnumerable<SubscribeMessage> SubscribeToCategory(RecordPosition after, CancellationToken ct) =>
         Fixture.Client.Streams.Subscribe(
-            RecordFilter.ByExpression("category = 'race'"),
-            RecordPosition.From(after),
-            skipDecoding: true,
-            ct: ct
+            new() {
+                Filter       = RecordFilter.ByCategory("race"),
+                Start        = after,
+                SkipDecoding = true
+            },
+            ct
+        );
+
+    IAsyncEnumerable<SubscribeMessage> SubscribeToUserIndex(string indexName, RecordPosition after, CancellationToken ct) =>
+        Fixture.Client.Streams.Subscribe(
+            new() {
+                Filter       = RecordFilter.ByUserIndex(indexName),
+                Start        = after,
+                SkipDecoding = true
+            },
+            ct
         );
 
     #region ->> Stream Subscription <<-
@@ -216,7 +234,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(10, ct);
 
         // Act
-        var records = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var records = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Take(5)
@@ -233,7 +251,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(10, ct);
 
         // Act
-        var first = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var first = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .FirstAsync(ct);
@@ -249,7 +267,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(10, ct);
 
         // Act
-        var records = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var records = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .TakeWhile(r => r.Position.LogPosition < data.Position)
@@ -266,7 +284,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(10, ct);
 
         // Act
-        var records = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var records = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Skip(3)
@@ -284,7 +302,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(7, ct);
 
         // Act
-        var count = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var count = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Take(data.Records.Length)
             .CountAsync(ct);
@@ -300,7 +318,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(5, ct);
 
         // Act
-        var ids = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var ids = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Take(data.Records.Length)
@@ -321,7 +339,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(10, ct);
 
         // Act
-        var records = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var records = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .SkipWhile(r => r.Position.LogPosition < data.Position)
@@ -340,7 +358,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(5, ct);
 
         // Act
-        var hasRecords = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var hasRecords = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .AnyAsync(ct);
 
@@ -355,7 +373,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(5, ct);
 
         // Act
-        var allMatch = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var allMatch = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Take(data.Records.Length)
@@ -372,7 +390,7 @@ public class SubscribeLinqTests {
         var data = await Fixture.SeedTestStream(5, ct);
 
         // Act
-        var positions = await SubscribeToLog(data, lastPosition.LogPosition, ct)
+        var positions = await SubscribeToLog(data, lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord.Position)
             .Take(data.Records.Length)
@@ -385,16 +403,16 @@ public class SubscribeLinqTests {
 
     #endregion
 
-    #region ->> Index Subscription <<-
+    #region ->> Category Subscription <<-
 
     [Test]
-    public async ValueTask index_take(CancellationToken ct) {
+    public async ValueTask category_take(CancellationToken ct) {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data = await Fixture.SeedTestStream(10, ct);
 
-        // Act — subscribe via expression filter that resolves to category index
-        var records = await SubscribeToIndex(lastPosition.LogPosition, ct)
+        // Act — subscribe via the built-in $ce-race category index
+        var records = await SubscribeToCategory(lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Take(5)
@@ -405,13 +423,13 @@ public class SubscribeLinqTests {
     }
 
     [Test]
-    public async ValueTask index_aggregate(CancellationToken ct) {
+    public async ValueTask category_aggregate(CancellationToken ct) {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var data = await Fixture.SeedTestStream(5, ct);
 
         // Act
-        var streams = await SubscribeToIndex(lastPosition.LogPosition, ct)
+        var streams = await SubscribeToCategory(lastPosition, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Take(data.Records.Length)
@@ -423,6 +441,76 @@ public class SubscribeLinqTests {
 
         // Assert — all records belong to race-* streams
         await Assert.That(streams.All(s => s.StartsWith("race-"))).IsTrue();
+    }
+
+    #endregion
+
+    #region ->> User Index Subscription <<-
+
+    [Test]
+    public async ValueTask user_index_take(CancellationToken ct) {
+        // Arrange — create a user index over LapCompleted events, then seed a full race so the
+        // index has plenty of matching records. Seeding happens AFTER the index is started so the
+        // records flow through it. The wire schema name is the type's full name (see MessageTypeMapper).
+        var schemaName   = typeof(LapCompleted).FullName!;
+        var indexName    = $"lap-completed-{Guid.NewGuid():N}";
+        var lastPosition = await Fixture.LatestRecordPosition(ct);
+
+        // The server currently allows at most one index field, and field names must be lowercase
+        // (alphanumeric, underscores, dashes); the selector still uses the camelCase JSON path.
+        await Fixture.Client.Indexes.Create(
+            indexName,
+            $"rec => rec.schema.name == '{schemaName}'",
+            [new IndexField("car_id", "rec => rec.value.carId", IndexFieldType.String)],
+            start: true,
+            ct
+        );
+
+        await Fixture.SeedTestStream(ct);
+
+        // Act
+        var records = await SubscribeToUserIndex(indexName, lastPosition, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .Take(5)
+            .ToListAsync(ct);
+
+        // Assert
+        await Assert.That(records.Count).IsEqualTo(5);
+    }
+
+    [Test]
+    public async ValueTask user_index_filters_to_indexed_schema(CancellationToken ct) {
+        // Arrange — a user index scoped to LapCompleted must yield ONLY LapCompleted records,
+        // unlike a category index which surfaces every event type in the category.
+        var schemaName   = typeof(LapCompleted).FullName!;
+        var indexName    = $"lap-completed-{Guid.NewGuid():N}";
+        var lastPosition = await Fixture.LatestRecordPosition(ct);
+
+        await Fixture.Client.Indexes.Create(
+            indexName,
+            $"rec => rec.schema.name == '{schemaName}'",
+            [new IndexField("car_id", "rec => rec.value.carId", IndexFieldType.String)],
+            start: true,
+            ct
+        );
+
+        await Fixture.SeedTestStream(ct);
+
+        // Act — collect the distinct schema names that flow through the user index
+        var schemas = await SubscribeToUserIndex(indexName, lastPosition, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord.Schema.SchemaName.Value)
+            .Take(5)
+            .AggregateAsync(
+                new HashSet<string>(),
+                (set, name) => { set.Add(name); return set; },
+                ct
+            );
+
+        // Assert — the index filter selected only the indexed schema
+        await Assert.That(schemas.Count).IsEqualTo(1);
+        await Assert.That(schemas).Contains(schemaName);
     }
 
     #endregion

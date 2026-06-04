@@ -14,11 +14,12 @@ public static class CertificatesManager {
             Path.Combine("node", "node.key")
         }.Select(path => Path.Combine(certificatePath, path));
 
-        foreach (var file in certificateFiles)
+        foreach (var file in certificateFiles) {
             if (!File.Exists(file))
                 throw new InvalidOperationException(
                     $"Could not locate the certificates file {file} needed to run KurrentDB. Please run the 'gencert' tool at the root of the repository."
                 );
+        }
     }
 
     // /// <summary>

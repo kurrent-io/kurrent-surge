@@ -1,5 +1,4 @@
 using Kurrent.Sdk.Testkit;
-using Kurrent.Testkit.Aspire;
 
 namespace Aspire.Hosting.KurrentDB.Tests;
 

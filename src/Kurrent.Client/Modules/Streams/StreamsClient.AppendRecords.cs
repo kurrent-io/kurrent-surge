@@ -8,24 +8,67 @@ namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient {
     /// <summary>
-    /// Appends records from a materialized request. All records are validated and serialized
-    /// before sending. Use for small atomic batches where the full request is inspectable.
+    /// Appends records from an async enumerable source with optional consistency checks and a
+    /// batch-level metadata overlay. Single-pass: each record is validated, serialized, and
+    /// size-checked as it is yielded — nothing is materialized into an intermediate collection.
     /// </summary>
     public async ValueTask<AppendRecordsResponse> AppendRecords(
-        AppendRecordsRequest request,
-        CancellationToken cancellationToken = default
+        IAsyncEnumerable<AppendRecord> records,
+        AppendRecordsOptions? options,
+        CancellationToken cancellationToken
     ) {
-        request.EnsureValid();
+        var maxRecordSize      = options?.MaxRecordSize      ?? AppendRecordsOptions.DefaultMaxRecordSize;
+        var maxTransactionSize = options?.MaxTransactionSize ?? AppendRecordsOptions.DefaultMaxTransactionSize;
 
-        var ctx = new MappingContext(SerializerProvider, MetadataDecoder, RegistryPolicy, cancellationToken);
+        var ctx             = CreateMappingContext(cancellationToken);
+        var request         = new Contracts.AppendRecordsRequest();
+        var transactionSize = 0;
 
-        try {
-            var serviceRequest = await request
+        await foreach (var record in records.WithCancellation(cancellationToken).ConfigureAwait(false)) {
+            EnsureValid(record);
+            
+            // Metadata.WithMany mutates the record's metadata, so there is no record copy.
+            // This also mutates the caller's metadata — intentional.
+            if (options?.Metadata is { Count: > 0 } meta)
+                record.Metadata.WithMany(meta);
+
+            var serialized = await record
                 .ToContract(ctx)
                 .ConfigureAwait(false);
 
+            // The serialized protobuf size is the unit the server enforces, so we measure the
+            // same thing here to fail fast on a transaction that could never be accepted.
+            var recordSize = serialized.CalculateSize();
+            if (recordSize > maxRecordSize)
+                throw new MaxAppendRecordSizeExceededException(
+                    string.Format(ErrorMessages.AppendRecordSizeExceeded, record.RecordId, recordSize, maxRecordSize)) {
+                    RecordId         = record.RecordId,
+                    RecordActualSize = recordSize,
+                    RecordMaxSize    = maxRecordSize
+                };
+
+            transactionSize += recordSize;
+            if (transactionSize > maxTransactionSize)
+                throw new MaxAppendTransactionSizeExceededException(
+                    string.Format(ErrorMessages.AppendTransactionSizeExceeded, transactionSize, maxTransactionSize)) {
+                    TransactionActualSize = transactionSize,
+                    TransactionMaxSize    = maxTransactionSize
+                };
+
+            request.Records.Add(serialized);
+        }
+
+        if (request.Records.Count == 0)
+            throw new ValidationException(
+                ErrorCode.From(nameof(AppendRecords)),
+                ErrorMessages.AppendRecordsEmpty,
+                ValidationProblem.Create(ErrorCode.From("AppendRecords"), ErrorMessages.AppendRecordsEmpty));
+
+        AddChecks(request, options);
+
+        try {
             var rsp = await ServiceClient
-                .AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken)
+                .AppendRecordsAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             return rsp.ToResponse();
@@ -36,8 +79,49 @@ public partial class StreamsClient {
                 MaxAppendRecordSizeExceededException.From,
                 MaxAppendTransactionSizeExceededException.From);
         }
-    }
 
+        static void EnsureValid(AppendRecord record) {
+            if (record.Stream == StreamName.Unset)
+                throw new ValidationException(
+                    ErrorCode.FromType<AppendRecord>(),
+                    ErrorMessages.AppendRecordStreamRequired,
+                    ValidationProblem.Create(
+                        ErrorCode.FromType<AppendRecord>(),
+                        ErrorMessages.AppendRecordStreamRequired));
+
+            record.EnsureValid();
+        }
+
+        static void AddChecks(Contracts.AppendRecordsRequest request, AppendRecordsOptions? options) {
+            if (options?.Checks is not { Count: > 0 } checks)
+                return;
+
+            foreach (var check in checks.Where(c => c != ConsistencyCheck.None))
+                request.Checks.Add(check.ToContract());
+        }
+    }
+    
+    /// <summary>
+    /// Appends records from an async enumerable source with optional consistency checks and
+    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
+    /// as it is yielded.
+    /// </summary>
+    public ValueTask<AppendRecordsResponse> AppendRecords(
+        IAsyncEnumerable<AppendRecord> records,
+        CancellationToken cancellationToken
+    ) => AppendRecords(records, (AppendRecordsOptions?)null, cancellationToken);
+    
+    /// <summary>
+    /// Appends records from an enumerable source with optional consistency checks and
+    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
+    /// as it is iterated.
+    /// </summary>
+    public ValueTask<AppendRecordsResponse> AppendRecords(
+        IEnumerable<AppendRecord> records,
+        AppendRecordsOptions? options,
+        CancellationToken cancellationToken
+    ) => AppendRecords(records.ToAsyncEnumerable(), options, cancellationToken);
+    
     /// <summary>
     /// Appends records from an enumerable source in a single pass — each record is validated,
     /// stamped with batch overrides, and serialized as it is iterated. The records are never
@@ -45,134 +129,26 @@ public partial class StreamsClient {
     /// </summary>
     public ValueTask<AppendRecordsResponse> AppendRecords(
         IEnumerable<AppendRecord> records,
-        CancellationToken cancellationToken = default
-    ) => AppendRecords(records, options: null, cancellationToken);
+        CancellationToken cancellationToken
+    ) => AppendRecords(records, (AppendRecordsOptions?)null, cancellationToken);
 
     /// <summary>
-    /// Appends records from an enumerable source with optional consistency checks and
-    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
-    /// as it is iterated.
-    /// </summary>
-    public async ValueTask<AppendRecordsResponse> AppendRecords(
-        IEnumerable<AppendRecord> records,
-        AppendRecordsOptions? options,
-        CancellationToken cancellationToken = default
-    ) {
-        var ctx     = new MappingContext(SerializerProvider, MetadataDecoder, RegistryPolicy, cancellationToken);
-        var request = new Contracts.AppendRecordsRequest();
-        var count   = 0;
-
-        foreach (var record in records) {
-            var stamped = ApplyOverrides(record, options);
-            ValidateRecord(stamped);
-            request.Records.Add(await stamped.ToContract(ctx).ConfigureAwait(false));
-            count++;
-        }
-
-        if (count == 0)
-            throw new ValidationException(
-                ErrorCode.FromType<AppendRecordsRequest>(),
-                ErrorMessages.AppendRecordsRequestEmpty);
-
-        AppendChecks(request, options);
-
-        return await SendAppendRequest(request, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Appends records from an async enumerable source with optional consistency checks and
-    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
-    /// as it is yielded.
+    /// Appends records from an async enumerable source, configuring the batch options inline
+    /// from a fresh <see cref="AppendRecordsOptions"/>.
     /// </summary>
     public ValueTask<AppendRecordsResponse> AppendRecords(
         IAsyncEnumerable<AppendRecord> records,
-        CancellationToken cancellationToken = default
-    ) => AppendRecords(records, options: null, cancellationToken);
+        Func<AppendRecordsOptions, AppendRecordsOptions> configure,
+        CancellationToken cancellationToken
+    ) => AppendRecords(records, configure(new()), cancellationToken);
 
     /// <summary>
-    /// Appends records from an async enumerable source with optional consistency checks and
-    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
-    /// as it is yielded.
+    /// Appends records from an enumerable source, configuring the batch options inline
+    /// from a fresh <see cref="AppendRecordsOptions"/>.
     /// </summary>
-    public async ValueTask<AppendRecordsResponse> AppendRecords(
-        IAsyncEnumerable<AppendRecord> records,
-        AppendRecordsOptions? options,
-        CancellationToken cancellationToken = default
-    ) {
-        var ctx     = new MappingContext(SerializerProvider, MetadataDecoder, RegistryPolicy, cancellationToken);
-        var request = new Contracts.AppendRecordsRequest();
-        var count   = 0;
-
-        await foreach (var record in records.WithCancellation(cancellationToken).ConfigureAwait(false)) {
-            var stamped = ApplyOverrides(record, options);
-            ValidateRecord(stamped);
-            request.Records.Add(await stamped.ToContract(ctx).ConfigureAwait(false));
-            count++;
-        }
-
-        if (count == 0)
-            throw new ValidationException(
-                ErrorCode.FromType<AppendRecordsRequest>(),
-                ErrorMessages.AppendRecordsRequestEmpty);
-
-        AppendChecks(request, options);
-
-        return await SendAppendRequest(request, cancellationToken).ConfigureAwait(false);
-    }
-
-    #region ->> AppendRecords Internals <<-
-
-    static AppendRecord ApplyOverrides(AppendRecord record, AppendRecordsOptions? options) {
-        if (options is null)
-            return record;
-
-        if (options.DataFormat is { } fmt)
-            record = record with { DataFormat = fmt };
-
-        if (options.Metadata is { } meta)
-            record = record with { Metadata = new Metadata(record.Metadata).WithMany(meta) };
-
-        return record;
-    }
-
-    static void ValidateRecord(AppendRecord record) {
-        if (record.Stream == StreamName.Unset)
-            throw new ValidationException(
-                ErrorCode.FromType<AppendRecordsRequest>(),
-                ErrorMessages.AppendRecordStreamRequired,
-                ValidationProblem.Create(
-                    ErrorCode.FromType<AppendRecordsRequest>(),
-                    ErrorMessages.AppendRecordStreamRequired));
-
-        record.EnsureValid();
-    }
-
-    static void AppendChecks(Contracts.AppendRecordsRequest request, AppendRecordsOptions? options) {
-        if (options?.Checks is not { Length: > 0 } checks)
-            return;
-
-        foreach (var check in checks)
-            if (check != ConsistencyCheck.None)
-                request.Checks.Add(check.ToContract());
-    }
-
-    async ValueTask<AppendRecordsResponse> SendAppendRequest(
-        Contracts.AppendRecordsRequest request, CancellationToken ct
-    ) {
-        try {
-            var rsp = await ServiceClient
-                .AppendRecordsAsync(request, cancellationToken: ct)
-                .ConfigureAwait(false);
-
-            return rsp.ToResponse();
-        }
-        catch (Exception ex) {
-            throw ex.AsWellKnownException(
-                AppendConsistencyViolationException.From,
-                MaxAppendRecordSizeExceededException.From,
-                MaxAppendTransactionSizeExceededException.From);
-        }
-    }
-
-    #endregion
+    public ValueTask<AppendRecordsResponse> AppendRecords(
+        IEnumerable<AppendRecord> records,
+        Func<AppendRecordsOptions, AppendRecordsOptions> configure,
+        CancellationToken cancellationToken
+    ) => AppendRecords(records.ToAsyncEnumerable(), configure(new()), cancellationToken);
 }

@@ -12,13 +12,11 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var checkedStream = NewNonExistentStreamName();
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var req = AppendRecordsRequest.New()
-            .AddRecords(data.Records.ToArray())
-            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
-            .Build();
+        var options = new AppendRecordsOptions()
+            .AddChecks(ConsistencyCheck.StreamDoesNotExist(checkedStream));
 
         // act
-        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+        var result = await Fixture.Client.Streams.AppendRecords(data.Records, options, ct);
 
         // assert
         await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Length - 1);
@@ -30,13 +28,11 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var (checkedStream, _, _) = await SeedDeletedStream(ct);
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var req = AppendRecordsRequest.New()
-            .AddRecords(data.Records.ToArray())
-            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
-            .Build();
+        var options = new AppendRecordsOptions()
+            .AddChecks(ConsistencyCheck.StreamDoesNotExist(checkedStream));
 
         // act
-        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+        var result = await Fixture.Client.Streams.AppendRecords(data.Records, options, ct);
 
         // assert
         await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Length - 1);
@@ -48,14 +44,12 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var (checkedStream, revision, _) = await SeedActiveStream(ct);
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var req = AppendRecordsRequest.New()
-            .AddRecords(data.Records.ToArray())
-            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
-            .Build();
+        var options = new AppendRecordsOptions()
+            .AddChecks(ConsistencyCheck.StreamDoesNotExist(checkedStream));
 
         // act
         var ex = await Assert.ThrowsAsync<AppendConsistencyViolationException>(
-            async () => await Fixture.Client.Streams.AppendRecords(req, ct));
+            async () => await Fixture.Client.Streams.AppendRecords(data.Records, options, ct));
 
         // assert
         var violation = ex!.Violations[0].AsStreamStateViolation;
@@ -69,13 +63,11 @@ public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
         var (checkedStream, _, _) = await SeedTombstonedStream(ct);
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        var req = AppendRecordsRequest.New()
-            .AddRecords(data.Records.ToArray())
-            .AddCheck(ConsistencyCheck.StreamDoesNotExist(checkedStream))
-            .Build();
+        var options = new AppendRecordsOptions()
+            .AddChecks(ConsistencyCheck.StreamDoesNotExist(checkedStream));
 
         // act
-        var result = await Fixture.Client.Streams.AppendRecords(req, ct);
+        var result = await Fixture.Client.Streams.AppendRecords(data.Records, options, ct);
 
         // assert
         await Assert.That(result.Revisions[0].Revision).IsEqualTo(data.Records.Length - 1);

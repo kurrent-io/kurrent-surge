@@ -11,7 +11,7 @@ namespace Kurrent.Streaming.Partitioning.Hashing;
 /// Uses <see cref="Vector128{T}"/> of <c>uint</c> SIMD when the runtime has hardware
 /// acceleration (all modern x64 and Arm64), with a scalar fallback otherwise.
 /// </summary>
-internal static class XxHash {
+static class XxHash {
     const uint Prime32V1 = 0x9E3779B1u;
     const uint Prime32V2 = 0x85EBCA77u;
     const uint Prime32V3 = 0xC2B2AE3Du;
@@ -64,7 +64,7 @@ internal static class XxHash {
 
         acc += (uint)length;
 
-        return FinalizeTail(ref ptr, offset, (nint)length, acc);
+        return FinalizeTail(ref ptr, offset, length, acc);
     }
 
     static uint Hash32Scalar(ReadOnlySpan<byte> buffer, uint seed) {
@@ -103,7 +103,7 @@ internal static class XxHash {
 
         acc += (uint)length;
 
-        return FinalizeTail(ref ptr, offset, (nint)length, acc);
+        return FinalizeTail(ref ptr, offset, length, acc);
     }
 
     static uint FinalizeTail(ref byte ptr, nint offset, nint tailEnd, uint acc) {

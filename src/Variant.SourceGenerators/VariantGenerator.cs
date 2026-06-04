@@ -139,7 +139,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
 
         foreach (var iface in t.Interfaces) {
             if (iface.Namespace == "Kurrent.Variant" &&
-                iface.Name.StartsWith("IVariantException", System.StringComparison.Ordinal) &&
+                iface.Name.StartsWith("IVariantException", StringComparison.Ordinal) &&
                 iface.TypeArguments.Length > 0) {
                 implementsIVariantException = true;
                 break;
@@ -277,11 +277,12 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         if (!char.IsLetter(name[0]) && name[0] != '_')
             sb.Append('_');
 
-        foreach (var c in name)
+        foreach (var c in name) {
             if (char.IsLetterOrDigit(c) || c == '_')
                 sb.Append(c);
             else
                 sb.Append('_');
+        }
 
         var result = sb.ToString();
         return string.IsNullOrEmpty(result) ? "GeneratedType" : result;
@@ -327,8 +328,8 @@ public sealed class VariantGenerator : IIncrementalGenerator {
                 default: {
                     var clean = GetCleanTypeName(t);
 
-                    if (string.IsNullOrEmpty(clean) || clean == "_" || clean.EndsWith("Nullable", System.StringComparison.Ordinal)) {
-                        if (clean.EndsWith("Nullable", System.StringComparison.Ordinal)) {
+                    if (string.IsNullOrEmpty(clean) || clean == "_" || clean.EndsWith("Nullable", StringComparison.Ordinal)) {
+                        if (clean.EndsWith("Nullable", StringComparison.Ordinal)) {
                             var baseName = clean.Substring(0, clean.Length - "Nullable".Length);
 
                             if (baseName.Length > 0 && char.IsUpper(baseName[0]))
@@ -349,11 +350,12 @@ public sealed class VariantGenerator : IIncrementalGenerator {
                         else {
                             var allUpper = true;
 
-                            foreach (var c in clean)
+                            foreach (var c in clean) {
                                 if (char.IsLower(c)) {
                                     allUpper = false;
                                     break;
                                 }
+                            }
 
                             paramNameBase = allUpper
                                 ? clean.ToLowerInvariant()

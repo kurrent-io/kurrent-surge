@@ -1,10 +1,9 @@
-using KurrentDB.Protocol.V1;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;
 
 static partial class StreamsClientMapping {
-    internal static partial class Requests {
+    static partial class Requests {
         /// <summary>
         /// Builds a soft-delete request. When <paramref name="revision"/> is <see cref="Revision.Unset"/>,
         /// sends <c>StreamExists</c> (any-revision delete); otherwise sends the expected revision for

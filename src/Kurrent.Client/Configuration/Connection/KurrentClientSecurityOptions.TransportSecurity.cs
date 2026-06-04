@@ -140,7 +140,7 @@ public readonly partial record struct TransportSecurity : IVariant<NoTls, Standa
 /// </remarks>
 [StructLayout(LayoutKind.Sequential, Size = 1)]
 public readonly struct NoTls {
-    public static readonly NoTls Instance = new();
+    public static readonly NoTls Instance;
 }
 
 /// <summary>

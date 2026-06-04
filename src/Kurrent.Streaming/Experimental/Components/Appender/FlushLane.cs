@@ -11,12 +11,11 @@ namespace Kurrent.Streaming.Experimental.Components.Appender;
 /// into the same lane are flushed sequentially, preserving ordering within the lane.
 /// Records arrive pre-serialized; the flush loop only frames and sends.
 /// </summary>
-internal sealed class FlushLane : IAsyncDisposable {
+sealed class FlushLane : IAsyncDisposable {
     readonly Channel<IPendingRecord> _channel;
-    readonly AppenderOptions        _options;
-    readonly StreamsClient          _streams;
-
-    Task? _flushLoop;
+    readonly AppenderOptions         _options;
+    readonly StreamsClient           _streams;
+    readonly Task?                   _flushLoop;
 
     public FlushLane(AppenderOptions options, StreamsClient streams, CancellationToken ct) {
         _options = options;
@@ -30,7 +29,7 @@ internal sealed class FlushLane : IAsyncDisposable {
                 FullMode                      = options.FullMode
             });
 
-        _flushLoop = Task.Run(() => RunFlushLoopAsync(ct));
+        _flushLoop = Task.Run(() => RunFlushLoopAsync(ct), ct);
     }
 
     public bool TryEnqueue(SerializedRecord record) =>

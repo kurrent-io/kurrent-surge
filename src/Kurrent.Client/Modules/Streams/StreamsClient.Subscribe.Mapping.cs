@@ -1,4 +1,3 @@
-using Kurrent.Client.Streams.Checkpoints;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;
@@ -7,8 +6,8 @@ static partial class StreamsClientMapping {
     internal static partial class Requests {
         /// <summary>
         /// Builds a subscription request. Dispatches between a single-stream subscription and a
-        /// filtered <c>$all</c> subscription based on the unwrapped filter. For filtered <c>$all</c>,
-        /// the server emits periodic <see cref="IntervalCheckpoint"/> barriers paced by
+        /// filtered log subscription based on the unwrapped filter. For a filtered subscription,
+        /// the server emits periodic <see cref="FilterCheckpoint"/> barriers paced by
         /// <paramref name="maxSearchWindow"/>.
         /// </summary>
         public static Contracts.ReadReq CreateSubscriptionRequest(

@@ -8,7 +8,6 @@
 
 using System.CommandLine;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -28,9 +27,10 @@ var categoryArg = new Argument<string>("category") { Description = "Test categor
 var filterOpt = new Option<string?>("--treenode-filter") { Description = "TUnit treenode filter pattern" };
 var htmlReportOpt = new Option<bool>("--html-report") { Description = "Generate TUnit HTML reports (disabled by default)" };
 var rebuildOpt = new Option<bool>("--rebuild") { Description = "Force a full from-scratch build (--no-incremental) so trim/AOT analyzers re-emit" };
+var runIdOpt = new Option<string?>("--run-id") { Description = "Use this results folder name instead of an auto-generated one, so the caller knows the path upfront (.artifacts/test-results/<run-id>)" };
 var extraArgs = new Argument<string[]>("extra") { Arity = ArgumentArity.ZeroOrMore, Description = "Extra TUnit arguments" };
 
-var runCmd = new SysCommand("run", "Execute tests and produce results") { categoryArg, filterOpt, htmlReportOpt, rebuildOpt, extraArgs };
+var runCmd = new SysCommand("run", "Execute tests and produce results") { categoryArg, filterOpt, htmlReportOpt, rebuildOpt, runIdOpt, extraArgs };
 var listCmd = new SysCommand("list", "Discover and list matching tests without running them") { categoryArg, filterOpt };
 var rootCmd = new RootCommand("Canonical test runner for the Kurrent SDK solution") { runCmd, listCmd };
 
@@ -40,6 +40,7 @@ runCmd.SetAction(async (result, _) => {
         result.GetValue(filterOpt),
         result.GetValue(htmlReportOpt),
         result.GetValue(rebuildOpt),
+        result.GetValue(runIdOpt),
         result.GetValue(extraArgs) ?? []);
 });
 
@@ -80,8 +81,12 @@ async Task<int> ListTests(string category, string? userFilter) {
 // Run
 // =============================================================================
 
-async Task<int> RunTests(string category, string? userFilter, bool htmlReport, bool rebuild, string[] passthrough) {
-    var runId = $"{DateTime.Now:yyyyMMdd-HHmmss}-{BitConverter.ToString(RandomNumberGenerator.GetBytes(2)).Replace("-", "").ToLowerInvariant()}";
+async Task<int> RunTests(string category, string? userFilter, bool htmlReport, bool rebuild, string? runIdOverride, string[] passthrough) {
+    // A caller-supplied --run-id makes the results path deterministic (.artifacts/test-results/<run-id>),
+    // so the caller can read reports directly without scraping console output for the generated folder.
+    var runId = string.IsNullOrWhiteSpace(runIdOverride)
+        ? $"{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[^4..]}"
+        : runIdOverride;
     var filter = BuildFilter(userFilter, CategoryProp(category));
     var resultsDir = Path.Combine(repoRoot, ".artifacts", "test-results", runId);
     Directory.CreateDirectory(resultsDir);

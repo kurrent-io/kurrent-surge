@@ -7,15 +7,9 @@
         "mcp"
       ]
     },
-    "kapacitor-review": {
-      "command": "kapacitor",
-      "args": ["mcp", "review"],
-      "description": "PR review context tools — query implementation session transcripts to understand why code was changed"
-    },
-    "kapacitor-sessions": {
-      "command": "kapacitor",
-      "args": ["mcp", "sessions"],
-      "cwd": "${CLAUDE_PROJECT_DIR}"
+    "rider": {
+      "url": "http://127.0.0.1:64342/sse",
+      "type": "sse"
     },
     "pinchtab": {
       "command": "pinchtab",

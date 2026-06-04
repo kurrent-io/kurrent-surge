@@ -414,7 +414,7 @@ public class MetadataTests {
             .With("int", intValue)
             .With("guid", guidValue)
             .With("string", stringValue)
-            .With("null", (object?)null);
+            .With("null", null);
 
         // Act
         var stringified = metadata.Stringify();

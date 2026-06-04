@@ -16,13 +16,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — running count of records via Scan
-        var counts = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var counts = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .ToObservable()
             .Scan(0, (count, _) => count + 1)
@@ -40,13 +41,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — batch records into chunks of 3
-        var chunks = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var chunks = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToObservable()
@@ -66,13 +68,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — take records until revision >= 5
-        var records = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var records = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToObservable()
@@ -89,13 +92,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — chunk records, breaking on every 4th record (revision % 4 == 3)
-        var chunks = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var chunks = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToObservable()
@@ -114,13 +118,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — build a running set of seen stream revisions
-        var snapshots = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var snapshots = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToObservable()
@@ -134,7 +139,7 @@ public class SubscribeR3Tests {
         // Assert — final snapshot has all revisions
         await Assert.That(snapshots.Count).IsEqualTo(data.Records.Length);
         await Assert.That(snapshots).Contains(0L);
-        await Assert.That(snapshots).Contains((long)(data.Records.Length - 1));
+        await Assert.That(snapshots).Contains(data.Records.Length - 1);
     }
 
     [Test]
@@ -142,13 +147,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — all records have the same stream, so DistinctUntilChanged on stream name yields 1
-        var distinctStreams = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var distinctStreams = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord.Position.Stream)
             .ToObservable()
@@ -166,13 +172,14 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(9, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — chunk into groups of 3, then flatten back
-        var records = await Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        var records = await Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToObservable()
@@ -190,15 +197,16 @@ public class SubscribeR3Tests {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
 
+        var options = new SubscribeOptions {
+            Filter       = RecordFilter.ByStream(data.Stream),
+            Start        = RecordPosition.Earliest,
+            SkipDecoding = true
+        };
+
         // Act — IAsyncEnumerable → Observable → IAsyncEnumerable
         var records = new List<Record>();
 
-        await foreach (var record in Fixture.Client.Streams.Subscribe(
-                RecordFilter.ByStream(data.Stream),
-                RecordPosition.From(LogPosition.Earliest, data.Stream, Revision.Min),
-                skipDecoding: true,
-                ct: ct
-            )
+        await foreach (var record in Fixture.Client.Streams.Subscribe(options, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToObservable()

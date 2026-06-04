@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
-using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Testing.ArcadeRacer;
 

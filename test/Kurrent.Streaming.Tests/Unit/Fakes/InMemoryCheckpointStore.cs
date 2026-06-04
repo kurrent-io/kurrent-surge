@@ -4,7 +4,7 @@ using Kurrent.Streaming.Models;
 
 namespace Kurrent.Streaming.Tests.Fakes;
 
-sealed class InMemoryCheckpointStore(SubscriptionInitialPosition defaultInitialPosition = SubscriptionInitialPosition.Earliest) : ICheckpointStore {
+sealed class InMemoryCheckpointStore() : ICheckpointStore {
 
     public ValueTask<ProcessorCheckpoint> LoadLatestAsync(string droneId, CancellationToken ct = default) =>
 		new(ProcessorCheckpoint.Empty);

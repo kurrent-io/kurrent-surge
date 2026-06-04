@@ -87,7 +87,7 @@ public class AppendStreamBenchmarks {
     [Benchmark(Description = "Append (expected revision)")]
     public async Task<AppendStreamResponse> append_expected_revision() {
         var response = await _fixture.Client.Streams
-            .AppendStream(_stream, _revision, _records)
+            .AppendStream(_stream, _records, _revision)
             .ConfigureAwait(false);
 
         _revision = response.Revision;

@@ -2,8 +2,7 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Streaming.Experimental;
 
-
-public interface IConsumerMetadata {
+interface IConsumerMetadata {
     /// <summary>
 	/// Unique identifier of the consumer.
 	/// </summary>
@@ -23,7 +22,7 @@ public interface IConsumerMetadata {
 /// <summary>
 ///  Represents a consumer that can consume records from a stream.
 /// </summary>
-public interface IConsumer : IConsumerMetadata, IAsyncDisposable {
+interface IConsumer : IConsumerMetadata, IAsyncDisposable {
 	/// <summary>
 	///	Consumes the records from the stream.
 	/// </summary>

@@ -1,153 +1,9 @@
 #pragma warning disable CS8604 // Possible null reference argument.
 
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using Kurrent.Validation;
 using Kurrent.Variant;
-using Resources;
 
 namespace Kurrent.Client.Streams;
-
-/// <summary>
-/// Represents a request to append multiple records to the system.
-/// </summary>
-/// <remarks>
-/// This request type allows atomically appending multiple records across different streams,
-/// with optional consistency checks to ensure data integrity.
-/// </remarks>
-[PublicAPI]
-public record AppendRecordsRequest() : SelfValidating {
-    /// <summary>
-    /// Creates a builder for appending records across one or more streams,
-    /// with optional consistency checks.
-    /// </summary>
-    public static Builder New() =>
-        new();
-
-    public AppendRecordsRequest(
-        ImmutableArray<AppendRecord> records,
-        ImmutableArray<ConsistencyCheck> checks
-    ) : this() {
-        Records = records;
-        Checks  = checks;
-    }
-
-    /// <summary>
-    /// Gets the records to be appended.
-    /// </summary>
-    public ImmutableArray<AppendRecord> Records {
-        get; init { field = value; ResetValidation(); }
-    } = [];
-
-    /// <summary>
-    /// Gets the consistency checks to be performed before appending.
-    /// </summary>
-    public ImmutableArray<ConsistencyCheck> Checks {
-        get; init { field = value; ResetValidation(); }
-    } = [];
-
-    /// <summary>
-    /// Validates all records meet their invariants and have a stream assigned.
-    /// </summary>
-    public new AppendRecordsRequest EnsureValid() {
-        Validate().EnsureValid();
-        return this;
-    }
-
-    protected override ValidationResult RunValidation() {
-        foreach (var record in Records) {
-            if (record.Stream == StreamName.Unset)
-                return ValidationResult.FromProblem(
-                    ErrorCode.FromType<AppendRecordsRequest>(),
-                    ErrorMessages.AppendRecordStreamRequired);
-
-            var result = record.Validate();
-
-            if (result.IsInvalid)
-                return result;
-        }
-
-        return Results.Success;
-    }
-
-    /// <summary>
-    /// Builds an <see cref="AppendRecordsRequest"/> where each record carries its own stream assignment.
-    /// </summary>
-    public class Builder(AppendRecordsRequest request) : FluentBuilder<Builder, AppendRecordsRequest>(request) {
-        public Builder() : this(new AppendRecordsRequest()) { }
-
-        /// <inheritdoc />
-        protected override AppendRecordsRequest OnBuild(AppendRecordsRequest request) {
-            if (request.Records.Length == 0)
-                throw new ValidationException(
-                    ErrorCode.FromType<AppendRecordsRequest>(),
-                    ErrorMessages.AppendRecordsRequestEmpty,
-                    ValidationProblem.Create(ErrorCode.FromType<AppendRecordsRequest>(), ErrorMessages.AppendRecordsRequestEmpty));
-
-            foreach (var record in request.Records) {
-                if (record.Stream == StreamName.Unset)
-                    throw new ValidationException(
-                        ErrorCode.FromType<AppendRecordsRequest>(),
-                        ErrorMessages.AppendRecordStreamRequired,
-                        ValidationProblem.Create(ErrorCode.FromType<AppendRecordsRequest>(), ErrorMessages.AppendRecordStreamRequired));
-            }
-
-            return request;
-        }
-
-        #region ->> Consistency Checks <<-
-
-        public Builder AddCheck(ConsistencyCheck check) =>
-            With(r => r with { Checks = r.Checks.Add(check) });
-
-        public Builder AddChecks(params ConsistencyCheck[] checks) =>
-            With(r => r with { Checks = r.Checks.AddRange(checks) });
-
-        public Builder AddChecks(IEnumerable<StreamStateCheck> checks) =>
-            With(r => r with { Checks = r.Checks.AddRange(checks.Select(c => (ConsistencyCheck)c)) });
-
-        #endregion
-
-        #region ->> Records <<-
-
-        public Builder AddRecord(AppendRecord record) =>
-            With(r => r with { Records = r.Records.Add(record) });
-
-        public Builder AddRecord(AppendRecord.Builder builder) =>
-            With(r => r with { Records = r.Records.Add(builder.Build()) });
-
-        public Builder AddRecord(Action<AppendRecord.Builder> configure) =>
-            With(r => {
-                var builder = new AppendRecord.Builder();
-                configure(builder);
-                return r with { Records = r.Records.Add(builder.Build()) };
-            });
-
-        public Builder AddRecord(object value, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
-            With(r => r with { Records = r.Records.Add(AppendRecord.New().Value(value).DataFormat(dataFormat).Build()) });
-
-        public Builder AddRecord<T>(T value, StreamName stream, SchemaDataFormat dataFormat = SchemaDataFormat.Json) =>
-            With(r => r with { Records = r.Records.Add(AppendRecord.New().Stream(stream).Value(value).DataFormat(dataFormat).Build()) });
-
-        public Builder AddRecords(params AppendRecord[] records) =>
-            With(r => r with { Records = r.Records.AddRange(records) });
-
-        public Builder AddRecords(IEnumerable<AppendRecord> records) =>
-            With(r => r with { Records = r.Records.AddRange(records) });
-
-        #endregion
-
-        #region ->> Batch Overrides <<-
-
-        public Builder DataFormat(SchemaDataFormat dataFormat) =>
-            WithOverride(r => r with { Records = r.Records.Select(rec => rec with { DataFormat = dataFormat }).ToImmutableArray() });
-
-        public Builder AddMetadata(string key, object value) =>
-            WithOverride(r => r with { Records = r.Records.Select(rec => rec with { Metadata = rec.Metadata.With(key, value) }).ToImmutableArray() });
-
-        #endregion
-    }
-}
 
 /// <summary>
 /// Lightweight options for the streaming <see cref="StreamsClient.AppendRecords(IEnumerable{AppendRecord}, AppendRecordsOptions?, CancellationToken)"/>
@@ -157,19 +13,60 @@ public record AppendRecordsRequest() : SelfValidating {
 [PublicAPI]
 public record AppendRecordsOptions {
     /// <summary>
+    /// Default maximum serialized size, in bytes, of a single record. Mirrors the server's hard
+    /// ceiling (<c>TFConsts.MaxLogRecordSize</c>, 16 MiB): a record larger than this can never be
+    /// accepted by any server, so the client rejects it before sending.
+    /// </summary>
+    internal const int DefaultMaxRecordSize = 16 * 1024 * 1024;
+
+    /// <summary>
+    /// Default maximum serialized size, in bytes, of the whole append transaction. Mirrors the
+    /// server's hard ceiling (<c>TFConsts.ChunkSize</c>, 256 MiB): a transaction larger than this
+    /// can never be accepted by any server, so the client rejects it before sending.
+    /// </summary>
+    internal const int DefaultMaxTransactionSize = 256 * 1024 * 1024;
+
+    /// <summary>
     /// Pre-commit consistency checks evaluated before any records are written.
     /// </summary>
-    public ImmutableArray<ConsistencyCheck> Checks { get; init; } = [];
+    public IReadOnlyList<ConsistencyCheck> Checks { get; init; } = [];
 
     /// <summary>
-    /// When set, overrides the <see cref="SchemaDataFormat"/> on every record.
+    /// Key-value pairs merged into every record's metadata. Empty by default.
     /// </summary>
-    public SchemaDataFormat? DataFormat { get; init; }
+    public Metadata Metadata { get; init; } = new();
 
     /// <summary>
-    /// When set, merges these key-value pairs into every record's metadata.
+    /// Maximum serialized size, in bytes, allowed for a single record before the append is
+    /// rejected client-side. Defaults to <see cref="DefaultMaxRecordSize"/>.
     /// </summary>
-    public Metadata? Metadata { get; init; }
+    internal int MaxRecordSize { get; init; } = DefaultMaxRecordSize;
+
+    /// <summary>
+    /// Maximum serialized size, in bytes, allowed for the whole transaction before the append is
+    /// rejected client-side. Defaults to <see cref="DefaultMaxTransactionSize"/>.
+    /// </summary>
+    internal int MaxTransactionSize { get; init; } = DefaultMaxTransactionSize;
+
+    /// <summary>
+    /// Returns a copy of these options with the given consistency checks appended.
+    /// </summary>
+    public AppendRecordsOptions AddChecks(params ConsistencyCheck[] checks) =>
+        this with { Checks = [..Checks, ..checks] };
+
+    /// <summary>
+    /// Returns a copy of these options with the given key-value pair merged into the batch metadata overlay.
+    /// </summary>
+    public AppendRecordsOptions AddMetadata(string key, object value) =>
+        this with { Metadata = new Metadata(Metadata).With(key, value) };
+    
+    // // its a hack and evil cause record should be immutable.
+    // public AppendRecordsOptions AddMetadata(string key, object value) {
+    //     Metadata.With(key, value);
+    //     return this;
+    // }
+    
+    public bool SkipValidation { get; init; }
 }
 
 /// <summary>

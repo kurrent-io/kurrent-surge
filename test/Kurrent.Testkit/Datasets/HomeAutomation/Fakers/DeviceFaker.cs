@@ -14,7 +14,7 @@ public class DeviceFaker : Faker<Device> {
                 var battery      = isBattery ? f.Random.Number(60, 100) : (int?)null;
 
                 var device = type switch {
-                    DeviceType.Thermostat     => (Device)ThermostatFaker.Instance.Generate(),
+                    DeviceType.Thermostat     => ThermostatFaker.Instance.Generate(),
                     DeviceType.MotionSensor   => MotionSensorFaker.Instance.Generate(),
                     DeviceType.SmartLight     => SmartLightFaker.Instance.Generate(),
                     DeviceType.DoorLock       => DoorLockFaker.Instance.Generate(),
