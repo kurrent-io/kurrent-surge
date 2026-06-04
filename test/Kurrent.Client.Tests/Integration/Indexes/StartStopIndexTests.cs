@@ -24,16 +24,18 @@ public class StartStopIndexTests {
             .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, start: true, cancellationToken: ct);
 
         await Fixture.Client.Indexes.Stop(indexName, ct);
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
-        var stopped = await Fixture.Client.Indexes.Get(indexName, ct);
-        await Assert.That(stopped.State).IsEqualTo(IndexState.Stopped);
+        await Eventually(async () => {
+            var stopped = await Fixture.Client.Indexes.Get(indexName, ct);
+            await Assert.That(stopped.State).IsEqualTo(IndexState.Stopped);
+        }, ct);
 
         await Fixture.Client.Indexes.Start(indexName, ct);
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
 
-        var started = await Fixture.Client.Indexes.Get(indexName, ct);
-        await Assert.That(started.State).IsEqualTo(IndexState.Started);
+        await Eventually(async () => {
+            var started = await Fixture.Client.Indexes.Get(indexName, ct);
+            await Assert.That(started.State).IsEqualTo(IndexState.Started);
+        }, ct);
     }
 
     [Test, Timeout(TestTimeoutMs)]
@@ -65,9 +67,9 @@ public class StartStopIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'MetricRecorded'", fields, start: false, cancellationToken: ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
-
-        var index = await Fixture.Client.Indexes.Get(indexName, ct);
-        await Assert.That(index.State).IsEqualTo(IndexState.Stopped);
+        await Eventually(async () => {
+            var index = await Fixture.Client.Indexes.Get(indexName, ct);
+            await Assert.That(index.State).IsEqualTo(IndexState.Stopped);
+        }, ct);
     }
 }

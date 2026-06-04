@@ -33,16 +33,16 @@ public class CreateIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
 
-        await KurrentDBFixture.WaitForEventualConsistency(ct);
+        await Eventually(async () => {
+            var index = await Fixture.Client.Indexes.Get(indexName, ct);
 
-        var index = await Fixture.Client.Indexes.Get(indexName, ct);
-
-        await Assert.That(index.Name).IsEqualTo(indexName);
-        await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'OrderCreated'");
-        await Assert.That(index.Fields).Count().IsEqualTo(1);
-        await Assert.That(index.Fields[0].Name).IsEqualTo("amount");
-        await Assert.That(index.Fields[0].Selector).IsEqualTo("rec => rec.value.amount");
-        await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Double);
+            await Assert.That(index.Name).IsEqualTo(indexName);
+            await Assert.That(index.Filter).IsEqualTo("rec => rec.schema.name == 'OrderCreated'");
+            await Assert.That(index.Fields).Count().IsEqualTo(1);
+            await Assert.That(index.Fields[0].Name).IsEqualTo("amount");
+            await Assert.That(index.Fields[0].Selector).IsEqualTo("rec => rec.value.amount");
+            await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Double);
+        }, ct);
     }
 
     [Test]

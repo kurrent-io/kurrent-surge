@@ -6,15 +6,7 @@ using NJsonSchema;
 namespace Kurrent.Client.Tests.Fixtures;
 
 public static class KurrentDBTestFixtureRegistryExtensions {
-    static readonly TimeSpan EventualConsistencyDelay = TimeSpan.FromMilliseconds(200);
-
     extension(KurrentDBFixture) {
-
-        /// <summary>
-        /// Waits for the schema registry read model to catch up after a state-changing operation.
-        /// </summary>
-        public static Task WaitForEventualConsistency(CancellationToken ct = default) =>
-            Task.Delay(EventualConsistencyDelay, ct);
 
         public static string NewSchemaName() => $"test-schema-{Guid.NewGuid():N}";
 
