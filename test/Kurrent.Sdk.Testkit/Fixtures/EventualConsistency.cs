@@ -40,8 +40,11 @@ public static class EventualConsistency {
         var transient  = isTransient ?? IsTransient;
 
         while (true) {
+            ct.ThrowIfCancellationRequested();
+
             try {
                 await assertion();
+                ct.ThrowIfCancellationRequested();
                 return;
             } catch (Exception ex) when (transient(ex) && DateTimeOffset.UtcNow < retryUntil) {
                 await Task.Delay(poll, ct);
