@@ -35,8 +35,11 @@ public record ExpressionFilter : RecordFilter {
 
         _parsedExpression = ExpressionFilterParser.Parse(expression);
 
-        QueriesData  = _parsedExpression.QueriesData;
-        ServerFilter = ServerFilterExtractor.Extract(_parsedExpression);
+        QueriesData = _parsedExpression.QueriesData;
+
+        var extraction = ServerFilterExtractor.Extract(_parsedExpression);
+        ServerFilter             = extraction.ServerFilter;
+        RequiresClientEvaluation = extraction.RequiresClientEvaluation;
     }
 
     /// <inheritdoc/>

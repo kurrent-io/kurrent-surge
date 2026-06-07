@@ -10,39 +10,47 @@ namespace Kurrent.Client.Streams;
 /// </summary>
 static class ServerFilterExtractor {
     /// <summary>
-    /// Extracts a server-side filter from the parsed expression.
-    /// Priority: Stream (1) > Category (2) > Index (3) > Schema (4).
+    /// Extracts the server-side filter from the parsed expression and reports whether the SDK must
+    /// still evaluate the expression client-side. Priority: Stream (1) > Category (2) > Index (3) >
+    /// Schema (4). <c>RequiresClientEvaluation</c> is <c>false</c> only when the server filter fully
+    /// represents the expression (a stream-predicate union, or a single extractable predicate); a
+    /// residual conjunct or no derivable filter makes it <c>true</c>.
     /// </summary>
-    public static RecordFilter Extract(IFilterExpression expression) {
+    public static (RecordFilter ServerFilter, bool RequiresClientEvaluation) Extract(IFilterExpression expression) {
         // OR of pure stream predicates → a single regex union. Only valid when EVERY disjunct
         // is a stream predicate: the server filter must match a SUPERSET of the expression
         // (client-side evaluation trims the rest), and a stream regex cannot cover a disjunct
         // on another property (e.g. "stream = 'a' OR schema = 'b'") — those fall through to
-        // the conjunct path below and, ultimately, to no server filter.
+        // the conjunct path below and, ultimately, to no server filter. A matched union consumes
+        // the WHOLE expression, so nothing is left for the client.
         if (TryExtractStreamUnionFilter(expression, out var unionFilter))
-            return unionFilter;
+            return (unionFilter, RequiresClientEvaluation: false);
 
         var conjuncts = FlattenAnd(expression);
 
+        // One conjunct that maps to a server filter IS the whole expression. Two or more means only
+        // one was lifted to the server and the rest must be refined client-side.
+        var requiresClientEvaluation = conjuncts.Count > 1;
+
         // Priority 1: Stream filters (avoids full $all log scan)
         if (TryExtractStreamFilter(conjuncts, out var streamFilter))
-            return streamFilter;
+            return (streamFilter, requiresClientEvaluation);
 
         // Priority 2: Category filters (targets $idx-ce-* secondary index streams)
         if (TryExtractCategoryFilter(conjuncts, out var categoryFilter))
-            return categoryFilter;
+            return (categoryFilter, requiresClientEvaluation);
 
         // Priority 3: Index filters (targets $idx-user-* user-defined index streams)
         if (TryExtractUserIndexFilter(conjuncts, out var indexFilter))
-            return indexFilter;
+            return (indexFilter, requiresClientEvaluation);
 
         // Priority 4: Schema filters
         if (TryExtractSchemaFilter(conjuncts, out var schemaFilter))
-            return schemaFilter;
+            return (schemaFilter, requiresClientEvaluation);
 
-        // No server filter possible
-        return RecordFilter.None;
-        
+        // No server filter possible — the entire expression runs client-side.
+        return (RecordFilter.None, RequiresClientEvaluation: true);
+
         static List<IFilterExpression> FlattenAnd(IFilterExpression expr) {
             var result = new List<IFilterExpression>();
             FlattenAndRecursive(expr, result);

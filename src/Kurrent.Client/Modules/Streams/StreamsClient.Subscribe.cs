@@ -9,10 +9,10 @@ using KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Client.Streams;
 
-// Checkpoint is a barrier (coordination token). Server-emitted cases (FilterCheckpoint,
-// CaughtUpCheckpoint) carry the scan position the server has confirmed; the client-side
-// interval timer and processor-synthesized cases (IntervalCheckpoint, ManualCheckpoint,
-// ShutdownCheckpoint, etc.) leave it empty.
+// Checkpoint is a barrier (coordination token). Scan-progress cases (FilterCheckpoint,
+// CaughtUpCheckpoint) carry a confirmed scan position; the client-side interval timer and
+// processor-synthesized cases (IntervalCheckpoint, ManualCheckpoint, ShutdownCheckpoint, etc.)
+// leave it empty.
 // Streaming extends this hierarchy without touching client.
 public abstract record Checkpoint(CheckpointId Id, DateTimeOffset Timestamp) {
     public IReadOnlyList<RecordPosition> Positions { get; init; } = [];
@@ -22,10 +22,15 @@ public sealed record IntervalCheckpoint(CheckpointId Id, DateTimeOffset Timestam
     : Checkpoint(Id, Timestamp);
 
 /// <summary>
-/// Emitted by the server during a filtered subscription over the log: the shared scan has reached
-/// this log position with no further matches in the window. Carries the scan watermark in
+/// Marks scan progress on a filtered subscription over the log: the scan has reached this log
+/// position with no further matches in the window. Carries the scan watermark in
 /// <see cref="Checkpoint.Positions"/>; paced by the subscription's max search window.
 /// </summary>
+/// <remarks>
+/// Emitted by the server when the filter is expressed on the wire. When the filter cannot be —
+/// and the SDK takes over filtering client-side — the SDK synthesizes these at the same cadence
+/// so progress through barren stretches is never lost.
+/// </remarks>
 public sealed record FilterCheckpoint(CheckpointId Id, DateTimeOffset Timestamp)
     : Checkpoint(Id, Timestamp);
 
@@ -165,7 +170,7 @@ public partial class StreamsClient {
 
         var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
             options.Filter, start, options.ResolveLinks, options.MaxSearchWindow);
-        
+
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;
 
@@ -216,15 +221,31 @@ public partial class StreamsClient {
 
         SequenceGenerator sequencer = new();
 
+        // The filter is the authority on whether the SDK evaluates it client-side. When it does,
+        // it discards records the consumer never sees — invisible progress — so this subscription
+        // must raise scan checkpoints of its own, exactly as a server-side filtered subscription
+        // would. A purely server-routable filter leaves this off: the server delivers only matches
+        // and (on a filtered $all) raises its own checkpoints.
+        var filtersLocally = options.Filter.RequiresClientEvaluation;
+
+        // Records received since the last checkpoint of any kind. A server checkpoint (filter or
+        // caught-up) resets it: progress is already accounted for up to the server's watermark, so
+        // the count restarts from there — "count locally since the last server-sent one".
+        uint scannedSinceCheckpoint = 0;
+
         try {
             while (await grpcSession.ResponseStream.MoveNextSafe(ct).ConfigureAwait(false)) {
                 var resp = grpcSession.ResponseStream.Current;
 
                 switch (resp?.ContentCase) {
                     case ReadResp.ContentOneofCase.Checkpoint:
+                        // Server watermark — covers progress up to here, so reset the local window.
+                        scannedSinceCheckpoint = 0;
                         yield return resp.Checkpoint.MapToCheckpoint(sequencer.FetchNext()); break;
 
                     case ReadResp.ContentOneofCase.CaughtUp: {
+                        scannedSinceCheckpoint = 0;
+
                         var checkpoint = resp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
                         var position   = checkpoint.Positions[0];
 
@@ -269,6 +290,31 @@ public partial class StreamsClient {
 
                         if (options.Filter.IsMatch(record))
                             yield return record;
+
+                        // When the SDK filters locally, raise a scan checkpoint every window —
+                        // matched or not, the record was evaluated, so the watermark can move past
+                        // it. This carries progress across the records discarded above, which the
+                        // consumer never sees and so could never checkpoint on. (When the filter is
+                        // fully server-side this is off: deliveries advance progress on their own,
+                        // and a filtered $all already gets server checkpoints.)
+                        if (filtersLocally && ++scannedSinceCheckpoint >= options.MaxSearchWindow) {
+                            scannedSinceCheckpoint = 0;
+
+                            // Carry the full record position (stream + revision), but pin the log
+                            // half to the position the scan has physically reached. On $all that is
+                            // the ReadEvent-level commit position — link resolution (on by default)
+                            // maps the record position to an earlier target event, so a
+                            // record-position watermark would regress while the scan advances. On a
+                            // stream subscription the ReadEvent carries no log position, so the
+                            // record's own position is the scan position.
+                            var scanPosition = resp.Event.HasCommitPosition
+                                ? LogPosition.From((long)resp.Event.CommitPosition)
+                                : record.Position.LogPosition;
+
+                            yield return new FilterCheckpoint(CheckpointId.New(), record.Timestamp) {
+                                Positions = [record.Position with { LogPosition = scanPosition }]
+                            };
+                        }
 
                     break;
                 }

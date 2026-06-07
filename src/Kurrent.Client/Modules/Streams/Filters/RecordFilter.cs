@@ -22,6 +22,17 @@ public abstract record RecordFilter {
     public abstract bool IsMatch(Record record);
 
     /// <summary>
+    /// Whether the SDK must run <see cref="IsMatch"/> on the client beyond what server-side routing
+    /// already does. Server-routable filters leave this <c>false</c> — the server delivers only
+    /// matches, so re-evaluating client-side would filter exactly what the server already filtered.
+    /// Only a composite filter that the server cannot fully apply (an <see cref="ExpressionFilter"/>
+    /// with a residual predicate, or one with no server form at all) sets it <c>true</c>; such a
+    /// subscription discards records the consumer never sees, so it must raise synthetic scan
+    /// checkpoints to carry progress across those gaps.
+    /// </summary>
+    public bool RequiresClientEvaluation { get; init; }
+
+    /// <summary>
     /// Creates a filter that targets the <c>$idx-ce-{category}</c> secondary index stream.
     /// </summary>
     /// <param name="categoryName">The stream category name.</param>
