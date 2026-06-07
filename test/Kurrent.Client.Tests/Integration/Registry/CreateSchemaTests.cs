@@ -30,7 +30,7 @@ public class CreateSchemaTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]

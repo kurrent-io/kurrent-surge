@@ -72,7 +72,7 @@ public class RegisterSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(v2.ToJson());
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]
@@ -118,6 +118,6 @@ public class RegisterSchemaVersionTests {
 				.GetSchema(schemaName, ct);
 
 			await Assert.That(schema.LatestSchemaVersion).IsEqualTo(2);
-		}, ct);
+		}, ct: ct);
 	}
 }

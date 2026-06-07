@@ -41,7 +41,7 @@ public class GetSchemaTests {
 			await Assert.That(schema.Details.Description).IsEqualTo(description);
 			await Assert.That(schema.Details.Tags).IsEquivalentTo(tags);
 			await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]
@@ -66,6 +66,6 @@ public class GetSchemaTests {
 		await Eventually(
 			async () => await Assert.ThrowsAsync<SchemaNotFoundException>(
 				async () => await Fixture.Client.Registry.GetSchema(schemaName, ct)),
-			ct);
+			ct: ct);
 	}
 }

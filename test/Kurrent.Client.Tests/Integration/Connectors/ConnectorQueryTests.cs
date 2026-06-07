@@ -26,6 +26,6 @@ public class ConnectorQueryTests {
 
             await Assert.That(result.Items).IsNotEmpty();
             await Assert.That(result.Items).Contains(c => c.ConnectorId == connectorId);
-        }, ct);
+        }, ct: ct);
     }
 }

@@ -44,7 +44,7 @@ public class CheckSchemaCompatibilityTests {
 			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
 					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)),
-			ct);
+			ct: ct);
 
 		var errors = ex.Errors;
 		await Assert.That(errors.Errors.Count).IsEqualTo(3);
@@ -66,7 +66,7 @@ public class CheckSchemaCompatibilityTests {
 		await Eventually(
 			() => Fixture.Client.Registry
 				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct),
-			ct);
+			ct: ct);
 	}
 
 	[Test]
@@ -83,7 +83,7 @@ public class CheckSchemaCompatibilityTests {
 			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
 					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)),
-			ct);
+			ct: ct);
 
 		var errors = ex.Errors;
 		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.NewRequiredProperty);
@@ -106,7 +106,7 @@ public class CheckSchemaCompatibilityTests {
 		await Eventually(
 			() => Fixture.Client.Registry
 				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct),
-			ct);
+			ct: ct);
 	}
 
 	[Test]
@@ -123,7 +123,7 @@ public class CheckSchemaCompatibilityTests {
 			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
 					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)),
-			ct);
+			ct: ct);
 
 		var errors = ex.Errors;
 		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.IncompatibleTypeChange);

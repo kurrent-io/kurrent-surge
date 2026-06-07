@@ -2,6 +2,7 @@ using Kurrent.Client.Indexes;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Testing.ArcadeRacer;
+using static Kurrent.Sdk.Testkit.EventualConsistency;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -447,7 +448,36 @@ public class SubscribeLinqTests {
 
     #region ->> User Index Subscription <<-
 
-    [Test]
+    /// <summary>
+    /// User-index ingestion is asynchronous (DuckDB) and lags under parallel suite load —
+    /// enough to blow the test timeout if the live subscription races it. Gate on a BOUNDED
+    /// index read catching up to the seeded records first: reads terminate at the log end,
+    /// so the probe retries cheaply until the index has the records, and only then does the
+    /// subscription assertion run, deterministically.
+    /// </summary>
+    async ValueTask WaitForUserIndexCatchUp(string indexName, RecordPosition after, int expectedCount, CancellationToken ct) =>
+        await Eventually(
+            async () => {
+                var indexed = await Fixture.Client.Streams
+                    .ReadRecords(new() {
+                        Start        = after.LogPosition,
+                        Filter       = RecordFilter.ByUserIndex(indexName),
+                        Limit        = expectedCount,
+                        SkipDecoding = true
+                    }, ct)
+                    .Where(msg => msg.Value is Record)
+                    .CountAsync(ct);
+
+                await Assert.That(indexed).IsEqualTo(expectedCount);
+            },
+            // A fresh user index ingests from the BEGINNING of the log — on the long-lived
+            // shared container that is days of accumulated records, so catch-up time grows
+            // with container age and degrades further under parallel suite load.
+            timeout: TimeSpan.FromSeconds(45),
+            interval: TimeSpan.FromMilliseconds(500),
+            ct: ct);
+
+    [Test, Timeout(60_000)]
     public async ValueTask user_index_take(CancellationToken ct) {
         // Arrange — create a user index over LapCompleted events, then seed a full race so the
         // index has plenty of matching records. Seeding happens AFTER the index is started so the
@@ -468,6 +498,8 @@ public class SubscribeLinqTests {
 
         await Fixture.SeedTestStream(ct);
 
+        await WaitForUserIndexCatchUp(indexName, lastPosition, 5, ct);
+
         // Act
         var records = await SubscribeToUserIndex(indexName, lastPosition, ct)
             .Where(msg => msg.IsRecord)
@@ -479,7 +511,7 @@ public class SubscribeLinqTests {
         await Assert.That(records.Count).IsEqualTo(5);
     }
 
-    [Test]
+    [Test, Timeout(60_000)]
     public async ValueTask user_index_filters_to_indexed_schema(CancellationToken ct) {
         // Arrange — a user index scoped to LapCompleted must yield ONLY LapCompleted records,
         // unlike a category index which surfaces every event type in the category.
@@ -496,6 +528,8 @@ public class SubscribeLinqTests {
         );
 
         await Fixture.SeedTestStream(ct);
+
+        await WaitForUserIndexCatchUp(indexName, lastPosition, 5, ct);
 
         // Act — collect the distinct schema names that flow through the user index
         var schemas = await SubscribeToUserIndex(indexName, lastPosition, ct)

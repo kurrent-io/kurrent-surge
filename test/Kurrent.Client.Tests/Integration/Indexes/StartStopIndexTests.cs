@@ -28,14 +28,14 @@ public class StartStopIndexTests {
         await Eventually(async () => {
             var stopped = await Fixture.Client.Indexes.Get(indexName, ct);
             await Assert.That(stopped.State).IsEqualTo(IndexState.Stopped);
-        }, ct);
+        }, ct: ct);
 
         await Fixture.Client.Indexes.Start(indexName, ct);
 
         await Eventually(async () => {
             var started = await Fixture.Client.Indexes.Get(indexName, ct);
             await Assert.That(started.State).IsEqualTo(IndexState.Started);
-        }, ct);
+        }, ct: ct);
     }
 
     [Test, Timeout(TestTimeoutMs)]
@@ -70,6 +70,6 @@ public class StartStopIndexTests {
         await Eventually(async () => {
             var index = await Fixture.Client.Indexes.Get(indexName, ct);
             await Assert.That(index.State).IsEqualTo(IndexState.Stopped);
-        }, ct);
+        }, ct: ct);
     }
 }

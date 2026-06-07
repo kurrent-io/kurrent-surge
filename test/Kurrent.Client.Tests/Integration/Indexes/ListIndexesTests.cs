@@ -26,6 +26,6 @@ public class ListIndexesTests {
             var indexes = await Fixture.Client.Indexes.List(ct);
 
             await Assert.That(indexes).Contains(i => i.Name == indexName);
-        }, ct);
+        }, ct: ct);
     }
 }

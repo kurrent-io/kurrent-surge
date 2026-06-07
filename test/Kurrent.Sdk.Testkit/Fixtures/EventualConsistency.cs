@@ -9,31 +9,31 @@ public static class EventualConsistency {
 
     public static ValueTask Eventually(
         Func<ValueTask> assertion,
-        CancellationToken ct = default,
         TimeSpan? timeout = null,
         TimeSpan? interval = null,
-        Func<Exception, bool>? isTransient = null
+        Func<Exception, bool>? isTransient = null,
+        CancellationToken ct = default
     ) =>
-        Poll(assertion, ct, timeout, interval, isTransient);
+        Poll(assertion, timeout, interval, isTransient, ct);
 
     public static async ValueTask<T> Eventually<T>(
         Func<ValueTask<T>> action,
-        CancellationToken ct = default,
         TimeSpan? timeout = null,
         TimeSpan? interval = null,
-        Func<Exception, bool>? isTransient = null
+        Func<Exception, bool>? isTransient = null,
+        CancellationToken ct = default
     ) {
         var result = default(T)!;
-        await Poll(async () => result = await action(), ct, timeout, interval, isTransient);
+        await Poll(async () => result = await action(), timeout, interval, isTransient, ct);
         return result;
     }
 
     static async ValueTask Poll(
         Func<ValueTask> assertion,
-        CancellationToken ct,
         TimeSpan? timeout,
         TimeSpan? interval,
-        Func<Exception, bool>? isTransient
+        Func<Exception, bool>? isTransient,
+        CancellationToken ct
     ) {
         var retryUntil = DateTimeOffset.UtcNow + (timeout ?? DefaultTimeout);
         var poll       = interval    ?? DefaultInterval;

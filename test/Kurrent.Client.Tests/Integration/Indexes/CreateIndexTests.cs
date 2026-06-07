@@ -42,7 +42,7 @@ public class CreateIndexTests {
             await Assert.That(index.Fields[0].Name).IsEqualTo("amount");
             await Assert.That(index.Fields[0].Selector).IsEqualTo("rec => rec.value.amount");
             await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Double);
-        }, ct);
+        }, ct: ct);
     }
 
     [Test]

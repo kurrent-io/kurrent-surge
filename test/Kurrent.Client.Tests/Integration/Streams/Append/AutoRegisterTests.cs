@@ -71,7 +71,7 @@ public class AutoRegisterTests {
             await Assert.That(schema.SchemaName).IsEqualTo(schemaName);
             await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
             await Assert.That(version.VersionNumber).IsEqualTo(1);
-        }, ct);
+        }, ct: ct);
     }
 
     [Test]
@@ -101,7 +101,7 @@ public class AutoRegisterTests {
             var schema = await Fixture.Client.Registry.GetSchema(schemaName, ct);
 
             await Assert.That(schema.LatestSchemaVersion).IsEqualTo(1);
-        }, ct);
+        }, ct: ct);
     }
 
     [Test]
@@ -141,7 +141,7 @@ public class AutoRegisterTests {
             SchemaDataFormat.Json,
             ct);
 
-        await Eventually(() => Fixture.Client.Registry.GetSchema(schemaName, ct), ct);
+        await Eventually(() => Fixture.Client.Registry.GetSchema(schemaName, ct), ct: ct);
 
         await using var client = KurrentClient.Create(Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy));
 

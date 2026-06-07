@@ -28,7 +28,7 @@ public class GetSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]
@@ -48,7 +48,7 @@ public class GetSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]
@@ -68,7 +68,7 @@ public class GetSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]
@@ -96,7 +96,7 @@ public class GetSchemaVersionTests {
 			await Assert.ThrowsAsync<SchemaNotFoundException>(
 				async () => await Fixture.Client.Registry
 					.GetSchemaVersion(schemaName, nonExistentVersionNumber, ct));
-		}, ct);
+		}, ct: ct);
 	}
 
 	[Test]

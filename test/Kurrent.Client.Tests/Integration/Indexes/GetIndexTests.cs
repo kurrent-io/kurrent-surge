@@ -31,7 +31,7 @@ public class GetIndexTests {
             await Assert.That(index.Fields).Count().IsEqualTo(1);
             await Assert.That(index.Fields[0].Name).IsEqualTo("price");
             await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Int64);
-        }, ct);
+        }, ct: ct);
     }
 
     [Test, Timeout(TestTimeoutMs)]
