@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace Kurrent.Client.Tests.Streams;
 
 /// <summary>
-/// DEV-1772 — start positions must be honored when filters re-route reads and subscriptions
-/// across the position/revision boundary. Uses the interleaved layout so the anchor record
+/// Start positions must be honored when filters re-route reads and subscriptions across
+/// the position/revision boundary. Uses the interleaved layout so the anchor record
 /// is foreign and INSIDE the target stream's range:
 /// <code>
 ///   log order:  A0 A1 A2 | B0..B4 | A3 A4

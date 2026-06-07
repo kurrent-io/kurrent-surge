@@ -7,7 +7,7 @@ namespace Kurrent.Client.Tests.Streams;
 
 /// <summary>
 /// Pins the server's Start position semantics so any drift breaks loudly on image bumps.
-/// Probe-verified ground truth (2026-06-06, see DEV-1768):
+/// Probe-verified ground truth:
 /// <code>
 ///   Path                  Semantics
 ///   ───────────────────── ─────────────────────────────
@@ -17,8 +17,8 @@ namespace Kurrent.Client.Tests.Streams;
 ///   subscriptions         EXCLUSIVE ("after", server skips &lt;= checkpoint)
 /// </code>
 /// The SDK maps Start verbatim to the wire — these tests are the executable contract
-/// until the AT/AFTER API (DEV-1768) makes the choice explicit. Re-subscribe tests pin
-/// the continuity contract the resilient subscription relies on for cursor resume.
+/// until an explicit AT/AFTER start API makes the choice visible per call site.
+/// Re-subscribe tests pin the continuity contract that cursor-resume logic relies on.
 /// </summary>
 [Category("Streams")]
 [Category("Read")]

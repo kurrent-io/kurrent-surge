@@ -11,8 +11,8 @@ public static partial class StreamsClientExtensions {
         /// </summary>
         public async IAsyncEnumerable<Record> Records([EnumeratorCancellation] CancellationToken cancellationToken = default) {
             await foreach (var msg in source.WithCancellation(cancellationToken).ConfigureAwait(false)) {
-                // Concrete type test, not IsRecord: a default ReadRecordsResult reports
-                // IsRecord with a null payload (see DEV-1769).
+                // Concrete type test, not IsRecord: a defaulted variant struct reports its
+                // first case while holding a null payload.
                 if (msg.Value is Record record)
                     yield return record;
             }

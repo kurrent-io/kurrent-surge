@@ -140,9 +140,8 @@ public partial class StreamsClient {
             ResolveLinks = false
         };
 
-        // Limit bounds the server scan (it counts EVENTS only) — but filtered reads emit
-        // FilterCheckpoints ahead of the record (DEV-1770), so take the first RECORD, not
-        // the first message.
+        // Limit bounds the server scan (count tallies events only); take the first RECORD —
+        // a read can still carry non-record messages such as the CaughtUp marker.
         await foreach (var msg in ReadRecords(options, ct).Where(msg => msg.Value is Record).Take(1).WithCancellation(ct).ConfigureAwait(false))
             return msg.AsRecord;
 
