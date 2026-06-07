@@ -64,14 +64,14 @@ public class AutoRegisterTests {
         // Assert
         var schemaName = nameStrategy.GenerateSchemaName(data.Records[0].Value!.GetType());
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var schema  = await Fixture.Client.Registry.GetSchema(schemaName, ct);
             var version = await Fixture.Client.Registry.GetSchemaVersion(schemaName, schema.LatestSchemaVersion, ct);
 
             await Assert.That(schema.SchemaName).IsEqualTo(schemaName);
             await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
             await Assert.That(version.VersionNumber).IsEqualTo(1);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test]
@@ -97,11 +97,11 @@ public class AutoRegisterTests {
         // Assert
         var schemaName = nameStrategy.GenerateSchemaName(typeof(LapCompleted));
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var schema = await Fixture.Client.Registry.GetSchema(schemaName, ct);
 
             await Assert.That(schema.LatestSchemaVersion).IsEqualTo(1);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test]
@@ -141,7 +141,7 @@ public class AutoRegisterTests {
             SchemaDataFormat.Json,
             ct);
 
-        await Eventually(() => Fixture.Client.Registry.GetSchema(schemaName, ct), ct: ct);
+        await Assert.That(async () => { await Fixture.Client.Registry.GetSchema(schemaName, ct); }).EventuallyPasses(RetryOnTransients(ct));
 
         await using var client = KurrentClient.Create(Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy));
 

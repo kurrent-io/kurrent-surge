@@ -2,7 +2,6 @@ using Kurrent.Client.Indexes;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Testing.ArcadeRacer;
-using static Kurrent.Sdk.Testkit.EventualConsistency;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -455,27 +454,27 @@ public class SubscribeLinqTests {
     /// so the probe retries cheaply until the index has the records, and only then does the
     /// subscription assertion run, deterministically.
     /// </summary>
-    async ValueTask WaitForUserIndexCatchUp(string indexName, RecordPosition after, int expectedCount, CancellationToken ct) =>
-        await Eventually(
-            async () => {
-                var indexed = await Fixture.Client.Streams
-                    .ReadRecords(new() {
-                        Start        = after.LogPosition,
-                        Filter       = RecordFilter.ByUserIndex(indexName),
-                        Limit        = expectedCount,
-                        SkipDecoding = true
-                    }, ct)
-                    .Where(msg => msg.Value is Record)
-                    .CountAsync(ct);
+    async ValueTask WaitForUserIndexCatchUp(string indexName, RecordPosition after, int expectedCount, CancellationToken ct) {
+        var options = RetryOnTransients(ct);
+        // A fresh user index ingests from the BEGINNING of the log — on the long-lived
+        // shared container that is days of accumulated records, so catch-up time grows
+        // with container age and degrades further under parallel suite load.
+        options.Timeout         = TimeSpan.FromSeconds(45);
+        options.PollingInterval = TimeSpan.FromMilliseconds(500);
+        await Assert.That(async () => {
+            var indexed = await Fixture.Client.Streams
+                .ReadRecords(new() {
+                    Start        = after.LogPosition,
+                    Filter       = RecordFilter.ByUserIndex(indexName),
+                    Limit        = expectedCount,
+                    SkipDecoding = true
+                }, ct)
+                .Where(msg => msg.Value is Record)
+                .CountAsync(ct);
 
-                await Assert.That(indexed).IsEqualTo(expectedCount);
-            },
-            // A fresh user index ingests from the BEGINNING of the log — on the long-lived
-            // shared container that is days of accumulated records, so catch-up time grows
-            // with container age and degrades further under parallel suite load.
-            timeout: TimeSpan.FromSeconds(45),
-            interval: TimeSpan.FromMilliseconds(500),
-            ct: ct);
+            await Assert.That(indexed).IsEqualTo(expectedCount);
+        }).EventuallyPasses(options);
+    }
 
     [Test, Timeout(60_000)]
     public async ValueTask user_index_take(CancellationToken ct) {

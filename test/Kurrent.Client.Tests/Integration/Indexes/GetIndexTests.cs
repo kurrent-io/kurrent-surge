@@ -23,7 +23,7 @@ public class GetIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'ProductCreated'", fields, cancellationToken: ct);
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var index = await Fixture.Client.Indexes.Get(indexName, ct);
 
             await Assert.That(index.Name).IsEqualTo(indexName);
@@ -31,7 +31,7 @@ public class GetIndexTests {
             await Assert.That(index.Fields).Count().IsEqualTo(1);
             await Assert.That(index.Fields[0].Name).IsEqualTo("price");
             await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Int64);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test, Timeout(TestTimeoutMs)]

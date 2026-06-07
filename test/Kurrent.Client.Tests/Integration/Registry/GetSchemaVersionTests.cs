@@ -19,7 +19,7 @@ public class GetSchemaVersionTests {
         await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			var version = await Fixture.Client.Registry
 				.GetSchemaVersion(schemaName, ct);
 
@@ -28,7 +28,7 @@ public class GetSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -39,7 +39,7 @@ public class GetSchemaVersionTests {
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			var version = await Fixture.Client.Registry
 				.GetSchemaVersion(schemaName, schemaVersion.VersionNumber, ct);
 
@@ -48,7 +48,7 @@ public class GetSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -59,7 +59,7 @@ public class GetSchemaVersionTests {
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(schemaName, schemaDefinition, SchemaDataFormat.Json, ct);
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			var version = await Fixture.Client.Registry
 				.GetSchemaVersionById(schemaVersion.VersionId, ct);
 
@@ -68,7 +68,7 @@ public class GetSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(schemaDefinition);
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -90,13 +90,13 @@ public class GetSchemaVersionTests {
 
 		const int nonExistentVersionNumber = 999;
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			await Fixture.Client.Registry.GetSchemaVersion(schemaName, ct);
 
 			await Assert.ThrowsAsync<SchemaNotFoundException>(
 				async () => await Fixture.Client.Registry
 					.GetSchemaVersion(schemaName, nonExistentVersionNumber, ct));
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]

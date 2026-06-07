@@ -20,12 +20,12 @@ public class ConnectorQueryTests {
 
         var options = new ConnectorListOptions { ConnectorIds = [connectorId] };
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var result = await Fixture.Client.Connectors
                 .List(options, ct);
 
             await Assert.That(result.Items).IsNotEmpty();
             await Assert.That(result.Items).Contains(c => c.ConnectorId == connectorId);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 }

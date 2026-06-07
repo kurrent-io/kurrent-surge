@@ -33,7 +33,7 @@ public class CreateIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var index = await Fixture.Client.Indexes.Get(indexName, ct);
 
             await Assert.That(index.Name).IsEqualTo(indexName);
@@ -42,7 +42,7 @@ public class CreateIndexTests {
             await Assert.That(index.Fields[0].Name).IsEqualTo("amount");
             await Assert.That(index.Fields[0].Selector).IsEqualTo("rec => rec.value.amount");
             await Assert.That(index.Fields[0].Type).IsEqualTo(IndexFieldType.Double);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test]

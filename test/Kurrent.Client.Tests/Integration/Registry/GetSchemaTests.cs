@@ -29,7 +29,7 @@ public class GetSchemaTests {
                     .Build(),
                 ct);
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			var schema = await Fixture.Client.Registry
 				.GetSchema(schemaName, ct);
 
@@ -41,7 +41,7 @@ public class GetSchemaTests {
 			await Assert.That(schema.Details.Description).IsEqualTo(description);
 			await Assert.That(schema.Details.Tags).IsEquivalentTo(tags);
 			await Assert.That(schema.Details.DataFormat).IsEqualTo(SchemaDataFormat.Json);
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -63,9 +63,8 @@ public class GetSchemaTests {
 		await Fixture.Client.Registry
             .DeleteSchema(schemaName, ct);
 
-		await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaNotFoundException>(
-				async () => await Fixture.Client.Registry.GetSchema(schemaName, ct)),
-			ct: ct);
+		await Assert.That(async () => { await Assert.ThrowsAsync<SchemaNotFoundException>(
+				async () => await Fixture.Client.Registry.GetSchema(schemaName, ct)); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 }

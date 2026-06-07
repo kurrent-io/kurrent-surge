@@ -22,10 +22,10 @@ public class ListIndexesTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'InvoiceCreated'", fields, cancellationToken: ct);
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var indexes = await Fixture.Client.Indexes.List(ct);
 
             await Assert.That(indexes).Contains(i => i.Name == indexName);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 }

@@ -4,7 +4,6 @@ using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using static Kurrent.Client.Registry.CompatibilityMode;
-using static Kurrent.Sdk.Testkit.EventualConsistency;
 
 // Deliberately outside the Kurrent.Client.Tests.Registry namespace: that whole namespace is
 // blanket-skipped in TestkitBootstrap.cs ("Flaky tests"). This is a proof harness that must
@@ -55,10 +54,9 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act + Assert — optional addition is backward-compatible (must not throw)
-		await Eventually(
-			() => Fixture.Client.Registry
-				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct),
-			ct: ct);
+		await Assert.That(async () => { await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -73,11 +71,10 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act
-		var ex = await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		var ex = (await Assert.That(async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)))
+			.EventuallyPasses(s => s.IsNotNull(), RetryOnTransients(ct)))!;
 
 		// Assert
 		await Assert.That(ex.Errors.Errors).Contains(e => e.Kind == expectedErrorKind);
@@ -95,11 +92,10 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Forward, ct);
 
 		// Act
-		var ex = await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		var ex = (await Assert.That(async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)))
+			.EventuallyPasses(s => s.IsNotNull(), RetryOnTransients(ct)))!;
 
 		// Assert
 		await Assert.That(ex.Errors.Errors).Contains(e => e.Kind == expectedErrorKind);
@@ -118,10 +114,9 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act + Assert — under the lenient model this is backward-compatible (must not throw)
-		await Eventually(
-			() => Fixture.Client.Registry
-				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct),
-			ct: ct);
+		await Assert.That(async () => { await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -137,11 +132,10 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act
-		var ex = await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		var ex = (await Assert.That(async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)))
+			.EventuallyPasses(s => s.IsNotNull(), RetryOnTransients(ct)))!;
 
 		// Assert
 		await Assert.That(ex.Errors.Errors).Contains(e => e.Kind == expectedErrorKind);
@@ -176,10 +170,9 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act + Assert — must not throw
-		await Eventually(
-			() => Fixture.Client.Registry
-				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct),
-			ct: ct);
+		await Assert.That(async () => { await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test, Skip("Server compat checker ignores enum value sets — unskip when DEV-1759 ships")]
@@ -194,11 +187,10 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act + Assert
-		await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		await Assert.That(async () => { await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -226,10 +218,9 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act + Assert — must not throw
-		await Eventually(
-			() => Fixture.Client.Registry
-				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct),
-			ct: ct);
+		await Assert.That(async () => { await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test, Skip("Server compat checker ignores enum value sets — unskip when DEV-1759 ships")]
@@ -244,11 +235,10 @@ public class SystemJsonSchemaExporterCompatibilityTests {
 			.CreateSchema(schemaName, v1, SchemaDataFormat.Json, Backward, ct);
 
 		// Act + Assert
-		await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		await Assert.That(async () => { await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2, SchemaDataFormat.Json, ct)); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	#endregion

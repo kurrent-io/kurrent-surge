@@ -25,17 +25,17 @@ public class StartStopIndexTests {
 
         await Fixture.Client.Indexes.Stop(indexName, ct);
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var stopped = await Fixture.Client.Indexes.Get(indexName, ct);
             await Assert.That(stopped.State).IsEqualTo(IndexState.Stopped);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
 
         await Fixture.Client.Indexes.Start(indexName, ct);
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var started = await Fixture.Client.Indexes.Get(indexName, ct);
             await Assert.That(started.State).IsEqualTo(IndexState.Started);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test, Timeout(TestTimeoutMs)]
@@ -67,9 +67,9 @@ public class StartStopIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'MetricRecorded'", fields, start: false, cancellationToken: ct);
 
-        await Eventually(async () => {
+        await Assert.That(async () => {
             var index = await Fixture.Client.Indexes.Get(indexName, ct);
             await Assert.That(index.State).IsEqualTo(IndexState.Stopped);
-        }, ct: ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 }

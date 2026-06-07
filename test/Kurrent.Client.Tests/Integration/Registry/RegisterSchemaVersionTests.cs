@@ -63,7 +63,7 @@ public class RegisterSchemaVersionTests {
 		var registered = await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			var version = await Fixture.Client.Registry
 				.GetSchemaVersionById(registered.VersionId, ct);
 
@@ -72,7 +72,7 @@ public class RegisterSchemaVersionTests {
 			await Assert.That(version.SchemaDefinition).IsEqualTo(v2.ToJson());
 			await Assert.That(version.DataFormat).IsEqualTo(SchemaDataFormat.Json);
 			await Assert.That(version.RegisteredAt).IsGreaterThan(DateTimeOffset.MinValue);
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -113,11 +113,11 @@ public class RegisterSchemaVersionTests {
 		await Fixture.Client.Registry
 			.RegisterSchemaVersion(schemaName, v2.ToJson(), ct);
 
-		await Eventually(async () => {
+		await Assert.That(async () => {
 			var schema = await Fixture.Client.Registry
 				.GetSchema(schemaName, ct);
 
 			await Assert.That(schema.LatestSchemaVersion).IsEqualTo(2);
-		}, ct: ct);
+		}).EventuallyPasses(RetryOnTransients(ct));
 	}
 }

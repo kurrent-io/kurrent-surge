@@ -40,11 +40,10 @@ public class CheckSchemaCompatibilityTests {
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, BackwardAll, ct);
 
-		var ex = await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		var ex = (await Assert.That(async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)))
+			.EventuallyPasses(s => s.IsNotNull(), RetryOnTransients(ct)))!;
 
 		var errors = ex.Errors;
 		await Assert.That(errors.Errors.Count).IsEqualTo(3);
@@ -63,10 +62,9 @@ public class CheckSchemaCompatibilityTests {
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, ct);
 
-		await Eventually(
-			() => Fixture.Client.Registry
-				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct),
-			ct: ct);
+		await Assert.That(async () => { await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -79,11 +77,10 @@ public class CheckSchemaCompatibilityTests {
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Backward, ct);
 
-		var ex = await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		var ex = (await Assert.That(async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)))
+			.EventuallyPasses(s => s.IsNotNull(), RetryOnTransients(ct)))!;
 
 		var errors = ex.Errors;
 		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.NewRequiredProperty);
@@ -103,10 +100,9 @@ public class CheckSchemaCompatibilityTests {
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, ct);
 
-		await Eventually(
-			() => Fixture.Client.Registry
-				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct),
-			ct: ct);
+		await Assert.That(async () => { await Fixture.Client.Registry
+				.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct); })
+			.EventuallyPasses(RetryOnTransients(ct));
 	}
 
 	[Test]
@@ -119,11 +115,10 @@ public class CheckSchemaCompatibilityTests {
 		await Fixture.Client.Registry
 			.CreateSchema(schemaName, v1.ToJson(), SchemaDataFormat.Json, Forward, ct);
 
-		var ex = await Eventually(
-			async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
+		var ex = (await Assert.That(async () => await Assert.ThrowsAsync<SchemaIncompatibleException>(
 				async () => await Fixture.Client.Registry
-					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)),
-			ct: ct);
+					.CheckSchemaCompatibility(SchemaName.From(schemaName), v2.ToJson(), SchemaDataFormat.Json, ct)))
+			.EventuallyPasses(s => s.IsNotNull(), RetryOnTransients(ct)))!;
 
 		var errors = ex.Errors;
 		await Assert.That(errors.Errors).Contains(e => e.Kind == SchemaCompatibilityErrorKind.IncompatibleTypeChange);
