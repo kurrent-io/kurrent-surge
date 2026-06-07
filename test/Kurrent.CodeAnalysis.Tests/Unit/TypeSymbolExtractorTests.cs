@@ -241,7 +241,7 @@ public class TypeSymbolExtractorTests {
     }
 
     [Test]
-    public async ValueTask original_symbol_populated_and_excluded_from_equality() {
+    public async ValueTask extracts_accessibility_and_values_are_equatable() {
         var a     = Compile("namespace Ns { public class A { } }", "A");
         var info1 = a.ToTypeSymbol();
         var info2 = a.ToTypeSymbol();
@@ -250,8 +250,7 @@ public class TypeSymbolExtractorTests {
         await Assert.That(info1).IsEqualTo(info2);
         await Assert.That(info1.GetHashCode()).IsEqualTo(info2.GetHashCode());
 
-        // OriginalSymbol is there for escape-hatch use
-        await Assert.That(info1.OriginalSymbol).IsNotNull();
-        await Assert.That(SymbolEqualityComparer.Default.Equals(info1.OriginalSymbol, a)).IsTrue();
+        // Accessibility is captured as a cache-safe value — no live symbol retained
+        await Assert.That(info1.Accessibility).IsEqualTo(Accessibility.Public);
     }
 }

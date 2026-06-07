@@ -179,6 +179,46 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// </para>
     /// </remarks>
     public ILoggerFactory LoggerFactory { get; set; } = NullLoggerFactory.Instance;
+    
+    public KurrentClientMessageOptions Messages { get; private set; } = new();
+
+    /// <summary>
+    /// Configures message handling in place. Deliberately NOT `with`-based: options are
+    /// configured through <c>Action&lt;KurrentClientOptions&gt;</c> callbacks where a cloned
+    /// record would be silently discarded, losing the configuration.
+    /// </summary>
+    public KurrentClientOptions ConfigureMessages(Action<KurrentClientMessageOptions> configure) {
+        configure(Messages);
+        return this;
+    }
+
+    /// <summary>
+    /// Applies a connection string to these options in place. Like
+    /// <see cref="ConfigureMessages"/>, deliberately NOT `with`-based so it works inside
+    /// <c>Action&lt;KurrentClientOptions&gt;</c> configuration callbacks.
+    /// </summary>
+    /// <param name="connectionString">
+    /// KurrentDB connection string (e.g., <c>kurrentdb://localhost:2113</c>).
+    /// </param>
+    /// <returns>These options for method chaining.</returns>
+    public KurrentClientOptions Connection(string connectionString) {
+        var parsed = Parse(connectionString);
+
+        ConnectionScheme         = parsed.ConnectionScheme;
+        Endpoints                = parsed.Endpoints;
+        Security                 = parsed.Security;
+        Resilience               = parsed.Resilience;
+        Gossip                   = parsed.Gossip;
+        OriginalConnectionString = parsed.OriginalConnectionString;
+
+        // Parse generates a random "conn-" name when the string carries no connectionName
+        // parameter — same heuristic as GenerateConnectionString. Only adopt explicit names
+        // so a name set before this call survives.
+        if (!parsed.ConnectionName.StartsWith("conn-"))
+            ConnectionName = parsed.ConnectionName;
+
+        return this;
+    }
 
     public override string ToString() => GenerateConnectionString(this);
     

@@ -358,11 +358,21 @@ public class ServerFilterExtractorTests {
     #region OR Expressions
 
     [Test]
-    public async Task or_expression_has_no_server_filter() {
+    public async Task or_of_stream_predicates_derives_stream_regex_union() {
         var expr   = ParseExpression("stream = 'Orders-001' OR stream = 'Payments-002'");
         var filter = ServerFilterExtractor.Extract(expr);
 
-        // OR expressions cannot be lifted to server as a single AND-flattened predicate
+        // OR of pure stream predicates lifts to a single server-side regex union.
+        await Assert.That(filter).IsTypeOf<StreamRegexFilter>();
+    }
+
+    [Test]
+    public async Task or_with_non_stream_disjunct_has_no_server_filter() {
+        var expr   = ParseExpression("stream = 'Orders-001' OR schema_name = 'OrderCreated'");
+        var filter = ServerFilterExtractor.Extract(expr);
+
+        // A non-stream disjunct poisons the union — a stream regex would under-match,
+        // so the whole expression stays client-side.
         await Assert.That(filter).IsEqualTo(RecordFilter.None);
     }
 

@@ -147,30 +147,31 @@ public class KurrentClientConfigurationTests {
     }
 
     [Test]
-    public async ValueTask add_kurrent_client_applies_registered_message_type_mapper() {
-        // Arrange — connection string is required for resolution; the test focuses on mapper override
-        var mapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("sample-v1"));
+    public async ValueTask add_kurrent_client_uses_container_registered_message_catalogs() {
+        // Arrange — container-registered catalogs join the client's selection
+        var catalog = new MessageCatalog("di").Map<SampleMessage>("sample-v1");
 
         var services = new ServiceCollection();
-        services.AddSingleton(mapper);
+        services.AddSingleton(catalog);
         services.AddKurrentClient("kurrentdb://localhost:2113?tls=false");
 
         // Act
         var provider = services.BuildServiceProvider();
         var client   = provider.GetRequiredService<KurrentClient>();
 
-        // Assert — SP-registered mapper is applied onto opts.Schema.Mapper
-        await Assert.That(client.Options.Schema.Mapper).IsSameReferenceAs(mapper);
-        await Assert.That(client.Options.Schema.Mapper.TryGetSchemaName(typeof(SampleMessage), out var name)).IsTrue();
-        await Assert.That(name.Value).IsEqualTo("sample-v1");
+        var resolver = client.Options.Messages.BuildResolver();
+
+        // Assert — the catalog's mapping resolves on the client
+        await Assert.That(resolver.ResolveSchemaName(typeof(SampleMessage)).Value).IsEqualTo("sample-v1");
     }
 
     [Test]
-    public async ValueTask add_kurrent_client_configure_action_can_override_registered_mapper() {
-        // Arrange — connection string from configuration, mapper registered, configure delegate overrides it
-        var registeredMapper = MessageTypeMapper.Create(m => m.Map<SampleMessage>("registered"));
-        var userMapper       = MessageTypeMapper.Create(m => m.Map<SampleMessage>("user-override"));
-        var configuration    = BuildJsonConfiguration("""
+    public async ValueTask conflicting_catalog_mappings_fail_client_construction() {
+        // Arrange — catalogs COMPOSE (no override semantics): the same type pinned to two
+        // different names is a contract conflict and must fail loudly at construction.
+        var registeredCatalog = new MessageCatalog("registered").Map<SampleMessage>("registered");
+
+        var configuration = BuildJsonConfiguration("""
             {
               "ConnectionStrings": {
                 "KurrentDB": "kurrentdb://localhost:2113?tls=false"
@@ -180,16 +181,16 @@ public class KurrentClientConfigurationTests {
 
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddSingleton(registeredMapper);
-        services.AddKurrentClient(opts => opts.Schema.Mapper = userMapper);
+        services.AddSingleton(registeredCatalog);
+        services.AddKurrentClient(opts => opts.Messages.MapMessage<SampleMessage>("user-override"));
+
+        var provider = services.BuildServiceProvider();
 
         // Act
-        var provider = services.BuildServiceProvider();
-        var client   = provider.GetRequiredService<KurrentClient>();
+        var resolving = () => provider.GetRequiredService<KurrentClient>();
 
-        // Assert — user's configure wins over SP-resolved mapper
-        await Assert.That(client.Options.Schema.Mapper).IsSameReferenceAs(userMapper);
-        await Assert.That(client.Options.Schema.Mapper).IsNotSameReferenceAs(registeredMapper);
+        // Assert
+        await Assert.That(resolving).ThrowsException();
     }
 
     [Test]

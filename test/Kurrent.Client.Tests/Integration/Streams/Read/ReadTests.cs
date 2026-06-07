@@ -39,7 +39,7 @@ public class ReadTests {
 
                     Log.Information(
                         "Record {RecordId} {SchemaName} @ {Position}",
-                        record.Id, record.Schema.SchemaName, record.Position
+                        record.Id, record.Schema.Schema, record.Position
                     );
 
                     if (record.Position.LogPosition >= simulation.Position)
@@ -77,9 +77,9 @@ public class ReadTests {
             await Assert.That(record.Revision).IsEquivalentTo(Revision.From(i));
             await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(data.Position);
 
-            await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
-            await Assert.That(record.Schema.SchemaFormat).IsEqualTo(iotEvent.DataFormat);
-            await Assert.That(record.Schema.SchemaVersionId).IsNotEqualTo(SchemaVersionId.Unset);
+            await Assert.That(record.Schema.Schema.Value).IsNotEmpty();
+            await Assert.That(record.Schema.DataFormat).IsEqualTo(iotEvent.DataFormat);
+            await Assert.That(record.Schema.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 
             await Assert.That(record.Value).IsEquivalentTo(iotEvent.Value);
             await Assert.That(record.ValueType).IsEqualTo(iotEvent.Value.GetType());
@@ -278,4 +278,61 @@ public class ReadTests {
             await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
         }).Throws<StreamNotFoundException>();
     }
+
+    #region . Unresolved Read Behavior .
+
+    [Test]
+    public async ValueTask unmapped_records_pass_through_raw_by_default(CancellationToken ct) {
+        // Arrange — seed with the fixture's fully-mapped client, read with a client that has
+        // no catalogs at all: every schema name is unmapped for the reader.
+        var simulation = await Fixture.SeedTestStream(ct);
+
+        await using var blindClient = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Messages.AutoUseCatalogs = false;
+        });
+
+        var options = new ReadStreamOptions { Limit = simulation.Records.Length };
+
+        // Act
+        var records = new List<Record>();
+
+        await foreach (var msg in blindClient.Streams.ReadStream(simulation.Stream, options, ct)) {
+            if (msg.Value is Record record)
+                records.Add(record);
+        }
+
+        // Assert — records arrive raw: present, undecoded, payload intact.
+        await Assert.That(records.Count).IsEqualTo(simulation.Records.Length);
+
+        foreach (var record in records) {
+            await Assert.That(record.IsDecoded).IsFalse();
+            await Assert.That(record.Data.IsEmpty).IsFalse();
+        }
+    }
+
+    [Test]
+    public async ValueTask unmapped_records_fail_the_read_when_throw_on_unresolved(CancellationToken ct) {
+        // Arrange
+        var simulation = await Fixture.SeedTestStream(ct);
+
+        await using var blindClient = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Messages.AutoUseCatalogs = false;
+        });
+
+        var options = new ReadStreamOptions {
+            Limit             = simulation.Records.Length,
+            ThrowOnUnresolved = true
+        };
+
+        // Act & Assert
+        await Assert.That(async () => {
+            await foreach (var _ in blindClient.Streams.ReadStream(simulation.Stream, options, ct)) { }
+        }).Throws<MessageTypeResolutionException>();
+    }
+
+    #endregion
 }

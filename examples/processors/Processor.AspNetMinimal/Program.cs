@@ -13,10 +13,9 @@ try {
 
     builder.Services.AddSingleton<TransferProcessor>();
     builder.Services.AddKurrentProcessor<TransferProcessor>(prx => {
-        prx.Connection(
-            "kurrentdb://admin:changeit@localhost:2113?tls=false",
-            opts => opts.Schema.Mapper
-                .Map<PartitionsCheckpointed>("Kurrent.Streaming.Checkpointing.PartitionsCheckpointed"));
+        // Checkpoint contracts are exported by Kurrent.Streaming's message catalog and join
+        // the client automatically via catalog auto-discovery — no manual mapping needed.
+        prx.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
         
         prx.ProcessorId                  = $"transfer-processor-{Guid.NewGuid().ToString()[..8]}";
         prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;

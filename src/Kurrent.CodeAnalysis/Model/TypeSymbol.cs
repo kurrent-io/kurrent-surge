@@ -8,19 +8,13 @@ namespace Kurrent.CodeAnalysis;
 /// helpers. Flows through incremental generator pipelines safely — equality compares only the
 /// value fields, so cache-sensitive downstream steps don't invalidate across compilations.
 /// </summary>
-/// <remarks>
-/// <see cref="OriginalSymbol"/> is populated with the live <see cref="ITypeSymbol"/> for the
-/// current compilation. Use it inside the <c>Select</c> lambda for edge cases not covered by
-/// the value model (e.g. member walks, location reporting). Do NOT hold <see cref="OriginalSymbol"/>
-/// past the current compilation boundary — Roslyn disposes compilations, and a cached
-/// <see cref="TypeSymbol"/> carried from a previous compilation will have a stale symbol.
-/// </remarks>
 public sealed record TypeSymbol(
     string               Name,
     string               Namespace,
     string               FullName,
     TypeKind             Kind,
     TypeTraits           Traits,
+    Accessibility        Accessibility,
     SpecialType          Special,
     TypeSymbol[]         TypeArguments,
     TypeSymbol?          BaseType,
@@ -28,8 +22,6 @@ public sealed record TypeSymbol(
     TypeSymbol[]         Interfaces,
     AttributeRef[]       Attributes,
     ContainingTypeRef[]  ContainingTypes) {
-
-    public required ITypeSymbol OriginalSymbol { get; init; }
 
     #region ->> Trait sugar <<-
 
@@ -97,7 +89,7 @@ public sealed record TypeSymbol(
 
     #endregion
 
-    #region ->> Manual Equals + GetHashCode (excludes OriginalSymbol) <<-
+    #region ->> Manual Equals + GetHashCode <<-
 
     public bool Equals(TypeSymbol? other) {
         if (other is null) return false;
@@ -108,6 +100,7 @@ public sealed record TypeSymbol(
             && FullName  == other.FullName
             && Kind      == other.Kind
             && Traits    == other.Traits
+            && Accessibility == other.Accessibility
             && Special   == other.Special
             && Equals(BaseType, other.BaseType)
             && Equals(ArrayElementType, other.ArrayElementType)
@@ -124,6 +117,7 @@ public sealed record TypeSymbol(
             .Combine(FullName)
             .Combine(Kind)
             .Combine(Traits)
+            .Combine(Accessibility)
             .Combine(Special)
             .Combine(BaseType)
             .Combine(ArrayElementType)

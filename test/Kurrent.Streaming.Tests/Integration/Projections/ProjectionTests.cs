@@ -31,18 +31,8 @@ public class ProjectionTests {
                 opts.Connection(Fixture.ConnectionString, client => {
                     client.LoggerFactory      = Fixture.LoggerFactory;
                     client.Schema.PreValidate = false;
-                    client.Schema.Mapper = MessageTypeMapper.Create(m => m
-                        .Map<GridFormed>()
-                        .Map<RaceStarted>()
-                        .Map<LapCompleted>()
-                        .Map<OvertakePerformed>()
-                        .Map<PitStopPerformed>()
-                        .Map<IncidentOccurred>()
-                        .Map<CarRetired>()
-                        .Map<WeatherChanged>()
-                        .Map<RaceFinished>()
-                        .Map<RaceInsight>()
-                    );
+                    // ArcadeRacer contracts come from the testkit's message catalog,
+                    // auto-discovered at client construction.
                     client.Resilience = KurrentClientResilienceOptions.NoResilience;
                 });
                 opts.Subscription.Filter          = RecordFilter.ByStream(seeded.Stream);

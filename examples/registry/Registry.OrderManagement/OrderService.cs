@@ -31,9 +31,9 @@ public sealed class OrderService(KurrentClient client, ILogger<OrderService> log
             msg.Switch(
                 record => events.Add(new EventInfo(
                     record.Revision.Value,
-                    record.Schema.SchemaName.Value,
-                    record.Schema.SchemaFormat.ToString(),
-                    record.Schema.SchemaVersionId.Value.ToString(),
+                    record.Schema.Schema.Value,
+                    record.Schema.DataFormat.ToString(),
+                    record.Schema.VersionId.Value.ToString(),
                     record.Timestamp,
                     record.Value?.GetType().Name ?? "unknown"
                 )),

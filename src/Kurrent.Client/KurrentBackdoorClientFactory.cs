@@ -82,7 +82,7 @@ class KurrentBackdoorClientFactory : IDisposable {
                         var method = retryArguments.Outcome.Result.RequestMessage.Method.ToString();
 
                         logger.LogDebug(
-                            "Operation retrying after {Delay} due to response: {StatusCode} {ResponseMessage} for {Method} request to {Url}. Retry attempt {AttemptNumber}",
+                            "Retrying after {Delay} due to response: {StatusCode} {ResponseMessage} for {Method} request to {Url}. Retry attempt {AttemptNumber}",
                             retryArguments.Duration, (int)retryArguments.Outcome.Result.StatusCode, retryArguments.Outcome.Result.ReasonPhrase, method,
                             url, retryArguments.AttemptNumber + 1
                         );
@@ -93,8 +93,8 @@ class KurrentBackdoorClientFactory : IDisposable {
             }
         };
 
-        if (options.Deadline is not null)
-            httpResilienceOptions.TotalRequestTimeout.Timeout = options.Deadline.Value;
+        if (options.Deadline is { } deadline)
+            httpResilienceOptions.TotalRequestTimeout.Timeout = deadline;
 
         return new ResiliencePipelineBuilder<HttpResponseMessage>()
             .AddRateLimiter(httpResilienceOptions.RateLimiter)

@@ -162,7 +162,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         //   * user-defined operators — required by C# (CS0558 / CS9308)
         //   * IVariant.Value / IVariant.Index — interface members (CS0737)
         //   * ToString — overrides object.ToString (must match base accessibility)
-        var accessibility = t.OriginalSymbol.DeclaredAccessibility switch {
+        var accessibility = t.Accessibility switch {
             Accessibility.Public               => "public",
             Accessibility.Internal             => "internal",
             Accessibility.Protected            => "protected",

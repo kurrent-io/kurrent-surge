@@ -5,6 +5,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <!-- Analyzers do not flow transitively through ProjectReference, so the generator
+         must be referenced directly for message discovery to run in this assembly. -->
+    <ProjectReference Include="..\..\src\Kurrent.Client.MessageCatalogs.Generators\Kurrent.Client.MessageCatalogs.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
     <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />

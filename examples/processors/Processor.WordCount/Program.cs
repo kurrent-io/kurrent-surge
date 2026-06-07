@@ -27,17 +27,17 @@ var stream = $"WordCount-{Guid.NewGuid().ToString()[..8]}";
 
 Log.Information("Seeding stream {Stream} with TextSubmitted events", stream);
 
-var mapper = MessageTypeMapper.Create(bldr => bldr.Map<TextSubmitted>());
+var catalog = new MessageCatalog("wordcount").Map<TextSubmitted>();
 
 var factsApi = RestService.For<IUselessFactsApi>("https://uselessfacts.jsph.pl");
 
-var seeder = Task.Run(() => SeedAsync(stream, factsApi, mapper, cts.Token));
+var seeder = Task.Run(() => SeedAsync(stream, factsApi, catalog, cts.Token));
 
 var processor = KurrentProcessor
     .Create(new WordCountProcessor(), opts => {
         opts.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false", client => {
             client.LoggerFactory = new SerilogLoggerFactory();
-            client.Schema.Mapper = mapper;
+            client.Messages.UseCatalog(catalog);
         });
         
         opts.Subscription.Filter          = RecordFilter.ByStream(stream);
@@ -60,13 +60,13 @@ finally {
 
 return;
 
-static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageTypeMapper mapper, CancellationToken ct) {
+static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageCatalog catalog, CancellationToken ct) {
     //const int initialBatch = 100;
 
     var delay = TimeSpan.FromSeconds(1);
 
     await using var client = KurrentClient.Create(
-        "kurrentdb://admin:changeit@localhost:2113?tls=false", client => client.Schema.Mapper = mapper);
+        "kurrentdb://admin:changeit@localhost:2113?tls=false", client => client.Messages.UseCatalog(catalog));
 
     //
     // Log.Information("Priming stream with {Count} facts...", initialBatch);

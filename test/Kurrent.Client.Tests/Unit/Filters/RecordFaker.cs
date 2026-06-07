@@ -24,8 +24,8 @@ sealed class RecordFaker : Faker<Record> {
                     },
                     Timestamp      = TimeProvider.System.GetLocalNow().LocalDateTime,
                     Schema         = new RecordSchemaInfo {
-                        SchemaName   = urn.ToString(),
-                        SchemaFormat = SchemaDataFormat.Json
+                        Schema   = urn.ToString(),
+                        DataFormat = SchemaDataFormat.Json
                     }
                 };
             }
@@ -96,7 +96,7 @@ sealed class RecordFaker : Faker<Record> {
             Timestamp = timestamp ?? record.Timestamp,
             Metadata  = metadata ?? record.Metadata,
             Schema = record.Schema with {
-                SchemaName = schemaName is { } ? SchemaName.From(schemaName) : record.Schema.SchemaName
+                Schema = schemaName is { } ? SchemaName.From(schemaName) : record.Schema.Schema
             }
         };
     }

@@ -15,19 +15,17 @@ public record OrderPlaced(string OrderId, string Item);
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.Schema.Mapper.Map<OrderPlaced>());
+    opts => opts.Messages.MapMessage<OrderPlaced>());
 ```
 
-The snippets below build on this. See [Type mapping](./type-mapping.md) for the full story on the mapper.
+The snippets below build on this. See [Type mapping](./type-mapping.md) for the full story on catalogs.
 
 ## Decode eagerly
 
-When the schema resolves to a registered type, records arrive decoded and `IsDecoded` is true. If the schema name does not match any registration, iteration throws `SchemaDeserializationFailedException`.
+When the schema resolves to a mapped type, records arrive decoded and `IsDecoded` is true. A schema name with no mapping passes through raw — `IsDecoded` is false and the bytes stay in `Data` — unless the operation opts into strictness with `ThrowOnUnresolved`, in which case iteration throws `MessageTypeResolutionException`. A record whose schema *is* mapped but whose payload fails to decode throws `SchemaDeserializationFailedException`.
 
 ```csharp
-var request = new ReadStreamRequest { Stream = "order-123" };
-
-var stream = client.Streams.ReadStream(request);
+var stream = client.Streams.ReadStream("order-123", new());
 
 var records = stream
     .Where(msg => msg.IsRecord)
@@ -41,35 +39,35 @@ await foreach (var record in records) {
 
 ## Decode on demand
 
-With `SkipDecoding` set on the request, records arrive with `Value` empty and `IsDecoded` false. Call `TryDecode` on each record to materialize the value.
+With `SkipDecoding` set on the options, records arrive with `Value` empty and `IsDecoded` false. Call `Decode` on each record to materialize the value.
 
-```csharp{3,13}
-var request = new ReadStreamRequest {
-    Stream       = "order-123",
+```csharp{2,10}
+var stream = client.Streams.ReadStream("order-123", new() {
     SkipDecoding = true
-};
-
-var stream = client.Streams.ReadStream(request);
+});
 
 var records = stream
     .Where(msg => msg.IsRecord)
     .Select(msg => msg.AsRecord);
 
 await foreach (var record in records) {
-    if (await record.TryDecode())
+    if (await record.Decode() == DecodeOutcome.Decoded)
         Console.WriteLine("Decoded: {0}", record.Value);
 }
 ```
 
-`TryDecode` behavior:
+`Decode` reports an explicit `DecodeOutcome`; failures (deserialization errors, governance violations) are exceptions, so the enum covers only the non-exceptional outcomes:
 
-- Returns true on success and false when the record is stored as raw bytes. For raw bytes, read `Record.Data` directly. See [Raw bytes](./formats/bytes.md).
-- A repeat call on an already-decoded record returns true without re-decoding.
-- Accepts an optional `CancellationToken`.
+| Outcome       | Meaning                                                                                        |
+|---------------|------------------------------------------------------------------------------------------------|
+| `Decoded`     | The value was materialized — or the record was already decoded (the call is idempotent).      |
+| `NoData`      | The payload is empty; there is nothing to decode.                                              |
+| `Unmapped`    | The schema name has no mapped type; the record stays raw. Read `Record.Data` directly — see [Raw bytes](./formats/bytes.md) — or map the type in a [catalog](./type-mapping.md). |
+| `Unavailable` | No decoder is attached (e.g. hand-built records).                                              |
 
 ## Cast to a known type
 
-When you know the runtime type, `record.As<T>()` casts `Value` to `T` with zero overhead for reference types. Use it after eager decoding succeeds or after `TryDecode` returns true.
+When you know the runtime type, `record.As<T>()` casts `Value` to `T` with zero overhead for reference types. Use it after eager decoding succeeds or after `Decode` reports `Decoded`.
 
 ```csharp
 var order = record.As<OrderPlaced>();

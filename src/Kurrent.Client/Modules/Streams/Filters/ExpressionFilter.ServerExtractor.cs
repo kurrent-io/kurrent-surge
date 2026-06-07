@@ -14,6 +14,14 @@ static class ServerFilterExtractor {
     /// Priority: Stream (1) > Category (2) > Index (3) > Schema (4).
     /// </summary>
     public static RecordFilter Extract(IFilterExpression expression) {
+        // OR of pure stream predicates → a single regex union. Only valid when EVERY disjunct
+        // is a stream predicate: the server filter must match a SUPERSET of the expression
+        // (client-side evaluation trims the rest), and a stream regex cannot cover a disjunct
+        // on another property (e.g. "stream = 'a' OR schema = 'b'") — those fall through to
+        // the conjunct path below and, ultimately, to no server filter.
+        if (TryExtractStreamUnionFilter(expression, out var unionFilter))
+            return unionFilter;
+
         var conjuncts = FlattenAnd(expression);
 
         // Priority 1: Stream filters (avoids full $all log scan)
@@ -52,6 +60,45 @@ static class ServerFilterExtractor {
     }
 
     #region ->> Stream Filter Extraction <<-
+
+    static bool TryExtractStreamUnionFilter(IFilterExpression expression, out RecordFilter filter) {
+        if (expression is not OrExpression or) {
+            filter = RecordFilter.None;
+            return false;
+        }
+
+        var disjuncts = new List<IFilterExpression>();
+        FlattenOr(or, disjuncts);
+
+        var regexPatterns   = new List<string>();
+        var caseInsensitive = false;
+
+        foreach (var disjunct in disjuncts) {
+            // One non-stream disjunct poisons the union — the regex would under-match.
+            if (!TryExtractStreamPredicate(disjunct, out var regex, out var ignoreCase, out _)) {
+                filter = RecordFilter.None;
+                return false;
+            }
+
+            regexPatterns.Add(regex);
+            caseInsensitive |= ignoreCase;
+        }
+
+        var combined     = $"({string.Join("|", regexPatterns)})";
+        var finalPattern = caseInsensitive ? $"(?i){combined}" : combined;
+
+        filter = StreamRegexFilter.Parse(finalPattern);
+        return true;
+
+        static void FlattenOr(IFilterExpression expr, List<IFilterExpression> result) {
+            if (expr is OrExpression nested) {
+                FlattenOr(nested.Left, result);
+                FlattenOr(nested.Right, result);
+            }
+            else
+                result.Add(expr);
+        }
+    }
 
     static bool TryExtractStreamFilter(List<IFilterExpression> expressions, out RecordFilter filter) {
         var regexPatterns   = new List<string>();

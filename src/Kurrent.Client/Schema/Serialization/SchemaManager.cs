@@ -7,98 +7,67 @@ using SchemaDataFormat = Kurrent.Client.Streams.SchemaDataFormat;
 namespace Kurrent.Client.Schema.Serialization;
 
 [PublicAPI]
-public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter schemaExporter, MessageTypeMapper typeMapper) {
-    RegistryClient    SchemaRegistryClient { get; } = schemaRegistryClient;
-    ISchemaExporter   SchemaExporter       { get; } = schemaExporter;
-    MessageTypeMapper TypeMapper           { get; } = typeMapper;
+public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter schemaExporter, MessageResolver resolver) {
+    RegistryClient  SchemaRegistryClient { get; } = schemaRegistryClient;
+    ISchemaExporter SchemaExporter       { get; } = schemaExporter;
+    MessageResolver Resolver             { get; } = resolver;
 
 	ConcurrentDictionary<Type, List<SchemaVersionDescriptor>> CompatibleVersions { get; } = new();
 
 	#region ->> Serialize <<-
 
 	public async ValueTask<(SchemaName SchemaName, SchemaVersionId SchemaVersionId)> RegisterOrValidateSchema(Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-		if (policy is { AutoRegisterSchemas: true, DataFormat: SchemaDataFormat.Json })
-			return await HandleServerRegistration(messageType, policy, ct);
+		// No auto-mapping: if it's mapped it's there, if it's not it throws. The resolver is a
+		// read-only snapshot taken at client construction from the message catalogs.
+		var schemaName = Resolver.ResolveSchemaName(messageType);
 
-		if (policy is { ValidateSchemas: true, DataFormat: SchemaDataFormat.Json })
-			return await HandleServerValidation(messageType, policy, ct);
+		if (policy is { AutoRegisterSchemas: true, DataFormat: SchemaDataFormat.Json }) {
+			var versionInfo = await TryRegisterSchema(schemaName, messageType, policy.DataFormat, ct)
+				.ConfigureAwait(false);
 
-		return HandleLocalRegistration(messageType, policy);
-	}
-
-	async ValueTask<(SchemaName SchemaName, SchemaVersionId SchemaVersionId)> HandleServerRegistration(Type messageType,  ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-		var mapped = TypeMapper.TryGetSchemaName(messageType, out var schemaName);
-
-		if (!mapped)
-			schemaName = policy.GetSchemaName(messageType);
-
-		var versionInfo = await TryRegisterSchema(schemaName, messageType, policy.DataFormat, ct)
-			.ConfigureAwait(false);
-
-		if (!mapped)
-			TypeMapper.TryMap(schemaName, messageType);
-
-		return (schemaName, versionInfo.VersionId);
-	}
-
-	async ValueTask<(SchemaName schemaName, SchemaVersionId lastSchemaVersionId)> HandleServerValidation(Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-		var mapped = TypeMapper.TryGetSchemaName(messageType, out var schemaName);
-
-		if (!mapped)
-			schemaName = policy.GetSchemaName(messageType);
-
-		var lastSchemaVersionId = await EnsureSchemaCompatibility(schemaName, messageType, policy.DataFormat, ct)
-			.ConfigureAwait(false);
-
-		if (!mapped)
-			TypeMapper.TryMap(schemaName, messageType);
-
-		return (schemaName, lastSchemaVersionId);
-	}
-
-	(SchemaName schemaName, SchemaVersionId lastSchemaVersionId) HandleLocalRegistration(Type messageType, ResolvedSchemaRegistryPolicy policy) {
-		if (policy.AutoMapMessages) {
-			var mapped = TypeMapper.TryGetSchemaName(messageType, out var schemaName);
-			
-            if (!mapped) {
-				schemaName = policy.GetSchemaName(messageType);
-				TypeMapper.TryMap(schemaName, messageType);
-			}
-
-			return (schemaName, SchemaVersionId.Unset);
+			return (schemaName, versionInfo.VersionId);
 		}
-		else if (TypeMapper.TryGetSchemaName(messageType, out var schemaName))
-			return (schemaName, SchemaVersionId.Unset);
-		else
-			throw new AutoRegistrationDisabledException(policy.DataFormat, messageType);
+
+		if (policy is { ValidateSchemas: true, DataFormat: SchemaDataFormat.Json }) {
+			var lastSchemaVersionId = await EnsureSchemaCompatibility(schemaName, messageType, policy.DataFormat, ct)
+				.ConfigureAwait(false);
+
+			return (schemaName, lastSchemaVersionId);
+		}
+
+		return (schemaName, SchemaVersionId.Unset);
 	}
 
 	#endregion
 
 	#region ->> Deserialize <<-
 
-	public async ValueTask<(Type MessageType, SchemaVersionId SchemaVersionId)> ValidateAndEnsureSchemaCompatibility(RecordSchemaInfo schemaInfo, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
+	public async ValueTask<(Type? MessageType, SchemaVersionId SchemaVersionId)> ValidateAndEnsureSchemaCompatibility(RecordSchemaInfo schemaInfo, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
+		// Unresolved schema name → null (unless the client opted into throwing): the record
+		// passes through raw so a forward-unknown type is data, not a crashed subscription.
+		// EXCEPT when governance mandates validation — a record that must be validated can
+		// never be silently skipped, and validation is impossible without a mapped type.
+		var messageType = Resolver.ResolveType(schemaInfo.Schema);
 
-        if (!TypeMapper.TryGetMessageType(schemaInfo.SchemaName, out var messageType)) {
-            // TODO SS: Should not be possible to resolve a type if we are to be 100% AOT compatible
-            if (policy.AutoMapMessages && ForbidenTypeResolver.ResolveType(schemaInfo.SchemaName) is { } resolvedType && TypeMapper.TryMap(schemaInfo.SchemaName, resolvedType))
-                messageType = resolvedType;
-            else
-                throw new MessageTypeResolutionException(schemaInfo.SchemaName);
-        }
-  
+		if (messageType is null) {
+			if (policy.ValidateSchemas)
+				throw new MessageTypeResolutionException(schemaInfo.Schema);
+
+			return (null, SchemaVersionId.Unset);
+		}
+
 		if (!policy.ValidateSchemas)
 			return (messageType, SchemaVersionId.Unset);
 
 		if (schemaInfo.HasSchemaId) {
-			await EnsureSchemaCompatibility(schemaInfo.SchemaVersionId, messageType, schemaInfo.SchemaFormat, ct).ConfigureAwait(false);
+			await EnsureSchemaCompatibility(schemaInfo.VersionId, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
 
 			// it was already set so we don't need to do anything and dont return the version id
 			return (messageType, SchemaVersionId.Unset);
 		}
 
 		// fallback behaviour for backwards compatibility
-		var lastSchemaVersionId = await EnsureSchemaCompatibility(schemaInfo.SchemaName, messageType, schemaInfo.SchemaFormat, ct).ConfigureAwait(false);
+		var lastSchemaVersionId = await EnsureSchemaCompatibility(schemaInfo.Schema, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
 
 		return (messageType, lastSchemaVersionId);
 	}

@@ -1129,49 +1129,55 @@ public class ObjectGraphEquivalencyTests {
     [Test]
     public async ValueTask implicit_conversion_to_int_passes() {
         var revision = Revision.From(Faker.Random.Int(1, 100));
+        var intValue = (int)revision.Value;
 
-        await Assert.That(revision).IsDeepEquivalentTo((int)revision.Value);
-        await Assert.That((int)revision.Value).IsDeepEquivalentTo(revision);
+        await Assert.That(revision).IsDeepEquivalentTo(intValue);
+        await Assert.That(intValue).IsDeepEquivalentTo(revision);
     }
 
     [Test]
     public async ValueTask implicit_conversion_to_short_passes() {
-        var revision = Revision.From(Faker.Random.Int(1, 100));
+        var revision   = Revision.From(Faker.Random.Int(1, 100));
+        var shortValue = (short)revision.Value;
 
-        await Assert.That(revision).IsDeepEquivalentTo((short)revision.Value);
-        await Assert.That((short)revision.Value).IsDeepEquivalentTo(revision);
+        await Assert.That(revision).IsDeepEquivalentTo(shortValue);
+        await Assert.That(shortValue).IsDeepEquivalentTo(revision);
     }
 
     [Test]
     public async ValueTask implicit_conversion_to_double_passes() {
-        var revision = Revision.From(Faker.Random.Int(1, 100));
+        var revision    = Revision.From(Faker.Random.Int(1, 100));
+        var doubleValue = (double)revision.Value;
 
-        await Assert.That(revision).IsDeepEquivalentTo((double)revision.Value);
-        await Assert.That((double)revision.Value).IsDeepEquivalentTo(revision);
+        await Assert.That(revision).IsDeepEquivalentTo(doubleValue);
+        await Assert.That(doubleValue).IsDeepEquivalentTo(revision);
     }
 
     [Test]
     public async ValueTask implicit_conversion_to_decimal_passes() {
-        var revision = Revision.From(Faker.Random.Int(1, 100));
+        var revision     = Revision.From(Faker.Random.Int(1, 100));
+        var decimalValue = (decimal)revision.Value;
 
-        await Assert.That(revision).IsDeepEquivalentTo((decimal)revision.Value);
-        await Assert.That((decimal)revision.Value).IsDeepEquivalentTo(revision);
+        await Assert.That(revision).IsDeepEquivalentTo(decimalValue);
+        await Assert.That(decimalValue).IsDeepEquivalentTo(revision);
     }
 
     [Test]
     public async ValueTask implicit_conversion_with_different_numeric_value_fails() {
-        var revision = Revision.From(Faker.Random.Int(1, 99));
+        var revision       = Revision.From(Faker.Random.Int(1, 99));
+        var differentValue = (int)revision.Value + 1;
 
-        var action = async () => await Assert.That(revision).IsDeepEquivalentTo((int)revision.Value + 1);
+        var action = async () => await Assert.That(revision).IsDeepEquivalentTo(differentValue);
 
         await Assert.That(action).ThrowsException();
     }
 
     [Test]
     public async ValueTask implicit_conversion_reverse_direction_with_different_value_fails() {
-        var revision = Revision.From(Faker.Random.Int(1, 99));
+        var revision       = Revision.From(Faker.Random.Int(1, 99));
+        var differentValue = (int)revision.Value + 1;
 
-        var action = async () => await Assert.That((int)revision.Value + 1).IsDeepEquivalentTo(revision);
+        var action = async () => await Assert.That(differentValue).IsDeepEquivalentTo(revision);
 
         await Assert.That(action).ThrowsException();
     }

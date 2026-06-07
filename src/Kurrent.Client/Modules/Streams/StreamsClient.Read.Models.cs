@@ -22,7 +22,12 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
     /// </summary>
     public RecordFilter Filter { get; init; } = RecordFilter.None;
 
-    public int FilterMaxSearchWindow { get; init; } = 1000;
+    /// <summary>
+    /// Number of raw log records the server scans per filter page before emitting a
+    /// <see cref="FilterCheckpoint"/> and returning results. Only applies when a server-side
+    /// filter routes the read through <c>$all</c>. Default matches the SDK-wide scan window.
+    /// </summary>
+    public int FilterMaxSearchWindow { get; init; } = (int)StreamsClientMapping.DefaultMaxSearchWindow;
     
     /// <summary>
     /// Direction for reading records through the log.
@@ -33,6 +38,13 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
     /// Skip record data deserialization for performance-critical scenarios.
     /// </summary>
     public bool SkipDecoding { get; init; }
+
+    /// <summary>
+    /// When true, a record whose schema name has no mapped type fails the read instead of
+    /// passing through raw. Default false: a forward-unknown type is data for fallback
+    /// handlers, not an error. Has no effect when <see cref="SkipDecoding"/> is set.
+    /// </summary>
+    public bool ThrowOnUnresolved { get; init; }
 
     /// <summary>
     /// Resolve link records (<c>$&gt;</c>) to their target events. Index streams (<c>$ce-*</c>,
@@ -78,6 +90,13 @@ public record ReadStreamOptions : SelfValidating<ReadStreamOptions, ReadStreamOp
 
     /// <summary>Skip record data deserialization for performance-critical scenarios.</summary>
     public bool SkipDecoding { get; init; }
+
+    /// <summary>
+    /// When true, a record whose schema name has no mapped type fails the read instead of
+    /// passing through raw. Default false: a forward-unknown type is data for fallback
+    /// handlers, not an error. Has no effect when <see cref="SkipDecoding"/> is set.
+    /// </summary>
+    public bool ThrowOnUnresolved { get; init; }
 
     /// <summary>
     /// Resolve link records (<c>$&gt;</c>) to their target events. Default <c>true</c>.

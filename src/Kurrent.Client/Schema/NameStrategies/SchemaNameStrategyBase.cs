@@ -17,15 +17,17 @@ public enum SchemaNameOutputFormat {
 
 public interface ISchemaNameStrategy {
 	/// <summary>
-	/// Generates a schema name based on the specified message type and optional stream name,
+	/// Generates a schema name based on the specified message type,
 	/// formatted according to the schema naming strategy.
 	/// </summary>
 	/// <param name="messageType">The type of the message for which the schema name is being generated. Must not be null.</param>
-	/// <param name="stream">An optional stream name that influences the schema name generation. Defaults to null.</param>
 	/// <returns>The generated schema name as a string, formatted according to the specified schema name format.</returns>
 	/// <exception cref="ArgumentNullException">Thrown when the provided message type is null.</exception>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when the schema name format is unsupported.</exception>
-	SchemaName GenerateSchemaName(Type messageType, string? stream = null);
+	SchemaName GenerateSchemaName(Type messageType);
+
+    SchemaName GenerateSchemaName<T>() =>
+        GenerateSchemaName(typeof(T));
 }
 
 /// <summary>
@@ -33,19 +35,18 @@ public interface ISchemaNameStrategy {
 /// </summary>
 public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : ISchemaNameStrategy {
 	/// <summary>
-	/// Generates a schema name based on the specified message type and optional stream name,
+	/// Generates a schema name based on the specified message type,
 	/// formatted according to the schema naming strategy.
 	/// </summary>
 	/// <param name="messageType">The type of the message for which the schema name is being generated. Must not be null.</param>
-	/// <param name="stream">An optional stream name that influences the schema name generation. Defaults to null.</param>
 	/// <returns>The generated schema name as a string, formatted according to the specified schema name format.</returns>
 	/// <exception cref="ArgumentNullException">Thrown when the provided message type is null.</exception>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when the schema name format is unsupported.</exception>
-	public SchemaName GenerateSchemaName(Type messageType, string? stream = null) {
+	public SchemaName GenerateSchemaName(Type messageType) {
 		if (messageType is null || messageType == Type.MissingType)
 			throw new ArgumentNullException(nameof(messageType));
 
-		var (ns, msg) = Generate(messageType, stream ?? "");
+		var (ns, msg) = Generate(messageType);
 
 		if (string.IsNullOrEmpty(ns)) {
 			return format switch {
@@ -64,5 +65,5 @@ public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : IS
 		};
 	}
 
-	protected abstract (string Namespace, string MessageName) Generate(Type messageType, string streamName);
+	protected abstract (string Namespace, string MessageName) Generate(Type messageType);
 }

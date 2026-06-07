@@ -21,7 +21,7 @@ namespace Kurrent;
 /// <c>SequentialAccess | SingleResult</c> and throws — and raw reads are the only AOT-safe option here.
 /// <para>
 /// Rows from <c>kdb.records</c> map onto the SDK's <see cref="Record"/> so queried records decode
-/// (<see cref="Record.TryDecode"/>/<see cref="Record.As{T}"/>) exactly like records from reads and
+/// (<see cref="Record.Decode"/>/<see cref="Record.As{T}"/>) exactly like records from reads and
 /// subscriptions. A <see cref="KurrentClient"/> is created internally to reuse the SDK serializer
 /// pipeline.
 /// </para>
@@ -110,8 +110,8 @@ public sealed class Queries : IAsyncDisposable {
             Timestamp = timestamp,
             Schema    = new RecordSchemaInfo {
                 // A partial projection may omit schema_name; SchemaName.From rejects empty, so fall back.
-                SchemaName   = string.IsNullOrEmpty(schemaName) ? SchemaName.Unset : SchemaName.From(schemaName),
-                SchemaFormat = schemaFormat
+                Schema   = string.IsNullOrEmpty(schemaName) ? SchemaName.Unset : SchemaName.From(schemaName),
+                DataFormat = schemaFormat
             },
             Data      = ToBytes(Value(reader, columns, "data")?.ToString(), schemaFormat),
             Metadata  = ToMetadata(Value(reader, columns, "metadata")?.ToString())

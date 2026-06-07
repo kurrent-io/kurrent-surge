@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Roslyn source generator: single-targeted netstandard2.0. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- Unlike the SDK-internal generators, this one is a PRODUCT FEATURE: it ships to
+         consumers inside the Kurrent.Client package (analyzers/dotnet/cs) so message
+         catalogs are generated in THEIR compilations. Packing is orchestrated by
+         Kurrent.Client.csproj; this project itself is not independently packable. -->
+    <IsPackable>false</IsPackable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+  </PropertyGroup>
+
+  <!-- Helper code is compiled straight into this generator assembly — no separate
+       Kurrent.CodeAnalysis.dll for the analyzer host to load (works in Rider too). -->
+  <Import Project="..\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.Sources.props" />
+</Project>

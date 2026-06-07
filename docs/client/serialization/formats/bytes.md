@@ -31,7 +31,7 @@ await client.Streams.AppendStream(record);
 ## Read bytes
 
 ::: warning
-Bytes records are not decoded on read. `Record.Data` holds the raw bytes. `Record.Value` stays empty and `Record.IsDecoded` returns false. `TryDecode` always returns false for bytes records.
+Bytes records are not decoded on read. `Record.Data` holds the raw bytes. `Record.Value` stays empty and `Record.IsDecoded` returns false — there is no payload to materialize beyond the bytes themselves.
 :::
 
 Pull the bytes off `Record.Data` and decode them yourself:

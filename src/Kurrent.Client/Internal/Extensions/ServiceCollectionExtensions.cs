@@ -1,27 +1,18 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Streaming.Hosting;
+namespace Kurrent;
 
 /// <summary>
-/// <see cref="IServiceCollection"/> helpers that return a <see cref="bool"/> indicating
-/// whether a registration actually occurred — the signal missing from stock
-/// <c>TryAddSingleton</c>/<c>TryAddScoped</c>/<c>TryAddTransient</c> overloads.
+/// <see cref="IServiceCollection"/> helpers that return whether a registration actually
+/// occurred — the signal missing from stock <c>TryAdd*</c> overloads.
 /// </summary>
 /// <remarks>
-/// <para>
-/// All <c>TryRegister*</c> helpers default to <see cref="ServiceLifetime.Singleton"/>.
-/// The dedup rule mirrors <see cref="ServiceCollectionDescriptorExtensions.TryAdd(IServiceCollection, ServiceDescriptor)"/>:
-/// a single O(n) pass comparing <c>(ServiceType, ServiceKey)</c>. Keyed and non-keyed
-/// registrations are therefore distinct entries.
-/// </para>
-/// <para>
-/// Activated variants piggyback on
-/// <c>Microsoft.Extensions.DependencyInjection.AutoActivation</c> to force instantiation
-/// at host startup via <c>AutoActivationHostedService</c>. Only the Singleton lifetime
-/// is supported for activation; the stock package exposes no activation path for
-/// <see cref="ServiceLifetime.Scoped"/> or <see cref="ServiceLifetime.Transient"/>.
-/// </para>
+/// Dedup matches <c>TryAdd</c>: one pass comparing <c>(ServiceType, ServiceKey)</c>, so keyed
+/// and non-keyed registrations are distinct. Defaults to <see cref="ServiceLifetime.Singleton"/>.
+/// Activated variants use <c>Microsoft.Extensions.DependencyInjection.AutoActivation</c> to force
+/// instantiation at host startup — Singleton only.
 /// </remarks>
 static class ServiceCollectionExtensions {
     extension(IServiceCollection services) {
@@ -34,8 +25,8 @@ static class ServiceCollectionExtensions {
             services.IsRegistered(typeof(T), serviceKey);
 
         public bool IsRegistered(Type serviceType, object? serviceKey = null) {
-            int count = services.Count;
-            for (int i = 0; i < count; i++) {
+            var count = services.Count;
+            for (var i = 0; i < count; i++) {
                 var d = services[i];
                 if (d.ServiceType == serviceType && Equals(d.ServiceKey, serviceKey))
                     return true;
@@ -51,19 +42,18 @@ static class ServiceCollectionExtensions {
         #region ->> TryRegister (non-keyed) <<-
 
         /// <summary>
-        /// Registers <typeparamref name="T"/> as its own service type if no non-keyed
-        /// registration of <typeparamref name="T"/> already exists.
+        /// Registers <typeparamref name="T"/> as its own service type unless already registered.
         /// </summary>
-        public bool TryRegister<T>(
+        public bool TryRegister<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
             ServiceLifetime lifetime = ServiceLifetime.Singleton
         ) where T : class =>
             services.TryAdd(ServiceDescriptor.Describe(typeof(T), typeof(T), lifetime));
 
         /// <summary>
         /// Registers <typeparamref name="TImplementation"/> as <typeparamref name="TService"/>
-        /// if no non-keyed registration of <typeparamref name="TService"/> already exists.
+        /// unless already registered.
         /// </summary>
-        public bool TryRegister<TService, TImplementation>(
+        public bool TryRegister<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
             ServiceLifetime lifetime = ServiceLifetime.Singleton
         )
             where TService : class
@@ -71,8 +61,7 @@ static class ServiceCollectionExtensions {
             services.TryAdd(ServiceDescriptor.Describe(typeof(TService), typeof(TImplementation), lifetime));
 
         /// <summary>
-        /// Registers a factory-backed <typeparamref name="T"/> if no non-keyed registration
-        /// of <typeparamref name="T"/> already exists.
+        /// Registers a factory-backed <typeparamref name="T"/> unless already registered.
         /// </summary>
         public bool TryRegister<T>(
             Func<IServiceProvider, T> implementationFactory,
@@ -81,9 +70,7 @@ static class ServiceCollectionExtensions {
             services.TryAdd(ServiceDescriptor.Describe(typeof(T), implementationFactory, lifetime));
 
         /// <summary>
-        /// Registers a pre-built instance as a singleton if no non-keyed registration of
-        /// <typeparamref name="T"/> already exists. Instance-backed registrations only make
-        /// sense for <see cref="ServiceLifetime.Singleton"/>.
+        /// Registers a pre-built instance as a singleton unless already registered.
         /// </summary>
         public bool TryRegisterInstance<T>(T instance)
             where T : class =>
@@ -94,10 +81,10 @@ static class ServiceCollectionExtensions {
         #region ->> TryRegisterKeyed <<-
 
         /// <summary>
-        /// Registers <typeparamref name="T"/> as its own service type under <paramref name="serviceKey"/>
-        /// if no registration for that (type, key) pair already exists.
+        /// Registers <typeparamref name="T"/> as its own service type under
+        /// <paramref name="serviceKey"/> unless that (type, key) pair is already registered.
         /// </summary>
-        public bool TryRegisterKeyed<T>(
+        public bool TryRegisterKeyed<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
             object? serviceKey,
             ServiceLifetime lifetime = ServiceLifetime.Singleton
         ) where T : class =>
@@ -105,9 +92,9 @@ static class ServiceCollectionExtensions {
 
         /// <summary>
         /// Registers <typeparamref name="TImplementation"/> as <typeparamref name="TService"/> under
-        /// <paramref name="serviceKey"/> if no registration for that (type, key) pair already exists.
+        /// <paramref name="serviceKey"/> unless that (type, key) pair is already registered.
         /// </summary>
-        public bool TryRegisterKeyed<TService, TImplementation>(
+        public bool TryRegisterKeyed<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
             object? serviceKey,
             ServiceLifetime lifetime = ServiceLifetime.Singleton
         )
@@ -117,7 +104,7 @@ static class ServiceCollectionExtensions {
 
         /// <summary>
         /// Registers a factory-backed <typeparamref name="T"/> under <paramref name="serviceKey"/>
-        /// if no registration for that (type, key) pair already exists.
+        /// unless that (type, key) pair is already registered.
         /// </summary>
         public bool TryRegisterKeyed<T>(
             object? serviceKey,
@@ -127,8 +114,8 @@ static class ServiceCollectionExtensions {
             services.TryAdd(ServiceDescriptor.DescribeKeyed(typeof(T), serviceKey, implementationFactory, lifetime));
 
         /// <summary>
-        /// Registers a pre-built instance as a keyed singleton if no registration for
-        /// <typeparamref name="T"/> under <paramref name="serviceKey"/> already exists.
+        /// Registers a pre-built instance as a keyed singleton unless that (type, key) pair
+        /// is already registered.
         /// </summary>
         public bool TryRegisterKeyedInstance<T>(object? serviceKey, T instance)
             where T : class =>
@@ -139,10 +126,9 @@ static class ServiceCollectionExtensions {
         #region ->> TryRegisterActivated (non-keyed) <<-
 
         /// <summary>
-        /// Registers <typeparamref name="T"/> as a singleton and marks it for auto-activation
-        /// at host startup. Only Singleton lifetime is supported.
+        /// Registers <typeparamref name="T"/> as a singleton activated at host startup.
         /// </summary>
-        public bool TryRegisterActivated<T>() where T : class {
+        public bool TryRegisterActivated<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>() where T : class {
             if (!services.TryRegister<T>())
                 return false;
 
@@ -150,7 +136,11 @@ static class ServiceCollectionExtensions {
             return true;
         }
 
-        public bool TryRegisterActivated<TService, TImplementation>()
+        /// <summary>
+        /// Registers <typeparamref name="TImplementation"/> as <typeparamref name="TService"/>,
+        /// activated at host startup.
+        /// </summary>
+        public bool TryRegisterActivated<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>()
             where TService : class
             where TImplementation : class, TService {
             if (!services.TryRegister<TService, TImplementation>())
@@ -160,6 +150,9 @@ static class ServiceCollectionExtensions {
             return true;
         }
 
+        /// <summary>
+        /// Registers a factory-backed <typeparamref name="T"/> as a singleton activated at host startup.
+        /// </summary>
         public bool TryRegisterActivated<T>(
             Func<IServiceProvider, T> implementationFactory
         ) where T : class {
@@ -174,7 +167,10 @@ static class ServiceCollectionExtensions {
 
         #region ->> TryRegisterKeyedActivated <<-
 
-        public bool TryRegisterKeyedActivated<T>(object? serviceKey)
+        /// <summary>
+        /// Registers <typeparamref name="T"/> as a keyed singleton activated at host startup.
+        /// </summary>
+        public bool TryRegisterKeyedActivated<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(object? serviceKey)
             where T : class {
             if (!services.TryRegisterKeyed<T>(serviceKey))
                 return false;
@@ -183,7 +179,11 @@ static class ServiceCollectionExtensions {
             return true;
         }
 
-        public bool TryRegisterKeyedActivated<TService, TImplementation>(
+        /// <summary>
+        /// Registers <typeparamref name="TImplementation"/> as a keyed <typeparamref name="TService"/>,
+        /// activated at host startup.
+        /// </summary>
+        public bool TryRegisterKeyedActivated<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
             object? serviceKey
         )
             where TService : class
@@ -195,6 +195,10 @@ static class ServiceCollectionExtensions {
             return true;
         }
 
+        /// <summary>
+        /// Registers a factory-backed <typeparamref name="T"/> as a keyed singleton activated
+        /// at host startup.
+        /// </summary>
         public bool TryRegisterKeyedActivated<T>(
             object? serviceKey,
             Func<IServiceProvider, object?, T> implementationFactory
@@ -211,13 +215,11 @@ static class ServiceCollectionExtensions {
         #region ->> TryRegisterHostedService <<-
 
         /// <summary>
-        /// Registers <typeparamref name="THostedService"/> as an <see cref="IHostedService"/>,
-        /// returning <c>true</c> when this call performed the registration. Unlike
-        /// <see cref="ServiceCollectionHostedServiceExtensions.AddHostedService{THostedService}(IServiceCollection)"/>,
-        /// this does not go through <c>TryAddEnumerable</c>'s <c>(ServiceType, ImplementationType)</c> dedup;
-        /// the concrete hosted-service type is the dedup key.
+        /// Registers <typeparamref name="THostedService"/> as an <see cref="IHostedService"/>
+        /// unless already registered. Unlike <c>AddHostedService</c>, the concrete hosted-service
+        /// type is the dedup key — not <c>TryAddEnumerable</c>'s (ServiceType, ImplementationType).
         /// </summary>
-        public bool TryRegisterHostedService<THostedService>()
+        public bool TryRegisterHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>()
             where THostedService : class, IHostedService {
             if (services.IsRegistered<THostedService>())
                 return false;
@@ -227,6 +229,10 @@ static class ServiceCollectionExtensions {
             return true;
         }
 
+        /// <summary>
+        /// Registers a factory-backed <typeparamref name="THostedService"/> as an
+        /// <see cref="IHostedService"/> unless already registered.
+        /// </summary>
         public bool TryRegisterHostedService<THostedService>(
             Func<IServiceProvider, THostedService> factory
         ) where THostedService : class, IHostedService {
@@ -243,8 +249,8 @@ static class ServiceCollectionExtensions {
         #region ->> Core primitive <<-
 
         /// <summary>
-        /// Dedups on <c>(ServiceType, ServiceKey)</c> via <see cref="IsRegistered(ServiceDescriptor)"/>,
-        /// adds otherwise. Returns <c>true</c> iff the descriptor was added by this call.
+        /// Dedups on <c>(ServiceType, ServiceKey)</c>, adds otherwise. Returns <c>true</c> iff
+        /// the descriptor was added by this call.
         /// </summary>
         bool TryAdd(ServiceDescriptor descriptor) {
             if (services.IsRegistered(descriptor))

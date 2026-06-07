@@ -131,6 +131,9 @@ public class ExpressionFilterTests {
         await Assert.That(filter.IsMatch(ordersRecord)).IsTrue();
         await Assert.That(filter.IsMatch(paymentsRecord)).IsTrue();
         await Assert.That(filter.IsMatch(usersRecord)).IsFalse();
+        
+        var properFilter = RecordFilter.ByExpression("stream = 'orders' OR stream = 'payments'");
+        await Assert.That(properFilter.As<ExpressionFilter>().ServerFilter).IsTypeOf<StreamRegexFilter>();
     }
 
     [Test]

@@ -65,7 +65,7 @@ static partial class StreamsClientMapping {
             // Stream branch uses Revision.Min — read whole stream from beginning when
             // the filter resolves to a StreamNameFilter. Log branch uses options.Start.
             var start = RecordPosition.From(options.Start, StreamName.Unset, Revision.Min);
-            RouteByFilter(req.Options, options.Filter, start);
+            RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);
 
             return req;
         }

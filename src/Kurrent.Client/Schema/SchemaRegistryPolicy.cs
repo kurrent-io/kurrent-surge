@@ -43,12 +43,12 @@ public record SchemaRegistryPolicy {
     /// </summary>
     /// <param name="options">The schema registration options provided by the client.</param>
     /// <param name="stream">The stream identifier associated with the schema.</param>
-    /// <param name="serializerFormat">The data format used by the serializer, which may be considered in resolution if the server does not enforce a specific format.</param>
+    /// <param name="dataFormat">The data format used by the serializer, which may be considered in resolution if the server does not enforce a specific format.</param>
     /// <returns>A <see cref="ResolvedSchemaRegistryPolicy"/> object that encapsulates the resolved settings.</returns>
-    public ResolvedSchemaRegistryPolicy Resolve(SchemaRegistrationOptions options, string? stream, SchemaDataFormat serializerFormat = SchemaDataFormat.Unspecified) {
+    public ResolvedSchemaRegistryPolicy Resolve(SchemaRegistrationOptions options, string? stream, SchemaDataFormat dataFormat = SchemaDataFormat.Unspecified) {
 		// If schema registry is disabled on server, create a policy with local operations only
 		if (!Enabled)
-			return new(false, false, options.AutoMapMessages, SchemaDataFormat.Unspecified, options.SchemaNameStrategy, stream);
+			return new(false, false, SchemaDataFormat.Unspecified, stream);
 
 		// Resolve auto-registration based on client mode and server policy
 		var autoRegister = options.RegistrationMode switch {
@@ -65,7 +65,6 @@ public record SchemaRegistryPolicy {
 			},
 
 			SchemaRegistrationMode.ServerPolicy => RegistrationRequirement == PolicyRequirement.Required,
-
 			_ => false
 		};
 
@@ -88,11 +87,11 @@ public record SchemaRegistryPolicy {
 			_ => false
 		};
 
-		var dataFormat = EnforcedDataFormat != SchemaDataFormat.Unspecified
+		var actualDataFormat = EnforcedDataFormat != SchemaDataFormat.Unspecified
 			? EnforcedDataFormat
-			: serializerFormat;
+			: dataFormat;
 
-		return new(autoRegister, validate, options.AutoMapMessages, dataFormat, options.SchemaNameStrategy, stream);
+		return new(autoRegister, validate, actualDataFormat, stream);
 	}
 
 	// /// <summary>

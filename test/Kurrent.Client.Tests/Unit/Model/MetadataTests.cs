@@ -231,6 +231,52 @@ public class MetadataTests {
 
     #endregion
 
+    #region ->> Key Validation <<-
+
+    [Test]
+    [Arguments("")]
+    [Arguments(" ")]
+    [Arguments("\t")]
+    public async ValueTask with_rejects_empty_or_whitespace_keys(string key) {
+        // Arrange
+        var metadata = new Metadata();
+
+        // Act & Assert
+        await Assert.That(() => metadata.With(key, Faker.Random.Words())).ThrowsExactly<ArgumentException>();
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments(" ")]
+    public async ValueTask indexer_set_rejects_empty_or_whitespace_keys(string key) {
+        // Arrange
+        var metadata = new Metadata();
+
+        // Act & Assert
+        await Assert.That(() => metadata[key] = Faker.Random.Words()).ThrowsExactly<ArgumentException>();
+    }
+
+    [Test]
+    public async ValueTask with_many_rejects_empty_or_whitespace_keys() {
+        // Arrange
+        var metadata = new Metadata();
+        var items    = new KeyValuePair<string, object?>[] { new(" ", Faker.Random.Words()) };
+
+        // Act & Assert
+        await Assert.That(() => metadata.WithMany(items)).ThrowsExactly<ArgumentException>();
+    }
+
+    [Test]
+    public async ValueTask constructor_rejects_empty_or_whitespace_keys() {
+        // Arrange
+        var items = new Dictionary<string, object?> { [" "] = Faker.Random.Words() };
+
+        // Act & Assert
+        await Assert.That(() => new Metadata(items)).ThrowsExactly<ArgumentException>();
+    }
+
+    #endregion
+
     #region ->> Read Operations <<-
 
     [Test]
@@ -319,6 +365,172 @@ public class MetadataTests {
         await Assert.That(metadata.Keys).Contains(key2);
         await Assert.That(metadata.Values).Contains(value1);
         await Assert.That(metadata.Values).Contains(value2);
+    }
+
+    #endregion
+
+    #region ->> String Conversion <<-
+
+    [Test]
+    public async ValueTask try_get_value_converts_string_to_int() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = Faker.Random.Int();
+        var metadata = new Metadata().With(key, expected.ToString());
+
+        // Act
+        var found = metadata.TryGetValue<int>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_value_converts_string_to_nullable_int() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = Faker.Random.Int();
+        var metadata = new Metadata().With(key, expected.ToString());
+
+        // Act
+        var found = metadata.TryGetValue<int?>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_value_converts_string_to_guid() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = Faker.Random.Guid();
+        var metadata = new Metadata().With(key, expected.ToString());
+
+        // Act
+        var found = metadata.TryGetValue<Guid>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_value_converts_string_to_datetimeoffset() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = Faker.Date.RecentOffset();
+        var metadata = new Metadata().With(key, expected.ToString("O"));
+
+        // Act
+        var found = metadata.TryGetValue<DateTimeOffset>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_value_converts_string_to_enum_case_insensitive() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = Faker.PickRandom<DayOfWeek>();
+        var metadata = new Metadata().With(key, expected.ToString().ToLowerInvariant());
+
+        // Act
+        var found = metadata.TryGetValue<DayOfWeek>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_value_returns_false_for_unparseable_string() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var metadata = new Metadata().With(key, Faker.Random.Words());
+
+        // Act
+        var found = metadata.TryGetValue<int>(key, out _);
+
+        // Assert
+        await Assert.That(found).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask try_get_value_returns_false_for_unsupported_type() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var metadata = new Metadata().With(key, "1,2");
+
+        // Act — TestCoordinate is outside the built-in conversion set; TryGetParsable is the supported path.
+        var found = metadata.TryGetValue<TestCoordinate>(key, out _);
+
+        // Assert
+        await Assert.That(found).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask try_get_parsable_parses_string_via_iparsable() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = new TestCoordinate(Faker.Random.Int(), Faker.Random.Int());
+        var metadata = new Metadata().With(key, $"{expected.X},{expected.Y}");
+
+        // Act
+        var found = metadata.TryGetParsable<TestCoordinate>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_parsable_returns_typed_value_directly() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var expected = new TestCoordinate(Faker.Random.Int(), Faker.Random.Int());
+        var metadata = new Metadata().With(key, expected);
+
+        // Act
+        var found = metadata.TryGetParsable<TestCoordinate>(key, out var value);
+
+        // Assert
+        await Assert.That(found).IsTrue();
+        await Assert.That(value).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask try_get_parsable_returns_false_for_unparseable_string() {
+        // Arrange
+        var key      = Faker.Random.AlphaNumeric(8);
+        var metadata = new Metadata().With(key, Faker.Random.Words());
+
+        // Act
+        var found = metadata.TryGetParsable<TestCoordinate>(key, out _);
+
+        // Assert
+        await Assert.That(found).IsFalse();
+    }
+
+    readonly record struct TestCoordinate(int X, int Y) : IParsable<TestCoordinate> {
+        public static TestCoordinate Parse(string s, IFormatProvider? provider) =>
+            TryParse(s, provider, out var result) ? result : throw new FormatException();
+
+        public static bool TryParse(string? s, IFormatProvider? provider, out TestCoordinate result) {
+            result = default;
+
+            if (s?.Split(',') is not [var first, var second])
+                return false;
+
+            if (!int.TryParse(first, out var x) || !int.TryParse(second, out var y))
+                return false;
+
+            result = new(x, y);
+            return true;
+        }
     }
 
     #endregion

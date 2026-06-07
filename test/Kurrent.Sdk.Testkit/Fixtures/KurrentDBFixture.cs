@@ -22,8 +22,7 @@ public class KurrentDBFixture : AspireFixture {
         };
 
         ConfigureBuilder = builder => {
-            var settings = builder.Configuration
-                .GetSection("KurrentDB")
+            var settings = builder.Configuration.GetSection("KurrentDB")
                 .Get<KurrentDBSettings>(opts => opts.BindNonPublicProperties = true) 
                         ?? new KurrentDBSettings();
 
@@ -78,7 +77,11 @@ public class KurrentDBFixture : AspireFixture {
 
     public string AnonymousConnectionString { get; private set; } = null!;
     
-    public MessageTypeMapper TypeMapper => Client.Options.Schema.Mapper;
+    /// <summary>
+    /// The fixture client's default catalog. Note: mappings added here only affect clients
+    /// created AFTER the change — resolvers snapshot catalogs at client construction.
+    /// </summary>
+    public MessageCatalog Catalog => Client.Options.Messages.Catalog;
 
     public KurrentClient GetNewClient(string connectionString, Action<KurrentClientOptions>? configure = null) =>
         KurrentClient.Create(connectionString, opts => {

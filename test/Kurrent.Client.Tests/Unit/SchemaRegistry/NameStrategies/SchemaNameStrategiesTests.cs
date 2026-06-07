@@ -19,19 +19,6 @@ public class SchemaNameStrategiesTests {
 	}
 
 	[Test]
-	[Arguments(SchemaNameOutputFormat.None, "Logistics-101", "Logistics.OrderShipped")]
-	[Arguments(SchemaNameOutputFormat.None, "Logistics", "Logistics.OrderShipped")]
-	[Arguments(KebabCase, "Logistics-101", "logistics.order-shipped")]
-	[Arguments(SnakeCase, "Logistics-101", "logistics.order_shipped")]
-	[Arguments(Urn, "Logistics-101", "urn:schemas-kurrent:logistics:order-shipped")]
-	public async Task category_schema_name_strategy_generates_correct_name(SchemaNameOutputFormat format, string streamName, string expectedName) {
-		var strategy    = new CategorySchemaNameStrategy(format);
-		var messageType = typeof(Company.Logistics.Events.OrderShipped);
-		var result      = strategy.GenerateSchemaName(messageType, streamName);
-		await Assert.That(result.Value).IsEqualTo(expectedName);
-	}
-
-	[Test]
 	[Arguments(SchemaNameOutputFormat.None, "com.company.logistics.OrderShipped")]
 	[Arguments(KebabCase, "com.company.logistics.order-shipped")]
 	[Arguments(SnakeCase, "com.company.logistics.order_shipped")]
@@ -40,21 +27,6 @@ public class SchemaNameStrategiesTests {
 		var strategy    = new NamespaceSchemaNameStrategy("com.company.logistics", format);
 		var messageType = typeof(Company.Logistics.Events.OrderShipped);
 		var result      = strategy.GenerateSchemaName(messageType);
-		await Assert.That(result.Value).IsEqualTo(expectedName);
-	}
-
-	[Test]
-	[Arguments(SchemaNameOutputFormat.None, "Logistics-101", "com.company.Logistics.OrderShipped")]
-	[Arguments(SchemaNameOutputFormat.None, "Logistics", "com.company.Logistics.OrderShipped")]
-	[Arguments(KebabCase, "Logistics-101", "com.company.logistics.order-shipped")]
-	[Arguments(SnakeCase, "Logistics-101", "com.company.logistics.order_shipped")]
-	[Arguments(Urn, "Logistics-101", "urn:schemas-kurrent:com.company.logistics:order-shipped")]
-	public async Task namespace_category_schema_name_strategy_generates_correct_name(SchemaNameOutputFormat format, string streamName, string expectedName) {
-		var strategy    = new NamespaceCategorySchemaNameStrategy("com.company", format);
-		var messageType = typeof(Company.Logistics.Events.OrderShipped);
-
-		var result = strategy.GenerateSchemaName(messageType, streamName);
-
 		await Assert.That(result.Value).IsEqualTo(expectedName);
 	}
 
@@ -71,23 +43,8 @@ public class SchemaNameStrategiesTests {
 	}
 
 	[Test]
-	public async Task category_schema_name_strategy_throws_on_empty_stream() {
-		var strategy    = new CategorySchemaNameStrategy();
-		var messageType = typeof(Company.Logistics.Events.OrderShipped);
-		await Assert.That(() => strategy.GenerateSchemaName(messageType, " ")).ThrowsExactly<ArgumentException>();
-	}
-
-	[Test]
 	public async Task namespace_schema_name_strategy_throws_on_empty_namespace() {
 		await Assert.That(() => new NamespaceSchemaNameStrategy(" ")).ThrowsExactly<ArgumentException>();
-	}
-
-	[Test]
-	public async Task namespace_category_schema_name_strategy_throws_on_empty_namespace_or_stream() {
-		await Assert.That(() => new NamespaceCategorySchemaNameStrategy(" ")).ThrowsExactly<ArgumentException>();
-		var strategy    = new NamespaceCategorySchemaNameStrategy("com.company");
-		var messageType = typeof(Company.Logistics.Events.OrderShipped);
-		await Assert.That(() => strategy.GenerateSchemaName(messageType, " ")).ThrowsExactly<ArgumentException>();
 	}
 
 	[Test]

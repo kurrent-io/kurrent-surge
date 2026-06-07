@@ -31,7 +31,6 @@ public class CheckpointerTests {
             partitionCount,
             maxCount,
             Fixture.Client.Streams,
-            Fixture.TypeMapper,
             TimeProvider.System,
             TestkitExecutionContext.LoggerFactory.CreateLogger<KurrentDBCheckpointStore>()
         );

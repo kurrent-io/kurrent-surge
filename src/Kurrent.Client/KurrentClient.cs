@@ -31,18 +31,23 @@ public class KurrentClient : IKurrentClient {
         LegacyCallInvoker     = new(options);
         BackdoorClientFactory = new(LegacyCallInvoker, options);
 
+        // The freeze: snapshot the message catalogs (system + default + explicit + auto-
+        // discovered) into a read-only resolver. Catalog changes after this point never
+        // affect this client.
+        var messageResolver = options.Messages.BuildResolver();
+
         var schemaManager = new SchemaManager(
 	        new(this),
 	        NJsonSchemaExporter.Instance,
-	        options.Schema.Mapper);
+	        messageResolver);
 
-        if (options.Schema.Protobuf.Context is not null)
-	        ProtobufMessages.System.Configure(options.Schema.Protobuf.Context);
+        if (options.Messages.Protobuf.Context is not null)
+	        ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
 
         SerializerProvider = new SchemaSerializerProvider([
             new BytesPassthroughSerializer(),
-	        new JsonSchemaSerializer(options.Schema.Json, schemaManager),
-	        new ProtobufSchemaSerializer(options.Schema.Protobuf, schemaManager)
+	        new JsonSchemaSerializer(options.Messages.Json, schemaManager),
+	        new ProtobufSchemaSerializer(options.Messages.Protobuf, schemaManager)
         ]);
 
         Registry   = new(this);
@@ -50,9 +55,6 @@ public class KurrentClient : IKurrentClient {
         Indexes    = new(this);
         Connectors = new(this);
         Admin      = new(this);
-        // PersistentSubscriptions = new PersistentSubscriptionsClient(this);
-        // Projections             = new ProjectionsClient(this);
-        // Users                   = new UsersClient(this);
     }
 
     internal bool Shared { get; init; }
@@ -62,22 +64,12 @@ public class KurrentClient : IKurrentClient {
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
     internal ISchemaSerializerProvider    SerializerProvider    { get; }
 
-    public StreamsClient                 Streams                 { get; }
-    public RegistryClient                Registry                { get; }
-    public IndexesClient                 Indexes                 { get; }
-    public ConnectorsClient              Connectors              { get; }
-    // public UsersClient                   Users                   { get; }
-    // public PersistentSubscriptionsClient PersistentSubscriptions { get; }
-    public AdminClient                   Admin                   { get; }
-    // public ProjectionsClient             Projections             { get; }
+    public StreamsClient    Streams    { get; }
+    public RegistryClient   Registry   { get; }
+    public IndexesClient    Indexes    { get; }
+    public ConnectorsClient Connectors { get; }
+    public AdminClient      Admin      { get; }
 
-	// internal async Task<ServerFeatures> ForceRefresh(CancellationToken cancellationToken = default) {
-	// 	await LegacyCallInvoker.ForceRefresh(cancellationToken).ConfigureAwait(false);
-	//
-	// 	return new ServerFeatures {
-	// 		Version = LegacyCallInvoker.ServerCapabilities.Version
-	// 	};
-	// }
     
     public async ValueTask DisposeAsync() {
         if (Shared) return;
@@ -108,7 +100,7 @@ public class KurrentClient : IKurrentClient {
     /// // Parse the connection string, then tune.
     /// var client = KurrentClient.Create("kurrentdb://localhost:2113", opts => {
     ///     opts.Resilience = KurrentClientResilienceOptions.HighAvailability;
-    ///     opts.Schema.Mapper.Map&lt;OrderPlaced&gt;();
+    ///     opts.Messages.MapMessage&lt;OrderPlaced&gt;("order.placed.v1");
     /// });
     /// </code>
     /// </example>

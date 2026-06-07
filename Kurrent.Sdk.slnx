@@ -17,6 +17,7 @@
     <Project Path="src/Kurrent.Client/Kurrent.Client.csproj" />
     <Project Path="src/Kurrent.Client.Arrow/Kurrent.Client.Arrow.csproj" />
     <Project Path="src/Kurrent.Client.SourceGenerators/Kurrent.Client.SourceGenerators.csproj" />
+    <Project Path="src/Kurrent.Client.MessageCatalogs.Generators/Kurrent.Client.MessageCatalogs.Generators.csproj" />
     <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
     <Project Path="test/Kurrent.Client.Arrow.Tests/Kurrent.Client.Arrow.Tests.csproj" />
   </Folder>

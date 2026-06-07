@@ -23,17 +23,17 @@ public abstract class MetadataDecoder : IMetadataDecoder {
     public ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
         if (bytes.IsEmpty)
             return new Metadata()
-                .AddSchemaNameIfMissing(context.SchemaName)
-                .AddSchemaFormatIfMissing(context.SchemaFormat)
+                .AddSchemaNameIfMissing(context.Schema)
+                .AddSchemaFormatIfMissing(context.DataFormat)
                 .AsValueTask();
 
         try {
-            if (context.SchemaName == LinkSchemaName)
+            if (context.Schema == LinkSchemaName)
                 return DeserializeLinkMetadata(bytes).AsValueTask();
 
             return DecodeCore(bytes, context)
-                .AddSchemaNameIfMissing(context.SchemaName)
-                .AddSchemaFormatIfMissing(context.SchemaFormat)
+                .AddSchemaNameIfMissing(context.Schema)
+                .AddSchemaFormatIfMissing(context.DataFormat)
                 .AsValueTask();
         }
         catch (Exception ex) when (ex is not MetadataDecodingException) {
@@ -86,8 +86,8 @@ public interface IMetadataDecoder {
 [PublicAPI]
 public readonly record struct MetadataDecoderContext(
     StreamName Stream,
-    SchemaName SchemaName,
-    SchemaDataFormat SchemaFormat);
+    SchemaName Schema,
+    SchemaDataFormat DataFormat);
 
 [PublicAPI]
 public class MetadataDecodingException(Type decoderType, MetadataDecoderContext decoderContext, Exception innerException)
@@ -97,7 +97,7 @@ public class MetadataDecodingException(Type decoderType, MetadataDecoderContext 
     public MetadataDecoderContext DecoderContext { get; } = decoderContext;
 
     static string ErrorMessage(Type type, MetadataDecoderContext ctx, Exception ex) =>
-        $"Failed to decode '{ctx.SchemaName}' record metadata " +
+        $"Failed to decode '{ctx.Schema}' record metadata " +
         $"from '{ctx.Stream}' using instance of '{type.Name}': {ex.Message}";
 
     [DoesNotReturn, StackTraceHidden]

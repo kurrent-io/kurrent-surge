@@ -10,16 +10,20 @@ namespace Kurrent.Client.Tests.Schema.Serialization.Protobuf;
 [InheritsTests]
 [Category("SerDe")]
 public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
-	MessageTypeMapper _typeMapper = null!;
-
 	protected override SchemaDataFormat ExpectedDataFormat => SchemaDataFormat.Protobuf;
 
 	protected override ISchemaSerializer CreateSut() {
-		_typeMapper = new MessageTypeMapper();
-		var schemaManager = new SchemaManager(null!, null!, _typeMapper);
+		// No auto-mapping: every type the fixture serializes must be in the catalog.
+		var catalog = new MessageCatalog("protobuf-tests")
+			.Map<KurrentDB.Protocol.V2.Streams.AppendRecordsResponse>()
+			.Map<KurrentDB.Protocol.V2.Streams.StreamRevision>()
+			.Map<KurrentDB.Protocol.V2.Streams.ConsistencyCheck.Types.QueryPredicateCheck>()
+			.Map<string>("bad-schema"); // for deserialize_with_non_protobuf_type_throws
+
+		var schemaManager = new SchemaManager(null!, null!, catalog.GetResolver());
 
 		return new ProtobufSchemaSerializer(
-			new ProtobufSchemaSerializerOptions { SchemaRegistration = SchemaRegistrationOptions.AutoMap },
+			new ProtobufSchemaSerializerOptions { SchemaRegistration = SchemaRegistrationOptions.ManualMap },
 			schemaManager
 		);
 	}
@@ -50,8 +54,8 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 	protected override SchemaSerializationContext CreateSerializeContext() => new() {
 		Stream       = "test-stream",
 		RecordSchema = new RecordSchemaInfo {
-			SchemaName   = "test-schema",
-			SchemaFormat = SchemaDataFormat.Protobuf
+			Schema   = "test-schema",
+			DataFormat = SchemaDataFormat.Protobuf
 		}
 	};
 
@@ -60,8 +64,8 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 	SchemaSerializationContext CreateDeserializeContext(string schemaName) => new() {
 		Stream       = "test-stream",
 		RecordSchema = new RecordSchemaInfo {
-			SchemaName   = schemaName,
-			SchemaFormat = SchemaDataFormat.Protobuf
+			Schema   = schemaName,
+			DataFormat = SchemaDataFormat.Protobuf
 		}
 	};
 
@@ -77,9 +81,7 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 
 	[Test]
 	public async ValueTask deserialize_with_non_protobuf_type_throws() {
-		// Arrange
-		_typeMapper.TryMap<string>("bad-schema");
-
+		// Arrange — "bad-schema" → string is mapped in the SUT catalog at construction.
 		var context = CreateDeserializeContext("bad-schema");
 		var data    = new ReadOnlyMemory<byte>([1, 2, 3]);
 

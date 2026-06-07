@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\src\Kurrent.Client.MessageCatalogs.Generators\Kurrent.Client.MessageCatalogs.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\Aspire.Hosting.KurrentDB\Aspire.Hosting.KurrentDB.csproj" IsAspireProjectResource="false" />
   </ItemGroup>

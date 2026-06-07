@@ -112,10 +112,18 @@ public readonly record struct Connected(SessionId SessionId);
 public record SubscribeOptions {
     public RecordFilter   Filter          { get; init; } = RecordFilter.None;
     public RecordPosition Start           { get; init; } = RecordPosition.Latest;
-    
+
     public bool           SkipDecoding    { get; init; }
     public bool           ResolveLinks    { get; init; } = true;
     public uint           MaxSearchWindow { get; init; } = StreamsClientMapping.DefaultMaxSearchWindow;
+
+    /// <summary>
+    /// When true, a record whose schema name has no mapped type fails the subscription
+    /// instead of passing through raw. Default false: a forward-unknown type is data for
+    /// fallback handlers, not a crashed subscription. Has no effect when
+    /// <see cref="SkipDecoding"/> is set.
+    /// </summary>
+    public bool ThrowOnUnresolved { get; init; }
 }
 
 public partial class StreamsClient {
@@ -224,7 +232,7 @@ public partial class StreamsClient {
                     case ReadResp.ContentOneofCase.Event:
                         var ctx = CreateMappingContext(ct);
                         var record = await resp.Event
-                            .MapToRecordAsync(sequencer.FetchNext(), ctx, options.SkipDecoding)
+                            .MapToRecordAsync(sequencer.FetchNext(), ctx, options.SkipDecoding, options.ThrowOnUnresolved)
                             .ConfigureAwait(false);
 
                         if (options.Filter.IsMatch(record))

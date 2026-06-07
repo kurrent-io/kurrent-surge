@@ -122,14 +122,17 @@ public static class KurrentClientServiceCollectionExtensions {
     /// <summary>
     /// Applies service-provider-resolved services to the options as overrides.
     /// Each service only overrides the corresponding option if it is registered.
+    /// Internal so the <see cref="IKurrentBuilder"/> connection path applies the
+    /// exact same override pipeline.
     /// </summary>
-    static KurrentClientOptions ResolveServices(KurrentClientOptions options, IServiceProvider sp) {
-        if (sp.GetService<MessageTypeMapper>() is { } mapper)
-            options.Schema.Mapper = mapper;
+    internal static KurrentClientOptions ResolveServices(KurrentClientOptions options, IServiceProvider sp) {
+        // Container-registered catalogs join the client's selection; they compose with
+        // (rather than replace) attribute-declared and auto-discovered catalogs.
+        options.Messages.UseCatalog(sp.GetServices<MessageCatalog>());
 
         if (sp.GetService<ILoggerFactory>() is { } loggerFactory)
             options.LoggerFactory = loggerFactory;
-                
+
         if (sp.GetService<IMetadataDecoder>() is { } metadataDecoder)
             options.MetadataDecoder = metadataDecoder;
 

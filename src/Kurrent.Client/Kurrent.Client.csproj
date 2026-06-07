@@ -31,6 +31,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
+    <!-- Product feature: ships to consumers so message catalogs generate in THEIR compilations. -->
+    <ProjectReference Include="..\Kurrent.Client.MessageCatalogs.Generators\Kurrent.Client.MessageCatalogs.Generators.csproj" PackedAnalyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
 
@@ -82,6 +84,7 @@
     <InternalsVisibleTo Include="Kurrent.Client.Arrow" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit.Hosting" />
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />

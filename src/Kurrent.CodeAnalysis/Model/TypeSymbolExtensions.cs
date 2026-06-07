@@ -11,8 +11,6 @@ namespace Kurrent.CodeAnalysis.Extraction;
 public static class TypeSymbolExtensions {
     /// <summary>
     /// Produce a value-equatable <see cref="TypeSymbol"/> snapshot of <paramref name="symbol"/>.
-    /// The returned <see cref="TypeSymbol.OriginalSymbol"/> is valid for the current compilation
-    /// only — do not persist across compilations.
     /// </summary>
     public static TypeSymbol ToTypeSymbol(this ITypeSymbol symbol) =>
         ExtractCore(symbol, new HashSet<ISymbol>(SymbolEqualityComparer.Default));
@@ -28,13 +26,14 @@ public static class TypeSymbolExtensions {
                 FullName: symbol.GetFullName(),
                 Kind: symbol.GetTypeKind(),
                 Traits: symbol.GetTraits(),
+                Accessibility: symbol.DeclaredAccessibility,
                 Special: GetSpecial(symbol),
                 TypeArguments: ExtractTypeArguments(symbol, visited),
                 BaseType: ExtractBaseType(symbol, visited),
                 ArrayElementType: ExtractArrayElementType(symbol, visited),
                 Interfaces: ExtractInterfaces(symbol, visited),
                 Attributes: ExtractAttributes(symbol, visited),
-                ContainingTypes: ExtractContainingTypes(symbol)) { OriginalSymbol = symbol };
+                ContainingTypes: ExtractContainingTypes(symbol));
         }
         finally {
             visited.Remove(symbol);
@@ -48,13 +47,14 @@ public static class TypeSymbolExtensions {
             FullName: symbol.GetFullName(),
             Kind: symbol.GetTypeKind(),
             Traits: symbol.GetTraits(),
+            Accessibility: symbol.DeclaredAccessibility,
             Special: GetSpecial(symbol),
             TypeArguments: Array.Empty<TypeSymbol>(),
             BaseType: null,
             ArrayElementType: null,
             Interfaces: Array.Empty<TypeSymbol>(),
             Attributes: Array.Empty<AttributeRef>(),
-            ContainingTypes: Array.Empty<ContainingTypeRef>()) { OriginalSymbol = symbol };
+            ContainingTypes: Array.Empty<ContainingTypeRef>());
 
     static SpecialType GetSpecial(ITypeSymbol symbol) =>
         symbol is INamedTypeSymbol nt && nt.IsGenericType

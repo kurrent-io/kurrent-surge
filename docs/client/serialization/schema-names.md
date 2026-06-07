@@ -8,21 +8,19 @@ order: 1
 
 Every record carries a string identity for its type, the schema name. Readers use it to resolve which .NET type to decode into, and the [schema registry](../schema-registry/README.md) uses it as the key for storage, governance, and version management. The schema name surfaces in tooling, cross-service contracts, and the registry, so picking a strategy up front pays off later.
 
-By default Kurrent derives the schema name from the .NET full type name. A record of type `OrderPlaced` in the `Shop.Orders` namespace produces the schema name `Shop.Orders.OrderPlaced`. Four strategies ship with the SDK, and each composes with one of four output formats.
+By default Kurrent derives the schema name from the .NET full type name. A record of type `OrderPlaced` in the `Shop.Orders` namespace produces the schema name `Shop.Orders.OrderPlaced`. Two strategies ship with the SDK, and each composes with one of four output formats.
 
 ## At a glance
 
-| Strategy                                          | Required inputs               | Output template                 | Choose when                                                |
-|---------------------------------------------------|-------------------------------|---------------------------------|------------------------------------------------------------|
-| [Type name](#type-name-default) (default)         | Type                          | `{Namespace}.{TypeName}`        | Prototyping, internal systems, code-as-contract            |
-| [Stream category](#stream-category)               | Type, stream                  | `{category}.{TypeName}`         | Event-sourced systems with stream-per-aggregate layout     |
-| [Fixed namespace](#fixed-namespace)               | Type, namespace label         | `{label}.{TypeName}`            | Multi-tenant or environment-isolated platforms             |
-| [Namespace and category](#namespace-and-category) | Type, stream, namespace label | `{label}.{category}.{TypeName}` | Multi-tenant event-sourced platforms with bounded contexts |
+| Strategy                                  | Required inputs       | Output template          | Choose when                                     |
+|-------------------------------------------|-----------------------|--------------------------|-------------------------------------------------|
+| [Type name](#type-name-default) (default) | Type                  | `{Namespace}.{TypeName}` | Prototyping, internal systems, code-as-contract |
+| [Fixed namespace](#fixed-namespace)       | Type, namespace label | `{label}.{TypeName}`     | Decoupling the wire contract from code structure; multi-tenant or environment-isolated platforms |
 
 ::: tip Recommended starting points
-- **Event-driven systems**: **Stream category** is the recommended default. It aligns with how streams are naturally organized and keeps names concise without tying the wire contract to .NET code structure.
 - **Prototyping or message-driven monoliths**: **Type name** requires zero configuration.
-- **Tenant isolation as a first-class requirement**: start with **Namespace and category**. Retrofitting tenant boundaries later is far more expensive than absorbing the upfront cost.
+- **Event-sourced and event-driven systems**: name records after the domain category, not the code. `Shop.Orders.OrderPlaced` couples the wire to your .NET structure — `order.order-placed` survives any refactor and reads as the domain. When a service owns one category, **Fixed namespace** with the category as the label produces exactly that shape; when it owns several, pin each name in its [catalog](./type-mapping.md).
+- **Long-lived systems and cross-language consumers**: **Fixed namespace** keeps wire names stable across refactors, or pin names per type. Retrofitting stable names later is far more expensive than absorbing the upfront cost.
 :::
 
 The most important factor is consistency. A simple strategy applied uniformly beats a sophisticated one applied unevenly. For renames, version bumps, or switching strategies on a live stream, see [Schema evolution](./schema-evolution.md).
@@ -40,13 +38,32 @@ The output format is the second axis of every strategy. It transforms the casing
 
 ## Naming strategies
 
+Every registration carries its own naming source — there is no client-wide strategy. A pinned name wins, then the registration's strategy, then the default convention (the full type name). Declaratively, the strategy is a type argument on the attribute:
+
+```csharp
+public sealed class AcmeNames() : NamespaceSchemaNameStrategy("acme", SchemaNameOutputFormat.KebabCase);
+
+[MessageType<OrderPlaced, AcmeNames>]                    // acme.order-placed
+public record OrderPlaced(string OrderId);
+
+[MessageType<OrderCancelled>("order.cancelled.v1")]      // pinned: no strategy involved
+public record OrderCancelled(string OrderId);
+```
+
+On a [catalog](./type-mapping.md) or the client options, the strategy is passed per mapping:
+
 ```csharp
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.Schema.NameStrategy = SchemaNameStrategies.Category(SchemaNameOutputFormat.KebabCase));
+    opts => opts.Messages
+        .MapMessage<OrderPlaced>(SchemaNameStrategies.Namespace("acme", SchemaNameOutputFormat.KebabCase))  // acme.order-placed
+        .MapMessage<OrderShipped>(SchemaNameStrategies.Namespace("acme", SchemaNameOutputFormat.KebabCase)) // acme.order-shipped
+        .MapMessage<OrderCancelled>("order.cancelled.v1"));                                                 // pinned: bypasses the strategy
 ```
 
-The four factories on `SchemaNameStrategies` are `TypeName`, `Category`, `Namespace`, and `NamespaceCategory`. Each accepts an optional output format. The category-based strategies (`Category` and `NamespaceCategory`) derive their prefix from the stream and throw when the stream is empty.
+A namespace scan applies one strategy to every type it picks up — see [Message catalogs](./message-discovery.md#scan-a-namespace).
+
+The two factories on `SchemaNameStrategies` are `TypeName` and `Namespace`. Each accepts an optional output format.
 
 ### Type name (default)
 
@@ -57,7 +74,7 @@ Joins the .NET namespace with the short type name.
 **Output**: `{Namespace}.{TypeName}`
 
 ::: warning
-Fully-qualified .NET names tie the wire contract to your code structure. Renaming a class or moving it to a different namespace renames the schema, which breaks consumers reading the old name. For anything beyond prototyping, prefer **Stream category** or another strategy that decouples the wire name from .NET identifiers.
+Fully-qualified .NET names tie the wire contract to your code structure. Renaming a class or moving it to a different namespace renames the schema, which breaks consumers reading the old name. For anything beyond prototyping, prefer **Fixed namespace** or pin names explicitly in the [catalog](./type-mapping.md) to decouple the wire name from .NET identifiers.
 :::
 
 **Choose when**
@@ -86,43 +103,6 @@ Given `Shop.Orders.OrderPlaced`:
 | `KebabCase` | shop.orders.order-placed                     |
 | `SnakeCase` | shop.orders.order_placed                     |
 | `Urn`       | urn:schemas-kurrent:shop.orders:order-placed |
-
-### Stream category
-
-Pulls the category from the stream name (everything before the first hyphen) and joins it with the short type name. The .NET namespace is discarded.
-
-**Inputs**: type and a non-empty stream.
-
-**Output**: `{category}.{TypeName}`
-
-**Errors**: throws when the stream is empty.
-
-**Choose when**
-
-- Building event-sourced systems with stream-per-aggregate layout
-- Organizing streams by domain category on platforms like KurrentDB
-- Wanting concise, domain-aligned schema names
-- Reducing coupling to .NET code structure
-
-**Trade-offs**
-
-| Pros                                    | Cons                                           |
-|-----------------------------------------|------------------------------------------------|
-| Concise, readable schema names          | Potential naming collisions across domains     |
-| Stable across class refactors           | Less explicit service ownership in the name    |
-| Aligns with stream-per-aggregate layout | Requires every record to have a stream segment |
-| Easy to discover by domain              | Categories must be coordinated across teams    |
-
-**Examples**
-
-Given `Shop.Orders.OrderPlaced` on stream `order-7f3a`:
-
-| Format      | Schema name                            |
-|-------------|----------------------------------------|
-| `None`      | order.OrderPlaced                      |
-| `KebabCase` | order.order-placed                     |
-| `SnakeCase` | order.order_placed                     |
-| `Urn`       | urn:schemas-kurrent:order:order-placed |
 
 ### Fixed namespace
 
@@ -159,51 +139,32 @@ Given `Shop.Orders.OrderPlaced` with namespace `acme`:
 | `SnakeCase` | acme.order_placed                     |
 | `Urn`       | urn:schemas-kurrent:acme:order-placed |
 
-### Namespace and category
-
-Combines a fixed namespace label with the stream category, then appends the short type name.
-
-**Inputs**: type, a non-empty stream, and a namespace label configured on the strategy.
-
-**Output**: `{label}.{category}.{TypeName}`
-
-**Errors**: throws when the stream is empty.
-
-**Choose when**
-
-- Running multi-tenant event-sourced platforms with bounded contexts per tenant
-- Managing complex domain hierarchies across different environments
-- Needing tenant isolation alongside domain grouping
-- Implementing event-driven architectures with clear isolation requirements
-
-**Trade-offs**
-
-| Pros                                      | Cons                                                    |
-|-------------------------------------------|---------------------------------------------------------|
-| Tenant isolation plus domain organization | Most complex name structure of the four                 |
-| Strong multi-tenant boundaries            | Requires coordination of both namespaces and categories |
-| Clear bounded contexts per tenant         | Steeper learning curve for new team members             |
-| Scales well for large platforms           | Schema resolution involves both pieces                  |
-
-**Examples**
-
-Given `Shop.Orders.OrderPlaced` on stream `order-7f3a` with namespace `acme`:
-
-| Format      | Schema name                                 |
-|-------------|---------------------------------------------|
-| `None`      | acme.order.OrderPlaced                      |
-| `KebabCase` | acme.order.order-placed                     |
-| `SnakeCase` | acme.order.order_placed                     |
-| `Urn`       | urn:schemas-kurrent:acme.order:order-placed |
-
 ## Overriding per type
 
-When the generated name is not what you want, override it explicitly through the type mapper:
+When the generated name is not what you want, pin it — on the attribute or on the mapping:
 
 ```csharp
-opts.Schema.Mapper = MessageTypeMapper.Create(m => m
-    .Map<OrderPlaced>()
-    .Map<OrderShipped>("order.shipped.v1"));
+[MessageType<OrderShipped>("order.shipped.v1")]
+public record OrderShipped(string OrderId);
 ```
 
-The string passed to `Map<T>` becomes the wire-level schema name and bypasses the active strategy. See [Type mapping](./type-mapping.md) for the full mapper API.
+```csharp
+opts.Messages
+    .MapMessage<OrderPlaced>()
+    .MapMessage<OrderShipped>("order.shipped.v1");
+```
+
+The string becomes the wire-level schema name and bypasses any strategy. See [Type mapping](./type-mapping.md) for the full catalog API.
+
+## Version from day one
+
+Put a version in the name before the first record is ever written:
+
+```csharp
+.Map<OrderPlaced>("order.order-placed")     // the first rename will be a breaking one
+.Map<OrderPlaced>("order.order-placed.v1")  // the first rename is already priced in
+```
+
+Schema names are append-only. Once a record carries a name, readers of that record exist forever, so a name can never be reused for a different shape — it can only be retired. That makes the unversioned name the one contract you can never fix cheaply: adding `.v1` later is itself a rename, and renames are the expensive move.
+
+One suffix at design time buys every future migration. When the shape genuinely changes, `order.order-placed.v2` slots in next to v1 and both decode side by side — see [Schema evolution](./schema-evolution.md) for the mechanics.

@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Schema;
@@ -13,16 +12,12 @@ public record ResolvedSchemaRegistryPolicy {
 	internal ResolvedSchemaRegistryPolicy(
 		bool autoRegisterSchemas,
 		bool validateSchemas,
-		bool autoMapMessages,
 		SchemaDataFormat dataFormat,
-		ISchemaNameStrategy schemaNameStrategy,
 		string? stream
 	) {
 		AutoRegisterSchemas = autoRegisterSchemas;
 		ValidateSchemas     = validateSchemas;
-		AutoMapMessages     = autoMapMessages;
 		DataFormat          = dataFormat;
-		SchemaNameStrategy  = schemaNameStrategy;
 		Stream              = stream;
 	}
 
@@ -37,23 +32,11 @@ public record ResolvedSchemaRegistryPolicy {
 	public bool ValidateSchemas { get; private init; }
 
 	/// <summary>
-	/// Whether to automatically map messages (CLR types) to schema names.
-	/// This allows for automatic serialization and deserialization of messages,
-	/// and is the default behavior.
-	/// </summary>
-	public bool AutoMapMessages { get; private init; }
-
-	/// <summary>
 	/// The schema data format to use for serialization and deserialization.
 	/// This is determined by the server policy and may be enforced.
 	/// If the server does not enforce a specific format, this will be unspecified.
 	/// </summary>
 	public SchemaDataFormat DataFormat { get; private init; }
-
-	/// <summary>
-	/// Determines the strategy used for generating schema names for messages in schema registry interactions.
-	/// </summary>
-	public ISchemaNameStrategy SchemaNameStrategy { get; private init; }
 
 	/// <summary>
 	/// The stream identifier associated with the schema. This property
@@ -77,12 +60,7 @@ public record ResolvedSchemaRegistryPolicy {
 
 		return this;
 	}
-
-	public SchemaName GetSchemaName(Type messageType) =>
-		SchemaNameStrategy.GenerateSchemaName(messageType, Stream);
 }
-
-public delegate SchemaName GenerateSchemaName(Type messageType);
 
 /// <summary>
 /// Exception thrown when a schema data format does not comply with the format required by the schema registry governance policy.

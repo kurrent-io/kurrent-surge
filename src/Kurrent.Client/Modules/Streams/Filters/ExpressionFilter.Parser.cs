@@ -971,7 +971,9 @@ public sealed class AndExpression(IFilterExpression left, IFilterExpression righ
 /// <summary>
 /// Logical OR disjunction. Short-circuits: if left is true, right is not evaluated.
 /// </summary>
-file sealed class OrExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
+// Public like AndExpression: ServerFilterExtractor pattern-matches OR trees to derive
+// stream-regex unions.
+public sealed class OrExpression(IFilterExpression left, IFilterExpression right) : IFilterExpression {
     public IFilterExpression Left  => left;
     public IFilterExpression Right => right;
 

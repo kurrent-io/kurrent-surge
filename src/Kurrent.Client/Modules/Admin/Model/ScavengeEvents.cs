@@ -178,14 +178,14 @@ record ScavengeIndexCompleted {
 
 // ScavengeCompletionResult is replaced by Kurrent.Client.Admin.ScavengeState
 
-static class TypeMapperExtensions {
-    extension(MessageTypeMapper mapper) {
-        public void MapScavengeEvents() {
-           mapper.Map<ScavengeStarted>("$scavengeStarted");
-           mapper.Map<ScavengeCompleted>("$scavengeCompleted");
-           mapper.Map<ScavengeChunksCompleted>("$scavengeChunksCompleted");
-           mapper.Map<ScavengeMergeCompleted>("$scavengeMergeCompleted");
-           mapper.Map<ScavengeIndexCompleted>("$scavengeIndexCompleted");
-        }
+static class ScavengeMessageCatalogExtensions {
+    extension(MessageCatalog catalog) {
+        public MessageCatalog MapScavengeEvents() => 
+            catalog
+                .Map<ScavengeStarted>("$scavengeStarted")
+                .Map<ScavengeCompleted>("$scavengeCompleted")
+                .Map<ScavengeChunksCompleted>("$scavengeChunksCompleted")
+                .Map<ScavengeMergeCompleted>("$scavengeMergeCompleted")
+                .Map<ScavengeIndexCompleted>("$scavengeIndexCompleted");
     }
 }

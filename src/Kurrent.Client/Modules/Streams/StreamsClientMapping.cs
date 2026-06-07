@@ -20,7 +20,7 @@ namespace Kurrent.Client.Streams;
 /// Created once per operation call — stack-allocated, zero GC pressure.
 /// </summary>
 readonly record struct MappingContext(
-    ISchemaSerializerProvider Serializer,
+    ISchemaSerializerProvider SerializerProvider,
     IMetadataDecoder MetadataDecoder,
     SchemaRegistryPolicy Policy,
     CancellationToken CancellationToken
@@ -208,7 +208,8 @@ static partial class StreamsClientMapping {
         this Contracts.ReadResp.Types.ReadEvent readEvent,
         SequenceId sequenceId,
         MappingContext ctx,
-        bool skipDecoding = false
+        bool skipDecoding = false,
+        bool throwOnUnresolved = false
     ) {
         var recorded = readEvent.Event ?? readEvent.Link
             ?? throw new UnreachableException("ReadEvent has neither Event nor Link.");
@@ -243,7 +244,7 @@ static partial class StreamsClientMapping {
 
         var schema = metadata.ExtractSchemaInfo();
 
-        IRecordDecoder decoder = new RecordDecoder(ctx.Serializer, ctx.Policy);
+        IRecordDecoder decoder = new RecordDecoder(ctx.SerializerProvider, ctx.Policy);
 
         var record = new Record(decoder) {
             Id        = recordId,
@@ -256,8 +257,14 @@ static partial class StreamsClientMapping {
             IsLink    = isLink
         };
 
-        if (!skipDecoding)
-            await record.TryDecode(ctx.CancellationToken).ConfigureAwait(false);
+        if (!skipDecoding) {
+            var outcome = await record.TryDecode(ctx.CancellationToken).ConfigureAwait(false);
+
+            // Per-operation strictness: an unknown schema name is data by default (the
+            // record passes through raw); strict reads/subscriptions opt into failing.
+            if (outcome == DecodeOutcome.UnknownType && throwOnUnresolved)
+                throw new MessageTypeResolutionException(record.Schema.Schema);
+        }
 
         return record;
     }

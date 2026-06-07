@@ -5,6 +5,7 @@ using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 namespace Kurrent.Client.Tests.Streams;
 
@@ -20,22 +21,40 @@ public class AutoRegisterTests {
     static ISchemaNameStrategy NewIsolatedNameStrategy() =>
         SchemaNameStrategies.Namespace($"test-autoreg-{Guid.NewGuid():N}");
 
+    // The simulation can emit any ArcadeRacer contract type, so the isolated catalog must
+    // map them all — there is no auto-mapping; a client's vocabulary is always declared.
+    static MessageCatalog NewIsolatedCatalog(ISchemaNameStrategy strategy) =>
+        new MessageCatalog("autoreg-isolated")
+            .Map<RaceCar>(strategy)
+            .Map<GridFormed>(strategy)
+            .Map<RaceStarted>(strategy)
+            .Map<LapCompleted>(strategy)
+            .Map<OvertakePerformed>(strategy)
+            .Map<PitStopPerformed>(strategy)
+            .Map<IncidentOccurred>(strategy)
+            .Map<CarRetired>(strategy)
+            .Map<WeatherChanged>(strategy)
+            .Map<RaceFinished>(strategy)
+            .Map<RaceInsight>(strategy);
+
+    // Discovery is disabled because the Testkit catalog already maps the same contracts with
+    // their default names, and the resolver union is 1:1 — a type cannot carry two schema
+    // names. The isolated catalog is this client's entire vocabulary.
+    static Action<KurrentClientOptions> ConfigureIsolatedClient(KurrentDBFixture fixture, ISchemaNameStrategy nameStrategy) =>
+        opts => {
+            opts.LoggerFactory = fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Messages.AutoUseCatalogs = false;
+            opts.Messages.UseCatalog(NewIsolatedCatalog(nameStrategy));
+            opts.Messages.Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister };
+        };
+
     [Test]
     public async ValueTask registers_new_schema(CancellationToken ct) {
         // Arrange
         var nameStrategy = NewIsolatedNameStrategy();
 
-        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
-            opts.LoggerFactory = Fixture.LoggerFactory;
-            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() {
-                    SchemaRegistration = SchemaRegistrationOptions.AutoRegister with {
-                        SchemaNameStrategy = nameStrategy
-                    }
-                }
-            };
-        });
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy));
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
@@ -60,17 +79,7 @@ public class AutoRegisterTests {
         // Arrange
         var nameStrategy = NewIsolatedNameStrategy();
 
-        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
-            opts.LoggerFactory = Fixture.LoggerFactory;
-            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() {
-                    SchemaRegistration = SchemaRegistrationOptions.AutoRegister with {
-                        SchemaNameStrategy = nameStrategy
-                    }
-                }
-            };
-        });
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy));
 
         var data = await Fixture.TestData.GenerateSet(ct);
 
@@ -101,9 +110,10 @@ public class AutoRegisterTests {
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() { SchemaRegistration = SchemaRegistrationOptions.ManualMap }
-            };
+            // No catalogs at all: with discovery off and nothing mapped, every append must
+            // fail to resolve a schema name — the exact behavior under test.
+            opts.Messages.AutoUseCatalogs = false;
+            opts.Messages.Json = new() { SchemaRegistration = SchemaRegistrationOptions.ManualMap };
         });
 
         var data = await Fixture.TestData.GenerateRecord(ct);
@@ -115,7 +125,7 @@ public class AutoRegisterTests {
             async () => await client.Streams.AppendStream(data.Stream, data.Records, ct));
 
         // Assert
-        await Assert.That(ex?.InnerException).IsTypeOf<AutoRegistrationDisabledException>();
+        await Assert.That(ex?.InnerException).IsTypeOf<SchemaNameNotMappedException>();
     }
 
     [Test]
@@ -133,17 +143,7 @@ public class AutoRegisterTests {
 
         await Eventually(() => Fixture.Client.Registry.GetSchema(schemaName, ct), ct);
 
-        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
-            opts.LoggerFactory = Fixture.LoggerFactory;
-            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Schema = new KurrentClientSchemaOptions {
-                Json = new() {
-                    SchemaRegistration = SchemaRegistrationOptions.AutoRegister with {
-                        SchemaNameStrategy = nameStrategy
-                    }
-                }
-            };
-        });
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy));
 
         // Act
         await client.Streams.AppendStream(data.Stream, data.Records, ct);

@@ -15,11 +15,16 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	protected override SchemaDataFormat ExpectedDataFormat => SchemaDataFormat.Json;
 
 	protected override ISchemaSerializer CreateSut() {
-		var typeMapper    = new MessageTypeMapper();
-		var schemaManager = new SchemaManager(null!, null!, typeMapper);
+		// No auto-mapping: every type the fixture serializes must be in the catalog.
+		var catalog = new MessageCatalog("json-tests")
+			.Map<Kurrent.Testkit.Datasets.ArcadeRacer.Contracts.LapCompleted>()
+			.Map<Kurrent.Testkit.Datasets.ArcadeRacer.Contracts.OvertakePerformed>()
+			.Map<Kurrent.Testkit.Datasets.ArcadeRacer.Contracts.PitStopPerformed>();
+
+		var schemaManager = new SchemaManager(null!, null!, catalog.GetResolver());
 
 		return new JsonSchemaSerializer(
-			new JsonSchemaSerializerOptions { SchemaRegistration = SchemaRegistrationOptions.AutoMap },
+			new JsonSchemaSerializerOptions { SchemaRegistration = SchemaRegistrationOptions.ManualMap },
 			schemaManager
 		);
 	}
@@ -33,8 +38,8 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 	protected override SchemaSerializationContext CreateSerializeContext() => new() {
 		Stream       = "test-stream",
 		RecordSchema = new RecordSchemaInfo {
-			SchemaName   = "test-schema",
-			SchemaFormat = SchemaDataFormat.Json
+			Schema   = "test-schema",
+			DataFormat = SchemaDataFormat.Json
 		}
 	};
 

@@ -24,6 +24,11 @@ public interface ISchemaSerializer {
 	/// </summary>
 	/// <param name="data">The bytes to deserialize.</param>
 	/// <param name="context">Context information for the deserialization operation.</param>
-	/// <returns>A value task containing the deserialized object, which may be null.</returns>
-	ValueTask<object?> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context);
+	/// <returns>
+	/// A value task containing the deserialization result — pattern-matchable:
+	/// <see cref="DeserializationResult.Deserialized"/>, <see cref="DeserializationResult.NoData"/>
+	/// (empty payload), or <see cref="DeserializationResult.UnknownType"/> (unmapped schema
+	/// name, raw pass-through).
+	/// </returns>
+	ValueTask<DeserializationResult> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context);
 }

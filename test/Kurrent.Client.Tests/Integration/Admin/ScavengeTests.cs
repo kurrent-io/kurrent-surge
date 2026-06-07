@@ -175,11 +175,11 @@ public class ScavengeTests {
         await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
 
         foreach (var record in records) {
-            await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
+            await Assert.That(record.Schema.Schema.Value).IsNotEmpty();
 
             Log.Information(
                 "Scavenge event {SchemaName} revision {Revision} @ {Position} : {@Event}",
-                record.Schema.SchemaName, record.Revision, record.Position, record.Value
+                record.Schema.Schema, record.Revision, record.Position, record.Value
             );
         }
     }
@@ -274,7 +274,7 @@ public class ScavengeTests {
         await Assert.That(records.Count).IsGreaterThan(0);
 
         foreach (var record in records)
-            Log.Information("Backwards: {Schema} rev={Revision}", record.Schema.SchemaName, record.Revision);
+            Log.Information("Backwards: {Schema} rev={Revision}", record.Schema.Schema, record.Revision);
     }
 
     [Test]

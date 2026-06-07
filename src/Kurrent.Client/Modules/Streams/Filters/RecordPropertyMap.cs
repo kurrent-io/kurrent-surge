@@ -29,13 +29,13 @@ public static class RecordPropertyMap {
                 accessor: r => r.Revision.Value,
                 "stream_revision", "revision")
             .Register(
-                accessor: r => r.Schema.SchemaName.Value,
+                accessor: r => r.Schema.Schema.Value,
                 "schema_name", "schema")
             .Register(
-                accessor: r => r.Schema.SchemaVersionId.Value,
+                accessor: r => r.Schema.VersionId.Value,
                 "schema_id")
             .Register(
-                accessor: r => r.Schema.SchemaFormat,
+                accessor: r => r.Schema.DataFormat,
                 "schema_format")
             .Register(
                 accessor: r => new DateTimeOffset(r.Timestamp, TimeSpan.Zero).ToUnixTimeMilliseconds(),

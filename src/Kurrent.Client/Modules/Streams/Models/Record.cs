@@ -1,11 +1,12 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
+using Kurrent.Client.Schema.Serialization.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Kurrent.Client.Streams;
 
@@ -85,7 +86,7 @@ public record Record {
     /// The name of the record's type. Returns the CLR type name when decoded,
     /// otherwise falls back to the wire-level schema name.
     /// </summary>
-    public string TypeName => IsDecoded ? ValueType.Name : Schema.SchemaName.Value;
+    public string TypeName => IsDecoded ? ValueType.Name : Schema.Schema.Value;
 
     /// <summary>
     /// Indicates whether the current <see cref="Record"/> instance has been successfully decoded.
@@ -111,15 +112,17 @@ public record Record {
     /// Lazily-serialized JSON representation of <see cref="Value"/> for filter expression evaluation.
     /// Returns <c>null</c> when the record is not decoded or the schema format is not JSON.
     /// </summary>
-    internal JsonNode? DecodedValueAsJson => IsDecoded && Schema.SchemaFormat == SchemaDataFormat.Json
-        ? field ??= JsonSerializer.SerializeToNode(Value)
+    internal JsonNode? DecodedValueAsJson => IsDecoded && Schema.DataFormat == SchemaDataFormat.Json
+        ? field ??= JsonSerializer.SerializeToNode(Value, ValueType, KurrentJsonContext.Default)
         : null;
     
 	/// <summary>
-	/// Attempts to decode the record's data asynchronously.
+	/// Attempts to decode the record's data. The outcome reflects the record's state after
+	/// the call: <see cref="DecodeOutcome.Decoded"/> means <see cref="Value"/> is available.
+	/// Idempotent, and never throws for unknown schema names.
 	/// </summary>
-	public ValueTask<bool> TryDecode(CancellationToken cancellationToken = default) =>
-        Decoder.Decode(this, cancellationToken);
+	public ValueTask<DecodeOutcome> TryDecode(CancellationToken cancellationToken = default) =>
+        Decoder.TryDecode(this, cancellationToken);
     
     /// <summary>
     /// Returns the decoded value cast to <typeparamref name="T"/> with zero overhead for reference types.
@@ -130,7 +133,7 @@ public record Record {
         return typeof(T).IsValueType ? (T)msg : Unsafe.As<object, T>(ref msg);
     }
     
-    public override string ToString() => $"{Schema.SchemaName} {Revision}@{Stream} - {Position}";
+    public override string ToString() => $"{Schema.Schema} {Revision}@{Stream} - {Position}";
 
 	string ToDebugString() =>
 		$"Record: Id={Id}, Position={Position}, Stream={Stream}, Revision={Revision}, " +
@@ -150,16 +153,16 @@ public readonly record struct Link() {
 }
 
 public interface IRecordDecoder {
-	ValueTask<bool> Decode(Record record, CancellationToken ct);
+	ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct);
 }
 
 sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy? registryPolicy = null) : IRecordDecoder {
     SchemaRegistryPolicy RegistryPolicy { get; } = registryPolicy ?? SchemaRegistryPolicy.NoRequirements;
 
-    public async ValueTask<bool> Decode(Record record, CancellationToken ct) {
+    public async ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) {
         if (record.IsDecoded)
-            return true;
-        
+            return DecodeOutcome.Decoded;
+
         var context = new SchemaSerializationContext {
             Stream               = record.Stream,
             RecordSchema         = record.Schema,
@@ -167,22 +170,66 @@ sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaR
             CancellationToken    = ct
         };
 
-        var value = await serializerProvider
-            .GetSerializer(record.Schema.SchemaFormat)
+        var result = await serializerProvider
+            .GetSerializer(record.Schema.DataFormat)
             .Deserialize(record.Data, context)
-            .ConfigureAwait(false)!;
+            .ConfigureAwait(false);
 
-        if (value is { } and not ReadOnlyMemory<byte>) {
-            record.Value     = value;
-            record.ValueType = value.GetType();
+        switch (result) {
+            case DeserializationResult.Deserialized deserialized:
+                // The bytes pass-through "deserializes" to the raw memory itself — Data
+                // already holds it, so there is nothing to materialize: decoding is not
+                // applicable, which is exactly what Unavailable reports.
+                if (deserialized.Value is ReadOnlyMemory<byte>)
+                    return DecodeOutcome.Unavailable;
+
+                record.Value     = deserialized.Value;
+                record.ValueType = deserialized.Value.GetType();
+
+                return DecodeOutcome.Decoded;
+
+            case DeserializationResult.NoData:
+                return DecodeOutcome.NoData;
+
+            case DeserializationResult.UnknownType:
+                return DecodeOutcome.UnknownType;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(result), result, "Unknown deserialization result");
         }
-
-        return true;
     }
 }
 
 sealed class NullableRecordDecoder : IRecordDecoder {
     public static readonly IRecordDecoder Instance = new NullableRecordDecoder();
 
-    public ValueTask<bool> Decode(Record record, CancellationToken ct) => ValueTask.FromResult(false);
+    public ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) =>
+        ValueTask.FromResult(DecodeOutcome.Unavailable);
+}
+
+/// <summary>
+/// The outcome of a record decode attempt. Failures (deserialization errors, governance
+/// violations) are exceptions — this enum covers only the non-exceptional outcomes, so
+/// callers can distinguish "decoded" from "passed through raw" at the call site.
+/// </summary>
+public enum DecodeOutcome {
+    /// <summary>The value was materialized (or the record was already decoded).</summary>
+    Decoded,
+
+    /// <summary>The payload is empty — there is nothing to decode.</summary>
+    NoData,
+
+    /// <summary>
+    /// The wire schema name has no mapped type in the client's catalogs; the record stays
+    /// raw. Map the type in a message catalog or handle the raw payload.
+    /// </summary>
+    UnknownType,
+
+    /// <summary>
+    /// Decoding is not applicable to this record: no decoder is attached (e.g.
+    /// <c>SkipDecoding</c> reads, hand-built records, <see cref="Record.None"/>), or the
+    /// payload is raw bytes that <see cref="Record.Data"/> already exposes (the
+    /// <c>Bytes</c> format pass-through — there is nothing to materialize).
+    /// </summary>
+    Unavailable
 }

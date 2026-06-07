@@ -87,13 +87,13 @@ All overloads use `TryAddSingleton`, so subsequent calls are ignored when a clie
 
 ### Service provider overrides
 
-Registration also pulls these services from the container and applies them to the options, overriding any value already set:
+Registration also pulls these services from the container and applies them to the options:
 
-| Service             | Applied to                |
-|---------------------|---------------------------|
-| `MessageTypeMapper` | `options.Schema.Mapper`   |
-| `ILoggerFactory`    | `options.LoggerFactory`   |
-| `IMetadataDecoder`  | `options.MetadataDecoder` |
+| Service            | Applied to                                          |
+|--------------------|------------------------------------------------------|
+| `MessageCatalog`   | `options.Messages.UseCatalog(...)` — every registered catalog is added (composes; never replaces) |
+| `ILoggerFactory`   | `options.LoggerFactory` — overrides any value set    |
+| `IMetadataDecoder` | `options.MetadataDecoder` — overrides any value set  |
 
 A registered `ILoggerFactory` wires logging into the client automatically. Outside DI, assign it on the options:
 

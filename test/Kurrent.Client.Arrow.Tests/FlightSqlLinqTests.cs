@@ -6,8 +6,8 @@ namespace Kurrent.Client.Arrow.Tests;
 [Category("Integration")]
 [Timeout(60_000)]
 public class FlightSqlLinqTests {
-    [ClassDataSource<KurrentDBInsecureFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBInsecureFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<ArrowFixture>(Shared = SharedType.PerTestSession)]
+    public required ArrowFixture Fixture { get; [UsedImplicitly] init; }
 
     Queries NewQueries() => new(Fixture.ConnectionString);
 
@@ -52,7 +52,7 @@ public class FlightSqlLinqTests {
         await Assert.That(record.Stream).IsEqualTo(stream);
         await Assert.That(record.Revision).IsEqualTo(Revision.From(0));
         await Assert.That(record.Timestamp).IsNotEqualTo(default(DateTime));
-        await Assert.That(record.Schema.SchemaName.Value).IsNotEmpty();
+        await Assert.That(record.Schema.Schema.Value).IsNotEmpty();
         await Assert.That(record.Data.Length).IsGreaterThan(0);
     }
 

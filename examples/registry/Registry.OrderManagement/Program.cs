@@ -19,10 +19,8 @@ try {
 
     builder.Services.AddSingleton(_ => {
         var opts = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2113?tls=false");
-        opts.Schema = new KurrentClientSchemaOptions {
-            Json = new JsonSchemaSerializerOptions {
-                SchemaRegistration = SchemaRegistrationOptions.AutoRegister
-            }
+        opts.Messages.Json = new JsonSchemaSerializerOptions {
+            SchemaRegistration = SchemaRegistrationOptions.AutoRegister
         };
         return opts;
     });

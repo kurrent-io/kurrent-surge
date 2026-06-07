@@ -22,7 +22,7 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 
 	protected override SchemaSerializationContext CreateSerializeContext() => new() {
 		Stream       = "test-stream",
-		RecordSchema = new RecordSchemaInfo { SchemaFormat = SchemaDataFormat.Bytes }
+		RecordSchema = new RecordSchemaInfo { DataFormat = SchemaDataFormat.Bytes }
 	};
 
 	protected override async ValueTask AssertDeserialized(object original, object? deserialized) {
@@ -115,14 +115,14 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		// Arrange
 		var context = new SchemaSerializationContext {
 			Stream       = "test-stream",
-			RecordSchema = new RecordSchemaInfo { SchemaFormat = SchemaDataFormat.Unspecified }
+			RecordSchema = new RecordSchemaInfo { DataFormat = SchemaDataFormat.Unspecified }
 		};
 
 		// Act
 		await Sut.Serialize(Faker.Random.Bytes(8), context).ConfigureAwait(false);
 
 		// Assert
-		await Assert.That(context.RecordSchema.SchemaFormat).IsEqualTo(SchemaDataFormat.Bytes);
+		await Assert.That(context.RecordSchema.DataFormat).IsEqualTo(SchemaDataFormat.Bytes);
 	}
 
 	[Test]
@@ -135,8 +135,10 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 		var result = await Sut.Deserialize(input, context).ConfigureAwait(false);
 
 		// Assert
-		await Assert.That(result).IsTypeOf<ReadOnlyMemory<byte>>();
-		var memory = (ReadOnlyMemory<byte>)result!;
+		await Assert.That(result).IsTypeOf<DeserializationResult.Deserialized>();
+		var value = ((DeserializationResult.Deserialized)result).Value;
+		await Assert.That(value).IsTypeOf<ReadOnlyMemory<byte>>();
+		var memory = (ReadOnlyMemory<byte>)value;
 		await Assert.That(memory.Span.ToArray()).IsEquivalentTo(input.ToArray());
 	}
 

@@ -97,7 +97,6 @@ public sealed class KurrentProcessor {
 			_options.MaxParallelism,
 			_options.Checkpoint.RetentionCount,
 			client.Streams,
-			client.Options.Schema.Mapper,
 			TimeProvider.System,
 			NullLogger<KurrentDBCheckpointStore>.Instance
 		);

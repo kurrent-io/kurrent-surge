@@ -500,7 +500,7 @@ public class SubscribeLinqTests {
         // Act — collect the distinct schema names that flow through the user index
         var schemas = await SubscribeToUserIndex(indexName, lastPosition, ct)
             .Where(msg => msg.IsRecord)
-            .Select(msg => msg.AsRecord.Schema.SchemaName.Value)
+            .Select(msg => msg.AsRecord.Schema.Schema.Value)
             .Take(5)
             .AggregateAsync(
                 new HashSet<string>(),

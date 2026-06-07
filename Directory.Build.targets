@@ -11,18 +11,24 @@
 
     Metadata flags on references control how they appear in the produced .nupkg:
 
-      PackageReference  Vendor="true"    → ship binaries inside our package,
-                                            hide from nuspec dependencies
-      ProjectReference  Bundle="true"    → ship the project's output + its runtime
-                                            closure inside our package, hide from nuspec
-      ProjectReference  Analyzer="true"  → wire as a source generator; ship nothing;
-                                            hide from nuspec
+      PackageReference  Vendor="true"          → ship binaries inside our package,
+                                                  hide from nuspec dependencies
+      ProjectReference  Bundle="true"          → ship the project's output + its runtime
+                                                  closure inside our package, hide from nuspec
+      ProjectReference  Analyzer="true"        → wire as a source generator; ship nothing;
+                                                  hide from nuspec (SDK-internal generators)
+      ProjectReference  PackedAnalyzer="true"  → wire as a source generator AND ship it in
+                                                  analyzers/dotnet/cs so it runs in CONSUMER
+                                                  compilations; hide from nuspec
   -->
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">
     <TargetsForTfmSpecificBuildOutput>
       $(TargetsForTfmSpecificBuildOutput);_CollectVendoredAndBundledFiles
     </TargetsForTfmSpecificBuildOutput>
+    <TargetsForTfmSpecificContentInPackage>
+      $(TargetsForTfmSpecificContentInPackage);_CollectPackedAnalyzers
+    </TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <!--
@@ -36,6 +42,10 @@
   -->
   <ItemGroup>
     <ProjectReference Update="@(ProjectReference->WithMetadataValue('Analyzer', 'true'))"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+    <ProjectReference Update="@(ProjectReference->WithMetadataValue('PackedAnalyzer', 'true'))"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all" />
@@ -99,6 +109,24 @@
             PackagePath="%(_FromVendoredPackages.DestinationSubDirectory)" />
     </ItemGroup>
 
+  </Target>
+
+  <!--
+    Ship PackedAnalyzer references into analyzers/dotnet/cs so they run in consumer
+    compilations. Generators target netstandard2.0 (Roslyn requirement), so TargetFramework
+    is passed explicitly regardless of the packable project's TFM. Generators that bake
+    their helper sources in (Kurrent.CodeAnalysis.Sources.props) return a single DLL;
+    generators with project-reference deps must implement GetDependencyTargetPaths.
+  -->
+  <Target Name="_CollectPackedAnalyzers">
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('PackedAnalyzer', 'true'))"
+             Targets="GetTargetPathWithTargetPlatformMoniker"
+             Properties="TargetFramework=netstandard2.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_PackedAnalyzerAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_PackedAnalyzerAssembly)" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
   </Target>
 
   <!--

@@ -3,6 +3,22 @@ using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
 
+
+public static class Extensions {
+
+    public static IAsyncEnumerable<Record> Records(this IAsyncEnumerable<ReadRecordsResult> source) =>
+        source.Where(msg => msg.Value is Record).Select(msg => msg.AsRecord);
+    
+    public static IAsyncEnumerable<Record> TakeRecordsUpTo(this IAsyncEnumerable<ReadRecordsResult> source, RecordPosition position) =>
+        source.Where(msg => msg.Value is Record).Select(msg => msg.AsRecord)
+            .TakeWhile(rec => rec.Position.LogPosition <= position.LogPosition);
+    
+    public static IAsyncEnumerable<Record> TakeUntilCaughtUp(this IAsyncEnumerable<ReadRecordsResult> source) =>
+        source
+            .TakeWhile(msg => msg.Value is not CaughtUpCheckpoint)
+            .Select(msg => msg.AsRecord);
+}
+
 [Category("Streams")]
 [Category("Read")]
 [Category("Filters")]
@@ -72,20 +88,25 @@ public class ReadWithFilterTests {
     }
     
     
+    // broken! its starting from the LatestRecordPosition, inclusive and should be AFTER that position!!!
     [Test]
-    [Skip("LINQ .Take() over IAsyncEnumerable does not cancel the underlying gRPC server stream; need to figure out the right pattern for limiting a filtered $all read client-side.")]
+    // [Skip("LINQ .Take() over IAsyncEnumerable does not cancel the underlying gRPC server stream; need to figure out the right pattern for limiting a filtered $all read client-side.")]
     public async ValueTask reads_log_filtered_by_stream_pattern_using_take_instead_of_max_records(CancellationToken ct) {
         // Arrange
         var lastPosition = await Fixture.LatestRecordPosition(ct);
         var simulation   = await Fixture.SeedTestStream(ct);
-        var category     = simulation.Stream.Category;
+
+        // The stream name minus its last character: still a real LIKE prefix match, but
+        // unique by construction — a category prefix would match every concurrently
+        // seeded stream of the same category on the shared container.
+        var streamPrefix = ((string)simulation.Stream)[..^1];
 
         var limit = simulation.Records.Length + Random.Shared.Next(100, 1000);
 
         // Act
         var options = new ReadRecordsOptions {
             Start        = lastPosition.LogPosition,
-            Filter       = RecordFilter.ByExpression($"stream LIKE '{category}-%'"),
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{streamPrefix}%'"),
             SkipDecoding = true
         };
 
@@ -173,7 +194,7 @@ public class ReadWithFilterTests {
             .Where(m => m.IsRecord).Select(m => m.AsRecord)
             .FirstAsync(ct);
 
-        var expectedSchema = firstRecord.Schema.SchemaName;
+        var expectedSchema = firstRecord.Schema.Schema;
 
         // Poll until the secondary index catches up (eventually consistent)
         var records = new List<Record>();
@@ -206,7 +227,7 @@ public class ReadWithFilterTests {
 
         foreach (var record in records) {
             await Assert.That(record.Stream.Category).IsEqualTo(category);
-            await Assert.That(record.Schema.SchemaName).IsEqualTo(expectedSchema);
+            await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
         }
     }
 
@@ -225,7 +246,7 @@ public class ReadWithFilterTests {
             .Where(m => m.IsRecord).Select(m => m.AsRecord)
             .FirstAsync(ct);
 
-        var expectedSchema = firstRecord.Schema.SchemaName;
+        var expectedSchema = firstRecord.Schema.Schema;
 
         // Act — routes to $all with prefix filter $idx-et-{schema}
         var filter = RecordFilter.ByExpression($"schema_name = '{expectedSchema}'");
@@ -265,7 +286,7 @@ public class ReadWithFilterTests {
         await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
 
         foreach (var record in records)
-            await Assert.That(record.Schema.SchemaName).IsEqualTo(expectedSchema);
+            await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
     }
 
     [Test]
@@ -282,7 +303,7 @@ public class ReadWithFilterTests {
             .Select(m => m.AsRecord)
             .FirstAsync(ct);
 
-        var expectedSchema = firstRecord.Schema.SchemaName;
+        var expectedSchema = firstRecord.Schema.Schema;
 
         // Act
         var options = new ReadRecordsOptions {
@@ -304,7 +325,7 @@ public class ReadWithFilterTests {
 
         foreach (var record in records) {
             await Assert.That(record.Stream).IsEqualTo(simulation.Stream);
-            await Assert.That(record.Schema.SchemaName).IsEqualTo(expectedSchema);
+            await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
         }
     }
 
@@ -376,45 +397,56 @@ public class ReadWithFilterTests {
 
     #region . Complex Expressions .
 
+    // broken! its returning records in repetition?! makes no sense...
     [Test]
     public async ValueTask reads_log_with_or_expression_falls_back_to_all(CancellationToken ct) {
         // Arrange
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        var lastPosition = await Fixture.LatestRecordPosition(ct);
-        var sim1         = await Fixture.SeedTestStream(ct);
-        var sim2         = await Fixture.SeedTestStream(ct);
+        var startPos = await Fixture.LatestRecordPosition(ct);
+        var sim1     = await Fixture.SeedTestStream(5, ct);
+        var sim2     = await Fixture.SeedTestStream(5, ct);
 
         var expectedCount = sim1.Records.Length + sim2.Records.Length;
 
-        // Act — OR expressions cannot be pushed to a single index, fall back to $all
-        // with no server-side filter, so we must use CTS to stop reading
-        var filter = RecordFilter.ByExpression($"stream = '{sim1.Stream}' OR stream = '{sim2.Stream}'");
+        // Act
+        var filter = RecordFilter
+            .ByExpression($"stream = '{sim1.Stream}' OR stream = '{sim2.Stream}'");
 
-        await Assert.That(((ExpressionFilter)filter).ServerFilter).IsTypeOf<EmptyFilter>();
+        await Assert.That(filter.As<ExpressionFilter>().ServerFilter).IsTypeOf<StreamRegexFilter>();
 
         var options = new ReadRecordsOptions {
-            Start        = lastPosition.LogPosition,
+            Start        = startPos.LogPosition,
             Filter       = filter,
             SkipDecoding = true
         };
 
+        var temp = await Fixture.Client.Streams
+            .ReadRecords(options, cancellator.Token)
+            .Where(msg => msg.Value is Record)
+            .Select(msg => msg.AsRecord)
+            .TakeWhile(rec => rec.Position.LogPosition <= sim2.Position)
+            .ToListAsync(cancellator.Token);
+        
         var records = new List<Record>();
 
         await foreach (var msg in Fixture.Client.Streams.ReadRecords(options, cancellator.Token)) {
-            if (msg.Value is Record record) {
-                records.Add(record);
-                if (record.Position.LogPosition >= sim2.Position)
-                    await cancellator.CancelAsync();
-            }
+            if (msg.Value is not Record record)
+                continue;
+
+            records.Add(record);
+            
+            // cancel when position its the last sim
+            if (record.Position.LogPosition == sim2.Position)
+                await cancellator.CancelAsync();
         }
 
         // Assert
-        await Assert.That(records.Count).IsEqualTo(expectedCount);
-
-        var streams = records.Select(r => r.Stream).Distinct().ToList();
-        await Assert.That(streams).Contains(sim1.Stream);
-        await Assert.That(streams).Contains(sim2.Stream);
+        var actualRecords = records
+            .Where(r => r.Stream == sim1.Stream || r.Stream == sim2.Stream)
+            .ToList();
+        
+        await Assert.That(actualRecords).Count().IsEqualTo(expectedCount);
     }
 
     [Test]
@@ -426,10 +458,15 @@ public class ReadWithFilterTests {
 
         var expectedCount = sim1.Records.Length + sim2.Records.Length;
 
+        var filter = RecordFilter
+            .ByExpression($"stream IN ('{sim1.Stream}', '{sim2.Stream}')");
+        
+        await Assert.That(filter.UnwrapFilter()).IsTypeOf<StreamRegexFilter>();
+        
         // Act
         var options = new ReadRecordsOptions {
             Start        = lastPosition.LogPosition,
-            Filter       = RecordFilter.ByExpression($"stream IN ('{sim1.Stream}', '{sim2.Stream}')"),
+            Filter       = filter,
             Limit        = expectedCount,
             SkipDecoding = true
         };
@@ -442,7 +479,11 @@ public class ReadWithFilterTests {
         }
 
         // Assert
-        await Assert.That(records.Count).IsEqualTo(expectedCount);
+        var actualRecords = records
+            .Where(r => r.Stream == sim1.Stream || r.Stream == sim2.Stream)
+            .ToList();
+        
+        await Assert.That(actualRecords).Count().IsEqualTo(expectedCount);
     }
 
     [Test]

@@ -26,7 +26,6 @@ public static partial class StreamsClientExtensions {
                     switch (result.Value) {
                         case Record record:
                             seed = await evolve(seed, record, ct);
-
                             lastPos = record.Position;
                         break;
 

@@ -95,7 +95,8 @@ public abstract class SchemaSerializerTestFixture {
             var result = await Sut.Deserialize(bytes, deserializeContext).ConfigureAwait(false);
 
             // Assert
-            await AssertDeserialized(message, result);
+            await Assert.That(result).IsTypeOf<DeserializationResult.Deserialized>();
+            await AssertDeserialized(message, ((DeserializationResult.Deserialized)result).Value);
         }
     }
 

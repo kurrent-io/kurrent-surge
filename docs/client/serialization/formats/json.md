@@ -57,7 +57,7 @@ public partial class OrdersJsonContext : JsonSerializerContext;
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.Schema.Json = JsonSchemaSerializerOptions.Default with {
+    opts => opts.Messages.Json = JsonSchemaSerializerOptions.Default with {
         UserJsonContexts = [OrdersJsonContext.Default]
     });
 ```

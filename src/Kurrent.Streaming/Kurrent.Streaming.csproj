@@ -13,7 +13,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
+    <!-- PrivateAssets="none" so the nuspec dependency on Kurrent.Client includes ALL assets:
+         the message catalog generator ships in Kurrent.Client's analyzers/dotnet/cs and must
+         flow to consumers that install only Kurrent.Streaming (NuGet excludes Build,Analyzers
+         on dependency edges by default). -->
+    <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <!-- AOT/Trimming Support -->
@@ -24,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Kurrent.Client.MessageCatalogs.Generators\Kurrent.Client.MessageCatalogs.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>

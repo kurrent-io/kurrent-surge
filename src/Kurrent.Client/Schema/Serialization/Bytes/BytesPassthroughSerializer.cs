@@ -23,7 +23,7 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
 
 		// enforce the schema data format
         context.RecordSchema = context.RecordSchema with {
-            SchemaFormat = SchemaDataFormat.Bytes
+            DataFormat = SchemaDataFormat.Bytes
         };
 
 		var result = value switch {
@@ -38,10 +38,10 @@ public class BytesPassthroughSerializer : ISchemaSerializer {
 		return new(result);
 	}
 
-    public ValueTask<object?> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
-        if (context.RecordSchema.SchemaName == LinkTo.SchemaName)
-            return new(LinkTo.Parse(data.Span));
+    public ValueTask<DeserializationResult> Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
+        if (context.RecordSchema.Schema == LinkTo.SchemaName)
+            return new(new DeserializationResult.Deserialized(LinkTo.Parse(data.Span)));
 
-        return new(data);
+        return new(new DeserializationResult.Deserialized(data));
     }
 }

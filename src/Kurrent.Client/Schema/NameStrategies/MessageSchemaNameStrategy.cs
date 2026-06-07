@@ -6,6 +6,6 @@ namespace Kurrent.Client.Schema.NameStrategies;
 /// </summary>
 /// <param name="format">The format to apply to the schema name.</param>
 public class MessageSchemaNameStrategy(SchemaNameOutputFormat format = SchemaNameOutputFormat.None) : SchemaNameStrategyBase(format) {
-	protected override (string Namespace, string MessageName) Generate(Type messageType, string streamName) =>
+	protected override (string Namespace, string MessageName) Generate(Type messageType) =>
 		(messageType.Namespace ?? "", messageType.Name);
 }

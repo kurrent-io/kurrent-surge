@@ -39,11 +39,3 @@ public class UnsupportedSchemaDataFormatException(SchemaDataFormat expectedForma
 	public SchemaDataFormat ExpectedFormat { get; } = expectedFormat;
 	public SchemaDataFormat ActualFormat   { get; } = actualFormat;
 }
-
-/// <summary>
-/// Exception thrown when schema auto-registration is disabled but required.
-/// </summary>
-public class AutoRegistrationDisabledException(SchemaDataFormat dataFormat, Type messageType)
-	: SchemaSerializationException($"The message '{messageType.FullName}' is not mapped and auto-registration is disabled.", dataFormat) {
-	public Type MessageType { get; } = messageType;
-}

@@ -97,22 +97,6 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	/// <summary>
 	/// Configuration options for the JSON schema serializer.
 	/// </summary>
-	public JsonSchemaSerializerOptions Json { get; set; } = JsonSchemaSerializerOptions.Default;
-
-	/// <summary>
-	/// Configuration options for the Protobuf schema serializer.
-	/// </summary>
-	public ProtobufSchemaSerializerOptions Protobuf { get; set; } = ProtobufSchemaSerializerOptions.Default;
-
-	/// <summary>
-	/// Provides a mechanism for mapping message types to their corresponding schemas.
-	/// </summary>
-	/// <remarks>
-	/// The mapper is used to associate specific message types with their schemas in the schema registry.
-	/// This ensures that the correct schema is used when producing or consuming messages.
-	/// </remarks>
-	public MessageTypeMapper Mapper { get; set; } = new();
-
 	/// <summary>
 	/// The default schema registry settings with all standard options enabled.
 	/// </summary>

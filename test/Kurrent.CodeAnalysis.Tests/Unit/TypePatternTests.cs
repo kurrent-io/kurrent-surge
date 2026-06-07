@@ -4,20 +4,6 @@ using Microsoft.CodeAnalysis;
 namespace Kurrent.CodeAnalysis.Tests.Unit;
 
 public class TypePatternTests {
-    // A single shared dummy ITypeSymbol — we only use it to satisfy the required OriginalSymbol
-    // property. Pattern matching doesn't inspect it.
-    static readonly ITypeSymbol DummySymbol = MakeDummySymbol();
-
-    static ITypeSymbol MakeDummySymbol() {
-        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText("class X { }");
-
-        var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create(
-            "t", [tree],
-            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)]);
-
-        return compilation.GetSymbolsWithName(s => s == "X").OfType<INamedTypeSymbol>().First();
-    }
-
     static TypeSymbol Make(string ns, string name, params TypeSymbol[] args) =>
         new(
             Name: name,
@@ -25,13 +11,14 @@ public class TypePatternTests {
             FullName: string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}",
             Kind: TypeKind.Class,
             Traits: TypeTraits.Public,
+            Accessibility: Accessibility.Public,
             Special: SpecialType.None,
             TypeArguments: args,
             BaseType: null,
             ArrayElementType: null,
             Interfaces: [],
             Attributes: [],
-            ContainingTypes: []) { OriginalSymbol = DummySymbol };
+            ContainingTypes: []);
 
     [Test]
     public async ValueTask non_generic_exact_match() {

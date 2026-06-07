@@ -1,4 +1,3 @@
-using Kurrent.Streaming.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

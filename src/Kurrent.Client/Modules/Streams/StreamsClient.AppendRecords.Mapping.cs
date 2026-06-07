@@ -11,24 +11,24 @@ static class AppendRecordsMapping {
             try {
                 var context = new SchemaSerializationContext {
                     Stream               = source.Stream,
-                    RecordSchema         = new() { SchemaFormat = source.DataFormat },
+                    RecordSchema         = new() { DataFormat = source.DataFormat },
                     SchemaRegistryPolicy = ctx.Policy,
                     CancellationToken    = ctx.CancellationToken
                 };
 
-                var data = await ctx.Serializer
+                var data = await ctx.SerializerProvider
                     .GetSerializer(source.DataFormat)
                     .Serialize(source.Value, context)
                     .ConfigureAwait(false);
 
                 var schemaVersionId = context.RecordSchema.HasSchemaId
-                    ? context.RecordSchema.SchemaVersionId.ToString()
+                    ? context.RecordSchema.VersionId.ToString()
                     : Guid.NewGuid().ToString();
 
                 var schema = new Contracts.SchemaInfo {
                     Id     = schemaVersionId,
-                    Name   = context.RecordSchema.SchemaName,
-                    Format = (Contracts.SchemaFormat)context.RecordSchema.SchemaFormat
+                    Name   = context.RecordSchema.Schema,
+                    Format = (Contracts.SchemaFormat)context.RecordSchema.DataFormat
                 };
 
                 // UnsafeWrap constructs a new ByteString from the given bytes.

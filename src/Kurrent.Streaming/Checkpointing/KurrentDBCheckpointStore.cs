@@ -42,37 +42,29 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     /// Set to 0 to disable retention (stream grows unbounded).
     /// </param>
     /// <param name="client">The streams client for KurrentDB operations.</param>
-    /// <param name="typeMapper">The type mapper for schema registration. Required for deserialization of checkpoint events.</param>
     /// <param name="time">Optional time provider for timestamps.</param>
     /// <param name="logger">Optional logger instance.</param>
+    /// <remarks>
+    /// Checkpoint contract types are exported via this assembly's message catalog provider
+    /// (see <c>StreamingMessageCatalog</c>) and join every client through catalog
+    /// auto-discovery — no per-store registration required or possible: the client's
+    /// resolver snapshot is taken at client construction.
+    /// </remarks>
     public KurrentDBCheckpointStore(
         string processorId,
         int partitionCount,
         int maxCount,
         StreamsClient client,
-        MessageTypeMapper typeMapper,
         TimeProvider time,
         ILogger<KurrentDBCheckpointStore> logger
     ) : base(processorId, time, logger) {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(partitionCount, 0);
-        ArgumentNullException.ThrowIfNull(typeMapper);
 
         _partitionCount = partitionCount;
         _maxCount       = maxCount;
         _client         = client;
         _logger         = logger;
         _stream         = $"$processors/{processorId}/checkpoints";
-
-        RegisterContractTypes(typeMapper);
-    }
-
-    /// <summary>
-    /// Registers checkpoint contract types with the given type mapper.
-    /// Call this if the client was configured separately from the checkpoint store.
-    /// </summary>
-    public static void RegisterContractTypes(MessageTypeMapper typeMapper) {
-        typeMapper.TryMap<Contracts.PartitionsCheckpointed>("Kurrent.Streaming.Checkpointing.PartitionsCheckpointed");
-        typeMapper.TryMap<Contracts.CheckpointReset>("Kurrent.Streaming.Checkpointing.CheckpointReset");
     }
 
     protected override string ReadyTarget => _stream;

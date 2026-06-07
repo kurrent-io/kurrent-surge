@@ -298,7 +298,7 @@ services.AddKurrentClient(opts => {
 });
 ```
 
-The DI registration also picks up `MessageTypeMapper`, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Create a Client › Registration](../connect/create-a-client.md#registration).
+The DI registration also picks up registered `MessageCatalog` instances, `ILoggerFactory`, and `IMetadataDecoder` from the service provider automatically. See [Create a Client › Registration](../connect/create-a-client.md#registration).
 
 ## Migration checklist
 

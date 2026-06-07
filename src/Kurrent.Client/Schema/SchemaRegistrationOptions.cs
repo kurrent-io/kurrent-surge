@@ -1,5 +1,3 @@
-using Kurrent.Client.Schema.NameStrategies;
-
 namespace Kurrent.Client.Schema;
 
 /// <summary>
@@ -16,45 +14,22 @@ public record SchemaRegistrationOptions {
 	/// </summary>
 	public SchemaValidationMode ValidationMode { get; init; } = SchemaValidationMode.Disabled;
 
-	/// <summary>
-	/// Controls whether to automatically map messages (CLR types) to schema names.
-	/// When enabled, types are mapped to schema names for serialization and deserialization.
-	/// </summary>
-	public bool AutoMapMessages { get; init; } = true;
-
-	/// <summary>
-	/// Specifies the strategy used for generating schema names during serialization and deserialization.
-	/// The schema naming strategy determines how the name of a schema is derived based on the message type
-	/// and other possible context, ensuring consistent and clear identification of schemas across different systems.
-	/// </summary>
-	public ISchemaNameStrategy SchemaNameStrategy { get; init; } = new MessageSchemaNameStrategy();
-
-	public static SchemaRegistrationOptions AutoMap => new() {
-		AutoMapMessages  = true,
-		RegistrationMode = SchemaRegistrationMode.Manual,
-		ValidationMode   = SchemaValidationMode.Disabled
-	};
-
 	public static SchemaRegistrationOptions ManualMap => new() {
-		AutoMapMessages  = false,
 		RegistrationMode = SchemaRegistrationMode.Manual,
 		ValidationMode   = SchemaValidationMode.Disabled
 	};
 
 	public static SchemaRegistrationOptions AutoRegister => new() {
-		AutoMapMessages  = true,
 		RegistrationMode = SchemaRegistrationMode.Auto,
 		ValidationMode   = SchemaValidationMode.Enabled
 	};
 
 	public static SchemaRegistrationOptions ManualRegister => new() {
-		AutoMapMessages  = false,
 		RegistrationMode = SchemaRegistrationMode.Manual,
 		ValidationMode   = SchemaValidationMode.Enabled
 	};
 
 	public static SchemaRegistrationOptions ServerPolicy => new() {
-		AutoMapMessages  = true,
 		RegistrationMode = SchemaRegistrationMode.ServerPolicy,
 		ValidationMode   = SchemaValidationMode.Enabled
 	};

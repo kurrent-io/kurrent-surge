@@ -21,6 +21,6 @@ public class NamespaceSchemaNameStrategy : SchemaNameStrategyBase {
 		_namespaceIdentifier = namespaceIdentifier;
 	}
 
-	protected override (string Namespace, string MessageName) Generate(Type messageType, string streamName) =>
+	protected override (string Namespace, string MessageName) Generate(Type messageType) =>
 		(_namespaceIdentifier, messageType.Name);
 }

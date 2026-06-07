@@ -11,7 +11,6 @@ using Kurrent.Client.Legacy;
 using Kurrent.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
-using Microsoft.Extensions.Logging;
 using static Kurrent.Client.Streams.StreamsClientMapping;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
@@ -36,7 +35,7 @@ public partial class StreamsClient {
 
         var request = Requests.CreateInspectRecordRequest(position);
 
-        var result = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
+        var result = await ReadCore(request, skipDecoding, throwOnUnresolved: false, RecordFilter.None, cancellationToken)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
         
@@ -85,7 +84,7 @@ public partial class StreamsClient {
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction, 1);
 
-            var message = await ReadCore(request, skipDecoding, RecordFilter.None, cancellationToken)
+            var message = await ReadCore(request, skipDecoding, throwOnUnresolved: false, RecordFilter.None, cancellationToken)
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -103,7 +102,7 @@ public partial class StreamsClient {
 
     public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsOptions options, CancellationToken ct = default) {
         options.EnsureValid();
-        return ReadCore(Requests.CreateReadRecordsRequest(options), options.SkipDecoding, options.Filter, ct);
+        return ReadCore(Requests.CreateReadRecordsRequest(options), options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, ct);
     }
 
     public IAsyncEnumerable<ReadRecordsResult> ReadStream(StreamName stream, ReadStreamOptions options, CancellationToken ct = default) {
@@ -123,11 +122,11 @@ public partial class StreamsClient {
 
         var grpcRequest = Requests.CreateReadStreamRequest(stream, options);
 
-        return ReadCore(grpcRequest, options.SkipDecoding, options.Filter, ct);
+        return ReadCore(grpcRequest, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, ct);
     }
 
     async IAsyncEnumerable<ReadRecordsResult> ReadCore(
-        ReadReq request, bool skipDecoding,
+        ReadReq request, bool skipDecoding, bool throwOnUnresolved,
         RecordFilter filter, [EnumeratorCancellation] CancellationToken ct
     ) {
         var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
@@ -154,21 +153,16 @@ public partial class StreamsClient {
 
             ReadRecordsResult result;
 
+            // No Checkpoint case on purpose: scan-window checkpoints are emitted by exactly
+            // one server enumerator — AllSubscriptionFiltered.
             switch (rsp.ContentCase) {
                 case CaughtUp:
                     result = rsp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
                     break;
                 case Event:
                     result = await rsp.Event
-                        .MapToRecordAsync(sequencer.FetchNext(), CreateMappingContext(ct), skipDecoding)
+                        .MapToRecordAsync(sequencer.FetchNext(), CreateMappingContext(ct), skipDecoding, throwOnUnresolved)
                         .ConfigureAwait(false);
-
-                    var record = result.AsRecord;
-
-                    Logger.LogInformation(
-                        "{Position} {Type}: {@Value}",
-                        record.Position, record.TypeName, record.Value
-                    );
 
                     break;
                 default:

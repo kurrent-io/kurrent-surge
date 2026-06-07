@@ -90,7 +90,7 @@ public sealed partial record SchemaFilter : IndexFilter {
     public string SchemaName { get; private init; } = null!;
 
     public override bool IsMatch(Record record) =>
-        record.Schema.SchemaName.Value.Equals(SchemaName, OrdinalIgnoreCase);
+        record.Schema.Schema.Value.Equals(SchemaName, OrdinalIgnoreCase);
 
     public static SchemaFilter Parse(string value) =>
         TryParse(value, out var filter, out var error)

@@ -66,7 +66,7 @@ try {
         Results.Ok((await svc.GetRecentActivity(max ?? 20)).Select(r => new {
             Stream     = r.Stream.ToString(),
             Revision   = r.Revision.Value,
-            SchemaName = r.Schema.SchemaName.ToString(),
+            SchemaName = r.Schema.Schema.ToString(),
             Timestamp  = r.Timestamp
         })));
 
@@ -83,7 +83,7 @@ return;
 
 static object ToEvent(Record r) => new {
     Revision   = r.Revision.Value,
-    SchemaName = r.Schema.SchemaName.ToString(),
+    SchemaName = r.Schema.Schema.ToString(),
     Timestamp  = r.Timestamp
 };
 

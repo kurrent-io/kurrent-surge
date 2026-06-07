@@ -5,11 +5,10 @@ namespace Kurrent.Client.Arrow.Tests;
 
 [Category("Arrow")]
 [Category("Integration")]
+[Timeout(30_000)]
 public class FlightSqlQueryTests {
-    const int TestTimeoutMs = 30_000;
-
-    [ClassDataSource<KurrentDBInsecureFixture>(Shared = SharedType.PerTestSession)]
-    public required KurrentDBInsecureFixture Fixture { get; [UsedImplicitly] init; }
+    [ClassDataSource<ArrowFixture>(Shared = SharedType.PerTestSession)]
+    public required ArrowFixture Fixture { get; [UsedImplicitly] init; }
 
     // The FlightSQL endpoint shares the KurrentDB gRPC port. The .NET ADBC driver passes the
     // address straight to Grpc.Net.Client.GrpcChannel.ForAddress, which only resolves http/https
@@ -22,7 +21,7 @@ public class FlightSqlQueryTests {
         }
     }
 
-    [Test, Timeout(TestTimeoutMs)]
+    [Test]
     public async ValueTask raw_adbc_reads_seeded_records(CancellationToken ct) {
         // Arrange
         var seeded = await Fixture.SeedTestStream(5, ct);
@@ -54,7 +53,7 @@ public class FlightSqlQueryTests {
         await Assert.That(streams.All(s => s == stream)).IsTrue();
     }
 
-    [Test, Timeout(TestTimeoutMs)]
+    [Test]
     public async ValueTask queries_abstraction_reads_seeded_records(CancellationToken ct) {
         // Arrange
         var seeded = await Fixture.SeedTestStream(5, ct);

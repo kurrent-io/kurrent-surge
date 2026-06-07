@@ -13,8 +13,8 @@ public class AppenderTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
-    [Before(Test)]
-    public void RegisterTypes(CancellationToken cancellationToken) => Fixture.TypeMapper.Map<RaceCar>();
+    // RaceCar is mapped via the testkit's message catalog (auto-discovered at client build) —
+    // per-test mapper registration is gone: resolvers snapshot at client construction.
 
     AppendRecord NewRecord(StreamName stream, string? orderingKey = null) =>
         AppendRecord.New()

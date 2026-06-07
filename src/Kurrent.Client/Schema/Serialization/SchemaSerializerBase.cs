@@ -11,13 +11,6 @@ public record SchemaSerializerOptions {
 	/// Configuration options for schema registration, validation, and type mapping behaviors.
 	/// </summary>
 	public SchemaRegistrationOptions SchemaRegistration { get; init; } = new();
-
-	/// <summary>
-	/// Specifies whether only schemas explicitly mapped to a .NET type should be consumed during
-	/// deserialization.
-	/// When <c>true</c>, only schemas with mapped .NET types will be processed during deserialization.
-	/// </summary>
-	public bool ConsumeMappedOnly { get; set; } = true;
 }
 
 public abstract class SchemaSerializerBase(SchemaSerializerOptions options, SchemaManager schemaManager) : ISchemaSerializer {
@@ -30,17 +23,17 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 		// -------------------------------------------------------------------------------------------------
 		// these debug asserts ensure the required info is set during the development process
 		// -------------------------------------------------------------------------------------------------
-		Debug.Assert(!string.IsNullOrWhiteSpace(context.Stream) || context.RecordSchema.HasSchemaName, "Stream name is missing in the context");
-		Debug.Assert(context.RecordSchema.SchemaFormat == DataFormat, "Schema format does not match the serializer data format");
+		Debug.Assert(!string.IsNullOrWhiteSpace(context.Stream) || context.RecordSchema.HasSchema, "Stream name is missing in the context");
+		Debug.Assert(context.RecordSchema.DataFormat == DataFormat, "Schema format does not match the serializer data format");
 		// -------------------------------------------------------------------------------------------------
-
+       
 		if (value is null)
 			return ReadOnlyMemory<byte>.Empty;
 
 		var policy = context.SchemaRegistryPolicy
 			.Resolve(Options.SchemaRegistration, context.Stream, DataFormat)
 			.EnsureDataFormatCompliance(DataFormat);
-
+        
 		var messageType = value.GetType();
 
 		try {
@@ -50,35 +43,37 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 
             context.RecordSchema = result.SchemaVersionId == SchemaVersionId.Unset
                 ? context.RecordSchema with {
-                    SchemaName   = result.SchemaName,
-                    SchemaFormat = DataFormat
+                    Schema     = result.SchemaName,
+                    DataFormat = DataFormat
                 }
                 : context.RecordSchema with {
-                    SchemaName      = result.SchemaName,
-                    SchemaFormat    = DataFormat,
-                    SchemaVersionId = result.SchemaVersionId
+                    Schema     = result.SchemaName,
+                    DataFormat = DataFormat,
+                    VersionId  = result.SchemaVersionId
                 };
 
             return Serialize(value);
 		}
-		catch (Exception ex) when (ex is not SchemaSerializationException) {
+		// SchemaNameNotMappedException passes through unwrapped: an unmapped type is a
+		// configuration error with its own remediation message, not a serialization failure.
+		catch (Exception ex) when (ex is not SchemaSerializationException and not SchemaNameNotMappedException) {
 			throw new SchemaSerializationFailedException(DataFormat, messageType,  ex);
 		}
 	}
 
-	async ValueTask<object?> ISchemaSerializer.Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
+	async ValueTask<DeserializationResult> ISchemaSerializer.Deserialize(ReadOnlyMemory<byte> data, SchemaSerializationContext context) {
         var schemaInfo = context.RecordSchema;
 
 		// -------------------------------------------------------------------------------------------------
 		// these debug asserts ensure the required info is set during the development process
 		// -------------------------------------------------------------------------------------------------
-		Debug.Assert(schemaInfo.HasSchemaName, "Schema name is missing in the context");
-		Debug.Assert(schemaInfo.HasSchemaFormat, "Schema format is missing in the context");
-		Debug.Assert(schemaInfo.SchemaFormat == DataFormat, "Schema format does not match the serializer data format");
+		Debug.Assert(schemaInfo.HasSchema, "Schema name is missing in the context");
+		Debug.Assert(schemaInfo.HasDataFormat, "Schema format is missing in the context");
+		Debug.Assert(schemaInfo.DataFormat == DataFormat, "Schema format does not match the serializer data format");
 		// -------------------------------------------------------------------------------------------------
 
 		if (data.IsEmpty)
-			return null;
+			return DeserializationResult.NoData.Instance;
 
 		try {
 			var policy = context.SchemaRegistryPolicy
@@ -89,13 +84,19 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
 				.ValidateAndEnsureSchemaCompatibility(schemaInfo, policy, context.CancellationToken)
 				.ConfigureAwait(false);
 
+            // Unresolved schema name: the record passes through undeserialized — a
+            // forward-unknown type is data for fallback handlers, not an error. The caller
+            // (read/subscribe options) decides whether unmapped is worth throwing for.
+            if (result.MessageType is null)
+                return DeserializationResult.UnknownType.Instance;
+
             // set the schema version id if missing
             if(result.SchemaVersionId != SchemaVersionId.Unset)
                 context.RecordSchema = context.RecordSchema with {
-                    SchemaVersionId = result.SchemaVersionId
+                    VersionId = result.SchemaVersionId
                 };
 
-			return Deserialize(data, result.MessageType);
+			return new DeserializationResult.Deserialized(Deserialize(data, result.MessageType));
 		}
 		catch (Exception ex) when (ex is not SchemaSerializationException) {
             // var wtfpolicy = context.SchemaRegistryPolicy
@@ -106,7 +107,7 @@ public abstract class SchemaSerializerBase(SchemaSerializerOptions options, Sche
             //     .ValidateAndEnsureSchemaCompatibility(schemaInfo, wtfpolicy, context.CancellationToken)
             //     .ConfigureAwait(false);
             
-			throw new SchemaDeserializationFailedException(DataFormat, schemaInfo.SchemaName,  ex);
+			throw new SchemaDeserializationFailedException(DataFormat, schemaInfo.Schema,  ex);
 		}
 	}
 

@@ -6,10 +6,8 @@ namespace Kurrent.Client.Streams;
 
 public partial class StreamsClient : ClientModuleBase {
     internal StreamsClient(KurrentClient client) : base(client) {
-        TypeMapper.Map<StreamMetadata>("$metadata"); // metastream
-        TypeMapper.Map<string>("$>");                // link
-        TypeMapper.MapScavengeEvents();
-
+        // System mappings ($metadata, $>, scavenge events) live in SystemMessageCatalog:
+        // the resolver snapshot is taken at client construction, before modules exist.
         ServiceClient       = new(client.LegacyCallInvoker);
         LegacyServiceClient = new(client.LegacyCallInvoker);
 

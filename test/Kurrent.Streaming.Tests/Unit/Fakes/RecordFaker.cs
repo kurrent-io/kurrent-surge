@@ -21,7 +21,7 @@ sealed class RecordFaker : Faker<Record> {
                 Id        = Guid.CreateVersion7(),
                 Position  = new() { LogPosition = LogPosition.From(f.IndexGlobal + 1), StreamPosition = new(StreamName.From(f.Lorem.Slug()), Revision.From(f.Random.Long(1, 20))) },
                 Timestamp = TimeProvider.System.GetLocalNow().LocalDateTime,
-                Schema    = new() { SchemaName = urn.ToString(), SchemaFormat = SchemaDataFormat.Json }
+                Schema    = new() { Schema = urn.ToString(), DataFormat = SchemaDataFormat.Json }
             };
         });
     }
@@ -87,7 +87,7 @@ sealed class RecordFaker : Faker<Record> {
             },
             Timestamp = timestamp ?? record.Timestamp,
             Metadata = metadata   ?? record.Metadata,
-            Schema = record.Schema with { SchemaName = schemaName is { } ? SchemaName.From(schemaName) : record.Schema.SchemaName }
+            Schema = record.Schema with { Schema = schemaName is { } ? SchemaName.From(schemaName) : record.Schema.Schema }
         };
     }
 }

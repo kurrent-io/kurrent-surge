@@ -17,9 +17,9 @@ public static class MetadataSchemaExtensions {
         /// </summary>
         public RecordSchemaInfo ExtractSchemaInfo() {
             var info = new RecordSchemaInfo {
-                SchemaName      = source.GetSchemaName(),
-                SchemaFormat    = source.GetSchemaFormat(),
-                SchemaVersionId = source.GetSchemaId()
+                Schema      = source.GetSchemaName(),
+                DataFormat    = source.GetSchemaFormat(),
+                VersionId = source.GetSchemaId()
             };
 
             source.Remove(SystemMetadataKeys.SchemaName);

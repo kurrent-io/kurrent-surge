@@ -4,15 +4,25 @@
 
 ## TL;DR
 
-| You want to...                          | ProjectReference metadata                                                       | Ends up in             |
-|-----------------------------------------|---------------------------------------------------------------------------------|------------------------|
-| Declare a NuGet dependency              | *(none)*                                                                        | `.nuspec` dependency   |
-| Embed an internal library               | `PrivateAssets="all"`                                                           | `lib/{tfm}/`           |
-| Embed a source generator                | `OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all"` | `analyzers/dotnet/cs/` |
+The root `Directory.Build.targets` provides shorthand flags that expand to the raw metadata and drive
+the pack pipeline — prefer these over hand-writing the raw attribute combinations:
 
-**Footgun:** referencing an unpublished project *without* `PrivateAssets="all"` produces a `.nuspec` with a
-NuGet dependency that doesn't exist on any feed. Always use `PrivateAssets="all"` for non-packable project
-references.
+| You want to...                              | Reference metadata (shorthand)            | Ends up in             |
+|---------------------------------------------|-------------------------------------------|------------------------|
+| Declare a NuGet dependency                  | *(none)*                                  | `.nuspec` dependency   |
+| Flow ALL assets (incl. analyzers) with it   | `PrivateAssets="none"`                    | `.nuspec` dependency with `include="All"` |
+| Embed an internal library                   | `ProjectReference Bundle="true"`          | `lib/{tfm}/`           |
+| Vendor a NuGet package's binaries           | `PackageReference Vendor="true"`          | `lib/{tfm}/` + `runtimes/` |
+| Use an SDK-internal source generator        | `ProjectReference Analyzer="true"`        | *(nothing — build-time only)* |
+| Ship a generator to consumers               | `ProjectReference PackedAnalyzer="true"`  | `analyzers/dotnet/cs/` |
+
+**Footgun:** referencing an unpublished project *without* `PrivateAssets="all"` (or `Bundle="true"`)
+produces a `.nuspec` with a NuGet dependency that doesn't exist on any feed.
+
+**Analyzer flow:** NuGet excludes `Build,Analyzers` on dependency edges by default. A consumer that
+installs only `Kurrent.Streaming` would NOT get the catalog generator shipped inside `Kurrent.Client` —
+which is why Streaming's reference to Client carries `PrivateAssets="none"` (→ `include="All"` in the
+nuspec dependency).
 
 Non-packable projects (`IsPackable=false`) just work — `src/NonPackable.targets` handles `dotnet pack --no-build`
 automatically for all projects that inherit from the root `Directory.Build.props`. See
