@@ -10,7 +10,7 @@ public class ReadRecordsOptionsTests {
         var options = new ReadRecordsOptions();
 
         // Assert
-        await Assert.That(options.Start).IsEqualTo(LogPosition.Latest);
+        await Assert.That(options.Start).IsEqualTo(RecordPosition.Latest);
         await Assert.That(options.Limit).IsEqualTo(long.MaxValue);
         await Assert.That(options.Direction).IsEqualTo(ReadDirection.Forwards);
         await Assert.That(options.SkipDecoding).IsFalse();

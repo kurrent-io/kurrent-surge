@@ -88,7 +88,8 @@ public class ReadWithFilterTests {
     }
     
     
-    // broken! its starting from the LatestRecordPosition, inclusive and should be AFTER that position!!!
+    // Start semantics are pinned by StartSemanticsTests ($all reads are INCLUSIVE of the record
+    // at the position — server contract) and honored across filter re-routing by StartRoutingTests.
     [Test]
     // [Skip("LINQ .Take() over IAsyncEnumerable does not cancel the underlying gRPC server stream; need to figure out the right pattern for limiting a filtered $all read client-side.")]
     public async ValueTask reads_log_filtered_by_stream_pattern_using_take_instead_of_max_records(CancellationToken ct) {

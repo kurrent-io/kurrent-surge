@@ -131,8 +131,40 @@ public partial class StreamsClient {
         SubscribeOptions options,
         [EnumeratorCancellation] CancellationToken ct = default
     ) {
+        var start = options.Start;
+
+        // Same target routing as reads: a stream-name filter targets a single stream, whose
+        // wire currency is a revision. A start whose stream half doesn't name THIS target
+        // (e.g. a $all checkpoint pointing at a foreign record) is never trusted — its log
+        // half is resolved to the last processed record of the target instead, so the
+        // exclusive After(...) resume is exact.
+        if (options.Filter.UnwrapFilter() is StreamNameFilter target) {
+            start = AlignSentinels(start, target.TargetStream);
+
+            if (start.Stream != target.TargetStream || start.Revision == Revision.Unset) {
+                if (start.LogPosition == LogPosition.Unset)
+                    throw new ArgumentException(
+                        "Start position cannot address the target stream: it carries neither a " +
+                        "matching stream revision nor a log position to resolve one from.", nameof(options));
+
+                var boundary = await ResolveSubscriptionStart(
+                        RecordPosition.From(start.LogPosition, target.TargetStream, Revision.Unset), ct)
+                    .ConfigureAwait(false);
+
+                // None = nothing of the stream processed yet → subscribe from the start of
+                // the stream (deliver everything), NOT an empty subscription.
+                start = boundary.IsUnset
+                    ? RecordPosition.From(LogPosition.Unset, target.TargetStream, Revision.Min)
+                    : boundary;
+            }
+        }
+        else if (start.LogPosition == LogPosition.Unset) {
+            // The log is addressed by position only — never guess from a stream half.
+            throw new ArgumentException("Log-targeted subscriptions require a start with a log position.", nameof(options));
+        }
+
         var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
-            options.Filter, options.Start, options.ResolveLinks, options.MaxSearchWindow);
+            options.Filter, start, options.ResolveLinks, options.MaxSearchWindow);
         
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;

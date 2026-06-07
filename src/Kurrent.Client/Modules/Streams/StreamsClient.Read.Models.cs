@@ -8,9 +8,13 @@ namespace Kurrent.Client.Streams;
 [PublicAPI]
 public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecordsOptions.Validator> {
     /// <summary>
-    /// Starting position for the read operation in the global log.
+    /// Starting position for the read. Accepts a bare <see cref="LogPosition"/> (implicit) or a
+    /// full <see cref="RecordPosition"/>. When the filter routes the read to a single stream,
+    /// the stream half is used natively when it matches the target; otherwise the log half is
+    /// resolved to the target stream's boundary record. Reads are INCLUSIVE forwards and
+    /// EXCLUSIVE backwards (the server's $all contract).
     /// </summary>
-    public LogPosition Start { get; init; } = LogPosition.Latest;
+    public RecordPosition Start { get; init; } = RecordPosition.Latest;
 
     /// <summary>
     /// Maximum number of records to read in this operation.
@@ -62,8 +66,8 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
                 .WithMessage("Limit must be at least 1.");
 
             RuleFor(options => options.Start)
-                .Must(start => start != LogPosition.Unset,
-                    "Start position cannot be Unset when reading records from the log.");
+                .Must(start => !start.IsUnset,
+                    "Start position cannot be Unset when reading records.");
         }
     }
 }

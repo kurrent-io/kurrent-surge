@@ -51,7 +51,10 @@ static partial class StreamsClientMapping {
         }
 
         /// <summary>
-        /// Creates a request to read log records based on the provided options.
+        /// Creates a request to read records based on the provided options. The start arrives
+        /// pre-resolved by the client routing (see <c>StreamsClient.ReadRecordsCore</c>):
+        /// <see cref="RouteByFilter"/> consumes the half matching the branch it picks —
+        /// the revision for a stream target, the log position for the log.
         /// </summary>
         public static Contracts.ReadReq CreateReadRecordsRequest(ReadRecordsOptions options) {
             var req = new Contracts.ReadReq { Options = new() {
@@ -62,40 +65,7 @@ static partial class StreamsClientMapping {
                 ResolveLinks  = options.ResolveLinks,
             }};
 
-            // Stream branch uses Revision.Min — read whole stream from beginning when
-            // the filter resolves to a StreamNameFilter. Log branch uses options.Start.
-            var start = RecordPosition.From(options.Start, StreamName.Unset, Revision.Min);
-            RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);
-
-            return req;
-        }
-
-        /// <summary>
-        /// Creates a request to read records from a specific stream based on the provided options.
-        /// Filter is source-of-truth for routing: if no filter is supplied, a <see cref="StreamNameFilter"/>
-        /// is synthesized from <paramref name="stream"/>. Otherwise the caller's filter wins
-        /// (the caller ensures any explicit <see cref="StreamNameFilter"/> targets the same stream).
-        /// </summary>
-        public static Contracts.ReadReq CreateReadStreamRequest(StreamName stream, ReadStreamOptions options) {
-            var req = new Contracts.ReadReq { Options = new() {
-                UuidOption    = DefaultUuidOptions,
-                ControlOption = DefaultControlOption,
-                ReadDirection = ToReadDirection(options.Direction),
-                Count         = (ulong)options.Limit,
-                ResolveLinks  = options.ResolveLinks,
-            }};
-
-            // Empty filter → synthesize a StreamNameFilter from the supplied stream.
-            // Any other filter wins outright.
-            var filter = options.Filter is EmptyFilter
-                ? StreamNameFilter.Parse(stream)
-                : options.Filter;
-
-            // Stream branch uses options.Start (Revision). LogPosition.Earliest is a safe
-            // placeholder for the $all branch — never reached when filter is StreamNameFilter.
-            var start = RecordPosition.From(LogPosition.Earliest, stream, options.Start);
-
-            RouteByFilter(req.Options, filter, start);
+            RouteByFilter(req.Options, options.Filter, options.Start, (uint)options.FilterMaxSearchWindow);
 
             return req;
         }

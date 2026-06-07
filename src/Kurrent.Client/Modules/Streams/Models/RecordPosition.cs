@@ -88,6 +88,13 @@ public readonly record struct RecordPosition() : IComparable<RecordPosition>, IC
     public static RecordPosition From(LogPosition logPosition, Partition partition = default) =>
         new() { LogPosition = logPosition, Partition = partition };
 
+    /// <summary>
+    /// A log position alone is a valid record position — the stream half stays unset and is
+    /// resolved by the operation's routing when a stream target needs it.
+    /// </summary>
+    public static implicit operator RecordPosition(LogPosition logPosition) =>
+        new() { LogPosition = logPosition };
+
     #region ->> relational members <<-
 
     public int CompareTo(RecordPosition other) => LogPosition.CompareTo(other.LogPosition);
