@@ -83,7 +83,7 @@ jobs:
             10.x
 
       - name: Restore NuGet Packages
-        run: dotnet restore
+        run: dotnet restore --ignore-failed-sources
 
       - name: Pull Test Images
         uses: ./.github/actions/setup-containers

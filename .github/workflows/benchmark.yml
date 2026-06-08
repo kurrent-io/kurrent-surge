@@ -84,7 +84,7 @@ jobs:
             10.x
 
       - name: Restore Dependencies
-        run: dotnet restore
+        run: dotnet restore --ignore-failed-sources
 
       - name: Install Local Tools
         uses: ./.github/actions/install-tools

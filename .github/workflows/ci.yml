@@ -97,7 +97,7 @@ jobs:
 
       - name: Restore Dependencies
         if: steps.changes.outputs.build == 'true'
-        run: dotnet restore
+        run: dotnet restore --ignore-failed-sources
 
       - name: Install Local Tools
         if: steps.changes.outputs.build == 'true'
