@@ -51,7 +51,7 @@ jobs:
 
           # Local NuGet feed the package-validation build (-p:TestPackages=true) reads.
           # Pre-created so `dotnet restore` doesn't fail on a missing source before pack fills it.
-          mkdir -p .artifacts/local-packages
+          mkdir -p .artifacts/packages
 
           # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
           echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"

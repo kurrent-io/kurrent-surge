@@ -66,7 +66,7 @@ jobs:
 
           # Local NuGet feed the package-validation build (-p:TestPackages=true) reads.
           # Pre-created so `dotnet restore` doesn't fail on a missing source before pack fills it.
-          mkdir -p .artifacts/local-packages
+          mkdir -p .artifacts/packages
 
           # On-PATH home for tools we install by hand below (e.g. yq).
           bin_dir="$HOME/.local/bin"
@@ -137,7 +137,7 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: >-
           dotnet pack -c Release --no-build --no-restore
-          -o .artifacts/local-packages
+          -o .artifacts/packages
           -p:Version=${{ steps.version.outputs.version }}
 
       - name: Build Examples (Package Validation)
