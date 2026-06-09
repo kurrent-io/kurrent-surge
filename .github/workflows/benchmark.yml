@@ -85,7 +85,7 @@ jobs:
 
       - name: Install Aspire CLI
         run: |
-          dotnet tool install -g Aspire.Cli
+          dotnet tool update -g Aspire.Cli
           {
             echo "## Aspire Doctor"
             echo '```'
