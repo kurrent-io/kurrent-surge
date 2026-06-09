@@ -35,10 +35,10 @@ public partial class StreamsClient {
 
         var request = Requests.CreateInspectRecordRequest(position);
 
-        var result = await ReadCore(request, skipDecoding, throwOnUnresolved: false, RecordFilter.None, cancellationToken)
+        var result = await ReadCore(request, skipDecoding, throwOnUnresolved: false, RecordFilter.None, DefaultMaxSearchWindow, cancellationToken)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
-        
+
         // maybe add a strict option that will throw if the record is not found or if it was deleted or tombstoned
         // when strict is null it would return Record.None
         // or we could even return a result<record, exception> or IVariant<Record, RecordState>
@@ -84,7 +84,7 @@ public partial class StreamsClient {
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction, 1);
 
-            var message = await ReadCore(request, skipDecoding, throwOnUnresolved: false, RecordFilter.None, cancellationToken)
+            var message = await ReadCore(request, skipDecoding, throwOnUnresolved: false, RecordFilter.None, DefaultMaxSearchWindow, cancellationToken)
                 .FirstOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -167,7 +167,7 @@ public partial class StreamsClient {
 
         var request = Requests.CreateReadRecordsRequest(options);
 
-        await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, ct).ConfigureAwait(false))
+        await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false))
             yield return msg;
     }
 
@@ -217,11 +217,24 @@ public partial class StreamsClient {
 
     async IAsyncEnumerable<ReadRecordsResult> ReadCore(
         ReadReq request, bool skipDecoding, bool throwOnUnresolved,
-        RecordFilter filter, [EnumeratorCancellation] CancellationToken ct
+        RecordFilter filter, uint maxSearchWindow, [EnumeratorCancellation] CancellationToken ct
     ) {
         var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
 
         var sequencer = new SequenceGenerator();
+
+        // The filter is the authority on whether the SDK evaluates it client-side. When it does, it
+        // discards records the consumer never sees — invisible progress — so this read must raise
+        // scan checkpoints of its own, exactly as the client-filtered subscription path does. The V1
+        // read enumerators never emit filter checkpoints (only AllSubscriptionFiltered does), so a
+        // long sparse client-filtered read would otherwise have no progress signal and no cheap
+        // resume point. A server-routable filter leaves this off: the server delivers only matches.
+        var filtersLocally = filter.RequiresClientEvaluation;
+
+        // Records scanned since the last synthetic checkpoint. Unlike the subscription path there is
+        // no server checkpoint to reset against — a V1 read emits none — so this only ever resets
+        // when the SDK itself raises a checkpoint.
+        uint scannedSinceCheckpoint = 0;
 
         await foreach (var rsp in session.WithCancellation(ct).ConfigureAwait(false)) {
             // v1 protocol bull: StreamNotFound is a message, not an exception (unlike 99.9% of other error cases)
@@ -250,10 +263,41 @@ public partial class StreamsClient {
                     result = rsp.CaughtUp.MapToCheckpoint(sequencer.FetchNext());
                     break;
                 case Event:
-                    result = await rsp.Event
+                    var record = await rsp.Event
                         .MapToRecordAsync(sequencer.FetchNext(), CreateMappingContext(ct), skipDecoding, throwOnUnresolved)
                         .ConfigureAwait(false);
 
+                    // Off-by-one against the subscription path. A subscription resumes EXCLUSIVELY
+                    // (After the cursor), so it watermarks the LAST scanned record and the server
+                    // skips it on resume. A read resumes INCLUSIVELY (forwards from the cursor), so
+                    // a resumed read re-delivers the record AT the checkpoint position — watermarking
+                    // the last scanned record would duplicate it. Instead emit the checkpoint HERE,
+                    // BEFORE this record is evaluated or yielded, carrying THIS record's scan
+                    // position: every record before it is already accounted for, so resuming from
+                    // here re-scans this record onward — losing nothing (nothing at or past this
+                    // position was delivered) and duplicating nothing (nothing before it is re-read).
+                    // That one-record-later watermark is exactly the inclusive→exclusive compensation.
+                    if (filtersLocally && scannedSinceCheckpoint >= maxSearchWindow) {
+                        scannedSinceCheckpoint = 0;
+
+                        // On $all the ReadEvent commit position is the physical scan watermark; with
+                        // link resolution on (the default) the mapped record position points at an
+                        // earlier target event, so a record-position watermark would regress while the
+                        // scan advances. On a single-stream read the ReadEvent carries no commit
+                        // position, so the record's own position is the scan position.
+                        var scanPosition = rsp.Event.HasCommitPosition
+                            ? LogPosition.From((long)rsp.Event.CommitPosition)
+                            : record.Position.LogPosition;
+
+                        yield return new FilterCheckpoint(CheckpointId.New(), record.Timestamp) {
+                            Positions = [record.Position with { LogPosition = scanPosition }]
+                        };
+                    }
+
+                    if (filtersLocally)
+                        scannedSinceCheckpoint++;
+
+                    result = record;
                     break;
                 default:
                     continue;

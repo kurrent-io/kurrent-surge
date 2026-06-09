@@ -5,9 +5,12 @@ namespace Kurrent.Client.Streams;
 public static partial class StreamsClientExtensions {
     extension(IAsyncEnumerable<ReadRecordsResult> source) {
         /// <summary>
-        /// Projects a read down to its records. Lossless for reads: on the V1 wire a read
-        /// emits no filter checkpoints (subscriptions own those), so the only message this
-        /// drops is the terminal CaughtUp marker — irrelevant for a bounded read.
+        /// Projects a read down to its records, dropping every <see cref="Checkpoint"/>. A
+        /// client-filtered read (one whose filter <see cref="RecordFilter.RequiresClientEvaluation"/>)
+        /// synthesizes <see cref="FilterCheckpoint"/>s to carry progress across the records it
+        /// discards; this record-only view drops them, so a consumer that needs to persist read
+        /// progress through sparse stretches must iterate the result directly. The terminal CaughtUp
+        /// marker is dropped too.
         /// </summary>
         public async IAsyncEnumerable<Record> Records([EnumeratorCancellation] CancellationToken cancellationToken = default) {
             await foreach (var msg in source.WithCancellation(cancellationToken).ConfigureAwait(false)) {
