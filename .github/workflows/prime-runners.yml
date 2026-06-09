@@ -93,6 +93,8 @@ jobs:
       - name: Install Aspire CLI
         run: |
           dotnet tool update -g Aspire.Cli
+          # Pre-extract the embedded DCP/dashboard bundle so it's warm for build workflows on this runner.
+          aspire setup
           {
             echo "## Aspire Doctor"
             echo '```'

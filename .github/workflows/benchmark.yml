@@ -94,6 +94,11 @@ jobs:
       - name: Install Aspire CLI
         run: |
           dotnet tool update -g Aspire.Cli
+          # Aspire CLI is self-extracting; `aspire setup` unpacks the embedded DCP/dashboard bundle.
+          aspire setup
+          # `dotnet tool` exposes aspire as a PATH symlink the SDK's bundle resolver won't follow
+          # (Path.GetFullPath) -> ASPIRE009. Point it at the real binary the bundle sits beside.
+          echo "AspireCliPath=$(readlink -f "$(command -v aspire)")" >> "$GITHUB_ENV"
           {
             echo "## Aspire Doctor"
             echo '```'

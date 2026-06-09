@@ -109,14 +109,10 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: |
           dotnet tool update -g Aspire.Cli
-          # The Aspire CLI is a self-extracting binary with the DCP/dashboard bundle embedded.
-          # Extraction is lazy; `aspire setup` forces it (matches Aspire's own polyglot CI).
+          # Aspire CLI is self-extracting; `aspire setup` unpacks the embedded DCP/dashboard bundle.
           aspire setup
-
-          # `dotnet tool` puts a SYMLINK on PATH (~/.dotnet/tools/aspire). The AppHost SDK's bundle
-          # resolver uses Path.GetFullPath, which does NOT follow symlinks, so it looks beside the
-          # symlink (no bundle) -> ASPIRE009. The bundle is extracted beside the REAL binary, so
-          # hand the SDK the symlink-resolved path via AspireCliPath.
+          # `dotnet tool` exposes aspire as a PATH symlink the SDK's bundle resolver won't follow
+          # (Path.GetFullPath) -> ASPIRE009. Point it at the real binary the bundle sits beside.
           echo "AspireCliPath=$(readlink -f "$(command -v aspire)")" >> "$GITHUB_ENV"
           {
             echo "## Aspire Doctor"
