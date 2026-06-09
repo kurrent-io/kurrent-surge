@@ -64,6 +64,8 @@ jobs:
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
+          mkdir -p .artifacts/local-packages
+
           bin_dir="$HOME/.local/bin"
           mkdir -p "$bin_dir"
           echo "$bin_dir" >> "$GITHUB_PATH"
@@ -94,6 +96,17 @@ jobs:
             8.x
             9.x
             10.x
+
+      - name: Install Aspire CLI
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          dotnet tool install -g Aspire.Cli
+          {
+            echo "## Aspire Doctor"
+            echo '```'
+            aspire doctor
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Restore Dependencies
         if: steps.changes.outputs.build == 'true'
