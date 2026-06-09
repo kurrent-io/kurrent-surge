@@ -288,7 +288,11 @@ public partial class StreamsClient {
                             .MapToRecordAsync(sequencer.FetchNext(), ctx, options.SkipDecoding, options.ThrowOnUnresolved)
                             .ConfigureAwait(false);
 
-                        if (options.Filter.IsMatch(record))
+                        // Same gating as the read path: when the filter is fully server-side
+                        // (filtersLocally == false) the server already delivered exactly its matches,
+                        // resolved per ResolveLinks — re-running IsMatch would drop records the server
+                        // matched. Only a client-evaluated filter re-checks each record here.
+                        if (!filtersLocally || options.Filter.IsMatch(record))
                             yield return record;
 
                         // When the SDK filters locally, raise a scan checkpoint every window —
