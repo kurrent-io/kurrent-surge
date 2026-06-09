@@ -380,7 +380,11 @@ void PostProcess(string resultsDir, bool htmlReport) {
 static string FindRepoRoot(string startDir) {
     var dir = startDir;
     while (dir is not null) {
-        if (Directory.Exists(Path.Combine(dir, ".git"))) return dir;
+        // In a linked worktree, `.git` is a FILE (a gitdir pointer), not a directory. Match either,
+        // so the runner anchors on the worktree it is invoked from instead of walking up to the main
+        // checkout — otherwise it would build and test the wrong tree.
+        var git = Path.Combine(dir, ".git");
+        if (Directory.Exists(git) || File.Exists(git)) return dir;
         dir = Path.GetDirectoryName(dir);
     }
     return startDir;
