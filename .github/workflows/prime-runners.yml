@@ -2,7 +2,7 @@ name: Prime Runners
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 6 * * *' # this means "At 06:00 UTC every day"
   workflow_dispatch:
 
 jobs:
