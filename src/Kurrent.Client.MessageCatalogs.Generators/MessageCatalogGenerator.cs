@@ -1,11 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text;
-using System.Threading;
+using Kurrent.CodeAnalysis;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using TypeKind = Microsoft.CodeAnalysis.TypeKind;
 
 namespace Kurrent.Client.MessageCatalogs.Generators;
 
@@ -24,9 +23,13 @@ namespace Kurrent.Client.MessageCatalogs.Generators;
 [SuppressMessage("MicrosoftCodeAnalysisReleaseTracking", "RS2008:Enable analyzer release tracking")]
 public sealed class MessageCatalogGenerator : IIncrementalGenerator {
     const string SchemaNamespace             = "Kurrent.Client.Schema";
+    const string ClientNamespace             = "Kurrent.Client";
     const string MessageCatalogAttributeName = "MessageCatalogAttribute";
     const string MessageTypeAttributeName    = "MessageTypeAttribute";
+    const string MessageCatalogTypeName      = "MessageCatalog";
     const string DefaultCatalogKey           = "Default";
+
+    const string CustomMessageCatalogAttributeMetadataName = "Kurrent.Client.Schema.CustomMessageCatalogAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         // Assembly-level attributes + whole-assembly scans require the full compilation, so
@@ -35,12 +38,36 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         // unchanged, the output step is cached and nothing is regenerated.
         var model = context.CompilationProvider.Select(static (compilation, ct) => Extract(compilation, ct));
 
-        context.RegisterSourceOutput(model, static (spc, info) => {
-            if (!info.HasCatalogs)
+        // Hand-authored catalogs: [CustomMessageCatalog] on a MessageCatalog subclass. The fast
+        // attribute path hands us the target symbol (and its location, for diagnostics) directly.
+        var customCatalogs = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                CustomMessageCatalogAttributeMetadataName,
+                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                transform: static (ctx, _) => ExtractCustom(ctx))
+            .Collect();
+
+        context.RegisterSourceOutput(model.Combine(customCatalogs), static (spc, pair) => {
+            var (info, customs) = pair;
+
+            // Fail loud: a [CustomMessageCatalog] that isn't a usable catalog is almost always an
+            // authoring mistake — surface it at compile time rather than silently dropping it.
+            foreach (var custom in customs) {
+                if (!custom.IsValid)
+                    spc.ReportDiagnostic(Diagnostic.Create(CustomCatalogInvalid, custom.Location, custom.TypeName));
+            }
+
+            var validCustoms = customs
+                .Where(c => c.IsValid)
+                .OrderBy(c => c.TypeName, StringComparer.Ordinal)
+                .ToArray();
+
+            if (!info.HasCatalogs && validCustoms.Length == 0)
                 return;
 
             try {
-                spc.AddSource("MessageCatalogs.g.cs", SourceText.From(GenerateSource(info), Encoding.UTF8));
+                foreach (var file in GenerateFiles(info, validCustoms))
+                    spc.AddSource(file.HintName, SourceText.From(file.Source, Encoding.UTF8));
             }
             catch (Exception ex) {
                 spc.ReportDiagnostic(Diagnostic.Create(Failed, Location.None, ex.ToString()));
@@ -56,10 +83,22 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    static readonly DiagnosticDescriptor CustomCatalogInvalid = new(
+        id: "KURRENT521",
+        title: "Invalid custom message catalog",
+        messageFormat: "[CustomMessageCatalog] type '{0}' must be a non-abstract class deriving from MessageCatalog with an accessible parameterless constructor",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     static CatalogsInfo Extract(Compilation compilation, CancellationToken ct) {
         // key → (registration identity → registration); same key declared twice merges.
         var catalogs    = new Dictionary<string, Dictionary<(string, string?, string?), RegistrationInfo>>(StringComparer.Ordinal);
         var prefixScans = new List<PrefixScan>();
+
+        // Keys whose [assembly: MessageCatalog(..., AlwaysActive = true)] marks the catalog
+        // always-active. Per-key: any always-active declaration wins.
+        var alwaysActiveKeys = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var attribute in compilation.Assembly.GetAttributes()) {
             ct.ThrowIfCancellationRequested();
@@ -76,8 +115,15 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
                 var key      = attribute.NamedArguments.FirstOrDefault(a => a.Key == "Key").Value.Value as string ?? DefaultCatalogKey;
                 var strategy = (attribute.NamedArguments.FirstOrDefault(a => a.Key == "Strategy").Value.Value as INamedTypeSymbol)?.ToDisplayString();
 
-                // MessageCatalogAttribute<TMustImplement> constrains the scan via the generic.
-                var mustImplement = attrClass.Arity == 1 ? attrClass.TypeArguments[0] as INamedTypeSymbol : null;
+                if (attribute.NamedArguments.FirstOrDefault(a => a.Key == "AlwaysActive").Value.Value is true)
+                    alwaysActiveKeys.Add(key);
+
+                // The constraint can come from the generic MessageCatalogAttribute<T> (type arg) or
+                // the non-generic MustImplement property; the generic form wins when both are given.
+                // A generic attribute cannot push its type parameter into the property the generator
+                // reads, so the two are distinct metadata sources unified here.
+                var mustImplement = (attrClass.Arity == 1 ? attrClass.TypeArguments[0] as INamedTypeSymbol : null)
+                                 ?? attribute.NamedArguments.FirstOrDefault(a => a.Key == "MustImplement").Value.Value as INamedTypeSymbol;
 
                 prefixScans.Add(new PrefixScan(prefix!, key, strategy, mustImplement));
             }
@@ -117,8 +163,14 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
                 namespaces.Push(nested);
         }
 
+        var rootNamespace = compilation.AssemblyName ?? "Kurrent.Generated";
+        var assemblyId    = Sanitize(compilation.AssemblyName ?? "Assembly");
+
         if (catalogs.Count == 0)
-            return CatalogsInfo.None;
+            // No attribute-declared catalogs — still return the assembly identity so any
+            // [CustomMessageCatalog] subclasses (combined downstream) can be emitted under
+            // this assembly's provider.
+            return new CatalogsInfo(HasCatalogs: false, rootNamespace, assemblyId, []);
 
         // Sorted for deterministic output — keeps the incremental cache and the emitted
         // source stable across builds regardless of symbol enumeration order.
@@ -129,14 +181,11 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
                 c.Value.Values
                     .OrderBy(r => r.TypeName, StringComparer.Ordinal)
                     .ThenBy(r => r.SchemaName, StringComparer.Ordinal)
-                    .ToArray()))
+                    .ToArray(),
+                alwaysActiveKeys.Contains(c.Key)))
             .ToArray();
 
-        return new CatalogsInfo(
-            HasCatalogs: true,
-            RootNamespace: compilation.AssemblyName ?? "Kurrent.Generated",
-            AssemblyId: Sanitize(compilation.AssemblyName ?? "Assembly"),
-            ordered);
+        return new CatalogsInfo(HasCatalogs: true, rootNamespace, assemblyId, ordered);
 
         void Add(string key, RegistrationInfo registration) {
             if (!catalogs.TryGetValue(key, out var entries))
@@ -198,40 +247,77 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         return false;
     }
 
-    static string GenerateSource(CatalogsInfo info) {
+    static CustomCatalogInfo ExtractCustom(GeneratorAttributeSyntaxContext ctx) {
+        var type     = (INamedTypeSymbol)ctx.TargetSymbol;
+        var location = type.Locations.FirstOrDefault() ?? Location.None;
+
+        var valid = type is { TypeKind: TypeKind.Class, IsAbstract: false, IsStatic: false }
+                 && DerivesFromMessageCatalog(type)
+                 && HasAccessibleParameterlessConstructor(type);
+
+        return new CustomCatalogInfo(valid, type.ToDisplayString(), location);
+    }
+
+    static bool DerivesFromMessageCatalog(INamedTypeSymbol type) {
+        for (var baseType = type.BaseType; baseType is not null; baseType = baseType.BaseType) {
+            if (baseType.Name == MessageCatalogTypeName && baseType.ContainingNamespace?.ToDisplayString() == ClientNamespace)
+                return true;
+        }
+
+        return false;
+    }
+
+    // Generated code calls `new T()`; an internal ctor is reachable because the generated provider
+    // lives in the same assembly as the catalog.
+    static bool HasAccessibleParameterlessConstructor(INamedTypeSymbol type) =>
+        type.InstanceConstructors.Any(c =>
+            c.Parameters.Length == 0 &&
+            c.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal);
+
+    // Each declared catalog lands in its own file via partial classes; a single shared file holds
+    // the cross-catalog aggregates (All, Get, the provider attribute, the assembly-wide extension).
+    static IEnumerable<(string HintName, string Source)> GenerateFiles(CatalogsInfo info, CustomCatalogInfo[] customCatalogs) {
+        yield return ("MessageCatalogs.g.cs", GenerateSharedFile(info, customCatalogs));
+
+        foreach (var catalog in info.Catalogs)
+            yield return ($"{CatalogFileStem(catalog.Key)}.g.cs", GenerateCatalogFile(info, catalog));
+    }
+
+    // "scanned" → "ScannedMessageCatalog"; a key that already ends in "MessageCatalog" is not
+    // doubled (e.g. "StreamingMessageCatalog" stays "StreamingMessageCatalog").
+    static string CatalogFileStem(string key) {
+        var name = PropertyName(key);
+
+        if (name.EndsWith("MessageCatalog", StringComparison.Ordinal))
+            name = name[..^"MessageCatalog".Length];
+
+        return $"{name}MessageCatalog";
+    }
+
+    static string GenerateSharedFile(CatalogsInfo info, CustomCatalogInfo[] customCatalogs) {
         var sb = new StringBuilder();
 
-        sb.AppendLine("// <auto-generated />");
-        sb.AppendLine("// This file was generated by the MessageCatalogGenerator");
-        sb.AppendLine("// Changes to this file will be lost when the file is regenerated.");
-        sb.AppendLine();
-        sb.AppendLine("#nullable enable");
-        sb.AppendLine();
+        AppendHeader(sb);
+
         sb.AppendLine($"[assembly: global::{info.RootNamespace}.{info.AssemblyId}MessageCatalogProviderAttribute]");
         sb.AppendLine();
         sb.AppendLine($"namespace {info.RootNamespace} {{");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>Message catalogs declared by this assembly's attributes.</summary>");
         sb.AppendLine("    [global::System.CodeDom.Compiler.GeneratedCode(\"MessageCatalogGenerator\", \"3.0.0\")]");
-        sb.AppendLine("    public static class MessageCatalogs {");
+        sb.AppendLine("    public static partial class MessageCatalogs {");
 
-        foreach (var catalog in info.Catalogs) {
-            sb.AppendLine($"        public static global::Kurrent.Client.MessageCatalog {PropertyName(catalog.Key)} {{ get; }} = global::Kurrent.Client.MessageCatalog.From(\"{catalog.Key}\", [");
+        // All = attribute-declared catalog properties (declared in the per-catalog files), then a
+        // fresh instance of each discovered [CustomMessageCatalog] subclass. Built lazily: the
+        // per-catalog properties live in other partial files, so a field initializer here could run
+        // before theirs — `??=` defers until first access, after every static initializer has run.
+        var allItems = info.Catalogs.Select(c => PropertyName(c.Key))
+            .Concat(customCatalogs.Select(c => $"new global::{c.TypeName}()"))
+            .ToArray();
 
-            foreach (var r in catalog.Registrations) {
-                var name     = r.SchemaName is null ? "null" : $"\"{r.SchemaName}\"";
-                var strategy = r.StrategyTypeName is null ? "null" : $"new global::{r.StrategyTypeName}()";
-
-                sb.AppendLine($"            new(typeof(global::{r.TypeName}), {name}, {strategy}, \"{catalog.Key}\"),");
-            }
-
-            sb.AppendLine("        ]);");
-            sb.AppendLine();
-        }
-
-        var propertyNames = info.Catalogs.Select(c => PropertyName(c.Key)).ToArray();
-
-        sb.AppendLine($"        public static global::System.Collections.Generic.IReadOnlyList<global::Kurrent.Client.MessageCatalog> All {{ get; }} = [{string.Join(", ", propertyNames)}];");
+        sb.AppendLine("        static global::System.Collections.Generic.IReadOnlyList<global::Kurrent.Client.MessageCatalog>? _all;");
+        sb.AppendLine("        public static global::System.Collections.Generic.IReadOnlyList<global::Kurrent.Client.MessageCatalog> All =>");
+        sb.AppendLine($"            _all ??= [{string.Join(", ", allItems)}];");
         sb.AppendLine();
         sb.AppendLine("        /// <summary>Returns the catalog with the given key, or null — pattern-matchable.</summary>");
         sb.AppendLine("        public static global::Kurrent.Client.MessageCatalog? Get(string key) => key switch {");
@@ -254,20 +340,56 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         sb.AppendLine("namespace Kurrent.Client {");
         sb.AppendLine();
         sb.AppendLine("    [global::System.CodeDom.Compiler.GeneratedCode(\"MessageCatalogGenerator\", \"3.0.0\")]");
-        sb.AppendLine($"    public static class {info.AssemblyId}MessageCatalogExtensions {{");
-
-        foreach (var catalog in info.Catalogs) {
-            sb.AppendLine($"        public static global::Kurrent.Client.KurrentClientMessageOptions Use{PropertyName(catalog.Key)}Catalog(this global::Kurrent.Client.KurrentClientMessageOptions options) =>");
-            sb.AppendLine($"            options.UseCatalog(global::{info.RootNamespace}.MessageCatalogs.{PropertyName(catalog.Key)});");
-            sb.AppendLine();
-        }
-
+        sb.AppendLine($"    public static partial class {info.AssemblyId}MessageCatalogExtensions {{");
         sb.AppendLine($"        public static global::Kurrent.Client.KurrentClientMessageOptions Use{info.AssemblyId}Catalogs(this global::Kurrent.Client.KurrentClientMessageOptions options) =>");
         sb.AppendLine($"            options.UseCatalog(global::{info.RootNamespace}.MessageCatalogs.All);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    static string GenerateCatalogFile(CatalogsInfo info, CatalogInfo catalog) {
+        var sb = new StringBuilder();
+
+        AppendHeader(sb);
+
+        // Partial parts of the shared types — the [GeneratedCode] attribute and XML docs live only
+        // on the shared file's declarations to avoid duplicate-attribute / duplicate-doc on partials.
+        sb.AppendLine($"namespace {info.RootNamespace} {{");
+        sb.AppendLine();
+        sb.AppendLine("    public static partial class MessageCatalogs {");
+        sb.AppendLine($"        public static global::Kurrent.Client.MessageCatalog {PropertyName(catalog.Key)} {{ get; }} = new global::Kurrent.Client.MessageCatalog(\"{catalog.Key}\", {(catalog.AlwaysActive ? "true" : "false")}, [");
+
+        foreach (var r in catalog.Registrations) {
+            var name     = r.SchemaName is null ? "null" : $"\"{r.SchemaName}\"";
+            var strategy = r.StrategyTypeName is null ? "null" : $"new global::{r.StrategyTypeName}()";
+
+            sb.AppendLine($"            new(typeof(global::{r.TypeName}), {name}, {strategy}, \"{catalog.Key}\"),");
+        }
+
+        sb.AppendLine("        ]);");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("namespace Kurrent.Client {");
+        sb.AppendLine();
+        sb.AppendLine($"    public static partial class {info.AssemblyId}MessageCatalogExtensions {{");
+        sb.AppendLine($"        public static global::Kurrent.Client.KurrentClientMessageOptions Use{PropertyName(catalog.Key)}Catalog(this global::Kurrent.Client.KurrentClientMessageOptions options) =>");
+        sb.AppendLine($"            options.UseCatalog(global::{info.RootNamespace}.MessageCatalogs.{PropertyName(catalog.Key)});");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    static void AppendHeader(StringBuilder sb) {
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("// This file was generated by the MessageCatalogGenerator");
+        sb.AppendLine("// Changes to this file will be lost when the file is regenerated.");
+        sb.AppendLine();
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
     }
 
     // "orders" → "Orders"; "order-events" → "OrderEvents"; leading digits get a prefix.
@@ -290,17 +412,22 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
     // Scalar-only records: automatic value equality is correct and cache-safe.
     sealed record RegistrationInfo(string TypeName, string? SchemaName, string? StrategyTypeName);
 
-    sealed record CatalogInfo(string Key, RegistrationInfo[] Registrations) {
+    // A discovered [CustomMessageCatalog] subclass. Location feeds the misuse diagnostic. The
+    // subclass carries its own always-active flag via its constructor, so it isn't tracked here.
+    sealed record CustomCatalogInfo(bool IsValid, string TypeName, Location Location);
+
+    sealed record CatalogInfo(string Key, RegistrationInfo[] Registrations, bool AlwaysActive) {
         public bool Equals(CatalogInfo? other) =>
-            other is not null && Key == other.Key && Registrations.AsSpan().SequenceEqual(other.Registrations.AsSpan());
+            other is not null
+         && Key == other.Key
+         && AlwaysActive == other.AlwaysActive
+         && Registrations.AsSpan().SequenceEqual(other.Registrations.AsSpan());
 
         public override int GetHashCode() =>
-            Kurrent.CodeAnalysis.HashCode.New.Combine(Key).Combine(Registrations);
+            Kurrent.CodeAnalysis.HashCode.New.Combine(Key).Combine(AlwaysActive).Combine(Registrations);
     }
 
     sealed record CatalogsInfo(bool HasCatalogs, string RootNamespace, string AssemblyId, CatalogInfo[] Catalogs) {
-        public static readonly CatalogsInfo None = new(HasCatalogs: false, "", "", []);
-
         public bool Equals(CatalogsInfo? other) =>
             other is not null
          && HasCatalogs == other.HasCatalogs
@@ -309,12 +436,10 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
          && Catalogs.AsSpan().SequenceEqual(other.Catalogs.AsSpan());
 
         public override int GetHashCode() =>
-            Kurrent.CodeAnalysis.HashCode.New
+            HashCode.New
                 .Combine(HasCatalogs)
                 .Combine(RootNamespace)
                 .Combine(AssemblyId)
                 .Combine(Catalogs);
     }
-
-    sealed record CatalogsInfoNone;
 }

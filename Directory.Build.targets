@@ -154,4 +154,42 @@
     <PackageReference Include="@(ProjectOrPackageReference)" />
   </ItemGroup>
 
+  <!--
+    Source-generator flow for in-repo consumers.
+
+    Roslyn analyzers and source generators are NOT transitive through a ProjectReference (by
+    design in the SDK), so a project that references an SDK package by SOURCE does not get the
+    generators that package ships under analyzers/dotnet/cs — unlike a real NuGet consumer, where
+    they flow automatically. To match that experience in-repo, wire those generators as analyzers
+    for any project that references the SDK by source.
+
+    @(SourceConsumerAnalyzer) is the single list of generators that ship to consumers and so must
+    also reach in-repo source consumers — add future packed analyzers here, no other change needed.
+
+    Detection uses a string match on the reference list (built-in %(Filename) metadata isn't
+    allowed in item conditions here), evaluated after the ProjectOrPackageReference conversion
+    above so converted refs are seen too. Skipped when TestPackages=true (the package supplies the
+    generators). Generator projects and the SDK roots don't reference the SDK by source, so they
+    never match and need no name-based exclusion.
+  -->
+  <ItemGroup>
+    <SourceConsumerAnalyzer Include="$(RepoRoot)/src/Kurrent.Client.MessageCatalogs.Generators/Kurrent.Client.MessageCatalogs.Generators.csproj" />
+  </ItemGroup>
+
+  <!-- Detect an SDK source reference by filtering @(ProjectReference) on its filename. Done as an
+       item-to-item transform (WithMetadataValue in Include — the same idiom used above), NOT a
+       property: MSBuild evaluates properties before items, so a property cannot read @() here. -->
+  <ItemGroup Condition="'$(TestPackages)' != 'true'">
+    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Client'))" />
+    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Streaming'))" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TestPackages)' != 'true' and '@(_SdkSourceRef)' != ''">
+    <ProjectReference Include="@(SourceConsumerAnalyzer)"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all"
+                      IsAspireProjectResource="false" />
+  </ItemGroup>
+
 </Project>

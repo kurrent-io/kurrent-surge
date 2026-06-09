@@ -113,28 +113,32 @@ Declarations without a `Key` (or a `Catalog` on `[MessageType]`) land in the `"D
 
 This makes a dedicated contracts package the natural unit of contract ownership: the package carries the types, the attributes, and therefore the catalogs. Consumers pin a package version and get exactly that contract's vocabulary.
 
-## Automatic consumption
+## Selecting catalogs
 
-The generator also marks each assembly's catalogs as exported, and by default a client picks up every exported catalog from the assemblies your application references:
+Discovery always runs: every catalog the referenced assemblies export is found and gets a `Use*Catalog()` extension. A client then registers two sets — the catalogs marked **always-active**, plus the ones you select explicitly:
 
 ```csharp
-public bool AutoUseCatalogs { get; set; } = true;   // on options.Messages
+opts => opts.Messages.UseOrdersCatalog();   // exactly this catalog, nothing else
 ```
 
-Reference the contracts package, create a client, done — no `UseCatalog` call needed.
+A declared catalog (`[assembly: MessageCatalog]` / `[MessageType]`) is opt-in — name it with `UseOrdersCatalog()` / `UseCatalog(...)`, or map on the fly with `MapMessage`.
 
-::: tip Automatic consumption is not auto-mapping
-What's automatic is *consuming* catalogs; their *content* was always declared by their authors. Every mapping in every catalog traces back to an attribute or a `Map` call someone wrote. The client never invents a mapping on its own.
+### Always-active catalogs
+
+A catalog that must be in *every* client — foundational, process-wide contracts — declares itself always-active. Author it as a `MessageCatalog` subclass and set `AlwaysActive`:
+
+```csharp
+[CustomMessageCatalog(AlwaysActive = true)]
+sealed class OrdersCatalog() : MessageCatalog("orders", c => c
+    .Map<OrderPlaced>("order.placed.v1")
+    .Map<OrderShipped>("order.shipped.v1"));
+```
+
+It is discovered like any other catalog, but joins every client's vocabulary with no `UseCatalog` call. Drop the `AlwaysActive = true` and the same self-contained catalog becomes opt-in.
+
+::: tip Always-active is not auto-mapping
+What's automatic is *registering* the catalog; its *content* was always declared by its author. Every mapping traces back to an attribute or a `Map` call someone wrote. The client never invents a mapping on its own.
 :::
-
-For strict per-client control, turn it off and select explicitly:
-
-```csharp
-opts => {
-    opts.Messages.AutoUseCatalogs = false;
-    opts.Messages.UseOrdersCatalog();   // exactly this catalog, nothing else
-}
-```
 
 ## Manual catalogs
 
@@ -161,7 +165,7 @@ opts.Messages.MapMessage<OrderPlaced>("order.placed.v1");
 
 ## Composition and conflicts
 
-A client unions everything at construction: the default catalog, explicit `UseCatalog` calls, and auto-consumed catalogs. There are no override semantics — two catalogs that map the same schema name to different types (or the same type to different names) fail client construction with an error naming the offending catalog. A conflicting vocabulary is a configuration bug, and it surfaces at startup, not mid-stream.
+A client unions everything at construction: the default catalog, explicit `UseCatalog` calls, and always-active catalogs. There are no override semantics — two catalogs that map the same schema name to different types (or the same type to different names) fail client construction with an error naming the offending catalog. A conflicting vocabulary is a configuration bug, and it surfaces at startup, not mid-stream.
 
 ## When a read meets an unmapped name
 
@@ -181,4 +185,4 @@ Attributes cover the common case: your types, declared next to the code that own
 
 - **The mapping is computed.** Names assembled from configuration or tenant context can't live in an attribute.
 - **You can't touch the contracts assembly** and assembly-level attributes in your own project feel too far from the configuration they affect.
-- **Tight control.** Set `AutoUseCatalogs = false` and the client speaks exactly what you handed it.
+- **Tight control.** A client speaks exactly the catalogs you select plus the always-active ones — nothing is pulled in implicitly.

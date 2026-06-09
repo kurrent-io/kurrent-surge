@@ -46,7 +46,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     /// <param name="logger">Optional logger instance.</param>
     /// <remarks>
     /// Checkpoint contract types are exported via this assembly's message catalog provider
-    /// (see <c>StreamingMessageCatalog</c>) and join every client through catalog
+    /// (see <c>KurrentStreamingCatalog</c>) and join every client through catalog
     /// auto-discovery — no per-store registration required or possible: the client's
     /// resolver snapshot is taken at client construction.
     /// </remarks>

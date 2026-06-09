@@ -88,6 +88,9 @@ public class KurrentDBFixture : AspireFixture {
             opts.LoggerFactory = LoggerFactory;
             opts.Schema        = KurrentClientSchemaOptions.NoValidation;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            // The Testkit catalog (race contracts) is discovered but not always-active, so it must
+            // be opted in explicitly — every fixture client speaks the test vocabulary by default.
+            opts.Messages.UseTestkitCatalog();
             configure?.Invoke(opts);
         });
     

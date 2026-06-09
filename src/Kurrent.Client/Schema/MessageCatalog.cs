@@ -13,9 +13,23 @@ namespace Kurrent.Client;
 /// </summary>
 [PublicAPI]
 public class MessageCatalog(string key = MessageCatalog.DefaultKey) {
-    public static MessageCatalog WithKey(string key) {
-        ArgumentException.ThrowIfNullOrEmpty(key);
-        return new(key);
+    
+    protected MessageCatalog(string key, Action<MessageCatalog> configure) : this(key) {
+        Key = key;
+        configure(this);
+    }
+
+    protected MessageCatalog(string key, bool alwaysActive, Action<MessageCatalog> configure) : this(key) {
+        Key          = key;
+        AlwaysActive = alwaysActive;
+        configure(this);
+    }
+
+    public MessageCatalog(string key, bool alwaysActive, IReadOnlyList<MessageTypeDescriptor> descriptors) : this(key) {
+        AlwaysActive = alwaysActive;
+
+        foreach (var descriptor in descriptors)
+            Add(descriptor);
     }
 
     public const string DefaultKey = "Default";
@@ -27,23 +41,22 @@ public class MessageCatalog(string key = MessageCatalog.DefaultKey) {
     /// </summary>
     public string Key { get; } = key;
 
+    /// <summary>
+    /// When true, this catalog registers into every client's resolver by default. Other discovered
+    /// catalogs are opt-in via <see cref="KurrentClientMessageOptions.UseCatalog"/>; an always-active
+    /// catalog skips that step. Reserved for foundational SDK catalogs (system streams, streaming
+    /// control messages); set via the always-active constructor or
+    /// <c>[assembly: MessageCatalog(..., AlwaysActive = true)]</c>.
+    /// </summary>
+    public bool AlwaysActive { get; }
+
     ConcurrentBidirectionalDictionary<string, Type> TypeMap { get; } = new();
 
     public Type[] Types => TypeMap.Values.ToArray();
 
-    /// <summary>
-    /// Creates a catalog from registrations — the factory the source generator emits calls to.
-    /// Registrations are self-contained: pin wins, then strategy, then the default convention.
-    /// </summary>
-    public static MessageCatalog From(string key, IReadOnlyList<MessageRegistration> registrations) {
-        var catalog = new MessageCatalog(key);
-
-        foreach (var registration in registrations)
-            catalog.Map(registration.ResolveSchemaName(), registration.MessageType);
-
-        return catalog;
-    }
-
+    public bool TryMap(SchemaName schemaName, Type messageType) =>
+        TypeMap.TryAdd(schemaName, messageType);
+    
     public MessageCatalog Map(SchemaName schemaName, Type messageType) {
         TypeMap[schemaName] = messageType;
         return this;
@@ -57,7 +70,13 @@ public class MessageCatalog(string key = MessageCatalog.DefaultKey) {
 
     public MessageCatalog Map<T>() =>
         Map<T>(DefaultStrategy);
+    
+    public MessageCatalog Add(MessageTypeDescriptor descriptor) =>
+        Map(descriptor.ResolveSchemaName(), descriptor.MessageType);
 
+    public bool TryAdd(MessageTypeDescriptor descriptor) =>
+        TryMap(descriptor.ResolveSchemaName(), descriptor.MessageType);
+    
     // Exposed for the client-construction union of multiple catalogs into one resolver.
     internal IEnumerable<KeyValuePair<string, Type>> Entries => TypeMap;
 

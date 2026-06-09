@@ -34,6 +34,19 @@ public class MessageCatalogAttribute(string namespacePrefix) : Attribute {
     /// Omitted → the default <see cref="MessageSchemaNameStrategy"/> at resolution.
     /// </summary>
     public Type? Strategy { get; init; }
+
+    /// <summary>
+    /// When true, the generated catalog registers into every client's resolver by default,
+    /// instead of being opt-in via <see cref="KurrentClientMessageOptions.UseCatalog"/>.
+    /// Surfaces as <see cref="MessageCatalog.AlwaysActive"/> on the generated catalog.
+    /// </summary>
+    public bool AlwaysActive { get; init; }
+
+    /// <summary>
+    /// Constrains the scan to types implementing or deriving from this type — the non-generic
+    /// equivalent of <see cref="MessageCatalogAttribute{TMustImplement}"/>. Omitted → no constraint.
+    /// </summary>
+    public Type? MustImplement { get; init; }
 }
 
 /// <summary>

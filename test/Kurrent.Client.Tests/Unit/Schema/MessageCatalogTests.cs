@@ -1,5 +1,6 @@
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Client.Tests.Schema.Catalogs.Ambient;
 using Kurrent.Client.Tests.Schema.Catalogs.Explicit;
 using Kurrent.Client.Tests.Schema.Catalogs.External;
 using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
@@ -148,7 +149,7 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask registration_resolution_prefers_pinned_name_over_strategy() {
         // Arrange
-        var registration = new MessageRegistration(typeof(ScannedOrderPlaced), "pinned.wins.v1", new KebabNamesStrategy());
+        var registration = new MessageTypeDescriptor(typeof(ScannedOrderPlaced), "pinned.wins.v1", new KebabNamesStrategy());
 
         // Act
         var schemaName = registration.ResolveSchemaName();
@@ -160,8 +161,8 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask registration_resolution_uses_strategy_then_default_convention() {
         // Arrange
-        var withStrategy = new MessageRegistration(typeof(ScannedOrderPlaced), Strategy: new KebabNamesStrategy());
-        var bare         = new MessageRegistration(typeof(ScannedOrderPlaced));
+        var withStrategy = new MessageTypeDescriptor(typeof(ScannedOrderPlaced), Strategy: new KebabNamesStrategy());
+        var bare         = new MessageTypeDescriptor(typeof(ScannedOrderPlaced));
 
         var expectedKebab   = new KebabNamesStrategy().GenerateSchemaName(typeof(ScannedOrderPlaced));
         var expectedDefault = new MessageSchemaNameStrategy().GenerateSchemaName(typeof(ScannedOrderPlaced));
@@ -178,7 +179,7 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask use_catalog_extension_methods_are_generated() {
         // Arrange — the generated ASP.NET-style extensions compose catalogs fluently.
-        var options = new KurrentClientMessageOptions { AutoUseCatalogs = false };
+        var options = new KurrentClientMessageOptions();
 
         // Act
         options.UseScannedCatalog().UsePinnedCatalog();
@@ -190,22 +191,25 @@ public class MessageCatalogTests {
     }
 
     [Test]
-    public async ValueTask auto_use_catalogs_includes_provider_exported_catalogs() {
-        // Arrange — zero configuration: the generated provider attribute exports everything.
+    public async ValueTask declared_catalogs_are_not_registered_until_selected() {
+        // Arrange — discovery finds every provider-exported catalog, but by default only
+        // always-active catalogs register; declared-but-inactive catalogs stay opt-in.
         var options = new KurrentClientMessageOptions();
 
         // Act
         var resolver = options.BuildResolver();
+        var scanned  = () => resolver.ResolveSchemaName(typeof(ScannedOrderPlaced));
+        var external = () => resolver.ResolveSchemaName(typeof(ExternalInvoiceIssued));
 
-        // Assert
-        await Assert.That(resolver.ResolveSchemaName(typeof(ScannedOrderPlaced)).Value).IsNotNull();
-        await Assert.That(resolver.ResolveSchemaName(typeof(ExternalInvoiceIssued)).Value).IsEqualTo("external.invoice-issued.v1");
+        // Assert — neither resolves without an explicit UseCatalog/UseXCatalog.
+        await Assert.That(scanned).Throws<SchemaNameNotMappedException>();
+        await Assert.That(external).Throws<SchemaNameNotMappedException>();
     }
 
     [Test]
-    public async ValueTask without_auto_use_unselected_catalogs_are_excluded() {
+    public async ValueTask selecting_a_catalog_excludes_unselected_ones() {
         // Arrange
-        var options = new KurrentClientMessageOptions { AutoUseCatalogs = false };
+        var options = new KurrentClientMessageOptions();
         options.UseScannedCatalog();
 
         var resolver = options.BuildResolver();
@@ -220,7 +224,7 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask map_message_lands_in_default_catalog_and_resolves() {
         // Arrange
-        var options = new KurrentClientMessageOptions { AutoUseCatalogs = false };
+        var options = new KurrentClientMessageOptions();
         options.MapMessage<UnmarkedMessage>("unmarked.v1");
 
         // Act
@@ -231,9 +235,21 @@ public class MessageCatalogTests {
     }
 
     [Test]
-    public async ValueTask system_catalog_is_always_included() {
-        // Arrange — $metadata, $>, scavenge events must survive the freeze model.
-        var options = new KurrentClientMessageOptions { AutoUseCatalogs = false };
+    public async ValueTask always_active_attribute_catalog_is_registered_without_opt_in() {
+        // Arrange — [assembly: MessageCatalog(..., AlwaysActive = true)] needs no UseCatalog.
+        var options = new KurrentClientMessageOptions();
+
+        // Act
+        var resolver = options.BuildResolver();
+
+        // Assert
+        await Assert.That(resolver.ResolveSchemaName(typeof(AmbientSignal)).Value).IsNotNull();
+    }
+
+    [Test]
+    public async ValueTask always_active_catalogs_are_included_by_default() {
+        // Arrange — $metadata, $>, scavenge events register without any opt-in.
+        var options = new KurrentClientMessageOptions();
 
         // Act
         var resolver = options.BuildResolver();

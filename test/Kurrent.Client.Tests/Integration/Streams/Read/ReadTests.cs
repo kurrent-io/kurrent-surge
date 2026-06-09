@@ -290,7 +290,6 @@ public class ReadTests {
         await using var blindClient = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Messages.AutoUseCatalogs = false;
         });
 
         var options = new ReadStreamOptions { Limit = simulation.Records.Length };
@@ -320,7 +319,6 @@ public class ReadTests {
         await using var blindClient = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Messages.AutoUseCatalogs = false;
         });
 
         var options = new ReadStreamOptions {

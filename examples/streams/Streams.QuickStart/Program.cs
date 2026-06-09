@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Streams.QuickStart.Events;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -28,7 +29,3 @@ await foreach (var message in client.Streams.ReadStreamRecords(stream)) {
         record => Log.Information(record.ToString()),
         _ => { });
 }
-
-record OrderPlaced(string OrderId, string Customer, int ItemCount, DateTimeOffset PlacedAt);
-record OrderPaid(string OrderId, decimal Amount, DateTimeOffset PaidAt);
-record OrderShipped(string OrderId, string TrackingNumber, DateTimeOffset ShippedAt);

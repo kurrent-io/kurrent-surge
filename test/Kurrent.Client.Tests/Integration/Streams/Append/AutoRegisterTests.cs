@@ -37,14 +37,13 @@ public class AutoRegisterTests {
             .Map<RaceFinished>(strategy)
             .Map<RaceInsight>(strategy);
 
-    // Discovery is disabled because the Testkit catalog already maps the same contracts with
-    // their default names, and the resolver union is 1:1 — a type cannot carry two schema
-    // names. The isolated catalog is this client's entire vocabulary.
+    // This client opts into no discovered catalogs, so the Testkit catalog — which maps the same
+    // contracts under their default names — stays out. The resolver union is 1:1 and a type cannot
+    // carry two schema names, so the isolated catalog is this client's entire vocabulary.
     static Action<KurrentClientOptions> ConfigureIsolatedClient(KurrentDBFixture fixture, ISchemaNameStrategy nameStrategy) =>
         opts => {
             opts.LoggerFactory = fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Messages.AutoUseCatalogs = false;
             opts.Messages.UseCatalog(NewIsolatedCatalog(nameStrategy));
             opts.Messages.Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister };
         };
@@ -110,9 +109,8 @@ public class AutoRegisterTests {
         await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            // No catalogs at all: with discovery off and nothing mapped, every append must
+            // No catalogs at all: nothing is opted in and nothing is mapped, so every append must
             // fail to resolve a schema name — the exact behavior under test.
-            opts.Messages.AutoUseCatalogs = false;
             opts.Messages.Json = new() { SchemaRegistration = SchemaRegistrationOptions.ManualMap };
         });
 

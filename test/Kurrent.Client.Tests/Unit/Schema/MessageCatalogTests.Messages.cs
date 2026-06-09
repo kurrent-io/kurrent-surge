@@ -9,6 +9,9 @@ using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
 // Assembly-level explicit registration — the "types you don't own" form; no Catalog key → "Default".
 [assembly: MessageType<Kurrent.Client.Tests.Schema.Catalogs.External.ExternalInvoiceIssued>("external.invoice-issued.v1")]
 
+// Always-active scan: registers into every client with no UseCatalog call.
+[assembly: MessageCatalog("Kurrent.Client.Tests.Schema.Catalogs.Ambient", Key = "ambient", AlwaysActive = true)]
+
 namespace Kurrent.Client.Tests.Schema.Catalogs.Scanned {
     public record ScannedOrderPlaced(string OrderId);
 
@@ -48,4 +51,9 @@ namespace Kurrent.Client.Tests.Schema.Catalogs.External {
     // Registered via the assembly-level [MessageType<T>] above — no scan covers this
     // namespace and the type carries no attribute, simulating a referenced contract.
     public record ExternalInvoiceIssued(string Id);
+}
+
+namespace Kurrent.Client.Tests.Schema.Catalogs.Ambient {
+    // Scanned into the always-active "ambient" catalog above.
+    public record AmbientSignal(string Id);
 }

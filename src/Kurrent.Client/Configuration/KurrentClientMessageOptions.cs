@@ -18,13 +18,6 @@ public class KurrentClientMessageOptions {
     public MessageCatalog Catalog { get; set; } = new();
 
     /// <summary>
-    /// When true (default), every catalog exported by loaded assemblies (via their generated
-    /// catalog providers) is included automatically — declare with attributes, configure
-    /// nothing. Disable for strict per-client selection via <see cref="UseCatalog"/>.
-    /// </summary>
-    public bool AutoUseCatalogs { get; set; } = true;
-
-    /// <summary>
     /// Configuration options for the JSON schema serializer.
     /// </summary>
     public JsonSchemaSerializerOptions Json { get; set; } = JsonSchemaSerializerOptions.Default;
@@ -37,8 +30,9 @@ public class KurrentClientMessageOptions {
     List<MessageCatalog> UsedCatalogs { get; } = [];
 
     /// <summary>
-    /// Adds catalogs to this client explicitly. Composes with <see cref="AutoUseCatalogs"/>;
-    /// duplicates (same instance reached both ways) are unioned harmlessly.
+    /// Adds discovered (or hand-built) catalogs to this client. Catalogs that aren't
+    /// <see cref="MessageCatalog.AlwaysActive"/> are opt-in this way; duplicates (the same
+    /// instance reached more than once) are unioned harmlessly.
     /// </summary>
     public KurrentClientMessageOptions UseCatalog(params IEnumerable<MessageCatalog> catalogs) {
         UsedCatalogs.AddRange(catalogs);
@@ -61,19 +55,22 @@ public class KurrentClientMessageOptions {
     }
 
     /// <summary>
-    /// The freeze: unions the system catalog, the default catalog, explicit catalogs, and
-    /// (when enabled) auto-discovered catalogs into one snapshot resolver. Conflicting
+    /// The freeze: unions the default catalog, explicitly used catalogs, and every always-active
+    /// catalog into one snapshot resolver. Discovery always runs, but only
+    /// <see cref="MessageCatalog.AlwaysActive"/> catalogs (system streams, streaming contracts)
+    /// register by default — the rest are opt-in via <see cref="UseCatalog"/>. Conflicting
     /// mappings fail construction loudly, naming the offending catalog.
     /// </summary>
     internal MessageResolver BuildResolver() {
         var union = new ConcurrentBidirectionalDictionary<string, Type>();
 
-        List<MessageCatalog> catalogs = [SystemMessageCatalog.Instance, Catalog, ..UsedCatalogs];
+        var discovered = MessageCatalogDiscovery.GetCatalogs();
 
-        if (AutoUseCatalogs)
-            catalogs.AddRange(MessageCatalogDiscovery.GetCatalogs());
+        // AlwaysActive catalogs are foundational and register unconditionally; everything else
+        // discovered is opt-in and arrives only through UseCatalog (UsedCatalogs).
+        List<MessageCatalog> catalogs = [Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)];
 
-        // The same catalog instance may arrive both explicitly and via auto-discovery.
+        // The same catalog instance may arrive both explicitly and via discovery.
         var seen = new HashSet<MessageCatalog>(ReferenceEqualityComparer.Instance);
 
         foreach (var catalog in catalogs) {
@@ -81,10 +78,22 @@ public class KurrentClientMessageOptions {
                 continue;
 
             foreach (var entry in catalog.Entries) {
+                // Tolerate identical re-registration; fail loud on a genuine conflict — the same
+                // schema name resolving to a different type would silently corrupt decoding.
+                if (union.TryGetValue(entry.Key, out var existing)) {
+                    if (existing == entry.Value)
+                        continue;
+
+                    throw new InvalidOperationException(
+                        $"Catalog '{catalog.Key}' maps schema '{entry.Key}' to {entry.Value.FullName}, " +
+                        $"but it is already mapped to {existing.FullName}.");
+                }
+
                 try {
                     union[entry.Key] = entry.Value;
                 }
                 catch (ArgumentException ex) {
+                    // Reverse conflict: the same type is already mapped to a different schema name.
                     throw new InvalidOperationException(
                         $"Catalog '{catalog.Key}' has a conflicting mapping for schema '{entry.Key}' / type {entry.Value.FullName}: {ex.Message}", ex);
                 }

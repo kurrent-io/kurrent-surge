@@ -1,23 +1,17 @@
+using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client;
 
 /// <summary>
-/// SDK-internal system mappings, always unioned into every client's resolver. Lives here —
-/// not in module constructors — because the resolver snapshot is taken at client
-/// construction, before modules exist.
+/// SDK-internal system mappings ($metadata, $>, scavenge events). Discovered automatically like
+/// any <see cref="CustomMessageCatalogAttribute"/>; <c>AlwaysActive = true</c> keeps it active,
+/// so these foundational mappings are unioned into every client even when auto-discovery is
+/// disabled for strict per-client catalog selection.
 /// </summary>
-static class SystemMessageCatalog {
-    public static MessageCatalog Instance { get; } = new MessageCatalog("System")
+[CustomMessageCatalog]
+sealed class SystemMessageCatalog() : MessageCatalog(
+    "System", alwaysActive: true, catalog => catalog
         .Map<StreamMetadata>("$metadata") // metastream
         .Map<string>("$>")                // link
-        .MapScavengeEvents();
-}
-
-// class SystemMessageCatalogV2  : MessageCatalog {
-//     public SystemMessageCatalogV2() : base("System") =>
-//         Map<StreamMetadata>("$metadata")
-//             .Map<string>("$>")
-//             .MapScavengeEvents();
-// }
-
+        .MapScavengeEvents());
