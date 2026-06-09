@@ -15,18 +15,6 @@ static partial class KurrentDBLegacyExceptionExtensions {
 
         public bool TryGetLegacyErrorCode([MaybeNullWhen(false)] out string errorCode) =>
             (errorCode = ex.GetLegacyErrorCode()) != null;
-
-        public T MapToResultError<T>(string legacyErrorCode, Func<RpcException, T> map) where T : IResultError {
-            if (ex is not RpcException rex || !rex.TryGetLegacyErrorCode(out var code) || code != legacyErrorCode)
-                throw new InvalidCastException($"Expected {nameof(RpcException)} with legacy error code {legacyErrorCode} but got {ex.GetType().Name} while mapping to {typeof(T).Name}.", ex);
-
-            try {
-                return map(rex);
-            }
-            catch (Exception mex) {
-                throw new InvalidCastException($"Failed to map {nameof(RpcException)} with legacy error code {legacyErrorCode} to {typeof(T).Name}.", mex);
-            }
-        }
     }
 
     extension(RpcException rex) {

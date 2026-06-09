@@ -50,10 +50,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
                 spc.ReportDiagnostic(Diagnostic.Create(SwitchMethodsGenerated, Location.None, info.FullName));
                 spc.ReportDiagnostic(Diagnostic.Create(MatchMethodsGenerated, Location.None, info.FullName));
 
-                spc.ReportDiagnostic(
-                    info.ImplementsIVariantException
-                        ? Diagnostic.Create(VariantExceptionTypeGenerated, Location.None, info.FullName)
-                        : Diagnostic.Create(VariantTypeGenerated, Location.None, info.FullName));
+                spc.ReportDiagnostic(Diagnostic.Create(VariantTypeGenerated, Location.None, info.FullName));
 
                 spc.ReportDiagnostic(Diagnostic.Create(SourceAdded, Location.None, hintName));
             });
@@ -79,14 +76,6 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         id: "VARIANT201",
         title: nameof(VariantGenerator),
         messageFormat: $"[{nameof(VariantGenerator)}] completed 'IVariant' code generation for: {{0}}",
-        category: "CodeGeneration",
-        defaultSeverity: DiagnosticSeverity.Hidden,
-        isEnabledByDefault: false);
-
-    static readonly DiagnosticDescriptor VariantExceptionTypeGenerated = new(
-        id: "VARIANT201EX",
-        title: nameof(VariantGenerator),
-        messageFormat: $"[{nameof(VariantGenerator)}] completed 'IVariantException' code generation for: {{0}}",
         category: "CodeGeneration",
         defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: false);
@@ -135,17 +124,6 @@ public sealed class VariantGenerator : IIncrementalGenerator {
                 IsNullableOfT: arg.IsNullableOfT);
         }
 
-        var implementsIVariantException = false;
-
-        foreach (var iface in t.Interfaces) {
-            if (iface.Namespace == "Kurrent.Variant" &&
-                iface.Name.StartsWith("IVariantException", StringComparison.Ordinal) &&
-                iface.TypeArguments.Length > 0) {
-                implementsIVariantException = true;
-                break;
-            }
-        }
-
         var typeParameterNames = new string[t.TypeArguments.Length];
 
         for (var i = 0; i < t.TypeArguments.Length; i++)
@@ -177,7 +155,6 @@ public sealed class VariantGenerator : IIncrementalGenerator {
             FullName: t.FullName,
             Namespace: string.IsNullOrEmpty(t.Namespace) ? null : t.Namespace,
             Kind: t.Kind,
-            ImplementsIVariantException: implementsIVariantException,
             Accessibility: accessibility,
             TypeParameterNames: typeParameterNames,
             ContainingTypeNames: containerChain,
@@ -419,12 +396,7 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         sb.AppendLine("[GeneratedCode(\"VariantGenerator\", \"1.0.0\")]");
         sb.AppendLine("[CompilerGenerated]");
 
-        if (info.ImplementsIVariantException) {
-            sb.AppendLine($"{baseIndent}{access} partial class {className} {{");
-        }
-        else {
-            sb.AppendLine($"{baseIndent}{access} readonly partial record struct {className} {{");
-        }
+        sb.AppendLine($"{baseIndent}{access} readonly partial record struct {className} {{");
 
         var memberIndent = $"{baseIndent}    ";
 
@@ -769,7 +741,6 @@ public sealed class VariantGenerator : IIncrementalGenerator {
         string FullName,
         string? Namespace,
         TypeKind Kind,
-        bool ImplementsIVariantException,
         string Accessibility,
         string[] TypeParameterNames,
         string[] ContainingTypeNames,
@@ -781,7 +752,6 @@ public sealed class VariantGenerator : IIncrementalGenerator {
          && FullName == other.FullName
          && Namespace == other.Namespace
          && Kind == other.Kind
-         && ImplementsIVariantException == other.ImplementsIVariantException
          && Accessibility == other.Accessibility
          && TypeParameterNames.AsSpan().SequenceEqual(other.TypeParameterNames.AsSpan())
          && ContainingTypeNames.AsSpan().SequenceEqual(other.ContainingTypeNames.AsSpan())
@@ -793,7 +763,6 @@ public sealed class VariantGenerator : IIncrementalGenerator {
                 .Combine(FullName)
                 .Combine(Namespace)
                 .Combine(Kind)
-                .Combine(ImplementsIVariantException)
                 .Combine(Accessibility)
                 .Combine(TypeParameterNames)
                 .Combine(ContainingTypeNames)
