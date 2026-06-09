@@ -116,6 +116,9 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: |
           dotnet tool update -g Aspire.Cli
+          # The Aspire CLI is a self-extracting binary with the DCP/dashboard bundle embedded.
+          # Extraction is lazy; `aspire setup` forces it (matches Aspire's own polyglot CI).
+          aspire setup
           {
             echo "## Aspire Doctor"
             echo '```'
@@ -140,14 +143,19 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: aspire restore --apphost test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj --non-interactive
 
-      # Diagnostic: confirm the CLI bundle (dcp/managed) actually exists where AspireCliBundlePath points.
-      # If this is empty, the dotnet-tool install never materialized the bundle and we need install.sh.
+      # Diagnostic: locate where `aspire setup` extracted the bundle (dcp + managed/aspire-managed),
+      # wherever it landed — ~/.aspire (script source) or the dotnet-tool .store dir. Tells us what
+      # to point AspireCliPath/AspireCliBundlePath at if auto-resolution still misses it.
       - name: Debug Aspire bundle
         if: steps.changes.outputs.build == 'true'
         run: |
           echo "AspireCliBundlePath=$AspireCliBundlePath"
-          ls -la "$HOME/.aspire" || echo "no ~/.aspire"
-          ls -la "$HOME/.aspire/bundle" "$HOME/.aspire/bundle/dcp" "$HOME/.aspire/bundle/managed" || echo "bundle layout incomplete"
+          echo "aspire on PATH: $(command -v aspire)  ->  $(readlink -f "$(command -v aspire)")"
+          echo "--- dcp / aspire-managed anywhere under ~/.aspire and ~/.dotnet/tools ---"
+          find "$HOME/.aspire" "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" \
+            \( -name dcp -o -name aspire-managed -o -name managed \) 2>/dev/null || true
+          echo "--- ~/.aspire tree (depth 2) ---"
+          find "$HOME/.aspire" -maxdepth 2 2>/dev/null || echo "no ~/.aspire"
 
       - name: Build
         if: steps.changes.outputs.build == 'true'
