@@ -31,8 +31,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
-    <!-- Product feature: ships to consumers so message catalogs generate in THEIR compilations. -->
-    <ProjectReference Include="..\Kurrent.Client.MessageCatalogs.Generators\Kurrent.Client.MessageCatalogs.Generators.csproj" PackedAnalyzer="true" />
+    <!-- Product feature: ships to consumers so message catalogs generate in THEIR compilations.
+         @(PackedAnalyzerProject) is the shared list (Directory.Build.props) so the same set reaches
+         in-repo source consumers via Directory.Build.targets. -->
+    <ProjectReference Include="@(PackedAnalyzerProject)" PackedAnalyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
 
