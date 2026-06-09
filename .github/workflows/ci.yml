@@ -129,6 +129,10 @@ jobs:
         id: version
         uses: ./.github/actions/bumpcraft
 
+      - name: Aspire Restore
+        if: steps.changes.outputs.build == 'true'
+        run: aspire restore --apphost test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj --non-interactive
+
       - name: Build
         if: steps.changes.outputs.build == 'true'
         run: dotnet build -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
