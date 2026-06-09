@@ -48,18 +48,26 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Configure NuGet Credentials
-        run: echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
-
       - name: Prepare Environment
         run: |
+          echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
 
+          # Local NuGet feed the package-validation build (-p:TestPackages=true) reads.
+          # Pre-created so `dotnet restore` doesn't fail on a missing source before pack fills it.
+          mkdir -p .artifacts/local-packages
+
+          # On-PATH home for tools we install by hand below (e.g. yq).
           bin_dir="$HOME/.local/bin"
           mkdir -p "$bin_dir"
           echo "$bin_dir" >> "$GITHUB_PATH"
+
+          # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
+          echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
+
+          # Install yq for parsing repo variables
           if ! command -v yq &>/dev/null; then
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"

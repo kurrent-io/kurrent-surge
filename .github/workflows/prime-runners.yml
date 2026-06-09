@@ -44,9 +44,17 @@ jobs:
 
       - name: Prepare Environment
         run: |
+          echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
+
+          # Local NuGet feed the package-validation build (-p:TestPackages=true) reads.
+          # Pre-created so `dotnet restore` doesn't fail on a missing source before pack fills it.
+          mkdir -p .artifacts/local-packages
+
+          # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
+          echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
 
       - name: Install jq
         uses: dcarbone/install-jq-action@v3
