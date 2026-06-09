@@ -83,6 +83,16 @@ jobs:
             9.x
             10.x
 
+      - name: Install Aspire CLI
+        run: |
+          dotnet tool install -g Aspire.Cli
+          {
+            echo "## Aspire Doctor"
+            echo '```'
+            aspire doctor
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Restore Dependencies
         run: dotnet restore --ignore-failed-sources
 
