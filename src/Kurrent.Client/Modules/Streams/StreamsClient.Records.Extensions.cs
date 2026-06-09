@@ -5,19 +5,34 @@ namespace Kurrent.Client.Streams;
 public static partial class StreamsClientExtensions {
     extension(IAsyncEnumerable<ReadRecordsResult> source) {
         /// <summary>
-        /// Projects a read down to its records, dropping every <see cref="Checkpoint"/>. A
-        /// client-filtered read (one whose filter <see cref="RecordFilter.RequiresClientEvaluation"/>)
-        /// synthesizes <see cref="FilterCheckpoint"/>s to carry progress across the records it
-        /// discards; this record-only view drops them, so a consumer that needs to persist read
-        /// progress through sparse stretches must iterate the result directly. The terminal CaughtUp
-        /// marker is dropped too.
+        /// Projects a read down to its records, routing every <see cref="Checkpoint"/> to
+        /// <paramref name="onCheckpoint"/>. A client-filtered read (one whose filter
+        /// <see cref="RecordFilter.RequiresClientEvaluation"/>) synthesizes <see cref="FilterCheckpoint"/>s
+        /// to carry progress across the records it discards — so, exactly like the subscription
+        /// projection, a record-only view requires acknowledging them and progress can never be
+        /// dropped by accident. The terminal CaughtUp marker is routed through the handler too.
         /// </summary>
-        public async IAsyncEnumerable<Record> Records([EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        public async IAsyncEnumerable<Record> Records(Action<Checkpoint> onCheckpoint, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
             await foreach (var msg in source.WithCancellation(cancellationToken).ConfigureAwait(false)) {
                 // Concrete type test, not IsRecord: a defaulted variant struct reports its
                 // first case while holding a null payload.
                 if (msg.Value is Record record)
                     yield return record;
+                else if (msg.Value is Checkpoint checkpoint)
+                    onCheckpoint(checkpoint);
+            }
+        }
+
+        /// <summary>
+        /// Same record-only projection with an asynchronous checkpoint handler — the shape
+        /// checkpoint stores actually need (persisting a position is I/O).
+        /// </summary>
+        public async IAsyncEnumerable<Record> Records(Func<Checkpoint, ValueTask> onCheckpoint, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            await foreach (var msg in source.WithCancellation(cancellationToken).ConfigureAwait(false)) {
+                if (msg.Value is Record record)
+                    yield return record;
+                else if (msg.Value is Checkpoint checkpoint)
+                    await onCheckpoint(checkpoint).ConfigureAwait(false);
             }
         }
     }
