@@ -22,7 +22,9 @@ produces a `.nuspec` with a NuGet dependency that doesn't exist on any feed.
 **Analyzer flow:** NuGet excludes `Build,Analyzers` on dependency edges by default. A consumer that
 installs only `Kurrent.Streaming` would NOT get the catalog generator shipped inside `Kurrent.Client` —
 which is why Streaming's reference to Client carries `PrivateAssets="none"` (→ `include="All"` in the
-nuspec dependency).
+nuspec dependency). The **in-repo** counterpart — getting that same generator to run on projects that
+reference the SDK by source — is a separate problem (analyzers aren't transitive through `ProjectReference`);
+see [In-repo source consumers](#in-repo-source-consumers-packedanalyzerproject).
 
 Non-packable projects (`IsPackable=false`) just work — `src/NonPackable.targets` handles `dotnet pack --no-build`
 automatically for all projects that inherit from the root `Directory.Build.props`. See
@@ -35,6 +37,7 @@ automatically for all projects that inherit from the root `Directory.Build.props
   - [Public dependency](#public-dependency-becomes-a-nuget-dependency)
   - [Embedded library](#embedded-library-bundled-in-libtfm)
   - [Source generator](#source-generator-bundled-in-analyzersdotnetcs)
+  - [In-repo source consumers](#in-repo-source-consumers-packedanalyzerproject)
 - [Package Anatomy](#package-anatomy)
 - [How To](#how-to)
   - [Create a new packable project](#create-a-new-packable-project)
@@ -134,6 +137,41 @@ automatically. See the [Source generator](#source-generator-1) template for the 
 Both `Kurrent.Client.SourceGenerators` and `Variant.SourceGenerators` use this pattern to bundle
 `Kurrent.CodeAnalysis.dll`.
 
+### In-repo source consumers (`@(PackedAnalyzerProject)`)
+
+A packed generator reaches real NuGet consumers automatically — it ships under `analyzers/dotnet/cs/` and
+the SDK wires it into their compilation. But **in-repo** projects (examples, tests, sibling packages)
+reference the SDK by *source* (`ProjectReference`), and **Roslyn analyzers are NOT transitive through a
+`ProjectReference`** — by design in the SDK. So a project that references `Kurrent.Client` from source does
+not get the catalog generator the way a packaged consumer does; without help its `[MessageCatalog]` /
+`[MessageType]` / `[CustomMessageCatalog]` declarations would generate nothing.
+
+The fix is centralized across `Directory.Build.props` and `Directory.Build.targets`:
+
+- **`@(PackedAnalyzerProject)`** (`Directory.Build.props`) is the single list of generators that ship to
+  consumers — the single source of truth. `Kurrent.Client` references it with `PackedAnalyzer="true"`, which
+  both packs it and runs it on Client itself.
+- A rule in `Directory.Build.targets` wires that **same list** as analyzers (`OutputItemType="Analyzer"`)
+  onto any in-repo project that references `Kurrent.Client` or `Kurrent.Streaming` by source. It is skipped
+  when `TestPackages=true` — in package mode the package already supplies the generator, so adding it again
+  would emit the generated types twice (`CS0101`).
+
+Detection filters `@(ProjectReference)` by filename via an item-to-item transform
+(`@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Client'))`), **not** a property: MSBuild
+evaluates properties before items, so a property assigned `@(ProjectReference)` reads as the literal,
+unexpanded string at that point.
+
+**To add another packed generator that flows everywhere:** add one line to `@(PackedAnalyzerProject)`. It
+then ships in the package AND reaches every in-repo source consumer — no per-project wiring, works for
+Client- and Streaming-referencing projects alike.
+
+**Why a list and not fully automatic?** The set could instead be discovered from the `PackedAnalyzer="true"`
+markings via a *producer-export* target (each consumer asks every referenced project "what analyzers do you
+pack?" at build time). That removes the list, but it resolves at **build time** — IDE design-time builds
+(Rider/VS IntelliSense) generally don't run it, so generated types would be missing in the editor until a
+real build. The eval-time list is the only approach uniform across Rider, VS, CLI, and CI with zero
+per-developer setup; the one-line cost buys that uniformity.
+
 ## Package Anatomy
 
 What a packable project's `.nupkg` contains and where each assembly comes from:
@@ -199,6 +237,10 @@ The chain that makes this work:
 3. Add a `<ProjectReference>` with `OutputItemType="Analyzer" ReferenceOutputAssembly="false"
    PrivateAssets="all"` in the packable project.
 4. The packable project's `PackSourceGenerators` target embeds it automatically.
+5. **If the generator must also run on in-repo source consumers** (examples/tests that reference the SDK by
+   source, like the catalog generator), add it to `@(PackedAnalyzerProject)` in `Directory.Build.props`
+   instead of step 3 — that single list both packs it and wires it for source consumers. See
+   [In-repo source consumers](#in-repo-source-consumers-packedanalyzerproject).
 
 ### Add a project-to-project public dependency
 
