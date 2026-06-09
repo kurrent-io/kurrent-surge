@@ -70,6 +70,38 @@
   </ItemGroup>
 
   <!--
+    Make the suppression above hold regardless of how pack was invoked.
+
+    NuGet's PackTask reads project-to-project dependencies straight from project.assets.json
+    (RestoreMetadata.TargetFrameworks[].ProjectReferences[].PrivateAssets) and omits a dependency
+    only when PrivateAssets there is "all". That field is written at RESTORE time from the
+    PrivateAssets metadata above — which is only set when restore runs under _IsPacking. A pack
+    that reuses a build-time restore graph (a no-restore pack, or a no-build pack that skips the
+    writing restore, as CI and release do) therefore reads PrivateAssets="None" and leaks the
+    bundled project into the nuspec as a phantom dependency (NU1101 on the consumer).
+
+    The PrivateAssets metadata is NOT exposed to PackTask through any MSBuild item it consumes
+    (@(_ProjectReferencesWithVersions) only carries version overrides), and the on-disk assets
+    file cannot be patched between restore and PackTask. So the only invocation-independent fix is
+    to force a pack-context restore here: re-run Restore under _IsPacking so the assets file carries
+    PrivateAssets="all" before PackTask reads it. RestoreForce defeats the "up-to-date" skip when a
+    prior non-pack restore already wrote the graph.
+
+    This only runs while packing (_IsPacking=true) and only when there is something to suppress, so
+    it adds nothing to build/test/run — whose restore graph keeps PrivateAssets="None" and lets the
+    refs flow transitively to in-repo ProjectReference consumers.
+  -->
+  <Target Name="_RestoreForPack"
+          BeforeTargets="GenerateNuspec"
+          Condition="'$(_IsPacking)' == 'true' and
+                     ('@(ProjectReference->WithMetadataValue('Bundle', 'true'))' != '' or
+                      '@(PackageReference->WithMetadataValue('Vendor', 'true'))' != '')">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="Restore"
+             Properties="_IsPacking=true;RestoreForce=true;Configuration=$(Configuration)" />
+  </Target>
+
+  <!--
     Collect the binaries that need to ship inside the package and place them
     at the correct package paths (preserving lib/<tfm>/, runtimes/<rid>/native/,
     satellite directories, etc).

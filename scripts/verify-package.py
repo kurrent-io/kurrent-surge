@@ -13,9 +13,15 @@ Modes:
   Verify an existing nupkg:
     ./verify-package.py path/to/Pkg.1.2.3.nupkg --csproj src/Pkg/Pkg.csproj
 
+By default the pack-and-verify mode packs the *CI way* — a standalone `dotnet restore` followed by
+a `--no-build --no-restore` pack — because that is the path CI ships and the only one that surfaces
+restore-graph-dependent dependency leaks. A plain `dotnet pack` (fresh, pack-owned restore) can hide
+them; opt into it with --fresh-pack.
+
 Flags:
   --configuration <name>   pack configuration (default: Release)
   --output-dir <dir>       pack into this dir instead of a temp dir
+  --fresh-pack             pack with a plain `dotnet pack` instead of the CI-equivalent path
   --spec <file>            additional assertions (forbid-dep, require-file, forbid-file)
   --no-transitive          skip transitive closure checks
   --list                   print package contents
@@ -709,46 +715,114 @@ def run_spec_file(pkg: PackageInspection, spec_path: Path, r: Report) -> None:
 
 # ---------- pack ----------
 
-def pack_project(csproj_path: Path, output_dir: Path, configuration: str) -> Path:
-    """Run `dotnet pack` and return the produced .nupkg (excluding .symbols.nupkg)."""
-    if not csproj_path.is_file():
-        raise SystemExit(f"csproj not found: {csproj_path}")
-    output_dir.mkdir(parents=True, exist_ok=True)
+# NuGet emits this line (even at -v minimal) naming the exact file it wrote, e.g.
+#   Successfully created package '/abs/path/Foo.1.2.3.nupkg'.
+_CREATED_PACKAGE_RE = re.compile(r"Successfully created package '(?P<path>.+?\.nupkg)'")
 
-    # Snapshot existing .nupkg files so we can detect what pack produced.
-    pre_existing = {p.name for p in output_dir.glob("*.nupkg")}
 
-    cmd = [
-        "dotnet", "pack", str(csproj_path),
-        "--configuration", configuration,
-        "--output", str(output_dir),
-        "--nologo",
-        "--verbosity", "minimal",
-    ]
-    print(f"{Color.D}\u00b7 packing: {' '.join(cmd)}{Color.X}")
-    result = subprocess.run(cmd, text=True, capture_output=True)
+def _run_dotnet(args: list[str], action: str) -> str:
+    """Run a dotnet command, surface its stdout, abort on a non-zero exit, return stdout."""
+    print(f"{Color.D}\u00b7 {action}: {' '.join(args)}{Color.X}")
+    result = subprocess.run(args, text=True, capture_output=True)
     if result.stdout:
-        # Surface dotnet's own output so the user sees what happened.
         sys.stdout.write(result.stdout)
     if result.returncode != 0:
         if result.stderr:
             sys.stderr.write(result.stderr)
-        raise SystemExit(f"dotnet pack failed (exit code {result.returncode})")
+        raise SystemExit(f"{action} failed (exit code {result.returncode})")
+    return result.stdout or ""
 
-    produced = [
-        p for p in output_dir.glob("*.nupkg")
-        if p.name not in pre_existing and not p.name.endswith(".symbols.nupkg")
-    ]
-    if not produced:
+
+def _is_symbol_package(name: str) -> bool:
+    return name.endswith(".symbols.nupkg") or name.endswith(".snupkg")
+
+
+def _resolve_package_id(csproj_path: Path) -> str:
+    """The package id this project produces — <PackageId>, else <AssemblyName>, else the file stem.
+    Used to pick the right .nupkg out of an output dir that may hold several projects' packages."""
+    if csproj_path.is_file():
+        try:
+            root = ET.parse(csproj_path).getroot()
+            for tag in ("PackageId", "AssemblyName"):
+                for elem in root.iter():
+                    if _strip_ns(elem.tag) == tag and elem.text and elem.text.strip():
+                        return elem.text.strip()
+        except ET.ParseError:
+            pass
+    return csproj_path.stem
+
+
+def _resolve_packed_nupkg(pack_output: str, output_dir: Path, package_id: str) -> Path:
+    """Identify the .nupkg for `package_id`, scoped to this project.
+
+    Filename-diff detection ("a name that wasn't there before") is wrong on two counts:
+      * `dotnet pack` overwrites a same-version package IN PLACE, so re-packing yields no new name
+        and would falsely report "no package produced";
+      * a no-build/no-restore pack that is already up to date emits no "Successfully created
+        package" line at all, so there is nothing new and nothing logged.
+    In both cases the correct, current package is sitting in the output dir under this project's id.
+
+    Strategy: trust NuGet's "Successfully created package '<path>'" line when present, but always
+    scope to `package_id` so a shared output dir (other projects' packages) can't misdirect us;
+    fall back to the newest matching `<package_id>.*.nupkg`. Symbol packages are never the target.
+    """
+    prefix = f"{package_id}.".lower()
+
+    def for_this_project(name: str) -> bool:
+        return name.lower().startswith(prefix) and not _is_symbol_package(name)
+
+    created = [Path(m.group("path")) for m in _CREATED_PACKAGE_RE.finditer(pack_output)]
+    created = [p for p in created if for_this_project(p.name)]
+    if created:
+        chosen = created[-1]  # last reported wins if several
+        return chosen if chosen.is_absolute() else (output_dir / chosen.name)
+
+    # No "created" line (up-to-date pack, or non-English output): newest matching package on disk.
+    candidates = [p for p in output_dir.glob("*.nupkg") if for_this_project(p.name)]
+    if not candidates:
         raise SystemExit(
-            f"dotnet pack succeeded but no new .nupkg appeared in {output_dir}. "
+            f"dotnet pack succeeded but no '{package_id}.*.nupkg' was found in {output_dir}. "
             "Is <IsPackable> true and does the project produce a package?"
         )
-    if len(produced) > 1:
-        # Pick the newest deterministically and inform the user.
-        produced.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-        print(f"{Color.D}\u00b7 multiple .nupkg produced; using newest: {produced[0].name}{Color.X}")
-    return produced[0]
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
+
+
+def pack_project(csproj_path: Path, output_dir: Path, configuration: str, *, ci_pack: bool) -> Path:
+    """Pack a project and return the produced .nupkg (excluding .symbols.nupkg).
+
+    Two pack paths, because the nuspec a project produces is NOT the same across them:
+
+    ci_pack=True (default) reproduces what CI actually ships \u2014 a standalone `dotnet restore`
+    (with no packing context) followed by a `--no-build --no-restore` pack. A project-to-project
+    dependency is emitted into the nuspec straight from the restore graph (project.assets.json),
+    so a bundled/internal project whose suppression only lands when the *pack* performs its own
+    restore will leak here exactly as it does in CI. This is the path that catches real bugs.
+
+    ci_pack=False uses a plain `dotnet pack` (a fresh, pack-owned restore). Convenient, but it can
+    HIDE restore-graph-dependent leaks \u2014 the script was green this way while CI was red \u2014 so it is
+    opt-in via --fresh-pack only.
+    """
+    if not csproj_path.is_file():
+        raise SystemExit(f"csproj not found: {csproj_path}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if ci_pack:
+        # Order mirrors the CI job: restore, build, then a no-build/no-restore pack that reuses
+        # the restore graph written by the standalone restore above (never a pack-owned one).
+        _run_dotnet(["dotnet", "restore", str(csproj_path), "--nologo", "-v", "minimal"],
+                    "restoring (standalone, like CI)")
+        _run_dotnet(["dotnet", "build", str(csproj_path), "-c", configuration, "--no-restore",
+                     "--nologo", "-v", "minimal"], "building")
+        pack_output = _run_dotnet(["dotnet", "pack", str(csproj_path), "-c", configuration,
+                                   "--no-build", "--no-restore", "--output", str(output_dir),
+                                   "--nologo", "-v", "minimal"], "packing (no-build, no-restore)")
+    else:
+        pack_output = _run_dotnet(["dotnet", "pack", str(csproj_path), "-c", configuration,
+                                   "--output", str(output_dir), "--nologo", "-v", "minimal"],
+                                  "packing (fresh, pack-owned restore)")
+
+    return _resolve_packed_nupkg(pack_output, output_dir, _resolve_package_id(csproj_path))
 
 
 # ---------- main ----------
@@ -763,6 +837,10 @@ def main() -> int:
                     help="dotnet pack configuration when packing (default: Release)")
     ap.add_argument("--output-dir", type=Path,
                     help="directory to pack into (default: a unique temp dir)")
+    ap.add_argument("--fresh-pack", action="store_true",
+                    help="pack with a plain `dotnet pack` (fresh pack-owned restore) instead of the "
+                         "default CI-equivalent path (standalone restore + build + no-build/no-restore "
+                         "pack). The fresh path can hide restore-graph-dependent dependency leaks")
     ap.add_argument("--spec", type=Path, help="optional spec file with extra assertions")
     ap.add_argument("--no-transitive", action="store_true",
                     help="skip transitive closure checks")
@@ -785,7 +863,7 @@ def main() -> int:
         else:
             out_dir = Path(tempfile.mkdtemp(prefix="verify-package-"))
         r.note(f"pack output directory: {out_dir}")
-        nupkg_path = pack_project(args.csproj, out_dir, args.configuration)
+        nupkg_path = pack_project(args.csproj, out_dir, args.configuration, ci_pack=not args.fresh_pack)
         r.note(f"packed: {nupkg_path}")
 
     r.note(f"inspecting {nupkg_path}")
