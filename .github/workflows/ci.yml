@@ -75,7 +75,14 @@ jobs:
 
           # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
           echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
-          
+
+          # AspireUseCliBundle=true resolves the DCP/dashboard bundle by scanning PATH for the
+          # `aspire` executable and looking beside it. The `dotnet tool` install puts a SYMLINK on
+          # PATH (~/.dotnet/tools/aspire -> .store/...), and the SDK's Path.GetFullPath does not
+          # follow it, so it never finds the bundle -> ASPIRE009. Point the SDK straight at the
+          # CLI's data-dir bundle to bypass PATH resolution entirely.
+          echo "AspireCliBundlePath=$HOME/.aspire/bundle" >> "$GITHUB_ENV"
+
           # Install yq for parsing repo variables
           if ! command -v yq &>/dev/null; then
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
@@ -132,6 +139,15 @@ jobs:
       - name: Aspire Restore
         if: steps.changes.outputs.build == 'true'
         run: aspire restore --apphost test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj --non-interactive
+
+      # Diagnostic: confirm the CLI bundle (dcp/managed) actually exists where AspireCliBundlePath points.
+      # If this is empty, the dotnet-tool install never materialized the bundle and we need install.sh.
+      - name: Debug Aspire bundle
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          echo "AspireCliBundlePath=$AspireCliBundlePath"
+          ls -la "$HOME/.aspire" || echo "no ~/.aspire"
+          ls -la "$HOME/.aspire/bundle" "$HOME/.aspire/bundle/dcp" "$HOME/.aspire/bundle/managed" || echo "bundle layout incomplete"
 
       - name: Build
         if: steps.changes.outputs.build == 'true'
