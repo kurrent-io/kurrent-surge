@@ -31,9 +31,10 @@ public class ProjectionTests {
                 opts.Connection(Fixture.ConnectionString, client => {
                     client.LoggerFactory      = Fixture.LoggerFactory;
                     client.Schema.PreValidate = false;
-                    // ArcadeRacer contracts come from the testkit's message catalog,
-                    // auto-discovered at client construction.
-                    client.Resilience = KurrentClientResilienceOptions.NoResilience;
+                    client.Resilience         = KurrentClientResilienceOptions.NoResilience;
+                    // ArcadeRacer contracts come from the testkit's message catalog, which is
+                    // discovered but not always-active — opt in so typed handlers can resolve them.
+                    client.Messages.UseTestkitCatalog();
                 });
                 opts.Subscription.Filter          = RecordFilter.ByStream(seeded.Stream);
                 opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;

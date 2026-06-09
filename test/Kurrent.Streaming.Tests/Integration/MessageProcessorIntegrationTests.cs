@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
@@ -438,7 +439,13 @@ public class MessageProcessorIntegrationTests {
         KurrentProcessor.Create(processor, opts => {
             opts.Connection(
                 Fixture.ConnectionString,
-                client => client.LoggerFactory = Fixture.LoggerFactory);
+                client => {
+                    client.LoggerFactory = Fixture.LoggerFactory;
+                    // Typed handlers dispatch on the decoded message type, so this self-built client
+                    // must opt into the Testkit catalog (race contracts) — discovered but not
+                    // always-active — to resolve incoming records to RaceCar et al.
+                    client.Messages.UseTestkitCatalog();
+                });
 
             opts.ProcessorId                  = $"msg-proc-{PunyId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);

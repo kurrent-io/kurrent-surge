@@ -404,6 +404,10 @@ public class AppenderTests {
                 client.LoggerFactory = Fixture.LoggerFactory;
                 client.Schema        = KurrentClientSchemaOptions.NoValidation;
                 client.Resilience    = KurrentClientResilienceOptions.NoResilience;
+                // The Appender builds its own client, so it must opt into the Testkit catalog (race
+                // contracts) just like the shared fixture client does — it is discovered but not
+                // always-active, so without this RaceCar appends fail to map.
+                client.Messages.UseTestkitCatalog();
             });
 
         configure?.Invoke(options);
