@@ -259,12 +259,9 @@ public partial class StreamsClient {
                     continue;
             }
 
-            // The filter alone decides whether the SDK re-evaluates it. A server-routable filter
-            // (RequiresClientEvaluation == false) means the server already delivered exactly its
-            // matches, in the resolution form the caller asked for — re-running IsMatch here would
-            // second-guess the server routing and the ResolveLinks choice and silently drop records
-            // the caller asked for (e.g. a $ce-/$et- read resolved to origins whose stream no longer
-            // matches the filter's pattern). Only a client-evaluated filter re-checks each record.
+            // Re-filter only when the filter runs client-side. A server-routable filter already
+            // delivered exactly its matches (per ResolveLinks), so re-running IsMatch would drop
+            // records the caller asked for — e.g. a $ce-/$et- read resolved to origin streams.
             if (result.IsRecord && filter.RequiresClientEvaluation && !filter.IsMatch(result))
                 continue;
 
