@@ -1,5 +1,4 @@
 using Kurrent.Client.Exceptions;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Streaming.Checkpointing;

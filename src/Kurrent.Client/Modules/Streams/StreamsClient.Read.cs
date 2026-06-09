@@ -183,7 +183,7 @@ public partial class StreamsClient {
             ? StreamNameFilter.Parse(stream)
             : options.Filter;
 
-        RecordPosition start = RecordPosition.From(LogPosition.Unset, stream, options.Start);
+        var start = RecordPosition.From(LogPosition.Unset, stream, options.Start);
 
         if (filter.UnwrapFilter() is not StreamNameFilter) {
             start = await ResolveReadStart(start, options.Direction, ct).ConfigureAwait(false);
