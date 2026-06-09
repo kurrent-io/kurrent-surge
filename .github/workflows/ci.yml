@@ -134,24 +134,6 @@ jobs:
         id: version
         uses: ./.github/actions/bumpcraft
 
-      - name: Aspire Restore
-        if: steps.changes.outputs.build == 'true'
-        run: aspire restore --apphost test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj --non-interactive
-
-      # Diagnostic: locate where `aspire setup` extracted the bundle (dcp + managed/aspire-managed),
-      # wherever it landed — ~/.aspire (script source) or the dotnet-tool .store dir. Tells us what
-      # to point AspireCliPath/AspireCliBundlePath at if auto-resolution still misses it.
-      - name: Debug Aspire bundle
-        if: steps.changes.outputs.build == 'true'
-        run: |
-          echo "AspireCliPath=$AspireCliPath"
-          echo "aspire on PATH: $(command -v aspire)  ->  $(readlink -f "$(command -v aspire)")"
-          echo "--- dcp / aspire-managed anywhere under ~/.aspire and ~/.dotnet/tools ---"
-          find "$HOME/.aspire" "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" \
-            \( -name dcp -o -name aspire-managed -o -name managed \) 2>/dev/null || true
-          echo "--- ~/.aspire tree (depth 2) ---"
-          find "$HOME/.aspire" -maxdepth 2 2>/dev/null || echo "no ~/.aspire"
-
       - name: Build
         if: steps.changes.outputs.build == 'true'
         run: dotnet build -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
