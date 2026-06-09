@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security
+    url: mailto:security@kurrent.io
+    about: Report a security vulnerability privately.
+  - name: Conduct
+    url: mailto:conduct@kurrent.io
+    about: Report conduct concerns or ask about behavior policies.

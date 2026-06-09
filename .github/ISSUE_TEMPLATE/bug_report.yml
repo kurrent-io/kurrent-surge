@@ -1,0 +1,111 @@
+name: Bug report
+description: Report a problem or unexpected behavior in the Kurrent .NET SDK
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more detail you share the faster we can help —
+        but only a couple of fields are required, so don't let the rest stop you.
+
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search the existing issues to see if your bug has already been reported.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected package(s)
+      description: Which NuGet package(s) is the bug in? Select all that apply.
+      multiple: true
+      options:
+        - Kurrent.Client
+        - Kurrent.Streaming
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Package version(s)
+      description: NuGet version(s) of the affected package. List all affected if more than one.
+      placeholder: e.g. 1.0.0-preview.4, or 1.0.0-preview.3 and 1.0.0-preview.4
+    validations:
+      required: false
+
+  - type: input
+    id: server-version
+    attributes:
+      label: KurrentDB server version(s)
+      description: Version(s) of the KurrentDB server the SDK was talking to. List all affected if more than one.
+      placeholder: e.g. 26.1, or 24.10 and 26.1
+    validations:
+      required: false
+
+  - type: input
+    id: runtime
+    attributes:
+      label: .NET runtime(s)
+      description: The .NET runtime(s) your application targets. List all affected if more than one.
+      placeholder: e.g. net10.0, or net10.0 and net11.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps — a link to a runnable repro on GitHub is hugely appreciated.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened, and how it differed.
+    validations:
+      required: false
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Attachments
+      description: Drag & drop or paste anything useful — logs, stack traces, screenshots, config snippets. Sanitize secrets and tokens.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Links, related issues, environment details — anything else that might help.
+    validations:
+      required: false

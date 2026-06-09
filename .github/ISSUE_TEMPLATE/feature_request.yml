@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest an idea or improvement for the Kurrent .NET SDK
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Target package
+      description: Which package would this affect? (optional)
+      options:
+        - Kurrent.Client
+        - Kurrent.Streaming
+        - Not sure / cross-cutting
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve? Ex. "I'm always frustrated when [...]"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you'd like to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: Proposed API / usage
+      description: If applicable, sketch the API, configuration, or example showing how it would be used.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other solutions or workarounds you've considered.
+    validations:
+      required: false

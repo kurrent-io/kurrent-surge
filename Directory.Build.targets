@@ -19,7 +19,11 @@
                                                   hide from nuspec (SDK-internal generators)
       ProjectReference  PackedAnalyzer="true"  → wire as a source generator AND ship it in
                                                   analyzers/dotnet/cs so it runs in CONSUMER
-                                                  compilations; hide from nuspec
+                                                  compilations; hide from nuspec. Declared once as
+                                                  @(PackedAnalyzerProject) (Directory.Build.props)
+                                                  and ALSO wired for in-repo source consumers — see
+                                                  "Source-generator flow for in-repo consumers" at
+                                                  the bottom of this file.
   -->
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">
