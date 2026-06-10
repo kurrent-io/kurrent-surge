@@ -93,5 +93,9 @@
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Modules\Records\" />
+  </ItemGroup>
+
 
 </Project>

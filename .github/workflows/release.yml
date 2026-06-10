@@ -20,7 +20,9 @@ on:
 jobs:
   release:
     runs-on: [self-hosted, linux, x64]
-    
+    # Hard ceiling so a hung step can never tie up the runner (GitHub's default is 6h).
+    timeout-minutes: 10
+
     permissions:
       contents: write
       packages: write
@@ -96,6 +98,7 @@ jobs:
 
       - name: Version
         id: version
+        timeout-minutes: 1
         uses: ./.github/actions/bumpcraft
         with:
           mode: release

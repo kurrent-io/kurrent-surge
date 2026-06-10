@@ -10,6 +10,7 @@
 //   dotnet run --project examples/PackageTest -p:TestPackages=true
 
 using Kurrent.Client;
+using Kurrent.Client.Schema;
 using Kurrent.Variant;
 
 var clientAsm    = typeof(KurrentClient).Assembly;

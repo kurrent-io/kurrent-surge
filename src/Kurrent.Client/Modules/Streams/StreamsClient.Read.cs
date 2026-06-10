@@ -267,17 +267,20 @@ public partial class StreamsClient {
                         .MapToRecordAsync(sequencer.FetchNext(), CreateMappingContext(ct), skipDecoding, throwOnUnresolved)
                         .ConfigureAwait(false);
 
-                    // Off-by-one against the subscription path. A subscription resumes EXCLUSIVELY
-                    // (After the cursor), so it watermarks the LAST scanned record and the server
-                    // skips it on resume. A read resumes INCLUSIVELY (forwards from the cursor), so
-                    // a resumed read re-delivers the record AT the checkpoint position — watermarking
-                    // the last scanned record would duplicate it. Instead emit the checkpoint HERE,
-                    // BEFORE this record is evaluated or yielded, carrying THIS record's scan
-                    // position: every record before it is already accounted for, so resuming from
-                    // here re-scans this record onward — losing nothing (nothing at or past this
-                    // position was delivered) and duplicating nothing (nothing before it is re-read).
-                    // That one-record-later watermark is exactly the inclusive→exclusive compensation.
-                    if (filtersLocally && scannedSinceCheckpoint >= maxSearchWindow) {
+                    // Re-filter only when the filter runs client-side. A server-routable filter
+                    // already delivered exactly its matches (per ResolveLinks), so re-running IsMatch
+                    // would drop records the caller asked for — e.g. a $ce-/$et- read resolved to
+                    // origin streams.
+                    if (!filtersLocally || filter.IsMatch(record))
+                        yield return record;
+
+                    // When the SDK filters locally it discards records the consumer never sees, so —
+                    // exactly like the client-filtered subscription — raise a scan checkpoint every
+                    // window to carry progress across them. Emit AFTER delivering: the watermark is
+                    // the position the scan has REACHED (a record already handed over), never one
+                    // still to come. A read resumes from it INCLUSIVELY, re-reading that record — the
+                    // dual of the subscription's exclusive "after" resume, and the read contract.
+                    if (filtersLocally && ++scannedSinceCheckpoint >= maxSearchWindow) {
                         scannedSinceCheckpoint = 0;
 
                         // On $all the ReadEvent commit position is the physical scan watermark; with
@@ -294,20 +297,10 @@ public partial class StreamsClient {
                         };
                     }
 
-                    if (filtersLocally)
-                        scannedSinceCheckpoint++;
-
-                    result = record;
-                    break;
+                    continue;
                 default:
                     continue;
             }
-
-            // Re-filter only when the filter runs client-side. A server-routable filter already
-            // delivered exactly its matches (per ResolveLinks), so re-running IsMatch would drop
-            // records the caller asked for — e.g. a $ce-/$et- read resolved to origin streams.
-            if (result.IsRecord && filter.RequiresClientEvaluation && !filter.IsMatch(result))
-                continue;
 
             yield return result;
         }

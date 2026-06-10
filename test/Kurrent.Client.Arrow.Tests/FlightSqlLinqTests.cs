@@ -5,6 +5,7 @@ namespace Kurrent.Client.Arrow.Tests;
 [Category("Arrow")]
 [Category("Integration")]
 [Timeout(60_000)]
+
 public class FlightSqlLinqTests {
     [ClassDataSource<ArrowFixture>(Shared = SharedType.PerTestSession)]
     public required ArrowFixture Fixture { get; [UsedImplicitly] init; }
