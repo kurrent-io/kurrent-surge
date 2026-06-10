@@ -142,8 +142,6 @@ runs:
         TYPE_LABELS: ${{ inputs.type-labels }}
         SCOPE_LABELS: ${{ inputs.scope-labels }}
       run: |
-        # Read a flat-JSON value without jq (self-hosted runners may lack it).
-        # sed -n returns empty for a missing key instead of failing pipefail.
         json_lookup() {
           local key
           key=$(printf '%s' "$2" | sed 's#[*.^$/[]#\\&#g')
