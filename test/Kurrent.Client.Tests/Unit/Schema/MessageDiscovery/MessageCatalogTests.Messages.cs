@@ -57,3 +57,13 @@ namespace Kurrent.Client.Tests.Schema.Catalogs.Ambient {
     // Scanned into the always-active "ambient" catalog above.
     public record AmbientSignal(string Id);
 }
+
+namespace Kurrent.Client.Tests.Schema.Catalogs.Custom {
+    public record HandRolledPing(string Id);
+
+    // Hand-authored catalog: discovery, the MessageCatalogs.HandRolled property, and the
+    // UseHandRolledCatalog() extension all come from [CustomMessageCatalog] alone.
+    [CustomMessageCatalog]
+    sealed class HandRolledCatalog() : MessageCatalog("hand-rolled", c => c
+        .Map<HandRolledPing>("hand-rolled.ping.v1"));
+}

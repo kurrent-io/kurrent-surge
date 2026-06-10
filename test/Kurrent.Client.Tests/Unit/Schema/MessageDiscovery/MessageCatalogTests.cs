@@ -1,6 +1,7 @@
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Tests.Schema.Catalogs.Ambient;
+using Kurrent.Client.Tests.Schema.Catalogs.Custom;
 using Kurrent.Client.Tests.Schema.Catalogs.Explicit;
 using Kurrent.Client.Tests.Schema.Catalogs.External;
 using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
@@ -66,12 +67,45 @@ public class MessageCatalogTests {
     }
 
     [Test]
+    public async ValueTask get_finds_custom_catalog_by_runtime_key() {
+        // Arrange — the key is a runtime ctor argument the generator never sees;
+        // Get resolves it against All instead of a generated switch.
+        var catalog = GeneratedCatalogs.Get("hand-rolled");
+
+        // Assert — same instance the generated property exposes.
+        await Assert.That(catalog).IsEqualTo(GeneratedCatalogs.HandRolled);
+    }
+
+    [Test]
     public async ValueTask get_returns_null_for_unknown_key() {
         // Arrange
         var missing = GeneratedCatalogs.Get("nope");
 
         // Assert — null on miss enables pattern matching at call sites.
         await Assert.That(missing).IsNull();
+    }
+
+    [Test]
+    public async ValueTask custom_catalog_is_exposed_as_property_and_shares_its_instance_with_all() {
+        // Arrange — property name derives from the type name: HandRolledCatalog → HandRolled.
+        var catalog = GeneratedCatalogs.HandRolled;
+
+        // Assert — All reuses the property's instance, so there is a single template.
+        await Assert.That(catalog.Key).IsEqualTo("hand-rolled");
+        await Assert.That(GeneratedCatalogs.All).Contains(catalog);
+    }
+
+    [Test]
+    public async ValueTask custom_catalog_generates_use_extension() {
+        // Arrange
+        var options = new KurrentClientMessageOptions();
+        options.UseHandRolledCatalog();
+
+        // Act
+        var resolver = options.BuildResolver();
+
+        // Assert
+        await Assert.That(resolver.ResolveSchemaName(typeof(HandRolledPing)).Value).IsEqualTo("hand-rolled.ping.v1");
     }
 
     [Test]
