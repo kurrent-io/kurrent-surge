@@ -142,19 +142,29 @@ runs:
         TYPE_LABELS: ${{ inputs.type-labels }}
         SCOPE_LABELS: ${{ inputs.scope-labels }}
       run: |
+        # Read a flat-JSON value without jq (self-hosted runners may lack it).
+        # sed -n returns empty for a missing key instead of failing pipefail.
+        json_lookup() {
+          local key
+          key=$(printf '%s' "$2" | sed 's#[*.^$/[]#\\&#g')
+          printf '%s' "$1" | tr -d '\n' \
+            | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
+        }
+
         type="${{ steps.pr-title.outputs.type }}"
         labels=""
 
-        label=$(echo "$TYPE_LABELS" | jq -r --arg t "$type" '.[$t] // empty')
+        label=$(json_lookup "$TYPE_LABELS" "$type")
         if [[ -n "$label" ]]; then
           labels="$label"
         fi
 
         scope="${{ steps.pr-title.outputs.scope }}"
         if [[ -n "$scope" && -n "$SCOPE_LABELS" ]]; then
+          label=""
           trimmed=$(echo "$SCOPE_LABELS" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n,' ' ' | xargs)
           if [[ "$trimmed" == \{* ]]; then
-            label=$(echo "$SCOPE_LABELS" | jq -r --arg s "$scope" '.[$s] // empty')
+            label=$(json_lookup "$SCOPE_LABELS" "$scope")
           else
             for s in $trimmed; do
               [[ "$scope" == "$s" ]] && label="$scope" && break
