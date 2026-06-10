@@ -125,16 +125,22 @@ A declared catalog (`[assembly: MessageCatalog]` / `[MessageType]`) is opt-in �
 
 ### Always-active catalogs
 
-A catalog that must be in *every* client — foundational, process-wide contracts — declares itself always-active. Author it as a `MessageCatalog` subclass and set `AlwaysActive`:
+A catalog that must be in *every* client — foundational, process-wide contracts — declares itself always-active. On a namespace scan, set it directly on the attribute:
 
 ```csharp
-[CustomMessageCatalog(AlwaysActive = true)]
-sealed class OrdersCatalog() : MessageCatalog("orders", c => c
+[assembly: MessageCatalog("Acme.Orders", Key = "orders", AlwaysActive = true)]
+```
+
+A hand-authored catalog carries the flag itself — mark the subclass with `[CustomMessageCatalog]` so it is discovered, and pass `alwaysActive: true` to the base constructor:
+
+```csharp
+[CustomMessageCatalog]
+sealed class OrdersCatalog() : MessageCatalog("orders", alwaysActive: true, c => c
     .Map<OrderPlaced>("order.placed.v1")
     .Map<OrderShipped>("order.shipped.v1"));
 ```
 
-It is discovered like any other catalog, but joins every client's vocabulary with no `UseCatalog` call. Drop the `AlwaysActive = true` and the same self-contained catalog becomes opt-in.
+A `[CustomMessageCatalog]` class surfaces exactly like a declared catalog: `MessageCatalogs.Orders` (named after the type minus its `Catalog` suffix), `MessageCatalogs.Get("orders")`, and a generated `UseOrdersCatalog()` extension. With `alwaysActive: true` it joins every client's vocabulary with no `UseCatalog` call; drop the flag and the same self-contained catalog becomes opt-in — select it with `UseOrdersCatalog()`.
 
 ::: tip Always-active is not auto-mapping
 What's automatic is *registering* the catalog; its *content* was always declared by its author. Every mapping traces back to an attribute or a `Map` call someone wrote. The client never invents a mapping on its own.
@@ -165,7 +171,7 @@ opts.Messages.MapMessage<OrderPlaced>("order.placed.v1");
 
 ## Composition and conflicts
 
-A client unions everything at construction: the default catalog, explicit `UseCatalog` calls, and always-active catalogs. There are no override semantics — two catalogs that map the same schema name to different types (or the same type to different names) fail client construction with an error naming the offending catalog. A conflicting vocabulary is a configuration bug, and it surfaces at startup, not mid-stream.
+A client unions everything at construction: the default catalog, explicit `UseCatalog` calls, and always-active catalogs. Identical mappings arriving from more than one catalog union harmlessly. There are no override semantics — two catalogs that map the same schema name to different types (or the same type to different names) fail client construction with an error naming the offending catalog. A conflicting vocabulary is a configuration bug, and it surfaces at startup, not mid-stream.
 
 ## When a read meets an unmapped name
 
