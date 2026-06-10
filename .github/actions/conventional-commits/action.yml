@@ -156,8 +156,14 @@ runs:
 
           if (scope && scopeLabelsRaw) {
             let scopeLabel = '';
-            if (scopeLabelsRaw.startsWith('{')) {
-              const map = JSON.parse(scopeLabelsRaw);
+            let map = null;
+            try {
+              const parsed = JSON.parse(scopeLabelsRaw);
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) map = parsed;
+            } catch {
+              // Not a JSON object; fall back to list parsing below.
+            }
+            if (map) {
               if (map[scope]) scopeLabel = map[scope];
             } else {
               const list = scopeLabelsRaw
