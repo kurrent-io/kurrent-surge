@@ -136,48 +136,46 @@ runs:
 
     - name: Auto-label
       if: steps.pr-title.outputs.type != ''
-      shell: bash
+      uses: actions/github-script@v7
       env:
-        GH_TOKEN: ${{ github.token }}
         TYPE_LABELS: ${{ inputs.type-labels }}
         SCOPE_LABELS: ${{ inputs.scope-labels }}
-      run: |
-        json_lookup() {
-          local key
-          key=$(printf '%s' "$2" | sed 's#[*.^$/[]#\\&#g')
-          printf '%s' "$1" | tr -d '\n' \
-            | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
-        }
+        PR_TYPE: ${{ steps.pr-title.outputs.type }}
+        PR_SCOPE: ${{ steps.pr-title.outputs.scope }}
+      with:
+        script: |
+          const typeLabels = JSON.parse(process.env.TYPE_LABELS || '{}');
+          const type = process.env.PR_TYPE || '';
+          const scope = process.env.PR_SCOPE || '';
+          const scopeLabelsRaw = (process.env.SCOPE_LABELS || '').trim();
+          const title = context.payload.pull_request.title || '';
 
-        type="${{ steps.pr-title.outputs.type }}"
-        labels=""
+          const labels = [];
 
-        label=$(json_lookup "$TYPE_LABELS" "$type")
-        if [[ -n "$label" ]]; then
-          labels="$label"
-        fi
+          if (typeLabels[type]) labels.push(typeLabels[type]);
 
-        scope="${{ steps.pr-title.outputs.scope }}"
-        if [[ -n "$scope" && -n "$SCOPE_LABELS" ]]; then
-          label=""
-          trimmed=$(echo "$SCOPE_LABELS" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n,' ' ' | xargs)
-          if [[ "$trimmed" == \{* ]]; then
-            label=$(json_lookup "$SCOPE_LABELS" "$scope")
-          else
-            for s in $trimmed; do
-              [[ "$scope" == "$s" ]] && label="$scope" && break
-            done
-          fi
-          if [[ -n "$label" ]]; then
-            labels="${labels:+$labels,}$label"
-          fi
-        fi
+          if (scope && scopeLabelsRaw) {
+            let scopeLabel = '';
+            if (scopeLabelsRaw.startsWith('{')) {
+              const map = JSON.parse(scopeLabelsRaw);
+              if (map[scope]) scopeLabel = map[scope];
+            } else {
+              const list = scopeLabelsRaw
+                .split(/[\s,]+/)
+                .map(s => s.replace(/^-\s*/, '').trim())
+                .filter(Boolean);
+              if (list.includes(scope)) scopeLabel = scope;
+            }
+            if (scopeLabel) labels.push(scopeLabel);
+          }
 
-        title="${{ github.event.pull_request.title }}"
-        if [[ "$title" == *"!"* ]]; then
-          labels="${labels:+$labels,}breaking-change"
-        fi
+          if (title.includes('!')) labels.push('breaking-change');
 
-        if [ -n "$labels" ]; then
-          gh pr edit ${{ github.event.pull_request.number }} --add-label "$labels"
-        fi
+          if (labels.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels,
+            });
+          }
