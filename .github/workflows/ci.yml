@@ -14,20 +14,15 @@ concurrency:
 
 jobs:
   # Lints the PR's own markdown. Lives here (pull_request, PR-head checkout) and not in
-  # ci-checks.yml: that workflow runs on pull_request_target, which checks out the base
-  # branch — a lint there sees main's files and a PR can never fix its own findings.
+  # pr-triage.yml: that workflow runs on pull_request_target, which never checks out PR
+  # code — a lint there would see main's files and a PR could never fix its own findings.
   markdown:
-    runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 5
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
 
     steps:
-      # Same actions/checkout v6 self-hosted workaround as the ci job below.
-      - name: Prepare workspace
-        run: git init "${GITHUB_WORKSPACE}" 2>/dev/null || true
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -40,21 +35,13 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 10
 
+    # Zero secrets and minimal scopes: this job runs PR code, so it must hold nothing
+    # worth taking. pull-requests: read is for the paths filter listing changed files.
     permissions:
       contents: read
-      issues: read
-      packages: write
-      checks: write
-      pull-requests: write
+      pull-requests: read
 
     steps:
-      - name: Generate Token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
-
       # Workaround for actions/checkout v6 bug on self-hosted runners:
       # checkout deletes the workspace contents (including .git) THEN tries
       # to run `git config --local` to clean up SSH auth from previous runs,
@@ -71,7 +58,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -83,7 +69,6 @@ jobs:
 
       - name: Prepare Environment
         run: |
-          echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
@@ -183,11 +168,7 @@ jobs:
         if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
         uses: ./.github/actions/setup-containers
         with:
-          default-credentials: |
-            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
-            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
           registries: |
-            - registry: docker.cloudsmith.io
             - registry: docker.kurrent.io
           images: ${{ vars.TEST_CONTAINERS }}
 
@@ -196,12 +177,3 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
-
-#      - name: Publish Preview Packages
-#        if: steps.changes.outputs.build == 'true'
-#        uses: ./.github/actions/publish-packages
-#        with:
-#          pack: 'false'
-#          nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
-#          # TODO: change github to nuget when ready to publish publicly
-#          push-to: ${{ github.ref == 'refs/heads/main' && 'github' || 'github' }}
