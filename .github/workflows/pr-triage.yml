@@ -64,10 +64,10 @@ jobs:
       - name: Label by Changed Paths
         uses: actions/labeler@v6
 
-      - name: Label by Title Type and Scope
+      - name: Label by Title
         uses: actions/github-script@v7
         env:
-          # Conventional-commit types mapped to labels; types not listed get none.
+          # Conventional-Commit types mapped to labels; types not listed get none.
           TYPE_LABELS: |
             {
               "feat": "enhancement",
