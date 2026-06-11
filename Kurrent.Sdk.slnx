@@ -21,6 +21,7 @@
     <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
     <Project Path="test/Kurrent.Client.Arrow.Tests/Kurrent.Client.Arrow.Tests.csproj" />
   </Folder>
+  <Folder Name="/Deployables/" />
   <Folder Name="/Examples/">
     <Project Path="examples/Connector.Management/Connector.Management.csproj" />
     <Project Path="examples/PackageTest.Streaming/PackageTest.Streaming.csproj" />

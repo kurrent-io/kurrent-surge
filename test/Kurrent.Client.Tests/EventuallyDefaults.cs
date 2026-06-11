@@ -7,7 +7,7 @@ namespace Kurrent.Client.Tests;
 /// Shared transient-error defaults for <c>EventuallyPasses</c> assertions in this test suite.
 /// </summary>
 public static class EventuallyDefaults {
-    public static readonly Type[] TransientErrors = [
+    static readonly Type[] TransientErrors = [
         typeof(SchemaNotFoundException),
         typeof(ConnectorNotFoundException)
     ];
@@ -20,7 +20,8 @@ public static class EventuallyDefaults {
         // the resource becomes visible. The type list cannot express a status-code
         // match, hence the predicate extension.
         var retryOnListed = options.IsTransient;
-        options.IsTransient = ex => retryOnListed(ex) || ex is RpcException { StatusCode: StatusCode.NotFound };
+        options.IsTransient = ex => retryOnListed(ex) 
+                                 || ex is RpcException { StatusCode: StatusCode.NotFound };
 
         return options;
     }

@@ -3,22 +3,6 @@ using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
 
-
-public static class Extensions {
-
-    public static IAsyncEnumerable<Record> Records(this IAsyncEnumerable<ReadRecordsResult> source) =>
-        source.Where(msg => msg.Value is Record).Select(msg => msg.AsRecord);
-    
-    public static IAsyncEnumerable<Record> TakeRecordsUpTo(this IAsyncEnumerable<ReadRecordsResult> source, RecordPosition position) =>
-        source.Where(msg => msg.Value is Record).Select(msg => msg.AsRecord)
-            .TakeWhile(rec => rec.Position.LogPosition <= position.LogPosition);
-    
-    public static IAsyncEnumerable<Record> TakeUntilCaughtUp(this IAsyncEnumerable<ReadRecordsResult> source) =>
-        source
-            .TakeWhile(msg => msg.Value is not CaughtUpCheckpoint)
-            .Select(msg => msg.AsRecord);
-}
-
 [Category("Streams")]
 [Category("Read")]
 [Category("Filters")]
