@@ -62,7 +62,7 @@ public static class ProcessorResilienceStrategy {
             BackoffType      = DelayBackoffType.Exponential,
             UseJitter        = true,
             OnRetry = args => {
-                args.Logger.LogWarning(
+                args.Context.Logger.LogWarning(
                     args.Outcome.Exception,
                     "Subscription reconnecting in {Delay} (attempt {Attempt})",
                     args.RetryDelay, args.AttemptNumber + 1);

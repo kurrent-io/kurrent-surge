@@ -208,7 +208,7 @@ public class ProcessorResilienceTests {
             r.MaxDelay  = TimeSpan.FromMilliseconds(1);
         });
 
-        // User strategy reads the processor logger via the args.Logger extension, exactly
+        // User strategy reads the processor logger via the Context.Logger extension, exactly
         // as a consumer's OnRetry callback would.
         ILogger? userSawLogger = null;
 
@@ -217,7 +217,7 @@ public class ProcessorResilienceTests {
             MaxRetryAttempts = 1,
             Delay            = TimeSpan.Zero,
             OnRetry = args => {
-                userSawLogger = args.Logger;
+                userSawLogger = args.Context.Logger;
                 return default;
             }
         }));
@@ -268,7 +268,7 @@ public class ProcessorResilienceTests {
             MaxRetryAttempts = 1,
             Delay            = TimeSpan.Zero,
             OnRetry = args => {
-                userSawLogger = args.Logger;
+                userSawLogger = args.Context.Logger;
                 return default;
             }
         }));

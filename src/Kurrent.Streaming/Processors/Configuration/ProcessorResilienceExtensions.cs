@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Polly;
-using Polly.Retry;
 
 namespace Kurrent.Streaming.Options;
 
@@ -14,17 +13,11 @@ public static class ProcessorResilienceExtensions {
     extension(ResilienceContext context) {
         /// <summary>
         /// The processor logger carried in the resilience context, or a no-op logger when the
-        /// pipeline executes outside a processor (manual <c>ExecuteAsync</c> without a primed context).
+        /// pipeline executes outside a processor (manual <c>ExecuteAsync</c> without a primed
+        /// context). Every Polly callback exposes the context, so any strategy can log:
+        /// <c>OnRetry = args =&gt; { args.Context.Logger.LogWarning(...); return default; }</c>.
         /// </summary>
         public ILogger Logger =>
             context.Properties.GetValue(ProcessorResilienceStrategy.LoggerKey, NullLogger.Instance);
-    }
-
-    extension<TResult>(OnRetryArguments<TResult> args) {
-        /// <summary>
-        /// The processor logger, straight from the retry callback:
-        /// <c>OnRetry = args =&gt; { args.Logger.LogWarning(...); return default; }</c>.
-        /// </summary>
-        public ILogger Logger => args.Context.Logger;
     }
 }

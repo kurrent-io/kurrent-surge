@@ -388,18 +388,18 @@ opts.ConfigureResilience((ResiliencePipelineBuilder builder) => builder
 
 ### Logging from resilience callbacks
 
-The processor's logger travels in the resilience context, and the `args.Logger` extension resolves it directly in retry callbacks:
+The processor's logger travels in the resilience context, and the `Context.Logger` extension resolves it in any strategy callback — retry, circuit breaker, hedging, timeout:
 
 ```csharp
 opts.ExtendResilience(builder => builder.AddRetry(new RetryStrategyOptions {
     OnRetry = args => {
-        args.Logger.LogWarning(args.Outcome.Exception, "Reconnecting (attempt {Attempt})", args.AttemptNumber + 1);
+        args.Context.Logger.LogWarning(args.Outcome.Exception, "Reconnecting (attempt {Attempt})", args.AttemptNumber + 1);
         return default;
     }
 }));
 ```
 
-For other strategy callbacks (circuit breaker, hedging, timeout), use `args.Context.Logger` — the same extension on `ResilienceContext`. Both fall back to a no-op logger when the pipeline runs outside a processor, so callbacks never need a null check.
+It falls back to a no-op logger when the pipeline runs outside a processor, so callbacks never need a null check.
 
 ## Error recovery patterns
 
