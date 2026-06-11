@@ -61,11 +61,36 @@
   ================================================================
   NuGet Package Metadata
   ================================================================
-  The metadata and symbol-package PropertyGroups live in Directory.Build.targets:
-  they are gated on IsPackable, which projects set in their .csproj — a condition
-  evaluated here (before the .csproj) would always be false. The ItemGroup below is
-  safe in .props: item conditions evaluate after all properties are final.
+  Shared defaults for every package. Deliberately unconditional: gating on IsPackable
+  here is the classic .props pitfall — projects set IsPackable in their .csproj, which
+  evaluates AFTER this file, so the condition is always false and the metadata silently
+  never applies. Pack-only properties are inert on non-packable projects, so no gate is
+  needed. Per-package metadata (Title, Description, PackageTags, or any override of the
+  values below) lives in each .csproj and wins because it evaluates later.
   -->
+  <PropertyGroup Label="NuGet Package Metadata">
+    <Authors>Kurrent Inc.</Authors>
+    <Company>Kurrent Inc.</Company>
+    <Copyright>Copyright © 2011-$([System.DateTime]::Now.Year) $(Company)</Copyright>
+
+    <PackageIcon>ouro.png</PackageIcon>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageProjectUrl>https://github.com/kurrent-io/Kurrent.Client</PackageProjectUrl>
+    <PackageReleaseNotes>https://kurrent.io/blog/</PackageReleaseNotes>
+
+    <RepositoryUrl>https://github.com/kurrent-io/Kurrent.Client</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Symbol Package Settings">
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
   <ItemGroup Label="NuGet Package Dependencies" Condition="'$(IsPackable)'=='true'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
     <None Include="$(RepoRoot)\ouro.png" Pack="true" PackagePath="\" />
