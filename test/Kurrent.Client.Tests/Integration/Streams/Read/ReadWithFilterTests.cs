@@ -28,6 +28,14 @@ public class ReadWithFilterTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
+    // Secondary indexes are eventually consistent; observed catch-up lag has exceeded the
+    // 5s the old hand-rolled poll loops allowed, so the budget is 15s at the same interval.
+    static EventuallyOptions IndexCatchUp(CancellationToken ct) => new() {
+        Timeout           = TimeSpan.FromSeconds(15),
+        PollingInterval   = TimeSpan.FromMilliseconds(500),
+        CancellationToken = ct
+    };
+
     #region . Stream Filter .
 
     [Test]
@@ -144,18 +152,12 @@ public class ReadWithFilterTests {
         await Assert.That(exprFilter.ServerFilter).IsTypeOf<CategoryFilter>();
         await Assert.That(((CategoryFilter)exprFilter.ServerFilter).IndexName).IsEqualTo($"$idx-ce-{category}");
 
-        // Poll until the secondary index catches up (eventually consistent)
-        var ownCount = 0;
-        var records  = new List<Record>();
-
-        for (var attempt = 0; attempt < 10 && ownCount < simulation.Records.Length; attempt++) {
-            if (attempt > 0)
-                await Task.Delay(500, ct);
-
+        // Assert — poll until the secondary index catches up (eventually consistent)
+        await Assert.That(async () => {
             using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            records.Clear();
-            ownCount = 0;
+            var ownCount = 0;
+            var records  = new List<Record>();
 
             var options = new ReadRecordsOptions {
                 Start        = lastPosition.LogPosition,
@@ -174,13 +176,12 @@ public class ReadWithFilterTests {
                         await cancellator.CancelAsync();
                 }
             }
-        }
 
-        // Assert
-        await Assert.That(ownCount).IsEqualTo(simulation.Records.Length);
+            await Assert.That(ownCount).IsEqualTo(simulation.Records.Length);
 
-        foreach (var record in records)
-            await Assert.That(record.Stream.Category).IsEqualTo(category);
+            foreach (var record in records)
+                await Assert.That(record.Stream.Category).IsEqualTo(category);
+        }).EventuallyPasses(IndexCatchUp(ct));
     }
 
     [Test]
@@ -197,16 +198,11 @@ public class ReadWithFilterTests {
 
         var expectedSchema = firstRecord.Schema.Schema;
 
-        // Poll until the secondary index catches up (eventually consistent)
-        var records = new List<Record>();
-
-        for (var attempt = 0; attempt < 10 && records.Count == 0; attempt++) {
-            if (attempt > 0)
-                await Task.Delay(500, ct);
-
+        // Assert — poll until the secondary index catches up (eventually consistent)
+        await Assert.That(async () => {
             using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            records.Clear();
+            var records = new List<Record>();
 
             var options = new ReadRecordsOptions {
                 Start        = lastPosition.LogPosition,
@@ -221,15 +217,14 @@ public class ReadWithFilterTests {
                         await cancellator.CancelAsync();
                 }
             }
-        }
 
-        // Assert
-        await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
+            await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
 
-        foreach (var record in records) {
-            await Assert.That(record.Stream.Category).IsEqualTo(category);
-            await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
-        }
+            foreach (var record in records) {
+                await Assert.That(record.Stream.Category).IsEqualTo(category);
+                await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
+            }
+        }).EventuallyPasses(IndexCatchUp(ct));
     }
 
     #endregion
