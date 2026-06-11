@@ -1,4 +1,4 @@
-using Google.Rpc.Exceptions;
+using Grpc.Core;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
 
@@ -38,8 +38,10 @@ public class GetIndexTests {
     public async ValueTask fails_to_get_nonexistent_index(CancellationToken ct) {
         var indexName = $"test-index-{Guid.NewGuid():N}";
 
-        await Assert.That(async () => await Fixture.Client.Indexes
+        var ex = await Assert.That(async () => await Fixture.Client.Indexes
             .Get(indexName, ct))
-            .Throws<NotFoundException>();
+            .Throws<RpcException>();
+
+        await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
     }
 }

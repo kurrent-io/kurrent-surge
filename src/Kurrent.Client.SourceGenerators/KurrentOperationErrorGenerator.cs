@@ -158,7 +158,6 @@ public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
         sb.AppendLine("using System.Runtime.CompilerServices;");
         sb.AppendLine("using System.Reflection;");
         sb.AppendLine("using Google.Rpc;");
-        sb.AppendLine("using Google.Rpc.Exceptions;");
         sb.AppendLine("using Kurrent;");
         sb.AppendLine("using Kurrent.Client;");
         sb.AppendLine("using Kurrent.Client.Errors;");

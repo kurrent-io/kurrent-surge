@@ -43,27 +43,6 @@ public class KurrentException : Exception {
 
     public override string ToString() => $"[{ErrorDetails.ErrorCode}] {Message}";
 }
- 
-static class KurrentExceptionExtensions {
-    extension(KurrentException) {
-        /// <summary>
-        /// Attempts to parse the given gRPC Status into a KurrentException.
-        /// It is basically a cop-out for the generated exception classes' TryParseRpcStatus methods.
-        /// </summary>
-        public static bool TryParseRpcStatus(Status status, ErrorInfo? errorInfo, [MaybeNullWhen(false)] out KurrentException ex) {
-            var code = errorInfo is not null
-                ? ErrorCode.From(errorInfo.Reason)
-                : ErrorCode.FromEnum(status.GetGrpcStatusCode());
-
-            ex = new(code, status);
-
-            return true;
-        }
-
-        public static KurrentException? From(Status status, ErrorInfo? errorInfo = null) =>
-            TryParseRpcStatus(status, errorInfo, out var ex) ? ex : null;
-    }
-}
 
 /// <summary>
 /// Interface for Kurrent exceptions that can be parsed from gRPC Status messages.

@@ -3,7 +3,6 @@
 using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
-using Google.Rpc.Exceptions;
 using Grpc.Core;
 using Kurrent.Client.Errors;
 using Kurrent.Rpc;
@@ -46,25 +45,6 @@ static class ExceptionExtensions {
             (s, _) => (StatusCode)s.Code == statusCode ? (dynamic?)exception : null;
     }
 
-    static readonly OperationExceptionParser[] GoogleParsers = [
-        static (s, e) => CancelledException.From(s, e),
-        static (s, e) => UnknownException.From(s, e),
-        static (s, e) => InvalidArgumentException.From(s, e),
-        static (s, e) => DeadlineExceededException.From(s, e),
-        static (s, e) => NotFoundException.From(s, e),
-        static (s, e) => AlreadyExistsException.From(s, e),
-        static (s, e) => PermissionDeniedException.From(s, e),
-        static (s, e) => UnauthenticatedException.From(s, e),
-        static (s, e) => ResourceExhaustedException.From(s, e),
-        static (s, e) => FailedPreconditionException.From(s, e),
-        static (s, e) => AbortedException.From(s, e),
-        static (s, e) => OutOfRangeException.From(s, e),
-        static (s, e) => UnimplementedException.From(s, e),
-        static (s, e) => InternalException.From(s, e),
-        static (s, e) => UnavailableException.From(s, e),
-        static (s, e) => DataLossException.From(s, e)
-    ];
-
     static readonly OperationExceptionParser[] ServerParsers = [
         static (s, e) => LeaderForwardingTimeoutException.From(s, e),
         static (s, e) => ServerNotReadyException.From(s, e),
@@ -93,11 +73,14 @@ static class ExceptionExtensions {
                 Message = rex.Message
             };
 
-            // try to parse using the provided parsers, then server parsers, then google parsers
-            // and finally fallback to the original exception
+            // try to parse using the provided parsers, then server parsers, and finally
+            // fall back to the original exception. Generic gRPC status codes are deliberately
+            // NOT translated: a raw RpcException is the ecosystem-standard transport-failure
+            // signal (Polly predicates, grpc-dotnet retry policies, OTel conventions all key
+            // off RpcException.StatusCode). Typed exceptions are reserved for domain errors
+            // the server describes via ErrorInfo.
             return parsers
                 .Concat(ServerParsers)
-                .Concat(GoogleParsers)
                 .Select(parse => parse(status, errorInfo))
                 .SkipWhile(result => result is null)
                 .DefaultIfEmpty(ex)

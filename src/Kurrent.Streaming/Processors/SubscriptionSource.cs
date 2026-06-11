@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using Google.Rpc.Exceptions;
 using Grpc.Core;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Partitioning;
@@ -78,8 +77,6 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
         } catch (ChannelClosedException) {
             _writer.TryComplete();
         } catch (RpcException rex) when (rex.StatusCode == StatusCode.Cancelled) {
-            _writer.TryComplete();
-        } catch (CancelledException) {
             _writer.TryComplete();
         } catch (Exception ex) {
             _writer.TryComplete(ex);
