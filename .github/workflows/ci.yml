@@ -118,7 +118,9 @@ jobs:
           {
             echo "## Aspire Doctor"
             echo '```'
-            aspire doctor
+            # NO_COLOR for the CLI's own output; sed strips ANSI codes the underlying
+            # tools emit anyway — step summaries render escapes as garbage otherwise.
+            NO_COLOR=1 aspire doctor | sed -E $'s/\x1b\\[[0-9;]*m//g'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
