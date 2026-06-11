@@ -3,7 +3,6 @@ using Google.Rpc;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Polly;
 using Polly.Retry;
 
@@ -63,9 +62,7 @@ public static class ProcessorResilienceStrategy {
             BackoffType      = DelayBackoffType.Exponential,
             UseJitter        = true,
             OnRetry = args => {
-                var logger = args.Context.Properties.GetValue(LoggerKey, NullLogger.Instance);
-
-                logger.LogWarning(
+                args.Logger.LogWarning(
                     args.Outcome.Exception,
                     "Subscription reconnecting in {Delay} (attempt {Attempt})",
                     args.RetryDelay, args.AttemptNumber + 1);

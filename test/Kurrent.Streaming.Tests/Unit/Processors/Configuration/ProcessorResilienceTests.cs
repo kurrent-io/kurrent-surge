@@ -208,7 +208,7 @@ public class ProcessorResilienceTests {
             r.MaxDelay  = TimeSpan.FromMilliseconds(1);
         });
 
-        // User strategy reads the processor logger from the resilience context, exactly
+        // User strategy reads the processor logger via the args.Logger extension, exactly
         // as a consumer's OnRetry callback would.
         ILogger? userSawLogger = null;
 
@@ -217,7 +217,7 @@ public class ProcessorResilienceTests {
             MaxRetryAttempts = 1,
             Delay            = TimeSpan.Zero,
             OnRetry = args => {
-                args.Context.Properties.TryGetValue(ProcessorResilienceStrategy.LoggerKey, out userSawLogger);
+                userSawLogger = args.Logger;
                 return default;
             }
         }));
@@ -248,6 +248,45 @@ public class ProcessorResilienceTests {
 
         await Assert.That(userSawLogger).IsSameReferenceAs(logger);
         await Assert.That(sdkLoggedReconnectWarning).IsTrue();
+    }
+
+    [Test]
+    public async ValueTask logger_extension_falls_back_to_null_logger_outside_processor() {
+        // Arrange
+        var message = Faker.Lorem.Sentence();
+        var options = new ProcessorOptions();
+
+        options.ConfigureResilience(r => {
+            r.BaseDelay = TimeSpan.FromMilliseconds(1);
+            r.MaxDelay  = TimeSpan.FromMilliseconds(1);
+        });
+
+        ILogger? userSawLogger = null;
+
+        options.ExtendResilience(b => b.AddRetry(new RetryStrategyOptions {
+            ShouldHandle     = new PredicateBuilder().Handle<InvalidOperationException>(),
+            MaxRetryAttempts = 1,
+            Delay            = TimeSpan.Zero,
+            OnRetry = args => {
+                userSawLogger = args.Logger;
+                return default;
+            }
+        }));
+
+        var pipeline = options.BuildResiliencePipeline(NullLoggerFactory.Instance);
+
+        var attempts = 0;
+
+        // Act — plain token overload: no resilience context primed with a logger
+        await pipeline.ExecuteAsync(_ => {
+            attempts++;
+            return attempts == 1
+                ? throw new InvalidOperationException(message)
+                : ValueTask.CompletedTask;
+        }, CancellationToken.None);
+
+        // Assert
+        await Assert.That(userSawLogger).IsSameReferenceAs(NullLogger.Instance);
     }
 
     /// <summary>
