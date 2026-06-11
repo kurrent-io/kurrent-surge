@@ -1,6 +1,7 @@
 // ReSharper disable CheckNamespace
 
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
 using Grpc.Core;
@@ -24,11 +25,16 @@ public partial class NotLeaderNodeException {
     public NodeInfo CurrentLeader { get; private set; } = NodeInfo.None;
 
     public void AfterParseRpcStatus(Status status, NotLeaderNodeException self) {
-        var details = status.GetDetail<NotLeaderNodeErrorDetails>()!;
+        // The leader hint is best-effort: node_id is optional on the wire
+        // (kurrent/rpc/errors.proto NotLeaderNodeErrorDetails.NodeInfo) and the details message
+        // itself may be absent. A missing hint must not turn a retriable not-leader error into a
+        // crash — the exception still carries the error code the retry predicate keys off.
+        if (status.GetDetail<NotLeaderNodeErrorDetails>()?.CurrentLeader is not { Host.Length: > 0 } leader)
+            return;
+
         self.CurrentLeader = NodeInfo.From(
-            details.CurrentLeader.Host,
-            details.CurrentLeader.Port,
-            details.CurrentLeader.NodeId);
+            new DnsEndPoint(leader.Host, leader.Port),
+            Guid.TryParse(leader.NodeId, out var nodeId) ? nodeId : Guid.Empty);
     }
 }
 

@@ -5,7 +5,7 @@ namespace Kurrent.Streaming.Options;
 /// <summary>
 /// Knobs for the SDK's default reconnection pipeline — retry attempts, backoff, and which
 /// raw gRPC status codes count as transient. Tweak via
-/// <see cref="ProcessorOptions.ConfigureResilience(Action{ProcessorResilienceDefaults})"/>
+/// <see cref="ProcessorOptions.ConfigureResilience(Action{ProcessorResilienceOptions})"/>
 /// or bind from configuration; no Polly types required.
 /// </summary>
 /// <remarks>
@@ -14,7 +14,7 @@ namespace Kurrent.Streaming.Options;
 /// (stream deleted, position not found, cancellation) propagate immediately.
 /// </remarks>
 [PublicAPI]
-public record ProcessorResilienceDefaults {
+public record ProcessorResilienceOptions {
     /// <summary>
     /// Maximum number of reconnection attempts before giving up. Defaults to
     /// <see cref="int.MaxValue"/> — retry indefinitely, keeping a long-running subscription

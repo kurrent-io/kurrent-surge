@@ -51,8 +51,8 @@ public static class ProcessorResilienceStrategy {
     /// (matched by status code, or by the same error codes when the server attaches structured
     /// error details). <see cref="IOException"/> is always considered transient.
     /// </remarks>
-    public static RetryStrategyOptions DefaultRetry(ProcessorResilienceDefaults? defaults = null) {
-        var knobs = defaults ?? new ProcessorResilienceDefaults();
+    public static RetryStrategyOptions DefaultRetry(ProcessorResilienceOptions? defaults = null) {
+        var knobs = defaults ?? new ProcessorResilienceOptions();
 
         return new RetryStrategyOptions {
             ShouldHandle     = args => ValueTask.FromResult(IsRetryable(args.Outcome.Exception, knobs.RetryableStatusCodes)),

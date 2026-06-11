@@ -82,11 +82,11 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
 
     /// <summary>
     /// Knobs for the SDK's default reconnection pipeline. Tweak via
-    /// <see cref="ConfigureResilience(Action{ProcessorResilienceDefaults})"/> or bind from
+    /// <see cref="ConfigureResilience(Action{ProcessorResilienceOptions})"/> or bind from
     /// configuration; ignored when the pipeline is replaced via
     /// <see cref="ConfigureResilience(Action{ResiliencePipelineBuilder})"/>.
     /// </summary>
-    public ProcessorResilienceDefaults Resilience { get; init; } = new();
+    public ProcessorResilienceOptions Resilience { get; init; } = new();
 
     #region ->> Connection <<-
 
@@ -146,7 +146,7 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// Tweaks the default reconnection pipeline knobs (attempts, backoff, retryable status
     /// codes) without any Polly types. The SDK retry strategy stays in charge.
     /// </summary>
-    public void ConfigureResilience(Action<ProcessorResilienceDefaults> configure) =>
+    public void ConfigureResilience(Action<ProcessorResilienceOptions> configure) =>
         configure(Resilience);
 
     /// <summary>
