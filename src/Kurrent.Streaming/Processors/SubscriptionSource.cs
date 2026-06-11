@@ -5,16 +5,24 @@ using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Options;
 using Polly;
-using Polly.Retry;
 
 namespace Kurrent.Streaming.Gateway;
 
 /// <summary>
 /// The resilient source of <see cref="SubscribeMessage"/> for a drone. Wraps
-/// <see cref="StreamsClient.Subscribe"/> in a Polly retry pipeline that reconnects on transient
-/// gRPC errors, resuming from the last observed position so the drone sees a seamless stream with
+/// <see cref="StreamsClient.Subscribe"/> in the processor's resilience pipeline so transient
+/// errors reconnect from the last observed position and the drone sees a seamless stream with
 /// no gaps. Tags each record with its partition and writes everything to the drone's channel.
 /// </summary>
+/// <remarks>
+/// <see cref="StreamsClient.Subscribe"/> surfaces transient failures in two shapes: the connect
+/// phase translates server errors into typed <see cref="Kurrent.Client.Exceptions.KurrentException"/>s
+/// (generic status codes stay raw <see cref="RpcException"/>s), while the streaming phase
+/// propagates raw <see cref="RpcException"/>s untranslated. The default retry predicate
+/// (<see cref="ProcessorResilienceStrategy.DefaultRetry"/>) handles both shapes. Terminal domain
+/// errors (stream deleted, position not found) never match it, so they propagate as-is and fault
+/// the channel.
+/// </remarks>
 sealed class SubscriptionSource : ClientModuleBase, ISubscription {
     readonly StreamsClient                   _streams;
     readonly ProcessorOptions                _options;
@@ -29,7 +37,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
         _streams  = client.Streams;
         _options  = options;
         _writer   = writer;
-        _pipeline = BuildPipeline(options.Resilience);
+        _pipeline = options.BuildResiliencePipeline(client.Options.LoggerFactory);
     }
 
     public async Task Subscribe(
@@ -43,15 +51,22 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
         // exclusive, so a transparent reconnect produces no duplicate and no gap.
         var cursor = startPosition;
 
+        // The processor logger travels in the resilience context so both the SDK's default
+        // OnRetry and any user strategy can log reconnection attempts.
+        var context = ResilienceContextPool.Shared.Get(ct);
+        context.Properties.Set(ProcessorResilienceStrategy.LoggerKey, Logger);
+
         try {
             await _pipeline.ExecuteAsync(
-                async token => {
+                async ctx => {
+                    var token = ctx.CancellationToken;
+
                     var options = new SubscribeOptions {
                         Filter       = filter,
                         Start        = cursor,
                         SkipDecoding = skipDecoding
                     };
-                    
+
                     await foreach (var msg in _streams.Subscribe(options, token).ConfigureAwait(false)) {
                         // Tag each record with its partition before handing it downstream; pass
                         // everything else (Connected, Checkpoint) through untouched.
@@ -69,7 +84,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
                         // past the message already delivered.
                         cursor = Advance(cursor, msg);
                     }
-                }, ct).ConfigureAwait(false);
+                }, context).ConfigureAwait(false);
 
             _writer.TryComplete();
         } catch (OperationCanceledException) {
@@ -80,47 +95,13 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
             _writer.TryComplete();
         } catch (Exception ex) {
             _writer.TryComplete(ex);
+        } finally {
+            ResilienceContextPool.Shared.Return(context);
         }
     }
 
     public ValueTask DisposeAsync() =>
         ValueTask.CompletedTask;
-
-    #region ->> Resilience <<-
-
-    /// <summary>
-    /// Builds the reconnection pipeline once (immutable, reused across reconnects). Only transient
-    /// gRPC status codes and <see cref="IOException"/> trigger a retry; everything else propagates.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="StreamsClient.Subscribe"/> surfaces transient failures as raw
-    /// <see cref="RpcException"/> on both the connect path (its <c>AsWellKnownException</c>
-    /// translation returns the original exception when no domain parser matches a generic status
-    /// code) and the streaming path (<c>MoveNextSafe</c> only swallows cancellation). Terminal
-    /// domain errors (stream deleted, position not found) are already translated and never match
-    /// the predicate, so they propagate as-is and fault the channel.
-    /// </remarks>
-    ResiliencePipeline BuildPipeline(ResilienceOptions options) =>
-        new ResiliencePipelineBuilder()
-            .AddRetry(new RetryStrategyOptions {
-                ShouldHandle = new PredicateBuilder()
-                    .Handle<RpcException>(rex => options.RetryableStatusCodes.Contains(rex.StatusCode))
-                    .Handle<IOException>(),
-                MaxRetryAttempts = options.MaxRetryAttempts,
-                Delay            = options.BaseDelay,
-                MaxDelay         = options.MaxDelay,
-                BackoffType      = DelayBackoffType.Exponential,
-                UseJitter        = true,
-                OnRetry = args => {
-                    Logger.LogWarning(
-                        args.Outcome.Exception,
-                        "Subscription reconnecting in {Delay} (attempt {Attempt})",
-                        args.RetryDelay, args.AttemptNumber + 1);
-
-                    return default;
-                }
-            })
-            .Build();
 
     /// <summary>
     /// Advances the resume cursor from an observed message. Records carry a full position; server
@@ -135,8 +116,6 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
             CaughtUpCheckpoint { Positions: [.., var w] } => w,
             _ => cursor
         };
-
-    #endregion
 }
 
 public interface ISubscription : IAsyncDisposable {

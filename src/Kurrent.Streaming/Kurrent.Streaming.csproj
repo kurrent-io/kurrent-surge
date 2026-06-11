@@ -45,6 +45,8 @@
     <PackageReference Include="kurrent.quack" />
     <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Polly.Extensions" />
   </ItemGroup>
 
   <ItemGroup>
