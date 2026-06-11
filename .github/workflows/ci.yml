@@ -30,6 +30,8 @@ jobs:
         uses: DavidAnson/markdownlint-cli2-action@v19
 
   ci:
+    # Display name matches the required status check in branch protection.
+    name: Build and Test
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 10
 
