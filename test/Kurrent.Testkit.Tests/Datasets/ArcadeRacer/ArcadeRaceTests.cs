@@ -16,7 +16,7 @@ public class ArcadeRaceTests {
         var faker = new Faker();
 
         var ds    = new ArcadeRacerDataSet(faker);
-        var race  = new ArcadeRace(PunyId.New(), faker);
+        var race  = new ArcadeRace(TestId.New(), faker);
 
         race.FormGrid(new ArcadeRaceOptions {
             Cars       = ds.RaceCar.Generate(cars),
@@ -69,21 +69,21 @@ public class ArcadeRaceTests {
     public async Task higher_handling_car_is_faster_on_high_corner_circuit() {
         var faker   = new Faker();
         var circuit = new Circuit {
-            Id = PunyId.New(), Name = "Cornerville", Country = "Test",
+            Id = TestId.New(), Name = "Cornerville", Country = "Test",
             Corners = 16, Straights = 2, LengthKm = 5.0, Difficulty = CircuitDifficulty.Medium
         };
 
         var highHandling = new RaceCar {
-            Id = PunyId.New(), Name = "Handler", Number = 1, Pilot = "H. Test",
+            Id = TestId.New(), Name = "Handler", Number = 1, Pilot = "H. Test",
             Spec = new RaceCarSpec { Acceleration = 5, TopSpeed = 5, Handling = 10, Endurance = 10 }
         };
 
         var lowHandling = new RaceCar {
-            Id = PunyId.New(), Name = "Speeder", Number = 2, Pilot = "S. Test",
+            Id = TestId.New(), Name = "Speeder", Number = 2, Pilot = "S. Test",
             Spec = new RaceCarSpec { Acceleration = 5, TopSpeed = 5, Handling = 1, Endurance = 10 }
         };
 
-        var race = new ArcadeRace(PunyId.New(), faker);
+        var race = new ArcadeRace(TestId.New(), faker);
 
         race.FormGrid(new ArcadeRaceOptions {
             Cars       = [highHandling, lowHandling],

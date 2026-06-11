@@ -41,7 +41,7 @@ public class LapCompletedFaker : Faker<LapCompleted> {
     public LapCompletedFaker(Faker? faker = null) {
         faker ??= new Faker();
         RuleFor(x => x.EventId, f => Guid.CreateVersion7());
-        RuleFor(x => x.CarId, f => PunyId.New());
+        RuleFor(x => x.CarId, f => TestId.New());
         RuleFor(x => x.Lap, f => f.Random.Int(1, 50));
         RuleFor(x => x.LapTime, f => Math.Round(f.Random.Double(60, 120), 3));
         RuleFor(x => x.CumulativeTime, f => Math.Round(f.Random.Double(120, 6000), 3));
@@ -55,8 +55,8 @@ public class OvertakePerformedFaker : Faker<OvertakePerformed> {
     public OvertakePerformedFaker(Faker? faker = null) {
         faker ??= new Faker();
         RuleFor(x => x.EventId, f => Guid.CreateVersion7());
-        RuleFor(x => x.OvertakerId, f => PunyId.New());
-        RuleFor(x => x.DefenderId, f => PunyId.New());
+        RuleFor(x => x.OvertakerId, f => TestId.New());
+        RuleFor(x => x.DefenderId, f => TestId.New());
         RuleFor(x => x.Lap, f => f.Random.Int(1, 50));
         RuleFor(x => x.Timestamp, f => f.Date.RecentOffset().ToUnixTimeMilliseconds());
     }
@@ -68,7 +68,7 @@ public class PitStopPerformedFaker : Faker<PitStopPerformed> {
     public PitStopPerformedFaker(Faker? faker = null) {
         faker ??= new Faker();
         RuleFor(x => x.EventId, f => Guid.CreateVersion7());
-        RuleFor(x => x.CarId, f => PunyId.New());
+        RuleFor(x => x.CarId, f => TestId.New());
         RuleFor(x => x.Lap, f => f.Random.Int(1, 50));
         RuleFor(x => x.TimePenalty, f => Math.Round(f.Random.Double(15, 30), 3));
         RuleFor(x => x.Timestamp, f => f.Date.RecentOffset().ToUnixTimeMilliseconds());
@@ -96,7 +96,7 @@ public class IncidentOccurredFaker : Faker<IncidentOccurred> {
     public IncidentOccurredFaker(Faker? faker = null) {
         faker ??= new Faker();
         RuleFor(x => x.EventId, f => Guid.CreateVersion7());
-        RuleFor(x => x.CarId, f => PunyId.New());
+        RuleFor(x => x.CarId, f => TestId.New());
         RuleFor(x => x.Lap, f => f.Random.Int(1, 50));
         RuleFor(x => x.Description, f => f.PickRandom(Descriptions));
         RuleFor(x => x.TimePenalty, f => Math.Round(f.Random.Double(2, 15), 3));
@@ -110,7 +110,7 @@ public class CarRetiredFaker : Faker<CarRetired> {
     public CarRetiredFaker(Faker? faker = null) {
         faker ??= new Faker();
         RuleFor(x => x.EventId, f => Guid.CreateVersion7());
-        RuleFor(x => x.CarId, f => PunyId.New());
+        RuleFor(x => x.CarId, f => TestId.New());
         RuleFor(x => x.Lap, f => f.Random.Int(1, 50));
         RuleFor(x => x.Description, f => f.PickRandom(IncidentOccurredFaker.Descriptions));
         RuleFor(x => x.Timestamp, f => f.Date.RecentOffset().ToUnixTimeMilliseconds());

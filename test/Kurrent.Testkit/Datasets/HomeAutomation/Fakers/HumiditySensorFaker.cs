@@ -8,7 +8,7 @@ public class HumiditySensorFaker : Faker<HumiditySensor> {
 
     public HumiditySensorFaker() {
         CustomInstantiator(f => new HumiditySensor {
-            Id                   = $"urn:iot:humiditysensor:{PunyId.New()}",
+            Id                   = $"urn:iot:humiditysensor:{TestId.New()}",
             FriendlyName         = $"Humidity Sensor {f.Random.Number(1, 99)}",
             IsBatteryPowered     = true,
             BatteryLevel         = f.Random.Number(60, 100),

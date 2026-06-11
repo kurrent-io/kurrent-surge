@@ -11,7 +11,7 @@ public class RoomFaker : Faker<Room> {
                 var nDevices = devicesPerRoom ?? f.Random.Number(3, 7);
                 var devices  = new DeviceFaker(roomType, homeId: homeId).Generate(nDevices);
 
-                return new Room { RoomId = PunyId.New(), Name = roomName, Type = roomType, Devices = devices };
+                return new Room { RoomId = TestId.New(), Name = roomName, Type = roomType, Devices = devices };
             }
         );
     }

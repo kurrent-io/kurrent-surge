@@ -1,6 +1,6 @@
+using Kurrent.Appender;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
-using Kurrent.Streaming.Experimental.Components.Appender;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
@@ -36,10 +36,10 @@ public class AppenderTests {
     [RecordCounts]
     public async ValueTask appends_records_with_callback(int count, CancellationToken ct) {
         // Arrange
-        var stream  = $"appender-cb-{PunyId.New()}";
+        var stream  = $"appender-cb-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender(CreateOptions());
+        await using var appender = new Appender.Appender(CreateOptions());
 
         var results = new List<AppendResult>();
         var done    = new TaskCompletionSource();
@@ -71,10 +71,10 @@ public class AppenderTests {
     [RecordCounts]
     public async ValueTask appends_records_with_async_await(int count, CancellationToken ct) {
         // Arrange
-        var stream  = $"appender-async-{PunyId.New()}";
+        var stream  = $"appender-async-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender(CreateOptions());
+        await using var appender = new Appender.Appender(CreateOptions());
 
         // Act
         var results = await AppendAll(appender, records, ct);
@@ -105,14 +105,14 @@ public class AppenderTests {
     public async ValueTask appends_to_multiple_streams(int streamCount, int recordsPerStream, CancellationToken ct) {
         // Arrange
         var streams = Enumerable.Range(0, streamCount)
-            .Select(i => (StreamName)$"appender-multi-{i}-{PunyId.New()}")
+            .Select(i => (StreamName)$"appender-multi-{i}-{TestId.New()}")
             .ToArray();
 
         var allRecords = streams
             .SelectMany(stream => NewRecords(stream, recordsPerStream))
             .ToArray();
 
-        await using var appender = new Appender(CreateOptions());
+        await using var appender = new Appender.Appender(CreateOptions());
 
         // Act
         var results = await AppendAll(appender, allRecords, ct);
@@ -141,10 +141,10 @@ public class AppenderTests {
     [BatchSizeCases]
     public async ValueTask dispatches_multiple_small_batches(int recordCount, int maxBatchCount, CancellationToken ct) {
         // Arrange
-        var stream  = $"appender-batches-{PunyId.New()}";
+        var stream  = $"appender-batches-{TestId.New()}";
         var records = NewRecords(stream, recordCount);
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.MaxBatchCount = maxBatchCount;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -174,10 +174,10 @@ public class AppenderTests {
         int recordCount, int maxBatchBytes, CancellationToken ct
     ) {
         // Arrange — small MaxBatchBytes forces multiple flushes based on actual serialized size
-        var stream  = $"appender-bytes-{PunyId.New()}";
+        var stream  = $"appender-bytes-{TestId.New()}";
         var records = NewRecords(stream, recordCount);
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 1000;
             opts.MaxBatchBytes = maxBatchBytes;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
@@ -197,10 +197,10 @@ public class AppenderTests {
     [RecordCounts]
     public async ValueTask linger_timeout_flushes_partial_batch(int count, CancellationToken ct) {
         // Arrange — large batch size so the batch never fills; linger forces the flush
-        var stream  = $"appender-linger-{PunyId.New()}";
+        var stream  = $"appender-linger-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 1000;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(50);
         }));
@@ -219,10 +219,10 @@ public class AppenderTests {
     [RecordCounts]
     public async ValueTask flush_drains_all_buffered_records(int count, CancellationToken ct) {
         // Arrange
-        var stream  = $"appender-flush-{PunyId.New()}";
+        var stream  = $"appender-flush-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.LingerTimeout = TimeSpan.FromSeconds(30);
         }));
 
@@ -248,10 +248,10 @@ public class AppenderTests {
     [OrderingKeyCounts]
     public async ValueTask ordering_key_preserves_order_within_same_key(int count, CancellationToken ct) {
         // Arrange
-        var stream  = $"appender-okey-order-{PunyId.New()}";
+        var stream  = $"appender-okey-order-{TestId.New()}";
         var records = NewRecords(stream, count, orderingKey: "same-key");
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 3;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -286,14 +286,14 @@ public class AppenderTests {
         // Arrange — N ordering keys on N separate streams, interleaved
         var data = Enumerable.Range(0, keyCount)
             .Select(k => (
-                Stream:  (StreamName)$"appender-okey-{k}-{PunyId.New()}",
+                Stream:  (StreamName)$"appender-okey-{k}-{TestId.New()}",
                 Key:     $"key-{k}",
                 Records: (AppendRecord[])null!
             ))
             .Select(x => x with { Records = NewRecords(x.Stream, recordsPerKey, orderingKey: x.Key) })
             .ToArray();
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 3;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -326,19 +326,19 @@ public class AppenderTests {
         int keyCount, int recordsPerGroup, CancellationToken ct
     ) {
         // Arrange — unkeyed stream + N keyed streams, interleaved
-        var unkeyedStream = (StreamName)$"appender-mixed-unkeyed-{PunyId.New()}";
+        var unkeyedStream = (StreamName)$"appender-mixed-unkeyed-{TestId.New()}";
         var unkeyed       = NewRecords(unkeyedStream, recordsPerGroup);
 
         var keyed = Enumerable.Range(0, keyCount)
             .Select(k => (
-                Stream:  (StreamName)$"appender-mixed-keyed-{k}-{PunyId.New()}",
+                Stream:  (StreamName)$"appender-mixed-keyed-{k}-{TestId.New()}",
                 Key:     $"key-{k}",
                 Records: (AppendRecord[])null!
             ))
             .Select(x => x with { Records = NewRecords(x.Stream, recordsPerGroup, orderingKey: x.Key) })
             .ToArray();
 
-        await using var appender = new Appender(CreateOptions(opts => {
+        await using var appender = new Appender.Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 3;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -380,7 +380,7 @@ public class AppenderTests {
 
     #region ->> Helpers <<-
 
-    static async Task<AppendResult[]> AppendAll(Appender appender, AppendRecord[] records, CancellationToken ct) {
+    static async Task<AppendResult[]> AppendAll(Appender.Appender appender, AppendRecord[] records, CancellationToken ct) {
         var tasks = records
             .Select(record => appender.AppendAsync(record, ct))
             .ToList();

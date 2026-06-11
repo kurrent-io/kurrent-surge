@@ -27,6 +27,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="NodaTime.Testing" />
     <PackageReference Include="Polly" />
     <PackageReference Include="Polly.Contrib.WaitAndRetry" />
     <PackageReference Include="Serilog" />
@@ -41,7 +42,6 @@
     <PackageReference Include="Serilog.Sinks.Observable" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
     <PackageReference Include="SharpCompress" />
-    <PackageReference Include="shortid" />
     <PackageReference Include="System.Reactive" />
     <PackageReference Include="TUnit.Assertions" />
     <PackageReference Include="TUnit.Core" />

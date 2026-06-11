@@ -42,7 +42,7 @@ public class DroneBatchedIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-batched-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-batched-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -88,7 +88,7 @@ public class DroneBatchedIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-window-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-window-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -119,7 +119,7 @@ public class DroneBatchedIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-batch-error-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-batch-error-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -160,7 +160,7 @@ public class DroneBatchedIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-batch-status-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-batch-status-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();
@@ -227,7 +227,7 @@ public class DroneBatchedIntegrationTests {
         // Shutdown checkpoint must persist the final positions so Phase 2 sees no records.
         const int seedCount   = 15;
         var       data        = await Fixture.SeedTestStream(seedCount, ct);
-        var       processorId = $"drone-batch-shutdown-{PunyId.New()}";
+        var       processorId = $"drone-batch-shutdown-{TestId.New()}";
 
         using var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var       totalReceived = 0;
@@ -307,7 +307,7 @@ public class DroneBatchedIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-batch-pre-conn-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-batch-pre-conn-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -339,7 +339,7 @@ public class DroneBatchedIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-batch-errstat-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-batch-errstat-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();

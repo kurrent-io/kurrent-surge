@@ -69,7 +69,9 @@
   </Folder>
 
   <Folder Name="/Streaming/">
+    <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />
     <Project Path="src/Kurrent.Streaming/Kurrent.Streaming.csproj" />
+    <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
     <Project Path="test/Kurrent.Streaming.Tests/Kurrent.Streaming.Tests.csproj" />
   </Folder>
 </Solution>

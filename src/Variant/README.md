@@ -83,18 +83,18 @@ Shape.ShapeCase active = shape.Case;  // generated enum: Circle | Square | Trian
 
 For a variant `T : IVariant<C0, …, Cn>`, the generator emits:
 
-| Member | Description |
-| --- | --- |
-| Constructors | One per case type. |
-| `{Type}Case` enum | `byte`-backed enum with one member per case. |
-| `Value` / `Index` / `Case` | The boxed value, zero-based index, and case enum. |
-| `Is{Case}` / `As{Case}` | Case test and checked cast (throws on mismatch). |
-| Implicit operators | `Case → Variant` and `Variant → Case` both directions. |
-| `Match<TResult>` | Exhaustive transform; `…<TResult, TState>` overload avoids closures. |
-| `MatchAsync<TResult>` | `ValueTask`-returning transform, with and without state. |
-| `Switch` | Exhaustive side effects; `…<TState>` overload avoids closures. |
-| `SwitchAsync` | `ValueTask`-returning side effects, with and without state. |
-| `ToString()` | Delegates to the active value's `ToString()`. |
+| Member                     | Description                                                          |
+|----------------------------|----------------------------------------------------------------------|
+| Constructors               | One per case type.                                                   |
+| `{Type}Case` enum          | `byte`-backed enum with one member per case.                         |
+| `Value` / `Index` / `Case` | The boxed value, zero-based index, and case enum.                    |
+| `Is{Case}` / `As{Case}`    | Case test and checked cast (throws on mismatch).                     |
+| Implicit operators         | `Case → Variant` and `Variant → Case` both directions.               |
+| `Match<TResult>`           | Exhaustive transform; `…<TResult, TState>` overload avoids closures. |
+| `MatchAsync<TResult>`      | `ValueTask`-returning transform, with and without state.             |
+| `Switch`                   | Exhaustive side effects; `…<TState>` overload avoids closures.       |
+| `SwitchAsync`              | `ValueTask`-returning side effects, with and without state.          |
+| `ToString()`               | Delegates to the active value's `ToString()`.                        |
 
 ### State Overloads (No Closures)
 

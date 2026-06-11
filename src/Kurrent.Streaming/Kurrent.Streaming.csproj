@@ -8,6 +8,7 @@
     <Product>Kurrent .NET Processors</Product>
     <Description>An event processing framework for the Kurrent Platform. Build streaming processors with automatic checkpointing and partitioning.</Description>
     <PackageTags>kurrent kurrentdb processors event-processing stream-processing event-sourcing</PackageTags>
+    <RootNamespace>Kurrent</RootNamespace>
 
 <!--    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>-->
   </PropertyGroup>
@@ -52,29 +53,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Resources\ErrorMessages.resx">
+    <!-- Pin the logical name so it stays stable regardless of RootNamespace.
+         The generated Designer references "Kurrent.Streaming.Resources.ErrorMessages". -->
+    <EmbeddedResource Update="Resources\ErrorMessages.resx"
+                      LogicalName="Kurrent.Streaming.Resources.ErrorMessages.resources">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Remove="Leases\**" />
-    <EmbeddedResource Remove="Locks\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Leases\**" />
-    <Compile Remove="Locks\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Leases\**" />
-    <None Remove="Locks\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Checkpointing\Storage\" />
-    <Folder Include="Hosting\" />
-    <Folder Include="Configuration\" />
-    <Folder Include="Processors\" />
+    <Folder Include="Core\Diagnostics\Metrics\" />
   </ItemGroup>
 
 

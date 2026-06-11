@@ -1,6 +1,4 @@
-// ReSharper disable CheckNamespace
-
-namespace EventSourcing;
+namespace Kurrent;
 
 [PublicAPI]
 static class PipeExtensions {

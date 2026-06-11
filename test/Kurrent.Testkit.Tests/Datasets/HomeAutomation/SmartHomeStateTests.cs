@@ -9,7 +9,7 @@ namespace Kurrent.Testkit.Tests.Datasets.HomeAutomation;
 public class SmartHomeStateTests {
     static SmartHomeState CreateState(params Device[] devices) {
         var room = new Room {
-            RoomId  = PunyId.New(),
+            RoomId  = TestId.New(),
             Name    = "Test",
             Type    = RoomType.LivingRoom,
             Devices = [..devices]

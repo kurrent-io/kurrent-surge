@@ -87,7 +87,7 @@ public class DroneIntegrationTests {
         // Arrange
         var data        = await Fixture.SeedTestStream(25, ct);
         var processor   = new TestableRecordProcessor();
-        var processorId = $"drone-individual-{PunyId.New()}";
+        var processorId = $"drone-individual-{TestId.New()}";
         var recordCount = 0;
 
         processor.OnProcessRecord = ctx => {
@@ -198,7 +198,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-error-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-error-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -219,7 +219,7 @@ public class DroneIntegrationTests {
     public async ValueTask complete_lifecycle_with_checkpoint_recovery(CancellationToken ct) {
         // Arrange
         var data                     = await Fixture.SeedTestStream(20, ct);
-        var processorId              = $"drone-ckpt-{PunyId.New()}";
+        var processorId              = $"drone-ckpt-{TestId.New()}";
         var recordsToProcessInPhase1 = 10;
 
         // Phase 1: Process first 10 records, checkpoint, then stop
@@ -287,7 +287,7 @@ public class DroneIntegrationTests {
     public async ValueTask checkpoint_recovery_across_multiple_phases(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(30, ct);
-        var processorId = $"drone-multi-{PunyId.New()}";
+        var processorId = $"drone-multi-{TestId.New()}";
         var processors  = new List<TestableRecordProcessor>();
 
         // Phases 1-2: Process 10 records each, then stop
@@ -359,7 +359,7 @@ public class DroneIntegrationTests {
     public async ValueTask checkpoint_recovery_with_no_remaining_records(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(10, ct);
-        var processorId = $"drone-norec-{PunyId.New()}";
+        var processorId = $"drone-norec-{TestId.New()}";
 
         // Phase 1: Process all records
         var processor1 = new TestableRecordProcessor {
@@ -500,7 +500,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-track-auto-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-track-auto-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.AutoCheckpoint    = true;
@@ -535,7 +535,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-manual-ckpt-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-manual-ckpt-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
@@ -572,7 +572,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-shutdown-ckpt-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-shutdown-ckpt-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
@@ -609,7 +609,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-ckpt-continue-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-ckpt-continue-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Continue;
@@ -643,7 +643,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-ckpt-fail-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-ckpt-fail-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Fail;
@@ -682,7 +682,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-status-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-status-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();
@@ -708,7 +708,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-errstat-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-errstat-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();

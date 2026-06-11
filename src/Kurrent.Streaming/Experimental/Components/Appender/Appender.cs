@@ -2,7 +2,7 @@ using Kurrent.Client;
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Streaming.Experimental.Components.Appender;
+namespace Kurrent.Appender;
 
 interface IAppender : IAsyncDisposable {
     /// <summary>

@@ -1,6 +1,6 @@
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Streaming.Experimental;
+namespace Kurrent.Consumer;
 
 interface IConsumerMetadata {
     /// <summary>

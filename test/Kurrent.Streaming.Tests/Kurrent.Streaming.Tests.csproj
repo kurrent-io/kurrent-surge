@@ -1,27 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Streaming\Kurrent.Streaming.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
     <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
-    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="FakeItEasy" />
     <Using Include="Kurrent.Testkit" />
     <Using Include="Kurrent.Testkit.TUnit" />
     <Using Include="Kurrent.Sdk.Testkit" />
     <Using Include="TUnit" />
+    <Using Include="TUnit.Core.Executors" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FakeItEasy" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="NodaTime.Testing" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
 
@@ -29,11 +22,5 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Old drone-based subscription tests — pending review for Drone compatibility -->
-    <Compile Remove="Integration\StreamSubscriptionTests.cs" />
-    <Compile Remove="Integration\LogSubscriptionTests.cs" />
   </ItemGroup>
 </Project>

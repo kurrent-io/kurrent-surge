@@ -1,17 +1,15 @@
 # Kurrent.Processors
 
-An event processing framework for [KurrentDB](https://kurrent.io) — build streaming processors with automatic checkpointing and partitioning.
+A message processing framework for [KurrentDB](https://kurrent.io) — build streaming processors with automatic checkpointing and partitioning.
 
 ## Installation
 
 ```shell
-dotnet add package Kurrent.Processors
+dotnet add package Kurrent.Streaming
 ```
 
 ### Supported Frameworks
 
-- .NET 8.0
-- .NET 9.0
 - .NET 10.0
 
 ## Quick Start
