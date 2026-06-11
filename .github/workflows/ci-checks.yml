@@ -1,5 +1,10 @@
 name: CI - Checks
 
+# pull_request_target checks out the BASE branch, which is correct for title
+# validation and labeling (event metadata + trusted action code only). Anything
+# that must see the PR's own files (e.g. markdownlint) belongs in ci.yml, which
+# runs on pull_request against the PR head — a lint here would silently check
+# main's content and PRs could never fix their own findings.
 on:
   pull_request_target:
     branches: [main]
@@ -15,4 +20,3 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/conventional-commits
-      - uses: DavidAnson/markdownlint-cli2-action@v19

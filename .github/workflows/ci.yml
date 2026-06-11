@@ -13,6 +13,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Lints the PR's own markdown. Lives here (pull_request, PR-head checkout) and not in
+  # ci-checks.yml: that workflow runs on pull_request_target, which checks out the base
+  # branch — a lint there sees main's files and a PR can never fix its own findings.
+  markdown:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+
+    steps:
+      # Same actions/checkout v6 self-hosted workaround as the ci job below.
+      - name: Prepare workspace
+        run: git init "${GITHUB_WORKSPACE}" 2>/dev/null || true
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v19
+
   ci:
     runs-on: [self-hosted, linux, x64]
     # Hard ceiling so a hung step can never tie up the runner (GitHub's default is 6h).
