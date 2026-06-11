@@ -1,10 +1,12 @@
 # Kurrent.Testkit
 
-A testing toolkit for the Kurrent SDK that provides test execution infrastructure, data generation, advanced assertions, and observability integration.
+A testing toolkit for the Kurrent SDK that provides test execution infrastructure, data generation,
+advanced assertions, and observability integration.
 
 ## Overview
 
-Kurrent.Testkit is an opinionated testing library built on TUnit that standardizes the testing experience across the Kurrent SDK codebase. It provides:
+Kurrent.Testkit is an opinionated testing library built on TUnit that standardizes the testing experience
+across the Kurrent SDK codebase. It provides:
 
 - **Test Execution**: Custom test executor with structured logging and gRPC error formatting
 - **Test Data Generation**: Bogus-based fake data with domain-specific datasets (HomeAutomation, ArcadeRacer)
@@ -20,7 +22,9 @@ Every test project that references Kurrent.Testkit needs a single assembly attri
 [assembly: TUnit.Core.Executors.TestExecutor<Kurrent.Testkit.TestkitTestExecutor>]
 ```
 
-That's it. The `TestkitExecutionContext` static constructor handles all initialization automatically — configuration loading, Serilog setup, and OpenTelemetry export. No `[Before(Assembly)]` hooks or manual initialization required.
+That's it. The `TestkitExecutionContext` static constructor handles all initialization automatically —
+configuration loading, Serilog setup, and OpenTelemetry export.
+No `[Before(Assembly)]` hooks or manual initialization required.
 
 ## Table of Contents
 
@@ -72,22 +76,27 @@ public class MyFirstTests {
 
 The custom test executor (`Kurrent.Testkit.TestkitTestExecutor`) wraps every test invocation to provide:
 
-- **Log context injection**: Pushes a `TestUid` property into Serilog's `LogContext` so all log entries during a test are tagged with the test's unique identifier
-- **gRPC error formatting**: Catches `RpcException` and reformats it into a human-readable message with status code, error detail, and status details — instead of a raw gRPC stack trace
+- **Log context injection**: Pushes a `TestUid` property into Serilog's `LogContext` so all log entries
+  during a test are tagged with the test's unique identifier
+- **gRPC error formatting**: Catches `RpcException` and reformats it into a human-readable message
+  with status code, error detail, and status details — instead of a raw gRPC stack trace
 
 ### TestkitExecutionContext
 
-The `TestkitExecutionContext` static class initializes once (guarded by `Interlocked.CompareExchange`) when the test executor first runs. It sets up:
+The `TestkitExecutionContext` static class initializes once (guarded by `Interlocked.CompareExchange`)
+when the test executor first runs. It sets up:
 
 - **Configuration**: Loads `appsettings.json` and environment-specific overrides via `IConfiguration`
-- **Serilog**: Console output with `TestUid` correlation, OpenTelemetry OTLP export, and enrichers for thread ID, process ID, machine name, and exception details
+- **Serilog**: Console output with `TestUid` correlation, OpenTelemetry OTLP export, and enrichers
+  for thread ID, process ID, machine name, and exception details
 - **Public properties**: `Configuration`, `LoggerFactory`, and `Logger` are available for test code
 
 ## Test Data Generation
 
 ### BogusFaker
 
-`BogusFaker` is a thin wrapper over Bogus's `Faker` class, living in the `Bogus` namespace for ergonomic access. Use it as a TUnit class data source:
+`BogusFaker` is a thin wrapper over Bogus's `Faker` class, living in the `Bogus` namespace for ergonomic access.
+Use it as a TUnit class data source:
 
 ```csharp
 public class MyTests {
@@ -310,7 +319,8 @@ Assembly-level attribute for centralized skip management. Apply multiple instanc
 
 ### Test Correlation
 
-The test executor automatically pushes a `TestUid` property into Serilog's `LogContext` for every test. All log entries during a test are tagged with this identifier, enabling filtering in Seq or other log aggregation tools.
+The test executor automatically pushes a `TestUid` property into Serilog's `LogContext` for every test.
+All log entries during a test are tagged with this identifier, enabling filtering in Seq or other log aggregation tools.
 
 ### OpenTelemetry Integration
 
@@ -375,7 +385,8 @@ Events are automatically correlated — motion detection in a room can trigger l
 
 ### ArcadeRacer
 
-A racing simulation domain with cars, circuits, and race events. Supports both pre-computed (synchronous) and streaming (asynchronous) modes.
+A racing simulation domain with cars, circuits, and race events.
+Supports both pre-computed (synchronous) and streaming (asynchronous) modes.
 
 **Pre-computed race** — runs the simulation synchronously and returns a complete logbook:
 
@@ -401,7 +412,8 @@ await foreach (var evt in race.RaceEvents(includeRaceFinished: true, ct)) {
 }
 ```
 
-**Race events**: GridFormed, RaceStarted, LapCompleted, OvertakePerformed, PitStopPerformed, IncidentOccurred, CarRetired, WeatherChanged, RaceFinished.
+**Race events**: GridFormed, RaceStarted, LapCompleted, OvertakePerformed, PitStopPerformed,
+IncidentOccurred, CarRetired, WeatherChanged, RaceFinished.
 
 **Individual fakers** are also exposed for granular control:
 

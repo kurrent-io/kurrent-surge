@@ -41,7 +41,8 @@ Pattern: Informal, descriptive style
 Recent example:
 - `It has begun!` - Initial repository setup
 
-**Recommendation:** Consider adopting [Conventional Commits](https://www.conventionalcommits.org/) for better changelog generation:
+**Recommendation:** Consider adopting [Conventional Commits](https://www.conventionalcommits.org/)
+for better changelog generation:
 ```
 feat: add schema registry auto-registration
 fix: resolve checkpoint tracking race condition
@@ -210,8 +211,8 @@ Two custom generators active:
 
 ### Observability
 
-**Structured logging:** Seq dashboard at http://localhost:5341
-**Telemetry:** Aspire Dashboard at http://localhost:18888
+**Structured logging:** Seq dashboard at <http://localhost:5341>
+**Telemetry:** Aspire Dashboard at <http://localhost:18888>
 **OTLP endpoint:** Port 4317
 
 Configure verbosity in `test/Kurrent.Client.Testing/appsettings.json`:

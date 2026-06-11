@@ -6,6 +6,37 @@
     <WarningLevel>0</WarningLevel>
   </PropertyGroup>
 
+  <!-- Shared package metadata lives here, not in Directory.Build.props, for the same reason as
+       above: the IsPackable condition needs the final value from each .csproj. In .props it was
+       always false, silently dropping readme/icon/license metadata and symbol packages from every
+       nupkg. Because .targets evaluates AFTER the .csproj, every shared value is an only-if-empty
+       default — per-package metadata (Title, Description, PackageTags, or any override of these)
+       belongs in the .csproj and always wins. -->
+  <PropertyGroup Label="NuGet Package Metadata" Condition="'$(IsPackable)' == 'true'">
+    <!-- The SDK pre-defaults Authors/Company to $(AssemblyName) during the props phase, so
+         "still equal to AssemblyName" means the project never set them — treat it as empty. -->
+    <Authors Condition="'$(Authors)' == '' or '$(Authors)' == '$(AssemblyName)'">Kurrent Inc.</Authors>
+    <Company Condition="'$(Company)' == '' or '$(Company)' == '$(AssemblyName)'">Kurrent Inc.</Company>
+    <Copyright Condition="'$(Copyright)' == ''">Copyright © 2011-$([System.DateTime]::Now.Year) $(Company)</Copyright>
+
+    <PackageIcon Condition="'$(PackageIcon)' == ''">ouro.png</PackageIcon>
+    <PackageLicenseFile Condition="'$(PackageLicenseFile)' == ''">LICENSE.md</PackageLicenseFile>
+    <PackageProjectUrl Condition="'$(PackageProjectUrl)' == ''">https://github.com/kurrent-io/Kurrent.Client</PackageProjectUrl>
+    <PackageReleaseNotes Condition="'$(PackageReleaseNotes)' == ''">https://kurrent.io/blog/</PackageReleaseNotes>
+
+    <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">https://github.com/kurrent-io/Kurrent.Client</RepositoryUrl>
+    <PackageReadmeFile Condition="'$(PackageReadmeFile)' == ''">README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Symbol Package Settings" Condition="'$(IsPackable)' == 'true'">
+    <DebugType Condition="'$(DebugType)' == ''">portable</DebugType>
+    <IncludeSymbols Condition="'$(IncludeSymbols)' == ''">true</IncludeSymbols>
+    <SymbolPackageFormat Condition="'$(SymbolPackageFormat)' == ''">snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources Condition="'$(EmbedUntrackedSources)' == ''">true</EmbedUntrackedSources>
+    <PublishRepositoryUrl Condition="'$(PublishRepositoryUrl)' == ''">true</PublishRepositoryUrl>
+    <EnablePackageValidation Condition="'$(EnablePackageValidation)' == ''">true</EnablePackageValidation>
+  </PropertyGroup>
+
   <!--
     Vendor / Bundle / Analyzer infrastructure.
 

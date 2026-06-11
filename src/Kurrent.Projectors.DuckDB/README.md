@@ -1,6 +1,7 @@
 # Kurrent.Projectors.DuckDB
 
-A [DuckDB](https://duckdb.org) projection target for [KurrentDB](https://kurrent.io) — project record streams into DuckDB tables with automatic checkpointing.
+A [DuckDB](https://duckdb.org) projection target for [KurrentDB](https://kurrent.io) —
+project record streams into DuckDB tables with automatic checkpointing.
 
 ## Installation
 

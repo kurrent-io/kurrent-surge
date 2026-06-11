@@ -1,6 +1,7 @@
 # Kurrent.Processors
 
-A message processing framework for [KurrentDB](https://kurrent.io) — build streaming processors with automatic checkpointing and partitioning.
+A message processing framework for [KurrentDB](https://kurrent.io) —
+build streaming processors with automatic checkpointing and partitioning.
 
 ## Installation
 
