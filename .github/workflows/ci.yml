@@ -13,9 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Lints the PR's own markdown. Lives here (pull_request, PR-head checkout) and not in
-  # pr-triage.yml: that workflow runs on pull_request_target, which never checks out PR
-  # code — a lint there would see main's files and a PR could never fix its own findings.
+  # Lint needs the PR's files, so it lives here — pr-triage.yml never checks out PR code.
   markdown:
     runs-on: ubuntu-latest
 
