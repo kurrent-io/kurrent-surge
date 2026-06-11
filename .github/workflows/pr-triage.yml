@@ -1,0 +1,104 @@
+name: PR Triage
+
+# Metadata-only automation on incoming PRs: title gate + labeling.
+#
+# Runs on pull_request_target so the write token works for fork PRs too. That is
+# safe here for one reason, and it must stay true: NO JOB IN THIS FILE EVER CHECKS
+# OUT OR EXECUTES PR CODE. Everything reads the event payload (title, changed-file
+# list) through the GitHub API. Anything that needs the PR's actual files — lint,
+# build, tests — belongs in a pull_request workflow (ci.yml), never here.
+#
+# Corollary: this workflow executes its definition from main, so changes to it
+# only take effect after they merge.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, edited, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Required merge gate. The PR title becomes the squash commit on main, so it
+  # must be a valid conventional commit — semver-bump derives versions from it.
+  title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Validate Title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            chore
+            refactor
+            perf
+            test
+            build
+            ci
+            deps
+            infra
+            security
+            style
+            revert
+          # Scopes are lowercase kebab-case; reject anything with uppercase.
+          disallowScopes: |
+            .*[A-Z].*
+          subjectPattern: ^(?![A-Z]).+(?<!\.)$
+          subjectPatternError: |
+            The subject "{subject}" in "{title}" must start with a
+            lowercase character and not end with a period.
+
+  # Best-effort labeling — never a required check, must never block a merge.
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Label by Changed Paths
+        uses: actions/labeler@v6
+
+      - name: Label by Title Type and Scope
+        uses: actions/github-script@v7
+        env:
+          # Conventional-commit types mapped to labels; types not listed get none.
+          TYPE_LABELS: |
+            {
+              "feat": "enhancement",
+              "fix": "bug",
+              "docs": "documentation",
+              "perf": "optimization",
+              "deps": "dependencies",
+              "security": "security",
+              "refactor": "refactor",
+              "test": "test"
+            }
+        with:
+          script: |
+            // Parse the conventional-commit title directly — labeling must not
+            // depend on the title gate passing (separate job, separate concern).
+            // Format: type(scope)!: subject — scope and ! optional.
+            const title = context.payload.pull_request.title || '';
+            const match = title.match(/^(?<type>[a-z]+)(\((?<scope>[^)]+)\))?(?<bang>!)?:/);
+            if (!match) return;
+
+            const typeLabels = JSON.parse(process.env.TYPE_LABELS);
+            const labels = [];
+
+            if (typeLabels[match.groups.type]) labels.push(typeLabels[match.groups.type]);
+            if (match.groups.bang) labels.push('breaking-change');
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels,
+              });
+            }

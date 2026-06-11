@@ -38,7 +38,6 @@ jobs:
 
   ci:
     runs-on: [self-hosted, linux, x64]
-    # Hard ceiling so a hung step can never tie up the runner (GitHub's default is 6h).
     timeout-minutes: 10
 
     permissions:
@@ -106,7 +105,7 @@ jobs:
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"
           fi
-        
+
       - name: Import Repo Variables
         run: |
           echo '${{ toJSON(vars) }}' | python3 -c "
@@ -116,10 +115,6 @@ jobs:
               print(v)
               print('EOF')
           " >> "$GITHUB_ENV"
-
-      - name: Trigger Docs Build
-        if: steps.changes.outputs.docs == 'true'
-        run: curl -X POST -d {} "${{ secrets.CLOUDFLARE_BUILD_HOOK }}"
 
       - name: Setup .NET
         if: steps.changes.outputs.build == 'true'
@@ -210,4 +205,3 @@ jobs:
 #          nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
 #          # TODO: change github to nuget when ready to publish publicly
 #          push-to: ${{ github.ref == 'refs/heads/main' && 'github' || 'github' }}
-        
