@@ -1,6 +1,8 @@
 # Registry.OrderManagement
 
-An order management API showing how the schema registry governs event production. Events written to streams are automatically registered in the registry and stamped with their schema version ID — so every event in the log carries a traceable link back to its contract.
+An order management API showing how the schema registry governs event production. Events written to streams are
+automatically registered in the registry and stamped with their schema version ID —
+so every event in the log carries a traceable link back to its contract.
 
 ## Running the Example
 
@@ -51,7 +53,8 @@ curl -s http://localhost:5000/orders/ORDER_ID/events | jq
 ]
 ```
 
-This is the registry's value: every event in the log is linked to a specific schema version. Consumers know exactly what shape each event has.
+This is the registry's value: every event in the log is linked to a specific schema version.
+Consumers know exactly what shape each event has.
 
 ### 3. Ship the order
 
@@ -68,7 +71,8 @@ curl -s http://localhost:5000/orders/ORDER_ID/events | jq
 
 ### 4. Register a contract manually with compatibility rules
 
-The auto-registered schemas use `None` compatibility. For production, register contracts with backward compatibility so the registry enforces safe evolution.
+The auto-registered schemas use `None` compatibility. For production, register contracts with backward compatibility
+so the registry enforces safe evolution.
 
 ```bash
 curl -s http://localhost:5000/schemas \
@@ -85,7 +89,8 @@ curl -s http://localhost:5000/schemas \
 
 ### 5. Catch a breaking change
 
-Rename `customerId` to `buyerId` — the registry rejects it because removing a required field breaks consumers reading historical events.
+Rename `customerId` to `buyerId` — the registry rejects it because removing a required field
+breaks consumers reading historical events.
 
 ```bash
 curl -s http://localhost:5000/schemas/orders.order-placed-v1/check \

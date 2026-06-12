@@ -1,6 +1,7 @@
 # Processor.FullExample
 
-A production-ready processor combining PostgreSQL for state persistence, Redis for caching, and structured logging with Serilog.
+A production-ready processor combining PostgreSQL for state persistence, Redis for caching,
+and structured logging with Serilog.
 
 ## What You'll Learn
 

@@ -341,6 +341,66 @@ await KurrentProcessor.Create(handlers => handlers
     .RunAsync(stoppingToken);
 ```
 
+## Subscription resilience
+
+Before an error ever reaches `OnError`, the drone's subscription runs inside a [Polly](https://www.pollydocs.org/) resilience pipeline that reconnects on transient failures — server restarts, network blips, leader elections, leader-forwarding timeouts. Reconnection resumes from the last observed position, so the processor sees a seamless stream with no gaps and no duplicates. Terminal errors (stream deleted, position not found) are never retried and propagate to `OnError`.
+
+By default the pipeline retries indefinitely with exponential backoff and jitter (500 ms initial, capped at 30 s). Three levels of customization are available on `ProcessorOptions`.
+
+### Tweak the default knobs
+
+No Polly knowledge required — adjust attempts, backoff, and which raw gRPC status codes count as transient. These knobs are also bindable from configuration under the `Resilience` section:
+
+```csharp
+KurrentProcessor.Create(new OrderProcessor(), opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.ProcessorId = "order-processor";
+    opts.ConfigureResilience(r => {
+        r.MaxRetryAttempts = 100;
+        r.BaseDelay        = TimeSpan.FromSeconds(1);
+        r.MaxDelay         = TimeSpan.FromMinutes(1);
+    });
+});
+```
+
+Setting `MaxRetryAttempts` to `0` disables reconnection entirely.
+
+### Extend the pipeline
+
+Prepend your own strategies — circuit breaker, hedging, timeout — ahead of the SDK's default retry, which is appended after them so its transient-error knowledge is preserved:
+
+```csharp
+opts.ExtendResilience(builder => builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions {
+    FailureRatio = 0.5,
+    BreakDuration = TimeSpan.FromSeconds(30)
+}));
+```
+
+### Replace the pipeline
+
+Take full ownership — the SDK defaults are skipped entirely. Append `ProcessorResilienceStrategy.DefaultRetry()` if you want to keep the SDK's retry predicate in your composition:
+
+```csharp
+opts.ConfigureResilience((ResiliencePipelineBuilder builder) => builder
+    .AddTimeout(TimeSpan.FromMinutes(5))
+    .AddRetry(ProcessorResilienceStrategy.DefaultRetry()));
+```
+
+### Logging from resilience callbacks
+
+The processor's logger travels in the resilience context, and the `Context.Logger` extension resolves it in any strategy callback — retry, circuit breaker, hedging, timeout:
+
+```csharp
+opts.ExtendResilience(builder => builder.AddRetry(new RetryStrategyOptions {
+    OnRetry = args => {
+        args.Context.Logger.LogWarning(args.Outcome.Exception, "Reconnecting (attempt {Attempt})", args.AttemptNumber + 1);
+        return default;
+    }
+}));
+```
+
+It falls back to a no-op logger when the pipeline runs outside a processor, so callbacks never need a null check.
+
 ## Error recovery patterns
 
 ### Catch at the RunAsync boundary

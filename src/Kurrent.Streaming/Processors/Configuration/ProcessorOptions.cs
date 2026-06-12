@@ -3,6 +3,8 @@ using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Streaming.Models;
 using Kurrent.Validation;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Polly;
 
 namespace Kurrent.Streaming.Options;
 
@@ -79,9 +81,12 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     public CheckpointOptions Checkpoint { get; init; } = new();
 
     /// <summary>
-    /// Resilience configuration (subscription reconnection on transient errors).
+    /// Knobs for the SDK's default reconnection pipeline. Tweak via
+    /// <see cref="ConfigureResilience(Action{ProcessorResilienceOptions})"/> or bind from
+    /// configuration; ignored when the pipeline is replaced via
+    /// <see cref="ConfigureResilience(Action{ResiliencePipelineBuilder})"/>.
     /// </summary>
-    public ResilienceOptions Resilience { get; init; } = new();
+    public ProcessorResilienceOptions Resilience { get; init; } = new();
 
     #region ->> Connection <<-
 
@@ -121,6 +126,70 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// </summary>
     public void Checkpointing(Action<CheckpointOptions.Builder> configure) =>
         configure(new CheckpointOptions.Builder(Checkpoint));
+
+    #endregion
+
+    #region ->> Resilience <<-
+
+    /// <summary>
+    /// User strategies prepended ahead of the SDK defaults. Mutually exclusive with a full
+    /// replacement — setting one clears the other, last call wins.
+    /// </summary>
+    internal Action<ResiliencePipelineBuilder>? ResilienceExtension { get; private set; }
+
+    /// <summary>
+    /// Full pipeline replacement — the user owns the pipeline and the SDK defaults are skipped.
+    /// </summary>
+    internal Action<ResiliencePipelineBuilder>? ResilienceReplacement { get; private set; }
+
+    /// <summary>
+    /// Tweaks the default reconnection pipeline knobs (attempts, backoff, retryable status
+    /// codes) without any Polly types. The SDK retry strategy stays in charge.
+    /// </summary>
+    public void ConfigureResilience(Action<ProcessorResilienceOptions> configure) =>
+        configure(Resilience);
+
+    /// <summary>
+    /// Prepends user strategies (circuit breaker, hedging, …) ahead of the SDK's default retry,
+    /// which is appended after them so its transient-error knowledge is preserved.
+    /// </summary>
+    public void ExtendResilience(Action<ResiliencePipelineBuilder> extend) {
+        ResilienceExtension   = extend;
+        ResilienceReplacement = null;
+    }
+
+    /// <summary>
+    /// Replaces the pipeline entirely — the SDK defaults are skipped and the user owns every
+    /// strategy. Append <see cref="ProcessorResilienceStrategy.DefaultRetry"/> to keep the SDK's
+    /// transient-error knowledge.
+    /// </summary>
+    public void ConfigureResilience(Action<ResiliencePipelineBuilder> configure) {
+        ResilienceReplacement = configure;
+        ResilienceExtension   = null;
+    }
+
+    /// <summary>
+    /// Builds the subscription reconnection pipeline from the configured mode: replacement wins,
+    /// otherwise user extensions are prepended and the SDK default retry appended. Polly telemetry
+    /// is wired here so every strategy reports through the processor's logging.
+    /// </summary>
+    internal ResiliencePipeline BuildResiliencePipeline(ILoggerFactory loggerFactory) {
+        var builder = new ResiliencePipelineBuilder().ConfigureTelemetry(loggerFactory);
+
+        if (ResilienceReplacement is not null) {
+            ResilienceReplacement(builder);
+            return builder.Build();
+        }
+
+        ResilienceExtension?.Invoke(builder);
+
+        // MaxRetryAttempts = 0 means "retries disabled"; Polly rejects it at build time, so the
+        // default strategy is simply not added.
+        if (Resilience.MaxRetryAttempts > 0)
+            builder.AddRetry(ProcessorResilienceStrategy.DefaultRetry(Resilience));
+
+        return builder.Build();
+    }
 
     #endregion
 

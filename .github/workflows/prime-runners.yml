@@ -115,7 +115,7 @@ jobs:
       - name: Pull CI Images
         run: |
           images=(
-            'ghcr.io/enricomi/publish-unit-test-result-action:v2.23.0'
+            'ghcr.io/enricomi/publish-unit-test-result-action'
           )
           for image in "${images[@]}"; do
             echo "Pulling $image..."
