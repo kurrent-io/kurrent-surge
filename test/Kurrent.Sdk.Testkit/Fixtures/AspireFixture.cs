@@ -132,9 +132,24 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
                 throw new AspireFixtureHookException(nameof(BeforeStart), ex);
             }
 
-            await App
-                .LaunchAsync(Options.StartupTimeout, Options.WaitBehavior, Options.ShouldWaitForResource)
-                .ConfigureAwait(false);
+            // Parallel test assemblies each boot their own AppHost + DCP instance, and all
+            // of them resolve the same persistent container name. When that container does
+            // not exist yet, concurrent DCP instances race to create it and tear down each
+            // other's half-created container; the loser fails startup with "No such
+            // container" and the resource never reports healthy. Upstream bug:
+            // https://github.com/dotnet/aspire/issues/10146
+            // Serializing the launch window guarantees the first AppHost creates the
+            // container and every later one takes the safe adoption path. Remove this
+            // lock once the upstream issue is fixed.
+            Logger.LogWarning(
+                "Serializing AppHost launch across test processes to work around an Aspire " +
+                "persistent-container race (https://github.com/dotnet/aspire/issues/10146)");
+
+            using (await AppHostLaunchLock.AcquireAsync(TimeSpan.FromMinutes(5)).ConfigureAwait(false)) {
+                await App
+                    .LaunchAsync(Options.StartupTimeout, Options.WaitBehavior, Options.ShouldWaitForResource)
+                    .ConfigureAwait(false);
+            }
 
             Logger.LogInformation("Aspire app started with all resources ready in {Elapsed}", stopwatch.Elapsed.Humanize());
 
