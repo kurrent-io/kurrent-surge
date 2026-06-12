@@ -119,7 +119,7 @@ jobs:
         uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
-          push-to: github
+          push-to: nuget
         env:
           NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
 
