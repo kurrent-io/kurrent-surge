@@ -177,3 +177,12 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+
+      # Runs after tests so no Aspire session is active on this runner; reaping
+      # mid-session corrupts DCP state. Skipped on cancellation — a superseding
+      # run may already be spinning up on this runner.
+      - name: Cleanup Containers
+        if: ${{ !cancelled() && steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true }}
+        uses: ./.github/actions/cleanup-containers
+        with:
+          max-age-hours: 24

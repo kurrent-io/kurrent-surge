@@ -127,3 +127,8 @@ jobs:
           docker image prune -af --filter "until=72h"
           docker network prune -f
           docker volume prune -f
+
+      - name: Cleanup Containers
+        uses: ./.github/actions/cleanup-containers
+        with:
+          max-age-hours: 24

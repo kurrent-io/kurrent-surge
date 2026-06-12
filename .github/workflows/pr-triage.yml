@@ -26,7 +26,6 @@ jobs:
     # Display name matches the required status check in branch protection.
     name: Validate PR Title
     runs-on: ubuntu-latest
-    timeout-minutes: 2
 
     steps:
       - name: Validate Title
@@ -60,7 +59,6 @@ jobs:
   # Best-effort labeling — never a required check, must never block a merge.
   label:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
 
     steps:
       - name: Label by Changed Paths

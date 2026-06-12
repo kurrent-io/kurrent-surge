@@ -1,0 +1,73 @@
+name: Cleanup Containers
+description: >
+  Reports Aspire (DCP) managed containers on the runner and removes those older
+  than the age threshold. Containers below the threshold are reported but kept.
+  Both groups are written to the job step summary.
+
+inputs:
+  max-age-hours:
+    description: Containers older than this many hours are removed.
+    required: false
+    default: '24'
+
+runs:
+  using: composite
+  steps:
+    - name: Report and reap Aspire containers
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        max_age_hours='${{ inputs.max-age-hours }}'
+        now=$(date +%s)
+        cutoff=$(( now - max_age_hours * 3600 ))
+
+        kept=()
+        deleted=()
+
+        # DCP (the Aspire orchestrator) labels every container it creates. Persistent
+        # containers survive AppHost shutdown by design, so on self-hosted runners they
+        # accumulate until something reaps them. Removing them between runs is safe —
+        # DCP recreates persistent containers on the next AppHost start. Removing them
+        # DURING a run corrupts DCP state, so this must only execute while no test
+        # session is active on this runner (runners process one job at a time).
+        for id in $(docker ps -aq --filter "label=com.microsoft.developer.usvc-dev.name"); do
+          created=$(docker inspect --format '{{.Created}}' "$id")
+          created_epoch=$(date -d "$created" +%s)
+          name=$(docker inspect --format '{{.Name}}' "$id" | tr -d '/')
+          status=$(docker inspect --format '{{.State.Status}}' "$id")
+          age_hours=$(( (now - created_epoch) / 3600 ))
+
+          if (( created_epoch < cutoff )); then
+            docker rm -f "$id" > /dev/null
+            deleted+=("| $name | ${age_hours}h | $status |")
+          else
+            kept+=("| $name | ${age_hours}h | $status |")
+          fi
+        done
+
+        {
+          echo "## Aspire Containers"
+          echo
+          echo "Age threshold: **${max_age_hours}h**"
+          echo
+          echo "### Kept (${#kept[@]}) — not old enough"
+          echo
+          if (( ${#kept[@]} > 0 )); then
+            echo "| Container | Age | Status |"
+            echo "|-----------|-----|--------|"
+            printf '%s\n' "${kept[@]}"
+          else
+            echo "None."
+          fi
+          echo
+          echo "### Deleted (${#deleted[@]})"
+          echo
+          if (( ${#deleted[@]} > 0 )); then
+            echo "| Container | Age | Status |"
+            echo "|-----------|-----|--------|"
+            printf '%s\n' "${deleted[@]}"
+          else
+            echo "None."
+          fi
+        } | tee -a "$GITHUB_STEP_SUMMARY"
