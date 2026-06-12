@@ -1,8 +1,11 @@
 name: Prime Runners
 
 on:
-  schedule:
-    - cron: '0 6 * * *' # this means "At 06:00 UTC every day"
+  # Schedule disabled while investigating the Aspire persistent-container race in CI:
+  # the 06:00 UTC run's docker prune is the prime suspect for breaking container
+  # adoption on the runners. Re-enable once the root cause is confirmed.
+  # schedule:
+  #   - cron: '0 6 * * *' # this means "At 06:00 UTC every day"
   workflow_dispatch:
 
 jobs:
