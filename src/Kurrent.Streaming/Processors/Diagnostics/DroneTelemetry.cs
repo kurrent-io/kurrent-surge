@@ -34,19 +34,22 @@ sealed partial class DroneTelemetry : TelemetrySource {
         Publish(new DroneProcessingEvent(_processorId, _droneId, sessionId));
     }
 
-    public void RecordProcessed(long totalRecords, double? elapsedMs = null) {
+    public void RecordProcessed(long totalRecords, double? durationSeconds, long uncommittedRecords, long uncommittedBytes) {
         LogRecordProcessed(_processorId, _droneId, totalRecords);
-        Publish(new RecordProcessedEvent(_processorId, _droneId, totalRecords));
+        Publish(new RecordProcessedEvent(_processorId, _droneId, totalRecords, durationSeconds, uncommittedRecords, uncommittedBytes));
     }
+
+    public void SourceLagSample(long lagBytes, double lagSeconds) =>
+        Publish(new SourceLagSampleEvent(_processorId, _droneId, lagBytes, lagSeconds));
 
     public void CheckpointInitiated(string checkpointId, CheckpointTrigger trigger) {
         LogCheckpointInitiated(_processorId, _droneId, checkpointId, trigger);
         Publish(new CheckpointInitiatedEvent(_processorId, _droneId, trigger.ToString(), checkpointId));
     }
 
-    public void CheckpointComplete(string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions) {
+    public void CheckpointComplete(string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions, double durationSeconds) {
         LogCheckpointComplete(_processorId, _droneId, checkpointId, trigger, positions);
-        Publish(new CheckpointCompletedEvent(_processorId, _droneId, trigger.ToString(), checkpointId, positions.Length, 0));
+        Publish(new CheckpointCompletedEvent(_processorId, _droneId, trigger.ToString(), checkpointId, positions.Length, durationSeconds));
     }
 
     public void CheckpointFailed(string checkpointId, CheckpointTrigger trigger, RecordPosition[] positions, Exception ex) {
@@ -106,16 +109,19 @@ sealed partial class DroneTelemetry : TelemetrySource {
         /// Marks the record as processed with success status.
         /// </summary>
         /// <param name="totalRecords">Total records processed so far.</param>
-        public void Complete(long totalRecords) {
+        /// <param name="uncommittedRecords">Records tracked but not yet committed (local replay window).</param>
+        /// <param name="uncommittedBytes">Byte span tracked but not yet committed (local replay window).</param>
+        public void Complete(long totalRecords, long uncommittedRecords, long uncommittedBytes) {
             if (_completed) return;
 
             _completed = true;
 
-            double? elapsedMs = _startTimestamp != 0
-                ? Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds
+            // Measured from Stopwatch ticks, emitted in seconds (base unit) with sub-ms precision retained.
+            double? durationSeconds = _startTimestamp != 0
+                ? Stopwatch.GetElapsedTime(_startTimestamp).TotalSeconds
                 : null;
 
-            _diagnostics?.RecordProcessed(totalRecords, elapsedMs);
+            _diagnostics?.RecordProcessed(totalRecords, durationSeconds, uncommittedRecords, uncommittedBytes);
 
             // Complete the tracing span
             if (_activity is not null) {

@@ -31,21 +31,41 @@ Checkpoint behavior is configured through `ProcessorOptions.Checkpoint` directly
 await KurrentProcessor.Create(new MyProcessor(), opts => {
         opts.Connection("kurrentdb://localhost:2113");
         opts.ProcessorId = "order-processor";
-        opts.Checkpointing(c => c
-            .Interval(TimeSpan.FromSeconds(15))
-            .RetentionCount(5)
-            .FailurePolicy(CheckpointFailurePolicy.Continue));
+        opts.Checkpointing(c => {
+            c.IntervalFrom(TimeSpan.FromSeconds(15));
+            c.RetentionCount = 5;
+            c.FailurePolicy  = CheckpointFailurePolicy.Continue;
+        });
     })
     .RunAsync(stoppingToken);
 ```
 
 ### CheckpointOptions reference
 
-| Property         | Type                      | Default    | Description                                                                               |
-|------------------|---------------------------|------------|-------------------------------------------------------------------------------------------|
-| `Interval`       | `TimeSpan`                | 30 seconds | Time between automatic checkpoints. In JSON config, accepts `"00:00:30"` or `30000` (ms). |
-| `RetentionCount` | `int`                     | `3`        | Number of completed checkpoint records to retain. Range: 1–100.                           |
-| `FailurePolicy`  | `CheckpointFailurePolicy` | `Continue` | What happens when a checkpoint fails. See [Failure policies](#failure-policies).          |
+| Property         | Type                      | Default    | Description                                                                                                                                                |
+|------------------|---------------------------|------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `AutoTrack`      | `bool`                    | `true`     | Gates all automatic position tracking — per-record, whole-batch, and server scan watermarks. See [Delivery guarantees](#delivery-guarantees-autotrack-and-autocheckpoint). |
+| `AutoCheckpoint` | `bool`                    | `true`     | Gates the periodic interval commit timer. Independent of `AutoTrack`.                                                                                       |
+| `Interval`       | `TimeSpan`                | 30 seconds | Time between automatic checkpoints. Consulted only when `AutoCheckpoint` is `true`. In JSON config, accepts `"00:00:30"` or `30000` (ms).                   |
+| `RetentionCount` | `int`                     | `3`        | Number of completed checkpoint records to retain. Range: 1–100.                                                                                            |
+| `FailurePolicy`  | `CheckpointFailurePolicy` | `Continue` | What happens when a checkpoint fails. See [Failure policies](#failure-policies).                                                                           |
+
+### Delivery guarantees: AutoTrack and AutoCheckpoint
+
+Two independent switches decide a processor's delivery guarantee. **Track** marks a record's position as handled (held in memory, pending commit); **Checkpoint** persists all pending tracked positions so a restart resumes past them. `AutoTrack` controls the first, `AutoCheckpoint` the second — each with a manual escape hatch on the processing context (`ctx.Track(...)` / `ctx.Checkpoint(...)`).
+
+| `AutoTrack` | `AutoCheckpoint` | Guarantee                       | Pattern                                                         |
+|:-----------:|:----------------:|---------------------------------|----------------------------------------------------------------|
+| `true`      | `true`           | Hands-off (default)             | The framework tracks every record and commits on the interval. |
+| `false`     | `true`           | At-least-once (recommended)     | Track in the handler *after* durable work; the timer commits.  |
+| `false`     | `false`          | Full manual                     | `ctx.Track` and `ctx.Checkpoint` own everything.               |
+| `true`      | `false`          | Auto-track, manual commit       | Tracked automatically; committed only by `ctx.Checkpoint` or shutdown. |
+
+Shutdown and end-of-stream always commit pending positions, in every mode; a manual `ctx.Checkpoint` always works, in every mode.
+
+::: warning
+**`AutoTrack = false` advances nothing automatically — including server scan watermarks.** During a filtered or catching-up subscription the server emits scan watermarks over regions with no matching records. With `AutoTrack = true` the framework folds these across owned partitions so a cold restart skips the already-scanned log. With `AutoTrack = false` it folds nothing: each watermark is surfaced to `OnCheckpoint` as `CheckpointContext.ScanPosition`, and unless your handler calls `ctx.Track(ctx.ScanPosition!)`, a cold restart **rescans** every already-scanned no-match / caught-up region. It delivers no duplicate records, but it pays the scan again. You own 100% of progress.
+:::
 
 ### Failure policies
 
@@ -64,9 +84,10 @@ Every checkpoint carries a `CheckpointTrigger` that identifies why it was create
 |---------------|--------------------------------------------------------------------------------------------------------------------------------------------|
 | `Unspecified` | Default/fallback value.                                                                                                                    |
 | `Rebalance`   | Triggered during partition rebalancing to ensure consistent state across drones before partitions are reassigned.                          |
-| `Interval`    | Triggered automatically when the configured `Interval` elapses since the last checkpoint. Subject to retention count.                      |
-| `CaughtUp`    | Triggered exactly once per processor lifecycle when the subscription transitions from historical to live mode. Subject to retention count. |
-| `Savepoint`   | Triggered by an explicit manual API call. Manual savepoints are not auto-deleted and are retained until explicitly removed.                |
+| `Interval`    | Triggered automatically when the configured `Interval` elapses since the last checkpoint. Gated by `AutoCheckpoint`. Subject to retention count. |
+| `Filter`      | Emitted by the server during a filtered subscription when the scan reaches a new position with no matches in the window. Carries the scan watermark, surfaced as `ScanPosition`. |
+| `CaughtUp`    | Triggered exactly once per processor lifecycle when the subscription transitions from historical to live mode. Carries the scan watermark, surfaced as `ScanPosition`. Subject to retention count. |
+| `Manual`      | Triggered by `ctx.Checkpoint(reason)` from inside `ProcessRecord` or `ProcessBatch`. The optional reason is surfaced on the `CheckpointContext`.   |
 | `Shutdown`    | Triggered during graceful shutdown to persist final state. Best-effort. If it fails, positions replay on restart.                          |
 
 ## CheckpointContext
@@ -108,9 +129,11 @@ public class OrderProcessor : IRecordProcessor {
 | Property            | Type                 | Description                                                                                                                                 |
 |---------------------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
 | `CheckpointId`      | `string`             | Unique identifier for this checkpoint. A coordination token, not a position.                                                                |
-| `Trigger`           | `CheckpointTrigger`  | What triggered the checkpoint (Interval, CaughtUp, Rebalance, Savepoint, Shutdown).                                                         |
+| `Trigger`           | `CheckpointTrigger`  | What triggered the checkpoint (Interval, Filter, CaughtUp, Rebalance, Manual, Shutdown).                                                    |
 | `Timestamp`         | `DateTimeOffset`     | When the checkpoint was signaled.                                                                                                           |
-| `Positions`         | `PartitionPositions` | Partition positions captured at signal time.                                                                                                |
+| `Positions`         | `RecordPosition[]`   | Pending positions captured as the barrier opened. `OnCheckpoint` runs *before* the commit snapshot, so positions you track in the callback also commit. |
+| `ScanPosition`      | `RecordPosition?`    | The server scan watermark for a `Filter`/`CaughtUp` barrier; `null` otherwise. With `AutoTrack = false`, call `ctx.Track(ctx.ScanPosition!)` to claim the scanned span. See the [warning above](#delivery-guarantees-autotrack-and-autocheckpoint). |
+| `Reason`            | `string?`            | The reason passed to `ctx.Checkpoint(reason)` for a `Manual` barrier; `null` otherwise.                                                     |
 | `ProcessorId`       | `ProcessorId`        | The processor group this drone belongs to.                                                                                                  |
 | `DroneId`           | `string`             | This drone's unique identifier.                                                                                                             |
 | `SessionId`         | `SessionId`          | The current session identifier.                                                                                                             |
@@ -170,7 +193,9 @@ public ValueTask ProcessRecord(ProcessRecordContext context) {
 |-----------------------------------------------------|-----------------------------------------------------|-------------------------------------------------------------------------------------|
 | `Throughput`                                        | `ThroughputMetrics`                                 | Throughput and timing metrics.                                                      |
 | `Checkpoint`                                        | `CheckpointProgress`                                | Checkpoint progress information.                                                    |
-| `Partitions`                                        | `ImmutableDictionary<Partition, PartitionProgress>` | Per-partition position tracking.                                                    |
+| `Partitions`                                        | `IReadOnlyDictionary<Partition, PartitionProgress>` | Per-partition position tracking.                                                    |
+| `UncommittedRecords`                                | `long`                                              | Records tracked but not yet committed — the reprocess-on-crash window, in records.  |
+| `UncommittedBytes`                                  | `long`                                              | Bytes tracked but not yet committed across all partitions — the window, in bytes.   |
 | `PartitionCount`                                    | `int`                                               | Number of partitions currently assigned.                                            |
 | `this[Partition]`                                   | `PartitionProgress`                                 | Gets progress for a specific partition. Throws `KeyNotFoundException` if not found. |
 | `TryGetPartition(Partition, out PartitionProgress)` | `bool`                                              | Safe lookup for partition progress.                                                 |
@@ -186,6 +211,7 @@ Real-time throughput and timing information computed from the start of the proce
 | `RecordsPerSecond` | `double`         | Average records processed per second.                        |
 | `StartedAt`        | `DateTimeOffset` | When processing started.                                     |
 | `Elapsed`          | `TimeSpan`       | Total elapsed time since processing started.                 |
+| `LastProcessedAt`  | `DateTime?`      | Event-time of the last dispatched record, or `null` if none yet. |
 
 ### CheckpointProgress
 
@@ -209,6 +235,7 @@ Tracks position progress for a single partition. The distinction between tracked
 |-----------------------|------------------|--------------------------------------------------------------------------------------------------------|
 | `LastTrackedPosition` | `RecordPosition` | The most recent position processed but not yet checkpointed. Returns `RecordPosition.Unset` if none.   |
 | `LastFlushedPosition` | `RecordPosition` | The most recent position that has been checkpointed. Returns `RecordPosition.Unset` if no checkpoints. |
+| `UncommittedBytes`    | `long`           | Bytes tracked but not yet committed for this partition (the replay window): `LastTracked − LastFlushed`. |
 
 The gap between `LastTrackedPosition` and `LastFlushedPosition` represents your "replay window": the records that would be redelivered if the drone crashed right now.
 

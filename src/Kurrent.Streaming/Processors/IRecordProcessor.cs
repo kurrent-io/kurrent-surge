@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
@@ -61,8 +61,8 @@ public record DroneContext {
             Progress          = progress
         };
 
-    public BatchContext ForBatch(DroneProgress progress, RecordBatch records) =>
-        new() {
+    public BatchContext ForBatch(DroneProgress progress, RecordBatch records, Action<RecordPosition> requestTrack) =>
+        new(requestTrack) {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
             SessionId         = SessionId,
@@ -81,8 +81,13 @@ public record DroneContext {
             CancellationToken = CancellationToken
         };
 
-    public CheckpointContext ForCheckpoint(RecordPosition[] positions, Checkpoint checkpoint) =>
-        new() {
+    public CheckpointContext ForCheckpoint(
+        Checkpoint checkpoint,
+        RecordPosition[] positions,
+        RecordPosition? scanPosition,
+        Action<RecordPosition> requestTrack
+    ) =>
+        new(requestTrack) {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
             SessionId         = SessionId,
@@ -92,7 +97,8 @@ public record DroneContext {
             CheckpointId      = checkpoint.Id,
             Trigger           = checkpoint.TriggerKind,
             Timestamp         = checkpoint.Timestamp,
-            Reason            = (checkpoint as ManualCheckpoint)?.Reason
+            Reason            = (checkpoint as ManualCheckpoint)?.Reason,
+            ScanPosition      = scanPosition
         };
 
 }
@@ -115,7 +121,7 @@ public record ProcessRecordContext : DroneContext {
 
     /// <summary>
     /// Tells the framework that the given record has been durably handled.
-    /// Always valid; in <c>AutoCheckpoint = true</c> mode the framework's auto-track
+    /// Always valid; in <c>AutoTrack = true</c> mode the framework's auto-track
     /// runs on top, but the tracker is idempotent.
     /// </summary>
     public void Track(Record record) {
@@ -125,7 +131,7 @@ public record ProcessRecordContext : DroneContext {
 
     /// <summary>
     /// Tells the framework that the given position has been durably handled.
-    /// Always valid; in <c>AutoCheckpoint = true</c> mode the framework's auto-track
+    /// Always valid; in <c>AutoTrack = true</c> mode the framework's auto-track
     /// runs on top, but the tracker is idempotent.
     /// </summary>
     public void Track(RecordPosition position) {
@@ -135,7 +141,7 @@ public record ProcessRecordContext : DroneContext {
 
     /// <summary>
     /// Tells the framework that the given positions have been durably handled.
-    /// Always valid; in <c>AutoCheckpoint = true</c> mode the framework's auto-track
+    /// Always valid; in <c>AutoTrack = true</c> mode the framework's auto-track
     /// runs on top, but the tracker is idempotent.
     /// </summary>
     public void Track(IEnumerable<RecordPosition> positions) {
@@ -201,10 +207,17 @@ public record ProcessRecordContext : DroneContext {
 public record ConnectedContext : DroneContext;
 
 /// <summary>
-/// Context provided when a checkpoint is signaled.
+/// Context provided when a checkpoint is signaled. Fires on every barrier (interval, manual, server
+/// scan watermark, shutdown) and runs <b>before</b> the commit snapshot, so positions tracked here
+/// via <see cref="Track(RecordPosition)"/> land in this barrier's commit.
 /// </summary>
 [PublicAPI]
 public record CheckpointContext : DroneContext {
+    public CheckpointContext() { }
+
+    public CheckpointContext(Action<RecordPosition> requestTrack) =>
+        RequestTrack = requestTrack;
+
     public required RecordPosition[]   Positions    { get; init; }
     public required string             CheckpointId { get; init; }
     public required CheckpointTrigger  Trigger      { get; init; }
@@ -216,6 +229,43 @@ public record CheckpointContext : DroneContext {
     /// passed a reason to <c>ctx.Checkpoint(reason)</c>. Null otherwise.
     /// </summary>
     public string? Reason { get; init; }
+
+    /// <summary>
+    /// The server scan watermark for a <see cref="CheckpointTrigger.Filter"/> or
+    /// <see cref="CheckpointTrigger.CaughtUp"/> barrier — the log position the shared scan has
+    /// reached over regions with no matching records. The barrier carries a log position and has no
+    /// knowledge of partitions; <see cref="Track(RecordPosition)"/> folds it across this drone's
+    /// owned partitions. <c>null</c> for every other trigger.
+    /// </summary>
+    /// <remarks>
+    /// With <c>AutoTrack = true</c> the framework already folds this watermark across owned
+    /// partitions, so the value is informational. With <c>AutoTrack = false</c> the framework
+    /// advances nothing — call <c>ctx.Track(ctx.ScanPosition!)</c> to claim the scanned span, or a
+    /// cold restart rescans the already-scanned no-match / caught-up region.
+    /// </remarks>
+    public RecordPosition? ScanPosition { get; init; }
+
+    internal Action<RecordPosition> RequestTrack { get; init; } = static _ => { };
+
+    /// <summary>
+    /// Marks the given position's log position as durably handled, from inside <c>OnCheckpoint</c>,
+    /// folding it across this drone's owned partitions. Because the callback runs before the commit
+    /// snapshot, the position is committed by this same barrier. Positions at or below the current
+    /// per-partition progress are skipped, so re-tracking a stale watermark is a no-op.
+    /// </summary>
+    /// <param name="position">The position to track — typically <see cref="ScanPosition"/>.</param>
+    public void Track(RecordPosition position) =>
+        RequestTrack(position);
+
+    /// <summary>
+    /// Marks each of the given positions as durably handled, from inside <c>OnCheckpoint</c>,
+    /// folding each across this drone's owned partitions.
+    /// </summary>
+    /// <param name="positions">The positions to track.</param>
+    public void Track(IEnumerable<RecordPosition> positions) {
+        foreach (var position in positions)
+            RequestTrack(position);
+    }
 }
 
 /// <summary>
@@ -228,12 +278,31 @@ public record CheckpointContext : DroneContext {
 public readonly record struct DroneProgress(
     ThroughputMetrics Throughput,
     CheckpointProgress Checkpoint,
-    ImmutableDictionary<Partition, PartitionProgress> Partitions
+    IReadOnlyDictionary<Partition, PartitionProgress> Partitions
 ) {
     /// <summary>
     /// Number of partitions currently assigned.
     /// </summary>
     public int PartitionCount => Partitions.Count;
+
+    /// <summary>
+    /// Records tracked but not yet committed — the reprocess-on-crash window, in records.
+    /// Equivalent to <see cref="CheckpointProgress.RecordsSinceLastCheckpoint"/>.
+    /// </summary>
+    public long UncommittedRecords => Checkpoint.RecordsSinceLastCheckpoint;
+
+    /// <summary>
+    /// Bytes tracked but not yet committed across all partitions — the reprocess-on-crash window,
+    /// in bytes. The sum of each partition's <see cref="PartitionProgress.UncommittedBytes"/>.
+    /// </summary>
+    public long UncommittedBytes {
+        get {
+            var total = 0L;
+            foreach (var partition in Partitions.Values)
+                total += partition.UncommittedBytes;
+            return total;
+        }
+    }
 
     /// <summary>
     /// Gets progress for a specific partition.
@@ -273,7 +342,7 @@ public readonly record struct DroneProgress(
     public static readonly DroneProgress Empty = new(
         ThroughputMetrics.Empty,
         CheckpointProgress.Empty,
-        ImmutableDictionary<Partition, PartitionProgress>.Empty
+        ReadOnlyDictionary<Partition, PartitionProgress>.Empty
     );
 }
 
@@ -297,6 +366,22 @@ public readonly record struct PartitionProgress(
     /// Empty partition progress with no positions tracked or flushed.
     /// </summary>
     public static readonly PartitionProgress Empty = new(RecordPosition.Unset, RecordPosition.Unset);
+
+    /// <summary>
+    /// Bytes tracked but not yet committed for this partition — the replay window. The gap between
+    /// the last tracked and last flushed log position (log positions are byte offsets). Zero when
+    /// nothing is pending or no checkpoint has flushed yet.
+    /// </summary>
+    public long UncommittedBytes {
+        get {
+            var tracked = LastTrackedPosition.LogPosition;
+            var flushed = LastFlushedPosition.LogPosition;
+
+            return tracked != LogPosition.Unset && flushed != LogPosition.Unset && tracked > flushed
+                ? tracked.Value - flushed.Value
+                : 0;
+        }
+    }
 }
 
 /// <summary>
@@ -306,12 +391,14 @@ public readonly record struct PartitionProgress(
 /// <param name="RecordsPerSecond">Average records processed per second.</param>
 /// <param name="StartedAt">When processing started.</param>
 /// <param name="Elapsed">Total time spent processing.</param>
+/// <param name="LastProcessedAt">Event-time of the last dispatched record, or <c>null</c> if none processed yet.</param>
 [PublicAPI]
 public readonly record struct ThroughputMetrics(
     long TotalRecords,
     double RecordsPerSecond,
     DateTimeOffset StartedAt,
-    TimeSpan Elapsed
+    TimeSpan Elapsed,
+    DateTime? LastProcessedAt = null
 ) {
     /// <summary>
     /// Empty metrics with no records processed.

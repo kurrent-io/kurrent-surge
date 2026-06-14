@@ -43,7 +43,19 @@ public readonly record struct RecordProcessedEvent(
     string ProcessorId,
     string DroneId,
     long TotalRecords,
-    double? DurationMs = null
+    double? DurationSeconds = null,
+    long UncommittedRecords = 0,
+    long UncommittedBytes = 0
+);
+
+/// <summary>
+/// Event raised when the source-lag probe samples the distance to the readable log head.
+/// </summary>
+public readonly record struct SourceLagSampleEvent(
+    string ProcessorId,
+    string DroneId,
+    long LagBytes,
+    double LagSeconds
 );
 
 /// <summary>
@@ -65,7 +77,7 @@ public readonly record struct CheckpointCompletedEvent(
     string Trigger,
     string CheckpointId,
     int PartitionCount,
-    double DurationMs
+    double DurationSeconds
 );
 
 /// <summary>

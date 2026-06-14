@@ -14,9 +14,13 @@ sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, ID
     readonly RecordDurationHistogram     _recordDuration;
     readonly CheckpointDurationHistogram _checkpointDuration;
     readonly CheckpointsCompletedCounter _checkpointsCompleted;
+    readonly CheckpointsFailedCounter    _checkpointsFailed;
     readonly RecordsProcessedCounter     _recordsProcessed;
-    readonly DronesConnectedCounter      _dronesConnected;
     readonly DroneErrorsCounter          _droneErrors;
+    readonly UncommittedRecordsGauge     _uncommittedRecords;
+    readonly UncommittedBytesGauge       _uncommittedBytes;
+    readonly SourceLagBytesGauge         _sourceLagBytes;
+    readonly SourceLagSecondsGauge       _sourceLagSeconds;
 
     IDisposable? _listenerSubscription;
     IDisposable? _sourceSubscription;
@@ -30,9 +34,13 @@ sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, ID
         _recordsProcessed     = ProcessorMetrics.CreateRecordsProcessed(meter);
         _recordDuration       = ProcessorMetrics.CreateRecordDuration(meter);
         _checkpointsCompleted = ProcessorMetrics.CreateCheckpointsCompleted(meter);
+        _checkpointsFailed    = ProcessorMetrics.CreateCheckpointsFailed(meter);
         _checkpointDuration   = ProcessorMetrics.CreateCheckpointDuration(meter);
-        _dronesConnected      = ProcessorMetrics.CreateDronesConnected(meter);
         _droneErrors          = ProcessorMetrics.CreateDroneErrors(meter);
+        _uncommittedRecords   = ProcessorMetrics.CreateUncommittedRecords(meter);
+        _uncommittedBytes     = ProcessorMetrics.CreateUncommittedBytes(meter);
+        _sourceLagBytes       = ProcessorMetrics.CreateSourceLagBytes(meter);
+        _sourceLagSeconds     = ProcessorMetrics.CreateSourceLagSeconds(meter);
     }
 
     /// <inheritdoc />
@@ -48,17 +56,25 @@ sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, ID
         switch (evt.Value) {
             case RecordProcessedEvent e:
                 _recordsProcessed.Add(1, e.ProcessorId, e.DroneId);
-                if (e.DurationMs is { } duration)
+                if (e.DurationSeconds is { } duration)
                     _recordDuration.Record(duration, e.ProcessorId);
+                // Synchronous gauges export their last recorded value — push the local lag each record.
+                _uncommittedRecords.Record(e.UncommittedRecords, e.ProcessorId, e.DroneId);
+                _uncommittedBytes.Record(e.UncommittedBytes, e.ProcessorId, e.DroneId);
                 break;
 
             case CheckpointCompletedEvent e:
-                _checkpointsCompleted.Add(1, e.ProcessorId, e.DroneId);
-                _checkpointDuration.Record(e.DurationMs, e.ProcessorId);
+                _checkpointsCompleted.Add(1, e.ProcessorId, e.DroneId, e.Trigger);
+                _checkpointDuration.Record(e.DurationSeconds, e.ProcessorId);
                 break;
 
-            case DroneProcessingEvent e:
-                _dronesConnected.Add(1, e.ProcessorId);
+            case CheckpointFailedEvent e:
+                _checkpointsFailed.Add(1, e.ProcessorId, e.DroneId, e.Trigger);
+                break;
+
+            case SourceLagSampleEvent e:
+                _sourceLagBytes.Record(e.LagBytes, e.ProcessorId, e.DroneId);
+                _sourceLagSeconds.Record(e.LagSeconds, e.ProcessorId, e.DroneId);
                 break;
 
             case DroneErrorEvent e:

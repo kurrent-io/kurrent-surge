@@ -134,10 +134,10 @@ public class ConfigurationTests {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
             opts.ProcessorId = "test-processor";
-            opts.Checkpointing(c => c
-                .Interval(60000L)
-                .RetentionCount(5)
-            );
+            opts.Checkpointing(c => {
+                c.IntervalFrom(60000L);
+                c.RetentionCount = 5;
+            });
         }).Build();
 
         await Assert.That(drone.Options.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(60000));

@@ -212,9 +212,10 @@ public enum CheckpointTrigger {
     /// <remarks>
     /// <para>
     /// Emitted by the server during a filtered subscription, paced by the subscription's max search
-    /// window (one per scan window). Carries the scan watermark in the checkpoint's positions; the
-    /// drone advances every owned partition to it so a cold restart skips the already-scanned
-    /// (no-match) region.
+    /// window (one per scan window). Carries the scan watermark in the checkpoint's positions. When
+    /// <c>AutoTrack</c> is enabled the drone folds it across every owned partition so a cold restart
+    /// skips the already-scanned (no-match) region; when disabled the watermark is surfaced to
+    /// <c>OnCheckpoint</c> as <c>ScanPosition</c> for the handler to act on.
     /// </para>
     /// <para>Frequency: Periodic (every scan window while catching up over a sparse filter).</para>
     /// </remarks>

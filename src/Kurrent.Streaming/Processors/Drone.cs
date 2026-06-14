@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
@@ -17,8 +18,11 @@ sealed class Drone : IDrone {
     readonly DroneTelemetry     _telemetry;
     readonly ProgressTracker    _progress;
     readonly HybridLogicalClock _clock;
+    readonly TimeProvider       _timeProvider;
 
     readonly Channel<SubscribeMessage> _channel;
+
+    SourceLagProbe? _sourceLagProbe;
 
     int _started;
 
@@ -41,6 +45,7 @@ sealed class Drone : IDrone {
         _channel      = channel;
         _streams      = streams;
         _clock        = new HybridLogicalClock(timeProvider);
+        _timeProvider = timeProvider;
 
         _processor = processor switch {
             IRecordBatchProcessor bp => new SafeRecordBatchProcessor(bp),
@@ -120,6 +125,19 @@ sealed class Drone : IDrone {
             lowWatermark, Options.Subscription.Filter,
             Options.SkipDecoding, stoppingToken);
 
+        // Optional source-lag probe (opt-in). It reads the readable log head on a fixed cadence —
+        // the only way a gRPC client learns the head moved ahead — and reports the lag gauges.
+        // Always an unfiltered head read; a filtered backward read would scan the whole log.
+        if (Options.TrackSourceLag) {
+            _sourceLagProbe = new SourceLagProbe(
+                readHead: ct => _streams.InspectRecord(LogPosition.Latest, skipDecoding: true, ct),
+                snapshot: () => Progress,
+                onSample: _telemetry.SourceLagSample,
+                timeProvider: _timeProvider);
+
+            _sourceLagProbe.Start(stoppingToken);
+        }
+
         Exception? fatalError = null;
 
         try {
@@ -191,7 +209,7 @@ sealed class Drone : IDrone {
         async ValueTask<RecordProcessingResult> HandleRecord(IRecordProcessor processor, Record record) {
             using var scope = _telemetry.TrackRecord();
 
-            var autoCheckpoint = Options.Checkpoint.AutoCheckpoint;
+            var autoTrack = Options.Checkpoint.AutoTrack;
 
             var ctx = DroneContext.ForProcessRecord(
                 Progress, record,
@@ -201,9 +219,17 @@ sealed class Drone : IDrone {
                 .ProcessRecord(ctx)
                 .ConfigureAwait(false);
 
-            if (autoCheckpoint && !ctx.StopRequested) {
+            // Count every dispatched record toward throughput, independent of tracking mode.
+            _progress.CountThroughput(record);
+
+            if (autoTrack && !ctx.StopRequested) {
                 _checkpointer.Track(record.Position);
-                _progress.TrackRecord(record.Position, record.Position.Partition);
+                _progress.TrackPosition(record.Position, record.Position.Partition);
+            }
+            else if (ctx.TrackedByUser) {
+                // Manual track (auto-track off, or a stop record the user explicitly claimed): the
+                // checkpointer was already advanced by ctx.Track; mirror the position into progress.
+                _progress.TrackPosition(record.Position, record.Position.Partition);
             }
 
             if (ctx.CheckpointRequested)
@@ -211,7 +237,8 @@ sealed class Drone : IDrone {
                     .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
                     .ConfigureAwait(false);
 
-            scope.Complete(Progress.Throughput.TotalRecords);
+            var progress = Progress;
+            scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
 
             return ctx.StopRequested
                 ? RecordProcessingResult.Stop(ctx.StopReason)
@@ -271,24 +298,43 @@ sealed class Drone : IDrone {
             RecordBatch batch,
             Dictionary<Partition, LogPosition> catchUp
         ) {
-            var ctx = DroneContext.ForBatch(Progress, batch);
+            var autoTrack = Options.Checkpoint.AutoTrack;
+
+            var ctx = DroneContext.ForBatch(
+                Progress, batch,
+                requestTrack: _checkpointer.Track);
 
             await processor
                 .ProcessBatch(ctx)
                 .ConfigureAwait(false);
 
+            // Count and track are decoupled: every dispatched record counts toward throughput (even
+            // with AutoTrack off — the "batch trap"), but positions are claimed only when auto-track
+            // is on. With it off the user owns progress via ctx.Track() / ctx.Track(upTo), which
+            // advanced the checkpointer above. Auto-track is batch-granular, so commit cadence aligns
+            // with batch boundaries.
             foreach (var record in batch) {
-                // Catch-up filter: skip records already processed
+                // Catch-up filter: skip records already processed in a prior run
                 if (catchUp.TryGetValue(record.Position.Partition, out var cp)
                  && record.Position.LogPosition <= cp)
                     continue;
 
-                _checkpointer.Track(record.Position);
-
                 using var scope = _telemetry.TrackRecord();
-                _progress.TrackRecord(record.Position, record.Position.Partition);
-                scope.Complete(Progress.Throughput.TotalRecords);
+                _progress.CountThroughput(record);
+
+                if (autoTrack) {
+                    _checkpointer.Track(record.Position);
+                    _progress.TrackPosition(record.Position, record.Position.Partition);
+                }
+
+                var progress = Progress;
+                scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
             }
+
+            if (ctx.CheckpointRequested)
+                await _checkpointer
+                    .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
+                    .ConfigureAwait(false);
 
             return ctx.StopRequested
                 ? RecordProcessingResult.Stop(ctx.StopReason)
@@ -312,35 +358,50 @@ sealed class Drone : IDrone {
     }
     
     async ValueTask HandleCheckpoint(Checkpoint checkpoint, Partition[] partitions) {
-        var trigger = checkpoint.TriggerKind;
+        var trigger        = checkpoint.TriggerKind;
+        var startTimestamp = Stopwatch.GetTimestamp();
 
         _telemetry.CheckpointInitiated(checkpoint.Id, trigger);
 
-        // Server-emitted log watermarks — FilterCheckpoint and CaughtUpCheckpoint — carry the log position
-        // the shared scan has reached. Expand it across every owned partition before snapshotting so the
-        // user reacts to it like any other checkpoint and a cold restart skips the already-scanned span of
-        // the log. Safe because the channel is read in order: every record at or below this position is
-        // already processed by the time we see the checkpoint. The client resolves a stream CaughtUp's log
-        // position up front (see StreamsClient.Subscribe), so these always carry one; the client-timer
+        // Server-emitted log watermarks — FilterCheckpoint and CaughtUpCheckpoint — carry the log
+        // position the shared scan has reached over regions with no matching records. The barrier
+        // knows only a log position and has no concept of partitions; folding it across owned
+        // partitions is this code's job. The client resolves a stream CaughtUp's log position up
+        // front (see StreamsClient.Subscribe), so these always carry one; the client-timer
         // IntervalCheckpoint and processor barriers are not server watermarks.
-        if (checkpoint is FilterCheckpoint or CaughtUpCheckpoint
-         && checkpoint.Positions is [.., var watermark])
-            _checkpointer.AdvanceWatermark(watermark.LogPosition, partitions);
+        var scanPosition = checkpoint is FilterCheckpoint or CaughtUpCheckpoint
+                        && checkpoint.Positions is [.., var watermark]
+            ? watermark
+            : (RecordPosition?)null;
 
-        var positions = _checkpointer.PendingPositions();
-
-        if (positions.Length == 0)
-            return;
+        // Watermark folding is auto-tracking, so it is gated by AutoTrack. When on, fold the
+        // watermark across every owned partition before snapshotting so a cold restart skips the
+        // already-scanned span — safe because the channel is read in order: every record at or below
+        // this position is already processed by the time we see the checkpoint. When off, advance
+        // nothing — the position is surfaced to OnCheckpoint (ScanPosition) and the user decides
+        // whether to ctx.Track past it. Nothing is silently suppressed.
+        if (Options.Checkpoint.AutoTrack && scanPosition is { } autoWatermark)
+            _checkpointer.AdvanceWatermark(autoWatermark.LogPosition, partitions);
 
         var checkpointToken = CancellationToken.None;
 
-        var ctx = DroneContext.ForCheckpoint(positions, checkpoint) with { CancellationToken = checkpointToken };
+        // Pending positions as the barrier opens — informational for the handler.
+        var pending = _checkpointer.PendingPositions();
+
+        // OnCheckpoint fires on EVERY barrier and runs BEFORE the commit snapshot, so positions the
+        // handler tracks (e.g. ctx.Track(ctx.ScanPosition!)) land in this barrier's commit. The track
+        // delegate folds the given log position across owned partitions — the partition accounting
+        // the barrier itself cannot do.
+        var ctx = DroneContext.ForCheckpoint(
+            checkpoint, pending, scanPosition,
+            requestTrack: pos => _checkpointer.AdvanceWatermark(pos.LogPosition, partitions)
+        ) with { CancellationToken = checkpointToken };
 
         try {
             await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
         }
         catch (Exception ex) {
-            _telemetry.CheckpointFailed(checkpoint.Id, trigger, positions, ex);
+            _telemetry.CheckpointFailed(checkpoint.Id, trigger, pending, ex);
 
             if (Options.Debug)
                 throw;
@@ -351,13 +412,21 @@ sealed class Drone : IDrone {
             return;
         }
 
+        // Snapshot AFTER the callback so the handler's tracks are included. Commit only when
+        // something is pending — an empty barrier (e.g. an interval tick or a watermark the user
+        // chose not to track) still fired OnCheckpoint above but commits nothing.
+        var positions = _checkpointer.PendingPositions();
+
+        if (positions.Length == 0)
+            return;
+
         try {
             await _checkpointer
                 .CommitCheckpoint(checkpoint.Id, positions, checkpointToken)
                 .ConfigureAwait(false);
 
             _progress.TrackCheckpoint(checkpoint, positions);
-            _telemetry.CheckpointComplete(checkpoint.Id, trigger, positions);
+            _telemetry.CheckpointComplete(checkpoint.Id, trigger, positions, Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds);
         }
         catch (Exception ex) {
             _telemetry.CheckpointFailed(checkpoint.Id, trigger, positions, ex);
@@ -381,6 +450,15 @@ sealed class Drone : IDrone {
 
         if (fatalError is not null)
             errors.Add(fatalError);
+
+        if (_sourceLagProbe is not null) {
+            try {
+                await _sourceLagProbe.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) {
+                errors.Add(ex);
+            }
+        }
 
         try {
             await _checkpointer.DisposeAsync().ConfigureAwait(false);

@@ -19,9 +19,10 @@ namespace Kurrent.Streaming.Options;
 ///     opts.ProcessorId                  = "order-processor";
 ///     opts.Subscription.Filter          = RecordFilter.ByStream("orders");
 ///     opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-///     opts.Checkpointing(c => c
-///         .Interval(TimeSpan.FromSeconds(10))
-///         .FailurePolicy(CheckpointFailurePolicy.FailProcessor));
+///     opts.Checkpointing(c => {
+///         c.IntervalFrom(TimeSpan.FromSeconds(10));
+///         c.FailurePolicy = CheckpointFailurePolicy.Fail;
+///     });
 /// }).RunAsync(ct);
 /// </code>
 /// </example>
@@ -63,6 +64,14 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// Skip record data deserialization for performance-critical scenarios. Default: false.
     /// </summary>
     public bool SkipDecoding { get; set; }
+
+    /// <summary>
+    /// When true, the drone periodically reads the readable log head and reports the
+    /// <c>kurrent_processor_source_lag_bytes</c> / <c>_seconds</c> gauges — how far behind the head
+    /// the drone is. Default: false. Each refresh costs one extra unfiltered backward <c>$all</c> read,
+    /// so it is opt-in; the local <c>uncommitted_*</c> gauges are always free.
+    /// </summary>
+    public bool TrackSourceLag { get; set; }
 
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.
@@ -122,10 +131,11 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     #region ->> Convenience Builders <<-
 
     /// <summary>
-    /// Configures checkpoint options via a convenience builder with fluent chaining and ms/TimeSpan overloads.
+    /// Configures the processor's <see cref="CheckpointOptions"/> in place. Set properties directly
+    /// or use the fluent <see cref="CheckpointOptions.IntervalFrom(TimeSpan)"/> helpers.
     /// </summary>
-    public void Checkpointing(Action<CheckpointOptions.Builder> configure) =>
-        configure(new CheckpointOptions.Builder(Checkpoint));
+    public void Checkpointing(Action<CheckpointOptions> configure) =>
+        configure(Checkpoint);
 
     #endregion
 

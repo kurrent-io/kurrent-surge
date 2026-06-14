@@ -478,7 +478,7 @@ public class DroneIntegrationTests {
     #region ->> checkpointing <<-
 
     [Test]
-    public async ValueTask user_track_is_allowed_when_auto_checkpoint_is_true(CancellationToken ct) {
+    public async ValueTask user_track_is_allowed_when_auto_track_is_true(CancellationToken ct) {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
         Exception? caught = null;
@@ -503,7 +503,7 @@ public class DroneIntegrationTests {
             opts.ProcessorId                  = $"drone-track-auto-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-            opts.Checkpoint.AutoCheckpoint    = true;
+            opts.Checkpoint.AutoTrack         = true;
         });
 
         // Act
@@ -515,7 +515,7 @@ public class DroneIntegrationTests {
     }
 
     [Test]
-    public async ValueTask user_track_is_allowed_when_auto_checkpoint_is_false(CancellationToken ct) {
+    public async ValueTask user_track_is_allowed_when_auto_track_is_false(CancellationToken ct) {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
         Exception? caught = null;
@@ -540,15 +540,149 @@ public class DroneIntegrationTests {
             opts.ProcessorId                  = $"drone-track-manual-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-            opts.Checkpoint.AutoCheckpoint    = false;
+            opts.Checkpoint.AutoTrack         = false;
         });
 
         // Act
         await drone.RunAsync(ct);
 
-        // Assert — Track is permitted with auto-checkpoint off; user owns progress and every record is delivered
+        // Assert — Track is permitted with auto-track off; user owns progress and every record is delivered
         await Assert.That(caught).IsNull();
         await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
+    }
+
+    [Test]
+    public async ValueTask manual_mode_surfaces_watermark_without_auto_commit(CancellationToken ct) {
+        // Arrange — seed historical data so a from-Earliest subscription catches up and the server
+        // emits a scan watermark. Auto-track off: the watermark must reach OnCheckpoint as
+        // ScanPosition, but with nothing tracked the framework commits nothing.
+        var data = await Fixture.SeedTestStream(20, ct);
+
+        using var cts      = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var       surfaced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        CheckpointContext? watermark = null;
+
+        var processor = new TestableRecordProcessor {
+            OnCheckpointHook = checkpoint => {
+                if (checkpoint.ScanPosition is not null && watermark is null) {
+                    watermark = checkpoint;
+                    surfaced.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(Fixture.ConnectionString, client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-wm-surface-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoTrack         = false;
+        });
+
+        // Act — run until the watermark surfaces, then stop.
+        var run = drone.RunAsync(cts.Token);
+        await surfaced.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await cts.CancelAsync();
+        await run;
+
+        // Assert — a scan watermark surfaced (ScanPosition set), and with auto-track off the barrier
+        // carried no pending positions, so nothing was committed.
+        await Assert.That(watermark).IsNotNull();
+        await Assert.That(watermark!.ScanPosition).IsNotNull();
+        await Assert.That(watermark.Positions.Length).IsEqualTo(0);
+    }
+
+    [Test]
+    public async ValueTask manual_mode_user_can_advance_past_watermark(CancellationToken ct) {
+        // Arrange — auto-track off; the handler claims the surfaced watermark via ctx.Track(ctx.ScanPosition!).
+        var data = await Fixture.SeedTestStream(20, ct);
+
+        using var cts      = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var       advanced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        RecordPosition? trackedScan = null;
+        Exception?      caught      = null;
+
+        var processor = new TestableRecordProcessor {
+            OnCheckpointHook = checkpoint => {
+                if (checkpoint.ScanPosition is { } scanPosition && trackedScan is null) {
+                    try { checkpoint.Track(scanPosition); }
+                    catch (Exception ex) { caught = ex; }
+
+                    trackedScan = scanPosition;
+                    advanced.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(Fixture.ConnectionString, client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-wm-advance-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoTrack         = false;
+        });
+
+        // Act
+        var run = drone.RunAsync(cts.Token);
+        await advanced.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await cts.CancelAsync();
+        await run;
+
+        // Assert — the surfaced watermark was claimed via ctx.Track(ScanPosition) against a real
+        // server watermark, with no error. (Durable commit of a tracked ScanPosition is covered by
+        // the deterministic unit test auto_track_off_handler_can_advance_past_watermark.)
+        await Assert.That(trackedScan).IsNotNull();
+        await Assert.That(caught).IsNull();
+    }
+
+    [Test]
+    public async ValueTask scan_watermark_surfaces_in_auto_track_mode(CancellationToken ct) {
+        // Arrange — auto-track on (default). The real server scan watermark must still surface to
+        // OnCheckpoint as ScanPosition (informational in this mode; the framework also folds it).
+        var data = await Fixture.SeedTestStream(20, ct);
+
+        using var cts      = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var       surfaced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        CheckpointContext? watermark = null;
+
+        var processor = new TestableRecordProcessor {
+            OnCheckpointHook = checkpoint => {
+                if (checkpoint.ScanPosition is not null && watermark is null) {
+                    watermark = checkpoint;
+                    surfaced.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(Fixture.ConnectionString, client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-wm-auto-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        });
+
+        // Act
+        var run = drone.RunAsync(cts.Token);
+        await surfaced.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await cts.CancelAsync();
+        await run;
+
+        // Assert — the watermark surfaced even in auto-track mode. (Auto-commit durability is covered
+        // by the checkpoint-recovery integration tests and the unit fold test.)
+        await Assert.That(watermark).IsNotNull();
+        await Assert.That(watermark!.ScanPosition).IsNotNull();
     }
 
     [Test]

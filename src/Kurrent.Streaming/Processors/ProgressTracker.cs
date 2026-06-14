@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
@@ -17,6 +17,10 @@ sealed class ProgressTracker {
     long _totalCheckpoints;
     long _recordsAtLastCheckpoint;
 
+    // The event-time of the last dispatched record. Compared against the readable head's timestamp
+    // to compute source_lag_seconds (how far behind in event-time the drone is).
+    DateTime? _lastProcessedAt;
+
     string            _lastCheckpointId      = "";
     CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
     DateTimeOffset?   _lastCheckpointAt;
@@ -31,10 +35,19 @@ sealed class ProgressTracker {
     }
 
     /// <summary>
-    /// Tracks a single record being processed.
+    /// Counts a dispatched record toward throughput and advances the source-lag clock. Always
+    /// called, independent of tracking, so throughput reflects every dispatched record even when
+    /// AutoTrack is off.
     /// </summary>
-    public void TrackRecord(RecordPosition position, Partition partition) {
+    public void CountThroughput(Record record) {
         _totalRecords++;
+        _lastProcessedAt = record.Timestamp;
+    }
+
+    /// <summary>
+    /// Records that a position has been tracked (handled, pending commit) for its partition.
+    /// </summary>
+    public void TrackPosition(RecordPosition position, Partition partition) {
         _trackedPositions[partition] = position;
     }
 
@@ -65,14 +78,15 @@ sealed class ProgressTracker {
                 TotalRecords:     _totalRecords,
                 RecordsPerSecond: totalSeconds > 0 ? _totalRecords / totalSeconds : 0,
                 StartedAt:        _startedAt,
-                Elapsed:          elapsed
+                Elapsed:          elapsed,
+                LastProcessedAt:  _lastProcessedAt
             );
 
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
                 RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
                 LastTrigger:                _lastCheckpointTrigger,
-                LastCheckpointAt:            _lastCheckpointAt
+                LastCheckpointAt:           _lastCheckpointAt
             );
 
             var partitions = BuildPartitionProgress();
@@ -81,23 +95,25 @@ sealed class ProgressTracker {
         }
     }
 
-    ImmutableDictionary<Partition, PartitionProgress> BuildPartitionProgress() {
+    IReadOnlyDictionary<Partition, PartitionProgress> BuildPartitionProgress() {
         if (_flushedPositions.Count == 0 && _trackedPositions.Count == 0)
-            return ImmutableDictionary<Partition, PartitionProgress>.Empty;
+            return ReadOnlyDictionary<Partition, PartitionProgress>.Empty;
 
-        var builder = ImmutableDictionary.CreateBuilder<Partition, PartitionProgress>();
-
-        // Collect all known partitions
+        // Collect all known partitions, then merge tracked + flushed into one entry each. A plain
+        // Dictionary snapshot is cheaper to build per access than an ImmutableDictionary (AVL tree);
+        // it is never mutated after return, so it is a safe read-only snapshot.
         var allPartitions = new HashSet<Partition>(_flushedPositions.Keys);
         foreach (var key in _trackedPositions.Keys)
             allPartitions.Add(key);
 
+        var result = new Dictionary<Partition, PartitionProgress>(allPartitions.Count);
+
         foreach (var partition in allPartitions) {
             var lastTracked = _trackedPositions.GetValueOrDefault(partition, RecordPosition.Unset);
             var lastFlushed = _flushedPositions.GetValueOrDefault(partition, RecordPosition.Unset);
-            builder.Add(partition, new PartitionProgress(lastTracked, lastFlushed));
+            result[partition] = new PartitionProgress(lastTracked, lastFlushed);
         }
 
-        return builder.ToImmutable();
+        return result;
     }
 }

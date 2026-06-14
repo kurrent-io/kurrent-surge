@@ -13,6 +13,7 @@ public sealed class Checkpointer : IAsyncDisposable {
     readonly PartitionedPositionTracker      _tracker;
     readonly HybridLogicalClock              _clock;
     readonly AsyncPeriodicTimer              _timer;
+    readonly bool                            _autoCheckpoint;
 
 	volatile bool _shutdownIssued;
 
@@ -28,6 +29,8 @@ public sealed class Checkpointer : IAsyncDisposable {
 		_store   = store;
 		_tracker = new();
 		_clock   = new(timeProvider);
+
+		_autoCheckpoint = options.AutoCheckpoint;
 
 		_timer = new(
 			options.Interval, timeProvider,
@@ -63,7 +66,11 @@ public sealed class Checkpointer : IAsyncDisposable {
 
 		_tracker.Reset(checkpoint.Positions);
 
-		_timer.Start(ct);
+		// AutoCheckpoint gates the interval commit timer: when off, pending positions are committed
+		// only by a manual ctx.Checkpoint barrier or on shutdown, so the timer simply never starts.
+		if (_autoCheckpoint)
+			_timer.Start(ct);
+
 		_initialized = true;
 
 		return checkpoint.Positions;

@@ -36,7 +36,7 @@ try {
     builder.Services.AddKurrentProcessor<TransferAnalyticsProcessor>(opts => {
         opts.Connection("kurrentdb://localhost:2113");
         opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
-        opts.Checkpointing(c => c.Interval(10_000));
+        opts.Checkpointing(c => c.IntervalFrom(10_000));
     });
 
     // Health checks

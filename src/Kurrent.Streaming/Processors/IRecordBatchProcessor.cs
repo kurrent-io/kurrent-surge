@@ -1,4 +1,5 @@
 using Kurrent.Client.Processors.Gateway.Messages;
+using Kurrent.Client.Streams;
 
 namespace Kurrent.Streaming;
 
@@ -46,28 +47,96 @@ public interface IRecordBatchProcessor : IProcessor {
 }
 
 /// <summary>
-/// Context provided when a batch of records is available for processing.
+/// Context provided when a batch of records is available for processing. Manual tracking and
+/// checkpointing are batch-granular: <see cref="Track()"/> claims the whole batch,
+/// <see cref="Track(RecordPosition)"/> a prefix, and <see cref="Checkpoint(string)"/> requests a
+/// commit barrier after the batch.
 /// </summary>
 [PublicAPI]
 public record BatchContext : DroneContext {
+    public BatchContext() { }
+
+    public BatchContext(Action<RecordPosition> requestTrack) =>
+        RequestTrack = requestTrack;
+
     public required RecordBatch   Records  { get; init; }
     public required DroneProgress Progress { get; init; }
 
+    internal Action<RecordPosition> RequestTrack { get; init; } = static _ => { };
+
     /// <summary>
-    /// Requests that processing stop after this batch. The framework finishes auto-tracking
-    /// the current batch (per the documented "track after ProcessBatch returns successfully"
-    /// contract), then injects a shutdown marker. No further batches will be dispatched.
+    /// Marks the whole batch as durably handled — tracks every record's position. Composes
+    /// idempotently with auto-track; the tracker keeps the latest position per partition.
     /// </summary>
+    public void Track() {
+        _trackedByUser = true;
+        foreach (var record in Records)
+            RequestTrack(record.Position);
+    }
+
+    /// <summary>
+    /// Marks the batch handled up to and including <paramref name="upTo"/> — a prefix. Records past
+    /// it stay pending. The tracker is strictly monotonic, so positions at or below the last
+    /// committed position are skipped.
+    /// </summary>
+    /// <param name="upTo">The last position to claim; records beyond it remain untracked.</param>
+    public void Track(RecordPosition upTo) {
+        _trackedByUser = true;
+        foreach (var record in Records) {
+            if (record.Position <= upTo)
+                RequestTrack(record.Position);
+        }
+    }
+
+    /// <summary>
+    /// Requests a manual checkpoint barrier after this batch. The framework raises
+    /// <c>OnCheckpoint</c> with <see cref="CheckpointTrigger.Manual"/> and the supplied
+    /// <paramref name="reason"/>; positions are taken from the tracker's state at the moment the
+    /// framework dispatches the marker. At most one manual checkpoint may be requested per
+    /// <c>ProcessBatch</c> invocation.
+    /// </summary>
+    /// <param name="reason">An optional reason surfaced on the checkpoint.</param>
+    /// <exception cref="InvalidOperationException">
+    /// A checkpoint has already been requested for this batch.
+    /// </exception>
+    /// <exception cref="OperationCanceledException">
+    /// Cancellation has been requested on the context's token.
+    /// </exception>
+    public void Checkpoint(string? reason = null) {
+        if (_checkpointRequested)
+            throw new InvalidOperationException("Checkpoint already requested for this batch");
+
+        CancellationToken.ThrowIfCancellationRequested();
+
+        _checkpointRequested = true;
+        _checkpointReason    = reason;
+    }
+
+    /// <summary>
+    /// Requests that processing stop after this batch. With <c>AutoTrack = true</c> the framework
+    /// auto-tracks the batch first; either way it then injects a shutdown marker and dispatches no
+    /// further batches. Pending positions are committed on the way out.
+    /// </summary>
+    /// <param name="reason">An optional reason surfaced on shutdown.</param>
     public void StopProcessing(string? reason = null) {
         _stopRequested = true;
         _stopReason    = reason;
     }
 
+    bool    _checkpointRequested;
+    string? _checkpointReason;
+
     bool    _stopRequested;
     string? _stopReason;
 
-    internal bool    StopRequested => _stopRequested;
-    internal string? StopReason    => _stopReason;
+    bool    _trackedByUser;
+
+    internal bool    CheckpointRequested => _checkpointRequested;
+    internal string? CheckpointReason    => _checkpointReason;
+
+    internal bool    StopRequested       => _stopRequested;
+    internal string? StopReason          => _stopReason;
+    internal bool    TrackedByUser       => _trackedByUser;
 }
 
 /// <summary>

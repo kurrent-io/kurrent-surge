@@ -10,6 +10,11 @@
     <PackageTags>kurrent kurrentdb processors event-processing stream-processing event-sourcing</PackageTags>
     <RootNamespace>Kurrent</RootNamespace>
 
+    <!-- The source-generated metric attributes expose `Unit` and the generic `[Gauge<T>]` under the
+         EXTEXP0003 experimental gate (Microsoft.Extensions.Diagnostics.Metrics). We rely on both for
+         base-unit (s/By) instruments and pushed lag gauges. -->
+    <NoWarn>$(NoWarn);EXTEXP0003</NoWarn>
+
 <!--    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>-->
   </PropertyGroup>
 
