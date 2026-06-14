@@ -24,7 +24,33 @@ public class CheckpointOptionsBuilderTests {
         await Assert.That(settings.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Continue);
     }
 
+    [Test]
+    public async ValueTask defaults_auto_checkpoint_is_true() {
+        // Arrange & Act
+        var settings = new CheckpointOptions();
+
+        // Assert
+        await Assert.That(settings.AutoCheckpoint).IsTrue();
+    }
+
     #endregion // Default Values
+
+    #region ->> AutoCheckpoint <<-
+
+    [Test]
+    public async ValueTask auto_checkpoint_sets_value() {
+        // Arrange
+        var settings = new CheckpointOptions();
+
+        // Act
+        new CheckpointOptions.Builder(settings)
+            .AutoCheckpoint(false);
+
+        // Assert
+        await Assert.That(settings.AutoCheckpoint).IsFalse();
+    }
+
+    #endregion // AutoCheckpoint
 
     #region ->> Interval (long) <<-
 

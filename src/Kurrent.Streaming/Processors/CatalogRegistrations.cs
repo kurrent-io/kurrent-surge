@@ -12,7 +12,7 @@ namespace Kurrent.Streaming;
 /// client regardless of its auto-discovery setting.
 /// </summary>
 [CustomMessageCatalog]
-sealed class KurrentStreamingCatalog() : MessageCatalog(
+sealed class StreamingMessageCatalog() : MessageCatalog(
     "KurrentStreaming", alwaysActive: true, catalog => catalog
         .Map<Contracts.PartitionsCheckpointed>("Kurrent.Streaming.Checkpointing.PartitionsCheckpointed")
         .Map<Contracts.CheckpointReset>("Kurrent.Streaming.Checkpointing.CheckpointReset"));

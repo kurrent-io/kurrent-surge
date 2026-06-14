@@ -515,6 +515,43 @@ public class DroneIntegrationTests {
     }
 
     [Test]
+    public async ValueTask user_track_is_allowed_when_auto_checkpoint_is_false(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+        Exception? caught = null;
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                try { ctx.Track(ctx.Record); }
+                catch (Exception ex) { caught = ex; }
+
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.ConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-track-manual-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoCheckpoint    = false;
+        });
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — Track is permitted with auto-checkpoint off; user owns progress and every record is delivered
+        await Assert.That(caught).IsNull();
+        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
+    }
+
+    [Test]
     public async ValueTask manual_checkpoint_fires_on_checkpoint_with_trigger_manual(CancellationToken ct) {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);

@@ -10,7 +10,7 @@ public record CheckpointOptions {
     /// <para>
     /// When <c>true</c>: the periodic interval timer runs and the framework automatically
     /// tracks each record's position when <c>ProcessRecord</c> returns. <c>ctx.Track(...)</c>
-    /// throws because the framework is the single writer to the tracker; <c>ctx.Checkpoint(reason)</c>
+    /// is still allowed and composes idempotently on top of the auto-track; <c>ctx.Checkpoint(reason)</c>
     /// is allowed (manual barriers compose with the interval timer).
     /// </para>
     /// <para>

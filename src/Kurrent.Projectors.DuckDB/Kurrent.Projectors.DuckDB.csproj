@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>Kurrent.Projectors.DuckDB</PackageId>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <Title>Kurrent DuckDB Projector</Title>
   </PropertyGroup>

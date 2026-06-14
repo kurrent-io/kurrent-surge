@@ -2,6 +2,7 @@ using DuckDB.NET.Data;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
+using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Projectors.DuckDB.Tests;
 
@@ -47,10 +48,10 @@ public class DuckDBProjectionTests {
         // Assert
         await Assert.That(projection.SetupRan).IsTrue();
 
-        using var db = DuckDB.GetConnection();
-        await using var countCmd = db.CreateCommand();
-        countCmd.CommandText = "SELECT COUNT(*) FROM projected_records";
-        var count = Convert.ToInt32(await countCmd.ExecuteScalarAsync(ct));
+        await using var db = DuckDB.GetConnection();
+        await using var cmd = db.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM projected_records";
+        var count = Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
         await Assert.That(count).IsEqualTo(20);
     }
 
@@ -58,10 +59,10 @@ public class DuckDBProjectionTests {
         public bool SetupRan { get; private set; }
 
         public TestDuckDBProjection(LogPosition stopAt, CancellationTokenSource stopSignal) {
-            Setup(async (provider, setupCt) => {
+            Setup(async (provider, ct) => {
                 await using var cmd = provider.GetConnection().CreateCommand();
                 cmd.CommandText = "CREATE TABLE IF NOT EXISTS projected_records (record_id UUID PRIMARY KEY)";
-                await cmd.ExecuteNonQueryAsync(setupCt);
+                await cmd.ExecuteNonQueryAsync(ct);
                 SetupRan = true;
             });
             
@@ -73,6 +74,10 @@ public class DuckDBProjectionTests {
 
                 if (ctx.Record.Position.LogPosition >= stopAt)
                     stopSignal.Cancel();
+            });
+
+            Project<RaceStarted>(async (started, provider, context) => {
+                // not tested!
             });
         }
     }

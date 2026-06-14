@@ -21,7 +21,6 @@
     <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
     <Project Path="test/Kurrent.Client.Arrow.Tests/Kurrent.Client.Arrow.Tests.csproj" />
   </Folder>
-  <Folder Name="/Deployables/" />
   <Folder Name="/Examples/">
     <Project Path="examples/Connector.Management/Connector.Management.csproj" />
     <Project Path="examples/PackageTest.Streaming/PackageTest.Streaming.csproj" />
@@ -48,6 +47,7 @@
     <Project Path="examples/streams/Streams.InventoryManagement/Streams.InventoryManagement.csproj" />
     <Project Path="examples/streams/Streams.QuickStart/Streams.QuickStart.csproj" />
   </Folder>
+  <Folder Name="/Packages/" />
 
   <Folder Name="/Shared/" />
   <Folder Name="/Shared/Aspire/">
