@@ -14,7 +14,7 @@ public record FoldResponse<TState>(
     RecordPosition Position);
 
 public static partial class StreamsClientExtensions {
-    extension(IAsyncEnumerable<ReadRecordsResult> source) {
+    extension(IAsyncEnumerable<ReadMessage> source) {
         public async ValueTask<FoldResponse<TState>> FoldAsync<TState>(
             EvolveAsync<TState> evolve, TState initialState, CancellationToken cancellationToken
         ) where TState : new() {

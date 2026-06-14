@@ -60,6 +60,62 @@ public partial class StreamsClient {
     }
 
     /// <summary>
+    /// Reads the first record of the specified stream, or of the log when <paramref name="stream"/>
+    /// is <see cref="StreamName.Log"/>.
+    /// </summary>
+    /// <param name="stream">
+    /// The target to read from. A regular stream name reads that stream's first record;
+    /// <see cref="StreamName.Log"/> reads the first record in the log.
+    /// </param>
+    /// <param name="skipDecoding">
+    /// If true, the record's data and metadata will not be deserialized.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A cancellation token to observe while waiting for the task to complete.
+    /// </param>
+    public ValueTask<Record> FirstRecord(StreamName stream, bool skipDecoding = false, CancellationToken cancellationToken = default) =>
+        stream == StreamName.Log
+            ? InspectRecord(LogPosition.Earliest, skipDecoding, cancellationToken)
+            : ReadStreamEdge(stream, ReadDirection.Forwards, skipDecoding, cancellationToken);
+
+    /// <summary>
+    /// Reads the first record in the log.
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// A cancellation token to observe while waiting for the task to complete.
+    /// </param>
+    public ValueTask<Record> FirstRecord(CancellationToken cancellationToken = default) =>
+        FirstRecord(StreamName.Log, skipDecoding: false, cancellationToken);
+
+    /// <summary>
+    /// Reads the last record of the specified stream, or of the log when <paramref name="stream"/>
+    /// is <see cref="StreamName.Log"/>.
+    /// </summary>
+    /// <param name="stream">
+    /// The target to read from. A regular stream name reads that stream's last record;
+    /// <see cref="StreamName.Log"/> reads the last record in the log.
+    /// </param>
+    /// <param name="skipDecoding">
+    /// If true, the record's data and metadata will not be deserialized.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A cancellation token to observe while waiting for the task to complete.
+    /// </param>
+    public ValueTask<Record> LastRecord(StreamName stream, bool skipDecoding = false, CancellationToken cancellationToken = default) =>
+        stream == StreamName.Log
+            ? InspectRecord(LogPosition.Latest, skipDecoding, cancellationToken)
+            : ReadStreamEdge(stream, ReadDirection.Backwards, skipDecoding, cancellationToken);
+
+    /// <summary>
+    /// Reads the last record in the log.
+    /// </summary>
+    /// <param name="cancellationToken">
+    /// A cancellation token to observe while waiting for the task to complete.
+    /// </param>
+    public ValueTask<Record> LastRecord(CancellationToken cancellationToken = default) =>
+        LastRecord(StreamName.Log, skipDecoding: false, cancellationToken);
+
+    /// <summary>
     /// Reads the first or last record from a stream.
     /// </summary>
     /// <param name="stream">
@@ -74,7 +130,7 @@ public partial class StreamsClient {
     /// <param name="cancellationToken">
     /// A cancellation token to observe while waiting for the task to complete.
     /// </param>
-    public async ValueTask<Record> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding, CancellationToken cancellationToken) {
+    internal async ValueTask<Record> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding = false, CancellationToken cancellationToken = default) {
         if (stream == StreamName.Unset)
             throw new ArgumentException("Stream name cannot be None", nameof(stream));
 
@@ -89,7 +145,7 @@ public partial class StreamsClient {
                 .ConfigureAwait(false);
 
             // Check the concrete value, not IsRecord: on an empty read FirstOrDefaultAsync returns a
-            // default ReadRecordsResult whose IsRecord is true (variant default = case 0) with a null
+            // default ReadMessage whose IsRecord is true (variant default = case 0) with a null
             // payload, so `IsRecord` would leak that null instead of taking the throw branch.
             return message.Value is Record record
                 ? record
@@ -100,12 +156,12 @@ public partial class StreamsClient {
         }
     }
 
-    public IAsyncEnumerable<ReadRecordsResult> ReadRecords(ReadRecordsOptions options, CancellationToken ct = default) {
+    public IAsyncEnumerable<ReadMessage> ReadRecords(ReadRecordsOptions options, CancellationToken ct = default) {
         options.EnsureValid();
         return ReadRecordsCore(options, ct);
     }
 
-    public IAsyncEnumerable<ReadRecordsResult> ReadStream(StreamName stream, ReadStreamOptions options, CancellationToken ct = default) {
+    public IAsyncEnumerable<ReadMessage> ReadStream(StreamName stream, ReadStreamOptions options, CancellationToken ct = default) {
         // The stream used to live on the options object, so these guards (and the filter/stream
         // agreement check) were validator rules. With the stream now a method parameter, they move
         // here — mirroring the same checks ReadStreamEdge already performs against the parameter.
@@ -128,7 +184,7 @@ public partial class StreamsClient {
     /// read, anything else → the log) and makes sure the start position speaks the target's
     /// currency — translating via the start resolvers instead of silently discarding it.
     /// </summary>
-    async IAsyncEnumerable<ReadRecordsResult> ReadRecordsCore(ReadRecordsOptions options, [EnumeratorCancellation] CancellationToken ct) {
+    async IAsyncEnumerable<ReadMessage> ReadRecordsCore(ReadRecordsOptions options, [EnumeratorCancellation] CancellationToken ct) {
         if (options.Filter.UnwrapFilter() is StreamNameFilter target) {
             var start = AlignSentinels(options.Start, target.TargetStream);
 
@@ -176,7 +232,7 @@ public partial class StreamsClient {
     /// A caller-supplied non-stream filter re-routes through the log — the start revision is
     /// translated into its log position first (one stream read) instead of being discarded.
     /// </summary>
-    async IAsyncEnumerable<ReadRecordsResult> ReadStreamCore(StreamName stream, ReadStreamOptions options, [EnumeratorCancellation] CancellationToken ct) {
+    async IAsyncEnumerable<ReadMessage> ReadStreamCore(StreamName stream, ReadStreamOptions options, [EnumeratorCancellation] CancellationToken ct) {
         // Empty filter → synthesize a stream-name filter; any caller filter wins outright
         // (the guard above ensured an explicit StreamNameFilter agrees with the parameter).
         var filter = options.Filter is EmptyFilter
@@ -215,7 +271,7 @@ public partial class StreamsClient {
         : start.LogPosition == LogPosition.Latest ? RecordPosition.From(LogPosition.Latest, target, Revision.Max)
         : start;
 
-    async IAsyncEnumerable<ReadRecordsResult> ReadCore(
+    async IAsyncEnumerable<ReadMessage> ReadCore(
         ReadReq request, bool skipDecoding, bool throwOnUnresolved,
         RecordFilter filter, uint maxSearchWindow, [EnumeratorCancellation] CancellationToken ct
     ) {
@@ -254,7 +310,7 @@ public partial class StreamsClient {
                 };
             }
 
-            ReadRecordsResult result;
+            ReadMessage result;
 
             // No Checkpoint case on purpose: scan-window checkpoints are emitted by exactly
             // one server enumerator — AllSubscriptionFiltered.
@@ -328,41 +384,29 @@ public static partial class StreamsClientExtensions {
 
         #region ->> Read Records <<-
 
-        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
+        public IAsyncEnumerable<ReadMessage> ReadRecords(LogPosition start, CancellationToken cancellationToken = default) =>
             client.ReadRecords(new ReadRecordsOptions { Start = start }, cancellationToken);
 
-        public IAsyncEnumerable<ReadRecordsResult> ReadRecords(Func<ReadRecordsOptions, ReadRecordsOptions> configure, CancellationToken cancellationToken = default) =>
+        public IAsyncEnumerable<ReadMessage> ReadRecords(Func<ReadRecordsOptions, ReadRecordsOptions> configure, CancellationToken cancellationToken = default) =>
             client.ReadRecords(configure(new ReadRecordsOptions()), cancellationToken);
 
         #endregion
 
         #region ->> Read Streams <<-
 
-        public IAsyncEnumerable<ReadRecordsResult> ReadStream(StreamName stream, Func<ReadStreamOptions, ReadStreamOptions> configure, CancellationToken cancellationToken = default) =>
+        public IAsyncEnumerable<ReadMessage> ReadStream(StreamName stream, Func<ReadStreamOptions, ReadStreamOptions> configure, CancellationToken cancellationToken = default) =>
             client.ReadStream(stream, configure(new ReadStreamOptions()), cancellationToken);
 
-        public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
+        public IAsyncEnumerable<ReadMessage> ReadStream(StreamName stream, Revision start, CancellationToken cancellationToken = default) =>
             client.ReadStream(stream, new ReadStreamOptions { Start = start }, cancellationToken);
 
-        public IAsyncEnumerable<ReadRecordsResult> ReadStreamRecords(StreamName stream, CancellationToken cancellationToken = default) =>
+        public IAsyncEnumerable<ReadMessage> ReadStream(StreamName stream, CancellationToken cancellationToken = default) =>
             client.ReadStream(stream, new ReadStreamOptions(), cancellationToken);
-
-        public ValueTask<Record> ReadFirstStreamRecord(StreamName stream, bool skipDecoding, CancellationToken cancellationToken = default) =>
-            client.ReadStreamEdge(stream, ReadDirection.Forwards, skipDecoding, cancellationToken);
-
-        public ValueTask<Record> ReadLastStreamRecord(StreamName stream, bool skipDecoding, CancellationToken cancellationToken = default) =>
-            client.ReadStreamEdge(stream, ReadDirection.Backwards, skipDecoding, cancellationToken);
-
-        public ValueTask<Record> ReadFirstStreamRecord(StreamName stream, CancellationToken cancellationToken = default) =>
-            client.ReadFirstStreamRecord(stream, false, cancellationToken);
-
-        public ValueTask<Record> ReadLastStreamRecord(StreamName stream, CancellationToken cancellationToken = default) =>
-            client.ReadLastStreamRecord(stream, false, cancellationToken);
 
         #endregion
     }
 
-    extension(IAsyncEnumerable<ReadRecordsResult> source) {
+    extension(IAsyncEnumerable<ReadMessage> source) {
         public ValueTask<List<Record>> ToListAsync() =>
             source.Where(msg => msg.IsRecord).Select(msg => msg.AsRecord).ToListAsync();
     }

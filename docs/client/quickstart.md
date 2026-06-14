@@ -105,10 +105,10 @@ foreach (var record in records) {
 `ReadStream` returns an `IAsyncEnumerable` that streams results lazily from the server. The LINQ pipeline drops heartbeats and materializes the records into a `List<Record>`.
 
 ::: tip
-For the simplest case, the `ReadStreamRecords` and `ToListAsync` extensions collapse to one line:
+For the simplest case, the `ReadStream` and `ToListAsync` extensions collapse to one line:
 
 ```csharp
-var records = await client.Streams.ReadStreamRecords("order-123").ToListAsync();
+var records = await client.Streams.ReadStream("order-123").ToListAsync();
 ```
 :::
 

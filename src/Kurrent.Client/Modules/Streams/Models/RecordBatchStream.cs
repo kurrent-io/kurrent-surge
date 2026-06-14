@@ -10,7 +10,7 @@
 // /// </summary>
 // [PublicAPI]
 // public record RecordBatchStream : IAsyncEnumerable<ReadRecordBatchResult>, IAsyncDisposable {
-//     readonly Lazy<Channel<ReadRecordsResult>> _lazyChannel;
+//     readonly Lazy<Channel<ReadMessage>> _lazyChannel;
 //
 //     readonly int      _batchSize;
 //     readonly TimeSpan _timeout;
@@ -20,16 +20,16 @@
 //     int  _disposed;
 //     int  _enumeratorCreated;
 //
-//     internal RecordBatchStream(Func<Channel<ReadRecordsResult>> channelFactory, int batchSize, TimeSpan timeout) {
-//         _lazyChannel = new Lazy<Channel<ReadRecordsResult>>(channelFactory);
+//     internal RecordBatchStream(Func<Channel<ReadMessage>> channelFactory, int batchSize, TimeSpan timeout) {
+//         _lazyChannel = new Lazy<Channel<ReadMessage>>(channelFactory);
 //         _batchSize   = batchSize;
 //         _timeout     = timeout;
 //     }
 //
-//     internal RecordBatchStream(Func<Channel<ReadRecordsResult>> channelFactory, int batchSize, long timeout)
+//     internal RecordBatchStream(Func<Channel<ReadMessage>> channelFactory, int batchSize, long timeout)
 //         : this(channelFactory, batchSize, TimeSpan.FromMilliseconds(timeout)) { }
 //
-//     Channel<ReadRecordsResult> Channel => _lazyChannel.Value;
+//     Channel<ReadMessage> Channel => _lazyChannel.Value;
 //
 //     public long TotalRecordsRead => Interlocked.Read(ref _totalRecordsRead);
 //     public long TotalBatchesRead => Interlocked.Read(ref _totalBatchesRead);

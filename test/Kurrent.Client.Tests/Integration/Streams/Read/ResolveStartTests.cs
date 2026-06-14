@@ -287,7 +287,7 @@ public class ResolveStartTests {
     async ValueTask<List<Record>> ReadAllStreamRecords(StreamName stream, CancellationToken ct) {
         var records = new List<Record>();
 
-        await foreach (var msg in Fixture.Client.Streams.ReadStreamRecords(stream, ct)) {
+        await foreach (var msg in Fixture.Client.Streams.ReadStream(stream, ct)) {
             if (msg.Value is Record record)
                 records.Add(record);
         }

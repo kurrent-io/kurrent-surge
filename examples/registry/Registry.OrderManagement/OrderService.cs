@@ -27,7 +27,7 @@ public sealed class OrderService(KurrentClient client, ILogger<OrderService> log
     public async ValueTask<List<EventInfo>> GetEvents(string orderId) {
         var events = new List<EventInfo>();
 
-        await foreach (var msg in  client.Streams.ReadStreamRecords(StreamFor(orderId))) {
+        await foreach (var msg in  client.Streams.ReadStream(StreamFor(orderId))) {
             msg.Switch(
                 record => events.Add(new EventInfo(
                     record.Revision.Value,

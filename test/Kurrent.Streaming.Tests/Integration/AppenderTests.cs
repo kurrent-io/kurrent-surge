@@ -390,7 +390,7 @@ public class AppenderTests {
 
     async Task<List<Record>> ReadStream(StreamName stream, CancellationToken ct) =>
         await Fixture.Client.Streams
-            .ReadStreamRecords(stream, ct)
+            .ReadStream(stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);

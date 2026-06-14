@@ -113,10 +113,9 @@ public readonly partial record struct SubscribeMessage : IVariant<Connected, Rec
 
 public readonly record struct Connected(SessionId SessionId);
 
-
 public record SubscribeOptions {
-    public RecordFilter   Filter          { get; init; } = RecordFilter.None;
-    public RecordPosition Start           { get; init; } = RecordPosition.Latest;
+    public RecordFilter   Filter { get; init; } = RecordFilter.None;
+    public RecordPosition Start  { get; init; } = RecordPosition.Latest;
 
     public bool           SkipDecoding    { get; init; }
     public bool           ResolveLinks    { get; init; } = true;
@@ -272,7 +271,7 @@ public partial class StreamsClient {
                                 .FirstOrDefaultAsync(CancellationToken.None)
                                 .ConfigureAwait(false);
 
-                            // Check the concrete value, not IsRecord: a default ReadRecordsResult (empty
+                            // Check the concrete value, not IsRecord: a default ReadMessage (empty
                             // read) reports IsRecord == true with a null payload.
                             if (last.Value is Record lastRecord)
                                 checkpoint = checkpoint with { Positions = [lastRecord.Position] };

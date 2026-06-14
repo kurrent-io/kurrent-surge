@@ -37,7 +37,7 @@ public class ConcurrencyStressTests {
 		await Assert.That(results.Length).IsEqualTo(concurrency);
 
 		foreach (var result in results)
-			await Assert.That(result.Position.Value).IsGreaterThanOrEqualTo(0);
+			await Assert.That(result.Position.LogPosition.Value).IsGreaterThanOrEqualTo(0);
 
 		Log.Information(
 			"Completed {Count} concurrent appends in {Elapsed}ms",

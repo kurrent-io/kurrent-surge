@@ -40,7 +40,7 @@ public class AppendStreamTests {
             .AppendStream(data.Stream, data.Records.Skip(1), created.Revision, ct);
 
         // Assert
-        await Assert.That(result.Position).IsGreaterThan(created.Position);
+        await Assert.That(result.Position.LogPosition).IsGreaterThan(created.Position.LogPosition);
         await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
@@ -59,7 +59,7 @@ public class AppendStreamTests {
             .AppendStream(data.Stream, data.Records.Skip(1), created.Revision, ct);
 
         // Assert
-        await Assert.That(result.Position).IsGreaterThan(created.Position);
+        await Assert.That(result.Position.LogPosition).IsGreaterThan(created.Position.LogPosition);
         await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
@@ -78,7 +78,7 @@ public class AppendStreamTests {
             .AppendStream(data.Stream, data.Records.Skip(1), ExpectedStreamCondition.Any, ct);
 
         // Assert
-        await Assert.That(result.Position).IsGreaterThan(created.Position);
+        await Assert.That(result.Position.LogPosition).IsGreaterThan(created.Position.LogPosition);
         await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
@@ -95,7 +95,7 @@ public class AppendStreamTests {
         var result = await Fixture.Client.Streams.AppendStream(data.Stream, data.Records.Skip(1), ct);
 
         // Assert
-        await Assert.That(result.Position).IsGreaterThan(created.Position);
+        await Assert.That(result.Position.LogPosition).IsGreaterThan(created.Position.LogPosition);
         await Assert.That(result.Revision).IsEqualTo(expectedRevision);
     }
 
@@ -195,7 +195,7 @@ public class AppendStreamTests {
         await Assert.That(info.Retention.MaxCount).IsEqualTo(maxCount);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct);
+            .ReadStream(data.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -224,7 +224,7 @@ public class AppendStreamTests {
         await Assert.That(info.Retention.MaxAge).IsEqualTo(maxAge);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct);
+            .ReadStream(data.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -257,7 +257,7 @@ public class AppendStreamTests {
         await Assert.That(info.Retention).IsEqualTo(options);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct);
+            .ReadStream(data.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)

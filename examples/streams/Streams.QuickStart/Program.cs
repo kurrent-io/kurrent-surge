@@ -24,7 +24,7 @@ var result = await client.Streams.AppendStream(stream, records, ExpectedStreamSt
 Log.Information("Appended {} events to {Stream} at revision {Revision}", records.Length, stream, result.Revision);
 
 // Read them back
-await foreach (var message in client.Streams.ReadStreamRecords(stream)) {
+await foreach (var message in client.Streams.ReadStream(stream)) {
     message.Switch(
         record => Log.Information(record.ToString()),
         _ => { });

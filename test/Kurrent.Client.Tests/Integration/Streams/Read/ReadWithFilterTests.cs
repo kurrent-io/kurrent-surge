@@ -176,7 +176,7 @@ public class ReadWithFilterTests {
         var category     = simulation.Stream.Category;
 
         var firstRecord = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
+            .ReadStream(simulation.Stream, ct)
             .Where(m => m.IsRecord).Select(m => m.AsRecord)
             .FirstAsync(ct);
 
@@ -222,7 +222,7 @@ public class ReadWithFilterTests {
         var simulation   = await Fixture.SeedTestStream(ct);
 
         var firstRecord = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
+            .ReadStream(simulation.Stream, ct)
             .Where(m => m.IsRecord).Select(m => m.AsRecord)
             .FirstAsync(ct);
 
@@ -278,7 +278,7 @@ public class ReadWithFilterTests {
         // stream = 'X' has higher priority than schema_name in extraction,
         // so stream takes priority and routes to the stream directly
         var firstRecord = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
+            .ReadStream(simulation.Stream, ct)
             .Where(m => m.IsRecord)
             .Select(m => m.AsRecord)
             .FirstAsync(ct);

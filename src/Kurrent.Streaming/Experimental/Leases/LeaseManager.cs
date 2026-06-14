@@ -195,7 +195,7 @@
 //     }
 //
 //     async Task<VersionedLease> LoadLease(string leaseStreamId, CancellationToken token) {
-//         var leaseRecord = await Reader.ReadLastStreamRecord(leaseStreamId, token).ConfigureAwait(false);
+//         var leaseRecord = await Reader.LastRecord(leaseStreamId, token).ConfigureAwait(false);
 //
 //         return leaseRecord.Value is Lease lease
 //             ? new VersionedLease {
@@ -233,7 +233,7 @@
 //         // // it means the stream was deleted or truncated,
 //         // // and therefore we can retry immediately
 //         // var isEmpty = await Reader
-//         //     .ReadLastStreamRecord(leaseStreamId, token)
+//         //     .LastRecord(leaseStreamId, token)
 //         //     .Then(x => x == SurgeRecord.None);
 //         //
 //         // if (!isEmpty)

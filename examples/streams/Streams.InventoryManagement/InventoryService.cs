@@ -105,7 +105,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         var level    = 0;
         var revision = Revision.From(0);
 
-        await foreach (var message in client.Streams.ReadStreamRecords(StreamFor(sku))) {
+        await foreach (var message in client.Streams.ReadStream(StreamFor(sku))) {
             if (message.Value is Record record) {
                 revision = record.Revision;
                 level += record.Value switch {
@@ -125,25 +125,25 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// Read the full event history for a SKU as a list.
     /// </summary>
     public ValueTask<List<Record>> GetHistory(string sku) => 
-        client.Streams.ReadStreamRecords(StreamFor(sku)).ToListAsync();
+        client.Streams.ReadStream(StreamFor(sku)).ToListAsync();
 
     /// <summary>
     /// Get the first event in a SKU stream (when this SKU was first tracked).
     /// </summary>
     public ValueTask<Record> GetFirstEvent(string sku) => 
-        client.Streams.ReadFirstStreamRecord(StreamFor(sku));
+        client.Streams.FirstRecord(StreamFor(sku));
 
     /// <summary>
     /// Get the most recent event in a SKU stream.
     /// </summary>
     public ValueTask<Record> GetLatestEvent(string sku) => 
-        client.Streams.ReadLastStreamRecord(StreamFor(sku));
+        client.Streams.LastRecord(StreamFor(sku));
 
     /// <summary>
     /// Read events from a known revision onwards — catch-up from a checkpoint.
     /// </summary>
     public async ValueTask<List<Record>> GetEventsSince(string sku, Revision fromRevision) {
-        return await client.Streams.ReadStreamRecords(StreamFor(sku), fromRevision)
+        return await client.Streams.ReadStream(StreamFor(sku), fromRevision)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync();

@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace Kurrent.Client.Streams;
 
 public static partial class StreamsClientExtensions {
-    extension(IAsyncEnumerable<ReadRecordsResult> source) {
+    extension(IAsyncEnumerable<ReadMessage> source) {
         /// <summary>
         /// Projects a read down to its records, routing every <see cref="Checkpoint"/> to
         /// <paramref name="onCheckpoint"/>. A client-filtered read (one whose filter

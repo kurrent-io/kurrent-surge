@@ -18,7 +18,7 @@ public class TruncateTests {
             .Truncate(simulation.Stream, simulation.Revision, ct);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct);
+            .ReadStream(simulation.Stream, ct);
 
         var count = await messages.CountAsync(ct);
         await Assert.That(count).IsEqualTo(1);
@@ -34,7 +34,7 @@ public class TruncateTests {
             .Truncate(simulation.Stream, revision, ct);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct);
+            .ReadStream(simulation.Stream, ct);
 
         var count = await messages.CountAsync(ct);
 

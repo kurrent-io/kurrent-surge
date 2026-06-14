@@ -60,7 +60,7 @@ public class ReadTests {
         var now = Fixture.Time.GetUtcNow();
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct);
+            .ReadStream(data.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -107,7 +107,7 @@ public class ReadTests {
         var data = await Fixture.SeedTestStream(records, cancellator.Token);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, cancellator.Token);
+            .ReadStream(data.Stream, cancellator.Token);
 
         var cancelOn = (data.Records.Length / 2) + (data.Records.Length % 2);
         var read     = 0;
@@ -139,7 +139,7 @@ public class ReadTests {
         var data = await Fixture.SeedTestStream(records, cancellator.Token);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, cancellator.Token);
+            .ReadStream(data.Stream, cancellator.Token);
 
         var cancelOn = (data.Records.Length / 2) + (data.Records.Length % 2);
         var read     = 0;
@@ -188,7 +188,7 @@ public class ReadTests {
         var simulation = await Fixture.SeedTestStream(ct);
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct);
+            .ReadStream(simulation.Stream, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -222,7 +222,7 @@ public class ReadTests {
         var startFrom = 5;
 
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords(seedData.Stream, startFrom, ct);
+            .ReadStream(seedData.Stream, startFrom, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
@@ -254,7 +254,7 @@ public class ReadTests {
             .Delete(data.Stream, ct);
 
         await Assert.That(async () => {
-            await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
+            await foreach (var _ in Fixture.Client.Streams.ReadStream(data.Stream, ct)) { }
         }).Throws<StreamDeletedException>();
     }
 
@@ -266,7 +266,7 @@ public class ReadTests {
             .Tombstone(data.Stream, ct);
 
         await Assert.That(async () => {
-            await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
+            await foreach (var _ in Fixture.Client.Streams.ReadStream(data.Stream, ct)) { }
         }).Throws<StreamTombstonedException>();
     }
 
@@ -275,7 +275,7 @@ public class ReadTests {
         var data = await Fixture.TestData.GenerateSet(ct);
 
         await Assert.That(async () => {
-            await foreach (var _ in Fixture.Client.Streams.ReadStreamRecords(data.Stream, ct)) { }
+            await foreach (var _ in Fixture.Client.Streams.ReadStream(data.Stream, ct)) { }
         }).Throws<StreamNotFoundException>();
     }
 

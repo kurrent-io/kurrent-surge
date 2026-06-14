@@ -118,3 +118,20 @@ public readonly record struct QueryPredicateCheck(string Expression) {
     /// </summary>
     public required string Expression { get; init; } = Expression;
 }
+
+/// <summary>
+/// The result of appending records to a single stream. Carries the full position of the
+/// last appended record; <see cref="Stream"/> and <see cref="Revision"/> are views over it.
+/// </summary>
+[PublicAPI]
+public record AppendStreamResponse(RecordPosition Position) {
+    /// <summary>
+    /// The stream the records were appended to.
+    /// </summary>
+    public StreamName Stream => Position.Stream;
+
+    /// <summary>
+    /// The revision of the last appended record.
+    /// </summary>
+    public Revision Revision => Position.Revision;
+}

@@ -1,6 +1,14 @@
 using Kurrent.Validation;
+using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;
+
+/// <summary>
+/// A single element of a read, which can be either a <see cref="Record"/> or a <see cref="Checkpoint"/>.
+/// </summary>
+public readonly partial record struct ReadMessage : IVariant<Record, Checkpoint> {
+    internal static readonly ReadMessage None = default;
+}
 
 /// <summary>
 /// Options for reading records from the global log.

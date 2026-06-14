@@ -164,7 +164,7 @@ public class ScavengeTests {
 
         // Act
         var messages = Fixture.Client.Streams
-            .ReadStreamRecords("$scavenges", Revision.Min, ct);
+            .ReadStream("$scavenges", Revision.Min, ct);
 
         var records = await messages
             .Where(msg => msg.IsRecord)
