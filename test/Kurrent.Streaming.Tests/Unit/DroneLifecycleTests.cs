@@ -451,7 +451,7 @@ public class DroneLifecycleTests {
 		var ownedPartition = Partition.From(0);
 
 		await Assert.That(drone.Progress.Checkpoint.TotalCheckpoints).IsGreaterThanOrEqualTo(1L);
-		await Assert.That(drone.Progress.Partitions[ownedPartition].LastFlushedPosition.LogPosition).IsEqualTo(watermark);
+		await Assert.That(drone.Progress[ownedPartition].LastFlushedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
 	[Test]
@@ -477,7 +477,7 @@ public class DroneLifecycleTests {
 		var ownedPartition = Partition.From(0);
 
 		await Assert.That(drone.Progress.Checkpoint.TotalCheckpoints).IsGreaterThanOrEqualTo(1L);
-		await Assert.That(drone.Progress.Partitions[ownedPartition].LastFlushedPosition.LogPosition).IsEqualTo(watermark);
+		await Assert.That(drone.Progress[ownedPartition].LastFlushedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
 	#endregion // watermark / OnCheckpoint
@@ -684,8 +684,7 @@ public class DroneLifecycleTests {
 		var committed = RecordPosition.From(LogPosition.From(200), Partition.From(0));
 		var progress  = DroneProgress.Empty with {
 			Throughput = ThroughputMetrics.Empty with { LastProcessedAt = headTime.AddSeconds(-5) },
-			Partitions = ImmutableDictionary<Partition, PartitionProgress>.Empty
-				.Add(Partition.From(0), new PartitionProgress(committed, committed))
+			Partitions = [new PartitionProgress(Partition.From(0), committed, committed)]
 		};
 
 		long?   lagBytes   = null;
@@ -718,11 +717,12 @@ public class DroneLifecycleTests {
 		var partition = Partition.From(0);
 		var progress  = DroneProgress.Empty with {
 			Checkpoint = CheckpointProgress.Empty with { RecordsSinceLastCheckpoint = 7 },
-			Partitions = new Dictionary<Partition, PartitionProgress> {
-				[partition] = new PartitionProgress(
+			Partitions = [
+				new PartitionProgress(
+					partition,
 					RecordPosition.From(LogPosition.From(500), partition),
 					RecordPosition.From(LogPosition.From(200), partition))
-			}
+			]
 		};
 
 		// Act & Assert — records from RecordsSinceLastCheckpoint; bytes from the per-partition gap.
@@ -738,10 +738,10 @@ public class DroneLifecycleTests {
 		var p1 = Partition.From(1);
 
 		var progress = DroneProgress.Empty with {
-			Partitions = new Dictionary<Partition, PartitionProgress> {
-				[p0] = new PartitionProgress(RecordPosition.From(LogPosition.From(500), p0), RecordPosition.From(LogPosition.From(200), p0)),
-				[p1] = new PartitionProgress(RecordPosition.From(LogPosition.From(150), p1), RecordPosition.From(LogPosition.From(100), p1))
-			}
+			Partitions = [
+				new PartitionProgress(p0, RecordPosition.From(LogPosition.From(500), p0), RecordPosition.From(LogPosition.From(200), p0)),
+				new PartitionProgress(p1, RecordPosition.From(LogPosition.From(150), p1), RecordPosition.From(LogPosition.From(100), p1))
+			]
 		};
 
 		// Act & Assert
@@ -754,9 +754,9 @@ public class DroneLifecycleTests {
 		var partition = Partition.From(0);
 
 		var progress = DroneProgress.Empty with {
-			Partitions = new Dictionary<Partition, PartitionProgress> {
-				[partition] = new PartitionProgress(RecordPosition.From(LogPosition.From(500), partition), RecordPosition.Unset)
-			}
+			Partitions = [
+				new PartitionProgress(partition, RecordPosition.From(LogPosition.From(500), partition), RecordPosition.Unset)
+			]
 		};
 
 		// Act & Assert
@@ -771,9 +771,9 @@ public class DroneLifecycleTests {
 		var partition = Partition.From(0);
 
 		var progress = DroneProgress.Empty with {
-			Partitions = new Dictionary<Partition, PartitionProgress> {
-				[partition] = new PartitionProgress(RecordPosition.From(LogPosition.From(200), partition), RecordPosition.From(LogPosition.From(500), partition))
-			}
+			Partitions = [
+				new PartitionProgress(partition, RecordPosition.From(LogPosition.From(200), partition), RecordPosition.From(LogPosition.From(500), partition))
+			]
 		};
 
 		// Act & Assert

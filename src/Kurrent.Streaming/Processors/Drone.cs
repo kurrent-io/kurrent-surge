@@ -57,7 +57,7 @@ sealed class Drone : IDrone {
                 nameof(processor))
         };
 
-        _progress = new ProgressTracker(timeProvider);
+        _progress = new ProgressTracker(timeProvider, options.MaxParallelism);
 
         var logger = loggerFactory.CreateLogger<Drone>();
 
@@ -271,12 +271,12 @@ sealed class Drone : IDrone {
 
         if (autoTrack && !ctx.StopRequested) {
             _checkpointer.Track(record.Position);
-            _progress.TrackPosition(record.Position, record.Position.Partition);
+            _progress.TrackPosition(record.Position);
         }
         else if (ctx.TrackedByUser) {
             // Manual track (auto-track off, or a stop record the user explicitly claimed): the
             // checkpointer was already advanced by ctx.Track; mirror the position into progress.
-            _progress.TrackPosition(record.Position, record.Position.Partition);
+            _progress.TrackPosition(record.Position);
         }
 
         if (ctx.CheckpointRequested)
@@ -284,8 +284,8 @@ sealed class Drone : IDrone {
                 .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
                 .ConfigureAwait(false);
 
-        var progress = Progress;
-        scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
+        // Cheap scalar reads — never materialize the full DroneProgress snapshot on the per-record path.
+        scope.Complete(_progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
 
         return ctx.StopRequested
             ? RecordProcessingResult.Stop(ctx.StopReason)
@@ -323,11 +323,11 @@ sealed class Drone : IDrone {
 
             if (autoTrack) {
                 _checkpointer.Track(record.Position);
-                _progress.TrackPosition(record.Position, record.Position.Partition);
+                _progress.TrackPosition(record.Position);
             }
 
-            var progress = Progress;
-            scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
+            // Cheap scalar reads — never materialize the full DroneProgress snapshot per record.
+            scope.Complete(_progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
         }
 
         if (ctx.CheckpointRequested)

@@ -72,7 +72,7 @@ sealed class SourceLagProbe : IAsyncDisposable {
         static LogPosition? LowestProgressed(DroneProgress progress) {
             LogPosition? lowest = null;
 
-            foreach (var (_, partition) in progress.Partitions) {
+            foreach (var partition in progress.Partitions) {
                 var position = partition.LastFlushedPosition.LogPosition != LogPosition.Unset
                     ? partition.LastFlushedPosition.LogPosition
                     : partition.LastTrackedPosition.LogPosition;

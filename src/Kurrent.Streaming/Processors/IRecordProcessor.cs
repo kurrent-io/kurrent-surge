@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
@@ -278,7 +277,7 @@ public record CheckpointContext : DroneContext {
 public readonly record struct DroneProgress(
     ThroughputMetrics Throughput,
     CheckpointProgress Checkpoint,
-    IReadOnlyDictionary<Partition, PartitionProgress> Partitions
+    IReadOnlyList<PartitionProgress> Partitions
 ) {
     /// <summary>
     /// Number of partitions currently assigned.
@@ -298,19 +297,27 @@ public readonly record struct DroneProgress(
     public long UncommittedBytes {
         get {
             var total = 0L;
-            foreach (var partition in Partitions.Values)
+            foreach (var partition in Partitions)
                 total += partition.UncommittedBytes;
             return total;
         }
     }
 
     /// <summary>
-    /// Gets progress for a specific partition.
+    /// Gets progress for a specific partition. Entries are self-describing, so this scans the list.
     /// </summary>
     /// <param name="partition">The partition to get progress for.</param>
     /// <returns>The partition's progress.</returns>
     /// <exception cref="KeyNotFoundException">If the partition is not being tracked.</exception>
-    public PartitionProgress this[Partition partition] => Partitions[partition];
+    public PartitionProgress this[Partition partition] {
+        get {
+            foreach (var p in Partitions)
+                if (p.Partition == partition)
+                    return p;
+
+            throw new KeyNotFoundException($"Partition {partition} is not being tracked.");
+        }
+    }
 
     /// <summary>
     /// Tries to get progress for a specific partition.
@@ -318,8 +325,16 @@ public readonly record struct DroneProgress(
     /// <param name="partition">The partition to get progress for.</param>
     /// <param name="progress">The partition's progress if found.</param>
     /// <returns>True if the partition was found; otherwise false.</returns>
-    public bool TryGetPartition(Partition partition, out PartitionProgress progress) =>
-        Partitions.TryGetValue(partition, out progress);
+    public bool TryGetPartition(Partition partition, out PartitionProgress progress) {
+        foreach (var p in Partitions)
+            if (p.Partition == partition) {
+                progress = p;
+                return true;
+            }
+
+        progress = PartitionProgress.Empty;
+        return false;
+    }
 
     /// <summary>
     /// Gets the partition with the lowest checkpoint position.
@@ -331,8 +346,8 @@ public readonly record struct DroneProgress(
             if (Partitions.Count == 0)
                 return null;
 
-            var min = Partitions.MinBy(x => x.Value.LastFlushedPosition);
-            return (min.Key, min.Value);
+            var min = Partitions.MinBy(x => x.LastFlushedPosition);
+            return (min.Partition, min);
         }
     }
 
@@ -342,13 +357,15 @@ public readonly record struct DroneProgress(
     public static readonly DroneProgress Empty = new(
         ThroughputMetrics.Empty,
         CheckpointProgress.Empty,
-        ReadOnlyDictionary<Partition, PartitionProgress>.Empty
+        []
     );
 }
 
 /// <summary>
-/// Position progress for a single partition.
+/// Position progress for a single partition. Self-describing — carries its own <see cref="Partition"/>,
+/// so a snapshot holds these in a flat list rather than a dictionary keyed by partition.
 /// </summary>
+/// <param name="Partition">The partition this progress belongs to.</param>
 /// <param name="LastTrackedPosition">
 /// The most recent position tracked (processed) but not yet checkpointed.
 /// Returns <see cref="LogPosition.Unset"/> if no positions are pending.
@@ -359,13 +376,14 @@ public readonly record struct DroneProgress(
 /// </param>
 [PublicAPI]
 public readonly record struct PartitionProgress(
+    Partition      Partition,
     RecordPosition LastTrackedPosition,
     RecordPosition LastFlushedPosition
 ) {
     /// <summary>
     /// Empty partition progress with no positions tracked or flushed.
     /// </summary>
-    public static readonly PartitionProgress Empty = new(RecordPosition.Unset, RecordPosition.Unset);
+    public static readonly PartitionProgress Empty = new(default, RecordPosition.Unset, RecordPosition.Unset);
 
     /// <summary>
     /// Bytes tracked but not yet committed for this partition — the replay window. The gap between

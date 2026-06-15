@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 
@@ -8,6 +7,12 @@ namespace Kurrent.Streaming;
 /// Tracks processing progress and computes metrics for a processing session.
 /// Push-based: the Drone feeds it explicitly at each step, no reference to the source.
 /// </summary>
+/// <remarks>
+/// The hot path allocates nothing. Counters are plain fields; per-partition positions live in one array
+/// sized once to the owned partition count and indexed directly by partition number (owned partitions are
+/// <c>0..N-1</c>), mutated in place. A <see cref="DroneProgress"/> snapshot is built only on demand
+/// (<see cref="Progress"/>) — never per record.
+/// </remarks>
 sealed class ProgressTracker {
     readonly TimeProvider   _timeProvider;
     readonly DateTimeOffset _startedAt;
@@ -21,17 +26,20 @@ sealed class ProgressTracker {
     // to compute source_lag_seconds (how far behind in event-time the drone is).
     DateTime? _lastProcessedAt;
 
-    string            _lastCheckpointId      = "";
     CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
     DateTimeOffset?   _lastCheckpointAt;
 
-    readonly Dictionary<Partition, RecordPosition> _trackedPositions = new();
-    readonly Dictionary<Partition, RecordPosition> _flushedPositions = new();
+    // One slot per owned partition, index == partition number. Allocated once; mutated in place.
+    readonly PartitionProgress[] _partitions;
 
-    public ProgressTracker(TimeProvider timeProvider) {
+    public ProgressTracker(TimeProvider timeProvider, int partitionCount) {
         _timeProvider   = timeProvider;
         _startedAt      = timeProvider.GetUtcNow();
         _startTimestamp = timeProvider.GetTimestamp();
+
+        _partitions = new PartitionProgress[partitionCount];
+        for (var i = 0; i < partitionCount; i++)
+            _partitions[i] = new PartitionProgress(Partition.From(i), RecordPosition.Unset, RecordPosition.Unset);
     }
 
     /// <summary>
@@ -45,10 +53,12 @@ sealed class ProgressTracker {
     }
 
     /// <summary>
-    /// Records that a position has been tracked (handled, pending commit) for its partition.
+    /// Records that a position has been tracked (handled, pending commit). The position carries its own
+    /// partition, so it indexes the slot directly — no lookup, no allocation.
     /// </summary>
-    public void TrackPosition(RecordPosition position, Partition partition) {
-        _trackedPositions[partition] = position;
+    public void TrackPosition(RecordPosition position) {
+        ref var slot = ref _partitions[position.Partition.Value];
+        slot = slot with { LastTrackedPosition = position };
     }
 
     /// <summary>
@@ -57,16 +67,40 @@ sealed class ProgressTracker {
     public void TrackCheckpoint(Checkpoint checkpoint, RecordPosition[] positions) {
         _totalCheckpoints++;
         _recordsAtLastCheckpoint = _totalRecords;
-        _lastCheckpointId        = checkpoint.Id;
         _lastCheckpointTrigger   = checkpoint.TriggerKind;
         _lastCheckpointAt        = checkpoint.Timestamp;
 
-        foreach (var position in positions)
-            _flushedPositions[position.Partition] = position;
+        foreach (var position in positions) {
+            ref var slot = ref _partitions[position.Partition.Value];
+            slot = slot with { LastFlushedPosition = position };
+        }
+    }
+
+    /// <summary>Total records dispatched so far. Cheap scalar — never allocates.</summary>
+    public long TotalRecords => _totalRecords;
+
+    /// <summary>
+    /// Records tracked but not yet committed — the replay window in records. Cheap scalar; the same value
+    /// the snapshot exposes as <c>CheckpointProgress.RecordsSinceLastCheckpoint</c>, without building one.
+    /// </summary>
+    public long UncommittedRecords => _totalRecords - _recordsAtLastCheckpoint;
+
+    /// <summary>
+    /// Bytes tracked but not yet committed across all partitions — the replay window in bytes. Sums the
+    /// per-partition gap straight off the array, so the per-record hot path never builds a snapshot.
+    /// </summary>
+    public long UncommittedBytes {
+        get {
+            var total = 0L;
+            foreach (var partition in _partitions)
+                total += partition.UncommittedBytes;   // 0 for untouched slots
+            return total;
+        }
     }
 
     /// <summary>
-    /// Computes current progress snapshot.
+    /// Builds the current progress snapshot. Counters and timings are copied off the fields; the partition
+    /// list is the only allocation, and it happens here on demand — never on the per-record path.
     /// </summary>
     public DroneProgress Progress {
         get {
@@ -89,31 +123,32 @@ sealed class ProgressTracker {
                 LastCheckpointAt:           _lastCheckpointAt
             );
 
-            var partitions = BuildPartitionProgress();
-
-            return new DroneProgress(throughput, checkpoint, partitions);
+            return new DroneProgress(throughput, checkpoint, SnapshotPartitions());
         }
     }
 
-    IReadOnlyDictionary<Partition, PartitionProgress> BuildPartitionProgress() {
-        if (_flushedPositions.Count == 0 && _trackedPositions.Count == 0)
-            return ReadOnlyDictionary<Partition, PartitionProgress>.Empty;
+    // Freeze a copy of the slots that have any progress. Two passes to size the result array exactly —
+    // built only when a snapshot is requested, so allocation here is off the hot path.
+    IReadOnlyList<PartitionProgress> SnapshotPartitions() {
+        var active = 0;
+        foreach (var p in _partitions)
+            if (HasProgress(p))
+                active++;
 
-        // Collect all known partitions, then merge tracked + flushed into one entry each. A plain
-        // Dictionary snapshot is cheaper to build per access than an ImmutableDictionary (AVL tree);
-        // it is never mutated after return, so it is a safe read-only snapshot.
-        var allPartitions = new HashSet<Partition>(_flushedPositions.Keys);
-        foreach (var key in _trackedPositions.Keys)
-            allPartitions.Add(key);
+        if (active == 0)
+            return [];
 
-        var result = new Dictionary<Partition, PartitionProgress>(allPartitions.Count);
+        var result = new PartitionProgress[active];
 
-        foreach (var partition in allPartitions) {
-            var lastTracked = _trackedPositions.GetValueOrDefault(partition, RecordPosition.Unset);
-            var lastFlushed = _flushedPositions.GetValueOrDefault(partition, RecordPosition.Unset);
-            result[partition] = new PartitionProgress(lastTracked, lastFlushed);
-        }
+        var i = 0;
+        foreach (var p in _partitions)
+            if (HasProgress(p))
+                result[i++] = p;
 
         return result;
+
+        static bool HasProgress(PartitionProgress p) =>
+            p.LastTrackedPosition.LogPosition != LogPosition.Unset ||
+            p.LastFlushedPosition.LogPosition != LogPosition.Unset;
     }
 }
