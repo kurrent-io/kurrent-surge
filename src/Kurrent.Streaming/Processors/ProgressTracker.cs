@@ -4,14 +4,14 @@ using Kurrent.Client.Streams;
 namespace Kurrent.Streaming;
 
 /// <summary>
-/// Tracks processing progress and computes metrics for a processing session.
-/// Push-based: the Drone feeds it explicitly at each step, no reference to the source.
+/// Tracks processing progress for a session. Push-based: the Drone feeds it explicitly at each step.
 /// </summary>
 /// <remarks>
-/// The hot path allocates nothing. Counters are plain fields; per-partition positions live in one array
-/// sized once to the owned partition count and indexed directly by partition number (owned partitions are
-/// <c>0..N-1</c>), mutated in place. A <see cref="DroneProgress"/> snapshot is built only on demand
-/// (<see cref="Progress"/>) — never per record.
+/// Every value is maintained as state at the moment it changes — counting a record, tracking a
+/// position, committing a checkpoint. Reads are field returns. The only thing computed at read time is
+/// throughput rate / elapsed, which depend on the current clock and so can't be stored. Per-partition
+/// positions live in one array sized once to the owned partition count and indexed directly by partition
+/// number (owned partitions are <c>0..N-1</c>), mutated in place. Zero per-record allocation.
 /// </remarks>
 sealed class ProgressTracker {
     readonly TimeProvider   _timeProvider;
@@ -20,7 +20,8 @@ sealed class ProgressTracker {
 
     long _totalRecords;
     long _totalCheckpoints;
-    long _recordsAtLastCheckpoint;
+    long _uncommittedRecords;   // ++ per record, reset to 0 on checkpoint
+    long _uncommittedBytes;     // adjusted by each partition's gap delta on track/flush
 
     // The event-time of the last dispatched record. Compared against the readable head's timestamp
     // to compute source_lag_seconds (how far behind in event-time the drone is).
@@ -39,7 +40,7 @@ sealed class ProgressTracker {
 
         _partitions = new PartitionProgress[partitionCount];
         for (var i = 0; i < partitionCount; i++)
-            _partitions[i] = new PartitionProgress(Partition.From(i), RecordPosition.Unset, RecordPosition.Unset);
+            _partitions[i] = new(Partition.From(i), RecordPosition.Unset, RecordPosition.Unset);
     }
 
     /// <summary>
@@ -49,58 +50,50 @@ sealed class ProgressTracker {
     /// </summary>
     public void CountThroughput(Record record) {
         _totalRecords++;
+        _uncommittedRecords++;
         _lastProcessedAt = record.Timestamp;
     }
 
     /// <summary>
     /// Records that a position has been tracked (handled, pending commit). The position carries its own
-    /// partition, so it indexes the slot directly — no lookup, no allocation.
+    /// partition, so it indexes the slot directly. Folds the partition's byte-gap delta into the running
+    /// uncommitted total — no read-time loop.
     /// </summary>
     public void TrackPosition(RecordPosition position) {
         ref var slot = ref _partitions[position.Partition.Value];
+
+        var before = slot.UncommittedBytes;                  // this partition's gap, pre-update
         slot = slot with { LastTrackedPosition = position };
+        _uncommittedBytes += slot.UncommittedBytes - before; // apply the delta
     }
 
     /// <summary>
-    /// Tracks a checkpoint completion with committed positions.
+    /// Tracks a checkpoint completion with committed positions. Resets the uncommitted-record count and
+    /// folds each partition's shrinking byte-gap into the running uncommitted total.
     /// </summary>
     public void TrackCheckpoint(Checkpoint checkpoint, RecordPosition[] positions) {
         _totalCheckpoints++;
-        _recordsAtLastCheckpoint = _totalRecords;
-        _lastCheckpointTrigger   = checkpoint.TriggerKind;
-        _lastCheckpointAt        = checkpoint.Timestamp;
+        _uncommittedRecords    = 0;
+        _lastCheckpointTrigger = checkpoint.TriggerKind;
+        _lastCheckpointAt      = checkpoint.Timestamp;
 
         foreach (var position in positions) {
             ref var slot = ref _partitions[position.Partition.Value];
+
+            var before = slot.UncommittedBytes;
             slot = slot with { LastFlushedPosition = position };
+            _uncommittedBytes += slot.UncommittedBytes - before;
         }
     }
 
-    /// <summary>Total records dispatched so far. Cheap scalar — never allocates.</summary>
-    public long TotalRecords => _totalRecords;
+    // Reads — field returns, nothing computed.
+    public long TotalRecords       => _totalRecords;
+    public long UncommittedRecords => _uncommittedRecords;
+    public long UncommittedBytes   => _uncommittedBytes;
 
     /// <summary>
-    /// Records tracked but not yet committed — the replay window in records. Cheap scalar; the same value
-    /// the snapshot exposes as <c>CheckpointProgress.RecordsSinceLastCheckpoint</c>, without building one.
-    /// </summary>
-    public long UncommittedRecords => _totalRecords - _recordsAtLastCheckpoint;
-
-    /// <summary>
-    /// Bytes tracked but not yet committed across all partitions — the replay window in bytes. Sums the
-    /// per-partition gap straight off the array, so the per-record hot path never builds a snapshot.
-    /// </summary>
-    public long UncommittedBytes {
-        get {
-            var total = 0L;
-            foreach (var partition in _partitions)
-                total += partition.UncommittedBytes;   // 0 for untouched slots
-            return total;
-        }
-    }
-
-    /// <summary>
-    /// Builds the current progress snapshot. Counters and timings are copied off the fields; the partition
-    /// list is the only allocation, and it happens here on demand — never on the per-record path.
+    /// On-demand snapshot. Counters are copied off the fields; rate / elapsed are the only computed
+    /// values (they depend on "now"). The partition list is the only allocation, built here on demand.
     /// </summary>
     public DroneProgress Progress {
         get {
@@ -118,7 +111,7 @@ sealed class ProgressTracker {
 
             var checkpoint = new CheckpointProgress(
                 TotalCheckpoints:           _totalCheckpoints,
-                RecordsSinceLastCheckpoint: _totalRecords - _recordsAtLastCheckpoint,
+                RecordsSinceLastCheckpoint: _uncommittedRecords,
                 LastTrigger:                _lastCheckpointTrigger,
                 LastCheckpointAt:           _lastCheckpointAt
             );
@@ -127,28 +120,8 @@ sealed class ProgressTracker {
         }
     }
 
-    // Freeze a copy of the slots that have any progress. Two passes to size the result array exactly —
-    // built only when a snapshot is requested, so allocation here is off the hot path.
-    IReadOnlyList<PartitionProgress> SnapshotPartitions() {
-        var active = 0;
-        foreach (var p in _partitions)
-            if (HasProgress(p))
-                active++;
-
-        if (active == 0)
-            return [];
-
-        var result = new PartitionProgress[active];
-
-        var i = 0;
-        foreach (var p in _partitions)
-            if (HasProgress(p))
-                result[i++] = p;
-
-        return result;
-
-        static bool HasProgress(PartitionProgress p) =>
-            p.LastTrackedPosition.LogPosition != LogPosition.Unset ||
-            p.LastFlushedPosition.LogPosition != LogPosition.Unset;
-    }
+    // A frozen copy of every owned partition. The drone owns its partitions from the start, so the
+    // snapshot always carries all of them — idle ones simply hold Unset positions. No active filter,
+    // no scan: one copy of the live slots, built only when a snapshot is requested.
+    IReadOnlyList<PartitionProgress> SnapshotPartitions() => [.._partitions];
 }
