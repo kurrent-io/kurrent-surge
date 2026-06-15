@@ -158,7 +158,23 @@ public partial class StreamsClient {
 
     public IAsyncEnumerable<ReadMessage> ReadRecords(ReadRecordsOptions options, CancellationToken ct = default) {
         options.EnsureValid();
-        return ReadRecordsCore(options, ct);
+
+        return ReadRecordsCore();
+
+        // The filter routes the read to its target and ResolveStartPosition completes the start
+        // into that target's currency: Unset = empty read (by definition, or nothing qualifies);
+        // it throws when the start cannot address the target.
+        async IAsyncEnumerable<ReadMessage> ReadRecordsCore() {
+            var start = await ResolveStartPosition(options.Filter, options.Start, options.Direction, ct).ConfigureAwait(false);
+
+            if (start.IsUnset)
+                yield break;
+
+            var request = Requests.CreateReadRecordsRequest(options with { Start = start });
+
+            await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false))
+                yield return msg;
+        }
     }
 
     public IAsyncEnumerable<ReadMessage> ReadStream(StreamName stream, ReadStreamOptions options, CancellationToken ct = default) {
@@ -176,100 +192,25 @@ public partial class StreamsClient {
 
         options.EnsureValid();
 
-        return ReadStreamCore(stream, options, ct);
-    }
-
-    /// <summary>
-    /// Routes a read by its TARGET (the filter decides: stream-name filter → direct stream
-    /// read, anything else → the log) and makes sure the start position speaks the target's
-    /// currency — translating via the start resolvers instead of silently discarding it.
-    /// </summary>
-    async IAsyncEnumerable<ReadMessage> ReadRecordsCore(ReadRecordsOptions options, [EnumeratorCancellation] CancellationToken ct) {
-        if (options.Filter.UnwrapFilter() is StreamNameFilter target) {
-            var start = AlignSentinels(options.Start, target.TargetStream);
-
-            // "From the end, forwards" reads nothing — and the stream wire cannot even
-            // express it (End + Forwards is rejected server-side; subscriptions own that
-            // shape). Short-circuit the empty read client-side.
-            if (start.Revision == Revision.Max && options.Direction == ReadDirection.Forwards)
-                yield break;
-
-            // Native = the stream half names THIS target and carries a revision. A foreign
-            // stream half (e.g. a $all checkpoint pointing at another stream's record) is
-            // never trusted — the log half is resolved to the target's boundary instead.
-            if (start.Stream != target.TargetStream || start.Revision == Revision.Unset) {
-                if (start.LogPosition == LogPosition.Unset)
-                    throw new ArgumentException(
-                        "Start position cannot address the target stream: it carries neither a " +
-                        "matching stream revision nor a log position to resolve one from.", nameof(options));
-
-                start = await ResolveReadStart(
-                        RecordPosition.From(start.LogPosition, target.TargetStream, Revision.Unset),
-                        options.Direction, ct)
-                    .ConfigureAwait(false);
-
-                // No record of the stream qualifies from this position — the read is empty.
-                if (start.IsUnset)
-                    yield break;
-            }
-
-            options = options with { Start = start };
-        }
-        else if (options.Start.LogPosition == LogPosition.Unset) {
-            // The log is addressed by position only. A stream-only start for a log read is
-            // rejected by policy — guessing a position from a foreign revision is never safe.
-            throw new ArgumentException("Log-targeted reads require a start with a log position.", nameof(options));
-        }
-
-        var request = Requests.CreateReadRecordsRequest(options);
-
-        await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false))
-            yield return msg;
-    }
-
-    /// <summary>
-    /// Single entry point: a direct stream read is a log read whose filter targets one stream.
-    /// A caller-supplied non-stream filter re-routes through the log — the start revision is
-    /// translated into its log position first (one stream read) instead of being discarded.
-    /// </summary>
-    async IAsyncEnumerable<ReadMessage> ReadStreamCore(StreamName stream, ReadStreamOptions options, [EnumeratorCancellation] CancellationToken ct) {
-        // Empty filter → synthesize a stream-name filter; any caller filter wins outright
-        // (the guard above ensured an explicit StreamNameFilter agrees with the parameter).
+        // A stream read is a log read whose filter targets one stream: an empty filter synthesizes
+        // one, any caller filter wins (the guard above ensured an explicit StreamNameFilter agrees).
+        // The bare revision becomes the start's stream half; ResolveStartPosition does the rest —
+        // including the stream→log translation when a foreign filter re-routes the read through $all.
         var filter = options.Filter is EmptyFilter
             ? StreamNameFilter.Parse(stream)
             : options.Filter;
 
-        var start = RecordPosition.From(LogPosition.Unset, stream, options.Start);
-
-        if (filter.UnwrapFilter() is not StreamNameFilter) {
-            start = await ResolveReadStart(start, options.Direction, ct).ConfigureAwait(false);
-
-            if (start.IsUnset)
-                yield break;
-        }
-
-        var readOptions = new ReadRecordsOptions {
-            Start             = start,
-            Filter            = filter,
-            Limit             = options.Limit,
-            Direction         = options.Direction,
-            SkipDecoding      = options.SkipDecoding,
-            ThrowOnUnresolved = options.ThrowOnUnresolved,
-            ResolveLinks      = options.ResolveLinks
-        };
-
-        await foreach (var msg in ReadRecordsCore(readOptions, ct).ConfigureAwait(false))
-            yield return msg;
+        return ReadRecords(new ReadRecordsOptions {
+            Start                 = RecordPosition.From(LogPosition.Unset, stream, options.Start),
+            Filter                = filter,
+            Limit                 = options.Limit,
+            Direction             = options.Direction,
+            FilterMaxSearchWindow = options.FilterMaxSearchWindow,
+            SkipDecoding          = options.SkipDecoding,
+            ThrowOnUnresolved     = options.ThrowOnUnresolved,
+            ResolveLinks          = options.ResolveLinks
+        }, ct);
     }
-
-    /// <summary>
-    /// Sentinel starts speak both currencies: pin them to the target stream so the wire
-    /// mapping resolves them natively (Earliest → first revision, Latest → end of stream).
-    /// </summary>
-    static RecordPosition AlignSentinels(RecordPosition start, StreamName target) =>
-        start.LogPosition == LogPosition.Earliest ? RecordPosition.From(LogPosition.Earliest, target, Revision.Min)
-        : start.LogPosition == LogPosition.Latest ? RecordPosition.From(LogPosition.Latest, target, Revision.Max)
-        : start;
 
     async IAsyncEnumerable<ReadMessage> ReadCore(
         ReadReq request, bool skipDecoding, bool throwOnUnresolved,

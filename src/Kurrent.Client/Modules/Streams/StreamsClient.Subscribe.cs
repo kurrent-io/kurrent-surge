@@ -143,8 +143,14 @@ public partial class StreamsClient {
         // half is resolved to the last processed record of the target instead, so the
         // exclusive After(...) resume is exact.
         if (options.Filter.UnwrapFilter() is StreamNameFilter target) {
-            start = AlignSentinels(start, target.TargetStream);
+            // Sentinels speak both currencies: pin them to the target so the wire maps them
+            // natively (Earliest → first revision, Latest → end of stream).
+            start =
+                start.LogPosition == LogPosition.Earliest ? RecordPosition.From(LogPosition.Earliest, target.TargetStream, Revision.Min)
+                : start.LogPosition == LogPosition.Latest ? RecordPosition.From(LogPosition.Latest, target.TargetStream, Revision.Max)
+                : start;
 
+            // bug? start.Stream is now target.TargetStream cause the sentinel alignment above just overrode the variable
             if (start.Stream != target.TargetStream || start.Revision == Revision.Unset) {
                 if (start.LogPosition == LogPosition.Unset)
                     throw new ArgumentException(

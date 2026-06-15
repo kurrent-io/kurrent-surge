@@ -31,7 +31,7 @@ public class ResolveStartTests {
         var complete = seed.A[1].Position; // all three halves present
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(complete, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(complete, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(complete);
@@ -40,7 +40,7 @@ public class ResolveStartTests {
     [Test]
     public async ValueTask returns_sentinels_unchanged(CancellationToken ct) {
         // Act
-        var earliest = await Fixture.Client.Streams.ResolveReadStart(RecordPosition.Earliest, cancellationToken: ct);
+        var earliest = await Fixture.Client.Streams.ResolveReadStart(RecordPosition.Earliest, ct: ct);
         var latest   = await Fixture.Client.Streams.ResolveSubscriptionStart(RecordPosition.Latest, ct);
 
         // Assert
@@ -52,7 +52,7 @@ public class ResolveStartTests {
     public async ValueTask throws_when_position_is_unset(CancellationToken ct) {
         // Act & Assert — a fully unset position is a caller bug, not a resolvable outcome
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await Fixture.Client.Streams.ResolveReadStart(RecordPosition.Unset, cancellationToken: ct));
+            async () => await Fixture.Client.Streams.ResolveReadStart(RecordPosition.Unset, ct: ct));
     }
 
     #endregion // Pass-through
@@ -69,7 +69,7 @@ public class ResolveStartTests {
 
         // Act
         Fixture.Logger.LogInformation("Resolving (stream, r{Revision}) without log half — expect {Expected}", expected.Revision.Value, expected);
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -81,7 +81,7 @@ public class ResolveStartTests {
         var input = RecordPosition.From(LogPosition.Unset, StreamName.From($"missing-{Guid.NewGuid():N}"), Revision.Min);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
 
         // Assert — known outcome, never throws
         await Assert.That(resolved).IsEqualTo(RecordPosition.Unset);
@@ -100,7 +100,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(expected.LogPosition, expected.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -117,7 +117,7 @@ public class ResolveStartTests {
 
         // Act
         Fixture.Logger.LogInformation("Resolving read start at foreign mid-range anchor {Anchor} — expect {Expected}", anchor.Value, expected);
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -179,7 +179,7 @@ public class ResolveStartTests {
         var input = RecordPosition.From(after.Position, seed.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(RecordPosition.Unset);
@@ -249,7 +249,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(expected.LogPosition);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, cancellationToken: ct);
+        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);

@@ -31,7 +31,8 @@ public class ReadWithFilterTests {
         // Act
         var options = new ReadRecordsOptions {
             Start        = lastPosition.LogPosition,
-            Filter       = RecordFilter.ByExpression($"stream = '{simulation.Stream}'"),
+            // LIKE keeps this on the LOG path ($all + StreamRegexFilter); equality would route to a stream read.
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{simulation.Stream}%'"),
             Limit        = simulation.Records.Length,
             SkipDecoding = true
         };

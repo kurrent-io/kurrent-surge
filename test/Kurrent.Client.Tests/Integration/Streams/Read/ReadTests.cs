@@ -24,7 +24,8 @@ public class ReadTests {
 
         var options = new ReadRecordsOptions {
             Start        = lastPosition.LogPosition,
-            Filter       = RecordFilter.ByExpression($"stream = '{simulation.Stream}'"),
+            // LIKE keeps this on the LOG path ($all + StreamRegexFilter); equality would route to a stream read.
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{simulation.Stream}%'"),
             SkipDecoding = true
         };
 
@@ -51,6 +52,105 @@ public class ReadTests {
         }
 
         await Assert.That(records.Count).IsEqualTo(simulation.Records.Length);
+    }
+
+    [Test]
+    public async ValueTask reading_forwards_from_the_end_of_a_stream_returns_no_records(CancellationToken ct) {
+        // Arrange — a populated stream. Revision.Max is the end; reading forwards from the end
+        // reads nothing. This must be an empty success, not a throw (parity with $all End+Forwards).
+        var data = await Fixture.SeedTestStream(ct);
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadStream(data.Stream, Revision.Max, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert
+        await Assert.That(records).IsEmpty();
+    }
+
+    [Test]
+    public async ValueTask reading_a_stream_backwards_without_a_position_reads_from_the_end(CancellationToken ct) {
+        // Arrange — no Start given + Backwards must default to the END (Revision.Max) and read the
+        // stream in reverse. Defaulting to Min (the bug) reads only revision 0.
+        var data              = await Fixture.SeedTestStream(ct);
+        var expectedCount     = data.Records.Length;
+        Revision lastRevision = expectedCount - 1; // 0-based revisions → last is count - 1
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadStream(data.Stream, new ReadStreamOptions { Direction = ReadDirection.Backwards }, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert — from the end: full stream, first record back is the last revision
+        await Assert.That(records.Count).IsEqualTo(expectedCount);
+        await Assert.That(records[0].Position.Revision).IsEqualTo(lastRevision);
+    }
+
+    [Test]
+    public async ValueTask reading_records_forwards_without_a_position_reads_from_the_beginning(CancellationToken ct) {
+        // Arrange — no Start given + Forwards must default to the BEGINNING (Earliest) and read the
+        // log forwards. Defaulting to Latest (the bug) reads nothing. A LIKE filter keeps this on
+        // the LOG path ($all + StreamRegexFilter); equality would route to a direct stream read.
+        var data          = await Fixture.SeedTestStream(ct);
+        var expectedCount = data.Records.Length;
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions { Filter = RecordFilter.ByExpression($"stream LIKE '{data.Stream}%'") }, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert — from the beginning: full history, first record is revision Min
+        await Assert.That(records.Count).IsEqualTo(expectedCount);
+        await Assert.That(records[0].Position.Revision).IsEqualTo(Revision.Min);
+    }
+
+    [Test]
+    public async ValueTask reading_records_backwards_without_a_position_reads_from_the_end(CancellationToken ct) {
+        // Arrange — no Start given + Backwards must default to the END (Latest) and read the log in
+        // reverse. A LIKE filter keeps this on the LOG path ($all + StreamRegexFilter); equality
+        // would route to a direct stream read. The first record back is the stream's last.
+        var data              = await Fixture.SeedTestStream(ct);
+        var expectedCount     = data.Records.Length;
+        Revision lastRevision = expectedCount - 1; // 0-based revisions → last is count - 1
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions {
+                Filter    = RecordFilter.ByExpression($"stream LIKE '{data.Stream}%'"),
+                Direction = ReadDirection.Backwards
+            }, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert — from the end: full history, first record back is the last revision
+        await Assert.That(records.Count).IsEqualTo(expectedCount);
+        await Assert.That(records[0].Position.Revision).IsEqualTo(lastRevision);
+    }
+
+    [Test]
+    public async ValueTask reading_a_stream_forwards_without_a_position_reads_from_the_beginning(CancellationToken ct) {
+        // Arrange — no Start given + Forwards (default) must read from the BEGINNING (revision Min).
+        var data          = await Fixture.SeedTestStream(ct);
+        var expectedCount = data.Records.Length;
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadStream(data.Stream, new ReadStreamOptions { Direction = ReadDirection.Forwards }, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert — full stream, first record is revision Min
+        await Assert.That(records.Count).IsEqualTo(expectedCount);
+        await Assert.That(records[0].Position.Revision).IsEqualTo(Revision.Min);
     }
 
     [Test]
