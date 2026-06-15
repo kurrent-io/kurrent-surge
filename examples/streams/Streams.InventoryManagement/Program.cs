@@ -15,7 +15,8 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrentClient();
+    builder.Services.AddKurrent(kurrent => kurrent
+        .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
     builder.Services.AddSingleton<InventoryService>();
 
     var app = builder.Build();

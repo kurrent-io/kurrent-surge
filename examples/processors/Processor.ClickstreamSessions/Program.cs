@@ -14,5 +14,5 @@ Log.Logger = new LoggerConfiguration()
 
 await KurrentProcessor.Create(new SessionAnalyticsProcessor(), opts => {
     opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'Processor.ClickstreamSessions.Events.PageView'");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PageView'");
 }).RunWithGracefulShutdownAsync();

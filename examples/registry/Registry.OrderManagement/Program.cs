@@ -17,14 +17,13 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddSingleton(_ => {
-        var opts = KurrentClientOptions.Parse("kurrentdb://admin:changeit@localhost:2113?tls=false");
-        opts.Messages.Json = new JsonSchemaSerializerOptions {
+    builder.Services.AddKurrent(kurrent => kurrent.Connection(
+        "kurrentdb://admin:changeit@localhost:2113?tls=false",
+        opts => opts.Messages.Json = new JsonSchemaSerializerOptions {
             SchemaRegistration = SchemaRegistrationOptions.AutoRegister
-        };
-        return opts;
-    });
-    builder.Services.AddKurrentClient();
+        }));
+
+    builder.Services.AddSingleton(sp => sp.GetRequiredService<KurrentClient>().Registry);
 
     builder.Services.AddSingleton<SchemaService>();
     builder.Services.AddSingleton<OrderService>();

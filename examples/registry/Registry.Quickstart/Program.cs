@@ -5,6 +5,7 @@ using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
 using Registry.Quickstart;
+using Registry.Quickstart.Events;
 using Serilog;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
