@@ -130,7 +130,7 @@ public partial class StreamsClient {
     /// <param name="cancellationToken">
     /// A cancellation token to observe while waiting for the task to complete.
     /// </param>
-    internal async ValueTask<Record> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding = false, CancellationToken cancellationToken = default) {
+    async ValueTask<Record> ReadStreamEdge(StreamName stream, ReadDirection direction, bool skipDecoding = false, CancellationToken cancellationToken = default) {
         if (stream == StreamName.Unset)
             throw new ArgumentException("Stream name cannot be None", nameof(stream));
 

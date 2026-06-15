@@ -1,6 +1,8 @@
 using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;

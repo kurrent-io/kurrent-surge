@@ -3,6 +3,8 @@ using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Diagnostics;
 using Kurrent.Streaming.Gateway;
@@ -129,7 +131,7 @@ sealed class Drone : IDrone {
         // the only way a gRPC client learns the head moved ahead — and reports the lag gauges.
         // Always an unfiltered head read; a filtered backward read would scan the whole log.
         if (Options.TrackSourceLag) {
-            _sourceLagProbe = new SourceLagProbe(
+            _sourceLagProbe = new(
                 readHead: ct => _streams.InspectRecord(LogPosition.Latest, skipDecoding: true, ct),
                 snapshot: () => Progress,
                 onSample: _telemetry.SourceLagSample,
@@ -141,13 +143,7 @@ sealed class Drone : IDrone {
         Exception? fatalError = null;
 
         try {
-            switch (_processor) {
-                case IRecordBatchProcessor batchProcessor:
-                    await RunBatched(batchProcessor, catchUp).ConfigureAwait(false); break;
-
-                case IRecordProcessor recordProcessor:
-                    await RunPerRecord(recordProcessor, catchUp).ConfigureAwait(false); break;
-            }
+            await Run(catchUp).ConfigureAwait(false);
         }
         catch (ChannelClosedException ex) {
             fatalError = ex.InnerException;
@@ -162,98 +158,25 @@ sealed class Drone : IDrone {
         // Skip if we already have a fatal error — the checkpoint hook would fail again.
         if (fatalError is null && _checkpointer.HasPendingPositions) {
             var now = _clock.Now();
-            Checkpoint checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
-
+            var checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
             await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
         }
 
         await Shutdown(fatalError).ConfigureAwait(false);
     }
 
-    async Task RunPerRecord(IRecordProcessor processor, Dictionary<Partition, LogPosition> catchUp) {
+    async Task Run(Dictionary<Partition, LogPosition> catchUp) {
         // The drone's owned partitions — the broadcast target for server watermarks (see HandleCheckpoint).
         var partitions = catchUp.Keys.ToArray();
         var stopping   = false;
 
-        await foreach (var msg in _channel.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)) {
-            if (stopping && msg.Value is Record)
-                continue;
-
-            switch (msg.Value) {
-                case Connected c: await HandleConnected(c).ConfigureAwait(false); break;
-
-                case Record record: {
-                    if (catchUp.TryGetValue(record.Position.Partition, out var cp)
-                     && record.Position.LogPosition <= cp)
-                        continue;
-
-                    var result = await HandleRecord(processor, record).ConfigureAwait(false);
-
-                    if (result.ShouldStop && !stopping) {
-                        stopping = true;
-
-                        await _checkpointer
-                            .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
-                            .ConfigureAwait(false);
-                    }
-
-                    break;
-                }
-
-                case Checkpoint checkpoint:
-                    await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
-                    break;
-            }
-        }
-        
-        async ValueTask<RecordProcessingResult> HandleRecord(IRecordProcessor processor, Record record) {
-            using var scope = _telemetry.TrackRecord();
-
-            var autoTrack = Options.Checkpoint.AutoTrack;
-
-            var ctx = DroneContext.ForProcessRecord(
-                Progress, record,
-                requestTrack: _checkpointer.Track);
-
-            await processor
-                .ProcessRecord(ctx)
-                .ConfigureAwait(false);
-
-            // Count every dispatched record toward throughput, independent of tracking mode.
-            _progress.CountThroughput(record);
-
-            if (autoTrack && !ctx.StopRequested) {
-                _checkpointer.Track(record.Position);
-                _progress.TrackPosition(record.Position, record.Position.Partition);
-            }
-            else if (ctx.TrackedByUser) {
-                // Manual track (auto-track off, or a stop record the user explicitly claimed): the
-                // checkpointer was already advanced by ctx.Track; mirror the position into progress.
-                _progress.TrackPosition(record.Position, record.Position.Partition);
-            }
-
-            if (ctx.CheckpointRequested)
-                await _checkpointer
-                    .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
-                    .ConfigureAwait(false);
-
-            var progress = Progress;
-            scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
-
-            return ctx.StopRequested
-                ? RecordProcessingResult.Stop(ctx.StopReason)
-                : RecordProcessingResult.Continue;
-        }
-    }
-
-    async Task RunBatched(IRecordBatchProcessor processor, Dictionary<Partition, LogPosition> catchUp) {
-        // The drone's owned partitions — the broadcast target for server watermarks (see HandleCheckpoint).
-        var partitions = catchUp.Keys.ToArray();
-
+        // Single batched read of the channel: records accumulate into a RecordBatch; Connected and
+        // Checkpoint markers flush the pending batch and pass through. Batch size/window come from
+        // options, not the processor — the only branch below is how a flushed batch is dispatched.
         var stream = _channel.Reader
             .ReadAllAsync(CancellationToken.None)
             .ReadBatched<SubscribeMessage, Record, BatchedSubscribeMessage>(
-                processor.MaxBatchSize, processor.BatchWindow,
+                Options.Batching.MaxBatchSize, Options.Batching.BatchWindow,
                 classify: static msg => msg.Match<BatchAction<Record, BatchedSubscribeMessage>>(
                     static connected  => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(connected),
                     static record     => BatchAction<Record, BatchedSubscribeMessage>.Batch(record),
@@ -261,85 +184,160 @@ sealed class Drone : IDrone {
                 batchToOutput: static records => RecordBatch.From(records),
                 CancellationToken.None);
 
-        var stopping = false;
-
         await foreach (var output in stream.ConfigureAwait(false)) {
-            
-            // If stopping, skip any remaining batches but continue to drain checkpoint messages
-            // to ensure we can checkpoint final positions and shut down cleanly.
-            if (stopping && output.Value is RecordBatch)
+            // Outer stop scope: once stopping, skip later batches AND server scan watermarks
+            // (Filter / CaughtUp). The batched read pulls a trailing watermark in ahead of the stop;
+            // folding it would advance the checkpoint past the last dispatched record (matching records
+            // beyond the stop were skipped, not processed), so a resuming run would start past its own
+            // stop record and hang on a live subscription. Only the injected Shutdown barrier — which
+            // commits exactly the tracked positions — is honored after stop.
+            if (stopping && output.Value is RecordBatch or FilterCheckpoint or CaughtUpCheckpoint)
                 continue;
 
             switch (output.Value) {
-                case Connected c: await HandleConnected(c).ConfigureAwait(false); break;
+                case Connected c: 
+                    await HandleConnected(c).ConfigureAwait(false); 
+                break;
 
-                case RecordBatch batch: {
-                    var result = await HandleBatch(processor, batch, catchUp).ConfigureAwait(false);
+                case RecordBatch batch:
+                    switch (_processor) {
+                        case IRecordBatchProcessor bp: {
+                            var result = await HandleBatch(bp, batch, catchUp).ConfigureAwait(false);
 
-                    if (result.ShouldStop && !stopping) {
-                        stopping = true;
+                            if (result.ShouldStop && !stopping) {
+                                stopping = true;
 
-                        await _checkpointer
-                            .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
-                            .ConfigureAwait(false);
+                                await _checkpointer
+                                    .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
+                                    .ConfigureAwait(false);
+                            }
+
+                            break;
+                        }
+
+                        case IRecordProcessor rp:
+                            await DispatchPerRecord(rp, batch).ConfigureAwait(false);
+                            break;
                     }
 
                     break;
-                }
 
                 case Checkpoint checkpoint:
                     await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
                     break;
             }
         }
-        
-        async ValueTask<RecordProcessingResult> HandleBatch(
-            IRecordBatchProcessor processor,
-            RecordBatch batch,
-            Dictionary<Partition, LogPosition> catchUp
-        ) {
-            var autoTrack = Options.Checkpoint.AutoTrack;
 
-            var ctx = DroneContext.ForBatch(
-                Progress, batch,
-                requestTrack: _checkpointer.Track);
-
-            await processor
-                .ProcessBatch(ctx)
-                .ConfigureAwait(false);
-
-            // Count and track are decoupled: every dispatched record counts toward throughput (even
-            // with AutoTrack off — the "batch trap"), but positions are claimed only when auto-track
-            // is on. With it off the user owns progress via ctx.Track() / ctx.Track(upTo), which
-            // advanced the checkpointer above. Auto-track is batch-granular, so commit cadence aligns
-            // with batch boundaries.
+        // Inner stop scope: closure over `stopping` so a record requesting stop can break out of its
+        // batch and close the outer scope. The catch-up filter runs BEFORE dispatch — a caught-up
+        // record never reaches ProcessRecord (intentionally unlike the batch path, which delivers the
+        // whole batch and filters only its count/track loop).
+        async ValueTask DispatchPerRecord(IRecordProcessor processor, RecordBatch batch) {
             foreach (var record in batch) {
-                // Catch-up filter: skip records already processed in a prior run
                 if (catchUp.TryGetValue(record.Position.Partition, out var cp)
                  && record.Position.LogPosition <= cp)
                     continue;
 
-                using var scope = _telemetry.TrackRecord();
-                _progress.CountThroughput(record);
+                var result = await HandleRecord(processor, record).ConfigureAwait(false);
 
-                if (autoTrack) {
-                    _checkpointer.Track(record.Position);
-                    _progress.TrackPosition(record.Position, record.Position.Partition);
+                if (result.ShouldStop) {
+                    stopping = true;
+
+                    await _checkpointer
+                        .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
+                        .ConfigureAwait(false);
+
+                    break; // skip the remaining records in this batch
                 }
+            }
+        }
+    }
 
-                var progress = Progress;
-                scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
+    async ValueTask<RecordProcessingResult> HandleRecord(IRecordProcessor processor, Record record) {
+        using var scope = _telemetry.TrackRecord();
+
+        var autoTrack = Options.Checkpoint.AutoTrack;
+
+        var ctx = DroneContext.ForProcessRecord(
+            Progress, record,
+            requestTrack: _checkpointer.Track);
+
+        await processor
+            .ProcessRecord(ctx)
+            .ConfigureAwait(false);
+
+        // Count every dispatched record toward throughput, independent of tracking mode.
+        _progress.CountThroughput(record);
+
+        if (autoTrack && !ctx.StopRequested) {
+            _checkpointer.Track(record.Position);
+            _progress.TrackPosition(record.Position, record.Position.Partition);
+        }
+        else if (ctx.TrackedByUser) {
+            // Manual track (auto-track off, or a stop record the user explicitly claimed): the
+            // checkpointer was already advanced by ctx.Track; mirror the position into progress.
+            _progress.TrackPosition(record.Position, record.Position.Partition);
+        }
+
+        if (ctx.CheckpointRequested)
+            await _checkpointer
+                .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
+                .ConfigureAwait(false);
+
+        var progress = Progress;
+        scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
+
+        return ctx.StopRequested
+            ? RecordProcessingResult.Stop(ctx.StopReason)
+            : RecordProcessingResult.Continue;
+    }
+
+    async ValueTask<RecordProcessingResult> HandleBatch(
+        IRecordBatchProcessor processor,
+        RecordBatch batch,
+        Dictionary<Partition, LogPosition> catchUp
+    ) {
+        var autoTrack = Options.Checkpoint.AutoTrack;
+
+        var ctx = DroneContext.ForBatch(
+            Progress, batch,
+            requestTrack: _checkpointer.Track);
+
+        await processor
+            .ProcessBatch(ctx)
+            .ConfigureAwait(false);
+
+        // Count and track are decoupled: every dispatched record counts toward throughput (even
+        // with AutoTrack off — the "batch trap"), but positions are claimed only when auto-track
+        // is on. With it off the user owns progress via ctx.Track() / ctx.Track(upTo), which
+        // advanced the checkpointer above. Auto-track is batch-granular, so commit cadence aligns
+        // with batch boundaries.
+        foreach (var record in batch) {
+            // Catch-up filter: skip records already processed in a prior run
+            if (catchUp.TryGetValue(record.Position.Partition, out var cp)
+             && record.Position.LogPosition <= cp)
+                continue;
+
+            using var scope = _telemetry.TrackRecord();
+            _progress.CountThroughput(record);
+
+            if (autoTrack) {
+                _checkpointer.Track(record.Position);
+                _progress.TrackPosition(record.Position, record.Position.Partition);
             }
 
-            if (ctx.CheckpointRequested)
-                await _checkpointer
-                    .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
-                    .ConfigureAwait(false);
-
-            return ctx.StopRequested
-                ? RecordProcessingResult.Stop(ctx.StopReason)
-                : RecordProcessingResult.Continue;
+            var progress = Progress;
+            scope.Complete(progress.Throughput.TotalRecords, progress.UncommittedRecords, progress.UncommittedBytes);
         }
+
+        if (ctx.CheckpointRequested)
+            await _checkpointer
+                .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
+                .ConfigureAwait(false);
+
+        return ctx.StopRequested
+            ? RecordProcessingResult.Stop(ctx.StopReason)
+            : RecordProcessingResult.Continue;
     }
 
     #region ->> Message Handlers <<-
@@ -358,9 +356,9 @@ sealed class Drone : IDrone {
     }
     
     async ValueTask HandleCheckpoint(Checkpoint checkpoint, Partition[] partitions) {
-        var trigger        = checkpoint.TriggerKind;
-        var startTimestamp = Stopwatch.GetTimestamp();
-
+        var trigger = checkpoint.TriggerKind;
+        var start   = _timeProvider.GetTimestamp();
+        
         _telemetry.CheckpointInitiated(checkpoint.Id, trigger);
 
         // Server-emitted log watermarks — FilterCheckpoint and CaughtUpCheckpoint — carry the log
@@ -426,7 +424,7 @@ sealed class Drone : IDrone {
                 .ConfigureAwait(false);
 
             _progress.TrackCheckpoint(checkpoint, positions);
-            _telemetry.CheckpointComplete(checkpoint.Id, trigger, positions, Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds);
+            _telemetry.CheckpointComplete(checkpoint.Id, trigger, positions, _timeProvider.GetElapsedTime(start).TotalSeconds);
         }
         catch (Exception ex) {
             _telemetry.CheckpointFailed(checkpoint.Id, trigger, positions, ex);

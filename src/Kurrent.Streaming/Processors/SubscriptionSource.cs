@@ -3,6 +3,7 @@ using Grpc.Core;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Partitioning;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Options;
 using Polly;
 

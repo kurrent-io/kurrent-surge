@@ -1,5 +1,6 @@
 using Dapper;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;
 using Npgsql;
 using Processor.WithPostgres;

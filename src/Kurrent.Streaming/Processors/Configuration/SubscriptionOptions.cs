@@ -1,7 +1,7 @@
 using Kurrent.Client.Streams;
 using Kurrent.Streaming.Models;
 
-namespace Kurrent.Streaming.Options;
+namespace Kurrent.Processors.Configuration;
 
 /// <summary>
 /// Subscription configuration — what to read and where to start.

@@ -26,7 +26,7 @@ public class DroneBatchedIntegrationTests {
 
         var totalReceived = 0;
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize, batchWindow) {
+        var processor = new TestRecordBatchProcessor() {
             OnProcessBatch = batchCtx => {
                 Interlocked.Add(ref totalReceived, batchCtx.Records.Count);
 
@@ -43,6 +43,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batched-{TestId.New()}";
+            opts.Batching.MaxBatchSize        = maxBatchSize;
+            opts.Batching.BatchWindow         = batchWindow;
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -72,7 +74,7 @@ public class DroneBatchedIntegrationTests {
         using var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var       totalReceived = 0;
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize, batchWindow) {
+        var processor = new TestRecordBatchProcessor() {
             OnProcessBatch = batchCtx => {
                 Interlocked.Add(ref totalReceived, batchCtx.Records.Count);
 
@@ -89,6 +91,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-window-{TestId.New()}";
+            opts.Batching.MaxBatchSize        = maxBatchSize;
+            opts.Batching.BatchWindow         = batchWindow;
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -110,7 +114,7 @@ public class DroneBatchedIntegrationTests {
         // Arrange
         var data = await Fixture.SeedTestStream(10, ct);
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize: 5, batchWindow: TimeSpan.FromMilliseconds(500)) {
+        var processor = new TestRecordBatchProcessor() {
             OnProcessBatch = _ => throw new InvalidOperationException("Process batch failed")
         };
 
@@ -120,6 +124,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-error-{TestId.New()}";
+            opts.Batching.MaxBatchSize        = 5;
+            opts.Batching.BatchWindow         = TimeSpan.FromMilliseconds(500);
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -144,7 +150,7 @@ public class DroneBatchedIntegrationTests {
         using var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var       totalReceived = 0;
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize: 10, batchWindow: TimeSpan.FromMilliseconds(250)) {
+        var processor = new TestRecordBatchProcessor() {
             OnProcessBatch = batchCtx => {
                 Interlocked.Add(ref totalReceived, batchCtx.Records.Count);
 
@@ -161,6 +167,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-status-{TestId.New()}";
+            opts.Batching.MaxBatchSize        = 10;
+            opts.Batching.BatchWindow         = TimeSpan.FromMilliseconds(250);
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();
@@ -190,7 +198,7 @@ public class DroneBatchedIntegrationTests {
 
         var totalReceived = 0;
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize, batchWindow: TimeSpan.FromMilliseconds(250)) {
+        var processor = new TestRecordBatchProcessor() {
             OnProcessBatch = async batchCtx => {
                 Interlocked.Add(ref totalReceived, batchCtx.Records.Count);
                 // Slow each batch so the 50ms interval timer can fire between batches.
@@ -207,6 +215,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-interval-{data.Stream}";
+            opts.Batching.MaxBatchSize        = maxBatchSize;
+            opts.Batching.BatchWindow         = TimeSpan.FromMilliseconds(250);
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromMilliseconds(50);
@@ -232,7 +242,7 @@ public class DroneBatchedIntegrationTests {
         using var cancellator   = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var       totalReceived = 0;
 
-        var phase1 = new TestRecordBatchProcessor(maxBatchSize: 5, batchWindow: TimeSpan.FromMilliseconds(250)) {
+        var phase1 = new TestRecordBatchProcessor() {
             OnProcessBatch = batchCtx => {
                 Interlocked.Add(ref totalReceived, batchCtx.Records.Count);
                 if (totalReceived >= seedCount)
@@ -247,6 +257,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = processorId;
+            opts.Batching.MaxBatchSize        = 5;
+            opts.Batching.BatchWindow         = TimeSpan.FromMilliseconds(250);
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -264,7 +276,7 @@ public class DroneBatchedIntegrationTests {
         // Arrange — Phase 2 resumes from Phase 1's checkpoint
         await Task.Delay(200, ct);
 
-        var phase2 = new TestRecordBatchProcessor(maxBatchSize: 5, batchWindow: TimeSpan.FromMilliseconds(250));
+        var phase2 = new TestRecordBatchProcessor();
 
         using var phase2Cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         phase2Cts.CancelAfter(2000);
@@ -275,6 +287,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId         = processorId;
+            opts.Batching.MaxBatchSize = 5;
+            opts.Batching.BatchWindow  = TimeSpan.FromMilliseconds(250);
             opts.Subscription.Filter = RecordFilter.ByStream(data.Stream);
         });
 
@@ -300,7 +314,7 @@ public class DroneBatchedIntegrationTests {
         using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
         await cancellator.CancelAsync();
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize: 10, batchWindow: TimeSpan.FromMilliseconds(250));
+        var processor = new TestRecordBatchProcessor();
 
         var drone = KurrentProcessor.Create(processor, opts => {
             opts.Connection(
@@ -308,6 +322,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-pre-conn-{TestId.New()}";
+            opts.Batching.MaxBatchSize        = 10;
+            opts.Batching.BatchWindow         = TimeSpan.FromMilliseconds(250);
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -330,7 +346,7 @@ public class DroneBatchedIntegrationTests {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
 
-        var processor = new TestRecordBatchProcessor(maxBatchSize: 5, batchWindow: TimeSpan.FromMilliseconds(500)) {
+        var processor = new TestRecordBatchProcessor() {
             OnProcessBatch = _ => throw new InvalidOperationException("boom")
         };
 
@@ -340,6 +356,8 @@ public class DroneBatchedIntegrationTests {
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
             opts.ProcessorId                  = $"drone-batch-errstat-{TestId.New()}";
+            opts.Batching.MaxBatchSize        = 5;
+            opts.Batching.BatchWindow         = TimeSpan.FromMilliseconds(500);
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();

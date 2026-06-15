@@ -1,11 +1,12 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 
 namespace Kurrent.Streaming;
 
 /// <summary>
 /// Periodically reads the readable log head and reports how far this drone is behind it, via the
 /// <c>source_lag_bytes</c> / <c>source_lag_seconds</c> gauges. Owned by a drone and active only when
-/// <see cref="Options.ProcessorOptions.TrackSourceLag"/> is set.
+/// <see cref="ProcessorOptions.TrackSourceLag"/> is set.
 /// </summary>
 /// <remarks>
 /// The periodic head read is the only signal a gRPC client gets that the head moved ahead — there is
@@ -14,9 +15,6 @@ namespace Kurrent.Streaming;
 /// scan", which is the correct health signal regardless.
 /// </remarks>
 sealed class SourceLagProbe : IAsyncDisposable {
-    // Fixed cadence — deliberately not user-configurable. One extra unfiltered head read per tick.
-    static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
-
     readonly Func<CancellationToken, ValueTask<Record>> _readHead;
     readonly Func<DroneProgress>                        _snapshot;
     readonly Action<long, double>                       _onSample;
@@ -26,12 +24,13 @@ sealed class SourceLagProbe : IAsyncDisposable {
         Func<CancellationToken, ValueTask<Record>> readHead,
         Func<DroneProgress> snapshot,
         Action<long, double> onSample,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        TimeSpan? refreshInterval = null
     ) {
         _readHead = readHead;
         _snapshot = snapshot;
         _onSample = onSample;
-        _timer    = new(RefreshInterval, timeProvider, Sample);
+        _timer    = new(refreshInterval ?? TimeSpan.FromSeconds(10), timeProvider, Sample);
     }
 
     public void Start(CancellationToken stoppingToken = default) => _timer.Start(stoppingToken);
@@ -66,26 +65,27 @@ sealed class SourceLagProbe : IAsyncDisposable {
             // Best-effort observability: a transient head-read failure skips this tick; the gauge
             // keeps its last value and the next refresh retries.
         }
-    }
+        
+        
+        // Lowest position across owned partitions — committed if any, else tracked. Skips partitions with
+        // no progress. Phrased across partitions so it stays correct when partitioning lands.
+        static LogPosition? LowestProgressed(DroneProgress progress) {
+            LogPosition? lowest = null;
 
-    // Lowest position across owned partitions — committed if any, else tracked. Skips partitions with
-    // no progress. Phrased across partitions so it stays correct when partitioning lands.
-    static LogPosition? LowestProgressed(DroneProgress progress) {
-        LogPosition? lowest = null;
+            foreach (var (_, partition) in progress.Partitions) {
+                var position = partition.LastFlushedPosition.LogPosition != LogPosition.Unset
+                    ? partition.LastFlushedPosition.LogPosition
+                    : partition.LastTrackedPosition.LogPosition;
 
-        foreach (var (_, partition) in progress.Partitions) {
-            var position = partition.LastFlushedPosition.LogPosition != LogPosition.Unset
-                ? partition.LastFlushedPosition.LogPosition
-                : partition.LastTrackedPosition.LogPosition;
+                if (position == LogPosition.Unset)
+                    continue;
 
-            if (position == LogPosition.Unset)
-                continue;
+                if (lowest is null || position < lowest.Value)
+                    lowest = position;
+            }
 
-            if (lowest is null || position < lowest.Value)
-                lowest = position;
+            return lowest;
         }
-
-        return lowest;
     }
 
     public ValueTask DisposeAsync() => _timer.DisposeAsync();

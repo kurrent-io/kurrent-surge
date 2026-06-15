@@ -1,12 +1,13 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
+using Kurrent.Streaming.Options;
 using Kurrent.Validation;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Polly;
 
-namespace Kurrent.Streaming.Options;
+namespace Kurrent.Processors.Configuration;
 
 /// <summary>
 /// Configuration for a Kurrent processor. Pure data — processor wiring lives on the
@@ -56,11 +57,6 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     public bool Debug { get; set; }
 
     /// <summary>
-    /// Number of records to buffer in memory. Default: 1000. Range: 1–10,000.
-    /// </summary>
-    public int BufferCapacity { get; set; } = 1000;
-
-    /// <summary>
     /// Skip record data deserialization for performance-critical scenarios. Default: false.
     /// </summary>
     public bool SkipDecoding { get; set; }
@@ -88,6 +84,11 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// Checkpoint configuration (interval, failure policy).
     /// </summary>
     public CheckpointOptions Checkpoint { get; init; } = new();
+
+    /// <summary>
+    /// Batch-read tuning (batch size, window, buffer multiplier).
+    /// </summary>
+    public BatchOptions Batching { get; init; } = new();
 
     /// <summary>
     /// Knobs for the SDK's default reconnection pipeline. Tweak via
@@ -249,9 +250,17 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
                 .InclusiveBetween(1, 32768)
                 .WithMessage("MaxParallelism must be between 1 and 32768.");
 
-            RuleFor(o => o.BufferCapacity)
+            RuleFor(o => o.Batching.MaxBatchSize)
                 .InclusiveBetween(1, 10000)
-                .WithMessage("BufferCapacity must be between 1 and 10000.");
+                .WithMessage("Batching.MaxBatchSize must be between 1 and 10000.");
+
+            RuleFor(o => o.Batching.BatchWindow)
+                .GreaterThan(TimeSpan.Zero)
+                .WithMessage("Batching.BatchWindow must be greater than zero.");
+
+            RuleFor(o => o.Batching.BufferMultiplier)
+                .InclusiveBetween(1, 100)
+                .WithMessage("Batching.BufferMultiplier must be between 1 and 100.");
 
             RuleFor(o => o.Checkpoint.Interval)
                 .GreaterThan(TimeSpan.Zero)

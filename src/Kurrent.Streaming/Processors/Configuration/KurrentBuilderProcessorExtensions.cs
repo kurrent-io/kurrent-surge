@@ -1,8 +1,8 @@
 using Kurrent.Client;
-using Kurrent.Streaming.Options;
+using Kurrent.Streaming;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Processors.Configuration;
 
 /// <summary>
 /// <see cref="IKurrentBuilder"/> extensions for registering Kurrent processors inside an

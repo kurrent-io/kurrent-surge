@@ -3,6 +3,7 @@ using Google.Protobuf.WellKnownTypes;
 using Google.Rpc;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

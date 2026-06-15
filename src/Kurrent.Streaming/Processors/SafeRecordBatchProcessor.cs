@@ -1,9 +1,6 @@
 namespace Kurrent.Streaming;
 
 sealed class SafeRecordBatchProcessor(IRecordBatchProcessor inner) : IRecordBatchProcessor {
-    public int      MaxBatchSize => inner.MaxBatchSize;
-    public TimeSpan BatchWindow  => inner.BatchWindow;
-
     public async ValueTask ProcessBatch(BatchContext context) {
         try {
             await inner.ProcessBatch(context).ConfigureAwait(false);

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Options;
 using Kurrent.Variant;
 

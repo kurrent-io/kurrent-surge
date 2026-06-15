@@ -1,4 +1,4 @@
-namespace Kurrent.Streaming.Options;
+namespace Kurrent.Processors.Configuration;
 
 /// <summary>
 /// Checkpoint configuration. Two independent switches decide a processor's delivery guarantee:
@@ -85,7 +85,7 @@ public record CheckpointOptions {
     /// <summary>
     /// Number of completed checkpoints to retain. Default: 3.
     /// </summary>
-    public int RetentionCount { get; set; } = 3;
+    internal int RetentionCount { get; set; } = 3;
 
     /// <summary>
     /// What to do when a checkpoint fails. Default: <see cref="CheckpointFailurePolicy.Continue"/>.

@@ -1,13 +1,13 @@
 using System.Diagnostics.Metrics;
 using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Streaming;
 using Kurrent.Streaming.Diagnostics.Metrics;
 using Kurrent.Streaming.Hosting;
-using Kurrent.Streaming.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Processors.Configuration;
 
 /// <summary>
 /// Extension methods for registering Kurrent processors with dependency injection.

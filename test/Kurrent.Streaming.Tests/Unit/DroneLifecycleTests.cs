@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
@@ -488,7 +490,7 @@ public class DroneLifecycleTests {
 		// Arrange — auto-track off; the batch processor never tracks, so nothing is committed even
 		// though every record in the batch is dispatched.
 		var records   = RecordsAt(3);
-		var processor = new TestRecordBatchProcessor(maxBatchSize: 100, batchWindow: TimeSpan.FromSeconds(30));
+		var processor = new TestRecordBatchProcessor();
 
 		var (drone, subscription) = CreateDrone(processor, configure: opts => {
 			opts.Checkpoint.AutoTrack         = false;
@@ -515,7 +517,7 @@ public class DroneLifecycleTests {
 		var records         = RecordsAt(3);
 		var lastLogPosition = LogPosition.From(records.Length);
 
-		var processor = new TestRecordBatchProcessor(maxBatchSize: 100, batchWindow: TimeSpan.FromSeconds(30)) {
+		var processor = new TestRecordBatchProcessor() {
 			OnProcessBatch = ctx => { ctx.Track(); return ValueTask.CompletedTask; }
 		};
 
@@ -550,7 +552,7 @@ public class DroneLifecycleTests {
 		var prefixUpTo   = records[1].Position;     // log position 2
 		var prefixLogPos = prefixUpTo.LogPosition;
 
-		var processor = new TestRecordBatchProcessor(maxBatchSize: 100, batchWindow: TimeSpan.FromSeconds(30)) {
+		var processor = new TestRecordBatchProcessor() {
 			OnProcessBatch = ctx => { ctx.Track(prefixUpTo); return ValueTask.CompletedTask; }
 		};
 
@@ -585,7 +587,7 @@ public class DroneLifecycleTests {
 		var records         = RecordsAt(3);
 		var lastLogPosition = LogPosition.From(records.Length);
 
-		var processor = new TestRecordBatchProcessor(maxBatchSize: records.Length, batchWindow: TimeSpan.FromSeconds(30)) {
+		var processor = new TestRecordBatchProcessor() {
 			OnProcessBatch = ctx => {
 				ctx.Checkpoint("manual-flush");
 				ctx.StopProcessing();
@@ -594,6 +596,7 @@ public class DroneLifecycleTests {
 		};
 
 		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
 			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
 		});
 
@@ -647,7 +650,7 @@ public class DroneLifecycleTests {
 	[Timeout(15_000)]
 	public async ValueTask batch_records_processed_count_when_auto_track_off(CancellationToken ct) {
 		// Arrange — auto-track off, batched dispatch; counting is decoupled per record (the batch trap).
-		var processor = new TestRecordBatchProcessor(maxBatchSize: 100, batchWindow: TimeSpan.FromSeconds(30));
+		var processor = new TestRecordBatchProcessor();
 		var records   = RecordsAt(3);
 
 		var (drone, subscription) = CreateDrone(processor, configure: opts => {

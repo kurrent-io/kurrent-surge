@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using Google.Rpc;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
+using Kurrent.Processors.Configuration;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;

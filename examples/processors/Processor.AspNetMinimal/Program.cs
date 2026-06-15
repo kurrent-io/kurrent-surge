@@ -1,3 +1,4 @@
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Models;
 using Processor.AspNetMinimal;
 using static Kurrent.Streaming.Checkpointing.Contracts;

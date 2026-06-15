@@ -1,6 +1,7 @@
 using System.Text;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Hosting;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
@@ -54,9 +55,11 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask default_buffer_capacity_is_1000() {
+    public async ValueTask default_batching_is_size_500_window_100ms_multiplier_2() {
         var settings = new ProcessorOptions();
-        await Assert.That(settings.BufferCapacity).IsEqualTo(1000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
+        await Assert.That(settings.Batching.BatchWindow).IsEqualTo(TimeSpan.FromMilliseconds(100));
+        await Assert.That(settings.Batching.BufferMultiplier).IsEqualTo(2);
     }
 
     [Test]
@@ -119,14 +122,16 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask configure_drone_sets_buffer_capacity() {
+    public async ValueTask configure_drone_sets_batching() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
-            opts.ProcessorId    = "test-processor";
-            opts.BufferCapacity = 5000;
+            opts.ProcessorId               = "test-processor";
+            opts.Batching.MaxBatchSize     = 5000;
+            opts.Batching.BufferMultiplier = 4;
         }).Build();
 
-        await Assert.That(drone.Options.BufferCapacity).IsEqualTo(5000);
+        await Assert.That(drone.Options.Batching.MaxBatchSize).IsEqualTo(5000);
+        await Assert.That(drone.Options.Batching.BufferMultiplier).IsEqualTo(4);
     }
 
     [Test]
@@ -210,12 +215,12 @@ public class ConfigurationTests {
     public async ValueTask configure_multiple_settings_applies_all() {
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
-            opts.ProcessorId    = "test-processor";
-            opts.BufferCapacity = 2000;
-            opts.SkipDecoding   = true;
+            opts.ProcessorId           = "test-processor";
+            opts.Batching.MaxBatchSize = 2000;
+            opts.SkipDecoding          = true;
         }).Build();
 
-        await Assert.That(drone.Options.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(drone.Options.Batching.MaxBatchSize).IsEqualTo(2000);
         await Assert.That(drone.Options.SkipDecoding).IsTrue();
     }
 
@@ -255,8 +260,7 @@ public class ConfigurationTests {
     public async ValueTask valid_configuration_passes_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "valid-processor",
-            MaxParallelism = 1,
-            BufferCapacity = 1000
+            MaxParallelism = 1
         };
         settings.Connection(TestConnectionString);
 
@@ -314,11 +318,11 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask invalid_buffer_capacity_zero_fails_validation() {
+    public async ValueTask invalid_max_batch_size_zero_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            BufferCapacity = 0
+            Batching       = new BatchOptions { MaxBatchSize = 0 }
         };
 
         var result = settings.Validate();
@@ -327,11 +331,50 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask invalid_buffer_capacity_exceeds_limit_fails_validation() {
+    public async ValueTask invalid_max_batch_size_exceeds_limit_fails_validation() {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 1,
-            BufferCapacity = 10001
+            Batching       = new BatchOptions { MaxBatchSize = 10001 }
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask invalid_batch_window_zero_fails_validation() {
+        var settings = new ProcessorOptions {
+            ProcessorId    = "test-processor",
+            MaxParallelism = 1,
+            Batching       = new BatchOptions { BatchWindow = TimeSpan.Zero }
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask invalid_buffer_multiplier_zero_fails_validation() {
+        var settings = new ProcessorOptions {
+            ProcessorId    = "test-processor",
+            MaxParallelism = 1,
+            Batching       = new BatchOptions { BufferMultiplier = 0 }
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask invalid_buffer_multiplier_exceeds_limit_fails_validation() {
+        var settings = new ProcessorOptions {
+            ProcessorId    = "test-processor",
+            MaxParallelism = 1,
+            Batching       = new BatchOptions { BufferMultiplier = 101 }
         };
 
         var result = settings.Validate();
@@ -381,12 +424,12 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask build_with_invalid_buffer_capacity_throws() {
+    public async ValueTask build_with_invalid_max_batch_size_throws() {
         await Assert.That(() =>
             KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
                 opts.Connection(TestConnectionString);
-                opts.ProcessorId    = "test-processor";
-                opts.BufferCapacity = 0;
+                opts.ProcessorId           = "test-processor";
+                opts.Batching.MaxBatchSize = 0;
             }).Build()
         ).Throws<ValidationException>();
     }
@@ -579,7 +622,7 @@ public class ConfigurationTests {
                   "TestableRecordProcessor": {
                     "ProcessorId": "config-processor",
                     "MaxParallelism": 8,
-                    "BufferCapacity": 2000,
+                    "Batching": { "MaxBatchSize": 2000 },
                     "Checkpoint": {
                       "Interval": 15000
                     },
@@ -599,7 +642,7 @@ public class ConfigurationTests {
 
         await Assert.That(settings.ProcessorId).IsEqualTo("config-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(8);
-        await Assert.That(settings.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(15000));
     }
 
@@ -612,7 +655,7 @@ public class ConfigurationTests {
                   "TestableRecordProcessor": {
                     "processorId": "camel-processor",
                     "maxParallelism": 4,
-                    "bufferCapacity": 1500,
+                    "batching": { "maxBatchSize": 1500 },
                     "checkpoint": {
                       "interval": 20000
                     },
@@ -633,7 +676,7 @@ public class ConfigurationTests {
 
         await Assert.That(settings.ProcessorId).IsEqualTo("camel-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(4);
-        await Assert.That(settings.BufferCapacity).IsEqualTo(1500);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(1500);
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(20000));
         await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
     }
@@ -648,7 +691,7 @@ public class ConfigurationTests {
                   "TestableRecordProcessor": {
                     "processor_id": "snake-processor",
                     "max_parallelism": 4,
-                    "buffer_capacity": 1500
+                    "batching": { "max_batch_size": 1500 }
                   }
                 }
               },
@@ -665,7 +708,7 @@ public class ConfigurationTests {
 
         await Assert.That(settings.ProcessorId).IsEqualTo("fallback-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(1);
-        await Assert.That(settings.BufferCapacity).IsEqualTo(1000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
     }
 
     [Test]
@@ -677,7 +720,7 @@ public class ConfigurationTests {
                   "TestableRecordProcessor": {
                     "ProcessorId": "config-processor",
                     "MaxParallelism": 8,
-                    "BufferCapacity": 2000,
+                    "Batching": { "MaxBatchSize": 2000 },
                     "Subscription": {
                       "PartitionKeySelector": "stream_id"
                     }
@@ -697,7 +740,7 @@ public class ConfigurationTests {
 
         await Assert.That(settings.ProcessorId).IsEqualTo("fluent-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(4);
-        await Assert.That(settings.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
     }
 
     [Test]
@@ -718,7 +761,7 @@ public class ConfigurationTests {
             opts.MaxParallelism = 1;
         });
 
-        await Assert.That(settings.BufferCapacity).IsEqualTo(1000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
     }
 
@@ -755,7 +798,7 @@ public class ConfigurationTests {
               "Kurrent": {
                 "Processors": {
                   "TestableRecordProcessor": {
-                    "BufferCapacity": 3000
+                    "Batching": { "MaxBatchSize": 3000 }
                   }
                 }
               },
@@ -783,7 +826,7 @@ public class ConfigurationTests {
         var settings = hostedService.Drone.Options;
 
         await Assert.That(settings.ProcessorId).IsEqualTo("sp-processor");
-        await Assert.That(settings.BufferCapacity).IsEqualTo(3000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(3000);
     }
 
     [Test]
@@ -804,7 +847,7 @@ public class ConfigurationTests {
 
         var settings = hostedService.Drone.Options;
 
-        await Assert.That(settings.BufferCapacity).IsEqualTo(1000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
     }
 
@@ -816,7 +859,7 @@ public class ConfigurationTests {
                 "Processors": {
                   "TestableRecordProcessor": {
                     "MaxParallelism": 4,
-                    "BufferCapacity": 2000,
+                    "Batching": { "MaxBatchSize": 2000 },
                     "Subscription": {
                       "PartitionKeySelector": "stream_id"
                     }
@@ -833,7 +876,7 @@ public class ConfigurationTests {
 
         await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
         await Assert.That(settings.MaxParallelism).IsEqualTo(4);
-        await Assert.That(settings.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
     }
 
     [Test]
@@ -1035,7 +1078,7 @@ public class ConfigurationTests {
                 "Processors": {
                   "TestableBatchProcessor": {
                     "ProcessorId": "batch-config-processor",
-                    "BufferCapacity": 2000
+                    "Batching": { "MaxBatchSize": 2000 }
                   }
                 }
               },
@@ -1054,10 +1097,10 @@ public class ConfigurationTests {
         var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("batch-config-processor");
-        await Assert.That(droneService.Drone.Options.BufferCapacity).IsEqualTo(2000);
+        await Assert.That(droneService.Drone.Options.Batching.MaxBatchSize).IsEqualTo(2000);
     }
 
-    sealed class TestableBatchProcessor() : RecordBatchProcessor(10, TimeSpan.FromMilliseconds(500)) {
+    sealed class TestableBatchProcessor : RecordBatchProcessor {
         public override ValueTask ProcessBatch(BatchContext context) => ValueTask.CompletedTask;
     }
 

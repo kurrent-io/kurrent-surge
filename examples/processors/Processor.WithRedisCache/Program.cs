@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
 using Processor.WithRedisCache;

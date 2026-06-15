@@ -1,6 +1,6 @@
 using Grpc.Core;
 
-namespace Kurrent.Streaming.Options;
+namespace Kurrent.Processors.Configuration;
 
 /// <summary>
 /// Knobs for the SDK's default reconnection pipeline — retry attempts, backoff, and which

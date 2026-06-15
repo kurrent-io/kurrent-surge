@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;
 using Processor.Leaderboard;
 using Serilog;

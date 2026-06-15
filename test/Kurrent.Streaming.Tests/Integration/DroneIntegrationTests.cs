@@ -1,5 +1,6 @@
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using TUnit.Assertions.Enums;

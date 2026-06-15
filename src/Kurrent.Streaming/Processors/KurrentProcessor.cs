@@ -2,6 +2,8 @@ using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Checkpointing;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Options;
@@ -85,8 +87,12 @@ public sealed class KurrentProcessor {
 
 		var client = new KurrentClient(_options.ClientOptions);
 
+		// Buffer holds a few batches' worth so the reader can fill one batch by size while another
+		// is in flight — capacity is a multiple of the batch size, never smaller than it.
+		var bufferCapacity = _options.Batching.MaxBatchSize * _options.Batching.BufferMultiplier;
+
 		var channel = Channel.CreateBounded<SubscribeMessage>(
-			new BoundedChannelOptions(_options.BufferCapacity) {
+			new BoundedChannelOptions(bufferCapacity) {
 				FullMode     = BoundedChannelFullMode.Wait,
 				SingleReader = true,
 				SingleWriter = false

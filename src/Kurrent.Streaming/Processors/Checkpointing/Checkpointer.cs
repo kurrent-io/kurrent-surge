@@ -1,12 +1,23 @@
 using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
+using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 
-namespace Kurrent.Streaming.Checkpointing;
+namespace Kurrent.Processors.Checkpointing;
 
-public sealed class Checkpointer : IAsyncDisposable {
+/// <summary>
+/// Manages checkpointing for a stream processor: tracks processed positions, periodically raises checkpoints,
+/// and commits them to a store. Checkpoints are raised by writing barrier messages into a channel, which the
+/// processor's dispatch loop reads and handles by snapshotting the current pending positions and sending them
+/// to the store. On shutdown or rebalance, the checkpointer raises a final checkpoint and completes the channel
+/// so the dispatch loop can drain and exit gracefully. The checkpointer also supports manual checkpoints
+/// triggered by the processor's context, and a global scan watermark that advances all partitions to a given
+/// log position.
+/// </summary>
+sealed class Checkpointer : IAsyncDisposable {
     readonly string                          _droneId;
     readonly ChannelWriter<SubscribeMessage> _writer;
     readonly ICheckpointStore                _store;

@@ -4,7 +4,7 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Streaming.Tests;
 
-sealed class TestRecordBatchProcessor(int maxBatchSize, TimeSpan batchWindow) : RecordBatchProcessor(maxBatchSize, batchWindow) {
+sealed class TestRecordBatchProcessor : RecordBatchProcessor {
     readonly ConcurrentQueue<RecordBatch>       _batches     = new();
     readonly ConcurrentQueue<CheckpointContext> _checkpoints = new();
 
