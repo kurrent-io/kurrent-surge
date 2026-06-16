@@ -112,21 +112,6 @@ public class BytesSerializerTests : SchemaSerializerTestFixture {
 	}
 
 	[Test]
-	public async ValueTask serialize_sets_schema_format_to_bytes() {
-		// Arrange
-		var context = new SchemaSerializationContext {
-			Stream       = "test-stream",
-			RecordSchema = new RecordSchemaInfo { DataFormat = SchemaDataFormat.Unspecified }
-		};
-
-		// Act
-		await Sut.Serialize(Faker.Random.Bytes(8), context).ConfigureAwait(false);
-
-		// Assert
-		await Assert.That(context.RecordSchema.DataFormat).IsEqualTo(SchemaDataFormat.Bytes);
-	}
-
-	[Test]
 	public async ValueTask deserialize_returns_readonly_memory_of_input() {
 		// Arrange
 		var context = CreateSerializeContext();

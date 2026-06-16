@@ -154,11 +154,10 @@ AppendRecord jsonRecord = new() {
 For payloads you have already serialized.
 
 ```csharp
-var bytesRecord = AppendRecord.New()
-    .Stream("blobs")
-    .Value(rawBytes)
-    .DataFormat(SchemaDataFormat.Bytes)
-    .Build();
+var bytesRecord = AppendRecord.Create(rawBytes, r => {
+    r.Stream     = "blobs";
+    r.DataFormat = SchemaDataFormat.Bytes;
+});
 ```
 
 @tab Protobuf
@@ -166,11 +165,10 @@ var bytesRecord = AppendRecord.New()
 For messages generated from `.proto` definitions.
 
 ```csharp
-var protoRecord = AppendRecord.New()
-    .Stream("orders")
-    .Value(protobufMessage)
-    .DataFormat(SchemaDataFormat.Protobuf)
-    .Build();
+var protoRecord = AppendRecord.Create(protobufMessage, r => {
+    r.Stream     = "orders";
+    r.DataFormat = SchemaDataFormat.Protobuf;
+});
 ```
 
 @tab Avro
@@ -178,11 +176,10 @@ var protoRecord = AppendRecord.New()
 For Avro-encoded payloads.
 
 ```csharp
-var avroRecord = AppendRecord.New()
-    .Stream("orders")
-    .Value(avroPayload)
-    .DataFormat(SchemaDataFormat.Avro)
-    .Build();
+var avroRecord = AppendRecord.Create(avroPayload, r => {
+    r.Stream     = "orders";
+    r.DataFormat = SchemaDataFormat.Avro;
+});
 ```
 
 :::

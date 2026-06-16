@@ -12,16 +12,18 @@ static class AppendRecordExtensions {
         /// </summary>
         public string? GetOrderingKey() =>
             record.Metadata.TryGetValue<string>(OrderingKeyProperty, out var key) ? key : null;
-    }
 
-    extension(AppendRecord.Builder builder) {
         /// <summary>
-        /// Sets the ordering key for this record. Records with the same ordering key
+        /// Sets the ordering key for this record and returns it. Records with the same ordering key
         /// are guaranteed to be appended in order by the <see cref="Appender"/>.
         /// The key is stored in the record's metadata as <c>$ordering-key</c>.
         /// Passing null is a no-op.
         /// </summary>
-        public AppendRecord.Builder OrderingKey(string? key) =>
-            key is not null ? builder.AddMetadata(OrderingKeyProperty, key) : builder;
+        public AppendRecord OrderingKey(string? key) {
+            if (key is not null)
+                record.Metadata.With(OrderingKeyProperty, key);
+
+            return record;
+        }
     }
 }

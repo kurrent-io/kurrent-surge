@@ -13,20 +13,36 @@ public record AppendRecord : SelfValidating {
         RecordId   = Guid.Empty,
         Value      = null!,
         DataFormat = SchemaDataFormat.Unspecified,
-        Metadata   = new(),
+        Metadata   = new Metadata().Lock(),
         Stream     = StreamName.Unset
     };
 
-    public static Builder New() => new();
+    /// <summary>
+    /// Creates a record carrying <paramref name="value"/> as its payload. Every other field takes its
+    /// default; the target stream is supplied by the append operation when left unset.
+    /// </summary>
+    public static AppendRecord Create(object value) =>
+        new() { Value = value };
+
+    /// <summary>
+    /// Creates a record carrying <paramref name="value"/> as its payload, then applies
+    /// <paramref name="configure"/> to set the stream, data format, metadata, or any other field.
+    /// </summary>
+    public static AppendRecord Create(object value, Action<AppendRecord> configure) {
+        var record = new AppendRecord { Value = value };
+        configure(record);
+        return record;
+    }
 
     /// <summary>
     /// The assigned record id.
     /// </summary>
     public Guid RecordId {
         get;
-        init
-        { field = value;
-          ResetValidation(); }
+        set {
+            field = value;
+            ResetValidation();
+        }
     } = Guid.NewGuid();
 
     /// <summary>
@@ -35,9 +51,10 @@ public record AppendRecord : SelfValidating {
     [MaybeNull]
     public object Value {
         get;
-        init
-        { field = value;
-          ResetValidation(); }
+        set {
+            field = value;
+            ResetValidation();
+        }
     } = null!;
 
     /// <summary>
@@ -45,30 +62,32 @@ public record AppendRecord : SelfValidating {
     /// </summary>
     public SchemaDataFormat DataFormat {
         get;
-        internal init
-        { field = value;
-          ResetValidation(); }
+        set {
+            field = value;
+            ResetValidation();
+        }
     } = SchemaDataFormat.Json;
 
     /// <summary>
     /// Optional metadata associated with the record.
     /// </summary>
-    public Metadata Metadata { get; init; } = new();
+    public Metadata Metadata { get; set; } = new();
 
     /// <summary>
     /// The stream to which this record will be appended.
     /// </summary>
     public StreamName Stream {
         get;
-        init
-        { field = value;
-          ResetValidation(); }
+        set {
+            field = value;
+            ResetValidation();
+        }
     } = StreamName.Unset;
 
     /// <summary>
     /// When the record was created.
     /// </summary>
-    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 
     protected override ValidationResult RunValidation() {
         var problems = new List<ValidationProblem>();
@@ -91,39 +110,5 @@ public record AppendRecord : SelfValidating {
         return problems.Count > 0
             ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])
             : Results.Success;
-    }
-
-    public class Builder(AppendRecord record) : FluentBuilder<Builder, AppendRecord>(record) {
-        public Builder() : this(new()) { }
-        
-        /// <inheritdoc />
-        protected override AppendRecord OnBuild(AppendRecord record) {
-            record.EnsureValid();
-            return record;
-        }
-
-        public Builder Stream(StreamName stream) =>
-            With(r => r with { Stream = stream });
-
-        public Builder Id(Guid recordId) =>
-            With(r => r with { RecordId = recordId });
-
-        public Builder Value(object recordValue) =>
-            With(r => r with { Value = recordValue });
-
-        public Builder DataFormat(SchemaDataFormat dataFormat) =>
-            With(r => r with { DataFormat = dataFormat });
-
-        public Builder AddMetadata(Metadata metadata) =>
-            With(r => r with { Metadata = metadata });
-
-        public Builder AddMetadata<T>(string key, T value) =>
-            With(r => r with { Metadata = r.Metadata.With(key, value) });
-
-        public Builder Timestamp(DateTimeOffset timestamp) =>
-            With(r => r with { Timestamp = timestamp });
-
-        public Builder Timestamp(long timestamp) =>
-            Timestamp(DateTimeOffset.FromUnixTimeMilliseconds(timestamp));
     }
 }

@@ -19,10 +19,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         string sku, int quantity, string warehouse, string purchaseOrderId
     ) {
         var result = await client.Streams.AppendStream(
-            AppendRecord.New()
-                .Stream(StreamFor(sku))
-                .Value(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow))
-                .Build());
+            AppendRecord.Create(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow), r => r.Stream = StreamFor(sku)));
 
         logger.LogStockReceived(quantity, sku, warehouse, purchaseOrderId, result.Revision);
 
@@ -42,10 +39,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
                 $"Cannot ship {quantity} units of {sku}: only {currentLevel} in stock.");
 
         var stream = StreamFor(sku);
-        var record = AppendRecord.New()
-            .Stream(stream)
-            .Value(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
-            .Build();
+        var record = AppendRecord.Create(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow), r => r.Stream = stream);
 
         var result = await client.Streams.AppendStream(stream, [record], revision);
 
@@ -60,10 +54,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// </summary>
     public async ValueTask<Revision> AdjustStock(string sku, int quantity, string reason) {
         var stream = StreamFor(sku);
-        var record = AppendRecord.New()
-            .Stream(stream)
-            .Value(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow))
-            .Build();
+        var record = AppendRecord.Create(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow), r => r.Stream = stream);
 
         var result = await client.Streams.AppendStream(stream, [record], ExpectedStreamState.Exists);
 
@@ -87,8 +78,8 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
 
         await client.Streams.AppendRecords(
             new[] {
-                AppendRecord.New().Stream(skuStream).Value(transferEvent).Build(),
-                AppendRecord.New().Stream("transfer-log").Value(transferEvent).Build()
+                AppendRecord.Create(transferEvent, r => r.Stream = skuStream),
+                AppendRecord.Create(transferEvent, r => r.Stream = "transfer-log")
             },
             new AppendRecordsOptions().AddChecks(ConsistencyCheck.StreamExists(skuStream)),
             CancellationToken.None);

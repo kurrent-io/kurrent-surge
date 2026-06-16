@@ -145,7 +145,13 @@ public abstract class AspireFixtureBase : IAsyncInitializer, IAsyncDisposable {
                 "Serializing AppHost launch across test processes to work around an Aspire " +
                 "persistent-container race (https://github.com/dotnet/aspire/issues/10146)");
 
-            using (await AppHostLaunchLock.AcquireAsync(TimeSpan.FromMinutes(5)).ConfigureAwait(false)) {
+            // Scope the lock to the CI run: processes in one run share GITHUB_RUN_ID and serialize
+            // against each other, but a fresh key per run can't inherit a foreign-owned lock file
+            // left in the persistent runner's /tmp by an earlier run (a fixed path surfaced as
+            // UnauthorizedAccessException). Off CI, a single fixed key serializes local test processes.
+            var launchLockKey = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "local";
+
+            using (await AppHostLaunchLock.AcquireAsync(launchLockKey, TimeSpan.FromMinutes(5)).ConfigureAwait(false)) {
                 await App
                     .LaunchAsync(Options.StartupTimeout, Options.WaitBehavior, Options.ShouldWaitForResource)
                     .ConfigureAwait(false);

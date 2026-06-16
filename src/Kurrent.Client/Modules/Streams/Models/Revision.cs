@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Kurrent.Client.Exceptions;
 
 namespace Kurrent.Client.Streams;
@@ -39,15 +40,7 @@ public record Revision : IComparable<Revision>, IComparable {
             >= 0  => new(revisionValue),
             _     => throw new InvalidRevision(revisionValue)
         };
-
-    // public StreamPosition(ulong value) {
-    //     if (value > long.MaxValue && value != ulong.MaxValue) {
-    //         throw new ArgumentOutOfRangeException(nameof(value));
-    //     }
-    //
-    //     _value = value;
-    // }
-
+    
     public static Revision Parse(string? revisionValue) =>
         long.TryParse(revisionValue?.Replace("r", "".Trim()), out var revision)
             ? From(revision)

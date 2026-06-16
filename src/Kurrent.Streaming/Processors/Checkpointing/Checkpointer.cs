@@ -4,7 +4,6 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
 
 namespace Kurrent.Processors.Checkpointing;
 

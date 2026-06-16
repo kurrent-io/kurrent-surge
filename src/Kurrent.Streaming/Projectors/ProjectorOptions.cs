@@ -1,5 +1,4 @@
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Options;
 using Kurrent.Validation;
 
 namespace Kurrent.Projectors;

@@ -62,7 +62,7 @@
     <!-- protocol -->
     <Protobuf ProtoRoot="../../proto/kurrentdb/protocol"
               Include="../../proto/kurrentdb/protocol/**/*.proto"
-              Link="proto\kurrentdb\protocol\%(RecursiveDir)/%(FileName)%(Extension)"
+              Link="Contracts\kurrentdb\protocol\%(RecursiveDir)/%(FileName)%(Extension)"
               AdditionalImportDirs="../../proto"
               Access="Internal"
               GrpcServices="Client"
@@ -70,15 +70,15 @@
 
     <!-- kurrent -->
     <Protobuf ProtoRoot="../../proto/kurrent"
-              Include="../../proto/kurrent/**/*.proto"
-              Link="proto\kurrent\%(RecursiveDir)/%(FileName)%(Extension)"
+              Include="../../proto/kurrent/rpc/**/*.proto"
+              Link="Contracts\kurrent\rpc\%(RecursiveDir)/%(FileName)%(Extension)"
               AdditionalImportDirs="../../proto"
               Access="Public" />
 
     <!-- google -->
     <Protobuf ProtoRoot="../../proto/google"
               Include="../../proto/google/**/*.proto"
-              Link="proto\google\%(RecursiveDir)/%(FileName)%(Extension)"
+              Link="Contracts\google\%(RecursiveDir)/%(FileName)%(Extension)"
               Access="Internal"
               ProtoCompile="false" />
   </ItemGroup>

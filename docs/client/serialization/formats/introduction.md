@@ -55,14 +55,13 @@ It also applies when you add a message directly to a request builder. Without a 
 
 ## Override the default
 
-Set the format on the record builder when you need something other than JSON:
+Set the format on the record when you need something other than JSON:
 
 ```csharp
-var record = AppendRecord.New()
-    .Stream("orders")
-    .Value(message)
-    .DataFormat(SchemaDataFormat.Protobuf)
-    .Build();
+var record = AppendRecord.Create(message, r => {
+    r.Stream     = "orders";
+    r.DataFormat = SchemaDataFormat.Protobuf;
+});
 
 await client.Streams.AppendStream(record);
 ```

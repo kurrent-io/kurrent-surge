@@ -21,32 +21,28 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
             var currency = Currencies[Random.Shared.Next(Currencies.Length)];
 
             await client.Streams.AppendStream(stream, [
-                AppendRecord.New()
-                    .Value(new PaymentPlanCreated(
-                        planId,
-                        CustomerId: $"cust-{Random.Shared.Next(1, 100):D3}",
-                        Amount: Math.Round((Random.Shared.NextDouble() * 500) + 10, 2),
-                        currency,
-                        Frequency: Frequencies[Random.Shared.Next(Frequencies.Length)],
-                        CreatedAt: DateTimeOffset.UtcNow
-                    ))
-                    .Build()
+                AppendRecord.Create(new PaymentPlanCreated(
+                    planId,
+                    CustomerId: $"cust-{Random.Shared.Next(1, 100):D3}",
+                    Amount: Math.Round((Random.Shared.NextDouble() * 500) + 10, 2),
+                    currency,
+                    Frequency: Frequencies[Random.Shared.Next(Frequencies.Length)],
+                    CreatedAt: DateTimeOffset.UtcNow
+                ))
             ], stoppingToken);
 
             logger.LogInformation("Wrote PaymentPlanCreated to {Stream} ({Currency} {Amount})",
                 stream, currency, planCounter);
 
             if (Random.Shared.NextDouble() > 0.3) {
-                var req = AppendRecord.New()
-                    .Stream(stream)
-                    .Value(
-                        new PaymentCollected(
-                            planId,
-                            InstallmentNumber: 1,
-                            Amount: Math.Round(Random.Shared.NextDouble() * 100 + 5, 2),
-                            currency,
-                            CollectedAt: DateTimeOffset.UtcNow))
-                    .Build();
+                var req = AppendRecord.Create(
+                    new PaymentCollected(
+                        planId,
+                        InstallmentNumber: 1,
+                        Amount: Math.Round(Random.Shared.NextDouble() * 100 + 5, 2),
+                        currency,
+                        CollectedAt: DateTimeOffset.UtcNow),
+                    r => r.Stream = stream);
 
                 await client.Streams.AppendStream(req, stoppingToken);
 

@@ -60,8 +60,8 @@ public static class SeedData {
                     };
 
                     var records = new[] {
-                        AppendRecord.New().Stream(stream).Value(registered).Build(),
-                        AppendRecord.New().Stream(stream).Value(transferred).Build()
+                        AppendRecord.Create(registered, r => r.Stream = stream),
+                        AppendRecord.Create(transferred, r => r.Stream = stream)
                     };
 
                     var result = await client.Streams.AppendStream(stream, records, ExpectedStreamState.NoStream);

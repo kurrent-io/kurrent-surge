@@ -17,11 +17,10 @@ public class AppenderTests {
     // per-test mapper registration is gone: resolvers snapshot at client construction.
 
     AppendRecord NewRecord(StreamName stream, string? orderingKey = null) =>
-        AppendRecord.New()
-            .Stream(stream)
-            .Value(RaceCar.Generate())
-            .OrderingKey(orderingKey)
-            .Build();
+        AppendRecord.Create(RaceCar.Generate(), r => {
+            r.Stream = stream;
+            r.OrderingKey(orderingKey);
+        });
 
     AppendRecord[] NewRecords(StreamName stream, int count, string? orderingKey = null) =>
         Enumerable.Range(0, count).Select(_ => NewRecord(stream, orderingKey)).ToArray();

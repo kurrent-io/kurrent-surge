@@ -19,11 +19,10 @@ order: 4
 ```csharp
 byte[] payload = Encoding.UTF8.GetBytes("{\"custom\":\"data\"}");
 
-var record = AppendRecord.New()
-    .Stream("blobs")
-    .Value(payload)
-    .DataFormat(SchemaDataFormat.Bytes)
-    .Build();
+var record = AppendRecord.Create(payload, r => {
+    r.Stream     = "blobs";
+    r.DataFormat = SchemaDataFormat.Bytes;
+});
 
 await client.Streams.AppendStream(record);
 ```
