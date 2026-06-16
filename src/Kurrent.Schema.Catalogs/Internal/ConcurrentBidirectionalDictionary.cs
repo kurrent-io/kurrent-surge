@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 
-namespace Kurrent.Client;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// Represents a thread-safe, bidirectional collection of keys and values.

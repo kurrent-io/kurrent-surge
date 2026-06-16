@@ -49,7 +49,7 @@
     Add a future packed analyzer here once; both the package and source consumers pick it up.
   -->
   <ItemGroup>
-    <PackedAnalyzerProject Include="$(RepoRoot)/src/Kurrent.Client.MessageCatalogs.Generators/Kurrent.Client.MessageCatalogs.Generators.csproj" />
+    <PackedAnalyzerProject Include="$(RepoRoot)/src/Kurrent.Schema.Catalogs.Generators/Kurrent.Schema.Catalogs.Generators.csproj" />
   </ItemGroup>
 
   <ItemGroup Label="Default Packages">

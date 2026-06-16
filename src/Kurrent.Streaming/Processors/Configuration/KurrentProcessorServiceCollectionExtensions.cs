@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 using Kurrent.Client;
-using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Schema.Naming;
 using Kurrent.Streaming;
 using Kurrent.Streaming.Diagnostics.Metrics;
 using Kurrent.Streaming.Hosting;

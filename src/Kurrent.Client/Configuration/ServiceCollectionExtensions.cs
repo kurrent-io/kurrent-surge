@@ -1,6 +1,7 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
+using Kurrent.Schema.Catalogs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

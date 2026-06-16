@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Kurrent.Client.Registry;
+using Kurrent.Schema;
 using KurrentDB.Diagnostics.Tracing;
 using JsonSerializer = Kurrent.Client.Schema.Serialization.Json.JsonSerializer;
 

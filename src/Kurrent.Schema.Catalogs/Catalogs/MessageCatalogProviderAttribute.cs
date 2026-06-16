@@ -1,4 +1,4 @@
-namespace Kurrent.Client;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// The assembly's catalog export manifest. The message catalog source generator derives this

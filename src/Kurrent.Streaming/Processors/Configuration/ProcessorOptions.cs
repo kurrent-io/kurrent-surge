@@ -1,5 +1,5 @@
 using Kurrent.Client;
-using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Schema.Naming;
 using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;

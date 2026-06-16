@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 using Kurrent.Validation;
 
 namespace Kurrent.Client.Registry;

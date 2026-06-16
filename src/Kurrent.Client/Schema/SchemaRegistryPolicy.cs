@@ -1,5 +1,6 @@
 // using Kurrent.Client.Features;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Schema;
 

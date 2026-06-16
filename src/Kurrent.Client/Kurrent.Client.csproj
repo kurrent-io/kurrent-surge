@@ -31,10 +31,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
-    <!-- Product feature: ships to consumers so message catalogs generate in THEIR compilations.
-         @(PackedAnalyzerProject) is the shared list (Directory.Build.props) so the same set reaches
-         in-repo source consumers via Directory.Build.targets. -->
-    <ProjectReference Include="@(PackedAnalyzerProject)" PackedAnalyzer="true" />
+    <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.
+         PrivateAssets="none" so the nuspec dependency carries ALL assets: the catalog generator ships
+         in Kurrent.Schema.Catalogs's analyzers/dotnet/cs and must flow to consumers that install
+         Kurrent.Client (NuGet excludes Build,Analyzers on dependency edges by default). The generator
+         is wired onto THIS project's own compilation by Directory.Build.targets (_SdkSourceRef). -->
+    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
 

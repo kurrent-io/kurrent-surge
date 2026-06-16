@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema.NameStrategies;
+namespace Kurrent.Schema.Naming;
 
 /// <summary>
 /// Provides factory methods for creating schema name strategies.

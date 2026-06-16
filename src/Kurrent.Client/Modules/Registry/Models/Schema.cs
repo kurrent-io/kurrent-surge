@@ -1,3 +1,5 @@
+using Kurrent.Schema;
+
 namespace Kurrent.Client.Registry;
 
 public readonly record struct Schema(

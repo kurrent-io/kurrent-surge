@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Kurrent.Client.Schema.NameStrategies;
+namespace Kurrent.Schema.Naming;
 
 static class SchemaNameExtensions {
 	extension(string input) {

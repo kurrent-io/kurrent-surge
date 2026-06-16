@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema.NameStrategies;
+namespace Kurrent.Schema.Naming;
 
 /// <summary>
 /// A schema naming strategy that uses the provided namespace identifier combined with the message type name

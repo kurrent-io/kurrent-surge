@@ -1,3 +1,4 @@
+using Kurrent.Schema;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Registry;

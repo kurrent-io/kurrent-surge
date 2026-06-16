@@ -3,6 +3,8 @@
 using System.Diagnostics;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
+using Kurrent.Schema.Catalogs;
 
 namespace Kurrent.Client.Schema.Serialization;
 

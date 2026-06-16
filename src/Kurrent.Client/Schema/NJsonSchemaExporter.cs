@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 using NJsonSchema;
 using NJsonSchema.Generation;
 

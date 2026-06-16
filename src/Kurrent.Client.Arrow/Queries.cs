@@ -7,6 +7,7 @@ using Apache.Arrow.Adbc.Drivers.FlightSql;
 using Kurrent.Client;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent;
 

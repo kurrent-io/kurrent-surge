@@ -1,7 +1,7 @@
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Schema.Serialization.Protobuf;
+using Kurrent.Schema.Catalogs;
+using Kurrent.Schema.Naming;
 
 namespace Kurrent.Client;
 
@@ -62,44 +62,11 @@ public class KurrentClientMessageOptions {
     /// mappings fail construction loudly, naming the offending catalog.
     /// </summary>
     internal MessageResolver BuildResolver() {
-        var union = new ConcurrentBidirectionalDictionary<string, Type>();
-
         var discovered = MessageCatalogDiscovery.GetCatalogs();
 
         // AlwaysActive catalogs are foundational and register unconditionally; everything else
-        // discovered is opt-in and arrives only through UseCatalog (UsedCatalogs).
-        List<MessageCatalog> catalogs = [Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)];
-
-        // The same catalog instance may arrive both explicitly and via discovery.
-        var seen = new HashSet<MessageCatalog>(ReferenceEqualityComparer.Instance);
-
-        foreach (var catalog in catalogs) {
-            if (!seen.Add(catalog))
-                continue;
-
-            foreach (var entry in catalog.Entries) {
-                // Tolerate identical re-registration; fail loud on a genuine conflict — the same
-                // schema name resolving to a different type would silently corrupt decoding.
-                if (union.TryGetValue(entry.Key, out var existing)) {
-                    if (existing == entry.Value)
-                        continue;
-
-                    throw new InvalidOperationException(
-                        $"Catalog '{catalog.Key}' maps schema '{entry.Key}' to {entry.Value.FullName}, " +
-                        $"but it is already mapped to {existing.FullName}.");
-                }
-
-                try {
-                    union[entry.Key] = entry.Value;
-                }
-                catch (ArgumentException ex) {
-                    // Reverse conflict: the same type is already mapped to a different schema name.
-                    throw new InvalidOperationException(
-                        $"Catalog '{catalog.Key}' has a conflicting mapping for schema '{entry.Key}' / type {entry.Value.FullName}: {ex.Message}", ex);
-                }
-            }
-        }
-
-        return new(union);
+        // discovered is opt-in and arrives only through UseCatalog (UsedCatalogs). The union, dedup,
+        // and conflict detection (the freeze) now live in MessageResolver.From.
+        return MessageResolver.From([Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)]);
     }
 }

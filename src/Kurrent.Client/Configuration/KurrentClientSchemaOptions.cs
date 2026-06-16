@@ -1,6 +1,6 @@
 using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization.Json;
+using Kurrent.Schema.Naming;
 using Kurrent.Client.Schema.Serialization.Protobuf;
 using Kurrent.Validation;
 

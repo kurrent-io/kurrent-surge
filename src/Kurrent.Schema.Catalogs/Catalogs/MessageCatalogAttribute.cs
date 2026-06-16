@@ -1,6 +1,6 @@
-using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Schema.Naming;
 
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// Declares a message catalog built by scanning a namespace at compile time. The message
@@ -37,7 +37,7 @@ public class MessageCatalogAttribute(string namespacePrefix) : Attribute {
 
     /// <summary>
     /// When true, the generated catalog registers into every client's resolver by default,
-    /// instead of being opt-in via <see cref="KurrentClientMessageOptions.UseCatalog"/>.
+    /// instead of being opt-in via <c>KurrentClientMessageOptions.UseCatalog</c>.
     /// Surfaces as <see cref="MessageCatalog.AlwaysActive"/> on the generated catalog.
     /// </summary>
     public bool AlwaysActive { get; init; }

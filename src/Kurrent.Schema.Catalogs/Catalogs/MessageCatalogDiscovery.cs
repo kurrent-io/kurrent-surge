@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Kurrent.Client;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// Enumerates the catalogs exported by loaded assemblies via their generated

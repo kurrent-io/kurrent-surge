@@ -1,7 +1,7 @@
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Schema;
+using Kurrent.Schema.Naming;
 
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// A self-contained message mapping: it carries everything needed to resolve its schema
