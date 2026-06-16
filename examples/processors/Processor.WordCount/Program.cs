@@ -61,23 +61,10 @@ finally {
 return;
 
 static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageCatalog catalog, CancellationToken ct) {
-    //const int initialBatch = 100;
-
     var delay = TimeSpan.FromSeconds(1);
 
     await using var client = KurrentClient.Create(
         "kurrentdb://admin:changeit@localhost:2113?tls=false", client => client.Messages.UseCatalog(catalog));
-
-    //
-    // Log.Information("Priming stream with {Count} facts...", initialBatch);
-    //
-    // await Parallel.ForEachAsync(
-    //     Enumerable.Range(0, initialBatch),
-    //     new ParallelOptions { MaxDegreeOfParallelism = 10, CancellationToken = ct },
-    //     async (_, token) => {
-    //         var fact = await FetchFact(factsApi, token);
-    //         await client.Streams.AppendStream(GetRequest(stream, fact), token);
-    //     });
 
     Log.Information("Streaming facts continuously. Press Ctrl+C to stop.");
 
