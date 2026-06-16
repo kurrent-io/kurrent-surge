@@ -1,6 +1,7 @@
 using Bogus;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Tests.Schema.Serialization;
 

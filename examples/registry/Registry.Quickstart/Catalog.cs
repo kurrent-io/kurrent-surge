@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 using Registry.Quickstart.Events;
 
 namespace Registry.Quickstart;

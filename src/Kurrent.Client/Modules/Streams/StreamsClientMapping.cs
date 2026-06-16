@@ -9,6 +9,8 @@ using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Schema;
+using Kurrent.Schema.Catalogs;
 using KurrentDB.Client;
 
 using Contracts = KurrentDB.Protocol.V1.Streams;

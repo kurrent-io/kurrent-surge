@@ -3,6 +3,7 @@
 
 using Grpc.Core;
 using Kurrent.Client.Legacy;
+using Kurrent.Schema;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams.Checkpoints;

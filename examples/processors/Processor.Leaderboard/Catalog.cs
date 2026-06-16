@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 using Processor.Leaderboard.Events;
 
 namespace Processor.Leaderboard;

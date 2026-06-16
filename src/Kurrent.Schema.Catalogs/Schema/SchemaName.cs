@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Schema;
 
 public readonly record struct SchemaName {
     public static readonly SchemaName Unset = new("");

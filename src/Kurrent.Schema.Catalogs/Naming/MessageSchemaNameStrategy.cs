@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema.NameStrategies;
+namespace Kurrent.Schema.Naming;
 
 /// <summary>
 /// A schema naming strategy that generates schema names based on the type's full name,

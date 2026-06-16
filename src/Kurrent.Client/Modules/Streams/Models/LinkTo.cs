@@ -1,5 +1,6 @@
 using System.Text;
 using Kurrent.Client.Registry;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Streams;
 

@@ -1,4 +1,4 @@
-using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 

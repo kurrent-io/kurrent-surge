@@ -1,7 +1,9 @@
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Schema.Serialization;
+using Kurrent.Schema;
+using Kurrent.Schema.Catalogs;
+using Kurrent.Schema.Naming;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;

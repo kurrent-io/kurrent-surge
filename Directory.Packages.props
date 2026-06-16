@@ -6,6 +6,7 @@
   <!-- Kurrent SDK packages — version shared across all, overridden in CI via -p:Version -->
   <ItemGroup>
     <PackageVersion Include="Kurrent.Client" Version="$(Version)" />
+    <PackageVersion Include="Kurrent.Schema.Catalogs" Version="$(Version)" />
     <PackageVersion Include="Kurrent.Streaming" Version="$(Version)" />
   </ItemGroup>
   <!--- Packages for Client & Processors -->

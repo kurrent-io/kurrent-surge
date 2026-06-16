@@ -1,6 +1,6 @@
-using Kurrent.Client.Registry;
+using Kurrent.Schema;
 
-namespace Kurrent.Client;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// Read-only message type ↔ schema name resolution over a snapshot taken at client
@@ -15,6 +15,48 @@ public sealed class MessageResolver {
     // Internal: resolvers are only created by catalog snapshots at client construction.
     internal MessageResolver(ConcurrentBidirectionalDictionary<string, Type> typeMap) =>
         _typeMap = typeMap;
+
+    /// <summary>
+    /// The freeze: unions a set of catalogs into one immutable snapshot resolver. The same catalog
+    /// instance reached more than once is deduplicated by reference; identical re-registration of a
+    /// mapping is tolerated, but a genuine conflict — the same schema name mapped to a different type,
+    /// or the same type to a different name — fails construction loudly, naming the offending catalog.
+    /// </summary>
+    public static MessageResolver From(params IEnumerable<MessageCatalog> catalogs) {
+        var union = new ConcurrentBidirectionalDictionary<string, Type>();
+
+        // The same catalog instance may arrive both explicitly and via discovery.
+        var seen = new HashSet<MessageCatalog>(ReferenceEqualityComparer.Instance);
+
+        foreach (var catalog in catalogs) {
+            if (!seen.Add(catalog))
+                continue;
+
+            foreach (var entry in catalog.Entries) {
+                // Tolerate identical re-registration; fail loud on a genuine conflict — the same
+                // schema name resolving to a different type would silently corrupt decoding.
+                if (union.TryGetValue(entry.Key, out var existing)) {
+                    if (existing == entry.Value)
+                        continue;
+
+                    throw new InvalidOperationException(
+                        $"Catalog '{catalog.Key}' maps schema '{entry.Key}' to {entry.Value.FullName}, " +
+                        $"but it is already mapped to {existing.FullName}.");
+                }
+
+                try {
+                    union[entry.Key] = entry.Value;
+                }
+                catch (ArgumentException ex) {
+                    // Reverse conflict: the same type is already mapped to a different schema name.
+                    throw new InvalidOperationException(
+                        $"Catalog '{catalog.Key}' has a conflicting mapping for schema '{entry.Key}' / type {entry.Value.FullName}: {ex.Message}", ex);
+                }
+            }
+        }
+
+        return new MessageResolver(union);
+    }
 
     /// <summary>
     /// Append path. An unmapped type on append is always an error — there is no

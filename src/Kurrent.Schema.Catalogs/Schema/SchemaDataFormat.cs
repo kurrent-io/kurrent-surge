@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Schema;
 
 /// <summary>
 /// Specifies the data format for schema content.

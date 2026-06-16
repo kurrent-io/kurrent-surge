@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 using Streams.InventoryManagement.Events;
 
 namespace Streams.InventoryManagement;

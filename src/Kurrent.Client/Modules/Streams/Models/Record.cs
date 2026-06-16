@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
+using Kurrent.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Schema.Serialization.Json;
 using JsonSerializer = System.Text.Json.JsonSerializer;

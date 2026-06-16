@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Kurrent.Schema;
 using Kurrent.Validation;
 using Resources;
 

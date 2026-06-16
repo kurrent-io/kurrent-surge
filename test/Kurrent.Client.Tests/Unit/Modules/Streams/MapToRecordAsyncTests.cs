@@ -1,5 +1,6 @@
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
+using Kurrent.Schema;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Streams.Checkpoints;
 using KurrentDB.Client;

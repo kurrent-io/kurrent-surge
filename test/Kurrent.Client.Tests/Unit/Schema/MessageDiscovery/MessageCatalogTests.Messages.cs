@@ -1,4 +1,4 @@
-using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
 
 // Exercises the MessageCatalogGenerator against this assembly: the generator emits the
@@ -44,7 +44,7 @@ namespace Kurrent.Client.Tests.Schema.Catalogs.Explicit {
     public record KebabOrderArchived(string Id);
 
     public sealed class KebabNamesStrategy() :
-        Kurrent.Client.Schema.NameStrategies.MessageSchemaNameStrategy(Kurrent.Client.Schema.NameStrategies.SchemaNameOutputFormat.KebabCase);
+        Kurrent.Schema.Naming.MessageSchemaNameStrategy(Kurrent.Schema.Naming.SchemaNameOutputFormat.KebabCase);
 }
 
 namespace Kurrent.Client.Tests.Schema.Catalogs.External {

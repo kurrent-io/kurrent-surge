@@ -1,4 +1,4 @@
-using SchemaUrn = Kurrent.Client.Schema.NameStrategies.SchemaUrn;
+using SchemaUrn = Kurrent.Schema.Naming.SchemaUrn;
 
 namespace Kurrent.Client.Tests.SchemaRegistry.NameStrategies;
 

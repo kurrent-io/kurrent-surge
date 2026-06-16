@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Kurrent.Client;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
+using Kurrent.Schema.Naming;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;

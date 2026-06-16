@@ -2,7 +2,9 @@ using System.Collections.Concurrent;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
-using SchemaDataFormat = Kurrent.Client.Streams.SchemaDataFormat;
+using Kurrent.Schema;
+using Kurrent.Schema.Catalogs;
+using SchemaDataFormat = Kurrent.Schema.SchemaDataFormat;
 
 namespace Kurrent.Client.Schema.Serialization;
 

@@ -2,6 +2,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Schema;
 using NJsonSchema;
 
 namespace Kurrent.Client.Tests.Registry;

@@ -6,6 +6,7 @@ using System.Text.Json.Schema;
 using System.Text.Json.Serialization;
 using Kurrent.Client.Schema.Serialization.Json;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 using NodaTime;
 
 namespace Kurrent.Client.Schema;

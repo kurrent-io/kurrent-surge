@@ -1,3 +1,5 @@
+using Kurrent.Schema.Catalogs;
+
 namespace Kurrent.Client.Tests.Internal;
 
 public class ConcurrentBidirectionalDictionaryTests : IDisposable {

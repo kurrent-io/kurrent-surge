@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Streams;
 

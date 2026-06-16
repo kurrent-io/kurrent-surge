@@ -1,4 +1,5 @@
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Schema.Serialization;
 

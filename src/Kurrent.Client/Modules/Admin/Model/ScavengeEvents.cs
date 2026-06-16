@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kurrent.Client.Admin;
 using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 
 namespace Kurrent.Client;
 

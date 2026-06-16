@@ -1,5 +1,6 @@
 using Google.Protobuf;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Schema.Serialization.Protobuf;
 

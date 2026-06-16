@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// Marks a concrete <see cref="MessageCatalog"/> subclass for automatic discovery — the

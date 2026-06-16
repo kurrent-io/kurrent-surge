@@ -1,8 +1,8 @@
-using Kurrent.Client.Registry;
+using Kurrent.Schema;
 
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 
-namespace Kurrent.Client.Schema.NameStrategies;
+namespace Kurrent.Schema.Naming;
 
 /// <summary>
 /// Defines the format options for schema name generation, which determine
@@ -34,6 +34,11 @@ public interface ISchemaNameStrategy {
 /// Base class for schema naming strategies
 /// </summary>
 public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : ISchemaNameStrategy {
+	// Runtime type of System.Reflection.Missing.Value — the sentinel a "no type" reflection result
+	// yields. Reproduced locally (was Type.MissingType, a Kurrent.Client internal extension) so the
+	// naming layer stays BCL-only after the extraction into Kurrent.Schema.Catalogs.
+	static readonly Type MissingType = Type.Missing.GetType();
+
 	/// <summary>
 	/// Generates a schema name based on the specified message type,
 	/// formatted according to the schema naming strategy.
@@ -43,7 +48,7 @@ public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : IS
 	/// <exception cref="ArgumentNullException">Thrown when the provided message type is null.</exception>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when the schema name format is unsupported.</exception>
 	public SchemaName GenerateSchemaName(Type messageType) {
-		if (messageType is null || messageType == Type.MissingType)
+		if (messageType is null || messageType == MissingType)
 			throw new ArgumentNullException(nameof(messageType));
 
 		var (ns, msg) = Generate(messageType);

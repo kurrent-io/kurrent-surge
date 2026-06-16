@@ -1,8 +1,7 @@
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Schema;
+using Kurrent.Schema.Naming;
 
-namespace Kurrent.Client;
+namespace Kurrent.Schema.Catalogs;
 
 /// <summary>
 /// A keyed collection of message type ↔ schema name mappings — the single user-facing
@@ -43,7 +42,7 @@ public class MessageCatalog(string key = MessageCatalog.DefaultKey) {
 
     /// <summary>
     /// When true, this catalog registers into every client's resolver by default. Other discovered
-    /// catalogs are opt-in via <see cref="KurrentClientMessageOptions.UseCatalog"/>; an always-active
+    /// catalogs are opt-in via <c>KurrentClientMessageOptions.UseCatalog</c>; an always-active
     /// catalog skips that step. Reserved for foundational SDK catalogs (system streams, streaming
     /// control messages); set via the always-active constructor or
     /// <c>[assembly: MessageCatalog(..., AlwaysActive = true)]</c>.
@@ -77,13 +76,7 @@ public class MessageCatalog(string key = MessageCatalog.DefaultKey) {
     public bool TryAdd(MessageTypeDescriptor descriptor) =>
         TryMap(descriptor.ResolveSchemaName(), descriptor.MessageType);
     
-    // Exposed for the client-construction union of multiple catalogs into one resolver.
+    // Exposed for the client-construction union of multiple catalogs into one resolver
+    // (MessageResolver.From, same assembly).
     internal IEnumerable<KeyValuePair<string, Type>> Entries => TypeMap;
-
-    internal MessageResolver GetResolver() {
-        // Not "freezing" — the resolver gets a COPY, so any catalog change after this point
-        // is invisible to it. The catalog stays mutable as a template; the copy happens at
-        // client construction, which is when isolation matters.
-        return new(new(TypeMap));
-    }
 }

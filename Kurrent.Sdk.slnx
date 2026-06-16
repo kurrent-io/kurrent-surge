@@ -17,7 +17,6 @@
     <Project Path="src/Kurrent.Client/Kurrent.Client.csproj" />
     <Project Path="src/Kurrent.Client.Arrow/Kurrent.Client.Arrow.csproj" />
     <Project Path="src/Kurrent.Client.SourceGenerators/Kurrent.Client.SourceGenerators.csproj" />
-    <Project Path="src/Kurrent.Client.MessageCatalogs.Generators/Kurrent.Client.MessageCatalogs.Generators.csproj" />
     <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
     <Project Path="test/Kurrent.Client.Arrow.Tests/Kurrent.Client.Arrow.Tests.csproj" />
   </Folder>
@@ -47,7 +46,12 @@
     <Project Path="examples/streams/Streams.InventoryManagement/Streams.InventoryManagement.csproj" />
     <Project Path="examples/streams/Streams.QuickStart/Streams.QuickStart.csproj" />
   </Folder>
-  <Folder Name="/Packages/" />
+  <Folder Name="/Packages/">
+    <Project Path="src/Kurrent.Schema.Catalogs/Kurrent.Schema.Catalogs.csproj" />
+    <Project Path="src/Kurrent.Schema.Catalogs.Generators/Kurrent.Schema.Catalogs.Generators.csproj" />
+    <Project Path="test/Kurrent.Schema.Catalogs.Tests/Kurrent.Schema.Catalogs.Tests.csproj" />
+    <Project Path="test/Kurrent.Schema.Catalogs.Tests.Samples/Kurrent.Schema.Catalogs.Tests.Samples.csproj" />
+  </Folder>
 
   <Folder Name="/Shared/" />
   <Folder Name="/Shared/Aspire/">

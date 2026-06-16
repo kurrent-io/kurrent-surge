@@ -2,6 +2,8 @@ using System.Text;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Schema.Serialization.Json;
+using Kurrent.Schema;
+using Kurrent.Schema.Catalogs;
 using Kurrent.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer;
 
@@ -21,7 +23,7 @@ public class JsonSchemaSerializerTests : SchemaSerializerTestFixture {
 			.Map<Kurrent.Testkit.Datasets.ArcadeRacer.Contracts.OvertakePerformed>()
 			.Map<Kurrent.Testkit.Datasets.ArcadeRacer.Contracts.PitStopPerformed>();
 
-		var schemaManager = new SchemaManager(null!, null!, catalog.GetResolver());
+		var schemaManager = new SchemaManager(null!, null!, MessageResolver.From(catalog));
 
 		return new JsonSchemaSerializer(
 			new JsonSchemaSerializerOptions { SchemaRegistration = SchemaRegistrationOptions.ManualMap },

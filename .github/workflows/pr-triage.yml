@@ -24,12 +24,11 @@ jobs:
   # must be a valid conventional commit — semver-bump derives versions from it.
   title:
     # Display name matches the required status check in branch protection.
-    name: Validate PR Title
+    name: Validate Title
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate Title
-        uses: amannn/action-semantic-pull-request@v6
+      - uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -58,6 +57,7 @@ jobs:
 
   # Best-effort labeling — never a required check, must never block a merge.
   label:
+    name: Auto-Label
     runs-on: ubuntu-latest
 
     steps:

@@ -4,6 +4,7 @@
 using System.Text.Json.Nodes;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 using NodaTime;
 
 namespace Kurrent.Client.Tests.Schema;

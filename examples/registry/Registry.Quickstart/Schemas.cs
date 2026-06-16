@@ -1,4 +1,5 @@
 using Kurrent.Client.Registry;
+using Kurrent.Schema;
 
 namespace Registry.Quickstart;
 

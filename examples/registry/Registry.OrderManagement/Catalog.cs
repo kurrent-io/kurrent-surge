@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Schema;
+using Kurrent.Schema.Catalogs;
 using Registry.OrderManagement.Events;
 
 namespace Registry.OrderManagement;

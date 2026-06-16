@@ -1,6 +1,7 @@
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
 using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Tests.Registry;
 
