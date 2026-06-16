@@ -10,20 +10,14 @@ namespace Kurrent.Testkit.Aspire;
 static class AppHostLaunchLock {
     /// <summary>
     /// Acquires the launch lock, waiting until the holder releases it or the timeout elapses.
+    /// Processes that pass the same <paramref name="key"/> serialize against each other; a distinct
+    /// key is an independent lock. <paramref name="key"/> scopes the on-disk lock file, so it must be
+    /// a filesystem-safe token and identical across every process that needs to be serialized.
     /// </summary>
-    public static async ValueTask<IDisposable> AcquireAsync(TimeSpan timeout, CancellationToken ct = default) {
+    public static async ValueTask<IDisposable> AcquireAsync(string key, TimeSpan timeout, CancellationToken ct = default) {
         var deadline = Stopwatch.GetTimestamp() + (long)(timeout.TotalSeconds * Stopwatch.Frequency);
 
-        // Scope the lock to the CI run, not a fixed or random path. Every test process in one run
-        // shares GITHUB_RUN_ID, so within-run launch serialization (the lock's whole purpose) still
-        // holds; a fresh path per run means a foreign-owned file left in the persistent runner's
-        // /tmp by an earlier run (e.g. a step that ran as root) can never poison it — the previous
-        // fixed path surfaced as UnauthorizedAccessException ("Permission denied") when reused. A
-        // random per-call path would instead give every process its own file — no mutual exclusion.
-        // Outside CI, falls back to a single fixed key where one developer owns the file.
-        var runScope = Environment.GetEnvironmentVariable("GITHUB_RUN_ID") ?? "local";
-        var lockPath = Path.Combine(Path.GetTempPath(), $"kurrent-testkit-apphost-{runScope}.lock");
-
+        var lockPath = Path.Combine(Path.GetTempPath(), $"kurrent-testkit-apphost-{key}.lock");
 
         while (true) {
             try {
