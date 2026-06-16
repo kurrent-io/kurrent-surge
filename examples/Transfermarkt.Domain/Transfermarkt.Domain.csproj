@@ -3,4 +3,8 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>Transfermarkt</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+  </ItemGroup>
 </Project>

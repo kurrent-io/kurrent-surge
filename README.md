@@ -33,7 +33,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## Community
 
-- [Discord](https://discord.gg/kurrent)
+- [Discord](https://discord.gg/Phn9pmCw3t)
 - [Discussions](https://github.com/kurrent-io/kurrent-sdk-dotnet/discussions)
 
 ## License

@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Registry.Quickstart.Events;
 using Serilog;
 
 namespace Registry.Quickstart;

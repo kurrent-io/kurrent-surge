@@ -1,11 +1,11 @@
 using Dapper;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;
-using Transfermarkt.Domain.Events;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -24,9 +24,10 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<ClubSpendingProcessor>();
-    builder.Services.AddKurrentProcessor<ClubSpendingProcessor>(opts => {
-        opts.Connection("kurrentdb://localhost:2113");
-        opts.Subscription.Filter = RecordFilter.ByExpression($"schema = {nameof(PlayerTransferred)}");
+    builder.Services.AddKurrent(kurrent => {
+        kurrent.Connection("kurrentdb://localhost:2113");
+        kurrent.AddProcessor<ClubSpendingProcessor>(opts =>
+            opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PlayerTransferred'"));
     });
 
     var app = builder.Build();

@@ -1,3 +1,4 @@
+using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;
@@ -23,13 +24,15 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<PlayerCacheProcessor>();
-    
-    builder.Services.AddKurrentProcessor<PlayerCacheProcessor>(opts => {
-        opts.Connection("kurrentdb://localhost:2113");
-        opts.ProcessorId = "PlayerCacheProcessor-001";
-        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-        opts.Checkpoint.Interval = TimeSpan.FromSeconds(5);
-        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
+
+    builder.Services.AddKurrent(kurrent => {
+        kurrent.Connection("kurrentdb://localhost:2113");
+        kurrent.AddProcessor<PlayerCacheProcessor>(opts => {
+            opts.ProcessorId = "PlayerCacheProcessor-001";
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.Interval = TimeSpan.FromSeconds(5);
+            opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
+        });
     });
 
     var app = builder.Build();
