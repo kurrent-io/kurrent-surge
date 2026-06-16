@@ -27,7 +27,7 @@ message PartitionPosition {
   string stream = 3;
 
   // Revision within the stream. Present only alongside stream.
-  sint32 stream_revision = 4;
+  sint64 stream_revision = 4;
 }
 
 message StreamRevision {

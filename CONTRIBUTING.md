@@ -1,270 +1,108 @@
-# Contributor Guidelines
+# Contributing
 
-- **Repository:** KurrentDB .NET Client
-- **Primary Language:** C# 14 (.NET 8.0/9.0/10.0)
-- **Last Updated:** 2025-11-07
+Thanks for contributing to the Kurrent .NET SDK. This guide covers setup, the test runner, and the
+commit and pull-request conventions. Engineering conventions (style, async rules, AOT constraints, module
+layout) live in [`AGENTS.md`](AGENTS.md) — read that before writing code.
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+| Requirement | Notes                                                                                  |
+|-------------|----------------------------------------------------------------------------------------|
+| .NET SDK    | Pinned by [`global.json`](global.json) (`10.0.300`, `rollForward: latestMinor`). The SDK targets `net10.0` only. |
+| Docker      | Required for integration tests. Containers and TLS certificates are provisioned automatically by the Aspire test harness — no manual cert setup. |
 
-- .NET SDK 8.0, 9.0, and 10.0 (multi-targeting)
-- Docker and Docker Compose (for integration tests)
-
-### Setup
-
-```bash
-# Clone repository
-git clone <repository-url>
-cd Kurrent.Client
-
-# Restore dependencies
-dotnet restore
-
-# Build all frameworks
-dotnet build
-
-# ONE-TIME: Generate test certificates
-sudo ./gencert.sh
-
-# Start observability services (Seq, Aspire Dashboard)
-cd test/Kurrent.Client.Testing
-docker compose up -d
-```
-
-## Development Workflow
-
-### Branch Naming
-
-Pattern: Informal, descriptive style
-
-Recent example:
-- `It has begun!` - Initial repository setup
-
-**Recommendation:** Consider adopting [Conventional Commits](https://www.conventionalcommits.org/)
-for better changelog generation:
-```
-feat: add schema registry auto-registration
-fix: resolve checkpoint tracking race condition
-docs: update testing workflow instructions
-```
-
-### Testing Requirements
-
-**CRITICAL:** This project uses **TUnit**, NOT xUnit/NUnit. Use `dotnet run` for test execution.
+## Getting started
 
 ```bash
-# Run all integration tests
-dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0
+git clone https://github.com/kurrent-io/kurrent-sdk-dotnet.git
+cd kurrent-sdk-dotnet
 
-# Run specific test category
-dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0 \
-  --treenode-filter "/*/*/*/*[Category=Streams]"
-
-# Run multiple categories
-dotnet run \
-  --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj \
-  --framework net9.0 \
-  --treenode-filter "/*/*/*/*[Category=Streams]|/*/*/*/*[Category=Registry]"
+dotnet restore        # restore package dependencies
+dotnet tool restore   # restore local tools used by tools/ and CI
+dotnet build -c Release
 ```
 
-**Available Categories:** Streams, PersistentSubscriptions, ProjectionManagement, UserManagement, Registry, Admin
+> Never pass `--framework` to a solution-wide `dotnet build`/`dotnet test`. It forces one TFM onto the whole
+> solution and breaks the `netstandard2.0` source-generator projects with `NETSDK1005`.
 
-### Pull Request Process
+## Running tests
 
-1. **Create feature branch** from `main`
-2. **Implement changes** following code standards (see below)
-3. **Add tests** proving fix effectiveness or feature functionality
-4. **Run full test suite** for affected categories
-5. **Submit PR** using template:
-   - [ ] Bugfix / New feature / Breaking change
-   - [ ] Tests added
-   - [ ] Documentation updated (if appropriate)
-6. **Address review feedback** (if applicable)
-7. **Merge** to `main` after approval
-
-## Code Standards
-
-### Style Conventions
-
-**K&R Brace Style** - Opening braces on same line:
-```csharp
-// CORRECT
-public class Foo {
-    public void Bar() {
-        if (condition) {
-            // code
-        }
-    }
-}
-
-// WRONG - Allman style
-public class Foo
-{
-    public void Bar()
-    {
-        // code
-    }
-}
-```
-
-**Indentation:**
-- C# code: 4 spaces (tabs rendered as 4 spaces)
-- Markup (XML, JSON, YAML): 2 spaces
-
-**Naming:**
-- Classes, methods, properties: `PascalCase`
-- Private fields: `_camelCase` (underscore prefix required)
-- Parameters, locals: `camelCase`
-- Test methods: `snake_case` (e.g., `registers_initial_version_of_new_schema`)
-
-**Modern C# Requirements:**
-- `var` everywhere (enforced by EditorConfig)
-- Expression-bodied members when possible
-- Pattern matching over `is`/`as` checks
-- Null-coalescing operators (`?.`, `??`)
-- File-scoped namespaces: `namespace Kurrent.Client.Streams;`
-
-**Library-Specific:**
-- `ConfigureAwait(false)` on ALL awaits in library code (NOT test code)
-- Non-nullable references enabled (`<Nullable>enable</Nullable>`)
-- Result pattern for public APIs (return `Result<TSuccess, TError>`, NOT exceptions)
-
-Full standards enforced via `.editorconfig` and `Kurrent.Client.sln.DotSettings`.
-
-### Documentation Requirements
-
-**XML Documentation Required For:**
-- All public types and members
-- Complex internal abstractions
-- Non-obvious behavior or constraints
-
-**Update When Applicable:**
-- `.project/project.md` - Architecture changes
-- `CLAUDE.md` - AI agent instructions (if patterns change)
-- Test fixtures - When adding new test infrastructure
-
-**DO NOT Create:**
-- Redundant README files (use `.project/project.md`)
-- Aspirational documentation (document what exists, not what's planned)
-
-## Communication
-
-### Issue Reporting
-
-Pattern: Structured issue description with reproduction steps
-
-**Template:**
-```markdown
-**Description:** Brief summary of issue
-
-**Reproduction:**
-1. Configure client with X
-2. Call operation Y
-3. Observe error Z
-
-**Expected:** What should happen
-**Actual:** What actually happened
-
-**Environment:**
-- Client version: X.Y.Z
-- .NET version: net9.0
-- OS: Ubuntu 24.04 / macOS 15 / Windows 11
-```
-
-### Code Review
-
-**Focus Areas:**
-1. Code style compliance (K&R braces, naming, indentation)
-2. `ConfigureAwait(false)` presence in library code
-3. Result pattern usage (no exception-based flow control)
-4. Test coverage for new operations
-5. Test method naming (snake_case enforcement)
-
-**Review Checklist:**
-- [ ] Builds successfully on all frameworks (net8.0, net9.0, net10.0)
-- [ ] Tests pass for affected categories
-- [ ] EditorConfig rules satisfied (formatting)
-- [ ] XML documentation added for public APIs
-- [ ] No breaking changes (or marked as breaking in PR)
-
-## Additional Protocols
-
-### Protocol Buffers
-
-**Automatic compilation** during build - no manual `protoc` invocation needed. Proto files located in:
-- `proto/kurrentdb/protocol/v1/` - EventStoreDB compatibility layer
-- `proto/kurrentdb/protocol/v2/` - KurrentDB native protocol
-- `proto/kurrent/rpc/` - Public RPC API
-
-### Source Generators
-
-Two custom generators active:
-1. **KurrentOperationErrorGenerator** - Generates exception classes from `[KurrentOperationError]` attributes
-2. **Variant.SourceGenerators** - Generates discriminated union implementations
-
-**Debug generators:** Set configuration to `Debug`, build project - debugger will launch automatically.
-
-### Observability
-
-**Structured logging:** Seq dashboard at <http://localhost:5341>
-**Telemetry:** Aspire Dashboard at <http://localhost:18888>
-**OTLP endpoint:** Port 4317
-
-Configure verbosity in `test/Kurrent.Client.Testing/appsettings.json`:
-```json
-{
-  "Serilog": {
-    "MinimumLevel": {
-      "Default": "Verbose"
-    }
-  }
-}
-```
-
-### Versioning
-
-**MinVer** automatic versioning based on git tags:
-```bash
-# Check current version
-dotnet tool restore
-dotnet tool run minver -- --tag-prefix=v
-```
-
-### Package Creation
+Tests run on [TUnit](https://tunit.dev/) via the Microsoft Testing Platform — not VSTest. Use the test
+runner, not `dotnet test`. The runner builds once (`-c Release`) then runs with `--no-build`.
 
 ```bash
-# Create NuGet packages
-dotnet pack --configuration Release
-
-# Inspect package contents
-./tools/inspect_nuget.sh src/KurrentDB.Client/bin/Release/*.nupkg
+dotnet scripts/testing/test-runner.cs -- run unit          # unit tests
+dotnet scripts/testing/test-runner.cs -- run integration   # integration tests (needs Docker)
+dotnet scripts/testing/test-runner.cs -- run all           # both
+dotnet scripts/testing/test-runner.cs -- list unit         # list without running
 ```
 
----
-
-## Quick Reference Commands
+Scope a run with a tree-node filter (`/Assembly/Namespace/Class/Method`, `*` wildcard):
 
 ```bash
-# Build
-dotnet build
-dotnet build --framework net9.0
-
-# Test (TUnit - use dotnet run!)
-dotnet run --project test/Kurrent.Client.Integration.Tests/Kurrent.Client.Integration.Tests.csproj --framework net9.0
-
-# Clean
-dotnet clean && dotnet build
-
-# Start observability
-cd test/Kurrent.Client.Testing && docker compose up -d
-
-# Stop observability
-cd test/Kurrent.Client.Testing && docker compose down
+dotnet scripts/testing/test-runner.cs -- run unit --treenode-filter "/*/*/ReadTests/*"
+dotnet scripts/testing/test-runner.cs -- run unit --treenode-filter "/*/*/*/*[Category=Streams]"
 ```
 
----
+Results are written to `.artifacts/test-results/<run-id>/` as `.trx` and markdown reports.
+
+Unit and integration tests live in the same project per package, split into `Unit/` and `Integration/`
+folders; integration tests carry `[Category("Integration")]`. There are no separate `*.Integration.Tests`
+projects.
+
+## Commit messages
+
+Commits follow [Conventional Commits v1.0.0](https://www.conventionalcommits.org/). The full type list, scope
+tables, and examples are in [`.github/git-commit-instructions.md`](.github/git-commit-instructions.md).
+
+```
+<type>[optional scope]: <description>
+```
+
+- Past tense, lowercase, no trailing period — `feat(client.streams): added bidirectional read support`.
+- Scopes are lowercase; use `package.module` for module-level precision (e.g. `client.registry`).
+- Never put issue IDs (`DEV-XXXX`, `[DEV-1046]`) in the subject line — it breaks `semver-bump` parsing. Reference
+  them in the body instead.
+
+## Pull requests
+
+1. Branch from `main`.
+2. Implement the change and cover new or modified behavior with tests.
+3. Run the affected suites green before pushing.
+4. Open a PR. The [PR template](.github/PULL_REQUEST_TEMPLATE.md) carries the Definition of Done checklist —
+   every new or modified `public` member needs XML documentation, and the full suite must pass.
+
+The PR title becomes the squash commit on `main`, so it must itself be a valid conventional commit with no
+issue IDs. Linear links PRs to issues via the branch name.
+
+## Packaging
+
+Validate package contents before proposing packaging changes with the verification gate:
+
+```bash
+python3 scripts/verify-package.py --csproj src/Kurrent.Client/Kurrent.Client.csproj
+python3 scripts/verify-package.py --csproj src/Kurrent.Streaming/Kurrent.Streaming.csproj --list
+```
+
+Pass an existing `.nupkg` as a positional argument to verify a pre-built package instead of packing.
+
+## Project layout
+
+Publishable packages (no meta-package — consumers install only what they need):
+
+| Package                                     | What it does                                                       |
+|---------------------------------------------|--------------------------------------------------------------------|
+| [Kurrent.Client](src/Kurrent.Client/)       | gRPC client — streams, schema registry, connectors, admin          |
+| [Kurrent.Streaming](src/Kurrent.Streaming/) | Stream processing with checkpointing and partitioning; builds on the client |
+
+Everything else under `src/` (source generators, `Variant`, `Kurrent.CodeAnalysis`, schema catalogs) is shared
+solution infrastructure, not shipped as standalone packages. Proto definitions live in
+`proto/kurrentdb/protocol/{v0,v1,v2}/`.
+
+## Reporting issues and security
+
+- Bugs and features: use the [issue templates](.github/ISSUE_TEMPLATE/) on GitHub.
+- Vulnerabilities: follow [`SECURITY.md`](SECURITY.md) — do not open a public issue.
+- Questions and help: see [`SUPPORT.md`](SUPPORT.md).
+
+By contributing, you agree your contributions are licensed under the [Apache 2.0 License](LICENSE.md).

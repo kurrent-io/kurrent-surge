@@ -210,7 +210,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
             // this keeps the paired presence check on load (HasStream && HasStreamRevision) truthful.
             if (p.Revision != Revision.Unset) {
                 position.Stream         = p.Stream;
-                position.StreamRevision = (int)p.Revision;
+                position.StreamRevision = p.Revision;
             }
 
             return position;
