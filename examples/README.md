@@ -21,7 +21,9 @@ with explicit versions (`order.placed.v1`).
 
 Two examples show alternatives the SDK also supports:
 
-- `Streams.QuickStart`: zero-config namespace scan, `[assembly: MessageCatalog("Ns.Events", AlwaysActive = true)]`, which derives fully-qualified names with no per-type mapping.
+- `Streams.QuickStart`: zero-config namespace scan,
+  `[assembly: MessageCatalog("Ns.Events", AlwaysActive = true)]`, which derives
+  fully-qualified names with no per-type mapping.
 - `Processor.WordCount`: a runtime `MessageCatalog` selected per client via `UseCatalog(...)`.
 
 The SDK additionally supports inline `opts.Messages.MapMessage<T>("name")` and custom naming
