@@ -5,6 +5,7 @@ using Bogus;
 using KurrentDB.Diagnostics.Tracing;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 using JsonSerializer = Kurrent.Client.Schema.Serialization.Json.JsonSerializer;
 
 namespace Kurrent.Client.Tests.Model;

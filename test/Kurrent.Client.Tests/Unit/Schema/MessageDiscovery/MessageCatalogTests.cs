@@ -1,5 +1,6 @@
 using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.NameStrategies;
+using Kurrent.Schema.Catalogs;
+using Kurrent.Schema.Naming;
 using Kurrent.Client.Tests.Schema.Catalogs.Ambient;
 using Kurrent.Client.Tests.Schema.Catalogs.Custom;
 using Kurrent.Client.Tests.Schema.Catalogs.Explicit;
@@ -127,9 +128,8 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask resolver_resolves_pinned_schema_name() {
         // Arrange
-        var resolver = new MessageCatalog("test")
-            .Map<PinnedOrderPlaced>("pinned.order-placed.v9")
-            .GetResolver();
+        var resolver = MessageResolver.From(new MessageCatalog("test")
+            .Map<PinnedOrderPlaced>("pinned.order-placed.v9"));
 
         // Act
         var schemaName = resolver.ResolveSchemaName(typeof(PinnedOrderPlaced));
@@ -141,7 +141,7 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask resolver_throws_on_unmapped_append() {
         // Arrange — no auto-mapping: if it's not mapped, appending throws.
-        var resolver = new MessageCatalog("test").GetResolver();
+        var resolver = MessageResolver.From(new MessageCatalog("test"));
 
         // Act
         var resolving = () => resolver.ResolveSchemaName(typeof(ScannedOrderPlaced));
@@ -153,7 +153,7 @@ public class MessageCatalogTests {
     [Test]
     public async ValueTask resolver_returns_null_on_unresolved_read_by_default() {
         // Arrange — forward-unknown types are data for fallback handlers, not errors.
-        var resolver = new MessageCatalog("test").GetResolver();
+        var resolver = MessageResolver.From(new MessageCatalog("test"));
 
         // Act
         var resolved = resolver.ResolveType("unknown.schema.v1");
@@ -166,7 +166,7 @@ public class MessageCatalogTests {
     public async ValueTask resolver_snapshot_ignores_catalog_changes_after_creation() {
         // Arrange
         var catalog  = new MessageCatalog("test").Map<PinnedOrderPlaced>("pinned.v1");
-        var resolver = catalog.GetResolver();
+        var resolver = MessageResolver.From(catalog);
 
         // Act — mutate the catalog AFTER the snapshot.
         catalog.Map<ScannedOrderPlaced>("late.v1");

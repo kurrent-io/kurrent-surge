@@ -1,6 +1,8 @@
 using Kurrent.Client.Schema;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Schema.Serialization.Protobuf;
+using Kurrent.Schema;
+using Kurrent.Schema.Catalogs;
 using Kurrent.Client.Streams;
 
 using StreamRevision = KurrentDB.Protocol.V2.Streams.StreamRevision;
@@ -20,7 +22,7 @@ public class ProtobufSchemaSerializerTests : SchemaSerializerTestFixture {
 			.Map<KurrentDB.Protocol.V2.Streams.ConsistencyCheck.Types.QueryPredicateCheck>()
 			.Map<string>("bad-schema"); // for deserialize_with_non_protobuf_type_throws
 
-		var schemaManager = new SchemaManager(null!, null!, catalog.GetResolver());
+		var schemaManager = new SchemaManager(null!, null!, MessageResolver.From(catalog));
 
 		return new ProtobufSchemaSerializer(
 			new ProtobufSchemaSerializerOptions { SchemaRegistration = SchemaRegistrationOptions.ManualMap },

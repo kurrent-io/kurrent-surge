@@ -4,8 +4,9 @@ using Bogus;
 using Humanizer;
 using Kurrent.Client;
 using Kurrent.Client.Registry;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
+using Kurrent.Schema.Naming;
 
 namespace Kurrent.Streaming.Tests.Fakes;
 

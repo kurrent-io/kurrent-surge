@@ -2,6 +2,7 @@ using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 using Kurrent.Client.Tests.Fixtures;
 using static Kurrent.Client.Registry.CompatibilityMode;
 

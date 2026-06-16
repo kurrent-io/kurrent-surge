@@ -1,6 +1,7 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Registry;
 using Kurrent.Client.Streams;
+using Kurrent.Schema.Catalogs;
 using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;

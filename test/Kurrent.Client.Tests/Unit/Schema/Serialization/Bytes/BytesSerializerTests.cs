@@ -2,6 +2,7 @@ using System.Buffers;
 using Kurrent.Client.Schema.Serialization;
 using Kurrent.Client.Schema.Serialization.Bytes;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent.Client.Tests.Schema.Serialization.Bytes;
 

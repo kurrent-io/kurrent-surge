@@ -3,8 +3,9 @@
 using Bogus;
 using Humanizer;
 using Kurrent.Client.Registry;
-using Kurrent.Client.Schema.NameStrategies;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
+using Kurrent.Schema.Naming;
 
 namespace Kurrent.Client.Tests.Filters;
 

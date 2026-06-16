@@ -1,6 +1,6 @@
 using Kurrent.Client;
-using Kurrent.Client.Schema;
 using Kurrent.Client.Streams;
+using Kurrent.Schema.Catalogs;
 using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
 using Processor.WordCount;
