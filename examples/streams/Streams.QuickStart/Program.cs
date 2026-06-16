@@ -14,9 +14,9 @@ var stream = $"order-{Guid.NewGuid().ToString()[..8]}";
 
 // Append events
 var records = new[] {
-    AppendRecord.New().Stream(stream).Value(new OrderPlaced("ORD-001", "Alice", 3, DateTimeOffset.UtcNow)).Build(),
-    AppendRecord.New().Stream(stream).Value(new OrderPaid("ORD-001", 29.97m, DateTimeOffset.UtcNow)).Build(),
-    AppendRecord.New().Stream(stream).Value(new OrderShipped("ORD-001", "TRACK-9876", DateTimeOffset.UtcNow)).Build()
+    AppendRecord.Create(new OrderPlaced("ORD-001", "Alice", 3, DateTimeOffset.UtcNow), r => r.Stream = stream),
+    AppendRecord.Create(new OrderPaid("ORD-001", 29.97m, DateTimeOffset.UtcNow), r => r.Stream = stream),
+    AppendRecord.Create(new OrderShipped("ORD-001", "TRACK-9876", DateTimeOffset.UtcNow), r => r.Stream = stream)
 };
 
 var result = await client.Streams.AppendStream(stream, records, ExpectedStreamState.NoStream);

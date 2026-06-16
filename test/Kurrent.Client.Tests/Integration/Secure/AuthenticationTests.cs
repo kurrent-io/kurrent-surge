@@ -17,7 +17,7 @@ public class AuthenticationTests {
         });
 
         var stream = $"secure-auth-{Guid.NewGuid():N}";
-        var record = AppendRecord.New().Stream(stream).Value(new TestEvent("no creds")).Build();
+        var record = AppendRecord.Create(new TestEvent("no creds"), r => r.Stream = stream);
 
         await Assert.That(async () => await client.Streams.AppendStream(stream, [record], ExpectedStreamState.NoStream, ct))
             .ThrowsException();

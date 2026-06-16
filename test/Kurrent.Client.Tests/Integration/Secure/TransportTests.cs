@@ -13,8 +13,8 @@ public class TransportTests {
         var stream = $"secure-read-{Guid.NewGuid():N}";
 
         var appendRecords = new[] {
-            AppendRecord.New().Stream(stream).Value(new TestEvent("event-1", DateTimeOffset.UtcNow)).Build(),
-            AppendRecord.New().Stream(stream).Value(new TestEvent("event-2", DateTimeOffset.UtcNow)).Build()
+            AppendRecord.Create(new TestEvent("event-1", DateTimeOffset.UtcNow), r => r.Stream = stream),
+            AppendRecord.Create(new TestEvent("event-2", DateTimeOffset.UtcNow), r => r.Stream = stream)
         };
 
         await Fixture.Client.Streams.AppendStream(stream, appendRecords, ExpectedStreamState.NoStream, ct);

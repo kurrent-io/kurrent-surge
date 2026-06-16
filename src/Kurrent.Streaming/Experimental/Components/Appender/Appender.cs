@@ -43,7 +43,7 @@ interface IAppender : IAsyncDisposable {
 /// Records without an ordering key are appended in the order received (single default lane).
 /// Records with an ordering key are routed to a lane determined by the key hash — records
 /// with the same key are ordered, different keys may flush in parallel.
-/// Set the ordering key via <c>AppendRecord.New().OrderingKey("key")</c>.
+/// Set the ordering key via <c>AppendRecord.Create(value, r =&gt; r.OrderingKey("key"))</c>.
 /// </summary>
 sealed class Appender : IAppender {
     readonly AppenderOptions         _options;

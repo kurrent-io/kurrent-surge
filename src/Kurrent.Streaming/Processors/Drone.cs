@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Client.Processors.Gateway.Messages;
@@ -8,7 +7,6 @@ using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Diagnostics;
 using Kurrent.Streaming.Gateway;
-using Kurrent.Streaming.Options;
 
 namespace Kurrent.Streaming;
 

@@ -6,7 +6,6 @@ using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
 using Kurrent.Streaming.Gateway;
-using Kurrent.Streaming.Options;
 
 namespace Kurrent.Streaming;
 

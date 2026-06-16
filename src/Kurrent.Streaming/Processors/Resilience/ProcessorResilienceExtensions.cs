@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Polly;
 
 namespace Kurrent.Streaming.Options;

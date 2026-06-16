@@ -386,11 +386,10 @@ public partial class StreamsClient {
     #endregion
 
     async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision rev, CancellationToken ct) {
-        var record = AppendRecord.New()
-            .Stream(stream.Metastream)
-            .Value(metadata)
-            .DataFormat(SchemaDataFormat.Json)
-            .Build();
+        var record = AppendRecord.Create(metadata, r => {
+            r.Stream     = stream.Metastream;
+            r.DataFormat = SchemaDataFormat.Json;
+        });
 
         // Revision.Unset means "no optimistic-concurrency expectation". The removed builder dropped an
         // Unset (or Any) guard; the new core only short-circuits on Any, so branch here to avoid sending

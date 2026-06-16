@@ -56,11 +56,10 @@ public class AppendStreamBenchmarks {
         _records = new AppendRecord[RecordCount];
 
         for (var i = 0; i < RecordCount; i++) {
-            _records[i] = AppendRecord.New()
-                .Stream(_stream)
-                .Value(payload)
-                .DataFormat(SchemaDataFormat.Bytes)
-                .Build();
+            _records[i] = AppendRecord.Create(payload, r => {
+                r.Stream     = _stream;
+                r.DataFormat = SchemaDataFormat.Bytes;
+            });
         }
 
         // Seed the initial revision for the expected-revision benchmark.

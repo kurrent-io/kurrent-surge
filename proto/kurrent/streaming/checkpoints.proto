@@ -1,0 +1,63 @@
+// ******************************************************************************************
+// Checkpoint stream contracts for distributed stream processors.
+//
+// Event-sourced into "$processors/{processorId}/checkpoints": one PartitionsCheckpointed per
+// drone per checkpoint cycle, carrying that drone's partition positions. A CheckpointReset acts
+// as a barrier — all prior events are superseded. State is folded backwards from the stream tail.
+// ******************************************************************************************
+
+edition = "2023";
+
+package kurrent.streaming;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Kurrent.Streaming.Checkpointing";
+
+// Position data for a single partition within a checkpoint event.
+message PartitionPosition {
+  // Partition index within the processor group.
+  sint32 partition = 1;
+
+  // Global log position of the checkpointed record.
+  sint64 position = 2;
+
+  // Stream the record belongs to. Present only when the position carries stream context;
+  // always paired with stream_revision.
+  string stream = 3;
+
+  // Revision within the stream. Present only alongside stream.
+  sint32 stream_revision = 4;
+}
+
+message StreamRevision {
+  // Stream name.
+  string stream = 1;
+
+  // Revision within the stream. Present only alongside stream.
+  sint64 revision = 2;
+}
+
+// One or more partition positions checkpointed by a drone.
+message PartitionsCheckpointed {
+  string processor_id  = 1;
+  string drone_id      = 2;
+  string checkpoint_id = 3;
+  
+  repeated PartitionPosition positions = 4;
+  
+  google.protobuf.Timestamp  timestamp = 5;
+}
+
+// Checkpoint was reset to a specific position.
+// Empty positions  = full reset (barrier, all prior events superseded).
+// Positions present = selective reset (those partitions repositioned, others unaffected).
+message CheckpointReset {
+  string processor_id  = 1;
+  string drone_id      = 2;
+  string checkpoint_id = 3;
+  
+  repeated PartitionPosition positions = 4;
+  
+  google.protobuf.Timestamp  timestamp = 5;
+}

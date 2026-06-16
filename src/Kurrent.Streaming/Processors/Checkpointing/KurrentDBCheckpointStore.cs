@@ -1,5 +1,7 @@
+using Google.Protobuf.WellKnownTypes;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
+using Kurrent.Schema;
 
 namespace Kurrent.Streaming.Checkpointing;
 
@@ -8,12 +10,12 @@ namespace Kurrent.Streaming.Checkpointing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Stores one <see cref="Contracts.PartitionsCheckpointed"/> event per drone per checkpoint cycle,
+/// Stores one <see cref="PartitionsCheckpointed"/> event per drone per checkpoint cycle,
 /// carrying all that drone's partition positions as an array.
 /// State is reconstructed by folding events backwards from the stream tail.
 /// </para>
 /// <para>
-/// A <see cref="Contracts.CheckpointReset"/> event acts as a barrier — all prior events are superseded.
+/// A <see cref="CheckpointReset"/> event acts as a barrier — all prior events are superseded.
 /// </para>
 /// <para>
 /// No fencing: all appends use <see cref="ExpectedStreamState.Any"/>.
@@ -90,7 +92,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
         try {
             var readOptions = new ReadStreamOptions { Start = Revision.Max, Direction = ReadDirection.Backwards };
 
-            var partitions      = new Dictionary<int, Contracts.PartitionPosition>();
+            var partitions      = new Dictionary<int, PartitionPosition>();
             var latestTimestamp = DateTimeOffset.MinValue;
 
             await foreach (var message in _client.ReadStream(_stream, readOptions, ct).ConfigureAwait(false)) {
@@ -99,19 +101,19 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
 
                 var value = message.AsRecord.Value;
 
-                if (value is Contracts.CheckpointReset reset) {
+                if (value is CheckpointReset reset) {
                     if (latestTimestamp == DateTimeOffset.MinValue)
-                        latestTimestamp = reset.Timestamp;
+                        latestTimestamp = reset.Timestamp?.ToDateTimeOffset() ?? DateTimeOffset.MinValue;
 
-                    if (reset.Positions.Length == 0)
+                    if (reset.Positions.Count == 0)
                         break;
 
                     foreach (var pos in reset.Positions)
                         partitions.TryAdd(pos.Partition, pos);
                 }
-                else if (value is Contracts.PartitionsCheckpointed evt) {
+                else if (value is PartitionsCheckpointed evt) {
                     if (latestTimestamp == DateTimeOffset.MinValue)
-                        latestTimestamp = evt.Timestamp;
+                        latestTimestamp = evt.Timestamp?.ToDateTimeOffset() ?? DateTimeOffset.MinValue;
 
                     foreach (var pos in evt.Positions)
                         partitions.TryAdd(pos.Partition, pos);
@@ -137,12 +139,12 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
         RecordPosition[] positions,
         CancellationToken ct
     ) {
-        var evt = new Contracts.PartitionsCheckpointed {
+        var evt = new PartitionsCheckpointed {
             ProcessorId  = ProcessorId,
             DroneId      = droneId,
             CheckpointId = checkpointId,
-            Timestamp    = Time.GetUtcNow(),
-            Positions    = ToContractPositions(positions)
+            Timestamp    = Timestamp.FromDateTimeOffset(Time.GetUtcNow()),
+            Positions    = { ToContractPositions(positions) }
         };
 
         var appendRecord = CreateRecord(droneId, evt);
@@ -171,12 +173,12 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
             }
         }
 
-        var evt = new Contracts.CheckpointReset {
+        var evt = new CheckpointReset {
             ProcessorId  = ProcessorId,
             DroneId      = droneId,
             CheckpointId = checkpointId,
-            Timestamp    = Time.GetUtcNow(),
-            Positions    = ToContractPositions(positions)
+            Timestamp    = Timestamp.FromDateTimeOffset(Time.GetUtcNow()),
+            Positions    = { ToContractPositions(positions) }
         };
 
         var appendRecord = CreateRecord(droneId, evt);
@@ -189,32 +191,42 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     #region ->> Mapping <<-
 
     AppendRecord CreateRecord<T>(string droneId, T evt) where T : class =>
-        AppendRecord.New()
-            .Stream(_stream)
-            .Value(evt)
-            .AddMetadata("processor_id", ProcessorId)
-            .AddMetadata("drone_id", droneId)
-            .Build();
+        AppendRecord.Create(evt, r => {
+            r.Stream     = _stream;
+            r.DataFormat = SchemaDataFormat.Protobuf;
+            r.Metadata.With("processor_id", ProcessorId)
+                      .With("drone_id", droneId);
+        });
 
-    static Contracts.PartitionPosition[] ToContractPositions(RecordPosition[] positions) =>
-        positions.Select(p => new Contracts.PartitionPosition {
-            Partition      = p.Partition,
-            LogPosition    = p.LogPosition,
-            Stream         = p.Stream,
-            StreamRevision = p.Revision == Revision.Unset ? null : (int?)p.Revision
+    static PartitionPosition[] ToContractPositions(RecordPosition[] positions) =>
+        positions.Select(p => {
+            var position = new PartitionPosition {
+                Partition   = p.Partition,
+                Position = p.LogPosition
+            };
+
+            // Stream context is optional — a position may carry only a log position. Stream and
+            // revision move together (RecordPosition holds them as a pair), so set both or neither;
+            // this keeps the paired presence check on load (HasStream && HasStreamRevision) truthful.
+            if (p.Revision != Revision.Unset) {
+                position.Stream         = p.Stream;
+                position.StreamRevision = (int)p.Revision;
+            }
+
+            return position;
         }).ToArray();
 
-    static ProcessorCheckpoint MapToCheckpoint(Dictionary<int, Contracts.PartitionPosition> events, DateTimeOffset timestamp) {
+    static ProcessorCheckpoint MapToCheckpoint(Dictionary<int, PartitionPosition> events, DateTimeOffset timestamp) {
         var positions = events.Select(kvp => {
             var partition = Partition.From(kvp.Key);
             var evt       = kvp.Value;
 
-            return evt is { Stream: { }, StreamRevision: { } }
-                ? RecordPosition.From(evt.LogPosition, evt.Stream, evt.StreamRevision, partition)
-                : RecordPosition.From(evt.LogPosition, partition);
+            return evt is { HasStream: true, HasStreamRevision: true }
+                ? RecordPosition.From(evt.Position, evt.Stream, evt.StreamRevision, partition)
+                : RecordPosition.From(evt.Position, partition);
         }).ToArray();
 
-        return new ProcessorCheckpoint {
+        return new() {
             Positions = positions,
             Timestamp = timestamp
         };

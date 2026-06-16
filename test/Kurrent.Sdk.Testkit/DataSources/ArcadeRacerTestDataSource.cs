@@ -39,13 +39,12 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
             var stream = $"race-{raceId}";
 
             var records = events
-                .Select(evt => AppendRecord.New()
-                    .Stream(stream)
-                    .Id(evt.EventId)
-                    .Value(evt)
-                    .Timestamp(evt.Timestamp)
-                    .AddMetadata("stream", stream)
-                    .Build())
+                .Select(evt => AppendRecord.Create(evt, r => {
+                    r.Stream    = stream;
+                    r.RecordId  = evt.EventId;
+                    r.Timestamp = DateTimeOffset.FromUnixTimeMilliseconds(evt.Timestamp);
+                    r.Metadata.With("stream", stream);
+                }))
                 .ToImmutableArray();
 
             return TestStream.From(stream, records);

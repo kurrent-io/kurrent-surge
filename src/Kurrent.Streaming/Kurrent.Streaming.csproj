@@ -15,7 +15,7 @@
          base-unit (s/By) instruments and pushed lag gauges. -->
     <NoWarn>$(NoWarn);EXTEXP0003</NoWarn>
 
-<!--    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>-->
+    <!-- <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator> -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,7 +33,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
+<!--    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />-->
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
@@ -46,12 +46,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DuckDB.NET.Data.Full" />
-    <PackageReference Include="kurrent.quack" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Google.Protobuf.Tools" PrivateAssets="All" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
     <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="OpenTelemetry.Api" />
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="Polly.Extensions" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Protobuf ProtoRoot="../../proto/kurrent"
+              Include="../../proto/kurrent/streaming/**/*.proto"
+              Link="Contracts\%(RecursiveDir)/%(FileName)%(Extension)"
+              AdditionalImportDirs="../../proto"
+              Access="Public" />
   </ItemGroup>
 
   <ItemGroup>

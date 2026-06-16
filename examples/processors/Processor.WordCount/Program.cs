@@ -71,10 +71,7 @@ static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageCat
     while (!ct.IsCancellationRequested) {
         var fact = await FetchFact(factsApi, ct);
 
-        var record = AppendRecord.New()
-            .Stream(stream)
-            .Value(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow))
-            .Build();
+        var record = AppendRecord.Create(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow), r => r.Stream = stream);
         
         await client.Streams.AppendStream(stream, [record], ct);
         

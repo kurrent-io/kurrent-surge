@@ -63,11 +63,10 @@ public class AppendRecordsBenchmarks {
 
         for (var s = 0; s < StreamCount; s++) {
             for (var r = 0; r < RecordsPerStream; r++) {
-                records[idx++] = AppendRecord.New()
-                    .Stream(streams[s])
-                    .Value(payload)
-                    .DataFormat(SchemaDataFormat.Bytes)
-                    .Build();
+                records[idx++] = AppendRecord.Create(payload, r => {
+                    r.Stream     = streams[s];
+                    r.DataFormat = SchemaDataFormat.Bytes;
+                });
             }
         }
 

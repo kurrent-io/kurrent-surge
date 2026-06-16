@@ -7,10 +7,7 @@ namespace Kurrent.Client.Tests.Modules.Streams;
 public class AppendRecordTests {
     [Test]
     public void ensure_valid_passes_for_valid_record() {
-        var record = AppendRecord.New()
-            .Value("test-payload")
-            .Stream("test-stream")
-            .Build();
+        var record = AppendRecord.Create("test-payload", r => r.Stream = "test-stream");
 
         record.EnsureValid();
     }
