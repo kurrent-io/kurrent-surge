@@ -13,26 +13,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Lint needs the PR's files, so it lives here — pr-triage.yml never checks out PR code.
+  markdown:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v19
+
   ci:
+    # Display name matches the required status check in branch protection.
+    name: Build and Test
     runs-on: [self-hosted, linux, x64]
-    # Hard ceiling so a hung step can never tie up the runner (GitHub's default is 6h).
     timeout-minutes: 10
 
     permissions:
       contents: read
-      issues: read
-      packages: write
-      checks: write
-      pull-requests: write
+      pull-requests: read
 
     steps:
-      - name: Generate Token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
-
       # Workaround for actions/checkout v6 bug on self-hosted runners:
       # checkout deletes the workspace contents (including .git) THEN tries
       # to run `git config --local` to clean up SSH auth from previous runs,
@@ -49,7 +56,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -61,7 +67,6 @@ jobs:
 
       - name: Prepare Environment
         run: |
-          echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
@@ -83,7 +88,7 @@ jobs:
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"
           fi
-        
+
       - name: Import Repo Variables
         run: |
           echo '${{ toJSON(vars) }}' | python3 -c "
@@ -93,10 +98,6 @@ jobs:
               print(v)
               print('EOF')
           " >> "$GITHUB_ENV"
-
-      - name: Trigger Docs Build
-        if: steps.changes.outputs.docs == 'true'
-        run: curl -X POST -d {} "${{ secrets.CLOUDFLARE_BUILD_HOOK }}"
 
       - name: Setup .NET
         if: steps.changes.outputs.build == 'true'
@@ -119,7 +120,9 @@ jobs:
           {
             echo "## Aspire Doctor"
             echo '```'
-            aspire doctor
+            # NO_COLOR for the CLI's own output; sed strips ANSI codes the underlying
+            # tools emit anyway — step summaries render escapes as garbage otherwise.
+            NO_COLOR=1 aspire doctor | sed -E $'s/\x1b\\[[0-9;]*m//g'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -165,11 +168,7 @@ jobs:
         if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
         uses: ./.github/actions/setup-containers
         with:
-          default-credentials: |
-            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
-            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
           registries: |
-            - registry: docker.cloudsmith.io
             - registry: docker.kurrent.io
           images: ${{ vars.TEST_CONTAINERS }}
 
@@ -179,12 +178,11 @@ jobs:
         with:
           category: integration
 
-      - name: Publish Preview Packages
-        if: steps.changes.outputs.build == 'true'
-        uses: ./.github/actions/publish-packages
+      # Runs after tests so no Aspire session is active on this runner; reaping
+      # mid-session corrupts DCP state. Skipped on cancellation — a superseding
+      # run may already be spinning up on this runner.
+      - name: Cleanup Containers
+        if: ${{ !cancelled() && steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true }}
+        uses: ./.github/actions/cleanup-containers
         with:
-          pack: 'false'
-          nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
-          # TODO: change github to nuget when ready to publish publicly
-          push-to: ${{ github.ref == 'refs/heads/main' && 'github' || 'github' }}
-        
+          max-age-hours: 24

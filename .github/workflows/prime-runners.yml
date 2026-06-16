@@ -1,8 +1,11 @@
 name: Prime Runners
 
 on:
-  schedule:
-    - cron: '0 6 * * *' # this means "At 06:00 UTC every day"
+  # Schedule disabled while investigating the Aspire persistent-container race in CI:
+  # the 06:00 UTC run's docker prune is the prime suspect for breaking container
+  # adoption on the runners. Re-enable once the root cause is confirmed.
+  # schedule:
+  #   - cron: '0 6 * * *' # this means "At 06:00 UTC every day"
   workflow_dispatch:
 
 jobs:
@@ -110,16 +113,12 @@ jobs:
         with:
           images: ${{ env.TEST_CONTAINERS }}
           registries: |
-            - registry: docker.cloudsmith.io
             - registry: docker.kurrent.io
-          default-credentials: |
-            username: ${{ secrets.CLOUDSMITH_CICD_USER }}
-            password: ${{ secrets.CLOUDSMITH_CICD_TOKEN }}
 
       - name: Pull CI Images
         run: |
           images=(
-            'ghcr.io/enricomi/publish-unit-test-result-action:v2.23.0'
+            'ghcr.io/enricomi/publish-unit-test-result-action'
           )
           for image in "${images[@]}"; do
             echo "Pulling $image..."
@@ -128,6 +127,11 @@ jobs:
 
       - name: Clean up stale Docker resources
         run: |
-          docker image prune -af --filter "until=168h"
+          docker image prune -af --filter "until=72h"
           docker network prune -f
           docker volume prune -f
+
+      - name: Cleanup Containers
+        uses: ./.github/actions/cleanup-containers
+        with:
+          max-age-hours: 24

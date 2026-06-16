@@ -150,7 +150,7 @@ public sealed class StreamingRaceSimulatorBuilder {
     internal StreamingRaceSimulatorBuilder(Faker? faker = null) {
         Faker  = faker ?? new Faker();
         _ds    = new ArcadeRacerDataSet(Faker);
-        RaceId = PunyId.New();
+        RaceId = TestId.New();
 
         Options = new ArcadeRaceOptions {
             Cars       = _ds.RaceCar.Generate(Faker.Random.Int(3, 9)),
@@ -247,7 +247,7 @@ public sealed class PrecomputedRaceSimulatorBuilder {
     internal PrecomputedRaceSimulatorBuilder(Faker? faker = null) {
         Faker  = faker ?? new Faker();
         _ds    = new ArcadeRacerDataSet(Faker);
-        RaceId = PunyId.New();
+        RaceId = TestId.New();
 
         Options = new ArcadeRaceOptions {
             Cars       = _ds.RaceCar.Generate(Faker.Random.Int(3, 9)),

@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;
 using Processor.Leaderboard;
 using Serilog;
@@ -22,9 +24,10 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<LeaderboardProcessor>();
-    builder.Services.AddKurrentProcessor<LeaderboardProcessor>(opts => {
-        opts.Connection("kurrentdb://localhost:2113");
-        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('ScoreSubmitted', 'PlayerJoined')");
+    builder.Services.AddKurrent(kurrent => {
+        kurrent.Connection("kurrentdb://localhost:2113");
+        kurrent.AddProcessor<LeaderboardProcessor>(opts =>
+            opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('ScoreSubmitted', 'PlayerJoined')"));
     });
 
     var app = builder.Build();

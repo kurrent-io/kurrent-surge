@@ -27,6 +27,32 @@ Modules/{Module}/
 Not every operation needs all file slots. A simple operation may only have the `.cs` file. Only create
 `.Models.cs` and `.Mapping.cs` when the operation has types or mapping logic that warrant a separate file.
 
+`{Op}` is the **verb**, not the wire operation. When a verb has scope variants (e.g. `AppendRecords` +
+`AppendStream`), they are co-located in one file per slot (`StreamsClient.Append.cs`,
+`StreamsClient.Append.Models.cs`) — the single-stream variant is sugar over the protocol-native core, and
+the file split mirrors the domain (one verb, two scopes, one pipeline), not the wire shapes.
+
+## Operation Naming: Target-Scope Axis
+
+Operation suffixes encode the **target scope**, never a resource split:
+
+| Suffix     | Target                                       | Examples                       |
+|------------|----------------------------------------------|--------------------------------|
+| `*Records` | the log / multiple streams (protocol-native) | `ReadRecords`, `AppendRecords` |
+| `*Stream`  | a single stream (convenience)                | `ReadStream`, `AppendStream`   |
+
+Edge queries (`FirstRecord`, `LastRecord`) take a `StreamName` target instead — `StreamName.Log`
+selects the log; any other name selects that stream.
+
+## Result-Type Suffixes
+
+| Suffix      | Meaning                                  | Examples                              |
+|-------------|------------------------------------------|----------------------------------------|
+| `*Response` | one per call (unary outcome)             | `AppendRecordsResponse`, `FoldResponse` |
+| `*Message`  | one per stream element (server-streamed) | `ReadMessage`, `SubscribeMessage`       |
+
+Never introduce a `*Result` type — it is always one of the two above.
+
 ## File Placement Rules
 
 | What you have                                  | Where it goes                          |

@@ -1,6 +1,6 @@
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Streaming.Experimental.Components.Appender;
+namespace Kurrent.Appender;
 
 // IVariant can't be used here — the source generator emits public members but the
 // proto types (Contracts.AppendRecord) are internal. A sealed interface hierarchy

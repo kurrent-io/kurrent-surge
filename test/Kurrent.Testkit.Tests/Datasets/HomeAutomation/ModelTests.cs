@@ -9,7 +9,7 @@ namespace Kurrent.Testkit.Tests.Datasets.HomeAutomation;
 
 [Category("HomeAutomation")]
 public class ModelTests {
-    static Room MakeRoom() => new() { RoomId = PunyId.New(), Name = "Test Room", Type = RoomType.LivingRoom, Devices = [] };
+    static Room MakeRoom() => new() { RoomId = TestId.New(), Name = "Test Room", Type = RoomType.LivingRoom, Devices = [] };
 
     [Test]
     public async Task device_creates_device_info_with_battery() {

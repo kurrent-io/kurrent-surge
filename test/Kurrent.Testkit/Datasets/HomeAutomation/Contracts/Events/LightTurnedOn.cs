@@ -1,7 +1,7 @@
 namespace Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 
 public record LightTurnedOn : IHomeAutomationEvent {
-    public string EventId { get; init; } = PunyId.New();
+    public string EventId { get; init; } = TestId.New();
 
     public required DeviceInfo Device           { get; init; }
     public required int        Brightness       { get; init; }

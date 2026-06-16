@@ -118,7 +118,7 @@ Throws `StreamRevisionConflictException` if the current revision is anything oth
 The usual pattern is to read the stream's current revision and append against it:
 
 ```csharp{1,4}
-var last = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, true, default);
+var last = await client.Streams.LastRecord("order-123", skipDecoding: true);
 
 var request = AppendStreamRequest.For("order-123")
     .ExpectedState(last.Revision)

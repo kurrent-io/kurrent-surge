@@ -391,7 +391,7 @@ public class MessageProcessorIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"msg-ckpt-{PunyId.New()}";
+            opts.ProcessorId                  = $"msg-ckpt-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromMilliseconds(100);
@@ -421,7 +421,7 @@ public class MessageProcessorIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"msg-noop-{PunyId.New()}";
+            opts.ProcessorId                  = $"msg-noop-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromMilliseconds(100);
@@ -447,7 +447,7 @@ public class MessageProcessorIntegrationTests {
                     client.Messages.UseTestkitCatalog();
                 });
 
-            opts.ProcessorId                  = $"msg-proc-{PunyId.New()}";
+            opts.ProcessorId                  = $"msg-proc-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);

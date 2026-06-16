@@ -192,7 +192,7 @@ public class IsMatchGatingTests {
         // Learn the absolute log positions in append order (monotonic with revision). The pivot is the
         // 4th record's position, so revisions 3..5 are kept and 0..2 discarded.
         var positions = await Fixture.Client.Streams
-            .ReadStreamRecords(target.Stream, ct)
+            .ReadStream(target.Stream, ct)
             .Where(msg => msg.IsRecord).Select(msg => msg.AsRecord)
             .Select(record => record.Position.LogPosition.Value)
             .ToListAsync(ct);

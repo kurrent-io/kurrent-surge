@@ -40,7 +40,7 @@ Each consistency check is a pre-commit assertion the server evaluates against th
 The most useful check is `StreamAtRevision`, which asserts a stream has not moved since you last read it. Pair it with a write to a different stream to enforce a multi-aggregate invariant atomically. Below, a transfer event is written only if the inventory stream is still at the revision that was read:
 
 ```csharp
-var inventory = await client.Streams.ReadStreamEdge($"inventory-{sku}", ReadDirection.Backwards, true, default);
+var inventory = await client.Streams.LastRecord($"inventory-{sku}", skipDecoding: true);
 
 var transferEvent = new StockTransferred(sku, quantity, fromWarehouse, toWarehouse, DateTimeOffset.UtcNow);
 

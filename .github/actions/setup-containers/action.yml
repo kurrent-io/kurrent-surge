@@ -60,6 +60,13 @@ runs:
           pass=$(printf '%s' '${{ inputs.registries }}' | yq -r ".[$i].password // \"\"")
           user="${user:-$default_user}"
           pass="${pass:-$default_pass}"
+
+          # No credentials anywhere = anonymous registry (public images); skip login.
+          if [[ -z "$user" ]]; then
+            echo "No credentials for $registry — pulling anonymously."
+            continue
+          fi
+
           echo "Logging into $registry..."
           printf '%s' "$pass" | docker login "$registry" -u "$user" --password-stdin
         done

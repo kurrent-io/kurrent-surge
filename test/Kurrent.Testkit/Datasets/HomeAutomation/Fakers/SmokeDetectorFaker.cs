@@ -8,7 +8,7 @@ public class SmokeDetectorFaker : Faker<SmokeDetector> {
 
     public SmokeDetectorFaker() {
         CustomInstantiator(f => new SmokeDetector {
-            Id               = $"urn:iot:smokedetector:{PunyId.New()}",
+            Id               = $"urn:iot:smokedetector:{TestId.New()}",
             FriendlyName     = $"Smoke Detector {f.Random.Number(1, 99)}",
             IsBatteryPowered = true,
             BatteryLevel     = f.Random.Number(60, 100),

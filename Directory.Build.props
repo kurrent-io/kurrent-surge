@@ -61,8 +61,14 @@
   ================================================================
   NuGet Package Metadata
   ================================================================
+  Shared defaults for every package. Deliberately unconditional: gating on IsPackable
+  here is the classic .props pitfall — projects set IsPackable in their .csproj, which
+  evaluates AFTER this file, so the condition is always false and the metadata silently
+  never applies. Pack-only properties are inert on non-packable projects, so no gate is
+  needed. Per-package metadata (Title, Description, PackageTags, or any override of the
+  values below) lives in each .csproj and wins because it evaluates later.
   -->
-  <PropertyGroup Label="NuGet Package Metadata" Condition="'$(IsPackable)' == 'true'">
+  <PropertyGroup Label="NuGet Package Metadata">
     <Authors>Kurrent Inc.</Authors>
     <Company>Kurrent Inc.</Company>
     <Copyright>Copyright © 2011-$([System.DateTime]::Now.Year) $(Company)</Copyright>
@@ -76,7 +82,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
-  <PropertyGroup Label="Symbol Package Settings" Condition="'$(IsPackable)'=='true'">
+  <PropertyGroup Label="Symbol Package Settings">
     <DebugType>portable</DebugType>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

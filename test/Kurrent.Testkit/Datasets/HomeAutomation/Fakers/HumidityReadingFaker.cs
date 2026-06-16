@@ -15,7 +15,7 @@ public class HumidityReadingFaker : Faker<HumidityReading> {
         };
 
         var humidity = 0.0;
-        RuleFor(e => e.EventId, f => PunyId.New())
+        RuleFor(e => e.EventId, f => TestId.New())
             .RuleFor(e => e.Device, _ => info)
             .RuleFor(e => e.Humidity, f => {
                 humidity = Math.Round(Math.Clamp(f.Random.Double(20.0, 80.0) + humidityOffset, 0, 100), sensor.MeasurementPrecision);

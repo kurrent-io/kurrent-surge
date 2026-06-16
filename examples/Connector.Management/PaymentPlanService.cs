@@ -1,5 +1,6 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Connector.Management.Events;
 
 namespace Connector.Management;
 
@@ -49,8 +50,6 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
 
                 await client.Streams.AppendStream(req, stoppingToken);
 
-                // await client.Streams.AppendStream(stream, [req], stoppingToken);
-
                 logger.LogInformation("Wrote PaymentCollected to {Stream}", stream);
             }
 
@@ -58,20 +57,3 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
         }
     }
 }
-
-public record PaymentPlanCreated(
-    string PlanId,
-    string CustomerId,
-    double Amount,
-    string Currency,
-    string Frequency,
-    DateTimeOffset CreatedAt
-);
-
-public record PaymentCollected(
-    string PlanId,
-    int InstallmentNumber,
-    double Amount,
-    string Currency,
-    DateTimeOffset CollectedAt
-);

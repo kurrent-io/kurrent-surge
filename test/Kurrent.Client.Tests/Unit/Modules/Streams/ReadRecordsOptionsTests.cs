@@ -10,7 +10,7 @@ public class ReadRecordsOptionsTests {
         var options = new ReadRecordsOptions();
 
         // Assert
-        await Assert.That(options.Start).IsEqualTo(RecordPosition.Latest);
+        await Assert.That(options.Start).IsEqualTo(RecordPosition.Unset);
         await Assert.That(options.Limit).IsEqualTo(long.MaxValue);
         await Assert.That(options.Direction).IsEqualTo(ReadDirection.Forwards);
         await Assert.That(options.SkipDecoding).IsFalse();
@@ -52,14 +52,15 @@ public class ReadRecordsOptionsTests {
     }
 
     [Test]
-    public async ValueTask unset_start_position_is_invalid() {
-        // Arrange
-        var options = new ReadRecordsOptions { Start = LogPosition.Unset };
+    public async ValueTask unset_start_position_is_valid_and_means_the_directions_edge() {
+        // Arrange — Unset is the default: "no position given", resolved at read time to the
+        // direction's natural edge (beginning forwards, end backwards). It is valid, not an error.
+        var options = new ReadRecordsOptions { Start = RecordPosition.Unset };
 
         // Act
         var result = options.Validate();
 
         // Assert
-        await Assert.That(result.IsInvalid).IsTrue();
+        await Assert.That(result.IsValid).IsTrue();
     }
 }

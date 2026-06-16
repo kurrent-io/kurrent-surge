@@ -8,6 +8,12 @@
     <Product>Kurrent .NET Processors</Product>
     <Description>An event processing framework for the Kurrent Platform. Build streaming processors with automatic checkpointing and partitioning.</Description>
     <PackageTags>kurrent kurrentdb processors event-processing stream-processing event-sourcing</PackageTags>
+    <RootNamespace>Kurrent</RootNamespace>
+
+    <!-- The source-generated metric attributes expose `Unit` and the generic `[Gauge<T>]` under the
+         EXTEXP0003 experimental gate (Microsoft.Extensions.Diagnostics.Metrics). We rely on both for
+         base-unit (s/By) instruments and pushed lag gauges. -->
+    <NoWarn>$(NoWarn);EXTEXP0003</NoWarn>
 
 <!--    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>-->
   </PropertyGroup>
@@ -44,6 +50,8 @@
     <PackageReference Include="kurrent.quack" />
     <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Polly.Extensions" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,29 +60,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Resources\ErrorMessages.resx">
+    <!-- Pin the logical name so it stays stable regardless of RootNamespace.
+         The generated Designer references "Kurrent.Streaming.Resources.ErrorMessages". -->
+    <EmbeddedResource Update="Resources\ErrorMessages.resx"
+                      LogicalName="Kurrent.Streaming.Resources.ErrorMessages.resources">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Remove="Leases\**" />
-    <EmbeddedResource Remove="Locks\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Leases\**" />
-    <Compile Remove="Locks\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Leases\**" />
-    <None Remove="Locks\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Checkpointing\Storage\" />
-    <Folder Include="Hosting\" />
-    <Folder Include="Configuration\" />
-    <Folder Include="Processors\" />
+    <Folder Include="Core\Diagnostics\Metrics\" />
   </ItemGroup>
 
 

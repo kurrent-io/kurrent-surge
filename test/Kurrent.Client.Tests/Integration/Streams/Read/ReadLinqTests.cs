@@ -17,7 +17,7 @@ public class ReadLinqTests {
 
         // Act
         var records = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Take(5)
@@ -34,7 +34,7 @@ public class ReadLinqTests {
 
         // Act
         var first = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .FirstAsync(ct);
@@ -51,7 +51,7 @@ public class ReadLinqTests {
 
         // Act
         var records = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .TakeWhile(r => r.Position.Revision < Revision.From(5))
@@ -69,7 +69,7 @@ public class ReadLinqTests {
 
         // Act
         var records = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .Skip(3)
@@ -89,7 +89,7 @@ public class ReadLinqTests {
 
         // Act — ReadRecords is finite, so CountAsync works without Take
         var count = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .CountAsync(ct);
 
@@ -104,7 +104,7 @@ public class ReadLinqTests {
 
         // Act
         var hasRecords = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .AnyAsync(ct);
 
@@ -119,7 +119,7 @@ public class ReadLinqTests {
 
         // Act — finite stream, AllAsync terminates naturally
         var allMatch = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .AllAsync(r => r.Position.Stream == data.Stream, ct);
@@ -135,7 +135,7 @@ public class ReadLinqTests {
 
         // Act — finite stream, LastAsync works
         var last = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .LastAsync(ct);
@@ -152,7 +152,7 @@ public class ReadLinqTests {
 
         // Act
         var ids = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord.Id)
             .ToListAsync(ct);
@@ -169,7 +169,7 @@ public class ReadLinqTests {
 
         // Act — finite stream, AggregateAsync terminates naturally
         var revisions = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .AggregateAsync(
@@ -191,7 +191,7 @@ public class ReadLinqTests {
 
         // Act — finite stream, ToListAsync terminates naturally (unlike Subscribe)
         var records = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);

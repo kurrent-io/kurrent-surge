@@ -46,19 +46,20 @@ public class StartRoutingTests {
     }
 
     [Test]
-    public async ValueTask read_records_with_default_start_and_stream_filter_returns_no_history(CancellationToken ct) {
-        // Arrange — THE headline bug: default Start (end of log) + stream filter used to
-        // silently read the ENTIRE stream from the beginning.
-        var seed = await SeedInterleaved(ct);
+    public async ValueTask read_records_with_default_start_and_stream_filter_reads_from_the_beginning(CancellationToken ct) {
+        // Arrange — no Start given + Forwards (default) reads the stream from the BEGINNING. (It
+        // used to default to the end and return nothing — that was the bug.)
+        var seed          = await SeedInterleaved(ct);
+        var expectedCount = seed.A.Count;
 
-        // Act — default Start = Latest; nothing historical may flow
+        // Act — default Start = Unset → resolved to Revision.Min for a forwards read
         var records = await Collect(new ReadRecordsOptions {
             Filter       = RecordFilter.ByExpression($"stream = '{seed.Stream}'"),
             SkipDecoding = true
         }, ct);
 
         // Assert
-        await Assert.That(records.Count).IsEqualTo(0);
+        await Assert.That(records.Count).IsEqualTo(expectedCount);
     }
 
     [Test]
@@ -151,19 +152,26 @@ public class StartRoutingTests {
     }
 
     [Test]
-    public async ValueTask log_targeted_read_rejects_start_without_log_position(CancellationToken ct) {
-        // Arrange — a stream-only start cannot address the log; guessing is forbidden
+    public async ValueTask log_targeted_read_resolves_stream_revision_start_to_log_position(CancellationToken ct) {
+        // Arrange — a stream-revision start on a log read is resolved (stream→log), not rejected:
+        // ReadRecords and ReadStream converge on the same translation. Revision 2 of A resolves to
+        // A2's log position; the filtered log read then delivers A2, A3, A4 (inclusive forwards).
         var seed = await SeedInterleaved(ct);
 
-        var streamOnly = RecordPosition.From(LogPosition.Unset, seed.Stream, seed.A[2].Position.Revision);
+        var streamRevisionStart = RecordPosition.From(LogPosition.Unset, seed.Stream, seed.A[2].Position.Revision);
+        var expectedFirst       = seed.A[2];
+        var expectedCount       = 3; // A2 + A3 + A4
 
-        // Act & Assert — loud, not silent
-        await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Collect(new ReadRecordsOptions {
-                Start        = streamOnly,
-                Filter       = RecordFilter.ByExpression($"stream LIKE '{seed.Stream}%'"),
-                SkipDecoding = true
-            }, ct));
+        // Act — LIKE on the full (unique) stream name is a log-level filter (log target)
+        var records = await Collect(new ReadRecordsOptions {
+            Start        = streamRevisionStart,
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{seed.Stream}%'"),
+            SkipDecoding = true
+        }, ct);
+
+        // Assert
+        await Assert.That(records.Count).IsEqualTo(expectedCount);
+        await Assert.That(records[0].Id).IsEqualTo(expectedFirst.Id);
     }
 
     #region ->> Harness <<-
@@ -203,7 +211,7 @@ public class StartRoutingTests {
     async ValueTask<List<Record>> ReadAllStreamRecords(StreamName stream, CancellationToken ct) {
         var records = new List<Record>();
 
-        await foreach (var msg in Fixture.Client.Streams.ReadStreamRecords(stream, ct)) {
+        await foreach (var msg in Fixture.Client.Streams.ReadStream(stream, ct)) {
             if (msg.Value is Record record)
                 records.Add(record);
         }

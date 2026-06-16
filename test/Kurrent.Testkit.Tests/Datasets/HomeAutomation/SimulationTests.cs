@@ -29,7 +29,7 @@ public class SimulationTests {
             CreatedAt = DateTime.UtcNow,
             Rooms = [
                 new Room {
-                    RoomId  = PunyId.New(),
+                    RoomId  = TestId.New(),
                     Name    = "Main Room",
                     Type    = RoomType.LivingRoom,
                     Devices = devices

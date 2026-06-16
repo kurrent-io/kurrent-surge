@@ -23,7 +23,7 @@ public class FoldAsyncTests {
 
         // Act — read the stream, then fold the resulting sequence through the extension
         var response = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .FoldAsync<EvolvedState>((state, record) => {
                 state.RecordIds.Add(record.Id);
                 return state;
@@ -46,7 +46,7 @@ public class FoldAsyncTests {
 
         // Act
         var response = await Fixture.Client.Streams
-            .ReadStreamRecords(data.Stream, ct)
+            .ReadStream(data.Stream, ct)
             .FoldAsync<EvolvedState>((state, record) => {
                 state.RecordIds.Add(record.Id);
                 return state;

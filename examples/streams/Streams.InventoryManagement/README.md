@@ -1,6 +1,7 @@
 # Streams.InventoryManagement
 
-A warehouse inventory API built on KurrentDB streams. Tracks stock movements across warehouses — receiving shipments, fulfilling orders, adjusting for damaged goods, and transferring between locations.
+A warehouse inventory API built on KurrentDB streams. Tracks stock movements across warehouses —
+receiving shipments, fulfilling orders, adjusting for damaged goods, and transferring between locations.
 
 ## Running the Example
 

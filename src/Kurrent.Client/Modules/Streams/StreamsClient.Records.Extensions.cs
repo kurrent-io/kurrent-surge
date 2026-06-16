@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace Kurrent.Client.Streams;
 
 public static partial class StreamsClientExtensions {
-    extension(IAsyncEnumerable<ReadRecordsResult> source) {
+    extension(IAsyncEnumerable<ReadMessage> source) {
         /// <summary>
         /// Projects a read down to its records, routing every <see cref="Checkpoint"/> to
         /// <paramref name="onCheckpoint"/>. A client-filtered read (one whose filter
@@ -35,6 +35,39 @@ public static partial class StreamsClientExtensions {
                     await onCheckpoint(checkpoint).ConfigureAwait(false);
             }
         }
+
+        /// <summary>
+        /// Projects a read down to its records, ending enumeration once a record past
+        /// <paramref name="position"/> is observed or the read completes.
+        /// </summary>
+        /// <param name="position">The last position to include in the result.</param>
+        /// <returns>The records up to and including <paramref name="position"/>.</returns>
+        /// <remarks>
+        /// Checkpoints are discarded. Use <see cref="Records(Action{Checkpoint}, CancellationToken)"/>
+        /// when read progress must be tracked.
+        /// </remarks>
+        public IAsyncEnumerable<Record> TakeRecordsUpTo(RecordPosition position) =>
+            source
+                // Concrete type test, not IsRecord: a defaulted variant struct reports its
+                // first case while holding a null payload.
+                .Where(msg => msg.Value is Record)
+                .Select(msg => msg.AsRecord)
+                .TakeWhile(rec => rec.Position.LogPosition <= position.LogPosition);
+
+        /// <summary>
+        /// Projects a read down to its records, ending enumeration when the server signals
+        /// that the read has caught up with the end of the log.
+        /// </summary>
+        /// <returns>The records observed before the caught-up signal.</returns>
+        /// <remarks>
+        /// Checkpoints are discarded. Use <see cref="Records(Action{Checkpoint}, CancellationToken)"/>
+        /// when read progress must be tracked.
+        /// </remarks>
+        public IAsyncEnumerable<Record> TakeUntilCaughtUp() =>
+            source
+                .TakeWhile(msg => msg.Value is not CaughtUpCheckpoint)
+                .Where(msg => msg.Value is Record)
+                .Select(msg => msg.AsRecord);
     }
 
     extension(IAsyncEnumerable<SubscribeMessage> source) {

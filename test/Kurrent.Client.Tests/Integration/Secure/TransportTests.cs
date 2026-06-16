@@ -20,7 +20,7 @@ public class TransportTests {
         await Fixture.Client.Streams.AppendStream(stream, appendRecords, ExpectedStreamState.NoStream, ct);
 
         var records = await Fixture.Client.Streams
-            .ReadStreamRecords(stream, cancellationToken: ct)
+            .ReadStream(stream, cancellationToken: ct)
             .Where(msg => msg.IsRecord)
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);

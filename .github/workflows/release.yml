@@ -20,7 +20,6 @@ on:
 jobs:
   release:
     runs-on: [self-hosted, linux, x64]
-    # Hard ceiling so a hung step can never tie up the runner (GitHub's default is 6h).
     timeout-minutes: 10
 
     permissions:
@@ -120,9 +119,20 @@ jobs:
         uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
-          push-to: github
+          push-to: nuget
         env:
           NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
+          
+#      - name: NuGet trusted publishing login
+#        id: nuget-login
+#        uses: NuGet/login@v1
+#        with:
+#          user: ${{ secrets.NUGET_USER }}
+#          
+#      - name: Create and push NuGet package
+#        run: |
+#          dotnet pack -c Release -o nuget -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
+#          dotnet nuget push nuget/**/*.nupkg --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Create Release
         if: ${{ !inputs.dry_run }}

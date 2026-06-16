@@ -1,6 +1,6 @@
 using Kurrent.Client.Streams;
 
-namespace Kurrent.Streaming.Experimental.Components.Appender;
+namespace Kurrent.Appender;
 
 /// <summary>
 /// Outcome of an appended record. Wraps the server response on success, or

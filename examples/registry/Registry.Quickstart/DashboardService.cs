@@ -1,12 +1,13 @@
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Registry.Quickstart.Events;
 using Serilog;
 
 namespace Registry.Quickstart;
 
 public class DashboardService(KurrentClient client) {
     public async Task ShowReadings(string stream) {
-        await foreach (var msg in client.Streams.ReadStreamRecords(stream)) {
+        await foreach (var msg in client.Streams.ReadStream(stream)) {
             msg.Switch(
                 record => {
                     var r = record.As<TemperatureReading>();

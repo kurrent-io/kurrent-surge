@@ -1,4 +1,5 @@
 using Kurrent.Client;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -104,7 +105,7 @@ public class KurrentBuilderProcessorTests {
         await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("builder-batch-processor");
     }
 
-    sealed class TestableBatchProcessor() : RecordBatchProcessor(10, TimeSpan.FromMilliseconds(500)) {
+    sealed class TestableBatchProcessor : RecordBatchProcessor {
         public override ValueTask ProcessBatch(BatchContext context) => ValueTask.CompletedTask;
     }
 }

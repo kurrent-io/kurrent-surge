@@ -8,7 +8,7 @@ public class ThermostatFaker : Faker<Thermostat> {
 
     public ThermostatFaker() {
         CustomInstantiator(f => new Thermostat {
-            Id                   = $"urn:iot:thermostat:{PunyId.New()}",
+            Id                   = $"urn:iot:thermostat:{TestId.New()}",
             FriendlyName         = $"Thermostat {f.Random.Number(1, 99)}",
             IsBatteryPowered     = true,
             BatteryLevel         = f.Random.Number(60, 100),

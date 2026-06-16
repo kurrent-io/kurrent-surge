@@ -11,7 +11,8 @@ test/
   Kurrent.Sdk.Testkit/            TUnit fixtures using inline Aspire resource registration (this project)
 ```
 
-This project uses `Aspire.AppHost.Sdk` with `OutputType=Library` — no `Program.cs` needed. Resources are registered inline via `DistributedApplicationTestingBuilder.Create()`, not through an AppHost project reference.
+This project uses `Aspire.AppHost.Sdk` with `OutputType=Library` — no `Program.cs` needed. Resources are registered
+inline via `DistributedApplicationTestingBuilder.Create()`, not through an AppHost project reference.
 
 ## Fixtures
 
@@ -22,7 +23,8 @@ This project uses `Aspire.AppHost.Sdk` with `OutputType=Library` — no `Program
 | `KurrentDBScavengeFixture` | Single node | TLS      | Session            |
 | `KurrentDBClusterFixture`  | 3+1 nodes   | TLS      | Persistent         |
 
-`KurrentDBFixture` is the base class. It provides `Client`, `ConnectionString`, `AnonymousConnectionString`, `SeedTestStream`, `TestStreams`, `TypeMapper`, `Time` (a `FakeTimeProvider`), and the Arcade Racer test data source.
+`KurrentDBFixture` is the base class. It provides `Client`, `ConnectionString`, `AnonymousConnectionString`,
+`SeedTestStream`, `TestStreams`, `TypeMapper`, `Time` (a `FakeTimeProvider`), and the Arcade Racer test data source.
 
 ### Base classes
 
@@ -44,7 +46,8 @@ public class StreamTests {
 }
 ```
 
-The fixture starts the Aspire app on first use and shares it across all tests in the session. Each fixture variant is its own session — secure, insecure, and cluster do not share containers.
+The fixture starts the Aspire app on first use and shares it across all tests in the session.
+Each fixture variant is its own session — secure, insecure, and cluster do not share containers.
 
 ## Adding a new variant
 

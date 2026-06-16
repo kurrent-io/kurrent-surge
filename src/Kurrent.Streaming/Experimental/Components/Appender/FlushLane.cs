@@ -1,10 +1,9 @@
 using System.Threading.Channels;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
-
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Streaming.Experimental.Components.Appender;
+namespace Kurrent.Appender;
 
 /// <summary>
 /// A single flush lane — bounded channel + background flush loop. Records enqueued

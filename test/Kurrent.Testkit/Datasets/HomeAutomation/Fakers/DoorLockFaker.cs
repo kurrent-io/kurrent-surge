@@ -8,7 +8,7 @@ public class DoorLockFaker : Faker<DoorLock> {
 
     public DoorLockFaker() {
         CustomInstantiator(f => new DoorLock {
-            Id               = $"urn:iot:doorlock:{PunyId.New()}",
+            Id               = $"urn:iot:doorlock:{TestId.New()}",
             FriendlyName     = $"Door Lock {f.Random.Number(1, 99)}",
             IsBatteryPowered = false,
             BatteryLevel     = null,

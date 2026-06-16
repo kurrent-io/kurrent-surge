@@ -274,7 +274,7 @@ await foreach (var item in stream) {
 }
 ```
 
-Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadRecordsResult>` directly, where each result is a discriminated union of `Record` or `Heartbeat`. For a quick read of an entire stream, the `ReadStreamRecords` extension takes just a stream name.
+Read operations no longer use the `*Async` suffix. They return `IAsyncEnumerable<ReadMessage>` directly, where each result is a discriminated union of `Record` or `Heartbeat`. For a quick read of an entire stream, the `ReadStream` extension takes just a stream name.
 
 ## Registration
 

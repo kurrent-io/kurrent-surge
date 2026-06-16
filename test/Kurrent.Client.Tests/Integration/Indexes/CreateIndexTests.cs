@@ -1,4 +1,4 @@
-using Google.Rpc.Exceptions;
+using Grpc.Core;
 using Kurrent.Client.Indexes;
 using Kurrent.Client.Tests.Fixtures;
 
@@ -56,8 +56,10 @@ public class CreateIndexTests {
         await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, cancellationToken: ct);
 
-        await Assert.That(async () => await Fixture.Client.Indexes
+        var ex = await Assert.That(async () => await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'SomethingElse'", fields, cancellationToken: ct))
-            .Throws<AlreadyExistsException>();
+            .Throws<RpcException>();
+
+        await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.AlreadyExists);
     }
 }

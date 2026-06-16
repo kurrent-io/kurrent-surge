@@ -71,7 +71,7 @@ Errors that originate from the underlying gRPC channel (network failures, deadli
 
 ## Subscriptions and async enumerables
 
-Read methods return `IAsyncEnumerable<ReadRecordsResult>`. The exception is thrown the first time you `MoveNextAsync` (or iterate with `await foreach`), not at the call site:
+Read methods return `IAsyncEnumerable<ReadMessage>`. The exception is thrown the first time you `MoveNextAsync` (or iterate with `await foreach`), not at the call site:
 
 ```csharp
 try {

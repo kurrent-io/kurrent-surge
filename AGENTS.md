@@ -49,7 +49,9 @@ instead of running the full pipeline.
 
 ## Protocols
 
-Dual gRPC split — V2 handles appends, registry, indexes, and connectors; V1 legacy handles reads and management. The V2 read path is commented out; those RPCs do not exist in the proto yet. Proto definitions live in `proto/kurrentdb/protocol/{v0,v1,v2}/`.
+Dual gRPC split — V2 handles appends, registry, indexes, and connectors; V1 legacy handles reads and management.
+The V2 read path is commented out; those RPCs do not exist in the proto yet. Proto definitions live in
+`proto/kurrentdb/protocol/{v0,v1,v2}/`.
 
 ## Structure
 
@@ -72,7 +74,8 @@ Kurrent.CodeAnalysis                       ← shared Roslyn infrastructure for 
 
 Streams module split across 15+ partial class files. Naming convention documented in [Module Organization](.claude/context/project/module-organization.md).
 
-Sum types use source-generated `IVariant` discriminated unions. Exception types decorated with `[KurrentOperationError]` get source-generated constructors.
+Sum types use source-generated `IVariant` discriminated unions. Exception types decorated with
+`[KurrentOperationError]` get source-generated constructors.
 
 ## Project context
 

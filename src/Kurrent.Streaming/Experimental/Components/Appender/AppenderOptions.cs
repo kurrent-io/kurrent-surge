@@ -2,7 +2,7 @@ using System.Threading.Channels;
 using Kurrent.Client;
 using Kurrent.Validation;
 
-namespace Kurrent.Streaming.Experimental.Components.Appender;
+namespace Kurrent.Appender;
 
 /// <summary>
 /// Configuration for the <see cref="Appender"/>. Controls batching thresholds,

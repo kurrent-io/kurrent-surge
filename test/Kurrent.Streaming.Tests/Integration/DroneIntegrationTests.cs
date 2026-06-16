@@ -1,5 +1,6 @@
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
+using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using TUnit.Assertions.Enums;
@@ -87,7 +88,7 @@ public class DroneIntegrationTests {
         // Arrange
         var data        = await Fixture.SeedTestStream(25, ct);
         var processor   = new TestableRecordProcessor();
-        var processorId = $"drone-individual-{PunyId.New()}";
+        var processorId = $"drone-individual-{TestId.New()}";
         var recordCount = 0;
 
         processor.OnProcessRecord = ctx => {
@@ -198,7 +199,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-error-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-error-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         });
@@ -219,7 +220,7 @@ public class DroneIntegrationTests {
     public async ValueTask complete_lifecycle_with_checkpoint_recovery(CancellationToken ct) {
         // Arrange
         var data                     = await Fixture.SeedTestStream(20, ct);
-        var processorId              = $"drone-ckpt-{PunyId.New()}";
+        var processorId              = $"drone-ckpt-{TestId.New()}";
         var recordsToProcessInPhase1 = 10;
 
         // Phase 1: Process first 10 records, checkpoint, then stop
@@ -287,7 +288,7 @@ public class DroneIntegrationTests {
     public async ValueTask checkpoint_recovery_across_multiple_phases(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(30, ct);
-        var processorId = $"drone-multi-{PunyId.New()}";
+        var processorId = $"drone-multi-{TestId.New()}";
         var processors  = new List<TestableRecordProcessor>();
 
         // Phases 1-2: Process 10 records each, then stop
@@ -359,7 +360,7 @@ public class DroneIntegrationTests {
     public async ValueTask checkpoint_recovery_with_no_remaining_records(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(10, ct);
-        var processorId = $"drone-norec-{PunyId.New()}";
+        var processorId = $"drone-norec-{TestId.New()}";
 
         // Phase 1: Process all records
         var processor1 = new TestableRecordProcessor {
@@ -478,7 +479,7 @@ public class DroneIntegrationTests {
     #region ->> checkpointing <<-
 
     [Test]
-    public async ValueTask user_track_is_allowed_when_auto_checkpoint_is_true(CancellationToken ct) {
+    public async ValueTask user_track_is_allowed_when_auto_track_is_true(CancellationToken ct) {
         // Arrange
         var data = await Fixture.SeedTestStream(5, ct);
         Exception? caught = null;
@@ -500,10 +501,10 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-track-auto-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-track-auto-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-            opts.Checkpoint.AutoCheckpoint    = true;
+            opts.Checkpoint.AutoTrack         = true;
         });
 
         // Act
@@ -512,6 +513,177 @@ public class DroneIntegrationTests {
         // Assert — Track does not throw; idempotent with auto-track
         await Assert.That(caught).IsNull();
         await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
+    }
+
+    [Test]
+    public async ValueTask user_track_is_allowed_when_auto_track_is_false(CancellationToken ct) {
+        // Arrange
+        var data = await Fixture.SeedTestStream(5, ct);
+        Exception? caught = null;
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                try { ctx.Track(ctx.Record); }
+                catch (Exception ex) { caught = ex; }
+
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.ConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-track-manual-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoTrack         = false;
+        });
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — Track is permitted with auto-track off; user owns progress and every record is delivered
+        await Assert.That(caught).IsNull();
+        await Assert.That(processor.Records.Length).IsEqualTo(data.Records.Length);
+    }
+
+    [Test]
+    public async ValueTask manual_mode_surfaces_watermark_without_auto_commit(CancellationToken ct) {
+        // Arrange — seed historical data so a from-Earliest subscription catches up and the server
+        // emits a scan watermark. Auto-track off: the watermark must reach OnCheckpoint as
+        // ScanPosition, but with nothing tracked the framework commits nothing.
+        var data = await Fixture.SeedTestStream(20, ct);
+
+        using var cts      = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var       surfaced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        CheckpointContext? watermark = null;
+
+        var processor = new TestableRecordProcessor {
+            OnCheckpointHook = checkpoint => {
+                if (checkpoint.ScanPosition is not null && watermark is null) {
+                    watermark = checkpoint;
+                    surfaced.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(Fixture.ConnectionString, client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-wm-surface-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoTrack         = false;
+        });
+
+        // Act — run until the watermark surfaces, then stop.
+        var run = drone.RunAsync(cts.Token);
+        await surfaced.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await cts.CancelAsync();
+        await run;
+
+        // Assert — a scan watermark surfaced (ScanPosition set), and with auto-track off the barrier
+        // carried no pending positions, so nothing was committed.
+        await Assert.That(watermark).IsNotNull();
+        await Assert.That(watermark!.ScanPosition).IsNotNull();
+        await Assert.That(watermark.Positions.Length).IsEqualTo(0);
+    }
+
+    [Test]
+    public async ValueTask manual_mode_user_can_advance_past_watermark(CancellationToken ct) {
+        // Arrange — auto-track off; the handler claims the surfaced watermark via ctx.Track(ctx.ScanPosition!).
+        var data = await Fixture.SeedTestStream(20, ct);
+
+        using var cts      = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var       advanced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        RecordPosition? trackedScan = null;
+        Exception?      caught      = null;
+
+        var processor = new TestableRecordProcessor {
+            OnCheckpointHook = checkpoint => {
+                if (checkpoint.ScanPosition is { } scanPosition && trackedScan is null) {
+                    try { checkpoint.Track(scanPosition); }
+                    catch (Exception ex) { caught = ex; }
+
+                    trackedScan = scanPosition;
+                    advanced.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(Fixture.ConnectionString, client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-wm-advance-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+            opts.Checkpoint.AutoTrack         = false;
+        });
+
+        // Act
+        var run = drone.RunAsync(cts.Token);
+        await advanced.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await cts.CancelAsync();
+        await run;
+
+        // Assert — the surfaced watermark was claimed via ctx.Track(ScanPosition) against a real
+        // server watermark, with no error. (Durable commit of a tracked ScanPosition is covered by
+        // the deterministic unit test auto_track_off_handler_can_advance_past_watermark.)
+        await Assert.That(trackedScan).IsNotNull();
+        await Assert.That(caught).IsNull();
+    }
+
+    [Test]
+    public async ValueTask scan_watermark_surfaces_in_auto_track_mode(CancellationToken ct) {
+        // Arrange — auto-track on (default). The real server scan watermark must still surface to
+        // OnCheckpoint as ScanPosition (informational in this mode; the framework also folds it).
+        var data = await Fixture.SeedTestStream(20, ct);
+
+        using var cts      = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var       surfaced = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        CheckpointContext? watermark = null;
+
+        var processor = new TestableRecordProcessor {
+            OnCheckpointHook = checkpoint => {
+                if (checkpoint.ScanPosition is not null && watermark is null) {
+                    watermark = checkpoint;
+                    surfaced.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(Fixture.ConnectionString, client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-wm-auto-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        });
+
+        // Act
+        var run = drone.RunAsync(cts.Token);
+        await surfaced.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        await cts.CancelAsync();
+        await run;
+
+        // Assert — the watermark surfaced even in auto-track mode. (Auto-commit durability is covered
+        // by the checkpoint-recovery integration tests and the unit fold test.)
+        await Assert.That(watermark).IsNotNull();
+        await Assert.That(watermark!.ScanPosition).IsNotNull();
     }
 
     [Test]
@@ -535,7 +707,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-manual-ckpt-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-manual-ckpt-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
@@ -572,7 +744,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-shutdown-ckpt-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-shutdown-ckpt-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
@@ -609,7 +781,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-ckpt-continue-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-ckpt-continue-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Continue;
@@ -643,7 +815,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-ckpt-fail-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-ckpt-fail-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Fail;
@@ -682,7 +854,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-status-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-status-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();
@@ -708,7 +880,7 @@ public class DroneIntegrationTests {
                 Fixture.ConnectionString,
                 client => client.LoggerFactory = Fixture.LoggerFactory);
 
-            opts.ProcessorId                  = $"drone-errstat-{PunyId.New()}";
+            opts.ProcessorId                  = $"drone-errstat-{TestId.New()}";
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
         }).Build();

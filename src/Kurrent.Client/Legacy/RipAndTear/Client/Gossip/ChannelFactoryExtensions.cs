@@ -26,7 +26,13 @@ static class ChannelFactoryExtensions {
             LoggerFactory         = settings.LoggerFactory,
             Credentials           = settings.ChannelCredentials,
             DisposeHttpClient     = true,
-            MaxReceiveMessageSize = MaxReceiveMessageLength
+            MaxReceiveMessageSize = MaxReceiveMessageLength,
+
+            // Caller-initiated cancellation surfaces as OperationCanceledException instead of
+            // RpcException(StatusCode.Cancelled), so it flows through standard .NET cancellation
+            // handling. Without this, a caller's own token firing mid-call is indistinguishable
+            // from a server-side cancellation.
+            ThrowOperationCanceledOnCancellation = true
         };
 
         return GrpcChannel.ForAddress(address, options);

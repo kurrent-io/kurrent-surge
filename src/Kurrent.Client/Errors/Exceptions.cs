@@ -1,9 +1,9 @@
 // ReSharper disable CheckNamespace
 
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
-using Google.Rpc.Exceptions;
 using Grpc.Core;
 using Kurrent.Client.Errors;
 using Kurrent.Rpc;
@@ -25,11 +25,16 @@ public partial class NotLeaderNodeException {
     public NodeInfo CurrentLeader { get; private set; } = NodeInfo.None;
 
     public void AfterParseRpcStatus(Status status, NotLeaderNodeException self) {
-        var details = status.GetDetail<NotLeaderNodeErrorDetails>()!;
+        // The leader hint is best-effort: node_id is optional on the wire
+        // (kurrent/rpc/errors.proto NotLeaderNodeErrorDetails.NodeInfo) and the details message
+        // itself may be absent. A missing hint must not turn a retriable not-leader error into a
+        // crash — the exception still carries the error code the retry predicate keys off.
+        if (status.GetDetail<NotLeaderNodeErrorDetails>()?.CurrentLeader is not { Host.Length: > 0 } leader)
+            return;
+
         self.CurrentLeader = NodeInfo.From(
-            details.CurrentLeader.Host,
-            details.CurrentLeader.Port,
-            details.CurrentLeader.NodeId);
+            new DnsEndPoint(leader.Host, leader.Port),
+            Guid.TryParse(leader.NodeId, out var nodeId) ? nodeId : Guid.Empty);
     }
 }
 
@@ -45,25 +50,6 @@ static class ExceptionExtensions {
         internal OperationExceptionParser MapTo(Exception exception) =>
             (s, _) => (StatusCode)s.Code == statusCode ? (dynamic?)exception : null;
     }
-
-    static readonly OperationExceptionParser[] GoogleParsers = [
-        static (s, e) => CancelledException.From(s, e),
-        static (s, e) => UnknownException.From(s, e),
-        static (s, e) => InvalidArgumentException.From(s, e),
-        static (s, e) => DeadlineExceededException.From(s, e),
-        static (s, e) => NotFoundException.From(s, e),
-        static (s, e) => AlreadyExistsException.From(s, e),
-        static (s, e) => PermissionDeniedException.From(s, e),
-        static (s, e) => UnauthenticatedException.From(s, e),
-        static (s, e) => ResourceExhaustedException.From(s, e),
-        static (s, e) => FailedPreconditionException.From(s, e),
-        static (s, e) => AbortedException.From(s, e),
-        static (s, e) => OutOfRangeException.From(s, e),
-        static (s, e) => UnimplementedException.From(s, e),
-        static (s, e) => InternalException.From(s, e),
-        static (s, e) => UnavailableException.From(s, e),
-        static (s, e) => DataLossException.From(s, e)
-    ];
 
     static readonly OperationExceptionParser[] ServerParsers = [
         static (s, e) => LeaderForwardingTimeoutException.From(s, e),
@@ -93,11 +79,14 @@ static class ExceptionExtensions {
                 Message = rex.Message
             };
 
-            // try to parse using the provided parsers, then server parsers, then google parsers
-            // and finally fallback to the original exception
+            // try to parse using the provided parsers, then server parsers, and finally
+            // fall back to the original exception. Generic gRPC status codes are deliberately
+            // NOT translated: a raw RpcException is the ecosystem-standard transport-failure
+            // signal (Polly predicates, grpc-dotnet retry policies, OTel conventions all key
+            // off RpcException.StatusCode). Typed exceptions are reserved for domain errors
+            // the server describes via ErrorInfo.
             return parsers
                 .Concat(ServerParsers)
-                .Concat(GoogleParsers)
                 .Select(parse => parse(status, errorInfo))
                 .SkipWhile(result => result is null)
                 .DefaultIfEmpty(ex)

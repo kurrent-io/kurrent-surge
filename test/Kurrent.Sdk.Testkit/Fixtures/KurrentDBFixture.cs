@@ -128,7 +128,7 @@ public class KurrentDBFixture : AspireFixture {
 
         var rsp = await Client.Streams.AppendStream(ds.Stream, ds.Records, ct).ConfigureAwait(false);
 
-        var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position);
+        var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position.LogPosition);
 
         Logger.LogDebug(
             "Seeded {Count} {DataSource} events: {Stream} v{Revision} @ {Position}",

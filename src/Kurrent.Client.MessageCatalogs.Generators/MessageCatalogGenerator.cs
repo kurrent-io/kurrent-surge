@@ -12,8 +12,9 @@ namespace Kurrent.Client.MessageCatalogs.Generators;
 /// Generates message catalogs in CONSUMER assemblies (this generator ships inside the
 /// Kurrent.Client package). From [assembly: MessageCatalog("Prefix", Key = ...)] scans and
 /// the MessageType attribute family it emits:
-///   1. {RootNamespace}.MessageCatalogs — one MessageCatalog property per declared key,
-///      All, and a pattern-matchable Get(key) returning null on miss;
+///   1. {RootNamespace}.MessageCatalogs — one MessageCatalog property per declared key and
+///      per [CustomMessageCatalog] subclass, All, and a pattern-matchable Get(key) returning
+///      null on miss;
 ///   2. a derived MessageCatalogProviderAttribute applied at assembly level — the export
 ///      manifest that makes catalogs auto-discoverable (and AOT-rooted) with zero user input;
 ///   3. Use*Catalog() extension methods in the Kurrent.Client namespace, ASP.NET-style, so
@@ -307,12 +308,29 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         sb.AppendLine("    [global::System.CodeDom.Compiler.GeneratedCode(\"MessageCatalogGenerator\", \"3.0.0\")]");
         sb.AppendLine("    public static partial class MessageCatalogs {");
 
-        // All = attribute-declared catalog properties (declared in the per-catalog files), then a
-        // fresh instance of each discovered [CustomMessageCatalog] subclass. Built lazily: the
-        // per-catalog properties live in other partial files, so a field initializer here could run
-        // before theirs — `??=` defers until first access, after every static initializer has run.
+        // Custom catalog keys are runtime constructor arguments the generator cannot read, so
+        // property and extension names derive from the type name instead. Declared keys claim
+        // their property names first; a colliding custom falls back to its full type name.
+        var usedNames = new HashSet<string>(info.Catalogs.Select(c => PropertyName(c.Key)), StringComparer.Ordinal);
+
+        var customs = customCatalogs
+            .Select(c => (Name: CustomCatalogName(c.TypeName, usedNames), c.TypeName))
+            .ToArray();
+
+        // Single cached instance per custom catalog: All, UseCatalog, and user code all see the
+        // same template, so runtime Map calls on it are not split across stray copies.
+        foreach (var custom in customs)
+            sb.AppendLine($"        public static global::Kurrent.Client.MessageCatalog {custom.Name} {{ get; }} = new global::{custom.TypeName}();");
+
+        if (customs.Length > 0)
+            sb.AppendLine();
+
+        // All = attribute-declared catalog properties (declared in the per-catalog files), then
+        // the custom catalog properties declared above. Built lazily: the per-catalog properties
+        // live in other partial files, so a field initializer here could run before theirs —
+        // `??=` defers until first access, after every static initializer has run.
         var allItems = info.Catalogs.Select(c => PropertyName(c.Key))
-            .Concat(customCatalogs.Select(c => $"new global::{c.TypeName}()"))
+            .Concat(customs.Select(c => c.Name))
             .ToArray();
 
         sb.AppendLine("        static global::System.Collections.Generic.IReadOnlyList<global::Kurrent.Client.MessageCatalog>? _all;");
@@ -320,13 +338,16 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         sb.AppendLine($"            _all ??= [{string.Join(", ", allItems)}];");
         sb.AppendLine();
         sb.AppendLine("        /// <summary>Returns the catalog with the given key, or null — pattern-matchable.</summary>");
-        sb.AppendLine("        public static global::Kurrent.Client.MessageCatalog? Get(string key) => key switch {");
-
-        foreach (var catalog in info.Catalogs)
-            sb.AppendLine($"            \"{catalog.Key}\" => {PropertyName(catalog.Key)},");
-
-        sb.AppendLine("            _ => null");
-        sb.AppendLine("        };");
+        sb.AppendLine("        public static global::Kurrent.Client.MessageCatalog? Get(string key) {");
+        sb.AppendLine("            // Custom catalog keys are runtime constructor arguments the generator cannot");
+        sb.AppendLine("            // read, so lookup runs against the live set instead of a generated switch.");
+        sb.AppendLine("            foreach (var catalog in All) {");
+        sb.AppendLine("                if (catalog.Key == key)");
+        sb.AppendLine("                    return catalog;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            return null;");
+        sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>This assembly's catalog export manifest — enables auto-discovery and roots the catalogs for AOT.</summary>");
@@ -343,10 +364,41 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         sb.AppendLine($"    public static partial class {info.AssemblyId}MessageCatalogExtensions {{");
         sb.AppendLine($"        public static global::Kurrent.Client.KurrentClientMessageOptions Use{info.AssemblyId}Catalogs(this global::Kurrent.Client.KurrentClientMessageOptions options) =>");
         sb.AppendLine($"            options.UseCatalog(global::{info.RootNamespace}.MessageCatalogs.All);");
+
+        foreach (var custom in customs) {
+            sb.AppendLine();
+            sb.AppendLine($"        public static global::Kurrent.Client.KurrentClientMessageOptions Use{custom.Name}Catalog(this global::Kurrent.Client.KurrentClientMessageOptions options) =>");
+            sb.AppendLine($"            options.UseCatalog(global::{info.RootNamespace}.MessageCatalogs.{custom.Name});");
+        }
+
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    // "Acme.OrdersCatalog" → "Orders"; a trailing "Catalog" / "MessageCatalog" is dropped the
+    // same way CatalogFileStem avoids doubling it. Claims the name in usedNames; on a collision
+    // (declared key property or another custom) falls back to the sanitized full type name.
+    static string CustomCatalogName(string typeName, HashSet<string> usedNames) {
+        var name = typeName.Substring(typeName.LastIndexOf('.') + 1);
+
+        if (name.EndsWith("MessageCatalog", StringComparison.Ordinal))
+            name = name[..^"MessageCatalog".Length];
+        else if (name.EndsWith("Catalog", StringComparison.Ordinal))
+            name = name[..^"Catalog".Length];
+
+        // A type named exactly "Catalog" or "MessageCatalog" strips to nothing — keep the
+        // simple name rather than emitting an unnamed member.
+        if (name.Length == 0)
+            name = typeName.Substring(typeName.LastIndexOf('.') + 1);
+
+        if (usedNames.Add(name))
+            return name;
+
+        var fallback = Sanitize(typeName);
+        usedNames.Add(fallback);
+        return fallback;
     }
 
     static string GenerateCatalogFile(CatalogsInfo info, CatalogInfo catalog) {

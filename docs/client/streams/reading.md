@@ -28,10 +28,10 @@ await foreach (var item in stream) {
 Each result is a `Record` or a `Heartbeat`. Use `Switch` (or pattern matching) to handle both cases. See [Handle heartbeats](#handle-heartbeats) for what heartbeats carry.
 
 ::: tip
-For a simple read from the start of a stream, the `ReadStreamRecords` extension takes just a stream name:
+For a simple read from the start of a stream, the `ReadStream` extension takes just a stream name:
 
 ```csharp
-var stream = client.Streams.ReadStreamRecords("order-123");
+var stream = client.Streams.ReadStream("order-123");
 ```
 :::
 
@@ -61,31 +61,27 @@ This returns the last 10 records, newest first.
 
 ## Read the first or last record
 
-`ReadStreamEdge` reads a single record at the start or end of a stream. The direction picks which end:
-
-| Edge   | Direction                  | Returns                              |
-|--------|----------------------------|--------------------------------------|
-| First  | `ReadDirection.Forwards`   | The oldest record in the stream      |
-| Last   | `ReadDirection.Backwards`  | The newest record in the stream      |
+`FirstRecord` and `LastRecord` read a single record at the start or end of a target. The
+`StreamName` picks the target — a stream name reads that stream's edge, and `StreamName.Log`
+(or the parameterless overload) reads the edge of the global log:
 
 ```csharp
-var first = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Forwards,  false, default);
-var last  = await client.Streams.ReadStreamEdge("order-123", ReadDirection.Backwards, false, default);
+var first = await client.Streams.FirstRecord("order-123");
+var last  = await client.Streams.LastRecord("order-123");
 
 Console.WriteLine("First record: {0}", first.TypeName);
 Console.WriteLine("Last record:  {0} at revision {1}", last.TypeName, last.Revision);
+
+// Edges of the global log
+var oldest = await client.Streams.FirstRecord();
+var newest = await client.Streams.LastRecord();
 ```
 
-The third argument is `skipDecoding`. Set it to `true` to skip payload deserialization when you only need metadata.
-
-::: tip
-`ReadFirstStreamRecord` and `ReadLastStreamRecord` are shorthand extensions for the common case:
+Pass `skipDecoding: true` to skip payload deserialization when you only need metadata:
 
 ```csharp
-var first = await client.Streams.ReadFirstStreamRecord("order-123");
-var last  = await client.Streams.ReadLastStreamRecord("order-123");
+var last = await client.Streams.LastRecord("order-123", skipDecoding: true);
 ```
-:::
 
 ## Read from the global log
 

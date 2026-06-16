@@ -3,22 +3,6 @@ using Serilog;
 
 namespace Kurrent.Client.Tests.Streams;
 
-
-public static class Extensions {
-
-    public static IAsyncEnumerable<Record> Records(this IAsyncEnumerable<ReadRecordsResult> source) =>
-        source.Where(msg => msg.Value is Record).Select(msg => msg.AsRecord);
-    
-    public static IAsyncEnumerable<Record> TakeRecordsUpTo(this IAsyncEnumerable<ReadRecordsResult> source, RecordPosition position) =>
-        source.Where(msg => msg.Value is Record).Select(msg => msg.AsRecord)
-            .TakeWhile(rec => rec.Position.LogPosition <= position.LogPosition);
-    
-    public static IAsyncEnumerable<Record> TakeUntilCaughtUp(this IAsyncEnumerable<ReadRecordsResult> source) =>
-        source
-            .TakeWhile(msg => msg.Value is not CaughtUpCheckpoint)
-            .Select(msg => msg.AsRecord);
-}
-
 [Category("Streams")]
 [Category("Read")]
 [Category("Filters")]
@@ -27,6 +11,14 @@ public static class Extensions {
 public class ReadWithFilterTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
+
+    // Secondary indexes are eventually consistent; observed catch-up lag has exceeded the
+    // 5s the old hand-rolled poll loops allowed, so the budget is 15s at the same interval.
+    static EventuallyOptions IndexCatchUp(CancellationToken ct) => new() {
+        Timeout           = TimeSpan.FromSeconds(15),
+        PollingInterval   = TimeSpan.FromMilliseconds(500),
+        CancellationToken = ct
+    };
 
     #region . Stream Filter .
 
@@ -39,7 +31,8 @@ public class ReadWithFilterTests {
         // Act
         var options = new ReadRecordsOptions {
             Start        = lastPosition.LogPosition,
-            Filter       = RecordFilter.ByExpression($"stream = '{simulation.Stream}'"),
+            // LIKE keeps this on the LOG path ($all + StreamRegexFilter); equality would route to a stream read.
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{simulation.Stream}%'"),
             Limit        = simulation.Records.Length,
             SkipDecoding = true
         };
@@ -144,18 +137,12 @@ public class ReadWithFilterTests {
         await Assert.That(exprFilter.ServerFilter).IsTypeOf<CategoryFilter>();
         await Assert.That(((CategoryFilter)exprFilter.ServerFilter).IndexName).IsEqualTo($"$idx-ce-{category}");
 
-        // Poll until the secondary index catches up (eventually consistent)
-        var ownCount = 0;
-        var records  = new List<Record>();
-
-        for (var attempt = 0; attempt < 10 && ownCount < simulation.Records.Length; attempt++) {
-            if (attempt > 0)
-                await Task.Delay(500, ct);
-
+        // Assert — poll until the secondary index catches up (eventually consistent)
+        await Assert.That(async () => {
             using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            records.Clear();
-            ownCount = 0;
+            var ownCount = 0;
+            var records  = new List<Record>();
 
             var options = new ReadRecordsOptions {
                 Start        = lastPosition.LogPosition,
@@ -174,13 +161,12 @@ public class ReadWithFilterTests {
                         await cancellator.CancelAsync();
                 }
             }
-        }
 
-        // Assert
-        await Assert.That(ownCount).IsEqualTo(simulation.Records.Length);
+            await Assert.That(ownCount).IsEqualTo(simulation.Records.Length);
 
-        foreach (var record in records)
-            await Assert.That(record.Stream.Category).IsEqualTo(category);
+            foreach (var record in records)
+                await Assert.That(record.Stream.Category).IsEqualTo(category);
+        }).EventuallyPasses(IndexCatchUp(ct));
     }
 
     [Test]
@@ -191,22 +177,17 @@ public class ReadWithFilterTests {
         var category     = simulation.Stream.Category;
 
         var firstRecord = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
+            .ReadStream(simulation.Stream, ct)
             .Where(m => m.IsRecord).Select(m => m.AsRecord)
             .FirstAsync(ct);
 
         var expectedSchema = firstRecord.Schema.Schema;
 
-        // Poll until the secondary index catches up (eventually consistent)
-        var records = new List<Record>();
-
-        for (var attempt = 0; attempt < 10 && records.Count == 0; attempt++) {
-            if (attempt > 0)
-                await Task.Delay(500, ct);
-
+        // Assert — poll until the secondary index catches up (eventually consistent)
+        await Assert.That(async () => {
             using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            records.Clear();
+            var records = new List<Record>();
 
             var options = new ReadRecordsOptions {
                 Start        = lastPosition.LogPosition,
@@ -221,15 +202,14 @@ public class ReadWithFilterTests {
                         await cancellator.CancelAsync();
                 }
             }
-        }
 
-        // Assert
-        await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
+            await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
 
-        foreach (var record in records) {
-            await Assert.That(record.Stream.Category).IsEqualTo(category);
-            await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
-        }
+            foreach (var record in records) {
+                await Assert.That(record.Stream.Category).IsEqualTo(category);
+                await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
+            }
+        }).EventuallyPasses(IndexCatchUp(ct));
     }
 
     #endregion
@@ -243,7 +223,7 @@ public class ReadWithFilterTests {
         var simulation   = await Fixture.SeedTestStream(ct);
 
         var firstRecord = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
+            .ReadStream(simulation.Stream, ct)
             .Where(m => m.IsRecord).Select(m => m.AsRecord)
             .FirstAsync(ct);
 
@@ -299,7 +279,7 @@ public class ReadWithFilterTests {
         // stream = 'X' has higher priority than schema_name in extraction,
         // so stream takes priority and routes to the stream directly
         var firstRecord = await Fixture.Client.Streams
-            .ReadStreamRecords(simulation.Stream, ct)
+            .ReadStream(simulation.Stream, ct)
             .Where(m => m.IsRecord)
             .Select(m => m.AsRecord)
             .FirstAsync(ct);

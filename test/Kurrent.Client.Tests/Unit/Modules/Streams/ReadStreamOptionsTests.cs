@@ -13,7 +13,7 @@ public class ReadStreamOptionsTests {
         var options = new ReadStreamOptions();
 
         // Assert
-        await Assert.That(options.Start).IsEqualTo(Revision.Min);
+        await Assert.That(options.Start).IsEqualTo(Revision.Unset);
         await Assert.That(options.Limit).IsEqualTo(long.MaxValue);
         await Assert.That(options.Direction).IsEqualTo(ReadDirection.Forwards);
         await Assert.That(options.SkipDecoding).IsFalse();
@@ -45,15 +45,16 @@ public class ReadStreamOptionsTests {
     }
 
     [Test]
-    public async ValueTask max_start_revision_reading_forwards_is_invalid() {
-        // Arrange
+    public async ValueTask max_start_revision_reading_forwards_is_valid() {
+        // Arrange — forwards from the end (Revision.Max) reads nothing: an empty success, not an
+        // error. The read path short-circuits it, mirroring $all's End + Forwards behavior.
         var options = new ReadStreamOptions { Start = Revision.Max, Direction = ReadDirection.Forwards };
 
         // Act
         var result = options.Validate();
 
         // Assert
-        await Assert.That(result.IsInvalid).IsTrue();
+        await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]

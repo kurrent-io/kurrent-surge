@@ -135,7 +135,7 @@ public sealed class ProtoMetadataDecoder : MetadataDecoder {
 The decoder runs on every record as it streams through reads and subscriptions, so the rest of your code reads `Metadata` the same way it would for any other record:
 
 ```csharp
-var records = client.Streams.ReadStreamRecords("order-7f3a")
+var records = client.Streams.ReadStream("order-7f3a")
     .Where(msg => msg.IsRecord)
     .Select(msg => msg.AsRecord);
 
