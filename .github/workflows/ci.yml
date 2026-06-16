@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Lint needs the PR's files, so it lives here — pr-triage.yml never checks out PR code.
   markdown:
+    name: Lint Markdown
     runs-on: ubuntu-latest
 
     permissions:
@@ -26,7 +26,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Lint Markdown
+      - name: Lint
         uses: DavidAnson/markdownlint-cli2-action@v19
 
   ci:
@@ -185,4 +185,4 @@ jobs:
         if: ${{ !cancelled() && steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true }}
         uses: ./.github/actions/cleanup-containers
         with:
-          max-age-hours: 24
+          max-age-hours: 72
