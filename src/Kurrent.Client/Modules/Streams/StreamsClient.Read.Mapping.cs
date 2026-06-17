@@ -8,8 +8,8 @@ namespace Kurrent.Client.Streams;
 static partial class StreamsClientMapping {
     internal static partial class Requests {
         /// <summary>
-        /// Builds a single-record read at a specific log position with link resolution enabled.
-        /// Used for inspecting an individual record by its commit position.
+        /// Builds a single-record read at a specific log position with link resolution disabled.
+        /// Used for inspecting the individual record physically at that commit position.
         /// Reads backwards from <see cref="LogPosition.Latest"/>, forwards otherwise.
         /// </summary>
         public static Contracts.ReadReq CreateInspectRecordRequest(LogPosition position) {
@@ -19,7 +19,9 @@ static partial class StreamsClientMapping {
                     ControlOption = DefaultControlOption,
                     NoFilter      = DefaultEmpty,
                     Count         = 1,
-                    ResolveLinks  = true,
+                    // Inspecting a log position addresses one physical record; resolving links would
+                    // return a different record (the link's target) at a different position.
+                    ResolveLinks  = false,
                     All           = ConvertToAllOptions(position),
                     ReadDirection = position == LogPosition.Latest
                         ? Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards
@@ -39,6 +41,9 @@ static partial class StreamsClientMapping {
                     ControlOption = DefaultControlOption,
                     NoFilter      = DefaultEmpty,
                     Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    // A stream edge is the record physically at that stream's head/tail; resolving
+                    // links would substitute a target event from another stream.
+                    ResolveLinks  = false,
                     ReadDirection = ToReadDirection(direction),
                     Stream = ConvertToStreamOptions(
                         stream, start: direction switch {

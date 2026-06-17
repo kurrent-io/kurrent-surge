@@ -1,9 +1,8 @@
 #pragma warning disable CS8509
-#pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
+#pragma warning disable CS8524
 
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Client.Exceptions;
@@ -29,6 +28,18 @@ public partial class StreamsClient {
     /// <param name="cancellationToken">
     /// A cancellation token to observe while waiting for the task to complete.
     /// </param>
+    /// <returns>
+    /// The record at <paramref name="position"/>, or <see cref="Record.None"/> when no record exists there.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="position"/> is <see cref="LogPosition.Unset"/>.
+    /// </exception>
+    /// <remarks>
+    /// The record is returned even when its source stream has been soft-deleted or tombstoned: a log
+    /// position addresses a physical record that remains readable until the log is scavenged. Link
+    /// resolution is disabled, so the returned record is the one physically at the position rather
+    /// than a link's resolved target.
+    /// </remarks>
     public async ValueTask<Record> InspectRecord(LogPosition position, bool skipDecoding = true, CancellationToken cancellationToken = default) {
         if (position == LogPosition.Unset)
             throw new ArgumentOutOfRangeException(nameof(position), "Log position cannot be Unset.");
@@ -39,24 +50,11 @@ public partial class StreamsClient {
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // maybe add a strict option that will throw if the record is not found or if it was deleted or tombstoned
-        // when strict is null it would return Record.None
-        // or we could even return a result<record, exception> or IVariant<Record, RecordState>
-        
-        if (result.Value is not Record record)
-            throw new LogPositionNotFoundException(position);
-
-        // Check if the source stream has been deleted or tombstoned
-        if (record.Stream != StreamName.Unset && !record.Stream.IsMetadataStream) {
-            var streamInfo = await GetStreamInfo(record.Stream, cancellationToken).ConfigureAwait(false);
-
-            switch (streamInfo.State) {
-                case StreamState.Deleted:    throw new StreamDeletedException(record.Position.Stream);
-                case StreamState.Tombstoned: throw new StreamTombstonedException(record.Position.Stream);
-            }
-        }
-       
-        return record;
+        // A log position addresses a physical record that stays readable until scavenge, so a
+        // soft-deleted or tombstoned source stream does not suppress it — the record is returned
+        // as-is. Absence (an out-of-range position, or an empty log via Earliest/Latest) yields
+        // Record.None instead of a throw: callers inspect the result rather than catching.
+        return result.Value is Record record ? record : Record.None;
     }
 
     /// <summary>
@@ -145,11 +143,11 @@ public partial class StreamsClient {
                 .ConfigureAwait(false);
 
             // Check the concrete value, not IsRecord: on an empty read FirstOrDefaultAsync returns a
-            // default ReadMessage whose IsRecord is true (variant default = case 0) with a null
-            // payload, so `IsRecord` would leak that null instead of taking the throw branch.
-            return message.Value is Record record
-                ? record
-                : throw new UnreachableException($"No record found at the specified stream edge: {stream} ({direction})");
+            // default ReadMessage whose IsRecord is true (variant default = case 0) with a null payload.
+            // An empty edge is reachable when the stream exists but has no readable records (e.g. every
+            // event MaxAge-expired, or the stream fully truncated): the server returns success with zero
+            // events, not StreamNotFound. So mirror InspectRecord and return Record.None rather than throwing.
+            return message.Value is Record record ? record : Record.None;
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException();

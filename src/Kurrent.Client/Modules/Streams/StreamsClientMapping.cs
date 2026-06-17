@@ -52,6 +52,8 @@ static partial class StreamsClientMapping {
                     ControlOption = DefaultControlOption,
                     NoFilter      = DefaultEmpty,
                     Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    // Edge probe for stream info: read this stream's own record, never a link target.
+                    ResolveLinks  = false,
                     ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
                     Stream        = ConvertToStreamOptions(stream, Revision.Max),
                 }
@@ -69,6 +71,8 @@ static partial class StreamsClientMapping {
                     ControlOption = DefaultControlOption,
                     NoFilter      = DefaultEmpty,
                     Count         = count is null ? ulong.MaxValue : (ulong)count,
+                    // Edge probe for stream info: read this stream's own record, never a link target.
+                    ResolveLinks  = false,
                     ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
                     Stream        = ConvertToStreamOptions(stream, Revision.Min),
                 }
