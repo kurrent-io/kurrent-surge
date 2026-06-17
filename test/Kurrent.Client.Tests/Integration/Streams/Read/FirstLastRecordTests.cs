@@ -62,10 +62,11 @@ public class FirstLastRecordTests {
 
         var record = await Fixture.Client.Streams.LastRecord(StreamName.Log, skipDecoding: true, ct);
 
-        // No position comparison against the seeded append: the read resolves links, so when the
-        // log tail is a link record (e.g. a projection emit) the returned record is its target,
-        // whose position can legitimately precede the seed. The durable invariant is only that a
-        // log-targeted read reaches a real record at the tail.
+        // No position comparison against the seeded append: in a shared, parallel container the log
+        // tail can be any concurrent writer's record. Link resolution is off, so the returned record
+        // is the physical record at the tail, and a soft-deleted or tombstoned tail stream no longer
+        // makes this throw. The durable invariant is only that a log-targeted read reaches a real
+        // record at the tail.
         await Assert.That(record).IsNotEqualTo(Record.None);
         await Assert.That(record.Position.LogPosition.IsUnset).IsFalse();
     }
@@ -103,6 +104,21 @@ public class FirstLastRecordTests {
 		await Assert.That(async () => await ReadEdge(edge, data.Stream, skipDecoding: true, ct))
 			.Throws<StreamTombstonedException>();
 	}
+
+    [Test]
+    [Arguments(Edge.First)]
+    [Arguments(Edge.Last)]
+    public async ValueTask returns_none_when_stream_exists_but_has_no_records(Edge edge, CancellationToken ct) {
+        var data = await Fixture.SeedTestStream(ct);
+
+        // Truncate away every record: the stream still exists (not deleted), but the edge read finds
+        // no readable record, so it must return Record.None instead of throwing.
+        await Fixture.Client.Streams.Truncate(data.Stream, data.Revision + 1, ct);
+
+        var record = await ReadEdge(edge, data.Stream, skipDecoding: true, ct);
+
+        await Assert.That(record).IsEqualTo(Record.None);
+    }
 
     [Test]
     public async ValueTask fails_when_concurrent_reads_on_missing_stream(CancellationToken ct) {
