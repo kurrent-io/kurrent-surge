@@ -142,6 +142,6 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \
             --generate-notes \
-            ${{ steps.version.outputs.is-pre-release == 'true' && '--prerelease' || '' }} \
+            ${{ steps.version.outputs['is-pre-release'] == 'true' && '--prerelease' || '' }} \
             .artifacts/packages/*.nupkg \
             .artifacts/packages/*.snupkg
