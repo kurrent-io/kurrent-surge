@@ -1,4 +1,3 @@
-using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Tests.Streams;
@@ -52,8 +51,6 @@ public class InspectRecordTests {
 
     [Test]
     public async ValueTask returns_last_record_using_latest_position(CancellationToken ct) {
-        //TODO SS: Investigate, sometimes throws "Object reference not set to an instance of an object."
-
         await Fixture.SeedTestStream(10, ct);
 
         var record = await Fixture.Client.Streams
@@ -89,36 +86,49 @@ public class InspectRecordTests {
     }
 
     [Test]
-    public async ValueTask fails_with_stream_deleted_error_when_stream_was_deleted(CancellationToken ct) {
+    public async ValueTask returns_record_when_source_stream_was_deleted(CancellationToken ct) {
         var simulation = await Fixture.SeedTestStream(ct);
+
+        var expectedRecordId = simulation.Records.Last().RecordId;
 
         await Fixture.Client.Streams
             .Delete(simulation.Stream, ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .InspectRecord(simulation.Position, ct))
-            .Throws<StreamDeletedException>();
+        // A soft-deleted source stream does not hide the physical record at its log position.
+        var record = await Fixture.Client.Streams
+            .InspectRecord(simulation.Position, ct);
+
+        await Assert.That(record).IsNotEqualTo(Record.None);
+        await Assert.That(record.Id).IsEqualTo(expectedRecordId);
+        await Assert.That(record.Position.LogPosition).IsEqualTo(simulation.Position);
     }
 
     [Test]
-    public async ValueTask fails_with_stream_tombstoned_error_when_stream_was_tombstoned(CancellationToken ct) {
+    public async ValueTask returns_record_when_source_stream_was_tombstoned(CancellationToken ct) {
         var simulation = await Fixture.SeedTestStream(ct);
+
+        var expectedRecordId = simulation.Records.Last().RecordId;
 
         await Fixture.Client.Streams
             .Tombstone(simulation.Stream, ct);
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .InspectRecord(simulation.Position, ct))
-            .Throws<StreamTombstonedException>();
+        // A tombstoned source stream does not hide the physical record at its log position.
+        var record = await Fixture.Client.Streams
+            .InspectRecord(simulation.Position, ct);
+
+        await Assert.That(record).IsNotEqualTo(Record.None);
+        await Assert.That(record.Id).IsEqualTo(expectedRecordId);
+        await Assert.That(record.Position.LogPosition).IsEqualTo(simulation.Position);
     }
 
     [Test]
-    public async ValueTask fails_with_LogPositionNotFoundException_when_log_position_does_not_exist(CancellationToken ct) {
+    public async ValueTask returns_none_when_log_position_does_not_exist(CancellationToken ct) {
         var nonExistentPosition = long.MaxValue - 1000;
 
-        await Assert.That(async () => await Fixture.Client.Streams
-            .InspectRecord(nonExistentPosition, ct))
-            .Throws<LogPositionNotFoundException>();
+        var record = await Fixture.Client.Streams
+            .InspectRecord(nonExistentPosition, ct);
+
+        await Assert.That(record).IsEqualTo(Record.None);
     }
 
     [Test]
