@@ -41,45 +41,6 @@ static partial class StreamsClientMapping {
     static readonly Contracts.ReadReq.Types.Options.Types.UUIDOption          DefaultUuidOptions         = new();
     static readonly KurrentDB.Protocol.V1.Empty                               DefaultEmpty               = new();
 
-    internal static partial class Requests {
-        /// <summary>
-        /// Reads backwards from the end of a stream. Used by both Read and Manage operations.
-        /// </summary>
-        public static Contracts.ReadReq CreateReadLastStreamEventRequest(StreamName stream, long? count = null) {
-            return new() {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    NoFilter      = DefaultEmpty,
-                    Count         = count is null ? ulong.MaxValue : (ulong)count,
-                    // Edge probe for stream info: read this stream's own record, never a link target.
-                    ResolveLinks  = false,
-                    ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Backwards,
-                    Stream        = ConvertToStreamOptions(stream, Revision.Max),
-                }
-            };
-        }
-
-        /// <summary>
-        /// Reads forwards from the start of a stream. Used by both Read and Manage operations.
-        /// After a scavenge the first surviving event may not be at revision 0.
-        /// </summary>
-        public static Contracts.ReadReq CreateReadFirstStreamEventRequest(StreamName stream, long? count = null) {
-            return new() {
-                Options = new() {
-                    UuidOption    = DefaultUuidOptions,
-                    ControlOption = DefaultControlOption,
-                    NoFilter      = DefaultEmpty,
-                    Count         = count is null ? ulong.MaxValue : (ulong)count,
-                    // Edge probe for stream info: read this stream's own record, never a link target.
-                    ResolveLinks  = false,
-                    ReadDirection = Contracts.ReadReq.Types.Options.Types.ReadDirection.Forwards,
-                    Stream        = ConvertToStreamOptions(stream, Revision.Min),
-                }
-            };
-        }
-    }
-
     /// <summary>
     /// Applies the read/subscribe wire shape to a V1 Options block. Unwraps
     /// <see cref="ExpressionFilter"/>, routes between <c>Options.Stream</c> and
