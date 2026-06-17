@@ -22,7 +22,10 @@ public record CreateSchemaOptions : SelfValidating<CreateSchemaOptions, CreateSc
     public string Description { get; set; } = "";
 
     /// <summary>Key-value pairs that provide additional metadata or categorization for the schema.</summary>
-    public IDictionary<string, string> Tags { get; set; } = new Dictionary<string, string>();
+    public IDictionary<string, string> Tags {
+        get;
+        set => field = value ?? new Dictionary<string, string>();
+    } = new Dictionary<string, string>();
 
     /// <summary>Adds or overwrites a tag in <see cref="Tags"/>.</summary>
     public void AddTag(string key, string value) =>

@@ -14,7 +14,10 @@ public record ListSchemasOptions : SelfValidating<ListSchemasOptions, ListSchema
     /// Key-value pairs to filter schemas by tags. Only schemas matching all specified tags are returned.
     /// Empty means no tag filter.
     /// </summary>
-    public IDictionary<string, string> Tags { get; set; } = new Dictionary<string, string>();
+    public IDictionary<string, string> Tags {
+        get;
+        set => field = value ?? new Dictionary<string, string>();
+    } = new Dictionary<string, string>();
 
     /// <summary>Adds or overwrites a tag filter in <see cref="Tags"/>.</summary>
     public void AddTag(string key, string value) =>

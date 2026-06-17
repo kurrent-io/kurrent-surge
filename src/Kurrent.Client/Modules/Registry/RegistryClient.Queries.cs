@@ -210,10 +210,10 @@ public partial class RegistryClient {
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>An <see cref="IReadOnlyList{Schema}"/> containing the matching schemas.</returns>
     public ValueTask<IReadOnlyList<Schema>> ListSchemas(
-        Action<ListSchemasOptions> configure, CancellationToken ct = default
+        Action<ListSchemasOptions>? configure = null, CancellationToken ct = default
     ) {
         var options = new ListSchemasOptions();
-        configure(options);
+        configure?.Invoke(options);
         return ListSchemas(options, ct);
     }
 
