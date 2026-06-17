@@ -110,9 +110,12 @@ jobs:
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
+          git config --local --unset-all "http.https://github.com/.extraheader" || true
           git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" "${{ steps.version.outputs.tag }}"
 
       - name: Publish Packages
         if: ${{ !inputs.dry_run }}
