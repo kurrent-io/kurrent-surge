@@ -63,10 +63,10 @@ All three throw `SchemaNotFoundException` for unknown names or numbers, or `Sche
 
 ## List schemas
 
-`ListSchemas` enumerates registered schemas, optionally filtered by name prefix and tags. Tag filters require every specified tag to match. Create a `ListSchemasRequest` to combine filters. The call returns `IReadOnlyList<Schema>`.
+`ListSchemas` enumerates registered schemas, optionally filtered by name prefix and tags. Tag filters require every specified tag to match. Create a `ListSchemasOptions` to combine filters. The call returns `IReadOnlyList<Schema>`.
 
 ```csharp
-var schemas = await client.Registry.ListSchemas(new ListSchemasRequest {
+var schemas = await client.Registry.ListSchemas(new ListSchemasOptions {
     SchemaNamePrefix = "order-",
     Tags             = new Dictionary<string, string> { ["team"] = "fulfillment" }
 });

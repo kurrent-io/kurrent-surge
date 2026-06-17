@@ -14,10 +14,10 @@ Operations throw on failure. See [Error handling](./error-handling.md) for the e
 
 ## Create an index
 
-Create a `CreateIndexRequest` and pass it to the client.
+Create a `CreateIndexOptions` and pass it to the client.
 
 ```csharp
-await client.Indexes.Create(new CreateIndexRequest {
+await client.Indexes.Create(new CreateIndexOptions {
     Name   = "ORDERS_BY_CUSTOMER",
     Filter = "schema_name = 'OrderPlaced'",
     Fields = [

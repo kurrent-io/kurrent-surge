@@ -12,10 +12,10 @@ The call returns the matched `SchemaVersionId` on success and throws `SchemaInco
 
 ## Run a compatibility check
 
-Create a `CheckSchemaCompatibilityRequest`, point it at a schema, and submit.
+Create a `CheckSchemaCompatibilityOptions`, point it at a schema, and submit.
 
 ```csharp
-var versionId = await client.Registry.CheckSchemaCompatibility(new CheckSchemaCompatibilityRequest {
+var versionId = await client.Registry.CheckSchemaCompatibility(new CheckSchemaCompatibilityOptions {
     Identifier       = SchemaName.From("order-placed"),
     SchemaDefinition = proposedSchema,
     DataFormat       = SchemaDataFormat.Json

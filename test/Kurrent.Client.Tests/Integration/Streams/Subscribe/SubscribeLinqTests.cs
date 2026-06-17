@@ -489,9 +489,11 @@ public class SubscribeLinqTests {
         // (alphanumeric, underscores, dashes); the selector still uses the camelCase JSON path.
         await Fixture.Client.Indexes.Create(
             indexName,
-            $"rec => rec.schema.name == '{schemaName}'",
-            [new IndexField("car_id", "rec => rec.value.carId", IndexFieldType.String)],
-            start: true,
+            o => {
+                o.Filter = $"rec => rec.schema.name == '{schemaName}'";
+                o.Fields = [new IndexField("car_id", "rec => rec.value.carId", IndexFieldType.String)];
+                o.Start  = true;
+            },
             ct
         );
 
@@ -520,9 +522,11 @@ public class SubscribeLinqTests {
 
         await Fixture.Client.Indexes.Create(
             indexName,
-            $"rec => rec.schema.name == '{schemaName}'",
-            [new IndexField("car_id", "rec => rec.value.carId", IndexFieldType.String)],
-            start: true,
+            o => {
+                o.Filter = $"rec => rec.schema.name == '{schemaName}'";
+                o.Fields = [new IndexField("car_id", "rec => rec.value.carId", IndexFieldType.String)];
+                o.Start  = true;
+            },
             ct
         );
 

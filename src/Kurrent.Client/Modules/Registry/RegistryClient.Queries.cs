@@ -141,22 +141,38 @@ public partial class RegistryClient {
     #region ->> CheckSchemaCompatibility <<-
 
     /// <summary>
+    /// Checks the compatibility of a schema definition against a given schema identifier, configured
+    /// inline from a fresh <see cref="CheckSchemaCompatibilityOptions"/>.
+    /// </summary>
+    /// <param name="identifier">Schema identifier (a schema name or a schema version id) to check against.</param>
+    /// <param name="configure">Configures the compatibility check.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
+    /// <returns>A <see cref="SchemaVersionId"/> on success, indicating the compatible schema version.</returns>
+    public ValueTask<SchemaVersionId> CheckSchemaCompatibility(
+        SchemaIdentifier identifier, Action<CheckSchemaCompatibilityOptions>? configure = null, CancellationToken ct = default
+    ) {
+        var options = new CheckSchemaCompatibilityOptions { Identifier = identifier };
+        configure?.Invoke(options);
+        return CheckSchemaCompatibility(options, ct);
+    }
+
+    /// <summary>
     /// Checks the compatibility of a schema definition against a given schema identifier and data format.
     /// </summary>
-    /// <param name="request">The compatibility check to perform. Use <see cref="CheckSchemaCompatibilityRequest.For"/> to build one fluently.</param>
+    /// <param name="options">The compatibility check to perform.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="SchemaVersionId"/> on success, indicating the compatible schema version.</returns>
     public async ValueTask<SchemaVersionId> CheckSchemaCompatibility(
-        CheckSchemaCompatibilityRequest request, CancellationToken ct = default
+        CheckSchemaCompatibilityOptions options, CancellationToken ct = default
     ) {
-        request.EnsureValid();
+        options.EnsureValid();
 
         var rpc = new Contracts.CheckSchemaCompatibilityRequest {
-            Definition = ByteString.CopyFromUtf8(request.SchemaDefinition),
-            DataFormat = (Contracts.SchemaDataFormat)request.DataFormat
+            Definition = ByteString.CopyFromUtf8(options.SchemaDefinition),
+            DataFormat = (Contracts.SchemaDataFormat)options.DataFormat
         };
 
-        request.Identifier.Switch(
+        options.Identifier.Switch(
             sn => rpc.SchemaName = sn,
             sv => rpc.SchemaVersionId = sv
         );
@@ -178,8 +194,8 @@ public partial class RegistryClient {
                 SchemaAlreadyExistsException.From,
 
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema '{request.Identifier}' was not found.")),
-                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema '{request.Identifier}' has been deleted.")));
+                StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema '{options.Identifier}' was not found.")),
+                StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema '{options.Identifier}' has been deleted.")));
         }
     }
 
@@ -188,22 +204,36 @@ public partial class RegistryClient {
     #region ->> ListSchemas <<-
 
     /// <summary>
+    /// Lists schemas in the registry, configured inline from a fresh <see cref="ListSchemasOptions"/>.
+    /// </summary>
+    /// <param name="configure">Configures the filter to apply.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
+    /// <returns>An <see cref="IReadOnlyList{Schema}"/> containing the matching schemas.</returns>
+    public ValueTask<IReadOnlyList<Schema>> ListSchemas(
+        Action<ListSchemasOptions> configure, CancellationToken ct = default
+    ) {
+        var options = new ListSchemasOptions();
+        configure(options);
+        return ListSchemas(options, ct);
+    }
+
+    /// <summary>
     /// Lists schemas in the registry, optionally filtered by name prefix and tags.
     /// </summary>
-    /// <param name="request">The filter to apply. Use <see cref="ListSchemasRequest.New"/> to build one, or pass an empty request for no filtering.</param>
+    /// <param name="options">The filter to apply, or empty options for no filtering.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>An <see cref="IReadOnlyList{Schema}"/> containing the matching schemas.</returns>
     public async ValueTask<IReadOnlyList<Schema>> ListSchemas(
-        ListSchemasRequest request, CancellationToken ct = default
+        ListSchemasOptions options, CancellationToken ct = default
     ) {
-        request.EnsureValid();
+        options.EnsureValid();
 
         var rpc = new Contracts.ListSchemasRequest();
 
-        if (!string.IsNullOrEmpty(request.SchemaNamePrefix))
-            rpc.SchemaNamePrefix = request.SchemaNamePrefix;
+        if (!string.IsNullOrEmpty(options.SchemaNamePrefix))
+            rpc.SchemaNamePrefix = options.SchemaNamePrefix;
 
-        foreach (var (key, value) in request.Tags)
+        foreach (var (key, value) in options.Tags)
             rpc.SchemaTags.Add(key, value);
 
         try {
