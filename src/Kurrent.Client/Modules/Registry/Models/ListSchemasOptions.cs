@@ -21,9 +21,6 @@ public record ListSchemasOptions : SelfValidating<ListSchemasOptions, ListSchema
         Tags[key] = value;
 
     public class Validator : Validator<Validator, ListSchemasOptions> {
-        public Validator() {
-            // No rules today — both filters are optional. Validator structure is kept
-            // so future facets (paging, sort, limits) can attach rules without a shape change.
-        }
+        public Validator() { }
     }
 }

@@ -45,7 +45,7 @@ Console.WriteLine("Created version {0}", descriptor.VersionNumber);
 | `DataFormat`        | `SchemaDataFormat`                | `Json`, `Protobuf`, `Avro`, or `Bytes`.                      |
 | `CompatibilityMode` | `CompatibilityMode`               | Defaults to `None`. See [Compatibility modes](../compatibility-modes.md). |
 | `Description`       | `string`                          | Human-readable description.                                  |
-| `Tags`              | `IReadOnlyDictionary<string, string>` | Tag set associated with the schema.                      |
+| `Tags`              | `IDictionary<string, string>`     | Tag set associated with the schema.                          |
 
 ::: tip
 For the common case of name, definition, and data format, an overload skips the request type:

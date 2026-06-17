@@ -75,7 +75,7 @@ var schemas = await client.Registry.ListSchemas(new ListSchemasOptions {
 | Property           | Type                                  | Description                                                 |
 |--------------------|---------------------------------------|-------------------------------------------------------------|
 | `SchemaNamePrefix` | `string`                              | Filter by schema name prefix. Empty means no prefix filter. |
-| `Tags`             | `IReadOnlyDictionary<string, string>` | Tag filter. Empty means no tag filter.                      |
+| `Tags`             | `IDictionary<string, string>`         | Tag filter. Empty means no tag filter.                      |
 
 A request with no filters returns every registered schema.
 
