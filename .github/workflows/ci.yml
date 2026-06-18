@@ -83,7 +83,7 @@ jobs:
           # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
           echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
 
-          # Install yq for parsing repo variables
+          # yq parses registry credentials in setup-containers
           if ! command -v yq &>/dev/null; then
             curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
             chmod +x "$bin_dir/yq"

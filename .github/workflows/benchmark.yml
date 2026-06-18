@@ -59,19 +59,8 @@ jobs:
           # Pre-created so `dotnet restore` doesn't fail on a missing source before pack fills it.
           mkdir -p .artifacts/packages
 
-          # On-PATH home for tools we install by hand below (e.g. yq).
-          bin_dir="$HOME/.local/bin"
-          mkdir -p "$bin_dir"
-          echo "$bin_dir" >> "$GITHUB_PATH"
-
           # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
           echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
-
-          # Install yq for parsing repo variables
-          if ! command -v yq &>/dev/null; then
-            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
-            chmod +x "$bin_dir/yq"
-          fi
 
       - name: Export Repo Variables
         run: |
