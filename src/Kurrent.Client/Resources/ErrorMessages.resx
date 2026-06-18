@@ -212,6 +212,10 @@
     <value>A record must have a destination stream.</value>
     <comment>Validation error when AppendRecord.Stream is None.</comment>
   </data>
+  <data name="AppendRecordStreamCannotBeAll" xml:space="preserve">
+    <value>A record cannot be appended to the '$all' stream.</value>
+    <comment>Validation error when AppendRecord.Stream is the global $all log.</comment>
+  </data>
   <data name="AppendRecordsEmpty" xml:space="preserve">
     <value>At least one record is required.</value>
     <comment>Validation error when an append has no records.</comment>

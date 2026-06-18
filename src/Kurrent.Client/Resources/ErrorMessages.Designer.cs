@@ -321,6 +321,12 @@ namespace Resources {
             }
         }
 
+        internal static string AppendRecordStreamCannotBeAll {
+            get {
+                return ResourceManager.GetString("AppendRecordStreamCannotBeAll", resourceCulture);
+            }
+        }
+
         internal static string AppendRecordsEmpty {
             get {
                 return ResourceManager.GetString("AppendRecordsEmpty", resourceCulture);

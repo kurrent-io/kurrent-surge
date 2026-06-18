@@ -25,6 +25,7 @@ public class StreamNameFilterTests {
         protected override IEnumerable<TestCase<string>> Data() {
             yield return new("",                    DisplayName: "empty");
             yield return new(" ",                   DisplayName: "whitespace");
+            yield return new("$all",                DisplayName: "all stream");
             yield return new("$idx-ce-orders",      DisplayName: "category index");
             yield return new("$idx-et-OrderCreated", DisplayName: "schema index");
             yield return new("$idx-user-my-index",  DisplayName: "user index");

@@ -91,6 +91,14 @@ public partial class StreamsClient {
                         ErrorCode.FromType<AppendRecord>(),
                         ErrorMessages.AppendRecordStreamRequired));
 
+            if (record.Stream.IsAllStream)
+                throw new ValidationException(
+                    ErrorCode.FromType<AppendRecord>(),
+                    ErrorMessages.AppendRecordStreamCannotBeAll,
+                    ValidationProblem.Create(
+                        ErrorCode.FromType<AppendRecord>(),
+                        ErrorMessages.AppendRecordStreamCannotBeAll));
+
             record.EnsureValid();
         }
 
