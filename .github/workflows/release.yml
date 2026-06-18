@@ -130,9 +130,8 @@ jobs:
         with:
           version: ${{ steps.version.outputs.version }}
           push-to: nuget
-        env:
-          NUGET_API_KEY: ${{ secrets.KURRENT_NUGET_KEY }}
-          
+          nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
+
 #      - name: NuGet trusted publishing login
 #        id: nuget-login
 #        uses: NuGet/login@v1
