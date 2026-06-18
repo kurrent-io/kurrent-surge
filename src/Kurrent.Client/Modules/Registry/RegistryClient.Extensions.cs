@@ -11,32 +11,23 @@ public static partial class RegistryClientExtensions {
             SchemaName schemaName, string schemaDefinition, SchemaDataFormat dataFormat,
             CancellationToken ct = default
         ) => client.CreateSchema(
-            CreateSchemaRequest.For(schemaName)
-                .WithDefinition(schemaDefinition)
-                .WithDataFormat(dataFormat)
-                .Build(),
+            schemaName,
+            r => {
+                r.SchemaDefinition = schemaDefinition;
+                r.DataFormat       = dataFormat;
+            },
             ct);
 
         public ValueTask<SchemaVersionDescriptor> CreateSchema(
             SchemaName schemaName, string schemaDefinition, SchemaDataFormat dataFormat,
             CompatibilityMode compatibilityMode, CancellationToken ct = default
         ) => client.CreateSchema(
-            CreateSchemaRequest.For(schemaName)
-                .WithDefinition(schemaDefinition)
-                .WithDataFormat(dataFormat)
-                .WithCompatibility(compatibilityMode)
-                .Build(),
-            ct);
-
-        public ValueTask<SchemaVersionDescriptor> CreateSchema(
-            SchemaName schemaName, string schemaDefinition, SchemaDataFormat dataFormat,
-            IReadOnlyDictionary<string, string> tags, CancellationToken ct = default
-        ) => client.CreateSchema(
-            CreateSchemaRequest.For(schemaName)
-                .WithDefinition(schemaDefinition)
-                .WithDataFormat(dataFormat)
-                .WithTags(tags)
-                .Build(),
+            schemaName,
+            r => {
+                r.SchemaDefinition  = schemaDefinition;
+                r.DataFormat        = dataFormat;
+                r.CompatibilityMode = compatibilityMode;
+            },
             ct);
 
         #endregion
@@ -47,10 +38,11 @@ public static partial class RegistryClientExtensions {
             SchemaIdentifier identifier, string schemaDefinition, SchemaDataFormat dataFormat,
             CancellationToken ct = default
         ) => client.CheckSchemaCompatibility(
-            CheckSchemaCompatibilityRequest.For(identifier)
-                .WithDefinition(schemaDefinition)
-                .WithDataFormat(dataFormat)
-                .Build(),
+            identifier,
+            r => {
+                r.SchemaDefinition = schemaDefinition;
+                r.DataFormat       = dataFormat;
+            },
             ct);
 
         #endregion
@@ -58,19 +50,22 @@ public static partial class RegistryClientExtensions {
         #region ->> ListSchemas <<-
 
         public ValueTask<IReadOnlyList<Schema>> ListSchemas(CancellationToken ct = default) =>
-            client.ListSchemas(ListSchemasRequest.New.Build(), ct);
+            client.ListSchemas(new ListSchemasOptions(), ct);
 
         public ValueTask<IReadOnlyList<Schema>> ListSchemas(string schemaNamePrefix, CancellationToken ct = default) =>
-            client.ListSchemas(ListSchemasRequest.New.WithPrefix(schemaNamePrefix).Build(), ct);
+            client.ListSchemas(r => r.SchemaNamePrefix = schemaNamePrefix, ct);
 
         public ValueTask<IReadOnlyList<Schema>> ListSchemas(
             IReadOnlyDictionary<string, string> tags, CancellationToken ct = default
-        ) => client.ListSchemas(ListSchemasRequest.New.WithTags(tags).Build(), ct);
+        ) => client.ListSchemas(r => r.Tags = new Dictionary<string, string>(tags), ct);
 
         public ValueTask<IReadOnlyList<Schema>> ListSchemas(
             string schemaNamePrefix, IReadOnlyDictionary<string, string> tags, CancellationToken ct = default
         ) => client.ListSchemas(
-            ListSchemasRequest.New.WithPrefix(schemaNamePrefix).WithTags(tags).Build(),
+            r => {
+                r.SchemaNamePrefix = schemaNamePrefix;
+                r.Tags             = new Dictionary<string, string>(tags);
+            },
             ct);
 
         #endregion

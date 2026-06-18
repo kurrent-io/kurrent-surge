@@ -12,7 +12,7 @@ Pick a compatibility mode at creation time. The registry enforces it on every la
 
 ## Register a schema
 
-Create a `CreateSchemaRequest` and pass it to the client.
+Create a `CreateSchemaOptions` and pass it to the client.
 
 ```csharp
 var schemaJson = """
@@ -26,7 +26,7 @@ var schemaJson = """
     }
     """;
 
-var descriptor = await client.Registry.CreateSchema(new CreateSchemaRequest {
+var descriptor = await client.Registry.CreateSchema(new CreateSchemaOptions {
     SchemaName        = "order-placed",
     SchemaDefinition  = schemaJson,
     DataFormat        = SchemaDataFormat.Json,
@@ -45,7 +45,7 @@ Console.WriteLine("Created version {0}", descriptor.VersionNumber);
 | `DataFormat`        | `SchemaDataFormat`                | `Json`, `Protobuf`, `Avro`, or `Bytes`.                      |
 | `CompatibilityMode` | `CompatibilityMode`               | Defaults to `None`. See [Compatibility modes](../compatibility-modes.md). |
 | `Description`       | `string`                          | Human-readable description.                                  |
-| `Tags`              | `IReadOnlyDictionary<string, string>` | Tag set associated with the schema.                      |
+| `Tags`              | `IDictionary<string, string>`     | Tag set associated with the schema.                          |
 
 ::: tip
 For the common case of name, definition, and data format, an overload skips the request type:
@@ -55,7 +55,8 @@ var descriptor = await client.Registry.CreateSchema(
     "order-placed", schemaJson, SchemaDataFormat.Json);
 ```
 
-Overloads also accept a `CompatibilityMode` or a tags dictionary directly.
+An overload also accepts a `CompatibilityMode` directly. For tags, a description, or any other
+combination, configure them inline with a delegate or pass a `CreateSchemaOptions`.
 :::
 
 ## Pin to the returned id

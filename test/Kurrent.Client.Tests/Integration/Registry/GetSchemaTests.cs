@@ -21,13 +21,14 @@ public class GetSchemaTests {
 
 		var schemaVersion = await Fixture.Client.Registry
             .CreateSchema(
-                CreateSchemaRequest.For(schemaName)
-                    .WithDefinition(schemaDefinition)
-                    .WithDataFormat(SchemaDataFormat.Json)
-                    .WithCompatibility(CompatibilityMode.Backward)
-                    .WithDescription(description)
-                    .WithTags(tags)
-                    .Build(),
+                schemaName,
+                r => {
+                    r.SchemaDefinition  = schemaDefinition;
+                    r.DataFormat        = SchemaDataFormat.Json;
+                    r.CompatibilityMode = CompatibilityMode.Backward;
+                    r.Description       = description;
+                    r.Tags              = tags;
+                },
                 ct);
 
 		await Assert.That(async () => {

@@ -10,31 +10,46 @@ public partial class RegistryClient {
     #region ->> CreateSchema <<-
 
     /// <summary>
+    /// Creates a new schema in the registry, configured inline from a fresh <see cref="CreateSchemaOptions"/>.
+    /// </summary>
+    /// <param name="schemaName">Unique name of the schema to create.</param>
+    /// <param name="configure">Configures the options for the schema.</param>
+    /// <param name="ct">Token to cancel the operation.</param>
+    /// <returns>A <see cref="SchemaVersionDescriptor"/> representing the newly created schema version.</returns>
+    public ValueTask<SchemaVersionDescriptor> CreateSchema(
+        SchemaName schemaName, Action<CreateSchemaOptions>? configure = null, CancellationToken ct = default
+    ) {
+        var options = new CreateSchemaOptions { SchemaName = schemaName };
+        configure?.Invoke(options);
+        return CreateSchema(options, ct);
+    }
+
+    /// <summary>
     /// Creates a new schema in the registry with the provided details.
     /// </summary>
-    /// <param name="request">The schema details to register. Use <see cref="CreateSchemaRequest.For"/> to build one fluently.</param>
+    /// <param name="options">The schema details to register.</param>
     /// <param name="ct">Token to cancel the operation.</param>
     /// <returns>A <see cref="SchemaVersionDescriptor"/> representing the newly created schema version.</returns>
     public async ValueTask<SchemaVersionDescriptor> CreateSchema(
-        CreateSchemaRequest request, CancellationToken ct = default
+        CreateSchemaOptions options, CancellationToken ct = default
     ) {
-        request.EnsureValid();
+        options.EnsureValid();
 
         var details = new Contracts.SchemaDetails {
-            DataFormat    = (Contracts.SchemaDataFormat)request.DataFormat,
-            Compatibility = (Contracts.CompatibilityMode)request.CompatibilityMode,
+            DataFormat    = (Contracts.SchemaDataFormat)options.DataFormat,
+            Compatibility = (Contracts.CompatibilityMode)options.CompatibilityMode,
         };
 
-        if (!string.IsNullOrEmpty(request.Description))
-            details.Description = request.Description;
+        if (!string.IsNullOrEmpty(options.Description))
+            details.Description = options.Description;
 
-        foreach (var (key, value) in request.Tags)
+        foreach (var (key, value) in options.Tags)
             details.Tags.Add(key, value);
 
         var rpc = new Contracts.CreateSchemaRequest {
-            SchemaName       = request.SchemaName,
+            SchemaName       = options.SchemaName,
             Details          = details,
-            SchemaDefinition = ByteString.CopyFromUtf8(request.SchemaDefinition)
+            SchemaDefinition = ByteString.CopyFromUtf8(options.SchemaDefinition)
         };
 
         try {
@@ -49,7 +64,7 @@ public partial class RegistryClient {
                 SchemaAlreadyExistsException.From,
 
                 // StatusCode fallbacks
-                StatusCode.AlreadyExists.MapTo(new SchemaAlreadyExistsException(request.SchemaName)));
+                StatusCode.AlreadyExists.MapTo(new SchemaAlreadyExistsException(options.SchemaName)));
         }
     }
 

@@ -84,7 +84,14 @@ public class ListSchemasTests {
 		var untaggedName = $"{prefix}-untagged";
 
 		await Fixture.Client.Registry
-			.CreateSchema(taggedName, schemaDefinition, SchemaDataFormat.Json, tags, ct);
+			.CreateSchema(
+				taggedName,
+				r => {
+					r.SchemaDefinition = schemaDefinition;
+					r.DataFormat       = SchemaDataFormat.Json;
+					r.Tags             = new Dictionary<string, string>(tags);
+				},
+				ct);
 
 		await Fixture.Client.Registry
 			.CreateSchema(untaggedName, schemaDefinition, SchemaDataFormat.Json, ct);

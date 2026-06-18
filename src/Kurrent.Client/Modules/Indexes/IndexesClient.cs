@@ -15,19 +15,19 @@ public class IndexesClient : ClientModuleBase {
     /// <summary>
     /// Creates a new secondary index with the specified configuration.
     /// </summary>
-    /// <param name="request">The index details to create. Use <see cref="CreateIndexRequest.For"/> to build one fluently.</param>
+    /// <param name="options">The index details to create.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
-    public async ValueTask Create(CreateIndexRequest request, CancellationToken cancellationToken = default) {
-        request.EnsureValid();
+    public async ValueTask Create(CreateIndexOptions options, CancellationToken cancellationToken = default) {
+        options.EnsureValid();
 
         var rpc = new Contracts.CreateIndexRequest {
-            Name   = request.Name,
-            Filter = request.Filter,
-            Fields = { request.Fields.Select(f => f.ToProto()) }
+            Name   = options.Name,
+            Filter = options.Filter,
+            Fields = { options.Fields.Select(f => f.ToProto()) }
         };
 
-        if (request.Start.HasValue)
-            rpc.Start = request.Start.Value;
+        if (options.Start.HasValue)
+            rpc.Start = options.Start.Value;
 
         try {
             _ = await ServiceClient
@@ -37,6 +37,23 @@ public class IndexesClient : ClientModuleBase {
         catch (Exception ex) {
             throw ex.AsWellKnownException();
         }
+    }
+
+    /// <summary>
+    /// Creates a new secondary index for the given name, configured inline from a fresh
+    /// <see cref="CreateIndexOptions"/>.
+    /// </summary>
+    /// <param name="name">The name of the index to create.</param>
+    /// <param name="configure">Configures the options for the index.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public ValueTask Create(
+        IndexName name,
+        Action<CreateIndexOptions>? configure = null,
+        CancellationToken cancellationToken = default
+    ) {
+        var options = new CreateIndexOptions { Name = name };
+        configure?.Invoke(options);
+        return Create(options, cancellationToken);
     }
 
     /// <summary>

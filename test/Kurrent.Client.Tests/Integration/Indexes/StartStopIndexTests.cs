@@ -20,8 +20,14 @@ public class StartStopIndexTests {
             new IndexField("amount", "rec => rec.value.amount", IndexFieldType.Double)
         };
 
-        await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'OrderCreated'", fields, start: true, cancellationToken: ct);
+        await Fixture.Client.Indexes.Create(
+            indexName,
+            o => {
+                o.Filter = "rec => rec.schema.name == 'OrderCreated'";
+                o.Fields = fields;
+                o.Start  = true;
+            },
+            ct);
 
         await Fixture.Client.Indexes.Stop(indexName, ct);
 
@@ -68,8 +74,14 @@ public class StartStopIndexTests {
             new IndexField("value", "rec => rec.value.value", IndexFieldType.Int32)
         };
 
-        await Fixture.Client.Indexes
-            .Create(indexName, "rec => rec.schema.name == 'MetricRecorded'", fields, start: false, cancellationToken: ct);
+        await Fixture.Client.Indexes.Create(
+            indexName,
+            o => {
+                o.Filter = "rec => rec.schema.name == 'MetricRecorded'";
+                o.Fields = fields;
+                o.Start  = false;
+            },
+            ct);
 
         await Assert.That(async () => {
             var index = await Fixture.Client.Indexes.Get(indexName, ct);

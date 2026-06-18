@@ -8,21 +8,11 @@ public static partial class IndexesClientExtensions {
             string name, string filter, IEnumerable<IndexField> fields,
             CancellationToken cancellationToken = default
         ) => client.Create(
-            CreateIndexRequest.For(name)
-                .WithFilter(filter)
-                .WithFields(fields)
-                .Build(),
-            cancellationToken);
-
-        public ValueTask Create(
-            string name, string filter, IEnumerable<IndexField> fields, bool start,
-            CancellationToken cancellationToken = default
-        ) => client.Create(
-            CreateIndexRequest.For(name)
-                .WithFilter(filter)
-                .WithFields(fields)
-                .WithStart(start)
-                .Build(),
+            name,
+            r => {
+                r.Filter = filter;
+                r.Fields = fields.ToList();
+            },
             cancellationToken);
 
         #endregion
