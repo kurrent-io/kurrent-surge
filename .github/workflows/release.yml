@@ -110,9 +110,12 @@ jobs:
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+          gh api "repos/${{ github.repository }}/git/refs" \
+            -f ref="refs/tags/${{ steps.version.outputs.tag }}" \
+            -f sha="${{ github.sha }}"
 
       - name: Publish Packages
         if: ${{ !inputs.dry_run }}
