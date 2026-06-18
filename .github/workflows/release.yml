@@ -60,10 +60,10 @@ jobs:
           # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
           echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
 
-          # Install yq for parsing repo variables
-          if ! command -v yq &>/dev/null; then
-            curl -fsSL "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o "$bin_dir/yq"
-            chmod +x "$bin_dir/yq"
+          # jq parses semver-bump's JSON output in bumpcraft
+          if ! command -v jq &>/dev/null; then
+            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
+            chmod +x "$bin_dir/jq"
           fi
 
       - name: Setup .NET
@@ -110,12 +110,19 @@ jobs:
 
       - name: Tag
         if: github.ref_type != 'tag' && !inputs.dry_run
+        uses: actions/github-script@v7
+        with:
+          # GITHUB_TOKEN, not app token: a tag pushed with it won't re-trigger this workflow
+          github-token: ${{ github.token }}
+          script: |
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${process.env.TAG}`,
+              sha: context.sha,
+            });
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api "repos/${{ github.repository }}/git/refs" \
-            -f ref="refs/tags/${{ steps.version.outputs.tag }}" \
-            -f sha="${{ github.sha }}"
+          TAG: ${{ steps.version.outputs.tag }}
 
       - name: Publish Packages
         if: ${{ !inputs.dry_run }}
@@ -139,12 +146,34 @@ jobs:
 
       - name: Create Release
         if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const tag = process.env.TAG;
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: tag,
+              generate_release_notes: true,
+              prerelease: process.env.IS_PRE_RELEASE === 'true',
+            });
+
+            const dir = '.artifacts/packages';
+            const assets = fs.readdirSync(dir).filter(f => f.endsWith('.nupkg') || f.endsWith('.snupkg'));
+            for (const name of assets) {
+              await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.data.id,
+                name,
+                data: fs.readFileSync(path.join(dir, name)),
+              });
+            }
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes \
-            ${{ steps.version.outputs['is-pre-release'] == 'true' && '--prerelease' || '' }} \
-            .artifacts/packages/*.nupkg \
-            .artifacts/packages/*.snupkg
+          TAG: ${{ steps.version.outputs.tag }}
+          IS_PRE_RELEASE: ${{ steps.version.outputs['is-pre-release'] }}
