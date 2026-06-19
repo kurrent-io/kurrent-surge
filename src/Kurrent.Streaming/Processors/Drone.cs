@@ -175,6 +175,18 @@ sealed class Drone : IDrone {
         var partitions = catchUp.Keys.ToArray();
         var stopping   = false;
 
+        // Caught-up records (position <= the loaded per-partition checkpoint) are an initial prefix only:
+        // the log is ordered, so once a record clears the highest loaded checkpoint no earlier one can
+        // follow. Prune that prefix ONCE, before dispatch, then latch the filter off so the steady-state
+        // hot path never pays the per-record compare again. A fresh start (no checkpoint) has nothing to skip.
+        //
+        // Only REAL committed positions are floors. The Latest sentinel (a SubscriptionInitialPosition.Latest
+        // start seeds Latest = long.MaxValue) and Unset must NOT prune — every real record is <= Latest, which
+        // would silently drop the whole live stream. So they are excluded from both the floor and the latch.
+        var realFloors       = catchUp.Values.Where(IsRealFloor).ToArray();
+        var maxCatchUp       = realFloors.Length > 0 ? realFloors.Max() : LogPosition.Earliest;
+        var caughtUpComplete = realFloors.Length == 0;
+
         // Single batched read of the channel: records accumulate into a RecordBatch; Connected and
         // Checkpoint markers flush the pending batch and pass through. Batch size/window come from
         // options, not the processor — the only branch below is how a flushed batch is dispatched.
@@ -190,24 +202,36 @@ sealed class Drone : IDrone {
                 CancellationToken.None);
 
         await foreach (var output in stream.ConfigureAwait(false)) {
+            var value = output.Value;
+
+            // Prune the caught-up prefix once, before dispatch, so every processor shape (batch-native and
+            // the per-record dispatcher) sees only new records — neither HandleBatch nor DispatchPerRecord
+            // filters. After the prefix is crossed the filter is latched off and never runs again.
+            if (!caughtUpComplete && value is RecordBatch raw) {
+                value = PruneCaughtUp(raw);
+
+                if (value is RecordBatch { Count: 0 })
+                    continue; // whole batch was already processed in a prior run
+            }
+
             // Outer stop scope: once stopping, skip later batches AND server scan watermarks
             // (Filter / CaughtUp). The batched read pulls a trailing watermark in ahead of the stop;
             // folding it would advance the checkpoint past the last dispatched record (matching records
             // beyond the stop were skipped, not processed), so a resuming run would start past its own
             // stop record and hang on a live subscription. Only the injected Shutdown barrier — which
             // commits exactly the tracked positions — is honored after stop.
-            if (stopping && output.Value is RecordBatch or FilterCheckpoint or CaughtUpCheckpoint)
+            if (stopping && value is RecordBatch or FilterCheckpoint or CaughtUpCheckpoint)
                 continue;
 
-            switch (output.Value) {
-                case Connected c: 
-                    await HandleConnected(c).ConfigureAwait(false); 
+            switch (value) {
+                case Connected c:
+                    await HandleConnected(c).ConfigureAwait(false);
                 break;
 
                 case RecordBatch batch:
                     switch (_processor) {
                         case IRecordBatchProcessor bp: {
-                            var result = await HandleBatch(bp, batch, catchUp).ConfigureAwait(false);
+                            var result = await HandleBatch(bp, batch).ConfigureAwait(false);
 
                             if (result.ShouldStop && !stopping) {
                                 stopping = true;
@@ -233,16 +257,39 @@ sealed class Drone : IDrone {
             }
         }
 
+        // A real catch-up floor is a concrete committed position. The Latest / Unset sentinels mean "no
+        // prior progress" (Latest = subscribe from the live end), so they never prune.
+        static bool IsRealFloor(LogPosition floor) =>
+            floor != LogPosition.Latest && floor != LogPosition.Unset;
+
+        // Prune the caught-up prefix from a freshly read batch, dropping records at or below their
+        // partition's loaded checkpoint. Latches `caughtUpComplete` once a record clears the highest
+        // checkpoint — the log is ordered, so no later batch can carry a caught-up record after that.
+        RecordBatch PruneCaughtUp(RecordBatch batch) {
+            List<Record>? kept = null;
+
+            for (var i = 0; i < batch.Count; i++) {
+                var record   = batch[i];
+                var position = record.Position.LogPosition;
+
+                if (position > maxCatchUp)
+                    caughtUpComplete = true;
+
+                if (catchUp.TryGetValue(record.Position.Partition, out var cp) && IsRealFloor(cp) && position <= cp)
+                    kept ??= [..batch.Take(i)]; // first drop — copy the survivors seen so far
+                else
+                    kept?.Add(record);          // already copying — keep this survivor
+            }
+
+            // Nothing was dropped: return the original batch untouched (no allocation).
+            return kept is null ? batch : RecordBatch.From([..kept]);
+        }
+
         // Inner stop scope: closure over `stopping` so a record requesting stop can break out of its
-        // batch and close the outer scope. The catch-up filter runs BEFORE dispatch — a caught-up
-        // record never reaches ProcessRecord (intentionally unlike the batch path, which delivers the
-        // whole batch and filters only its count/track loop).
+        // batch and close the outer scope. The batch is already pruned in Run, so the per-record path
+        // no longer filters caught-up records itself.
         async ValueTask DispatchPerRecord(IRecordProcessor processor, RecordBatch batch) {
             foreach (var record in batch) {
-                if (catchUp.TryGetValue(record.Position.Partition, out var cp)
-                 && record.Position.LogPosition <= cp)
-                    continue;
-
                 var result = await HandleRecord(processor, record).ConfigureAwait(false);
 
                 if (result.ShouldStop) {
@@ -263,9 +310,11 @@ sealed class Drone : IDrone {
 
         var autoTrack = Options.Checkpoint.AutoTrack;
 
+        // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
+        // updates the gauges, not just the commit position (see Track(RecordPosition)).
         var ctx = DroneContext.ForProcessRecord(
             Progress, record,
-            requestTrack: _checkpointer.Track);
+            requestTrack: Track);
 
         await processor
             .ProcessRecord(ctx)
@@ -274,15 +323,11 @@ sealed class Drone : IDrone {
         // Count every dispatched record toward throughput, independent of tracking mode.
         _progress.CountThroughput(record);
 
-        if (autoTrack && !ctx.StopRequested) {
-            _checkpointer.Track(record.Position);
-            _progress.TrackPosition(record.Position);
-        }
-        else if (ctx.TrackedByUser) {
-            // Manual track (auto-track off, or a stop record the user explicitly claimed): the
-            // checkpointer was already advanced by ctx.Track; mirror the position into progress.
-            _progress.TrackPosition(record.Position);
-        }
+        // Auto-track this record only when AutoTrack is on and no stop was requested; otherwise the user
+        // owns the frontier via ctx.Track (already transparent above). Re-tracking the same position is
+        // idempotent on progress and harmless on the checkpointer snapshot.
+        if (autoTrack && !ctx.StopRequested)
+            Track(record.Position);
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
         // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
@@ -300,43 +345,37 @@ sealed class Drone : IDrone {
             : RecordProcessingResult.Continue;
     }
 
-    async ValueTask<RecordProcessingResult> HandleBatch(
-        IRecordBatchProcessor processor,
-        RecordBatch batch,
-        Dictionary<Partition, LogPosition> catchUp
-    ) {
-        var autoTrack = Options.Checkpoint.AutoTrack;
+    async ValueTask<RecordProcessingResult> HandleBatch(IRecordBatchProcessor processor, RecordBatch batch) {
+        // One scope around the REAL work: times ProcessBatch (not the bookkeeping that follows it).
+        using var scope = _telemetry.TrackBatch(batch.Count);
 
+        // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
         var ctx = DroneContext.ForBatch(
             Progress, batch,
-            requestTrack: _checkpointer.Track);
+            requestTrack: Track);
 
         await processor
             .ProcessBatch(ctx)
             .ConfigureAwait(false);
 
-        // Count and track are decoupled: every dispatched record counts toward throughput (even
-        // with AutoTrack off — the "batch trap"), but positions are claimed only when auto-track
-        // is on. With it off the user owns progress via ctx.Track() / ctx.Track(upTo), which
-        // advanced the checkpointer above. Auto-track is batch-granular, so commit cadence aligns
-        // with batch boundaries.
-        foreach (var record in batch) {
-            // Catch-up filter: skip records already processed in a prior run
-            if (catchUp.TryGetValue(record.Position.Partition, out var cp)
-             && record.Position.LogPosition <= cp)
-                continue;
+        // Resolve the committed frontier (the invariant): auto-track the whole-batch frontier (max position
+        // per partition) only when AutoTrack is on AND no stop was requested — a stop caps the commit at
+        // exactly what the user tracked via ctx.Track*. In every other case the commit is the user's tracks.
+        if (Options.Checkpoint.AutoTrack && !ctx.StopRequested)
+            Track(batch);
 
-            using var scope = _telemetry.TrackRecord();
-            _progress.CountThroughput(record);
+        // Throughput counts every dispatched record (the "batch trap": delivered records count even with
+        // AutoTrack off and nothing committed). The batch is pre-pruned in Run, so Count is the dispatched
+        // count — advanced in one step, not a per-record loop.
+        if (batch.Count > 0)
+            _progress.CountThroughput(batch.Count, batch[batch.Count - 1].Timestamp);
 
-            if (autoTrack) {
-                _checkpointer.Track(record.Position);
-                _progress.TrackPosition(record.Position);
-            }
+        // records_processed is the committed/durable prefix: records at or below the resolved frontier
+        // (PendingPositions = the last tracked position per partition). It never over-counts a stop's
+        // un-committed remainder, and counts a replay only when it is eventually committed, never twice.
+        var processed = CountUpToFrontier(batch, _checkpointer.PendingPositions());
 
-            // Cheap scalar reads — never materialize the full DroneProgress snapshot per record.
-            scope.Complete(_progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
-        }
+        scope.Complete(processed, _progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
         // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
@@ -349,6 +388,60 @@ sealed class Drone : IDrone {
         return ctx.StopRequested
             ? RecordProcessingResult.Stop(ctx.StopReason)
             : RecordProcessingResult.Continue;
+    }
+
+    // The transparent tracking primitive — advances the checkpointer AND progress together. Wired as the
+    // batch/record RequestTrack delegate so a user ctx.Track* updates the uncommitted gauges (closing the
+    // transparency gap), and used by auto-track so every tracking source folds progress identically.
+    void Track(RecordPosition position) {
+        _checkpointer.Track(position);
+        _progress.TrackPosition(position);
+    }
+
+    // Auto-track the whole batch: one pass to the max position per partition, then Track each through the
+    // transparent primitive. NOT PartitionedPositionTracker.Track(IEnumerable) — that folds max-per-partition
+    // but bypasses _progress, and tracking must fold progress too.
+    void Track(RecordBatch batch) {
+        Dictionary<Partition, RecordPosition>? frontier = null;
+
+        foreach (var record in batch) {
+            var position = record.Position;
+
+            // At most one entry per owned partition, never per record — size to the partition count.
+            frontier ??= new Dictionary<Partition, RecordPosition>(Options.MaxParallelism);
+
+            if (!frontier.TryGetValue(position.Partition, out var current) || position > current)
+                frontier[position.Partition] = position;
+        }
+
+        if (frontier is null)
+            return;
+
+        foreach (var position in frontier.Values)
+            Track(position);
+    }
+
+    // Effective batch size = the count of records at or below the committed frontier. The frontier is the
+    // last tracked position per partition (PendingPositions); a record counts when its position is at or
+    // below its partition's frontier. Index the frontier by partition once (it holds one entry per owned
+    // partition) so the per-record check is a single O(1) lookup rather than a scan.
+    static int CountUpToFrontier(RecordBatch batch, RecordPosition[] frontier) {
+        if (frontier.Length == 0 || batch.Count == 0)
+            return 0;
+
+        var ceilingByPartition = new Dictionary<Partition, LogPosition>(frontier.Length);
+        foreach (var f in frontier)
+            ceilingByPartition[f.Partition] = f.LogPosition;
+
+        var count = 0;
+
+        foreach (var record in batch) {
+            if (ceilingByPartition.TryGetValue(record.Position.Partition, out var ceiling)
+             && record.Position.LogPosition <= ceiling)
+                count++;
+        }
+
+        return count;
     }
 
     #region ->> Message Handlers <<-
@@ -454,6 +547,12 @@ sealed class Drone : IDrone {
         var throughput = progress.Throughput;
 
         _telemetry.Stopping(throughput.TotalRecords, throughput.Elapsed, throughput.RecordsPerSecond);
+
+        // AutoTrack off + records dispatched + nothing ever committed ⇒ the subscription replays in full on
+        // restart. Warn once, here, at the one moment it is provably true — the final barrier (if any) has
+        // already run, so a zero checkpoint count means no progress was persisted. No hot-path cost.
+        if (!Options.Checkpoint.AutoTrack && _progress.TotalRecords > 0 && _progress.TotalCheckpoints == 0)
+            _telemetry.TrackingDisabledNoProgress();
 
         List<Exception> errors = [];
 

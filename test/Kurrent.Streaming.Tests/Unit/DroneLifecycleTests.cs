@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading.Channels;
 using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
@@ -9,6 +10,7 @@ using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Kurrent.Streaming.Tests.Fakes;
 using Kurrent.Testkit.TUnit.Assertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
@@ -19,13 +21,17 @@ public class DroneLifecycleTests {
 	static readonly RecordFaker Records = new();
 
 	static (Drone drone, ControllableSubscription subscription) CreateDrone(
-		IProcessor?               processor    = null,
-		bool                      debug        = false,
-		Action<ProcessorOptions>? configure    = null,
-		TimeProvider?             timeProvider = null
+		IProcessor?               processor     = null,
+		bool                      debug         = false,
+		Action<ProcessorOptions>? configure     = null,
+		TimeProvider?             timeProvider  = null,
+		ICheckpointStore?         store         = null,
+		ILoggerFactory?           loggerFactory = null
 	) {
-		processor    ??= new TestableRecordProcessor();
-		timeProvider ??= TimeProvider.System;
+		processor     ??= new TestableRecordProcessor();
+		timeProvider  ??= TimeProvider.System;
+		store         ??= new InMemoryCheckpointStore();
+		loggerFactory ??= NullLoggerFactory.Instance;
 
 		var settings = new ProcessorOptions {
 			ProcessorId = "test-processor",
@@ -38,8 +44,6 @@ public class DroneLifecycleTests {
 
 		var channel = Channel.CreateUnbounded<SubscribeMessage>();
 
-		var store = new InMemoryCheckpointStore();
-
 		var checkpointer = new Checkpointer(
 			settings.DroneId, settings.Checkpoint,
 			store, channel.Writer, timeProvider);
@@ -50,7 +54,7 @@ public class DroneLifecycleTests {
 		var drone = new Drone(
 			settings, subscription, checkpointer, channel,
 			null!, // StreamsClient not needed for lifecycle tests
-			NullLoggerFactory.Instance, timeProvider,
+			loggerFactory, timeProvider,
 			processor);
 
 		return (drone, subscription);
@@ -1026,5 +1030,368 @@ public class DroneLifecycleTests {
 	}
 
 	#endregion // checkpoint-vs-stop
+
+	#region ->> batch frontier bookkeeping & telemetry <<-
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask process_batch_emits_one_span_around_processbatch(CancellationToken ct) {
+		// Arrange — one batch span must wrap the ProcessBatch call (not the post-batch bookkeeping), so the
+		// span is the active Activity while user code runs and is the only span emitted for the batch.
+		var       processorId = $"proc-{Guid.NewGuid():N}";
+		using var probe       = new DroneTelemetryProbe(processorId);
+
+		string? spanDuringProcess = null;
+		var     records           = RecordsAt(3);
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = _ => {
+				spanDuringProcess = Activity.Current?.OperationName;
+				return ValueTask.CompletedTask;
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.ProcessorId                  = processorId;
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — exactly one batch span, and it was the active Activity during ProcessBatch
+		await Assert.That(probe.Activities("processor.process_batch").Count).IsEqualTo(1);
+		await Assert.That(spanDuringProcess).IsEqualTo("processor.process_batch");
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask batch_duration_measures_process_batch_not_bookkeeping(CancellationToken ct) {
+		// Arrange — ProcessBatch sleeps a real interval. The batch duration must include that work; the old
+		// code never timed ProcessBatch (it timed only the ~0 post-batch bookkeeping), so it reported near
+		// zero. A floor well under the sleep but well above bookkeeping noise distinguishes the two.
+		var       processorId = $"proc-{Guid.NewGuid():N}";
+		using var probe       = new DroneTelemetryProbe(processorId);
+
+		var processDelay = TimeSpan.FromMilliseconds(60);
+		var minSeconds   = 0.025;
+		var records      = RecordsAt(3);
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = async _ => await Task.Delay(processDelay, ct)
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.ProcessorId                  = processorId;
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — one batch-duration sample, and it captured the ProcessBatch work
+		var durations = probe.Values("kurrent_processor_batch_duration_seconds");
+
+		await Assert.That(durations.Count).IsEqualTo(1);
+		await Assert.That(durations[0]).IsGreaterThanOrEqualTo(minSeconds);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask records_processed_counts_committed_prefix_once_per_batch(CancellationToken ct) {
+		// Arrange — auto-track on commits the whole batch, so the committed prefix equals the batch size.
+		// records_processed must be emitted exactly once for the batch (not per record), carrying that prefix.
+		var       processorId = $"proc-{Guid.NewGuid():N}";
+		using var probe       = new DroneTelemetryProbe(processorId);
+
+		var records       = RecordsAt(3);
+		var expectedCount = (double)records.Length;
+		var processor     = new TestRecordBatchProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.ProcessorId                  = processorId;
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — one records_processed add, valued at the committed prefix (the full batch)
+		var counts = probe.Values("kurrent_processor_records_processed");
+
+		await Assert.That(counts.Count).IsEqualTo(1);
+		await Assert.That(counts[0]).IsEqualTo(expectedCount);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask record_duration_on_batch_path_is_batch_average(CancellationToken ct) {
+		// Arrange — on the batch path record_duration is the per-record AVERAGE: the batch duration divided
+		// by the committed-prefix count, emitted once per batch from the same duration the batch histogram uses.
+		var       processorId = $"proc-{Guid.NewGuid():N}";
+		using var probe       = new DroneTelemetryProbe(processorId);
+
+		var records   = RecordsAt(4);
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = async _ => await Task.Delay(TimeSpan.FromMilliseconds(40), ct)
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.ProcessorId                  = processorId;
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — record_duration == batch_duration / committed count
+		var batchDurations  = probe.Values("kurrent_processor_batch_duration_seconds");
+		var recordDurations = probe.Values("kurrent_processor_record_duration_seconds");
+
+		await Assert.That(batchDurations.Count).IsEqualTo(1);
+		await Assert.That(recordDurations.Count).IsEqualTo(1);
+
+		var expectedAverage = batchDurations[0] / records.Length;
+		await Assert.That(recordDurations[0]).IsEqualTo(expectedAverage).Within(1e-9);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask user_track_updates_uncommitted_gauges(CancellationToken ct) {
+		// Arrange — auto-track off; the processor claims the batch via ctx.Track(). The uncommitted gauges
+		// read from _progress, so a user track must advance per-partition progress (LastTrackedPosition),
+		// not only the checkpointer. The old batch path mirrored progress only under auto-track, so user
+		// tracks left the gauges stale (the transparency gap this closes).
+		var records      = RecordsAt(3);
+		var partition    = Partition.From(0);
+		var lastPosition = records[^1].Position;
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = ctx => { ctx.Track(); return ValueTask.CompletedTask; }
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Checkpoint.AutoTrack         = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — the user track advanced per-partition progress (the gauge source), not just the checkpointer
+		await Assert.That(drone.Progress[partition].LastTrackedPosition).IsEqualTo(lastPosition);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask track_upto_then_stop_commits_only_prefix_under_autotrack(CancellationToken ct) {
+		// Arrange — auto-track on. The processor tracks a prefix (records 1..2 of 1..4) then stops. Auto-track
+		// is suppressed on stop, so the commit is exactly the user's prefix — not the whole batch. This is the
+		// case that regressed before: auto-track ignored the stop and committed the full batch, losing the cap.
+		var records      = RecordsAt(4);
+		var prefixUpTo   = records[1].Position;     // log position 2
+		var prefixLogPos = prefixUpTo.LogPosition;
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = ctx => {
+				ctx.Track(prefixUpTo);
+				ctx.StopProcessing();
+				return ValueTask.CompletedTask;
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — the shutdown barrier committed only the prefix, despite auto-track being on
+		var shutdownCheckpoints = processor.Checkpoints
+			.Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+			.ToList();
+
+		await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(shutdownCheckpoints[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(prefixLogPos.Value);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask caught_up_records_pruned_before_dispatch(CancellationToken ct) {
+		// Arrange — a prior run committed up to log position 2 (the seeded floor). Records at or below it are
+		// caught-up and must be pruned BEFORE dispatch, so the processor only ever sees new records.
+		var partition = Partition.From(0);
+		var floor     = LogPosition.From(2);
+		var seed      = new[] { RecordPosition.From(floor, partition) };
+
+		var records      = RecordsAt(3);                     // log positions 1, 2, 3 on partition 0
+		var survivingPos = records[^1].Position.LogPosition; // log position 3
+
+		var processor = new TestRecordBatchProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, store: new SeededCheckpointStore(seed), configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — only the single record past the floor reached ProcessBatch
+		await Assert.That(processor.Records.Count).IsEqualTo(1);
+		await Assert.That(processor.Records[0].Position.LogPosition).IsEqualTo(survivingPos);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask batch_track_tracks_max_position_per_partition(CancellationToken ct) {
+		// Arrange — two partitions, interleaved. ctx.Track() must track the MAX position per partition, so the
+		// committed frontier is the highest log position seen on each partition, not the last record overall.
+		var p0 = Partition.From(0);
+		var p1 = Partition.From(1);
+
+		Record RecordAt(long logPosition, Partition partition) =>
+			Records.Generate() with { Position = RecordPosition.From(LogPosition.From(logPosition), partition) };
+
+		var records = new[] {
+			RecordAt(1, p0), RecordAt(2, p1), RecordAt(3, p0), RecordAt(4, p1)
+		};
+
+		var expectedP0 = LogPosition.From(3);
+		var expectedP1 = LogPosition.From(4);
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = ctx => { ctx.Track(); return ValueTask.CompletedTask; }
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.MaxParallelism               = 2;
+			opts.Checkpoint.AutoTrack         = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — the committed frontier carries the max position per partition
+		var shutdownCheckpoints = processor.Checkpoints
+			.Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+			.ToList();
+
+		await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+
+		var committed = shutdownCheckpoints[^1].Positions;
+		await Assert.That(committed.Single(p => p.Partition == p0).LogPosition).IsEqualTo(expectedP0);
+		await Assert.That(committed.Single(p => p.Partition == p1).LogPosition).IsEqualTo(expectedP1);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask auto_track_off_with_no_tracking_warns_on_shutdown(CancellationToken ct) {
+		// Arrange — auto-track off and the processor never tracks. Records are dispatched but nothing is ever
+		// committed, so on shutdown the drone must warn exactly once that no progress was persisted.
+		var loggerFactory = new CapturingLoggerFactory();
+		var records       = RecordsAt(3);
+		var processor     = new TestRecordBatchProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, loggerFactory: loggerFactory, configure: opts => {
+			opts.Checkpoint.AutoTrack         = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — exactly one shutdown warning naming the lost-progress consequence
+		var warnings = loggerFactory.Entries
+			.Where(e => e.Level == LogLevel.Warning && e.Message.Contains("replays", StringComparison.OrdinalIgnoreCase))
+			.ToList();
+
+		await Assert.That(warnings.Count).IsEqualTo(1);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask latest_start_with_no_checkpoint_dispatches_and_commits(CancellationToken ct) {
+		// Arrange — SubscriptionInitialPosition.Latest with no prior checkpoint seeds a Latest (long.MaxValue)
+		// floor. That sentinel must NOT prune (every real record is <= Latest, which would silently drop the
+		// whole live stream) and must NOT be the tracker's flushed baseline (the monotonic tracker would reject
+		// every real position). Auto-track on: the records must reach ProcessBatch and the frontier must commit.
+		var records         = RecordsAt(3);
+		var lastLogPosition = LogPosition.From(records.Length);
+		var processor       = new TestRecordBatchProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — nothing was pruned and the auto-tracked frontier committed on shutdown
+		var shutdownCheckpoints = processor.Checkpoints
+			.Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+			.ToList();
+
+		await Assert.That(processor.Records.Count).IsEqualTo(records.Length);
+		await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(shutdownCheckpoints[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(lastLogPosition.Value);
+	}
+
+	#endregion // batch frontier bookkeeping & telemetry
 
 }

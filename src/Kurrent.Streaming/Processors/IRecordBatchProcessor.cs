@@ -63,8 +63,7 @@ public record BatchContext : DroneContext {
     /// </summary>
     public void Track() {
         _trackedByUser = true;
-        foreach (var record in Records)
-            RequestTrack(record.Position);
+        TrackFrontier(RecordPosition.Latest); // Latest never caps — claim every record
     }
 
     /// <summary>
@@ -75,10 +74,33 @@ public record BatchContext : DroneContext {
     /// <param name="upTo">The last position to claim; records beyond it remain untracked.</param>
     public void Track(RecordPosition upTo) {
         _trackedByUser = true;
+        TrackFrontier(upTo);
+    }
+
+    // The commit frontier is the max position per partition: the strictly-monotonic tracker only ever
+    // reads the last position per partition, so tracking each record individually is dead work. Resolve
+    // the per-partition max in one pass (capped at upTo), then request a single track per partition.
+    // Filtering inline avoids a LINQ iterator allocation on the track hot path.
+    void TrackFrontier(RecordPosition upTo) {
+        Dictionary<Partition, RecordPosition>? frontier = null;
+
         foreach (var record in Records) {
-            if (record.Position <= upTo)
-                RequestTrack(record.Position);
+            var position = record.Position;
+
+            if (position > upTo)
+                continue;
+
+            frontier ??= new();
+
+            if (!frontier.TryGetValue(position.Partition, out var current) || position > current)
+                frontier[position.Partition] = position;
         }
+
+        if (frontier is null)
+            return;
+
+        foreach (var position in frontier.Values)
+            RequestTrack(position);
     }
 
     /// <summary>

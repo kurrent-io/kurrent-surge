@@ -49,6 +49,21 @@ public readonly record struct RecordProcessedEvent(
 );
 
 /// <summary>
+/// Event raised once per batch after <c>ProcessBatch</c> returns. <see cref="ProcessedCount"/> is the
+/// committed/durable prefix (records at or below the resolved frontier), which is what
+/// <c>records_processed</c> counts; <see cref="DurationSeconds"/> times the real <c>ProcessBatch</c> call.
+/// </summary>
+public readonly record struct BatchProcessedEvent(
+    string ProcessorId,
+    string DroneId,
+    long TotalRecords,
+    int ProcessedCount,
+    double? DurationSeconds = null,
+    long UncommittedRecords = 0,
+    long UncommittedBytes = 0
+);
+
+/// <summary>
 /// Event raised when the source-lag probe samples the distance to the readable log head.
 /// </summary>
 public readonly record struct SourceLagSampleEvent(

@@ -74,7 +74,18 @@ sealed class Checkpointer : IAsyncDisposable {
 			.LoadLatestAsync(_droneId, partitions, initialPosition, ct)
 			.ConfigureAwait(false);
 
-		_tracker.Reset(checkpoint.Positions);
+		// The Latest sentinel (live-end start) and Unset are NOT real committed floors. Seed the tracker's
+		// flushed baseline with Earliest for those: the tracker is strictly monotonic and would otherwise
+		// reject every real position (`position <= Latest`), and an Earliest baseline keeps a no-progress
+		// snapshot filterable. The RETURNED positions keep the sentinel so the subscription still starts at
+		// the live end and the catch-up floor stays correct.
+		var trackerSeed = checkpoint.Positions
+			.Select(p => p.LogPosition == LogPosition.Latest || p.LogPosition == LogPosition.Unset
+				? RecordPosition.From(LogPosition.Earliest, p.Partition)
+				: p)
+			.ToArray();
+
+		_tracker.Reset(trackerSeed);
 
 		// AutoCheckpoint gates the interval commit timer: when off, pending positions are committed
 		// only by a manual ctx.Checkpoint barrier or on shutdown, so the timer simply never starts.

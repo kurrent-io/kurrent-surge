@@ -55,6 +55,19 @@ sealed class ProgressTracker {
     }
 
     /// <summary>
+    /// Counts a whole batch toward throughput in one step — the batch path resolves a single committed
+    /// frontier instead of looping per record, so throughput advances by the dispatched count (the
+    /// "batch trap": every delivered record counts, even with AutoTrack off) without an O(N) loop.
+    /// </summary>
+    /// <param name="count">Number of dispatched records in the batch.</param>
+    /// <param name="lastProcessedAt">Event-time of the last record in the batch, for source-lag.</param>
+    public void CountThroughput(int count, DateTime lastProcessedAt) {
+        _totalRecords      += count;
+        _uncommittedRecords += count;
+        _lastProcessedAt    = lastProcessedAt;
+    }
+
+    /// <summary>
     /// Records that a position has been tracked (handled, pending commit). The position carries its own
     /// partition, so it indexes the slot directly. Folds the partition's byte-gap delta into the running
     /// uncommitted total — no read-time loop.
@@ -88,6 +101,7 @@ sealed class ProgressTracker {
 
     // Reads — field returns, nothing computed.
     public long TotalRecords       => _totalRecords;
+    public long TotalCheckpoints   => _totalCheckpoints;
     public long UncommittedRecords => _uncommittedRecords;
     public long UncommittedBytes   => _uncommittedBytes;
 

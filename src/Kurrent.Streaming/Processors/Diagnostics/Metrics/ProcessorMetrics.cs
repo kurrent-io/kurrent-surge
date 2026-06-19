@@ -14,10 +14,23 @@ static partial class ProcessorMetrics {
     public static partial RecordsProcessedCounter CreateRecordsProcessed(Meter meter);
 
     /// <summary>
-    /// Creates a histogram for record processing duration, in seconds.
+    /// Creates a histogram for record processing duration, in seconds. On the batch path this carries the
+    /// per-record average (batch duration / committed count); on the per-record path, the true per-record time.
     /// </summary>
     [Histogram<double>("processor_id", Name = "kurrent_processor_record_duration_seconds", Unit = "s")]
     public static partial RecordDurationHistogram CreateRecordDuration(Meter meter);
+
+    /// <summary>
+    /// Creates a histogram for batch processing duration, in seconds — the real <c>ProcessBatch</c> time.
+    /// </summary>
+    [Histogram<double>("processor_id", Name = "kurrent_processor_batch_duration_seconds", Unit = "s")]
+    public static partial BatchDurationHistogram CreateBatchDuration(Meter meter);
+
+    /// <summary>
+    /// Creates a histogram for effective batch size — the committed-prefix count distribution.
+    /// </summary>
+    [Histogram<int>("processor_id", Name = "kurrent_processor_batch_size")]
+    public static partial BatchSizeHistogram CreateBatchSize(Meter meter);
 
     /// <summary>
     /// Creates a counter for checkpoints completed, tagged by trigger.
