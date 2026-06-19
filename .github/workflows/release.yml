@@ -21,10 +21,11 @@ jobs:
   release:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 10
+    environment: release
 
     permissions:
       contents: write
-      packages: write
+      id-token: write
 
     steps:
       - name: Generate Token
@@ -124,24 +125,20 @@ jobs:
         env:
           TAG: ${{ steps.version.outputs.tag }}
 
+      - name: NuGet Trusted Publishing Login
+        id: nuget-login
+        if: ${{ !inputs.dry_run }}
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Publish Packages
         if: ${{ !inputs.dry_run }}
         uses: ./.github/actions/publish-packages
         with:
           version: ${{ steps.version.outputs.version }}
           push-to: nuget
-          nuget-api-key: ${{ secrets.KURRENT_NUGET_KEY }}
-
-#      - name: NuGet trusted publishing login
-#        id: nuget-login
-#        uses: NuGet/login@v1
-#        with:
-#          user: ${{ secrets.NUGET_USER }}
-#          
-#      - name: Create and push NuGet package
-#        run: |
-#          dotnet pack -c Release -o nuget -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
-#          dotnet nuget push nuget/**/*.nupkg --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
 
       - name: Create Release
         if: ${{ !inputs.dry_run }}
