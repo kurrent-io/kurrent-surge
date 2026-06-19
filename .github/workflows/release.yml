@@ -11,11 +11,22 @@ on:
         required: false
         type: string
         default: ''
+      channel:
+        description: 'Release channel; pre-release labels produce 0.1.0-<label>.1'
+        required: false
+        type: choice
+        default: stable
+        options:
+          - stable
+          - preview
+          - alpha
+          - beta
+          - rc
       dry_run:
         description: 'Compute version and build without tagging or publishing'
         required: false
         type: boolean
-        default: false
+        default: true
 
 jobs:
   release:
@@ -103,6 +114,7 @@ jobs:
         with:
           mode: release
           version: ${{ inputs.version }}
+          pre-release-label: ${{ inputs.channel != 'stable' && inputs.channel || '' }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 

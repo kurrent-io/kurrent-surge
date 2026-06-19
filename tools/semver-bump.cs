@@ -41,9 +41,18 @@ Option<bool> noProgressOption = new("--no-progress") {
     Recursive = true
 };
 
-var root = new RootCommand("semver-bump") {
-    tokenOption, repoOption, outputOption, noProgressOption
+Option<string> preReleaseOption = new("--pre-release") {
+    Description = "Pre-release label, e.g. \"preview\" -> 0.1.0-preview.2; omit for a stable release.",
+    DefaultValueFactory = _ => "",
+    Recursive = true
 };
+
+var root = new RootCommand("semver-bump") {
+    tokenOption, repoOption, outputOption, noProgressOption, preReleaseOption
+};
+
+static bool IsValidPreReleaseLabel(string label) =>
+    label.Length == 0 || Regex.IsMatch(label, @"^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$");
 
 var checkCommand = new Command("check", "Compute the next version from conventional commits");
 
@@ -53,8 +62,14 @@ checkCommand.SetAction(async (parseResult, ct) => {
 
     IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
 
-    var ctx    = await git.GetPreReleaseContext(ct);
-    var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
+    var label = parseResult.GetValue(preReleaseOption)!;
+    if (!IsValidPreReleaseLabel(label)) {
+        await Console.Error.WriteLineAsync($"Invalid pre-release label '{label}': dot-separated alphanumerics and hyphens only.");
+        return 1;
+    }
+
+    var ctx    = await git.GetVersioningContext(ct);
+    var result = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, label, ctx.ExistingVersions);
 
     await ResultWriter
         .Create(parseResult.GetValue(outputOption), stderr, stdout)
@@ -71,8 +86,14 @@ bumpCommand.SetAction(async (parseResult, ct) => {
 
     IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
 
-    var ctx    = await git.GetPreReleaseContext(ct);
-    var result = SemVerBumpResult.Calculate(ctx.LastVersion, ctx.Commits);
+    var label = parseResult.GetValue(preReleaseOption)!;
+    if (!IsValidPreReleaseLabel(label)) {
+        await Console.Error.WriteLineAsync($"Invalid pre-release label '{label}': dot-separated alphanumerics and hyphens only.");
+        return 1;
+    }
+
+    var ctx    = await git.GetVersioningContext(ct);
+    var result = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, label, ctx.ExistingVersions);
 
     var nextTag = result.NextVersion.ToGitTag();
     stderr.MarkupLine($"\n[mediumpurple]Creating tag[/] [white]{Markup.Escape(nextTag)}[/]");
@@ -110,7 +131,7 @@ public enum BumpType { Major = 1, Minor = 2, Patch = 3 }
 
 public enum OutputFormat { Json, GitHub, EnvVars }
 
-public partial record SemVer {
+public partial record SemVer : IComparable<SemVer> {
     public static readonly SemVer Unspecified = new() {
         Major = 0,
         Minor = 0,
@@ -125,11 +146,21 @@ public partial record SemVer {
     public string PreRelease    { get; private init; } = "";
     public string BuildMetadata { get; private init; } = "";
 
-    public override string ToString() => $"{Major}.{Minor}.{Patch}";
+    public override string ToString() =>
+        PreRelease == "" ? $"{Major}.{Minor}.{Patch}" : $"{Major}.{Minor}.{Patch}-{PreRelease}";
+
+    public SemVer WithPreRelease(string preRelease) => this with { PreRelease = preRelease };
+
+    public int CompareTo(SemVer? other) {
+        if (other is null) return 1;
+        var result = Major.CompareTo(other.Major);
+        if (result != 0) return result;
+        result = Minor.CompareTo(other.Minor);
+        return result != 0 ? result : Patch.CompareTo(other.Patch);
+    }
 
     public static SemVer Parse(string value) {
-        // we will accept a leading "v" but ignore it, as it is common in git tags but not part of the semver spec.
-        // We will also ignore any pre-release or build metadata, as we only care about the major, minor, and patch numbers for version bumping.
+        // git tags conventionally prefix "v"
         var match = SemVerPattern.Match(value.TrimStart('v'));
         return new SemVer {
             Major         = match.Groups["major"].Success ? int.Parse(match.Groups["major"].ValueSpan) : 0,
@@ -138,6 +169,16 @@ public partial record SemVer {
             PreRelease    = match.Groups["prerelease"].Success ? match.Groups["prerelease"].Value : "",
             BuildMetadata = match.Groups["buildmetadata"].Success ? match.Groups["buildmetadata"].Value : ""
         };
+    }
+
+    public static bool TryParse(string value, out SemVer version) {
+        if (SemVerPattern.IsMatch(value.TrimStart('v'))) {
+            version = Parse(value);
+            return true;
+        }
+
+        version = Unspecified;
+        return false;
     }
 
     public (SemVer Version, BumpType BumpType) Bump(params GitCommit[] commits) => Bump(this, commits);
@@ -182,15 +223,34 @@ public record SemVerBumpResult {
     public BumpType    Bump        { get; private init; } = BumpType.Patch;
     public GitCommit[] Commits     { get; private init; } = [];
 
-    public static SemVerBumpResult Calculate(SemVer version, params GitCommit[] commits) {
-        var (nextVersion, bumpType) = version.Bump(commits);
+    public static SemVerBumpResult Calculate(
+        SemVer lastStable, GitCommit[] commits, string preReleaseLabel, IReadOnlyList<SemVer> existingVersions
+    ) {
+        var (bumpedBase, bumpType) = lastStable.Bump(commits);
+
+        var nextVersion = string.IsNullOrEmpty(preReleaseLabel)
+            ? bumpedBase
+            : bumpedBase.WithPreRelease($"{preReleaseLabel}.{NextPreReleaseNumber(bumpedBase, preReleaseLabel, existingVersions)}");
 
         return new SemVerBumpResult {
-            FromVersion = version,
+            FromVersion = lastStable,
             Commits     = commits,
             Bump        = bumpType,
             NextVersion = nextVersion
         };
+    }
+
+    static int NextPreReleaseNumber(SemVer baseVersion, string label, IReadOnlyList<SemVer> existing) {
+        var prefix = $"{label}.";
+
+        var highest = existing
+            .Where(v => v.Major == baseVersion.Major && v.Minor == baseVersion.Minor && v.Patch == baseVersion.Patch)
+            .Where(v => v.PreRelease.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(v => int.TryParse(v.PreRelease[prefix.Length..], out var n) ? n : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return highest + 1;
     }
 }
 
@@ -470,18 +530,16 @@ namespace Git {
         private static partial Regex CommitRegex();
     }
 
-    public record PreReleaseContext(GitTag LastTag, SemVer LastVersion, GitCommit[] Commits);
+    public record VersioningContext(GitTag LastStableTag, SemVer LastStable, GitCommit[] Commits, SemVer[] ExistingVersions);
 
     interface IGitClient {
         string Url { get; }
 
         Task CreateTagAsync(GitTag tag, string hash, CancellationToken ct);
 
-        Task<GitTag> GetLastTagAsync(CancellationToken ct);
-
         Task<GitCommit?> GetCommit(string reference, CancellationToken ct);
 
-        Task<PreReleaseContext> GetPreReleaseContext(CancellationToken ct);
+        Task<VersioningContext> GetVersioningContext(CancellationToken ct);
 
         Task<GitCommit?> GetHeadCommit(CancellationToken ct) => GetCommit(GitTag.Head, ct);
     }
@@ -523,11 +581,6 @@ namespace Git {
             return commit is { } ? GitCommit.Parse(commit) : null;
         }
 
-        public async Task<GitTag> GetLastTagAsync(CancellationToken ct) {
-            var tags = await _client.Repository.GetAllTags(_owner, _repo);
-            return tags.Select(x => GitTag.From(x.Name)).LastOrDefault();
-        }
-
         public async IAsyncEnumerable<GitCommit> GetCommits(GitTag fromTag, GitTag toTag, [EnumeratorCancellation] CancellationToken ct) {
             var head = toTag == GitTag.Unspecified ? GitTag.Head : toTag;
 
@@ -560,12 +613,27 @@ namespace Git {
             }
         }
 
-        public async Task<PreReleaseContext> GetPreReleaseContext(CancellationToken ct) {
-            var lastTag = await GetLastTagAsync(ct);
-            var commits = await GetCommits(lastTag, GitTag.Unspecified, ct).ToArrayAsync(ct);
+        public async Task<VersioningContext> GetVersioningContext(CancellationToken ct) {
+            var versions = (await _client.Repository.GetAllTags(_owner, _repo))
+                .Select(x => x.Name)
+                .Where(name => SemVer.TryParse(name, out _))
+                .Select(name => (Tag: GitTag.From(name), Version: SemVer.Parse(name)))
+                .ToArray();
 
-            var lastVersion = lastTag != GitTag.Unspecified ? SemVer.Parse(lastTag) : SemVer.Unspecified;
-            return new PreReleaseContext(lastTag, lastVersion, commits);
+            var stable = versions
+                .Where(v => v.Version.PreRelease == "")
+                .OrderBy(v => v.Version)
+                .ToArray();
+
+            var hasStable        = stable.Length > 0;
+            var lastStableTag    = hasStable ? stable[^1].Tag     : GitTag.Unspecified;
+            var lastStableVer    = hasStable ? stable[^1].Version : SemVer.Unspecified;
+
+            var commits = await GetCommits(lastStableTag, GitTag.Unspecified, ct).ToArrayAsync(ct);
+
+            return new VersioningContext(
+                lastStableTag, lastStableVer, commits, versions.Select(v => v.Version).ToArray()
+            );
         }
     }
 }

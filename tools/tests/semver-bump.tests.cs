@@ -53,6 +53,19 @@ public class SemVerBumpTests {
         await Assert.That(json.RootElement.TryGetProperty("version", out _)).IsTrue();
         await Assert.That(json.RootElement.TryGetProperty("tag", out _)).IsTrue();
         await Assert.That(json.RootElement.TryGetProperty("bump", out _)).IsTrue();
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).DoesNotContain("-");
+    }
+
+    [Test]
+    public async Task check_pre_release_emits_labelled_version() {
+        // act
+        var result = await Execute("check", "--output", "json", "--no-progress", "--pre-release", "preview");
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+        var version = json.RootElement.GetProperty("version").GetString();
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(version).Contains("-preview.");
     }
 
     [Test]

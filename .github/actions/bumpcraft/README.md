@@ -36,6 +36,15 @@ abstracts the tools so they can be swapped without changing workflow files.
   with:
     mode: release
     version: ${{ inputs.version }}
+
+# Release — pre-release (e.g. 0.1.0-preview.2)
+- uses: ./.github/actions/bumpcraft
+  id: version
+  with:
+    mode: release
+    pre-release-label: preview
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Inputs
@@ -44,6 +53,7 @@ abstracts the tools so they can be swapped without changing workflow files.
 |-----------------------|----------|-----------------------|--------------------------------------------------------------------------------------------------------------------|
 | `mode`                | no       | `pre-release`         | `pre-release` for CI builds, `release` for stable publishing                                                       |
 | `version`             | no       | _(empty)_             | Explicit version override (release mode only, e.g., `1.2.3`)                                                       |
+| `pre-release-label`   | no       | _(empty)_             | Release-mode pre-release label (e.g., `preview`) → `0.1.0-preview.2`. Ignored when `version` is set.               |
 | `config`              | no       | `.github/version.yml` | Path to the version configuration file. Falls back to the action's built-in defaults when the file does not exist. |
 | `auto-increment`      | no       | _(from config)_       | Which semver component to bump: `major`, `minor`, or `patch`. Overrides config file.                               |
 | `minimum-major-minor` | no       | _(from config)_       | Version floor as `major.minor` (e.g., `1.0`). Overrides config file.                                               |
@@ -77,6 +87,11 @@ How the version is determined in release mode:
 | Neither                      | `semver-bump` (conventional commits) | Yes            |
 
 `GITHUB_TOKEN` is only needed for the third path where `semver-bump` calls the GitHub API.
+
+`semver-bump` computes the base from conventional commits since the last **stable** tag, so a
+stable release finalizes any in-flight pre-release (`0.1.0-preview.1` → `0.1.0`) rather than
+bumping past it. With `pre-release-label` set, it instead appends an incrementing counter on
+that base (`0.1.0-preview.1` → `0.1.0-preview.2`), resetting to `.1` whenever the base advances.
 
 ## Pre-release Mode
 
