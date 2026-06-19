@@ -275,10 +275,21 @@ sealed class Drone : IDrone {
                 if (position > maxCatchUp)
                     caughtUpComplete = true;
 
-                if (catchUp.TryGetValue(record.Position.Partition, out var cp) && IsRealFloor(cp) && position <= cp)
-                    kept ??= [..batch.Take(i)]; // first drop — copy the survivors seen so far
-                else
-                    kept?.Add(record);          // already copying — keep this survivor
+                var isCaughtUp = catchUp.TryGetValue(record.Position.Partition, out var cp) && IsRealFloor(cp) && position <= cp;
+
+                if (isCaughtUp) {
+                    // First drop — copy the survivors seen so far (indices [0, i)) with an indexed loop.
+                    // RecordBatch is indexable, so this stays allocation-light (no LINQ iterator) on the
+                    // catch-up path.
+                    if (kept is null) {
+                        kept = new List<Record>(batch.Count);
+                        for (var j = 0; j < i; j++)
+                            kept.Add(batch[j]);
+                    }
+                }
+                else {
+                    kept?.Add(record); // already copying — keep this survivor
+                }
             }
 
             // Nothing was dropped: return the original batch untouched (no allocation).
