@@ -49,6 +49,10 @@ inputs:
       When set, skips semver-bump and uses this value directly.
     required: false
     default: ''
+  pre-release-label:
+    description: 'Release-mode pre-release label, e.g. "preview" -> 0.1.0-preview.2. Ignored when version is set.'
+    required: false
+    default: ''
   config:
     description: Path to the version configuration file.
     required: false
@@ -108,6 +112,7 @@ runs:
       env:
         MODE: ${{ inputs.mode }}
         INPUT_VERSION: ${{ inputs.version }}
+        INPUT_PRE_RELEASE_LABEL: ${{ inputs.pre-release-label }}
         EVENT_NAME: ${{ github.event_name }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         PR_COMMITS: ${{ github.event.pull_request.commits }}
@@ -174,8 +179,12 @@ runs:
               exit 1
             fi
 
-            # Compute from conventional commits via semver-bump
-            result=$(semver-bump check --output json --no-progress 2>/dev/null)
+            # Compute from conventional commits via semver-bump (empty label -> stable)
+            if ! result=$(semver-bump check --output json --no-progress --pre-release "$INPUT_PRE_RELEASE_LABEL"); then
+              echo "::error::semver-bump failed to compute the version"
+              exit 1
+            fi
+
             version=$(echo "$result" | jq -r '.version')
             bump=$(echo "$result" | jq -r '.bump')
           fi
