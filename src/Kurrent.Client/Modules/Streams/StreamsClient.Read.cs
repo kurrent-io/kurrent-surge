@@ -132,8 +132,8 @@ public partial class StreamsClient {
         if (stream == StreamName.Unset)
             throw new ArgumentException("Stream name cannot be None", nameof(stream));
 
-        if (stream == StreamName.Log)
-            throw new ArgumentException("Stream name cannot be `$all`", nameof(stream));
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
 
         try {
             var request = Requests.CreateReadStreamEdgeRequest(stream, direction, 1);
@@ -182,7 +182,7 @@ public partial class StreamsClient {
         if (stream == StreamName.Unset)
             throw new ArgumentException("Stream name must be specified when reading from a specific stream.", nameof(stream));
 
-        if (stream == StreamName.Log)
+        if (stream.IsAllStream)
             throw new ArgumentException("Stream name cannot be '$all' when reading from a specific stream.", nameof(stream));
 
         if (options.Filter is StreamNameFilter streamFilter && streamFilter.TargetStream != stream)

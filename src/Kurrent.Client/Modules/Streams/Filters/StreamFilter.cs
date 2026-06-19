@@ -61,6 +61,11 @@ public sealed partial record StreamNameFilter : StreamFilter {
             return false;
         }
 
+        if (StreamName.From(value).IsAllStream) {
+            error = "Stream name filter cannot target '$all'.";
+            return false;
+        }
+
         try {
             RejectIndexStream(value, nameof(value));
         }

@@ -82,6 +82,11 @@ public readonly record struct StreamName {
     /// </summary>
     public bool IsUnset => this == Unset;
 
+    /// <summary>
+    /// Indicates whether the value names the global <c>$all</c> log.
+    /// </summary>
+    public bool IsAllStream => Value == Log.Value;
+
     public override string ToString() => Value;
 
     public static StreamName From(string? value) {

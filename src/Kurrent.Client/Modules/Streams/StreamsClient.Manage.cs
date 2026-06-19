@@ -29,6 +29,9 @@ public partial class StreamsClient {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
 
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
+
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot get stream info for a metadata stream.", nameof(stream));
 
@@ -141,6 +144,9 @@ public partial class StreamsClient {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
 
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
+
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot delete metadata streams.", nameof(stream));
 
@@ -179,6 +185,9 @@ public partial class StreamsClient {
     public async ValueTask<LogPosition> Tombstone(StreamName stream, Revision revision, CancellationToken cancellationToken = default) {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
+
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
 
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot tombstone metadata streams.", nameof(stream));
@@ -219,6 +228,9 @@ public partial class StreamsClient {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
 
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
+
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot truncate metadata streams.", nameof(stream));
 
@@ -254,6 +266,9 @@ public partial class StreamsClient {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
 
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
+
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot configure data retention for a metadata stream.", nameof(stream));
 
@@ -271,6 +286,9 @@ public partial class StreamsClient {
     ) {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
+
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
 
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot configure data retention for a metadata stream.", nameof(stream));
@@ -304,6 +322,9 @@ public partial class StreamsClient {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
 
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
+
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot configure data retention for a metadata stream.", nameof(stream));
 
@@ -328,6 +349,9 @@ public partial class StreamsClient {
     ) {
         if (stream.IsUnset)
             throw new ArgumentException("Stream name cannot be empty.", nameof(stream));
+
+        if (stream.IsAllStream)
+            throw new ArgumentException("Stream name cannot be '$all'.", nameof(stream));
 
         if (stream.IsMetadataStream)
             throw new ArgumentException("Cannot configure data retention for a metadata stream.", nameof(stream));
