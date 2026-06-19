@@ -277,7 +277,10 @@ sealed class Drone : IDrone {
             _progress.TrackPosition(record.Position);
         }
 
-        if (ctx.CheckpointRequested)
+        // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
+        // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
+        // double-commit. ctx.Checkpoint() already threw if a stop was requested before it.
+        if (ctx.CheckpointRequested && !ctx.StopRequested)
             await _checkpointer
                 .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
                 .ConfigureAwait(false);
@@ -328,7 +331,10 @@ sealed class Drone : IDrone {
             scope.Complete(_progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
         }
 
-        if (ctx.CheckpointRequested)
+        // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
+        // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
+        // double-commit. ctx.Checkpoint() already threw if a stop was requested before it.
+        if (ctx.CheckpointRequested && !ctx.StopRequested)
             await _checkpointer
                 .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
                 .ConfigureAwait(false);

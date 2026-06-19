@@ -168,7 +168,8 @@ public record ProcessRecordContext : DroneContext {
     /// At most one manual checkpoint may be requested per <c>ProcessRecord</c> invocation.
     /// </summary>
     /// <exception cref="InvalidOperationException">
-    /// A checkpoint has already been requested for this record.
+    /// A checkpoint has already been requested for this record, or a stop has already been requested
+    /// (after <see cref="StopProcessing"/> the shutdown barrier is the single commit point).
     /// </exception>
     /// <exception cref="OperationCanceledException">
     /// Cancellation has been requested on the context's token.
@@ -176,6 +177,12 @@ public record ProcessRecordContext : DroneContext {
     public void Checkpoint(string? reason = null) {
         if (_checkpointRequested)
             throw new InvalidOperationException("Checkpoint already requested for this record");
+
+        // Once a stop is requested the graceful Shutdown barrier becomes the single OnCheckpoint +
+        // commit point, so a manual checkpoint is meaningless — reject it rather than queue a barrier
+        // the drone will suppress.
+        if (_stopRequested)
+            throw new InvalidOperationException("Cannot request a checkpoint after StopProcessing.");
 
         CancellationToken.ThrowIfCancellationRequested();
 
