@@ -20,7 +20,7 @@ public class JsonSerializer(JsonSerializerOptions? options = null, bool useProto
 		var bytes = value is not IMessage protoMessage || !UseProtoFormatter
 			? System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(value, Options.GetTypeInfo(value!.GetType()))
 			: ProtobufToUtf8JsonBytes(protoMessage);
-
+        
 		return bytes;
 
         static ReadOnlyMemory<byte> ProtobufToUtf8JsonBytes(IMessage message) {
@@ -53,7 +53,7 @@ public class JsonSerializer(JsonSerializerOptions? options = null, bool useProto
 				? System.Text.Json.JsonSerializer.Deserialize(data.Span, Options.GetTypeInfo(type))
 				: ProtoJsonParser.Parse(Encoding.UTF8.GetString(data.Span.ToArray()), type.GetProtoMessageDescriptor())
 			: System.Text.Json.JsonSerializer.Deserialize(data.Span, Options.GetTypeInfo(typeof(JsonNode)));
-
+        
 		return value;
 	}
 

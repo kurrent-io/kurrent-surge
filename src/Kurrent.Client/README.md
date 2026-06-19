@@ -40,14 +40,13 @@ kurrentdb+discover://node1:2113,node2:2113,node3:2113
 
 ## Features
 
-- **Event Streams** — append, read, subscribe, and manage streams
+- **Streams** — append, read, subscribe, and manage streams
 - **Schema Registry** — type-safe serialization with automatic schema management
 - **Filter Expressions** — server-side SQL filtering for subscriptions and reads
 - **Serialization** — built-in JSON and Protobuf serializers with auto-registration
 - **OpenTelemetry** — distributed tracing and metrics out of the box
 - **Dependency Injection** — first-class `IServiceCollection` integration
 - **AOT Compatible** — source generators for zero-reflection operation
-- **Result Pattern** — type-safe error handling without exceptions
 
 ## Links
 
