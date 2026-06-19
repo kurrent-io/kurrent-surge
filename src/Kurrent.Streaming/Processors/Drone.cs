@@ -150,11 +150,18 @@ sealed class Drone : IDrone {
             fatalError = ex;
         }
 
-        // Channel closed — subscription ended or user stopped.
-        // If user stopped, the Shutdown barrier already committed pending positions.
-        // If subscription ended naturally, pending positions may remain.
-        // Skip if we already have a fatal error — the checkpoint hook would fail again.
-        if (fatalError is null && _checkpointer.HasPendingPositions) {
+        // Channel closed — subscription ended, the user stopped, or a processing failure faulted the loop.
+        // If the user stopped, the Shutdown barrier already committed pending positions.
+        // If the subscription ended naturally, pending positions may remain.
+        //
+        // Run the final barrier on a clean exit OR a ProcessBatch failure: a processing failure must still
+        // flush the frontier the user transparently tracked before throwing — OnCheckpoint runs and those
+        // positions commit — instead of dropping the user's durable intent and replaying the whole batch.
+        // Do NOT run it on an OnCheckpoint failure: the hook just threw, so re-running it would only fault
+        // again. The discriminator is the PROCESS_BATCH_FAILED code carried by the wrapping DroneException.
+        var isProcessFailure = fatalError is DroneException { ErrorDetails.ErrorCode.Value: "PROCESS_BATCH_FAILED" };
+
+        if ((fatalError is null || isProcessFailure) && _checkpointer.HasPendingPositions) {
             var now = _clock.Now();
             var checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
             await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
