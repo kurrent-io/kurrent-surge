@@ -248,9 +248,11 @@ public class DroneLifecycleTests {
 	[Test]
 	[Timeout(15_000)]
 	public async ValueTask disabled_auto_track_honors_manual_checkpoint_request(CancellationToken ct) {
-		// Arrange — auto-track off; the processor tracks then requests a manual barrier on the last
-		// record. StopProcessing (not Complete) ends the run so the barrier is written while the channel
-		// is still open — completing the inbox first would race the barrier write and drop it.
+		// Arrange — auto-track off; the processor tracks each record and requests a manual barrier on the
+		// last one WITHOUT stopping (a stop would supersede the manual barrier — the shutdown barrier
+		// becomes the single commit point). MaxBatchSize equals the record count so the batch flushes by
+		// size with the channel still open, so the manual barrier is written, not dropped. The inbox is
+		// completed to end the run only AFTER the barrier is observed, avoiding the barrier-write race.
 		var records         = RecordsAt(3);
 		var lastLogPosition = LogPosition.From(records.Length);
 
@@ -258,16 +260,15 @@ public class DroneLifecycleTests {
 			OnProcessRecord = ctx => {
 				ctx.Track(ctx.Record);
 
-				if (ctx.Record.Position.LogPosition >= lastLogPosition) {
+				if (ctx.Record.Position.LogPosition >= lastLogPosition)
 					ctx.Checkpoint("manual-flush");
-					ctx.StopProcessing();
-				}
 
 				return ValueTask.CompletedTask;
 			}
 		};
 
 		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
 			opts.Checkpoint.AutoTrack         = false;
 			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
 		});
@@ -276,8 +277,14 @@ public class DroneLifecycleTests {
 		foreach (var record in records)
 			subscription.EmitRecord(record);
 
-		// Act
-		await drone.RunAsync(ct);
+		// Act — run, wait for the manual barrier (raised while the channel is open), then complete to end.
+		var run = drone.RunAsync(ct);
+
+		await Assert.That(() => processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Manual))
+			.EventuallyPasses(c => c.IsGreaterThanOrEqualTo(1));
+
+		subscription.Complete();
+		await run;
 
 		// Assert — the manual barrier fired with its reason and carried the tracked position
 		var manualCheckpoints = processor.Checkpoints
@@ -581,16 +588,17 @@ public class DroneLifecycleTests {
 	[Test]
 	[Timeout(15_000)]
 	public async ValueTask batch_manual_checkpoint_fires_manual_barrier(CancellationToken ct) {
-		// Arrange — auto-track on (default); the processor requests a manual barrier after the batch.
-		// MaxBatchSize equals the record count so the batch flushes by size while the channel is still
-		// open — StopProcessing (not Complete) ends the run so the barrier is written, not dropped.
+		// Arrange — auto-track on (default); the processor requests a manual barrier after the batch
+		// WITHOUT stopping (a stop would supersede the manual barrier — the shutdown barrier becomes the
+		// single commit point). MaxBatchSize equals the record count so the batch flushes by size with
+		// the channel still open, so the manual barrier is written, not dropped. The inbox is completed
+		// to end the run only AFTER the barrier is observed, avoiding the barrier-write race.
 		var records         = RecordsAt(3);
 		var lastLogPosition = LogPosition.From(records.Length);
 
 		var processor = new TestRecordBatchProcessor() {
 			OnProcessBatch = ctx => {
 				ctx.Checkpoint("manual-flush");
-				ctx.StopProcessing();
 				return ValueTask.CompletedTask;
 			}
 		};
@@ -604,8 +612,14 @@ public class DroneLifecycleTests {
 		foreach (var record in records)
 			subscription.EmitRecord(record);
 
-		// Act
-		await drone.RunAsync(ct);
+		// Act — run, wait for the manual barrier (raised while the channel is open), then complete to end.
+		var run = drone.RunAsync(ct);
+
+		await Assert.That(() => processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Manual))
+			.EventuallyPasses(c => c.IsGreaterThanOrEqualTo(1));
+
+		subscription.Complete();
+		await run;
 
 		// Assert — the manual barrier fired with its reason and carried the auto-tracked positions
 		var manualCheckpoints = processor.Checkpoints
@@ -781,5 +795,162 @@ public class DroneLifecycleTests {
 	}
 
 	#endregion // uncommitted progress
+
+	#region ->> checkpoint-vs-stop <<-
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask batch_checkpoint_after_stop_throws(CancellationToken ct) {
+		// Arrange — once a stop is requested the graceful Shutdown barrier is the single commit point,
+		// so a manual checkpoint is meaningless and must throw. The batch handler requests stop, then
+		// attempts a checkpoint; the attempt is captured at its source rather than surfacing as a drone
+		// fatal error. MaxBatchSize equals the record count so the batch flushes by size with the
+		// channel still open — StopProcessing then ends the run via the Shutdown barrier.
+		InvalidOperationException? caught = null;
+		var                       records = RecordsAt(3);
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = ctx => {
+				ctx.StopProcessing();
+
+				try { ctx.Checkpoint(); }
+				catch (InvalidOperationException ex) { caught = ex; }
+
+				return ValueTask.CompletedTask;
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — Checkpoint() after StopProcessing() threw InvalidOperationException
+		await Assert.That(caught).IsNotNull();
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask record_checkpoint_after_stop_throws(CancellationToken ct) {
+		// Arrange — same guard on the per-record path: the handler requests stop, then attempts a
+		// checkpoint, which must throw because the Shutdown barrier is already the single commit point.
+		InvalidOperationException? caught = null;
+		var                       records = RecordsAt(1);
+
+		var processor = new TestableRecordProcessor {
+			OnProcessRecord = ctx => {
+				ctx.StopProcessing();
+
+				try { ctx.Checkpoint(); }
+				catch (InvalidOperationException ex) { caught = ex; }
+
+				return ValueTask.CompletedTask;
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — Checkpoint() after StopProcessing() threw InvalidOperationException
+		await Assert.That(caught).IsNotNull();
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask batch_stop_supersedes_pending_checkpoint_single_barrier(CancellationToken ct) {
+		// Arrange — a manual checkpoint requested BEFORE a stop is superseded by the stop: the graceful
+		// shutdown raises one Shutdown barrier (OnCheckpoint + commit) and no separate Manual barrier.
+		// AutoCheckpoint off so the 30s interval timer can never inject a barrier — the count is exact.
+		var records = RecordsAt(3);
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = ctx => {
+				ctx.Checkpoint();
+				ctx.StopProcessing();
+				return ValueTask.CompletedTask;
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Checkpoint.AutoCheckpoint    = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — exactly one OnCheckpoint fired, and it was the Shutdown barrier, not the superseded Manual
+		var manualBarriers   = processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Manual);
+		var shutdownBarriers = processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Shutdown);
+
+		await Assert.That(processor.Checkpoints.Count).IsEqualTo(1);
+		await Assert.That(manualBarriers).IsEqualTo(0);
+		await Assert.That(shutdownBarriers).IsEqualTo(1);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask record_stop_supersedes_pending_checkpoint_single_barrier(CancellationToken ct) {
+		// Arrange — same supersession on the per-record path: the handler requests a manual checkpoint
+		// then a stop on the last record; the Shutdown barrier must be the single OnCheckpoint + commit,
+		// with no separate Manual barrier. AutoCheckpoint off pins the barrier count.
+		var records         = RecordsAt(3);
+		var lastLogPosition = LogPosition.From(records.Length);
+
+		var processor = new TestableRecordProcessor {
+			OnProcessRecord = ctx => {
+				if (ctx.Record.Position.LogPosition >= lastLogPosition) {
+					ctx.Checkpoint();
+					ctx.StopProcessing();
+				}
+
+				return ValueTask.CompletedTask;
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Checkpoint.AutoCheckpoint    = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — exactly one OnCheckpoint fired, and it was the Shutdown barrier, not the superseded Manual
+		var manualBarriers   = processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Manual);
+		var shutdownBarriers = processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Shutdown);
+
+		await Assert.That(processor.Checkpoints.Count).IsEqualTo(1);
+		await Assert.That(manualBarriers).IsEqualTo(0);
+		await Assert.That(shutdownBarriers).IsEqualTo(1);
+	}
+
+	#endregion // checkpoint-vs-stop
 
 }

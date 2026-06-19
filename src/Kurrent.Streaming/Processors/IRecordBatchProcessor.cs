@@ -90,7 +90,8 @@ public record BatchContext : DroneContext {
     /// </summary>
     /// <param name="reason">An optional reason surfaced on the checkpoint.</param>
     /// <exception cref="InvalidOperationException">
-    /// A checkpoint has already been requested for this batch.
+    /// A checkpoint has already been requested for this batch, or a stop has already been requested
+    /// (after <see cref="StopProcessing"/> the shutdown barrier is the single commit point).
     /// </exception>
     /// <exception cref="OperationCanceledException">
     /// Cancellation has been requested on the context's token.
@@ -98,6 +99,12 @@ public record BatchContext : DroneContext {
     public void Checkpoint(string? reason = null) {
         if (_checkpointRequested)
             throw new InvalidOperationException("Checkpoint already requested for this batch");
+
+        // Once a stop is requested the graceful Shutdown barrier becomes the single OnCheckpoint +
+        // commit point, so a manual checkpoint is meaningless — reject it rather than queue a barrier
+        // the drone will suppress.
+        if (_stopRequested)
+            throw new InvalidOperationException("Cannot request a checkpoint after StopProcessing.");
 
         CancellationToken.ThrowIfCancellationRequested();
 
