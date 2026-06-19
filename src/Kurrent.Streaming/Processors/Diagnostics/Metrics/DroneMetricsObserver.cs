@@ -12,6 +12,8 @@ namespace Kurrent.Streaming.Diagnostics.Metrics;
 /// </remarks>
 sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, IDisposable {
     readonly RecordDurationHistogram     _recordDuration;
+    readonly BatchDurationHistogram      _batchDuration;
+    readonly BatchSizeHistogram          _batchSize;
     readonly CheckpointDurationHistogram _checkpointDuration;
     readonly CheckpointsCompletedCounter _checkpointsCompleted;
     readonly CheckpointsFailedCounter    _checkpointsFailed;
@@ -33,6 +35,8 @@ sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, ID
         var meter = meterFactory.Create("Kurrent.Client.Processors");
         _recordsProcessed     = ProcessorMetrics.CreateRecordsProcessed(meter);
         _recordDuration       = ProcessorMetrics.CreateRecordDuration(meter);
+        _batchDuration        = ProcessorMetrics.CreateBatchDuration(meter);
+        _batchSize            = ProcessorMetrics.CreateBatchSize(meter);
         _checkpointsCompleted = ProcessorMetrics.CreateCheckpointsCompleted(meter);
         _checkpointsFailed    = ProcessorMetrics.CreateCheckpointsFailed(meter);
         _checkpointDuration   = ProcessorMetrics.CreateCheckpointDuration(meter);
@@ -59,6 +63,22 @@ sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, ID
                 if (e.DurationSeconds is { } duration)
                     _recordDuration.Record(duration, e.ProcessorId);
                 // Synchronous gauges export their last recorded value — push the local lag each record.
+                _uncommittedRecords.Record(e.UncommittedRecords, e.ProcessorId, e.DroneId);
+                _uncommittedBytes.Record(e.UncommittedBytes, e.ProcessorId, e.DroneId);
+                break;
+
+            case BatchProcessedEvent e:
+                // records_processed is the committed prefix, added ONCE per batch (never per dispatched
+                // record, so replays are not double-counted).
+                _recordsProcessed.Add(e.ProcessedCount, e.ProcessorId, e.DroneId);
+                if (e.DurationSeconds is { } batchDuration) {
+                    _batchDuration.Record(batchDuration, e.ProcessorId);
+                    // record_duration on the batch path is the per-record average — keeps per-record latency
+                    // dashboards uniform without knowing which dispatch shape produced the data.
+                    if (e.ProcessedCount > 0)
+                        _recordDuration.Record(batchDuration / e.ProcessedCount, e.ProcessorId);
+                }
+                _batchSize.Record(e.ProcessedCount, e.ProcessorId);
                 _uncommittedRecords.Record(e.UncommittedRecords, e.ProcessorId, e.DroneId);
                 _uncommittedBytes.Record(e.UncommittedBytes, e.ProcessorId, e.DroneId);
                 break;
