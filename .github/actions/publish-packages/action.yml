@@ -80,6 +80,7 @@ runs:
           echo "::error::nuget-api-key is required when pushing to NuGet.org."
           exit 1
         fi
+        echo "::add-mask::$NUGET_API_KEY"
         dotnet nuget push .artifacts/packages/*.nupkg \
           --skip-duplicate \
           --source https://api.nuget.org/v3/index.json \
