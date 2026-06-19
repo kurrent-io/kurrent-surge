@@ -633,6 +633,80 @@ public class DroneLifecycleTests {
 
 	#endregion // batched parity
 
+	#region ->> failure-path checkpointing <<-
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask process_batch_failure_commits_tracked_frontier(CancellationToken ct) {
+		// Arrange — auto-track off; the batch processor tracks a prefix (records 1..2 of 1..3) then throws.
+		// A ProcessBatch failure must still raise the shutdown barrier so OnCheckpoint runs and the tracked
+		// frontier commits — the user's durable intent survives the failure instead of the batch replaying whole.
+		var records      = RecordsAt(3);
+		var prefixUpTo   = records[1].Position;     // log position 2
+		var prefixLogPos = prefixUpTo.LogPosition;
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch = ctx => {
+				ctx.Track(prefixUpTo);
+				throw new InvalidOperationException("process batch boom");
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Checkpoint.AutoTrack         = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act — the run faults (ProcessBatch threw), but must flush the tracked prefix on the way out.
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert — a shutdown barrier committed exactly the tracked prefix; records past upTo never committed.
+		var shutdownCheckpoints = processor.Checkpoints
+			.Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+			.ToList();
+
+		await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(shutdownCheckpoints[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(prefixLogPos.Value);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask on_checkpoint_failure_does_not_recommit(CancellationToken ct) {
+		// Arrange — auto-track on; a stop raises the shutdown barrier whose OnCheckpoint throws. With
+		// FailurePolicy.Fail the throw is fatal. The drone must NOT re-raise the final checkpoint on an
+		// OnCheckpoint failure — re-running the failing hook would invoke it twice.
+		var records = RecordsAt(3);
+
+		var processor = new TestRecordBatchProcessor {
+			OnProcessBatch   = ctx => { ctx.StopProcessing(); return ValueTask.CompletedTask; },
+			OnCheckpointHook = _   => throw new InvalidOperationException("checkpoint boom")
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;   // flush by size; channel stays open for the barrier
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+			opts.Checkpoint.FailurePolicy     = CheckpointFailurePolicy.Fail;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		// No Complete() — the stop drives shutdown; completing the inbox first would race the barrier write.
+
+		// Act — the failing checkpoint hook surfaces as a fatal error.
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert — OnCheckpoint fired exactly once; the failing hook was not re-run on the way out.
+		await Assert.That(processor.Checkpoints.Count).IsEqualTo(1);
+	}
+
+	#endregion // failure-path checkpointing
+
 	#region ->> telemetry <<-
 
 	[Test]
