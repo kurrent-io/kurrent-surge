@@ -179,8 +179,13 @@ sealed class Drone : IDrone {
         // the log is ordered, so once a record clears the highest loaded checkpoint no earlier one can
         // follow. Prune that prefix ONCE, before dispatch, then latch the filter off so the steady-state
         // hot path never pays the per-record compare again. A fresh start (no checkpoint) has nothing to skip.
-        var maxCatchUp       = catchUp.Count > 0 ? catchUp.Values.Max() : LogPosition.Earliest;
-        var caughtUpComplete = catchUp.Count == 0;
+        //
+        // Only REAL committed positions are floors. The Latest sentinel (a SubscriptionInitialPosition.Latest
+        // start seeds Latest = long.MaxValue) and Unset must NOT prune — every real record is <= Latest, which
+        // would silently drop the whole live stream. So they are excluded from both the floor and the latch.
+        var realFloors       = catchUp.Values.Where(IsRealFloor).ToArray();
+        var maxCatchUp       = realFloors.Length > 0 ? realFloors.Max() : LogPosition.Earliest;
+        var caughtUpComplete = realFloors.Length == 0;
 
         // Single batched read of the channel: records accumulate into a RecordBatch; Connected and
         // Checkpoint markers flush the pending batch and pass through. Batch size/window come from
@@ -252,6 +257,11 @@ sealed class Drone : IDrone {
             }
         }
 
+        // A real catch-up floor is a concrete committed position. The Latest / Unset sentinels mean "no
+        // prior progress" (Latest = subscribe from the live end), so they never prune.
+        static bool IsRealFloor(LogPosition floor) =>
+            floor != LogPosition.Latest && floor != LogPosition.Unset;
+
         // Prune the caught-up prefix from a freshly read batch, dropping records at or below their
         // partition's loaded checkpoint. Latches `caughtUpComplete` once a record clears the highest
         // checkpoint — the log is ordered, so no later batch can carry a caught-up record after that.
@@ -265,7 +275,7 @@ sealed class Drone : IDrone {
                 if (position > maxCatchUp)
                     caughtUpComplete = true;
 
-                if (catchUp.TryGetValue(record.Position.Partition, out var cp) && position <= cp)
+                if (catchUp.TryGetValue(record.Position.Partition, out var cp) && IsRealFloor(cp) && position <= cp)
                     kept ??= [..batch.Take(i)]; // first drop — copy the survivors seen so far
                 else
                     kept?.Add(record);          // already copying — keep this survivor
@@ -397,7 +407,8 @@ sealed class Drone : IDrone {
         foreach (var record in batch) {
             var position = record.Position;
 
-            frontier ??= new Dictionary<Partition, RecordPosition>(batch.Count);
+            // At most one entry per owned partition, never per record — size to the partition count.
+            frontier ??= new Dictionary<Partition, RecordPosition>(Options.MaxParallelism);
 
             if (!frontier.TryGetValue(position.Partition, out var current) || position > current)
                 frontier[position.Partition] = position;
@@ -412,22 +423,22 @@ sealed class Drone : IDrone {
 
     // Effective batch size = the count of records at or below the committed frontier. The frontier is the
     // last tracked position per partition (PendingPositions); a record counts when its position is at or
-    // below its partition's frontier. RecordPosition orders by log position, so the comparison is by log
-    // position within a partition.
+    // below its partition's frontier. Index the frontier by partition once (it holds one entry per owned
+    // partition) so the per-record check is a single O(1) lookup rather than a scan.
     static int CountUpToFrontier(RecordBatch batch, RecordPosition[] frontier) {
         if (frontier.Length == 0 || batch.Count == 0)
             return 0;
 
+        var ceilingByPartition = new Dictionary<Partition, LogPosition>(frontier.Length);
+        foreach (var f in frontier)
+            ceilingByPartition[f.Partition] = f.LogPosition;
+
         var count = 0;
 
         foreach (var record in batch) {
-            foreach (var f in frontier) {
-                if (f.Partition == record.Position.Partition
-                 && record.Position.LogPosition <= f.LogPosition) {
-                    count++;
-                    break;
-                }
-            }
+            if (ceilingByPartition.TryGetValue(record.Position.Partition, out var ceiling)
+             && record.Position.LogPosition <= ceiling)
+                count++;
         }
 
         return count;

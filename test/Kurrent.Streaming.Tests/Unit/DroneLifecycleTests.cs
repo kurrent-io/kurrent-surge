@@ -1359,6 +1359,39 @@ public class DroneLifecycleTests {
 		await Assert.That(warnings.Count).IsEqualTo(1);
 	}
 
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask latest_start_with_no_checkpoint_dispatches_and_commits(CancellationToken ct) {
+		// Arrange — SubscriptionInitialPosition.Latest with no prior checkpoint seeds a Latest (long.MaxValue)
+		// floor. That sentinel must NOT prune (every real record is <= Latest, which would silently drop the
+		// whole live stream) and must NOT be the tracker's flushed baseline (the monotonic tracker would reject
+		// every real position). Auto-track on: the records must reach ProcessBatch and the frontier must commit.
+		var records         = RecordsAt(3);
+		var lastLogPosition = LogPosition.From(records.Length);
+		var processor       = new TestRecordBatchProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — nothing was pruned and the auto-tracked frontier committed on shutdown
+		var shutdownCheckpoints = processor.Checkpoints
+			.Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+			.ToList();
+
+		await Assert.That(processor.Records.Count).IsEqualTo(records.Length);
+		await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(shutdownCheckpoints[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(lastLogPosition.Value);
+	}
+
 	#endregion // batch frontier bookkeeping & telemetry
 
 }

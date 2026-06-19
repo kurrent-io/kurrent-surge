@@ -306,7 +306,7 @@ sealed partial class DroneTelemetry : TelemetrySource {
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Batch processed (committed: {ProcessedCount}, total: {TotalRecords})")]
     partial void LogBatchProcessed(string processorId, string droneId, long totalRecords, int processedCount);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "[{DroneId}] AutoTrack disabled and no position was ever tracked — no progress persisted; the subscription replays fully on restart.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "[{DroneId}] AutoTrack disabled and no progress was ever persisted; the subscription replays fully on restart.")]
     partial void LogTrackingDisabledNoProgress(string processorId, string droneId);
 
     [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Checkpoint {CheckpointId} ({Trigger}) initiated")]
