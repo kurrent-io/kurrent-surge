@@ -22,29 +22,22 @@ abstracts the tools so they can be swapped without changing workflow files.
     pre-release: '@dated'
     pull-request: '@detailed'
 
-# Release — stable version from conventional commits
+# Release — bump a component off the last tag (npm-style)
 - uses: ./.github/actions/bumpcraft
   id: version
   with:
     mode: release
+    bump: minor            # major | minor | patch | premajor | preminor | prepatch | prerelease
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# Release — explicit version override
+# Release — explicit version (bump: custom)
 - uses: ./.github/actions/bumpcraft
   id: version
   with:
     mode: release
+    bump: custom
     version: ${{ inputs.version }}
-
-# Release — pre-release (e.g. 0.1.0-preview.2)
-- uses: ./.github/actions/bumpcraft
-  id: version
-  with:
-    mode: release
-    pre-release-label: preview
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Inputs
@@ -52,8 +45,8 @@ abstracts the tools so they can be swapped without changing workflow files.
 | Input                 | Required | Default               | Description                                                                                                        |
 |-----------------------|----------|-----------------------|--------------------------------------------------------------------------------------------------------------------|
 | `mode`                | no       | `pre-release`         | `pre-release` for CI builds, `release` for stable publishing                                                       |
-| `version`             | no       | _(empty)_             | Explicit version override (release mode only, e.g., `1.2.3`)                                                       |
-| `pre-release-label`   | no       | _(empty)_             | Release-mode pre-release label (e.g., `preview`) → `0.1.0-preview.2`. Ignored when `version` is set.               |
+| `bump`                | no       | _(empty)_             | Release-mode component to bump off the last tag: `major`/`minor`/`patch`/`premajor`/`preminor`/`prepatch`/`prerelease`, or `custom` to use `version`. Ignored on tag-push releases. |
+| `version`             | no       | _(empty)_             | Exact version for release mode when `bump` is `custom` (e.g., `1.2.3`)                                             |
 | `config`              | no       | `.github/version.yml` | Path to the version configuration file. Falls back to the action's built-in defaults when the file does not exist. |
 | `auto-increment`      | no       | _(from config)_       | Which semver component to bump: `major`, `minor`, or `patch`. Overrides config file.                               |
 | `minimum-major-minor` | no       | _(from config)_       | Version floor as `major.minor` (e.g., `1.0`). Overrides config file.                                               |
@@ -67,12 +60,7 @@ abstracts the tools so they can be swapped without changing workflow files.
 | Output           | Example            | Description                                                  |
 |------------------|--------------------|--------------------------------------------------------------|
 | `version`        | `1.2.3-preview.42` | Full semver version string                                   |
-| `major`          | `1`                | Major version number                                         |
-| `minor`          | `2`                | Minor version number                                         |
-| `patch`          | `3`                | Patch version number                                         |
-| `pre-release`    | `preview.42`       | Pre-release identifiers (empty for stable releases)          |
 | `is-pre-release` | `true`             | Whether this is a pre-release version                        |
-| `base`           | `1.2.3`            | Base version without pre-release                             |
 | `tag`            | `v1.2.3`           | Git tag for this version                                     |
 | `bump`           | `Minor`            | What drove the bump: Major, Minor, Patch (release mode only) |
 
@@ -80,18 +68,20 @@ abstracts the tools so they can be swapped without changing workflow files.
 
 How the version is determined in release mode:
 
-| Condition                    | Source                               | Requires token |
-|------------------------------|--------------------------------------|----------------|
-| `version` input provided     | Input value                          | No             |
-| Tag push (`ref_type == tag`) | Git tag name                         | No             |
-| Neither                      | `semver-bump` (conventional commits) | Yes            |
+| Condition                    | Source                          | Requires token |
+|------------------------------|---------------------------------|----------------|
+| Tag push (`ref_type == tag`) | Git tag name                    | No             |
+| `bump: custom`               | `version` input                 | No             |
+| `bump: <component>`          | `semver-bump --bump` off last tag | Yes          |
 
-`GITHUB_TOKEN` is only needed for the third path where `semver-bump` calls the GitHub API.
+`GITHUB_TOKEN` is only needed for the `bump: <component>` path, where `semver-bump` reads the
+repository's tags through the GitHub API.
 
-`semver-bump` computes the base from conventional commits since the last **stable** tag, so a
-stable release finalizes any in-flight pre-release (`0.1.0-preview.1` → `0.1.0`) rather than
-bumping past it. With `pre-release-label` set, it instead appends an incrementing counter on
-that base (`0.1.0-preview.1` → `0.1.0-preview.2`), resetting to `.1` whenever the base advances.
+`semver-bump --bump` computes the next version from the last **stable** tag (npm `npm version`
+semantics): `major`/`minor`/`patch` produce a stable bump, while the `pre*` variants and
+`prerelease` append an incrementing `preview.N` counter. `prerelease` continues the highest
+in-flight pre-release line above the last stable tag, opening a new one off the next patch when
+none is in flight.
 
 ## Pre-release Mode
 

@@ -6,27 +6,30 @@ on:
 
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Override version (e.g., 1.0.0). Leave empty to compute from conventional commits.'
-        required: false
-        type: string
-        default: ''
-      channel:
-        description: 'Release channel; pre-release labels produce 0.1.0-<label>.1'
-        required: false
-        type: choice
-        default: stable
-        options:
-          - stable
-          - preview
-          - alpha
-          - beta
-          - rc
       dry_run:
-        description: 'Compute version and build without tagging or publishing'
+        description: 'Dry run (no NuGet publish)'
         required: false
         type: boolean
         default: true
+      bump:
+        description: "Version component to update (or 'custom' to provide exact version)"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - prepatch
+          - preminor
+          - premajor
+          - prerelease
+          - custom
+      version:
+        description: "Exact version when bump = custom (e.g. 1.2.3)"
+        required: false
+        type: string
+        default: ''
 
 jobs:
   release:
@@ -64,19 +67,8 @@ jobs:
           # Pre-created so `dotnet restore` doesn't fail on a missing source before pack fills it.
           mkdir -p .artifacts/packages
 
-          # On-PATH home for tools we install by hand below (e.g. yq).
-          bin_dir="$HOME/.local/bin"
-          mkdir -p "$bin_dir"
-          echo "$bin_dir" >> "$GITHUB_PATH"
-
           # Global .NET tools (e.g. Aspire.Cli) install here; not on PATH by default.
           echo "${DOTNET_INSTALL_DIR:-$HOME/.dotnet}/tools" >> "$GITHUB_PATH"
-
-          # jq parses semver-bump's JSON output in bumpcraft
-          if ! command -v jq &>/dev/null; then
-            curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64" -o "$bin_dir/jq"
-            chmod +x "$bin_dir/jq"
-          fi
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -113,8 +105,8 @@ jobs:
         uses: ./.github/actions/bumpcraft
         with:
           mode: release
+          bump: ${{ inputs.bump }}
           version: ${{ inputs.version }}
-          pre-release-label: ${{ inputs.channel != 'stable' && inputs.channel || '' }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 

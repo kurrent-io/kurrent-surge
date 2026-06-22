@@ -1,41 +1,42 @@
 name: Install Local Tools
 description: >
-  Packs and installs file-based app tools from tools/ as global tools
-  so they appear on PATH directly.
+  Packs file-based app tools from tools/ (those with a ToolCommandName) and installs them
+  into a workspace-local tool path on PATH, so they can be invoked by their command name.
+  The install lives under the workspace (.artifacts/tools), not shared home, so a poisoned
+  build cannot persist across jobs on a self-hosted runner.
 
 runs:
   using: composite
   steps:
-    - name: Setup PATH
-      shell: bash
-      run: |
-        echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
-        export PATH="$HOME/.dotnet/tools:$PATH"
-
-    # Pack file-based apps (*.cs with ToolCommandName) from tools/ and
-    # install them as global tools so they appear on PATH directly.
-    # Uses `dotnet tool update` to handle both fresh installs and upgrades.
     - name: Install
       shell: bash
       run: |
-        if compgen -G "tools/*.cs" > /dev/null; then
-          pack_dir="$(mktemp -d)"
-          for cs in tools/*.cs; do
-            if grep -q 'ToolCommandName' "$cs"; then
-              echo "Packing $cs"
-              # build + pack --no-build: dotnet pack on file-based apps loses the
-              # virtual .csproj before the pack phase on Linux (.NET SDK bug)
-              dotnet build "$cs" -v q --nologo
-              dotnet pack "$cs" -o "$pack_dir" --no-build -v q --nologo
-            fi
-          done
+        compgen -G "tools/*.cs" > /dev/null || exit 0
 
-          for pkg in "$pack_dir"/*.nupkg; do
-            [ -f "$pkg" ] || continue
-            name=$(basename "$pkg" | sed 's/\.[0-9].*//')
-            echo "Installing tool $name"
-            dotnet tool update -g "$name" --add-source "$pack_dir" --no-cache -v q
-          done
+        pack_dir="$(mktemp -d)"
+        for cs in tools/*.cs; do
+          grep -q 'ToolCommandName' "$cs" || continue
+          echo "Packing $cs"
+          dotnet pack "$cs" -o "$pack_dir" -v q --nologo
+        done
 
-          rm -rf "$pack_dir"
+        shopt -s nullglob
+        packages=("$pack_dir"/*.nupkg)
+        if [[ ${#packages[@]} -eq 0 ]]; then
+          echo "::error::No tool packages were produced from tools/*.cs"
+          exit 1
         fi
+
+        # Isolated source: the repo's package source mapping forbids --add-source, and tool
+        # packages bundle their dependencies, so a single local source resolves them.
+        printf '<?xml version="1.0" encoding="utf-8"?>\n<configuration><packageSources><clear /><add key="tools" value="%s" /></packageSources></configuration>\n' "$pack_dir" > "$pack_dir/nuget.config"
+
+        tool_dir="$GITHUB_WORKSPACE/.artifacts/tools"
+        for pkg in "${packages[@]}"; do
+          name=$(basename "$pkg" | sed 's/\.[0-9].*//')
+          echo "Installing $name -> $tool_dir"
+          dotnet tool update "$name" --tool-path "$tool_dir" --configfile "$pack_dir/nuget.config" --no-cache -v q
+        done
+
+        echo "$tool_dir" >> "$GITHUB_PATH"
+        rm -rf "$pack_dir"

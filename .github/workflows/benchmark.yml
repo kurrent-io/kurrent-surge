@@ -113,7 +113,7 @@ jobs:
 
       - name: Generate report
         run: >-
-          dotnet run tools/benchmark-report.cs --
+          benchmark-report
           --input ./artifacts/benchmarks
           --output ./artifacts/benchmarks/report.html
 

@@ -69,6 +69,62 @@ public class SemVerBumpTests {
     }
 
     [Test]
+    public async Task check_version_override_emits_given_version() {
+        // act — explicit version bypasses git, so no token/repo required
+        var result = await Execute("", "", ["check", "--output", "json", "--no-progress", "--version", "2.0.0-preview.4"]);
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).IsEqualTo("2.0.0-preview.4");
+        await Assert.That(json.RootElement.GetProperty("tag").GetString()).IsEqualTo("v2.0.0-preview.4");
+    }
+
+    [Test]
+    public async Task check_version_override_rejects_invalid() {
+        // act
+        var result = await Execute("", "", ["check", "--no-progress", "--version", "not-a-version"]);
+
+        // assert
+        await Assert.That(result.ExitCode).IsNotEqualTo(0);
+        await Assert.That(result.StandardError).Contains("Invalid version");
+    }
+
+    [Test]
+    public async Task check_bump_minor_emits_stable_version() {
+        // act
+        var result = await Execute("check", "--output", "json", "--no-progress", "--bump", "minor");
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).DoesNotContain("-");
+        await Assert.That(json.RootElement.GetProperty("bump").GetString()).IsEqualTo("Minor");
+    }
+
+    [Test]
+    public async Task check_bump_preminor_emits_prerelease_version() {
+        // act
+        var result = await Execute("check", "--output", "json", "--no-progress", "--bump", "preminor");
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert — pre-variant carries the component's bump type and a preview identifier
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).Contains("-preview.");
+        await Assert.That(json.RootElement.GetProperty("bump").GetString()).IsEqualTo("Minor");
+    }
+
+    [Test]
+    public async Task check_bump_rejects_invalid_component() {
+        // act — invalid component is rejected before any git lookup, so no token required
+        var result = await Execute("", "", ["check", "--no-progress", "--bump", "sideways"]);
+
+        // assert
+        await Assert.That(result.ExitCode).IsNotEqualTo(0);
+        await Assert.That(result.StandardError).Contains("Invalid bump component");
+    }
+
+    [Test]
     public async Task check_github_output_writes_to_env_files() {
         // arrange
         var envFile     = Path.GetTempFileName();
@@ -97,6 +153,7 @@ public class SemVerBumpTests {
             await Assert.That(outputContent).Contains("version=");
             await Assert.That(outputContent).Contains("tag=");
             await Assert.That(outputContent).Contains("bump=");
+            await Assert.That(outputContent).Contains("is-pre-release=");
 
             await Assert.That(summaryContent).Contains("## Version Bump");
         } finally {

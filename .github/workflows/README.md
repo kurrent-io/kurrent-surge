@@ -53,12 +53,12 @@ Triggers on pushing a semver tag (`v*`) or manual dispatch. Uses the
 publishes to both GitHub Packages and NuGet.org, and creates a GitHub Release. Capped at
 `timeout-minutes: 10`.
 
-| Trigger               | Version source       | What happens                                        |
-|-----------------------|----------------------|-----------------------------------------------------|
-| Tag push (`v1.2.3`)   | Tag name             | Build, publish, create GitHub Release               |
-| Manual (with version) | Input parameter      | Tag, build, publish, create GitHub Release          |
-| Manual (no version)   | Conventional commits | Compute next version, tag, build, publish           |
-| Manual (dry run)      | Conventional commits | Compute version and build only — nothing published  |
+| Trigger                      | Version source                    | What happens                                       |
+|------------------------------|-----------------------------------|----------------------------------------------------|
+| Tag push (`v1.2.3`)          | Tag name                          | Build, publish, create GitHub Release              |
+| Manual (`bump: <component>`) | `semver-bump --bump` off last tag | Tag, build, publish, create GitHub Release         |
+| Manual (`bump: custom`)      | `version` input                   | Tag, build, publish, create GitHub Release         |
+| Manual (dry run)             | As selected above                 | Compute version and build only — nothing published |
 
 ### [`benchmark.yml`](benchmark.yml) — Performance Benchmarks
 
@@ -80,11 +80,12 @@ results as artifacts.
 |--------------------|----------------------------------|-------------------------|-----------------------------|
 | CI — PR            | `{base}-pr.{number}.{run}.{sha}` | `1.0.0-pr.7.42.abc1234` | GitHub Packages             |
 | CI — push to main  | `{base}-preview.{run}`           | `1.0.0-preview.42`      | GitHub Packages             |
-| Release            | `{major}.{minor}.{patch}`        | `1.0.0`                 | GitHub Packages + NuGet.org |
+| Release            | `{major}.{minor}.{patch}[-preview.N]` | `1.0.0` / `1.1.0-preview.1` | GitHub Packages + NuGet.org |
 
 All pipelines use the [`bumpcraft`](../actions/bumpcraft/) composite action. Pre-release builds use MinVer
-with configurable templates. Release builds use `semver-bump` for conventional commit analysis or accept an
-explicit version. See the [action README](../actions/bumpcraft/README.md) for full documentation.
+with configurable templates. Release builds bump a chosen component (npm-style) off the last tag via
+`semver-bump`, or accept an explicit version. See the [action README](../actions/bumpcraft/README.md) for
+full documentation.
 
 ## Version Configuration
 

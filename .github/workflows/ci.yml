@@ -130,10 +130,6 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: dotnet restore --ignore-failed-sources
 
-      - name: Install Local Tools
-        if: steps.changes.outputs.build == 'true'
-        uses: ./.github/actions/install-tools
-
       - name: Version
         if: steps.changes.outputs.build == 'true'
         id: version

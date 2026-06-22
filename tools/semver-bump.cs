@@ -47,6 +47,16 @@ Option<string> preReleaseOption = new("--pre-release") {
     Recursive = true
 };
 
+Option<string> versionOption = new("--version") {
+    Description = "Explicit version to emit, bypassing git computation (e.g. \"1.2.3\"). Requires no token.",
+    DefaultValueFactory = _ => ""
+};
+
+Option<string> bumpOption = new("--bump") {
+    Description = "Bump a component off the last tag, ignoring commit analysis: major, minor, patch, premajor, preminor, prepatch, or prerelease.",
+    DefaultValueFactory = _ => ""
+};
+
 var root = new RootCommand("semver-bump") {
     tokenOption, repoOption, outputOption, noProgressOption, preReleaseOption
 };
@@ -54,22 +64,52 @@ var root = new RootCommand("semver-bump") {
 static bool IsValidPreReleaseLabel(string label) =>
     label.Length == 0 || Regex.IsMatch(label, @"^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$");
 
-var checkCommand = new Command("check", "Compute the next version from conventional commits");
+const string PreReleaseId = "preview";
+
+static bool TryParseBumpComponent(string value, out BumpComponent component) {
+    component = default;
+    return !int.TryParse(value, out _) && Enum.TryParse(value, ignoreCase: true, out component);
+}
+
+var checkCommand = new Command("check", "Compute the next version from conventional commits") {
+    versionOption, bumpOption
+};
 
 checkCommand.SetAction(async (parseResult, ct) => {
     var stderr = SpectreConsole.CreateStderr(parseResult.GetValue(noProgressOption));
     var stdout = SpectreConsole.CreateStdout();
 
-    IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
+    var explicitVersion = parseResult.GetValue(versionOption)!;
+    var bumpValue       = parseResult.GetValue(bumpOption)!;
 
-    var label = parseResult.GetValue(preReleaseOption)!;
-    if (!IsValidPreReleaseLabel(label)) {
-        await Console.Error.WriteLineAsync($"Invalid pre-release label '{label}': dot-separated alphanumerics and hyphens only.");
-        return 1;
+    SemVerBumpResult result;
+    if (explicitVersion.Length > 0) {
+        if (!SemVer.TryParse(explicitVersion, out var version)) {
+            await Console.Error.WriteLineAsync($"Invalid version '{explicitVersion}': expected semver like 1.2.3 or 1.2.3-preview.1.");
+            return 1;
+        }
+
+        result = SemVerBumpResult.ForVersion(version);
+    } else if (bumpValue.Length > 0) {
+        if (!TryParseBumpComponent(bumpValue, out var component)) {
+            await Console.Error.WriteLineAsync($"Invalid bump component '{bumpValue}': expected major, minor, patch, premajor, preminor, prepatch, or prerelease.");
+            return 1;
+        }
+
+        IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
+        var ctx        = await git.GetVersioningContext(ct);
+        result         = SemVerBumpResult.ForBump(component, ctx.LastStable, ctx.ExistingVersions, PreReleaseId);
+    } else {
+        var label = parseResult.GetValue(preReleaseOption)!;
+        if (!IsValidPreReleaseLabel(label)) {
+            await Console.Error.WriteLineAsync($"Invalid pre-release label '{label}': dot-separated alphanumerics and hyphens only.");
+            return 1;
+        }
+
+        IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
+        var ctx        = await git.GetVersioningContext(ct);
+        result         = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, label, ctx.ExistingVersions);
     }
-
-    var ctx    = await git.GetVersioningContext(ct);
-    var result = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, label, ctx.ExistingVersions);
 
     await ResultWriter
         .Create(parseResult.GetValue(outputOption), stderr, stdout)
@@ -129,6 +169,8 @@ return await root.Parse(args).InvokeAsync();
 
 public enum BumpType { Major = 1, Minor = 2, Patch = 3 }
 
+public enum BumpComponent { Major, Minor, Patch, PreMajor, PreMinor, PrePatch, PreRelease }
+
 public enum OutputFormat { Json, GitHub, EnvVars }
 
 public partial record SemVer : IComparable<SemVer> {
@@ -150,6 +192,10 @@ public partial record SemVer : IComparable<SemVer> {
         PreRelease == "" ? $"{Major}.{Minor}.{Patch}" : $"{Major}.{Minor}.{Patch}-{PreRelease}";
 
     public SemVer WithPreRelease(string preRelease) => this with { PreRelease = preRelease };
+
+    public SemVer NextMajor() => this with { Major = Major + 1, Minor = 0, Patch = 0, PreRelease = "" };
+    public SemVer NextMinor() => this with { Minor = Minor + 1, Patch = 0, PreRelease = "" };
+    public SemVer NextPatch() => this with { Patch = Patch + 1, PreRelease = "" };
 
     public int CompareTo(SemVer? other) {
         if (other is null) return 1;
@@ -222,6 +268,40 @@ public record SemVerBumpResult {
     public SemVer      NextVersion { get; private init; } = SemVer.Unspecified;
     public BumpType    Bump        { get; private init; } = BumpType.Patch;
     public GitCommit[] Commits     { get; private init; } = [];
+
+    public static SemVerBumpResult ForVersion(SemVer version) =>
+        new() { NextVersion = version };
+
+    public static SemVerBumpResult ForBump(
+        BumpComponent component, SemVer lastStable, IReadOnlyList<SemVer> existing, string preId
+    ) {
+        SemVer Pre(SemVer baseVersion) =>
+            baseVersion.WithPreRelease($"{preId}.{NextPreReleaseNumber(baseVersion, preId, existing)}");
+
+        // prerelease continues the highest in-flight pre-release line above the last
+        // stable; with none in flight it opens a new one off the next patch.
+        SemVer NextPreRelease() {
+            var ongoing = existing
+                .Where(v => v.PreRelease != "" && v.CompareTo(lastStable) > 0)
+                .OrderByDescending(v => v)
+                .Select(v => v.WithPreRelease(""))
+                .FirstOrDefault();
+
+            return Pre(ongoing ?? lastStable.NextPatch());
+        }
+
+        var (next, bump) = component switch {
+            BumpComponent.Major      => (lastStable.NextMajor(), BumpType.Major),
+            BumpComponent.Minor      => (lastStable.NextMinor(), BumpType.Minor),
+            BumpComponent.Patch      => (lastStable.NextPatch(), BumpType.Patch),
+            BumpComponent.PreMajor   => (Pre(lastStable.NextMajor()), BumpType.Major),
+            BumpComponent.PreMinor   => (Pre(lastStable.NextMinor()), BumpType.Minor),
+            BumpComponent.PrePatch   => (Pre(lastStable.NextPatch()), BumpType.Patch),
+            BumpComponent.PreRelease => (NextPreRelease(), BumpType.Patch)
+        };
+
+        return new SemVerBumpResult { FromVersion = lastStable, Bump = bump, NextVersion = next };
+    }
 
     public static SemVerBumpResult Calculate(
         SemVer lastStable, GitCommit[] commits, string preReleaseLabel, IReadOnlyList<SemVer> existingVersions
@@ -354,6 +434,7 @@ sealed record GitHubResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : Res
             version={result.NextVersion}
             tag={result.NextVersion.ToGitTag()}
             bump={result.Bump}
+            is-pre-release={(result.NextVersion.PreRelease.Length > 0 ? "true" : "false")}
 
             """;
 

@@ -43,14 +43,16 @@ inputs:
         release: computes a stable version for publishing.
     required: false
     default: pre-release
-  version:
+  bump:
     description: >
-      Explicit version override (release mode only, e.g., "1.2.3").
-      When set, skips semver-bump and uses this value directly.
+      Release-mode component to bump off the last tag (npm-style): major, minor, patch,
+      premajor, preminor, prepatch, or prerelease. Use "custom" to publish the exact
+      "version" input instead. Ignored on tag-push releases (the tag drives the version).
     required: false
     default: ''
-  pre-release-label:
-    description: 'Release-mode pre-release label, e.g. "preview" -> 0.1.0-preview.2. Ignored when version is set.'
+  version:
+    description: >
+      Exact version for release mode when bump is "custom" (e.g., "1.2.3"). Ignored otherwise.
     required: false
     default: ''
   config:
@@ -78,24 +80,9 @@ outputs:
   version:
     description: Full semver version string (e.g., 1.2.3-preview.42 or 1.2.3)
     value: ${{ steps.compute.outputs.version }}
-  major:
-    description: Major version number
-    value: ${{ steps.compute.outputs.major }}
-  minor:
-    description: Minor version number
-    value: ${{ steps.compute.outputs.minor }}
-  patch:
-    description: Patch version number
-    value: ${{ steps.compute.outputs.patch }}
-  pre-release:
-    description: Pre-release identifiers (empty for stable releases)
-    value: ${{ steps.compute.outputs.pre-release }}
   is-pre-release:
     description: Whether this is a pre-release version (true/false)
     value: ${{ steps.compute.outputs.is-pre-release }}
-  base:
-    description: Base version without pre-release (e.g., 1.2.3)
-    value: ${{ steps.compute.outputs.base }}
   tag:
     description: Git tag for this version (e.g., v1.2.3)
     value: ${{ steps.compute.outputs.tag }}
@@ -112,7 +99,7 @@ runs:
       env:
         MODE: ${{ inputs.mode }}
         INPUT_VERSION: ${{ inputs.version }}
-        INPUT_PRE_RELEASE_LABEL: ${{ inputs.pre-release-label }}
+        INPUT_BUMP: ${{ inputs.bump }}
         EVENT_NAME: ${{ github.event_name }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         PR_COMMITS: ${{ github.event.pull_request.commits }}
@@ -137,134 +124,95 @@ runs:
           fi
         }
 
-        parse_semver() {
-          local v="$1"
-          base="${v%%-*}"
-          major="${base%%.*}"
-          rest="${base#*.}"
-          minor="${rest%%.*}"
-          patch="${rest#*.}"
-
-          if [[ "$v" == *-* ]]; then
-            pre_release_out="${v#*-}"
-            is_pre_release="true"
-          else
-            pre_release_out=""
-            is_pre_release="false"
-          fi
-        }
-
-        validate_semver() {
-          if [[ ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid semver version: $1"
+        if [[ "$MODE" == "release" ]]; then
+          if ! command -v semver-bump &>/dev/null; then
+            echo "::error::semver-bump not found on PATH. Run the install-tools action before this step."
             exit 1
           fi
-        }
 
-        if [[ "$MODE" == "release" ]]; then
-          bump=""
-
-          if [[ -n "$INPUT_VERSION" ]]; then
-            validate_semver "$INPUT_VERSION"
-            version="$INPUT_VERSION"
-
-          elif [[ "$REF_TYPE" == "tag" ]]; then
-            version="${REF_NAME#v}"
-            validate_semver "$version"
-
+          # semver-bump owns version computation, validation, and output mapping
+          # (version, tag, bump, is-pre-release, and the job summary).
+          args=(check --output github --no-progress)
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            args+=(--version "${REF_NAME#v}")
+          elif [[ "$INPUT_BUMP" == "custom" ]]; then
+            if [[ -z "$INPUT_VERSION" ]]; then
+              echo "::error::bump=custom requires a version input (e.g. 1.2.3)."
+              exit 1
+            fi
+            args+=(--version "$INPUT_VERSION")
+          elif [[ -n "$INPUT_BUMP" ]]; then
+            args+=(--bump "$INPUT_BUMP")
           else
-            # Ensure semver-bump is available
-            if ! command -v semver-bump &>/dev/null; then
-              echo "::error::semver-bump not found on PATH. Ensure dotnet-setup ran first."
-              exit 1
-            fi
-
-            # Compute from conventional commits via semver-bump (empty label -> stable)
-            if ! result=$(semver-bump check --output json --no-progress --pre-release "$INPUT_PRE_RELEASE_LABEL"); then
-              echo "::error::semver-bump failed to compute the version"
-              exit 1
-            fi
-
-            version=$(echo "$result" | jq -r '.version')
-            bump=$(echo "$result" | jq -r '.bump')
+            echo "::error::release mode needs a bump component, a custom version, or a tag ref."
+            exit 1
           fi
 
-          tag="v$version"
-          parse_semver "$version"
-
-          echo "### Release: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
-
-        else
-          # Pre-release mode — uses MinVer + config templates
-          # Priority: inputs > config file > built-in defaults
-          auto_increment="${INPUT_AUTO_INCREMENT:-$(read_config auto-increment)}"
-          minimum_major_minor="${INPUT_MIN_MAJOR_MINOR:-$(read_config minimum-major-minor)}"
-          pre_release_tpl="${INPUT_PRE_RELEASE:-$(read_config pre-release)}"
-          pull_request_tpl="${INPUT_PULL_REQUEST:-$(read_config pull-request)}"
-
-          # Resolve presets (@name -> template)
-          resolve_preset() {
-            local preset="$1" context="$2"
-            case "$context:$preset" in
-              pre-release:@simple)     echo "preview.{run}" ;;
-              pre-release:@traceable)  echo "preview.{run}.{sha}" ;;
-              pre-release:@dated)      echo "preview.{date}.{run}" ;;
-              pre-release:@detailed)   echo "preview.{date}.{run}.{sha}" ;;
-              pull-request:@simple)    echo "pr.{pr}.{run}" ;;
-              pull-request:@traceable) echo "pr.{pr}.{run}.{sha}" ;;
-              pull-request:@dated)     echo "pr.{pr}.{date}.{run}" ;;
-              pull-request:@detailed)  echo "pr.{pr}.{date}.{run}.{sha}" ;;
-              *) echo "$preset" ;;
-            esac
-          }
-
-          [[ "$pre_release_tpl" == @* ]]  && pre_release_tpl=$(resolve_preset "$pre_release_tpl" "pre-release")
-          [[ "$pull_request_tpl" == @* ]] && pull_request_tpl=$(resolve_preset "$pull_request_tpl" "pull-request")
-
-          # Resolve template variables
-          short_sha="${PR_SHA:0:7}"
-          date_stamp=$(date -u +"%y%j")
-          resolve_template() {
-            echo "$1" \
-              | sed "s/{run}/$RUN_NUMBER/g" \
-              | sed "s/{date}/$date_stamp/g" \
-              | sed "s/{sha}/$short_sha/g" \
-              | sed "s/{pr}/$PR_NUMBER/g" \
-              | sed "s/{commits}/$PR_COMMITS/g" \
-              | sed "s/{attempt}/$RUN_ATTEMPT/g"
-          }
-
-          # Build pre-release identifiers from template
-          if [[ "$EVENT_NAME" == "pull_request" && -n "$PR_NUMBER" && -n "$pull_request_tpl" ]]; then
-            pre_release=$(resolve_template "$pull_request_tpl")
-          elif [[ -n "$pre_release_tpl" ]]; then
-            pre_release=$(resolve_template "$pre_release_tpl")
-          fi
-
-          # Build minver args
-          args=(--tag-prefix v)
-          [[ -n "$auto_increment" ]]     && args+=(--auto-increment "$auto_increment")
-          [[ -n "$minimum_major_minor" ]] && args+=(--minimum-major-minor "$minimum_major_minor")
-          if [[ -n "$pre_release" ]]; then
-            args+=(--default-pre-release-identifiers "$pre_release")
-            args+=(--ignore-height)
-          fi
-
-          version=$(dnx minver-cli -y -- "${args[@]}")
-          tag="v${version%%-*}"
-          bump=""
-          parse_semver "$version"
-
-          echo "### Version: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+          semver-bump "${args[@]}"
+          exit 0
         fi
 
-        # Step outputs
-        echo "version=$version"               >> "$GITHUB_OUTPUT"
-        echo "major=$major"                   >> "$GITHUB_OUTPUT"
-        echo "minor=$minor"                   >> "$GITHUB_OUTPUT"
-        echo "patch=$patch"                   >> "$GITHUB_OUTPUT"
-        echo "pre-release=$pre_release_out"   >> "$GITHUB_OUTPUT"
-        echo "is-pre-release=$is_pre_release" >> "$GITHUB_OUTPUT"
-        echo "base=$base"                     >> "$GITHUB_OUTPUT"
-        echo "tag=$tag"                       >> "$GITHUB_OUTPUT"
-        echo "bump=$bump"                     >> "$GITHUB_OUTPUT"
+        # Pre-release mode — MinVer height-based versioning with config templates.
+        # Priority: inputs > config file > built-in defaults
+        auto_increment="${INPUT_AUTO_INCREMENT:-$(read_config auto-increment)}"
+        minimum_major_minor="${INPUT_MIN_MAJOR_MINOR:-$(read_config minimum-major-minor)}"
+        pre_release_tpl="${INPUT_PRE_RELEASE:-$(read_config pre-release)}"
+        pull_request_tpl="${INPUT_PULL_REQUEST:-$(read_config pull-request)}"
+
+        # Resolve presets (@name -> template)
+        resolve_preset() {
+          local preset="$1" context="$2"
+          case "$context:$preset" in
+            pre-release:@simple)     echo "preview.{run}" ;;
+            pre-release:@traceable)  echo "preview.{run}.{sha}" ;;
+            pre-release:@dated)      echo "preview.{date}.{run}" ;;
+            pre-release:@detailed)   echo "preview.{date}.{run}.{sha}" ;;
+            pull-request:@simple)    echo "pr.{pr}.{run}" ;;
+            pull-request:@traceable) echo "pr.{pr}.{run}.{sha}" ;;
+            pull-request:@dated)     echo "pr.{pr}.{date}.{run}" ;;
+            pull-request:@detailed)  echo "pr.{pr}.{date}.{run}.{sha}" ;;
+            *) echo "$preset" ;;
+          esac
+        }
+
+        [[ "$pre_release_tpl" == @* ]]  && pre_release_tpl=$(resolve_preset "$pre_release_tpl" "pre-release")
+        [[ "$pull_request_tpl" == @* ]] && pull_request_tpl=$(resolve_preset "$pull_request_tpl" "pull-request")
+
+        # Resolve template variables
+        short_sha="${PR_SHA:0:7}"
+        date_stamp=$(date -u +"%y%j")
+        resolve_template() {
+          echo "$1" \
+            | sed "s/{run}/$RUN_NUMBER/g" \
+            | sed "s/{date}/$date_stamp/g" \
+            | sed "s/{sha}/$short_sha/g" \
+            | sed "s/{pr}/$PR_NUMBER/g" \
+            | sed "s/{commits}/$PR_COMMITS/g" \
+            | sed "s/{attempt}/$RUN_ATTEMPT/g"
+        }
+
+        # Build pre-release identifiers from template
+        if [[ "$EVENT_NAME" == "pull_request" && -n "$PR_NUMBER" && -n "$pull_request_tpl" ]]; then
+          pre_release=$(resolve_template "$pull_request_tpl")
+        elif [[ -n "$pre_release_tpl" ]]; then
+          pre_release=$(resolve_template "$pre_release_tpl")
+        fi
+
+        # Build minver args
+        args=(--tag-prefix v)
+        [[ -n "$auto_increment" ]]      && args+=(--auto-increment "$auto_increment")
+        [[ -n "$minimum_major_minor" ]] && args+=(--minimum-major-minor "$minimum_major_minor")
+        if [[ -n "$pre_release" ]]; then
+          args+=(--default-pre-release-identifiers "$pre_release")
+          args+=(--ignore-height)
+        fi
+
+        version=$(dnx minver-cli -y -- "${args[@]}")
+
+        echo "### Version: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+
+        {
+          echo "version=$version"
+          echo "tag=v${version%%-*}"
+          [[ "$version" == *-* ]] && echo "is-pre-release=true" || echo "is-pre-release=false"
+        } >> "$GITHUB_OUTPUT"
