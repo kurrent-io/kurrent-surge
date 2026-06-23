@@ -29,6 +29,7 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
     readonly ProcessorOptions                _options;
     readonly ChannelWriter<SubscribeMessage> _writer;
     readonly ResiliencePipeline              _pipeline;
+    readonly IPartitionKeyExtractor          _partitionKeyExtractor;
 
     internal SubscriptionSource(
         KurrentClient client,
@@ -39,6 +40,10 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
         _options  = options;
         _writer   = writer;
         _pipeline = options.BuildResiliencePipeline(client.Options.LoggerFactory);
+
+        // Partition key comes from the configured selector (e.g. "properties['tenantId']"). Built once;
+        // the extractor is stateless. An empty selector (MaxParallelism == 1) yields the null extractor.
+        _partitionKeyExtractor = PartitionKeyExtractor.Create(options.Subscription.PartitionKeySelector);
     }
 
     public async Task Subscribe(
@@ -70,10 +75,12 @@ sealed class SubscriptionSource : ClientModuleBase, ISubscription {
 
                     await foreach (var msg in _streams.Subscribe(options, token).ConfigureAwait(false)) {
                         // Tag each record with its partition before handing it downstream; pass
-                        // everything else (Connected, Checkpoint) through untouched.
+                        // everything else (Connected, Checkpoint) through untouched. The key is resolved from
+                        // the configured PartitionKeySelector; a record that lacks the selected property falls
+                        // back to the stream name, so same-stream records stay co-partitioned and in order.
                         if (msg.Value is Record record) {
-                            var partition = PartitionCalculator.XXHash
-                                .Calculate(record.Stream, _options.MaxParallelism);
+                            var key       = _partitionKeyExtractor.Extract(record) ?? record.Stream.Value;
+                            var partition = PartitionCalculator.XXHash.Calculate(key, _options.MaxParallelism);
 
                             record = record with { Position = record.Position with { Partition = Partition.From(partition) } };
 
