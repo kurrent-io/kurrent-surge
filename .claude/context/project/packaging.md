@@ -9,14 +9,14 @@
 Shorthand flags on references drive the whole pack pipeline. Prefer these over hand-writing raw
 `PrivateAssets`/`OutputItemType` combinations:
 
-| You want to...                              | Reference metadata (shorthand)            | Ends up in             |
-|---------------------------------------------|-------------------------------------------|------------------------|
-| Declare a NuGet dependency                  | *(none)*                                  | `.nuspec` dependency   |
-| Flow ALL assets (incl. analyzers) with it   | `PrivateAssets="none"`                    | `.nuspec` dependency with `include="All"` |
-| Embed an internal library                   | `ProjectReference Bundle="true"`          | `lib/{tfm}/`           |
-| Vendor a NuGet package's binaries           | `PackageReference Vendor="true"`          | `lib/{tfm}/` + `runtimes/` |
-| Use an SDK-internal source generator        | `ProjectReference Analyzer="true"`        | *(nothing — build-time only)* |
-| Ship a generator to consumers               | `ProjectReference PackedAnalyzer="true"`  | `analyzers/dotnet/cs/` |
+| You want to...                            | Reference metadata (shorthand)           | Ends up in                                |
+|-------------------------------------------|------------------------------------------|-------------------------------------------|
+| Declare a NuGet dependency                | *(none)*                                 | `.nuspec` dependency                      |
+| Flow ALL assets (incl. analyzers) with it | `PrivateAssets="none"`                   | `.nuspec` dependency with `include="All"` |
+| Embed an internal library                 | `ProjectReference Bundle="true"`         | `lib/{tfm}/`                              |
+| Vendor a NuGet package's binaries         | `PackageReference Vendor="true"`         | `lib/{tfm}/` + `runtimes/`                |
+| Use an SDK-internal source generator      | `ProjectReference Analyzer="true"`       | *(nothing — build-time only)*             |
+| Ship a generator to consumers             | `ProjectReference PackedAnalyzer="true"` | `analyzers/dotnet/cs/`                    |
 
 **Footgun:** referencing an unpublished project *without* `Bundle="true"` (or one of the analyzer
 flags) produces a `.nuspec` with a NuGet dependency that doesn't exist on any feed → consumers get

@@ -55,11 +55,11 @@ void CheckAnomalyAlert(SensorReading reading, SensorState state) {
 
 ## Alert Types
 
-| Alert | Condition | Icon |
-|-------|-----------|------|
-| High Temperature | > 80°C | 🔥 |
-| Low Temperature | < 10°C | ❄️ |
-| Anomaly | > 2σ from rolling mean | ⚠️ |
+| Alert            | Condition              | Icon |
+|------------------|------------------------|------|
+| High Temperature | > 80°C                 | 🔥   |
+| Low Temperature  | < 10°C                 | ❄️   |
+| Anomaly          | > 2σ from rolling mean | ⚠️   |
 
 ## Sample Output
 

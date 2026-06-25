@@ -2,7 +2,6 @@ using System.Text.Json;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming;
 using Processor.Leaderboard;
 using Serilog;
 using StackExchange.Redis;

@@ -92,6 +92,26 @@ Read these before working on related areas. Do not read all upfront.
 | [Kurrent.Client](.claude/context/project/client.md)                   | Before working on the client library                     |
 | [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
 | [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
-| [XML Documentation](.claude/context/project/xmldoc.md)               | Before writing or reviewing XML docs on public APIs      |
+| [XML Documentation](.claude/context/project/xmldoc.md)                | Before writing or reviewing XML docs on public APIs      |
 | [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module      |
-| [Docs Guidelines](.claude/context/project/docs-guidelines.md)        | Before writing or updating documentation                 |
+| [Docs Guidelines](.claude/context/project/docs-guidelines.md)         | Before writing or updating documentation                 |
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in **Linear** — DevEx team, `Kurrent SDK .NET` project, referenced as `DEV-XXXX` and operated
+through the Linear MCP. PRs are not a request surface. The full workflow lives in
+`.claude/context/project/issue-tracker-linear.md` and the `ksdk-linear-workflow` skill (MUST be consulted
+before any Linear operation). See `.agents/matt-pocock/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles map onto Linear's native workflow states plus the classification labels in
+`ksdk-linear-workflow`; the role strings are not configured labels and issue status is never set manually.
+See `.agents/matt-pocock/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the repo root, ADRs under `.claude/context/docs/adr/`, existing reference
+docs under `.claude/context/project/`. See `.agents/matt-pocock/domain.md`.

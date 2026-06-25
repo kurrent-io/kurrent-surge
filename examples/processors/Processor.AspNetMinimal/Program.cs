@@ -12,11 +12,11 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddSingleton<TransferProcessor>();
     builder.Services.AddKurrent(kurrent => {
-        kurrent.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
-        kurrent.AddProcessor<TransferProcessor>(prx => {
-            prx.ProcessorId                  = $"transfer-processor-{Guid.NewGuid().ToString()[..8]}";
+        kurrent.Connection("kurrentdb://admin:changeit@127.0.0.1:32769?tls=false");
+        
+        kurrent.AddProcessor(new LiveTransferProcessor(), prx => {
+            prx.ProcessorId                  = $"live-transfer-processor-{Guid.NewGuid().ToString()[..8]}";
             prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
             prx.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
 

@@ -7,10 +7,11 @@ namespace Processor.AspNetMinimal;
 public static class SeedData {
     public static void StartSeeding() {
         _ = Task.Run(async () => {
-            await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
+            await using var client = KurrentClient.Create("kurrentdb://admin:changeit@127.0.0.1:32769?tls=false");
+            // await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
 
             var players = new[] {
-                (FirstName: "Kylian",   LastName: "Mbappé",    Country: Country.France,  Position: Position.Striker),
+                (FirstName: "Kylian",   LastName: "Mbappé",     Country: Country.France,  Position: Position.Striker),
                 (FirstName: "Jude",     LastName: "Bellingham", Country: Country.England, Position: Position.AttackingMidfield),
                 (FirstName: "Vinícius", LastName: "Júnior",     Country: Country.Brazil,  Position: Position.LeftWinger),
                 (FirstName: "Erling",   LastName: "Haaland",    Country: Country.Norway,  Position: Position.Striker),

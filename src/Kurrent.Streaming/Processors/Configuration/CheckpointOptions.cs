@@ -90,7 +90,7 @@ public record CheckpointOptions {
     /// <summary>
     /// What to do when a checkpoint fails. Default: <see cref="CheckpointFailurePolicy.Continue"/>.
     /// </summary>
-    public CheckpointFailurePolicy FailurePolicy { get; set; } = CheckpointFailurePolicy.Continue;
+    internal CheckpointFailurePolicy FailurePolicy { get; set; } = CheckpointFailurePolicy.Continue;
 
     /// <summary>
     /// Sets <see cref="Interval"/> and returns this instance for fluent chaining.

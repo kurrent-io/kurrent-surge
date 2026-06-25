@@ -117,9 +117,9 @@ public record SubscribeOptions {
     public RecordFilter   Filter { get; init; } = RecordFilter.None;
     public RecordPosition Start  { get; init; } = RecordPosition.Latest;
 
-    public bool           SkipDecoding    { get; init; }
-    public bool           ResolveLinks    { get; init; } = true;
-    public uint           MaxSearchWindow { get; init; } = StreamsClientMapping.DefaultMaxSearchWindow;
+    public bool SkipDecoding    { get; init; }
+    public bool ResolveLinks    { get; init; } = true;
+    public uint MaxSearchWindow { get; init; } = StreamsClientMapping.DefaultMaxSearchWindow;
 
     /// <summary>
     /// When true, a record whose schema name has no mapped type fails the subscription
