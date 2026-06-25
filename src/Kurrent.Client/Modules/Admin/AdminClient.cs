@@ -4,7 +4,7 @@ using OperationsServiceClient = KurrentDB.Protocol.V1.Operations.Operations.Oper
 
 namespace Kurrent.Client.Admin;
 
-public partial class AdminClient {
+public partial class AdminClient : IAdminClient {
     internal AdminClient(KurrentClient client) {
         Client             = client;
         AdminServiceClient = new(client.LegacyCallInvoker);
