@@ -317,7 +317,7 @@ public partial class StreamsClient {
 }
 
 public static partial class StreamsClientExtensions {
-    extension(StreamsClient client) {
+    extension(IStreamReader client) {
         public ValueTask<Record> InspectRecord(LogPosition position, CancellationToken cancellationToken = default) =>
             client.InspectRecord(position, true, cancellationToken);
 

@@ -6,6 +6,8 @@ public interface IStreamReader {
     IAsyncEnumerable<ReadMessage> ReadRecords(ReadRecordsOptions options, CancellationToken ct = default);
 
     IAsyncEnumerable<ReadMessage> ReadStream(StreamName stream, ReadStreamOptions options, CancellationToken ct = default);
+
+    ValueTask<Record> InspectRecord(LogPosition position, bool skipDecoding = true, CancellationToken ct = default);
 }
 
 public interface IStreamAppender {

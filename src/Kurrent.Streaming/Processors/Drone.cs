@@ -14,7 +14,7 @@ sealed class Drone : IDrone {
     readonly ISubscription      _subscription;
     readonly IProcessor         _processor;
     readonly Checkpointer       _checkpointer;
-    readonly StreamsClient      _streams;
+    readonly IStreamsClient     _streams;
     readonly DroneTelemetry     _telemetry;
     readonly ProgressTracker    _progress;
     readonly HybridLogicalClock _clock;
@@ -33,7 +33,7 @@ sealed class Drone : IDrone {
         ISubscription subscription,
         Checkpointer checkpointer,
         Channel<SubscribeMessage> channel,
-        StreamsClient streams,
+        IStreamsClient streams,
         ILoggerFactory loggerFactory,
         TimeProvider timeProvider,
         IProcessor processor
