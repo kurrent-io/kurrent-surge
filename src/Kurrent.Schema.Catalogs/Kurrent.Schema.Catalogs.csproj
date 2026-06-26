@@ -32,6 +32,7 @@
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
   </ItemGroup>
 

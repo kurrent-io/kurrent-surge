@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Kurrent.Streaming\Kurrent.Streaming.csproj" />
+    <ProjectReference Include="..\..\..\src\Kurrent.Streaming.Core\Kurrent.Streaming.Core.csproj" />
     <ProjectReference Include="..\..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
   </ItemGroup>
 </Project>

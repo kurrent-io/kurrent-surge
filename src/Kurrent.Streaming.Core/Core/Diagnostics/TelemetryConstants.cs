@@ -6,7 +6,7 @@ static class TelemetryConstants {
     /// <summary>
     /// The source name used for <see cref="DiagnosticListener"/> and <see cref="ActivitySource"/>.
     /// </summary>
-    public const string SourceName = "Kurrent.Streaming";
+    public const string SourceName = "Kurrent.Streaming.Core";
 
     /// <summary>
     /// The version used for <see cref="ActivitySource"/>.

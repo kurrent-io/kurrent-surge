@@ -41,11 +41,13 @@
          extraction plan; the build adds any that the compiler flags as inaccessible. -->
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Client" />
-    <InternalsVisibleTo Include="Kurrent.Streaming" />
-    <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Core.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
+    <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
   </ItemGroup>
 
   <ItemGroup>

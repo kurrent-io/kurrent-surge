@@ -7,6 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectOrPackageReference Include="Kurrent.Streaming" />
+    <ProjectOrPackageReference Include="Kurrent.Streaming.Core" />
   </ItemGroup>
 </Project>

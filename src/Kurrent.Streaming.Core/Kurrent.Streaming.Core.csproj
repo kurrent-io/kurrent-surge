@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Kurrent.Streaming</PackageId>
+    <PackageId>Kurrent.Streaming.Core</PackageId>
     <IsPackable>true</IsPackable>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <Title>Kurrent .NET Processors</Title>
@@ -49,7 +49,6 @@
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Google.Protobuf.Tools" PrivateAssets="All" />
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
-    <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
     <PackageReference Include="OpenTelemetry.Api" />
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="Polly.Extensions" />

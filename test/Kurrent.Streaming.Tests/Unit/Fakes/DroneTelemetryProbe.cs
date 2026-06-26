@@ -14,7 +14,7 @@ namespace Kurrent.Streaming.Tests.Fakes;
 /// <para>
 /// Drives the real <see cref="DroneMetricsObserver"/> through a <see cref="TestMeterFactory"/>, then
 /// reads the resulting instruments with a <see cref="MeterListener"/>. The observer subscribes to the
-/// process-global <c>Kurrent.Streaming</c> diagnostic listener, so it receives events from every drone
+/// process-global <c>Kurrent.Streaming.Core</c> diagnostic listener, so it receives events from every drone
 /// running in parallel; measurements are therefore filtered to the probe's own <c>processor_id</c>.
 /// Each test must use a unique processor id (see <see cref="DroneTelemetryProbe(string)"/>).
 /// </para>

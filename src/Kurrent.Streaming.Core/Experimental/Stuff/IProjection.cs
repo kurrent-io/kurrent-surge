@@ -1,4 +1,4 @@
-// namespace Kurrent.Streaming.Stuff;
+// namespace Kurrent.Streaming.Core.Stuff;
 //
 // public record ProjectionContext<TClient>(Func<TClient> GetClient) : ProcessRecordContext {
 //     public ProjectionContext(ProcessRecordContext source, Func<TClient> getClient) : this(getClient) {
