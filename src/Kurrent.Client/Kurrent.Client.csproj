@@ -24,7 +24,7 @@
   <ItemGroup>
     <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
          dependency (not bundled) — Kurrent.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
-    <ProjectReference Include="..\Kurrent.Abstractions\Kurrent.Abstractions.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.

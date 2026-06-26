@@ -10,7 +10,7 @@ namespace Kurrent.Client.Streams;
 // The concrete decoder lives in the client, not the contract: it depends on the schema
 // serialization layer (ISchemaSerializerProvider, SchemaSerializationContext) and the JSON
 // serialization context (KurrentJsonContext, which pulls in NodaTime). Record stays a plain
-// contract type in Kurrent.Abstractions and reaches both through the IRecordDecoder seam.
+// contract type in Kurrent.Surge.Core and reaches both through the IRecordDecoder seam.
 sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy? registryPolicy = null) : IRecordDecoder {
     SchemaRegistryPolicy RegistryPolicy { get; } = registryPolicy ?? SchemaRegistryPolicy.NoRequirements;
 

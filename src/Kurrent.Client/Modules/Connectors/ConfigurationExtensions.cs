@@ -76,7 +76,7 @@ public static class ConfigurationExtensions {
 
     /// <summary>
     /// Converts a hierarchical Protobuf <see cref="Struct"/> into a <see cref="JsonObject"/>,
-    /// preserving nesting. The contract layer (Kurrent.Abstractions) exposes connector
+    /// preserving nesting. The contract layer (Kurrent.Surge.Core) exposes connector
     /// configuration as a BCL <see cref="JsonObject"/> rather than the protobuf type, so this is
     /// the boundary mapper from the wire shape.
     /// </summary>

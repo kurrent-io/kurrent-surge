@@ -69,10 +69,6 @@
     <Using Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Core\Diagnostics\Metrics\" />
-  </ItemGroup>
-
 
 
 </Project>

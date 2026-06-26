@@ -8,6 +8,10 @@
     <PackageVersion Include="Kurrent.Client" Version="$(Version)" />
     <PackageVersion Include="Kurrent.Schema.Catalogs" Version="$(Version)" />
     <PackageVersion Include="Kurrent.Streaming" Version="$(Version)" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.AutoActivation" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.9" />
   </ItemGroup>
   <!--- Packages for Client & Processors -->
   <ItemGroup>

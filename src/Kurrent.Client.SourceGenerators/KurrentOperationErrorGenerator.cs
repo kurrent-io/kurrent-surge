@@ -14,9 +14,9 @@ namespace Kurrent.Client.SourceGenerators;
 public sealed class KurrentOperationErrorGenerator : IIncrementalGenerator {
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         // The Status -> KurrentErrorDetails translation lives here, in the generator — not on the
-        // exception base. KurrentException is a pure contract type in Kurrent.Abstractions with no
+        // exception base. KurrentException is a pure contract type in Kurrent.Surge.Core with no
         // Google.Rpc coupling; this generated helper is the single transport boundary that maps a
-        // wire Status onto the BCL error shape. Emitted once, Client-only (Kurrent.Abstractions does
+        // wire Status onto the BCL error shape. Emitted once, Client-only (Kurrent.Surge.Core does
         // not reference this generator), so the Google.Rpc dependency never reaches the contract.
         context.RegisterPostInitializationOutput(static ctx =>
             ctx.AddSource("KurrentRpcStatusMapping.g.cs", SourceText.From(MappingHelperSource, Encoding.UTF8)));

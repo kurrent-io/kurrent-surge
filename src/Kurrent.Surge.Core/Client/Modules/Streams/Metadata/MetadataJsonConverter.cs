@@ -10,7 +10,7 @@ using KurrentDB.Diagnostics.Tracing;
 namespace Kurrent.Client.Streams;
 
 // The contract-layer JSON converter for Metadata: Metadata is decorated [JsonConverter(typeof(MetadataJsonConverter))],
-// so the converter must live alongside it in Kurrent.Abstractions. It is pure System.Text.Json —
+// so the converter must live alongside it in Kurrent.Surge.Core. It is pure System.Text.Json —
 // no gRPC, no client serialization layer — keyed off contract constants (SystemMetadataKeys, the
 // schema value types, and the W3C trace-context keys).
 class MetadataJsonConverter : JsonConverter<Metadata> {

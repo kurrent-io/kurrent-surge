@@ -49,7 +49,7 @@ static class CertificateLoader {
 
     static X509Certificate2 LoadFromPem(string certPath, string? keyPath, string? password) {
         if (IsNullOrEmpty(keyPath))
-        return X509CertificateLoader.LoadCertificateFromFile(certPath);
+            return X509CertificateLoader.LoadCertificateFromFile(certPath);
 
         return IsNullOrEmpty(password)
             ? X509Certificate2.CreateFromPemFile(certPath, keyPath)
