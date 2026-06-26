@@ -3,7 +3,6 @@
 using Kurrent.Client.Registry;
 using Kurrent.Schema;
 using KurrentDB.Protocol.V2.Registry.Errors;
-using Resources;
 using static System.String;
 
 using Status = Google.Rpc.Status;
@@ -15,7 +14,7 @@ public partial class SchemaNotFoundException {
     public SchemaName? Schema { get; private set; }
 
     public SchemaNotFoundException(SchemaName schema)
-        : this(Format(ErrorMessages.SchemaNotFoundException, schema)) {
+        : this(Format("Schema '{0}' was not found.", schema)) {
         Schema = schema;
     }
 
@@ -31,7 +30,7 @@ public partial class SchemaAlreadyExistsException {
     public SchemaName? Schema { get; private set; }
 
     public SchemaAlreadyExistsException(SchemaName schema)
-        : this(Format(ErrorMessages.SchemaAlreadyExistsException, schema)) {
+        : this(Format("Schema '{0}' already exists.", schema)) {
         Schema = schema;
     }
 
@@ -47,7 +46,7 @@ public partial class SchemaDeletedException {
     public SchemaName? Schema { get; private set; }
 
     public SchemaDeletedException(SchemaName schema)
-        : this(Format(ErrorMessages.SchemaDeletedException, schema)) {
+        : this(Format("Schema '{0}' has been deleted.", schema)) {
         Schema = schema;
     }
 
@@ -63,7 +62,7 @@ public class SchemaIncompatibleException : KurrentException {
 
     public SchemaIncompatibleException(SchemaCompatibilityErrors errors)
         : base(ErrorCode.From("SchemaIncompatible"),
-            ErrorMessages.SchemaIncompatibleException) {
+            "Schema compatibility check failed.") {
         Errors = errors;
     }
 }

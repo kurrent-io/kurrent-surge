@@ -18,14 +18,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The shared SDK error-message resource. Pin the logical name so it stays stable regardless of
-         RootNamespace — the generated Designer references "Kurrent.Client.Resources.ErrorMessages",
-         and Kurrent.Client (granted internals below) resolves it through this assembly. -->
-    <EmbeddedResource Update="Resources\ErrorMessages.resx"
-                      LogicalName="Kurrent.Client.Resources.ErrorMessages.resources" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- Generates the union plumbing for the IVariant contract types that move here
          (SubscribeMessage, ReadMessage, ExpectedStreamState, ConsistencyCheck, SchemaIdentifier).
          Variant ships bundled (not a standalone package), so its runtime assembly flows inside

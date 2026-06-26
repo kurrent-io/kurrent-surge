@@ -70,16 +70,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Pin the logical name so it stays stable regardless of RootNamespace.
-         The generated Designer references "Kurrent.Streaming.Resources.ErrorMessages". -->
-    <EmbeddedResource Update="Resources\ErrorMessages.resx"
-                      LogicalName="Kurrent.Streaming.Resources.ErrorMessages.resources">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="Core\Diagnostics\Metrics\" />
   </ItemGroup>
 

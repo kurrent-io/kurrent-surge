@@ -1,6 +1,5 @@
 using Kurrent.Client.Exceptions;
 using Kurrent.Validation;
-using Resources;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
@@ -43,7 +42,7 @@ public partial class StreamsClient {
             var recordSize = serialized.CalculateSize();
             if (recordSize > maxRecordSize)
                 throw new MaxAppendRecordSizeExceededException(
-                    string.Format(ErrorMessages.AppendRecordSizeExceeded, record.RecordId, recordSize, maxRecordSize)) {
+                    string.Format("Record '{0}' size {1} bytes exceeds the maximum append record size of {2} bytes.", record.RecordId, recordSize, maxRecordSize)) {
                     RecordId         = record.RecordId,
                     RecordActualSize = recordSize,
                     RecordMaxSize    = maxRecordSize
@@ -52,7 +51,7 @@ public partial class StreamsClient {
             transactionSize += recordSize;
             if (transactionSize > maxTransactionSize)
                 throw new MaxAppendTransactionSizeExceededException(
-                    string.Format(ErrorMessages.AppendTransactionSizeExceeded, transactionSize, maxTransactionSize)) {
+                    string.Format("Append transaction size {0} bytes exceeds the maximum append transaction size of {1} bytes.", transactionSize, maxTransactionSize)) {
                     TransactionActualSize = transactionSize,
                     TransactionMaxSize    = maxTransactionSize
                 };
@@ -63,8 +62,8 @@ public partial class StreamsClient {
         if (request.Records.Count == 0)
             throw new ValidationException(
                 ErrorCode.From(nameof(AppendRecords)),
-                ErrorMessages.AppendRecordsEmpty,
-                ValidationProblem.Create(ErrorCode.From("AppendRecords"), ErrorMessages.AppendRecordsEmpty));
+                "At least one record is required.",
+                ValidationProblem.Create(ErrorCode.From("AppendRecords"), "At least one record is required."));
 
         AddChecks(request, options);
 
@@ -86,18 +85,18 @@ public partial class StreamsClient {
             if (record.Stream == StreamName.Unset)
                 throw new ValidationException(
                     ErrorCode.FromType<AppendRecord>(),
-                    ErrorMessages.AppendRecordStreamRequired,
+                    "A record must have a destination stream.",
                     ValidationProblem.Create(
                         ErrorCode.FromType<AppendRecord>(),
-                        ErrorMessages.AppendRecordStreamRequired));
+                        "A record must have a destination stream."));
 
             if (record.Stream.IsAllStream)
                 throw new ValidationException(
                     ErrorCode.FromType<AppendRecord>(),
-                    ErrorMessages.AppendRecordStreamCannotBeAll,
+                    "A record cannot be appended to the '$all' stream.",
                     ValidationProblem.Create(
                         ErrorCode.FromType<AppendRecord>(),
-                        ErrorMessages.AppendRecordStreamCannotBeAll));
+                        "A record cannot be appended to the '$all' stream."));
 
             record.EnsureValid();
         }

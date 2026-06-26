@@ -1,5 +1,4 @@
 using Kurrent.Client.Exceptions;
-using Kurrent.Streaming.Resources;
 
 namespace Kurrent.Streaming;
 

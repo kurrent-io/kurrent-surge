@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Schema;
 using Kurrent.Validation;
-using Resources;
 
 namespace Kurrent.Client.Streams;
 
@@ -93,19 +92,19 @@ public record AppendRecord : SelfValidating {
         var problems = new List<ValidationProblem>();
 
         if (RecordId == Guid.Empty)
-            problems.Add(ValidationProblem.CreateForField(nameof(RecordId), ErrorMessages.AppendRecordRecordIdRequired, RecordId));
+            problems.Add(ValidationProblem.CreateForField(nameof(RecordId), "Record ID cannot be empty.", RecordId));
 
         if (Value is null)
-            problems.Add(ValidationProblem.CreateForField(nameof(Value), ErrorMessages.AppendRecordValueRequired));
+            problems.Add(ValidationProblem.CreateForField(nameof(Value), "Record value cannot be null."));
 
         if (DataFormat == SchemaDataFormat.Unspecified)
-            problems.Add(ValidationProblem.CreateForField(nameof(DataFormat), ErrorMessages.AppendRecordDataFormatRequired, DataFormat));
+            problems.Add(ValidationProblem.CreateForField(nameof(DataFormat), "Schema format cannot be Unspecified.", DataFormat));
 
         if (Value is { } && Value.IsBytes() && DataFormat != SchemaDataFormat.Bytes)
             problems.Add(
                 ValidationProblem.CreateForField(
                     nameof(DataFormat),
-                    ErrorMessages.AppendRecordByteValueRequiresBytesFormat, DataFormat));
+                    "Schema format must be 'Bytes' when the value is a byte array.", DataFormat));
 
         return problems.Count > 0
             ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])

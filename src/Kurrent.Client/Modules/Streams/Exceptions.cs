@@ -3,7 +3,6 @@
 
 using Grpc.Core;
 using Kurrent.Client.Streams;
-using Resources;
 using static System.String;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
@@ -13,7 +12,7 @@ namespace Kurrent.Client.Exceptions;
 
 [KurrentOperationError(Contracts.Errors.StreamsError.StreamNotFound)]
 public partial class StreamNotFoundException {
-    public StreamNotFoundException(StreamName stream) : this(Format(ErrorMessages.StreamNotFoundException, stream)) =>
+    public StreamNotFoundException(StreamName stream) : this(Format("Stream '{0}' was not found.", stream)) =>
         Stream = stream;
 
     public StreamName Stream { get; }
@@ -25,7 +24,7 @@ public partial class StreamAlreadyExistsException {
     public StreamName Stream         { get; private set; } = StreamName.Unset;
 
     public StreamAlreadyExistsException(StreamName stream, Revision actualRevision)
-        : this(Format(ErrorMessages.StreamRevisionConflictException, "", stream, ExpectedStreamState.NoStream, actualRevision)) {
+        : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", "", stream, ExpectedStreamState.NoStream, actualRevision)) {
         ActualRevision = actualRevision;
         Stream         = stream;
     }
@@ -33,7 +32,7 @@ public partial class StreamAlreadyExistsException {
 
 [KurrentOperationError(Contracts.Errors.StreamsError.StreamDeleted)]
 public partial class StreamDeletedException {
-    public StreamDeletedException(StreamName stream) : this(Format(ErrorMessages.StreamDeletedException, stream)) =>
+    public StreamDeletedException(StreamName stream) : this(Format("Stream '{0}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.", stream)) =>
         Stream = stream;
 
     public StreamName Stream { get; }
@@ -41,7 +40,7 @@ public partial class StreamDeletedException {
 
 [KurrentOperationError(Contracts.Errors.StreamsError.StreamTombstoned)]
 public partial class StreamTombstonedException {
-    public StreamTombstonedException(StreamName stream) : this(Format(ErrorMessages.StreamTombstonedException, stream)) =>
+    public StreamTombstonedException(StreamName stream) : this(Format("Stream '{0}' has been tombstoned. It has been permanently removed from the system and cannot be restored.", stream)) =>
         Stream = stream;
 
     public StreamName Stream { get; }
@@ -54,7 +53,7 @@ public partial class StreamRevisionConflictException {
     public StreamName Stream           { get; private set; } = StreamName.Unset;
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
-        : this(Format(format: ErrorMessages.StreamRevisionConflictException, args: [stream, expectedRevision, actualRevision])) {
+        : this(Format(format: "Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", args: [stream, expectedRevision, actualRevision])) {
         ExpectedRevision = expectedRevision;
         ActualRevision   = actualRevision;
         Stream           = stream;
@@ -73,7 +72,7 @@ public partial class AppendConsistencyViolationException {
     public IReadOnlyList<ConsistencyViolation> Violations { get; private set; } = [];
 
     public AppendConsistencyViolationException(IReadOnlyList<ConsistencyViolation> violations)
-        : this(Format(ErrorMessages.StreamRevisionConflictException, violations)) =>
+        : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", violations)) =>
         Violations = violations;
 
     public AppendConsistencyViolationException(StreamStateViolation violation) : this([violation]) { }

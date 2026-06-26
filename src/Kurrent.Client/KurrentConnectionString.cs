@@ -1,6 +1,5 @@
 using System.Net;
 using Kurrent.Client.Exceptions;
-using Resources;
 
 namespace Kurrent.Client;
 
@@ -111,7 +110,7 @@ record KurrentConnectionString {
 
         var schemeIndex = connectionString.IndexOf(SchemeSeparator, currentIndex, StringComparison.Ordinal);
         if (schemeIndex == -1)
-            throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringNoScheme);
+            throw new InvalidConnectionStringException("Could not parse scheme from connection string.");
 
         var scheme = ParseScheme(connectionString[..schemeIndex]);
 
@@ -140,10 +139,10 @@ record KurrentConnectionString {
         var hosts              = ParseHosts(connectionString.Substring(currentIndex, hostSeparatorIndex - currentIndex));
 
         if (hosts.Length == 0)
-            throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringNoEndpoints);
+            throw new InvalidConnectionStringException("Connection string must specify at least one endpoint.");
 
         if (hosts.Length > 1 && !DiscoverySchemes.Contains(scheme))
-            throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringMultipleHostsDirectScheme);
+            throw new InvalidConnectionStringException("Direct connection scheme does not support multiple hosts.");
 
         currentIndex = hostSeparatorIndex;
 
@@ -155,7 +154,7 @@ record KurrentConnectionString {
             );
 
         if (path != "" && path != "/")
-            throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidPath);
+            throw new InvalidConnectionStringException("Invalid path in connection string.");
 
         var options = new Dictionary<string, string>();
 
@@ -172,18 +171,18 @@ record KurrentConnectionString {
         static string ParseScheme(string input) =>
             AllSchemes.Contains(input)
                 ? input
-                : throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidScheme);
+                : throw new InvalidConnectionStringException("Invalid connection scheme.");
 
         static (string, string) ParseUserInfo(string input) {
             var tokens = input.Split(Colon);
             if (tokens.Length != 2)
-                throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidUserCredentials);
+                throw new InvalidConnectionStringException("Invalid user credentials format.");
 
             var username = Uri.UnescapeDataString(tokens[0]);
             var password = Uri.UnescapeDataString(tokens[1]);
 
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-                throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidUserCredentials);
+                throw new InvalidConnectionStringException("Invalid user credentials format.");
 
             return (username, password);
         }
@@ -192,7 +191,7 @@ record KurrentConnectionString {
             var hosts = input.Split(Comma).Select(hostToken => {
                     // Check for malformed host:port combinations (e.g., "host:" with trailing colon but no port)
                     if (hostToken.EndsWith(Colon) && !hostToken.EndsWith("::")) // Allow IPv6 addresses like "::1"
-                        throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost);
+                        throw new InvalidConnectionStringException("Invalid host format.");
 
                     // address can be in the form of "host:port" or just "host"
                     var token = hostToken.Split(Colon, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -201,15 +200,15 @@ record KurrentConnectionString {
                         1 => new(token[0], DefaultPort),
                         2 => int.TryParse(token[1], out var port) && port is > 0 and <= 65535
                             ? new DnsEndPoint(token[0], port)
-                            : throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost),
-                        _ => throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost)
+                            : throw new InvalidConnectionStringException("Invalid host format."),
+                        _ => throw new InvalidConnectionStringException("Invalid host format.")
                     };
 
                     return endpoint;
                 }
             ).ToArray();
 
-            return hosts.Length == 0 ? throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidHost) : hosts;
+            return hosts.Length == 0 ? throw new InvalidConnectionStringException("Invalid host format.") : hosts;
         }
 
         static Dictionary<string, string> ParseParameters(string input) {
@@ -218,7 +217,7 @@ record KurrentConnectionString {
                 (seed, option) => {
                     var (key, value) = ParseParameter(option);
                     return !seed.TryAdd(key, value)
-                        ? throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringDuplicateKey)
+                        ? throw new InvalidConnectionStringException("Duplicate parameter key in connection string.")
                         : seed;
                 }
             );
@@ -226,7 +225,7 @@ record KurrentConnectionString {
             static (string, string) ParseParameter(string input) {
                 var keyValueToken = input.Split(Equal);
                 return keyValueToken.Length != 2
-                    ? throw new InvalidConnectionStringException(ErrorMessages.ConnectionStringInvalidKeyValuePair)
+                    ? throw new InvalidConnectionStringException("Invalid key-value pair format.")
                     : (keyValueToken[0], Uri.UnescapeDataString(keyValueToken[1]));
             }
         }
