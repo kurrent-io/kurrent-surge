@@ -138,7 +138,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
                 .ListAsync(request, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return response.Indexes.Select(Index.FromProto).ToList();
+            return response.Indexes.Select(i => Index.FromProto(i)).ToList();
         }
         catch (Exception ex) {
             throw ex.AsWellKnownException();

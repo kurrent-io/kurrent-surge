@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json.Nodes;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Configuration;
 
@@ -71,5 +72,35 @@ public static class ConfigurationExtensions {
                     FlattenValue(value.ListValue.Values[i], $"{key}:{i}", dictionary);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Converts a hierarchical Protobuf <see cref="Struct"/> into a <see cref="JsonObject"/>,
+    /// preserving nesting. The contract layer (Kurrent.Abstractions) exposes connector
+    /// configuration as a BCL <see cref="JsonObject"/> rather than the protobuf type, so this is
+    /// the boundary mapper from the wire shape.
+    /// </summary>
+    public static JsonObject ToJsonObject(this Struct source) {
+        var obj = new JsonObject();
+        foreach (var field in source.Fields)
+            obj[field.Key] = ToJsonNode(field.Value);
+        return obj;
+    }
+
+    static JsonNode? ToJsonNode(Value value) =>
+        value.KindCase switch {
+            Value.KindOneofCase.NumberValue => JsonValue.Create(value.NumberValue),
+            Value.KindOneofCase.StringValue => JsonValue.Create(value.StringValue),
+            Value.KindOneofCase.BoolValue   => JsonValue.Create(value.BoolValue),
+            Value.KindOneofCase.StructValue => value.StructValue.ToJsonObject(),
+            Value.KindOneofCase.ListValue   => ToJsonArray(value.ListValue),
+            _                               => null  // NullValue and unset both map to JSON null
+        };
+
+    static JsonArray ToJsonArray(ListValue list) {
+        var array = new JsonArray();
+        foreach (var value in list.Values)
+            array.Add(ToJsonNode(value));
+        return array;
     }
 }

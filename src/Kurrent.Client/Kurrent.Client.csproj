@@ -15,13 +15,6 @@
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Pin the logical name so it stays stable regardless of RootNamespace.
-         The generated Designer references "Kurrent.Client.Resources.ErrorMessages". -->
-    <EmbeddedResource Update="Resources\ErrorMessages.resx"
-                      LogicalName="Kurrent.Client.Resources.ErrorMessages.resources" />
-  </ItemGroup>
-
   <!-- AOT/Trimming Support -->
   <PropertyGroup>
     <IsTrimmable>true</IsTrimmable>
@@ -29,6 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
+         dependency (not bundled) — Kurrent.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
+    <ProjectReference Include="..\Kurrent.Abstractions\Kurrent.Abstractions.csproj" />
     <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.
@@ -37,7 +33,10 @@
          Kurrent.Client (NuGet excludes Build,Analyzers on dependency edges by default). The generator
          is wired onto THIS project's own compilation by Directory.Build.targets (_SdkSourceRef). -->
     <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
-    <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
+    <!-- Variant.SourceGenerators (above) still runs here for the client's own IVariant unions
+         (TransportSecurity, ClientCredentials). The Variant RUNTIME assembly is NOT bundled here:
+         Kurrent.Abstractions bundles it, and Kurrent.Client gets it transitively through that package
+         reference. Bundling it in both would ship Kurrent.Variant.dll twice and conflict at restore. -->
   </ItemGroup>
 
   <ItemGroup>

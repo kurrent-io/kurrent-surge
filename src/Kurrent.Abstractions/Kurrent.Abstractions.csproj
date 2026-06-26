@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Abstractions</PackageId>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>Kurrent</RootNamespace>
+    <Title>Kurrent .NET Abstractions</Title>
+    <Product>Kurrent .NET Abstractions</Product>
+    <Description>The contract layer for the Kurrent .NET SDK: the client interfaces and the data types they accept and return — options, results, value objects, filters — with no gRPC, protobuf, or transport. Reference this to depend on the Kurrent client contract without the client implementation.</Description>
+    <PackageTags>kurrent kurrentdb abstractions contracts sdk event-sourcing</PackageTags>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The shared SDK error-message resource. Pin the logical name so it stays stable regardless of
+         RootNamespace — the generated Designer references "Kurrent.Client.Resources.ErrorMessages",
+         and Kurrent.Client (granted internals below) resolves it through this assembly. -->
+    <EmbeddedResource Update="Resources\ErrorMessages.resx"
+                      LogicalName="Kurrent.Client.Resources.ErrorMessages.resources" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Generates the union plumbing for the IVariant contract types that move here
+         (SubscribeMessage, ReadMessage, ExpectedStreamState, ConsistencyCheck, SchemaIdentifier).
+         Variant ships bundled (not a standalone package), so its runtime assembly flows inside
+         this package and transitively to Kurrent.Client. -->
+    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
+    <!-- SchemaName / SchemaDataFormat live in the message-declaration layer below the contract. -->
+    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Moved contract types carry internal members the implementation writes (e.g. Record.Value
+         has an internal set; the Internal/Validation infra is internal). The assemblies that touch
+         those internals are granted access here, by the new project. Starting set per the
+         extraction plan; the build adds any that the compiler flags as inaccessible. -->
+    <InternalsVisibleTo Include="Kurrent.Client" />
+    <InternalsVisibleTo Include="Kurrent.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
+    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
+    <!-- Added by the build: benchmarks consume the moved internal ObjectExtensions.As<T>(). -->
+    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Streaming\" />
+  </ItemGroup>
+
+</Project>

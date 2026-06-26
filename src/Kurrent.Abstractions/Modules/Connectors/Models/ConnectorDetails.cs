@@ -1,4 +1,4 @@
-using Google.Protobuf.WellKnownTypes;
+using System.Text.Json.Nodes;
 using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Connectors;
@@ -45,7 +45,7 @@ public record ConnectorDetails {
     /// <summary>
     /// Hierarchical configuration for the connector. Only populated when IncludeConfiguration is true.
     /// </summary>
-    public Struct? Configuration { get; init; }
+    public JsonObject? Configuration { get; init; }
 
     /// <summary>
     /// Timestamp when the connector configuration was last updated.

@@ -122,7 +122,7 @@ public partial class ConnectorsClient {
                 .ConfigureAwait(false);
 
             return new() {
-                Configuration           = response.Configuration,
+                Configuration           = response.Configuration?.ToJsonObject() ?? new(),
                 ConfigurationUpdateTime = response.ConfigurationUpdateTime?.ToDateTimeOffset() ?? default
             };
         }
@@ -151,7 +151,7 @@ public partial class ConnectorsClient {
             StateUpdateTime         = connector.StateUpdateTime?.ToDateTimeOffset() ?? default,
             Settings                = MapSettings(connector.Settings),
             SettingsUpdateTime      = connector.SettingsUpdateTime?.ToDateTimeOffset() ?? default,
-            Configuration           = connector.Configuration,
+            Configuration           = connector.Configuration?.ToJsonObject(),
             ConfigurationUpdateTime = connector.ConfigurationUpdateTime?.ToDateTimeOffset() ?? default,
             PositionUpdateTime      = connector.PositionUpdateTime?.ToDateTimeOffset() ?? default,
             CreateTime              = connector.CreateTime?.ToDateTimeOffset() ?? default,

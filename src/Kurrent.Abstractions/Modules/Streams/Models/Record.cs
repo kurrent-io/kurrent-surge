@@ -3,11 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
 using Kurrent.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Schema.Serialization.Json;
-using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Kurrent.Client.Streams;
 
@@ -110,12 +106,12 @@ public record Record {
     public string Category => Stream.Category;
     
     /// <summary>
-    /// Lazily-serialized JSON representation of <see cref="Value"/> for filter expression evaluation.
-    /// Returns <c>null</c> when the record is not decoded or the schema format is not JSON.
+    /// Lazily-projected JSON representation of <see cref="Value"/> for filter expression evaluation.
+    /// The decoder owns the projection — it holds the JSON serialization context, which keeps that
+    /// context (and its transitive serialization dependencies) out of the contract layer. Cached per
+    /// record. Returns <c>null</c> when the record is not decoded or its format is not JSON.
     /// </summary>
-    internal JsonNode? DecodedValueAsJson => IsDecoded && Schema.DataFormat == SchemaDataFormat.Json
-        ? field ??= JsonSerializer.SerializeToNode(Value, ValueType, KurrentJsonContext.Default)
-        : null;
+    internal JsonNode? DecodedValueAsJson => field ??= Decoder.ProjectToJson(this);
     
 	/// <summary>
 	/// Attempts to decode the record's data. The outcome reflects the record's state after
@@ -155,50 +151,13 @@ public readonly record struct Link() {
 
 public interface IRecordDecoder {
 	ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct);
-}
 
-sealed class RecordDecoder(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy? registryPolicy = null) : IRecordDecoder {
-    SchemaRegistryPolicy RegistryPolicy { get; } = registryPolicy ?? SchemaRegistryPolicy.NoRequirements;
-
-    public async ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) {
-        if (record.IsDecoded)
-            return DecodeOutcome.Decoded;
-
-        var context = new SchemaSerializationContext {
-            Stream               = record.Stream,
-            RecordSchema         = record.Schema,
-            SchemaRegistryPolicy = RegistryPolicy,
-            CancellationToken    = ct
-        };
-
-        var result = await serializerProvider
-            .GetSerializer(record.Schema.DataFormat)
-            .Deserialize(record.Data, context)
-            .ConfigureAwait(false);
-
-        switch (result) {
-            case DeserializationResult.Deserialized deserialized:
-                // The bytes pass-through "deserializes" to the raw memory itself — Data
-                // already holds it, so there is nothing to materialize: decoding is not
-                // applicable, which is exactly what Unavailable reports.
-                if (deserialized.Value is ReadOnlyMemory<byte>)
-                    return DecodeOutcome.Unavailable;
-
-                record.Value     = deserialized.Value;
-                record.ValueType = deserialized.Value.GetType();
-
-                return DecodeOutcome.Decoded;
-
-            case DeserializationResult.NoData:
-                return DecodeOutcome.NoData;
-
-            case DeserializationResult.UnknownType:
-                return DecodeOutcome.UnknownType;
-
-            default:
-                throw new ArgumentOutOfRangeException(nameof(result), result, "Unknown deserialization result");
-        }
-    }
+	/// <summary>
+	/// Projects the decoded value to a <see cref="JsonNode"/> for filter expression evaluation, or
+	/// <c>null</c> when the record is not decoded or its format is not JSON. Implementations own the
+	/// JSON serialization context, keeping it out of the contract layer.
+	/// </summary>
+	JsonNode? ProjectToJson(Record record);
 }
 
 sealed class NullableRecordDecoder : IRecordDecoder {
@@ -206,6 +165,8 @@ sealed class NullableRecordDecoder : IRecordDecoder {
 
     public ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) =>
         ValueTask.FromResult(DecodeOutcome.Unavailable);
+
+    public JsonNode? ProjectToJson(Record record) => null;
 }
 
 /// <summary>

@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Kurrent.Client.Exceptions;
 using Kurrent.Variant;
 
 namespace Kurrent.Client.Streams;
@@ -36,25 +34,6 @@ public readonly record struct StreamStateViolation() {
     public StreamName          Stream        { get; init; } = StreamName.Unset;
     public ExpectedStreamState ExpectedState { get; init; } = ExpectedStreamState.NoStream;
     public ActualStreamState   ActualState   { get; init; } = ActualStreamState.NoStream;
-
-    /// <summary>
-    /// Converts this stream state violation into the appropriate exception type based on the expected and actual states.
-    /// </summary>
-    [StackTraceHidden]
-    internal Exception ToStreamException() {
-        dynamic ex = ActualState switch {
-            _ when ActualState == ActualStreamState.NoStream   => new StreamNotFoundException(Stream),
-            _ when ActualState == ActualStreamState.Deleted    => new StreamDeletedException(Stream),
-            _ when ActualState == ActualStreamState.Tombstoned => new StreamTombstonedException(Stream),
-
-            _ when ActualState.IsRevision && ExpectedState == ExpectedStreamState.NoStream =>
-                new StreamAlreadyExistsException(Stream, ActualState.AsRevision),
-
-            _ => new StreamRevisionConflictException(Stream, ExpectedState, ActualState.AsRevision)
-        };
-
-        return ex;
-    }
 }
 
 /// <summary>

@@ -34,7 +34,10 @@ static partial class StreamsClientMapping {
     /// Tuned for high-throughput streaming — large enough to minimize round trips on sparse filters,
     /// bounded enough to avoid unbounded server work per page.
     /// </summary>
-    internal const uint DefaultMaxSearchWindow = 4096;
+    // Forwards to the single source in the contract layer (StreamDefaults), where the option
+    // types that default to it now live. Kept here so the existing StreamsClientMapping callers
+    // (and `using static StreamsClientMapping`) stay unchanged.
+    internal const uint DefaultMaxSearchWindow = StreamDefaults.DefaultMaxSearchWindow;
 
     static readonly Contracts.ReadReq.Types.Options.Types.ControlOption       DefaultControlOption       = new() { Compatibility = 1 };
     static readonly Contracts.ReadReq.Types.Options.Types.SubscriptionOptions DefaultSubscriptionOptions = new();
