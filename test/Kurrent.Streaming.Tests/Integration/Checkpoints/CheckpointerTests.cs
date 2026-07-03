@@ -4,6 +4,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
+using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ public class CheckpointerTests {
 
     Checkpointer CreateCheckpointer(
         string processorId,
-        ChannelWriter<SubscribeMessage> writer,
+        ChannelWriter<DataSourceMessage> writer,
         CheckpointOptions? options = null,
         int partitionCount = 1,
         int maxCount = 100
@@ -49,7 +50,7 @@ public class CheckpointerTests {
     public async ValueTask initialize_loads_checkpoint_from_store_and_returns_positions(CancellationToken ct) {
         // Arrange
         var processorId = CheckpointTestHelpers.ProcessorId("ckptr-init");
-        var channel     = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel     = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         // Act
@@ -66,7 +67,7 @@ public class CheckpointerTests {
     public async ValueTask initialize_resumes_from_previously_committed_checkpoint(CancellationToken ct) {
         // Arrange
         var processorId = CheckpointTestHelpers.ProcessorId("ckptr-resume");
-        var channel     = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel     = Channel.CreateBounded<DataSourceMessage>(16);
         var partitions  = Partitions(1);
 
         var checkpointer1 = CreateCheckpointer(processorId, channel.Writer);
@@ -83,7 +84,7 @@ public class CheckpointerTests {
         await checkpointer1.DisposeAsync();
 
         // Act
-        var channel2      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel2      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer2 = CreateCheckpointer(processorId, channel2.Writer);
         var positions     = await checkpointer2.Initialize(partitions, SubscriptionInitialPosition.Earliest, ct: ct);
 
@@ -95,10 +96,63 @@ public class CheckpointerTests {
     }
 
     [Test]
+    public async ValueTask initialize_with_explicit_start_resets_all_partitions_on_fresh_processor(CancellationToken ct) {
+        // Arrange — a FRESH processor (no prior checkpoint) with an explicit start override. The override must
+        // reposition EVERY owned partition; fresh, none are committed yet, which is the case the old reset
+        // silently dropped — it derived partitions from the previous checkpoint and so wrote nothing, leaving
+        // every partition to fall back to InitialPosition.
+        var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-explicit-start");
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
+        var partitions   = Partitions(3);
+        var seeded       = await Fixture.SeedTestStream(ct);
+        var startFrom    = seeded.Position;
+        var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 3);
+
+        // The override must win over this fallback: a regression that drops the start lands every partition
+        // on Latest instead, so asserting the explicit log position fails loudly.
+        var expectedLog = startFrom.Value;
+
+        // Act
+        var positions = await checkpointer.Initialize(partitions, SubscriptionInitialPosition.Latest, startFrom, ct);
+
+        // Assert — all three owned partitions repositioned to the explicit start, none left at the fallback
+        await Assert.That(positions.Length).IsEqualTo(3);
+
+        var byPartition = positions.ToDictionary(p => p.Partition);
+        foreach (var partition in partitions)
+            await Assert.That(byPartition[partition].LogPosition.Value).IsEqualTo(expectedLog);
+
+        await checkpointer.DisposeAsync();
+    }
+
+    [Test]
+    public async ValueTask initialize_with_sentinel_explicit_start_persists_the_sentinel(CancellationToken ct) {
+        // Arrange — an explicit Latest start (live-end override) on a fresh processor. Latest names the log's
+        // live end, not a record, so the reset must persist it as-is. The pre-fix store ran InspectRecord(Latest),
+        // got Record.None, and overwrote the position with an empty one — silently losing the override.
+        var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-sentinel-start");
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
+        var partitions   = Partitions(2);
+        var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 2);
+
+        // Act
+        var positions = await checkpointer.Initialize(partitions, SubscriptionInitialPosition.Earliest, LogPosition.Latest, ct);
+
+        // Assert — every owned partition still carries the Latest sentinel, intact (not wiped to an empty position)
+        await Assert.That(positions.Length).IsEqualTo(2);
+
+        var byPartition = positions.ToDictionary(p => p.Partition);
+        foreach (var partition in partitions)
+            await Assert.That(byPartition[partition].LogPosition).IsEqualTo(LogPosition.Latest);
+
+        await checkpointer.DisposeAsync();
+    }
+
+    [Test]
     public async ValueTask initialize_throws_on_empty_partitions(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-empty-parts");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         // Act & Assert
@@ -113,7 +167,7 @@ public class CheckpointerTests {
     public async ValueTask initialize_throws_on_second_call(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-double-init");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -134,7 +188,7 @@ public class CheckpointerTests {
     public async ValueTask track_before_initialize_throws(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-track-guard");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
         var position     = RecordPosition.From(LogPosition.From(1), Partition.From(0));
 
@@ -149,7 +203,7 @@ public class CheckpointerTests {
     public async ValueTask raise_checkpoint_before_initialize_throws(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-raise-guard");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         // Act & Assert
@@ -163,7 +217,7 @@ public class CheckpointerTests {
     public async ValueTask commit_before_initialize_throws(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-commit-guard");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         // Act & Assert
@@ -181,7 +235,7 @@ public class CheckpointerTests {
     public async ValueTask tracked_position_appears_in_raised_checkpoint(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-track-raise");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -207,7 +261,7 @@ public class CheckpointerTests {
     public async ValueTask multiple_tracks_are_reflected_in_checkpoint_positions(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-multi-track");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 2);
 
         await checkpointer.Initialize(Partitions(2), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -235,7 +289,7 @@ public class CheckpointerTests {
     public async ValueTask raise_interval_keeps_channel_open(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-interval-open");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -248,7 +302,7 @@ public class CheckpointerTests {
         await Assert.That(msg.Value).IsTypeOf<IntervalCheckpoint>();
 
         // Channel still open
-        await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsTrue();
+        await Assert.That(channel.Writer.TryWrite(DataSourceMessage.None)).IsTrue();
 
         await checkpointer.DisposeAsync();
     }
@@ -257,7 +311,7 @@ public class CheckpointerTests {
     public async ValueTask raise_shutdown_completes_channel(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-shutdown");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -270,7 +324,7 @@ public class CheckpointerTests {
         var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint).IsTypeOf<ShutdownCheckpoint>();
 
-        await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsFalse();
+        await Assert.That(channel.Writer.TryWrite(DataSourceMessage.None)).IsFalse();
 
         await checkpointer.DisposeAsync();
     }
@@ -279,7 +333,7 @@ public class CheckpointerTests {
     public async ValueTask raise_rebalance_completes_channel(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-rebalance");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -291,7 +345,7 @@ public class CheckpointerTests {
         channel.Reader.TryRead(out var msg);
         var checkpoint = (Checkpoint)msg.Value;
         await Assert.That(checkpoint).IsTypeOf<RebalanceCheckpoint>();
-        await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsFalse();
+        await Assert.That(channel.Writer.TryWrite(DataSourceMessage.None)).IsFalse();
 
         await checkpointer.DisposeAsync();
     }
@@ -300,7 +354,7 @@ public class CheckpointerTests {
     public async ValueTask raise_after_shutdown_throws(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-post-shutdown");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -317,7 +371,7 @@ public class CheckpointerTests {
     public async ValueTask raise_rejects_unspecified_trigger(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-unspec");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -333,7 +387,7 @@ public class CheckpointerTests {
     public async ValueTask raise_manual_keeps_channel_open(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-manual");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -347,7 +401,7 @@ public class CheckpointerTests {
         await Assert.That(checkpoint).IsNotNull();
         await Assert.That(checkpoint!.Reason).IsEqualTo("user flush");
 
-        await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsTrue();
+        await Assert.That(channel.Writer.TryWrite(DataSourceMessage.None)).IsTrue();
 
         await checkpointer.DisposeAsync();
     }
@@ -356,7 +410,7 @@ public class CheckpointerTests {
     public async ValueTask raise_caught_up_keeps_channel_open(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-caughtup");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -368,7 +422,7 @@ public class CheckpointerTests {
         channel.Reader.TryRead(out var msg);
         await Assert.That(msg.Value).IsTypeOf<CaughtUpCheckpoint>();
 
-        await Assert.That(channel.Writer.TryWrite(SubscribeMessage.None)).IsTrue();
+        await Assert.That(channel.Writer.TryWrite(DataSourceMessage.None)).IsTrue();
 
         await checkpointer.DisposeAsync();
     }
@@ -377,7 +431,7 @@ public class CheckpointerTests {
     public async ValueTask raise_produces_valid_checkpoint_id_and_timestamp(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-marker-meta");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -404,7 +458,7 @@ public class CheckpointerTests {
     public async ValueTask pending_positions_reflects_current_tracked_state(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-pending-positions");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -430,7 +484,7 @@ public class CheckpointerTests {
     public async ValueTask raise_interval_with_reason_propagates_reason(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-interval-reason");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -449,7 +503,7 @@ public class CheckpointerTests {
     public async ValueTask raise_interval_without_reason_has_null_reason(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-no-reason");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -468,7 +522,7 @@ public class CheckpointerTests {
     public async ValueTask raise_on_closed_channel_is_noop(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-closed-ch");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -488,7 +542,7 @@ public class CheckpointerTests {
     public async ValueTask commit_persists_to_store_and_is_loadable(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-commit");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -506,7 +560,7 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
 
         // Assert — new checkpointer loads the committed position
-        var channel2      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel2      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer2 = CreateCheckpointer(processorId, channel2.Writer);
         var positions     = await checkpointer2.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
 
@@ -520,7 +574,7 @@ public class CheckpointerTests {
     public async ValueTask commit_with_empty_checkpoint_id_throws(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-empty-id");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -536,7 +590,7 @@ public class CheckpointerTests {
     public async ValueTask full_track_raise_commit_cycle_across_partitions(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-full-cycle");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 3);
 
         await checkpointer.Initialize(Partitions(3), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -566,7 +620,7 @@ public class CheckpointerTests {
         await checkpointer.DisposeAsync();
 
         // Assert — new checkpointer should see the latest positions
-        var channel2      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel2      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer2 = CreateCheckpointer(processorId, channel2.Writer, partitionCount: 3);
         var positions     = await checkpointer2.Initialize(Partitions(3), SubscriptionInitialPosition.Earliest, ct: ct);
 
@@ -582,7 +636,7 @@ public class CheckpointerTests {
     public async ValueTask idle_partitions_retain_flushed_position_in_subsequent_checkpoints(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-idle-part");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer, partitionCount: 2);
 
         await checkpointer.Initialize(Partitions(2), SubscriptionInitialPosition.Earliest, ct: ct);
@@ -621,7 +675,7 @@ public class CheckpointerTests {
     public async ValueTask dispose_is_idempotent(CancellationToken ct) {
         // Arrange
         var processorId  = CheckpointTestHelpers.ProcessorId("ckptr-dispose");
-        var channel      = Channel.CreateBounded<SubscribeMessage>(16);
+        var channel      = Channel.CreateBounded<DataSourceMessage>(16);
         var checkpointer = CreateCheckpointer(processorId, channel.Writer);
 
         await checkpointer.Initialize(Partitions(1), SubscriptionInitialPosition.Earliest, ct: ct);

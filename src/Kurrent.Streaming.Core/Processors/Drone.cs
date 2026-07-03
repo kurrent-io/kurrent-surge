@@ -11,7 +11,7 @@ using Kurrent.Streaming.Gateway;
 namespace Kurrent.Streaming;
 
 sealed class Drone : IDrone {
-    readonly ISubscription      _subscription;
+    readonly IDataSource        _dataSource;
     readonly IProcessor         _processor;
     readonly Checkpointer       _checkpointer;
     readonly IStreamsClient     _streams;
@@ -20,7 +20,7 @@ sealed class Drone : IDrone {
     readonly HybridLogicalClock _clock;
     readonly TimeProvider       _timeProvider;
 
-    readonly Channel<SubscribeMessage> _channel;
+    readonly Channel<DataSourceMessage> _channel;
 
     SourceLagProbe? _sourceLagProbe;
 
@@ -30,9 +30,9 @@ sealed class Drone : IDrone {
 
     public Drone(
         ProcessorOptions options,
-        ISubscription subscription,
+        IDataSource dataSource,
         Checkpointer checkpointer,
-        Channel<SubscribeMessage> channel,
+        Channel<DataSourceMessage> channel,
         IStreamsClient streams,
         ILoggerFactory loggerFactory,
         TimeProvider timeProvider,
@@ -40,7 +40,7 @@ sealed class Drone : IDrone {
     ) {
         Options = options;
 
-        _subscription = subscription;
+        _dataSource   = dataSource;
         _checkpointer = checkpointer;
         _channel      = channel;
         _streams      = streams;
@@ -93,37 +93,18 @@ sealed class Drone : IDrone {
             .Select(Partition.From)
             .ToArray();
 
-        // Resolve explicit start position if provided (stream info may be missing)
-        var resetTo = RecordPosition.Unset;
-
-        if (Options.Subscription.StartPosition is { } explicitStart) {
-            if (explicitStart.Stream.IsUnset) {
-                var record = await _streams
-                    .InspectRecord(explicitStart.LogPosition, stoppingToken)
-                    .ConfigureAwait(false);
-
-                explicitStart = RecordPosition.From(record.Position.LogPosition, record.Stream, record.Revision);
-            }
-
-            resetTo = explicitStart;
-        }
-
-        // Load checkpoint (resetting first if explicit start was provided), start timer
+        // The checkpointer resolves the start: load committed, fold the initial-position fallback across owned
+        // partitions, reset the store when an explicit start overrides, and seed the tracker. The explicit start
+        // is a log position only — the runtime orders by log position and the client fills stream/revision
+        // currency lazily at subscribe for stream-targeted filters, so nothing to complete here.
         var startPositions = await _checkpointer
-            .Initialize(partitions, Options.Subscription.InitialPosition, resetTo, stoppingToken)
+            .Initialize(partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition, stoppingToken)
             .ConfigureAwait(false);
 
-        // Catch-up filter: skip records at or below per-partition checkpoint
-        var catchUp = startPositions.ToDictionary(p => p.Partition, p => p.LogPosition);
-
-        var lowWatermark = startPositions.Length > 0
-            ? startPositions.Min()
-            : RecordPosition.Earliest;
-
-        // Subscribe writes to channel, completes it when done. Never throws.
-        _ = _subscription.Subscribe(
-            lowWatermark, Options.Subscription.Filter,
-            Options.SkipDecoding, stoppingToken);
+        // The data source is feed-only: it subscribes from the least-advanced start, tags partitions, and prunes
+        // the caught-up prefix against the floors these positions carry — so the Run loop below sees only new
+        // records. It writes to the channel and completes it when done (faulting it on failure). Never throws.
+        _ = _dataSource.Connect(_channel.Writer, startPositions, stoppingToken);
 
         // Optional source-lag probe (opt-in). It reads the readable log head on a fixed cadence —
         // the only way a gRPC client learns the head moved ahead — and reports the lag gauges.
@@ -141,7 +122,7 @@ sealed class Drone : IDrone {
         Exception? fatalError = null;
 
         try {
-            await Run(catchUp).ConfigureAwait(false);
+            await Run(partitions).ConfigureAwait(false);
         }
         catch (ChannelClosedException ex) {
             fatalError = ex.InnerException;
@@ -150,49 +131,20 @@ sealed class Drone : IDrone {
             fatalError = ex;
         }
 
-        // Channel closed — subscription ended, the user stopped, or a processing failure faulted the loop.
-        // If the user stopped, the Shutdown barrier already committed pending positions.
-        // If the subscription ended naturally, pending positions may remain.
-        //
-        // Run the final barrier on a clean exit OR a ProcessBatch failure: a processing failure must still
-        // flush the frontier the user transparently tracked before throwing — OnCheckpoint runs and those
-        // positions commit — instead of dropping the user's durable intent and replaying the whole batch.
-        // Do NOT run it on an OnCheckpoint failure: the hook just threw, so re-running it would only fault
-        // again. The discriminator is the PROCESS_BATCH_FAILED code carried by the wrapping DroneException.
-        var isProcessFailure = fatalError is DroneException { ErrorDetails.ErrorCode.Value: "PROCESS_BATCH_FAILED" };
-
-        if ((fatalError is null || isProcessFailure) && _checkpointer.HasPendingPositions) {
-            var now = _clock.Now();
-            var checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
-            await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
-        }
-
-        await Shutdown(fatalError).ConfigureAwait(false);
+        // The final barrier — flush pending positions on a clean exit or a ProcessBatch failure — is part
+        // of shutdown now (see Shutdown).
+        await Shutdown(fatalError, partitions).ConfigureAwait(false);
     }
 
-    async Task Run(Dictionary<Partition, LogPosition> catchUp) {
-        // The drone's owned partitions — the broadcast target for server watermarks (see HandleCheckpoint).
-        var partitions = catchUp.Keys.ToArray();
-        var stopping   = false;
-
-        // Caught-up records (position <= the loaded per-partition checkpoint) are an initial prefix only:
-        // the log is ordered, so once a record clears the highest loaded checkpoint no earlier one can
-        // follow. Prune that prefix ONCE, before dispatch, then latch the filter off so the steady-state
-        // hot path never pays the per-record compare again. A fresh start (no checkpoint) has nothing to skip.
-        //
-        // Only REAL committed positions are floors. The Latest sentinel (a SubscriptionInitialPosition.Latest
-        // start seeds Latest = long.MaxValue) and Unset must NOT prune — every real record is <= Latest, which
-        // would silently drop the whole live stream. So they are excluded from both the floor and the latch.
-        var realFloors       = catchUp.Values.Where(IsRealFloor).ToArray();
-        var maxCatchUp       = realFloors.Length > 0 ? realFloors.Max() : LogPosition.Earliest;
-        var caughtUpComplete = realFloors.Length == 0;
+    async Task Run(Partition[] partitions) {
+        var stopping = false;
 
         // Single batched read of the channel: records accumulate into a RecordBatch; Connected and
-        // Checkpoint markers flush the pending batch and pass through. Batch size/window come from
-        // options, not the processor — the only branch below is how a flushed batch is dispatched.
+        // Checkpoint markers flush the pending batch and pass through. The data source already pruned the
+        // caught-up prefix, so every batch here is new work — no per-partition catch-up filter in this loop.
         var stream = _channel.Reader
             .ReadAllAsync(CancellationToken.None)
-            .ReadBatched<SubscribeMessage, Record, BatchedSubscribeMessage>(
+            .ReadBatched<DataSourceMessage, Record, BatchedSubscribeMessage>(
                 Options.Batching.MaxBatchSize, Options.Batching.BatchWindow,
                 classify: static msg => msg.Match<BatchAction<Record, BatchedSubscribeMessage>>(
                     static connected  => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(connected),
@@ -203,16 +155,6 @@ sealed class Drone : IDrone {
 
         await foreach (var output in stream.ConfigureAwait(false)) {
             var value = output.Value;
-
-            // Prune the caught-up prefix once, before dispatch, so every processor shape (batch-native and
-            // the per-record dispatcher) sees only new records — neither HandleBatch nor DispatchPerRecord
-            // filters. After the prefix is crossed the filter is latched off and never runs again.
-            if (!caughtUpComplete && value is RecordBatch raw) {
-                value = PruneCaughtUp(raw);
-
-                if (value is RecordBatch { Count: 0 })
-                    continue; // whole batch was already processed in a prior run
-            }
 
             // Outer stop scope: once stopping, skip later batches AND server scan watermarks
             // (Filter / CaughtUp). The batched read pulls a trailing watermark in ahead of the stop;
@@ -257,37 +199,8 @@ sealed class Drone : IDrone {
             }
         }
 
-        // A real catch-up floor is a concrete committed position. The Latest / Unset sentinels mean "no
-        // prior progress" (Latest = subscribe from the live end), so they never prune.
-        static bool IsRealFloor(LogPosition floor) =>
-            floor != LogPosition.Latest && floor != LogPosition.Unset;
-
-        // Prune the caught-up prefix from a freshly read batch, dropping records at or below their
-        // partition's loaded checkpoint. Latches `caughtUpComplete` once a record clears the highest
-        // checkpoint — the log is ordered, so no later batch can carry a caught-up record after that.
-        RecordBatch PruneCaughtUp(RecordBatch batch) {
-            List<Record>? kept = null;
-
-            for (var i = 0; i < batch.Count; i++) {
-                var record   = batch[i];
-                var position = record.Position.LogPosition;
-
-                if (position > maxCatchUp)
-                    caughtUpComplete = true;
-
-                if (catchUp.TryGetValue(record.Position.Partition, out var cp) && IsRealFloor(cp) && position <= cp)
-                    kept ??= [..batch.Take(i)]; // first drop — copy the survivors seen so far
-                else
-                    kept?.Add(record);          // already copying — keep this survivor
-            }
-
-            // Nothing was dropped: return the original batch untouched (no allocation).
-            return kept is null ? batch : RecordBatch.From([..kept]);
-        }
-
         // Inner stop scope: closure over `stopping` so a record requesting stop can break out of its
-        // batch and close the outer scope. The batch is already pruned in Run, so the per-record path
-        // no longer filters caught-up records itself.
+        // batch and close the outer scope.
         async ValueTask DispatchPerRecord(IRecordProcessor processor, RecordBatch batch) {
             foreach (var record in batch) {
                 var result = await HandleRecord(processor, record).ConfigureAwait(false);
@@ -542,7 +455,24 @@ sealed class Drone : IDrone {
 
     #region ->> Shutdown <<-
 
-    async ValueTask Shutdown(Exception? fatalError = null) {
+    async ValueTask Shutdown(Exception? fatalError, Partition[] partitions) {
+        // Channel closed — subscription ended, the user stopped, or a processing failure faulted the loop.
+        // If the user stopped, the Shutdown barrier already committed pending positions.
+        // If the subscription ended naturally, pending positions may remain.
+        //
+        // Run the final barrier on a clean exit OR a ProcessBatch failure: a processing failure must still
+        // flush the frontier the user transparently tracked before throwing — OnCheckpoint runs and those
+        // positions commit — instead of dropping the user's durable intent and replaying the whole batch.
+        // Do NOT run it on an OnCheckpoint failure: the hook just threw, so re-running it would only fault
+        // again. The discriminator is the PROCESS_BATCH_FAILED code carried by the wrapping DroneException.
+        var isProcessFailure = fatalError is DroneException { ErrorDetails.ErrorCode.Value: "PROCESS_BATCH_FAILED" };
+
+        if ((fatalError is null || isProcessFailure) && _checkpointer.HasPendingPositions) {
+            var now = _clock.Now();
+            var checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
+            await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
+        }
+
         var progress   = Progress;
         var throughput = progress.Throughput;
 
@@ -570,13 +500,6 @@ sealed class Drone : IDrone {
 
         try {
             await _checkpointer.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex) {
-            errors.Add(ex);
-        }
-
-        try {
-            await _subscription.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex) {
             errors.Add(ex);

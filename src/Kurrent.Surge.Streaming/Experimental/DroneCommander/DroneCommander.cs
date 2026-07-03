@@ -51,7 +51,7 @@ sealed record ChildCompleted(int Partition)                           : Commande
 /// commander yet (children receive only records). At-least-once; strict 2PC is out of scope.</item>
 /// <item><b>Head-of-line blocking.</b> One subscription → N bounded child channels (Wait). A slow drone
 /// stalls the shared reader. Pluggable back-pressure and the dead-letter strategy are later knobs.</item>
-/// <item><b>Partition key.</b> Records route on the partition <see cref="SubscriptionSource"/> stamps.</item>
+/// <item><b>Partition key.</b> Records route on the partition <see cref="KdbDataSource"/> stamps.</item>
 /// </list>
 /// </remarks>
 sealed class DroneCommander(ProcessorOptions options, Func<IProcessor> processorFactory) {
@@ -75,10 +75,19 @@ sealed class DroneCommander(ProcessorOptions options, Func<IProcessor> processor
 
         // Ingest carries the subscription's records + server checkpoints AND the Checkpointer's interval /
         // manual checkpoints — two writers, exactly like a single Drone's channel.
-        var ingest = Channel.CreateBounded<SubscribeMessage>(
+        var ingest = Channel.CreateBounded<DataSourceMessage>(
             new BoundedChannelOptions(bufferCapacity) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true, SingleWriter = false });
 
-        var subscription = new SubscriptionSource(client, options, ingest.Writer);
+        var dataSource = new KdbDataSource(
+            new KdbDataSourceOptions {
+                Filter               = options.Subscription.Filter,
+                SkipDecoding         = options.SkipDecoding,
+                PartitionKeySelector = options.Subscription.PartitionKeySelector,
+                MaxParallelism       = maxP,
+                ResiliencePipeline   = options.BuildResiliencePipeline(options.ClientOptions.LoggerFactory)
+            },
+            streams,
+            options.ClientOptions.LoggerFactory);
         var checkpointer = new Checkpointer(options.DroneId, options.Checkpoint, store, ingest.Writer, TimeProvider.System);
 
         var control = Channel.CreateUnbounded<CommanderEvent>(new UnboundedChannelOptions { SingleReader = true });
@@ -87,15 +96,14 @@ sealed class DroneCommander(ProcessorOptions options, Func<IProcessor> processor
 
         // Load the aggregated floors and start the interval timer (gated on AutoCheckpoint, inside Initialize).
         var startPositions   = await checkpointer.Initialize(partitions, options.Subscription.InitialPosition, shutdown.Token).ConfigureAwait(false);
-        var startPosition    = startPositions.Length > 0 ? startPositions.Min() : RecordPosition.Earliest;
         var floorByPartition = startPositions.ToDictionary(p => p.Partition);
 
         // One channel + one drone per partition. Each child channel has a single writer (the demux).
-        var childChannels = new Channel<SubscribeMessage>[maxP];
+        var childChannels = new Channel<DataSourceMessage>[maxP];
         var childTasks    = new Task[maxP];
 
         for (var i = 0; i < maxP; i++) {
-            var channel = Channel.CreateBounded<SubscribeMessage>(
+            var channel = Channel.CreateBounded<DataSourceMessage>(
                 new BoundedChannelOptions(bufferCapacity) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true, SingleWriter = true });
 
             childChannels[i] = channel;
@@ -113,7 +121,7 @@ sealed class DroneCommander(ProcessorOptions options, Func<IProcessor> processor
 
         try {
             var controlling = ControlLoop();
-            var subscribing = subscription.Subscribe(startPosition, options.Subscription.Filter, options.SkipDecoding, shutdown.Token);
+            var subscribing = dataSource.Connect(ingest.Writer, startPositions, shutdown.Token);
 
             await Demux().ConfigureAwait(false);
             CompleteChildChannels();
@@ -224,13 +232,13 @@ sealed class DroneCommander(ProcessorOptions options, Func<IProcessor> processor
                 channel.Writer.TryComplete();
         }
 
-        async ValueTask Broadcast(SubscribeMessage message) {
+        async ValueTask Broadcast(DataSourceMessage message) {
             foreach (var channel in childChannels)
                 await Offer(channel.Writer, message).ConfigureAwait(false);
         }
 
         // A write to a stopped/completed child channel during teardown is expected; bounded + Wait blocks.
-        static async ValueTask Offer(ChannelWriter<SubscribeMessage> writer, SubscribeMessage message) {
+        static async ValueTask Offer(ChannelWriter<DataSourceMessage> writer, DataSourceMessage message) {
             try {
                 await writer.WriteAsync(message, CancellationToken.None).ConfigureAwait(false);
             }

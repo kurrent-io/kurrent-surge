@@ -49,15 +49,16 @@ message PartitionsCheckpointed {
   google.protobuf.Timestamp  timestamp = 5;
 }
 
-// Checkpoint was reset to a specific position.
-// Empty positions  = full reset (barrier, all prior events superseded).
-// Positions present = selective reset (those partitions repositioned, others unaffected).
+// Checkpoint was reset to a single global position — a barrier: all prior events are superseded and
+// every partition resumes from this one position (fanned across the group on load). The position may be
+// a sentinel: -1 (Earliest, log start), long.MaxValue (Latest, live end), or -1000 (Unset = full wipe,
+// partitions fall back to the configured initial position).
 message CheckpointReset {
   string processor_id  = 1;
   string drone_id      = 2;
   string checkpoint_id = 3;
-  
-  repeated PartitionPosition positions = 4;
-  
+
+  sint64 position = 4;
+
   google.protobuf.Timestamp  timestamp = 5;
 }

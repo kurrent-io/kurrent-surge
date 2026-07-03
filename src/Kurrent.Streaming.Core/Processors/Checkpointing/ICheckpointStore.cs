@@ -22,21 +22,15 @@ public interface ICheckpointStore {
         CancellationToken ct = default);
 
     /// <summary>
-    /// Resets specific partition positions. Empty positions = full reset (all prior state wiped).
+    /// Resets the whole processor group to a single log position — a barrier that supersedes all prior
+    /// state; every partition resumes from <paramref name="position"/>. <see cref="LogPosition.Unset"/>
+    /// is a full wipe (partitions fall back to the configured initial position). Sentinels are allowed.
     /// </summary>
     /// <returns>The previous checkpoint before the reset.</returns>
     ValueTask<ProcessorCheckpoint> ResetAsync(
         string droneId,
         string checkpointId,
-        RecordPosition[] positions,
-        CancellationToken ct = default);
-
-    /// <summary>Resets all partitions to the same position.</summary>
-    /// <returns>The previous checkpoint before the reset.</returns>
-    ValueTask<ProcessorCheckpoint> ResetAsync(
-        string droneId,
-        string checkpointId,
-        RecordPosition position,
+        LogPosition position,
         CancellationToken ct = default);
 }
 

@@ -297,47 +297,6 @@ public class CheckpointStoreTests {
 	#region ->> Reset <<-
 
 	[Test]
-	public async ValueTask reset_with_empty_positions_acts_as_full_wipe(CancellationToken ct) {
-		// Arrange
-		var processorId = CheckpointTestHelpers.ProcessorId("test-wipe");
-		var store       = CreateStore(processorId);
-		var positions   = CheckpointTestHelpers.Positions((0, 1000), (1, 2000));
-
-		await store.StoreAsync("drone-1", TestId.New(), positions, ct);
-
-		// Act — full wipe (empty positions = barrier)
-		await store.ResetAsync("drone-1", TestId.New(), [], ct);
-		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
-
-		// Assert
-		await Assert.That(checkpoint).IsEqualTo(ProcessorCheckpoint.Empty);
-	}
-
-	[Test]
-	public async ValueTask reset_with_positions_overrides_specified_partitions(CancellationToken ct) {
-		// Arrange
-		var processorId    = CheckpointTestHelpers.ProcessorId("test-selective-reset");
-		var store          = CreateStore(processorId);
-		var stream         = $"test-stream-{TestId.New()}";
-		var initialPos     = CheckpointTestHelpers.PositionsWithStream(
-			(0, 1000, stream, 0), (1, 2000, stream, 1), (2, 3000, stream, 2)
-		);
-		var resetPositions = CheckpointTestHelpers.PositionsWithStream((1, 500, stream, 0));
-
-		await store.StoreAsync("drone-1", TestId.New(), initialPos, ct);
-
-		// Act — selective reset: only partition 1 repositioned
-		await store.ResetAsync("drone-1", TestId.New(), resetPositions, ct);
-		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
-
-		// Assert — partition 1 was reset, others preserved
-		var byPartition = checkpoint.Positions.ToDictionary(x => x.Partition);
-		await Assert.That(byPartition[Partition.From(0)].LogPosition.Value).IsEqualTo(1000);
-		await Assert.That(byPartition[Partition.From(1)].LogPosition.Value).IsEqualTo(500);
-		await Assert.That(byPartition[Partition.From(2)].LogPosition.Value).IsEqualTo(3000);
-	}
-
-	[Test]
 	public async ValueTask reset_with_unset_position_performs_full_wipe(CancellationToken ct) {
 		// Arrange
 		var processorId = CheckpointTestHelpers.ProcessorId("test-unset-reset");
@@ -346,8 +305,8 @@ public class CheckpointStoreTests {
 
 		await store.StoreAsync("drone-1", TestId.New(), positions, ct);
 
-		// Act — RecordPosition.Unset = full wipe
-		await store.ResetAsync("drone-1", TestId.New(), RecordPosition.Unset, ct);
+		// Act — LogPosition.Unset = full wipe (barrier with no baseline; nothing survives)
+		await store.ResetAsync("drone-1", TestId.New(), LogPosition.Unset, ct);
 		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert
@@ -358,9 +317,8 @@ public class CheckpointStoreTests {
 	public async ValueTask reset_with_position_repositions_all_partitions(CancellationToken ct) {
 		// Arrange — seed a real event to get a valid log position for reset
 		var processorId     = CheckpointTestHelpers.ProcessorId("test-pos-reset");
-		var store           = CreateStore(processorId);
+		var store           = CreateStore(processorId, partitionCount: 3);
 		var seeded          = await Fixture.SeedTestStream(ct);
-		var resetToPosition = RecordPosition.From(seeded.Position.Value);
 		var positions       = CheckpointTestHelpers.PositionsWithStream(
 			(0, seeded.Position.Value + 100, seeded.Stream, 0),
 			(1, seeded.Position.Value + 200, seeded.Stream, 1),
@@ -369,8 +327,8 @@ public class CheckpointStoreTests {
 
 		await store.StoreAsync("drone-1", TestId.New(), positions, ct);
 
-		// Act — reset all partitions to the seeded position
-		await store.ResetAsync("drone-1", TestId.New(), resetToPosition, ct);
+		// Act — reset the whole group to the single seeded position (supersedes the prior commits)
+		await store.ResetAsync("drone-1", TestId.New(), seeded.Position, ct);
 		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 
 		// Assert — all partitions at the reset position
@@ -392,7 +350,7 @@ public class CheckpointStoreTests {
 		await store.StoreAsync("drone-1", TestId.New(), oldPositions, ct);
 
 		// Act — wipe then store new data
-		await store.ResetAsync("drone-1", TestId.New(), [], ct);
+		await store.ResetAsync("drone-1", TestId.New(), LogPosition.Unset, ct);
 		await store.StoreAsync("drone-1", TestId.New(), newPositions, ct);
 		var checkpoint = await store.LoadLatestAsync("drone-1", ct);
 

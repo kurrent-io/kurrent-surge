@@ -4,26 +4,6 @@ using Kurrent.Client.Streams;
 
 namespace Kurrent.Appender;
 
-interface IAppender : IAsyncDisposable {
-    /// <summary>
-    /// Serializes the record on the caller's thread and enqueues it for batched append.
-    /// The callback is invoked when the batch containing this record is acknowledged (or fails).
-    /// </summary>
-    ValueTask Append(AppendRecord record, Action<AppendResult> callback, CancellationToken ct = default);
-
-    /// <summary>
-    /// Serializes the record on the caller's thread and enqueues it. Returns a
-    /// <see cref="ValueTask{T}"/> that completes when the batch containing this record
-    /// is acknowledged by the server.
-    /// </summary>
-    ValueTask<AppendResult> AppendAsync(AppendRecord record, CancellationToken ct = default);
-
-    /// <summary>
-    /// Flushes all buffered records across all lanes, blocking until all pending batches are sent.
-    /// </summary>
-    ValueTask FlushAsync(CancellationToken ct = default);
-}
-
 /// <summary>
 /// High-throughput buffered producer that serializes records on the caller's thread
 /// and flushes them in batches via the <c>AppendRecords</c> unary RPC.
@@ -61,7 +41,7 @@ sealed class Appender : IAppender {
         _streams = _client.Streams;
 
         //TODO SS: could the default lane be 0 if we simply start the keyed lanes on 1? :)
-        
+
         _defaultLane = new FlushLane(options, _streams, _stopping.Token);
 
         _keyedLanes = new FlushLane[options.Concurrency];

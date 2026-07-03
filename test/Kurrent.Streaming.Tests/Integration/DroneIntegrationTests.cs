@@ -119,6 +119,40 @@ public class DroneIntegrationTests {
         await Assert.That(recordCount).IsEqualTo(processor.Records.Length);
     }
 
+    [Test]
+    public async ValueTask on_connected_fires_with_the_server_session(CancellationToken ct) {
+        // Arrange — the client yields a Connected marker at subscription start. The data source must forward it
+        // so the drone fires OnConnected with the server-assigned session (it never did before the source
+        // dropped the marker). Process to the end of the stream, then stop.
+        var data = await Fixture.SeedTestStream(5, ct);
+
+        var processor = new TestableRecordProcessor {
+            OnProcessRecord = ctx => {
+                if (ctx.Record.Position.LogPosition >= data.Position)
+                    ctx.StopProcessing();
+
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        var drone = KurrentProcessor.Create(processor, opts => {
+            opts.Connection(
+                Fixture.ConnectionString,
+                client => client.LoggerFactory = Fixture.LoggerFactory);
+
+            opts.ProcessorId                  = $"drone-onconnected-{TestId.New()}";
+            opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        });
+
+        // Act
+        await drone.RunAsync(ct);
+
+        // Assert — OnConnected fired at least once, carrying a real (non-unset) session id.
+        await Assert.That(processor.Connected.Count).IsGreaterThanOrEqualTo(1);
+        await Assert.That(processor.Connected[0].SessionId).IsNotEqualTo(SessionId.Unset);
+    }
+
     #endregion // processing
 
     #region ->> stop and cancel <<-

@@ -33,7 +33,7 @@ public sealed class ProcessContext(Record record, Func<object, CancellationToken
 
 /// <summary>
 /// The KurrentDB source. Yields the existing batched union; the batched stream is produced by the
-/// existing machinery — <c>SubscriptionSource.Subscribe(...)</c> → channel →
+/// existing machinery — the data source feed → channel →
 /// <c>ReadBatched&lt;SubscribeMessage, Record, BatchedSubscribeMessage&gt;(...)</c> — i.e. exactly
 /// <c>Drone.Run</c>'s stream, lifted out unchanged.
 /// </summary>

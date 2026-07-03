@@ -42,6 +42,8 @@
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Client" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />

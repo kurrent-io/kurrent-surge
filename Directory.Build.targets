@@ -209,6 +209,7 @@
   <ItemGroup Condition="'$(TestPackages)' != 'true'">
     <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Client'))" />
     <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Streaming.Core'))" />
+    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge.Streaming'))" />
     <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Schema.Catalogs'))" />
   </ItemGroup>
 

@@ -156,7 +156,7 @@ public sealed class AgnosticPipeline(
 
 /// <summary>
 /// Maps the existing batched union to generic signals. The batched stream is produced by the existing
-/// machinery (<c>SubscriptionSource.Subscribe</c> → channel → <c>ReadBatched</c>) — i.e. <c>Drone.Run</c>'s
+/// machinery (the data source feed → channel → <c>ReadBatched</c>) — i.e. <c>Drone.Run</c>'s
 /// stream, lifted out. This is the only file that names <c>Record</c>, <c>RecordBatch</c>, or <c>Checkpoint</c>.
 ///
 /// SS: this is more complicated because it would hide all that stuff like the Subscription source contrary to the coments above ffs...

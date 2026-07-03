@@ -19,7 +19,7 @@ namespace Benchmarks;
 /// </summary>
 /// <remarks>
 /// The drone is single-use (<c>RunAsync</c> guards against re-entry), so each invocation builds a fresh
-/// channel + checkpointer + subscription + drone. That wiring is cheap and identical across arms, so the
+/// channel + checkpointer + data source + drone. That wiring is cheap and identical across arms, so the
 /// per-record vs batch and batch-size comparisons stay valid; record generation is hoisted to setup.
 /// The channel is bounded exactly as production wires it (capacity = MaxBatchSize × BufferMultiplier), so
 /// the size-1 case pays the real backpressure cost. AutoCheckpoint is off to keep the interval timer out of
@@ -59,7 +59,7 @@ public class DroneDispatchBenchmarks {
     public ValueTask<long> Batch() => RunDrone(new NoopBatchProcessor());
 
     async ValueTask<long> RunDrone(IProcessor processor) {
-        var channel = Channel.CreateBounded<SubscribeMessage>(
+        var channel = Channel.CreateBounded<DataSourceMessage>(
             new BoundedChannelOptions(MaxBatchSize * BufferMultiplier) {
                 FullMode     = BoundedChannelFullMode.Wait,
                 SingleReader = true,
@@ -74,10 +74,10 @@ public class DroneDispatchBenchmarks {
             options.DroneId, options.Checkpoint, new BenchCheckpointStore(),
             channel.Writer, TimeProvider.System);
 
-        var subscription = new BenchSubscription(channel.Writer, _connected, _records);
+        var dataSource = new BenchDataSource(_connected, _records);
 
         var drone = new Drone(
-            options, subscription, checkpointer, channel,
+            options, dataSource, checkpointer, channel,
             streams: null!, NullLoggerFactory.Instance, TimeProvider.System, processor);
 
         await drone.RunAsync(CancellationToken.None).ConfigureAwait(false);
@@ -94,9 +94,9 @@ sealed class NoopBatchProcessor : IRecordBatchProcessor {
     public ValueTask ProcessBatch(BatchContext context) => ValueTask.CompletedTask;
 }
 
-/// <summary>In-memory subscription: dumps a pre-built Connected + record set into the drone's channel.</summary>
-sealed class BenchSubscription(ChannelWriter<SubscribeMessage> writer, Connected connected, Record[] records) : ISubscription {
-    public async Task Subscribe(RecordPosition startPosition, RecordFilter filter, bool skipDecoding, CancellationToken ct) {
+/// <summary>In-memory data source: dumps a pre-built Connected + record set into the drone's channel.</summary>
+sealed class BenchDataSource(Connected connected, Record[] records) : IDataSource {
+    public async Task Connect(ChannelWriter<DataSourceMessage> writer, RecordPosition[] startPositions, CancellationToken ct) {
         try {
             await writer.WriteAsync(connected, ct).ConfigureAwait(false);
 
@@ -109,8 +109,6 @@ sealed class BenchSubscription(ChannelWriter<SubscribeMessage> writer, Connected
             writer.TryComplete(ex);
         }
     }
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
 /// <summary>In-memory checkpoint store: floors every partition at Earliest, persists nothing.</summary>
@@ -132,9 +130,6 @@ sealed class BenchCheckpointStore : ICheckpointStore {
     public ValueTask StoreAsync(string droneId, string checkpointId, RecordPosition[] positions, CancellationToken ct = default) =>
         ValueTask.CompletedTask;
 
-    public ValueTask<ProcessorCheckpoint> ResetAsync(string droneId, string checkpointId, RecordPosition[] positions, CancellationToken ct = default) =>
-        new(ProcessorCheckpoint.Empty);
-
-    public ValueTask<ProcessorCheckpoint> ResetAsync(string droneId, string checkpointId, RecordPosition position, CancellationToken ct = default) =>
+    public ValueTask<ProcessorCheckpoint> ResetAsync(string droneId, string checkpointId, LogPosition position, CancellationToken ct = default) =>
         new(ProcessorCheckpoint.Empty);
 }

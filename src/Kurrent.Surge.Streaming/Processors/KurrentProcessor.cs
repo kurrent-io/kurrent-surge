@@ -90,7 +90,7 @@ public sealed class KurrentProcessor {
 		// is in flight — capacity is a multiple of the batch size, never smaller than it.
 		var bufferCapacity = _options.Batching.MaxBatchSize * _options.Batching.BufferMultiplier;
 
-		var channel = Channel.CreateBounded<SubscribeMessage>(
+		var channel = Channel.CreateBounded<DataSourceMessage>(
 			new BoundedChannelOptions(bufferCapacity) {
 				FullMode     = BoundedChannelFullMode.Wait,
 				SingleReader = true,
@@ -114,14 +114,28 @@ public sealed class KurrentProcessor {
 			TimeProvider.System
 		);
 
-		var subscription = new SubscriptionSource(client, _options, channel.Writer);
+		var streams = new StreamsClient(client);
+
+		// Feed-only data source: maps the subscription knobs off ProcessorOptions and reuses the processor's
+		// reconnection pipeline. ResolveLinks / MaxSearchWindow stay at their KdbDataSourceOptions defaults —
+		// the same values the previous subscription wiring left unset — so behavior is unchanged.
+		var dataSource = new KdbDataSource(
+			new KdbDataSourceOptions {
+				Filter               = _options.Subscription.Filter,
+				SkipDecoding         = _options.SkipDecoding,
+				PartitionKeySelector = _options.Subscription.PartitionKeySelector,
+				MaxParallelism       = _options.MaxParallelism,
+				ResiliencePipeline   = _options.BuildResiliencePipeline(_options.ClientOptions.LoggerFactory)
+			},
+			streams,
+			_options.ClientOptions.LoggerFactory);
 
 		return new Drone(
 			_options,
-			subscription,
+			dataSource,
 			checkpointer,
 			channel,
-			new StreamsClient(client),
+			streams,
 			client.Options.LoggerFactory,
 			TimeProvider.System,
 			_processor

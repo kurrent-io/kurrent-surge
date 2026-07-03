@@ -4,6 +4,7 @@ using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Diagnostics;
+using Kurrent.Streaming.Gateway;
 
 namespace Kurrent.Streaming;
 
@@ -22,7 +23,7 @@ sealed class ChildDrone : IDrone {
     readonly ProgressTracker               _progress;
     readonly DroneTelemetry                _telemetry;
     readonly bool                          _autoTrack;
-    readonly Channel<SubscribeMessage>     _channel;
+    readonly Channel<DataSourceMessage>     _channel;
 
     // The committable frontier for this child's single partition — owned by the Run loop, reported to the
     // commander after each batch. No sharing, no locks.
@@ -36,7 +37,7 @@ sealed class ChildDrone : IDrone {
         ProcessorOptions options,
         Partition partition,
         RecordPosition floor,
-        Channel<SubscribeMessage> channel,
+        Channel<DataSourceMessage> channel,
         ChannelWriter<CommanderEvent> control,
         ILoggerFactory loggerFactory,
         TimeProvider timeProvider,
@@ -107,7 +108,7 @@ sealed class ChildDrone : IDrone {
             // read still classifies the union — anything that isn't a record batch is ignored below.
             var stream = _channel.Reader
                 .ReadAllAsync(CancellationToken.None)
-                .ReadBatched<SubscribeMessage, Record, BatchedSubscribeMessage>(
+                .ReadBatched<DataSourceMessage, Record, BatchedSubscribeMessage>(
                     Options.Batching.MaxBatchSize, Options.Batching.BatchWindow,
                     classify: static msg => msg.Match<BatchAction<Record, BatchedSubscribeMessage>>(
                         static connected  => BatchAction<Record, BatchedSubscribeMessage>.FlushThenYield(connected),

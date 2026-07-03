@@ -105,11 +105,15 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
                     if (latestTimestamp == DateTimeOffset.MinValue)
                         latestTimestamp = reset.Timestamp?.ToDateTimeOffset() ?? DateTimeOffset.MinValue;
 
-                    if (reset.Positions.Count == 0)
-                        break;
+                    // The reset is a single global position — a barrier. Fan it across every partition that
+                    // has not committed since (already-collected partitions keep their newer commit). Unset
+                    // is a full wipe: fan nothing, so ResolveStartPositions falls the group back to the
+                    // configured InitialPosition.
+                    if (LogPosition.From(reset.Position) != LogPosition.Unset)
+                        for (var partition = 0; partition < _partitionCount; partition++)
+                            partitions.TryAdd(partition, new PartitionPosition { Partition = partition, Position = reset.Position });
 
-                    foreach (var pos in reset.Positions)
-                        partitions.TryAdd(pos.Partition, pos);
+                    break;
                 }
                 else if (value is PartitionsCheckpointed evt) {
                     if (latestTimestamp == DateTimeOffset.MinValue)
@@ -156,34 +160,22 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     protected override async ValueTask OnResetAsync(
         string droneId,
         string checkpointId,
-        RecordPosition[] positions,
+        LogPosition position,
         CancellationToken ct
     ) {
-        for (var i = 0; i < positions.Length; i++) {
-            if (positions[i].Stream.IsUnset) {
-                var record = await _client
-                    .InspectRecord(positions[i].LogPosition, ct)
-                    .ConfigureAwait(false);
-
-                positions[i] = RecordPosition.From(
-                    record.Position.LogPosition,
-                    record.Stream,
-                    record.Revision,
-                    positions[i].Partition);
-            }
-        }
-
+        // A reset is a single global position, persisted as one barrier event. It is NOT completed to
+        // stream+revision here: the runtime orders by log position, and a stream-targeted resume gets its
+        // revision lazily from the client at subscribe. Sentinels (Earliest/Latest/Unset) pass through as
+        // their raw values. On load the barrier is fanned across every partition (see OnLoadLatestAsync).
         var evt = new CheckpointReset {
             ProcessorId  = ProcessorId,
             DroneId      = droneId,
             CheckpointId = checkpointId,
             Timestamp    = Timestamp.FromDateTimeOffset(Time.GetUtcNow()),
-            Positions    = { ToContractPositions(positions) }
+            Position     = position.Value
         };
 
-        var appendRecord = CreateRecord(droneId, evt);
-
-        await _client.AppendStream(_stream, [appendRecord], ct).ConfigureAwait(false);
+        await _client.AppendStream(_stream, [CreateRecord(droneId, evt)], ct).ConfigureAwait(false);
     }
 
     #endregion

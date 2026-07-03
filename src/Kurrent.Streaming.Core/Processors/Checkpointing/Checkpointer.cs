@@ -3,6 +3,7 @@ using Kurrent.Client.Processors.Gateway.Messages;
 using Kurrent.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
+using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Models;
 
 namespace Kurrent.Processors.Checkpointing;
@@ -18,7 +19,7 @@ namespace Kurrent.Processors.Checkpointing;
 /// </summary>
 sealed class Checkpointer : IAsyncDisposable {
     readonly string                          _droneId;
-    readonly ChannelWriter<SubscribeMessage> _writer;
+    readonly ChannelWriter<DataSourceMessage> _writer;
     readonly ICheckpointStore                _store;
     readonly PartitionedPositionTracker      _tracker;
     readonly HybridLogicalClock              _clock;
@@ -31,7 +32,7 @@ sealed class Checkpointer : IAsyncDisposable {
 		string droneId,
 		CheckpointOptions options,
 		ICheckpointStore store,
-		ChannelWriter<SubscribeMessage> writer,
+		ChannelWriter<DataSourceMessage> writer,
 		TimeProvider timeProvider
 	) {
 		_droneId = droneId;
@@ -53,13 +54,13 @@ sealed class Checkpointer : IAsyncDisposable {
 
 	/// <summary>
 	/// Initializes the checkpointer: loads the latest checkpoint and starts the timer.
-	/// When <paramref name="startFrom"/> is not <see cref="RecordPosition.Unset"/>, the store
-	/// is reset to that position before loading.
+	/// When <paramref name="startFrom"/> is not <see cref="LogPosition.Unset"/>, every owned partition
+	/// is reset to that log position before loading.
 	/// </summary>
 	public async ValueTask<RecordPosition[]> Initialize(
 		Partition[] partitions,
 		SubscriptionInitialPosition initialPosition,
-		RecordPosition startFrom,
+		LogPosition startFrom,
 		CancellationToken ct = default
 	) {
 		ArgumentOutOfRangeException.ThrowIfZero(partitions.Length, nameof(partitions));
@@ -67,7 +68,10 @@ sealed class Checkpointer : IAsyncDisposable {
 		if (_initialized)
 			throw new InvalidOperationException("Checkpointer has already been initialized.");
 
-        if (startFrom != RecordPosition.Unset)
+        // An explicit start is a global reset: persist the single position as a barrier (all partitions
+        // resume from it, fanned on load), so a fresh processor with no prior checkpoint honours the
+        // override too. Unset means normal resume — nothing to persist.
+        if (startFrom != LogPosition.Unset)
             await _store.ResetAsync(_droneId, _clock.Now(), startFrom, ct).ConfigureAwait(false);
 
 		var checkpoint = await _store
@@ -96,13 +100,13 @@ sealed class Checkpointer : IAsyncDisposable {
 
 		return checkpoint.Positions;
 	}
-    
+
     /// <summary>Loads the latest checkpoint without resetting.</summary>
     public async ValueTask<RecordPosition[]> Initialize(
         Partition[] partitions,
         SubscriptionInitialPosition initialPosition,
         CancellationToken ct = default
-    ) => await Initialize(partitions, initialPosition, RecordPosition.Unset, ct).ConfigureAwait(false);
+    ) => await Initialize(partitions, initialPosition, LogPosition.Unset, ct).ConfigureAwait(false);
 
 	/// <summary>Tracks a processed position for its partition.</summary>
 	public void Track(RecordPosition position) {
@@ -166,7 +170,7 @@ sealed class Checkpointer : IAsyncDisposable {
 			throw new InvalidOperationException("Shutdown has already been issued, cannot raise further checkpoints.");
 
 		var now = _clock.Now();
-        
+
 		CheckpointId id = new(now);
 
 		Checkpoint checkpoint = trigger switch {

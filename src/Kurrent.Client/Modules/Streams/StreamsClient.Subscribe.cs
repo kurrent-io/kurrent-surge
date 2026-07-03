@@ -35,8 +35,7 @@ public partial class StreamsClient {
                         "Start position cannot address the target stream: it carries neither a " +
                         "matching stream revision nor a log position to resolve one from.", nameof(options));
 
-                var boundary = await ResolveSubscriptionStart(
-                        RecordPosition.From(start.LogPosition, target.TargetStream, Revision.Unset), ct)
+                var boundary = await ResolveSubscriptionStart(RecordPosition.From(start.LogPosition, target.TargetStream, Revision.Unset), ct)
                     .ConfigureAwait(false);
 
                 // None = nothing of the stream processed yet → subscribe from the start of

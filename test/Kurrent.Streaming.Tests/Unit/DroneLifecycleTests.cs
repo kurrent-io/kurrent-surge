@@ -6,6 +6,7 @@ using Kurrent.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;
+using Kurrent.Streaming.Gateway;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Kurrent.Streaming.Tests.Fakes;
@@ -20,7 +21,7 @@ namespace Kurrent.Streaming.Tests;
 public class DroneLifecycleTests {
 	static readonly RecordFaker Records = new();
 
-	static (Drone drone, ControllableSubscription subscription) CreateDrone(
+	static (Drone drone, ControllableDataSource subscription) CreateDrone(
 		IProcessor?               processor     = null,
 		bool                      debug         = false,
 		Action<ProcessorOptions>? configure     = null,
@@ -42,14 +43,13 @@ public class DroneLifecycleTests {
 		// Apply per-test overrides before the checkpointer reads DroneId / Checkpoint / InitialPosition.
 		configure?.Invoke(settings);
 
-		var channel = Channel.CreateUnbounded<SubscribeMessage>();
+		var channel = Channel.CreateUnbounded<DataSourceMessage>();
 
 		var checkpointer = new Checkpointer(
 			settings.DroneId, settings.Checkpoint,
 			store, channel.Writer, timeProvider);
 
-		var subscription = new ControllableSubscription();
-		subscription.SetWriter(channel.Writer);
+		var subscription = new ControllableDataSource();
 
 		var drone = new Drone(
 			settings, subscription, checkpointer, channel,
@@ -1250,36 +1250,9 @@ public class DroneLifecycleTests {
 		await Assert.That(shutdownCheckpoints[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(prefixLogPos.Value);
 	}
 
-	[Test]
-	[Timeout(15_000)]
-	public async ValueTask caught_up_records_pruned_before_dispatch(CancellationToken ct) {
-		// Arrange — a prior run committed up to log position 2 (the seeded floor). Records at or below it are
-		// caught-up and must be pruned BEFORE dispatch, so the processor only ever sees new records.
-		var partition = Partition.From(0);
-		var floor     = LogPosition.From(2);
-		var seed      = new[] { RecordPosition.From(floor, partition) };
-
-		var records      = RecordsAt(3);                     // log positions 1, 2, 3 on partition 0
-		var survivingPos = records[^1].Position.LogPosition; // log position 3
-
-		var processor = new TestRecordBatchProcessor();
-
-		var (drone, subscription) = CreateDrone(processor, store: new SeededCheckpointStore(seed), configure: opts => {
-			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-		});
-
-		subscription.EmitConnected();
-		foreach (var record in records)
-			subscription.EmitRecord(record);
-		subscription.Complete();
-
-		// Act
-		await drone.RunAsync(ct);
-
-		// Assert — only the single record past the floor reached ProcessBatch
-		await Assert.That(processor.Records.Count).IsEqualTo(1);
-		await Assert.That(processor.Records[0].Position.LogPosition).IsEqualTo(survivingPos);
-	}
+	// NOTE: the caught-up prune moved off the drone and onto the data source. Its coverage now lives in the
+	// KdbDataSource integration tests (caught-up records dropped by the source; Latest/Unset floors not pruned),
+	// exercising the real prune rather than a fake. The drone loop below sees only already-pruned batches.
 
 	[Test]
 	[Timeout(15_000)]

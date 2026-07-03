@@ -31,6 +31,12 @@
     <InternalsVisibleTo Include="Kurrent.Schema.Catalogs.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
+
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core.Tests" />
+
     <InternalsVisibleTo Include="Kurrent.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />

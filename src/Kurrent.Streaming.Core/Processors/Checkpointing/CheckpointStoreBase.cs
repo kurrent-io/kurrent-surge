@@ -148,7 +148,7 @@ public abstract partial class CheckpointStoreBase : ICheckpointStore {
     public async ValueTask<ProcessorCheckpoint> ResetAsync(
         string droneId,
         string checkpointId,
-        RecordPosition[] positions,
+        LogPosition position,
         CancellationToken ct = default
     ) {
         ct.ThrowIfCancellationRequested();
@@ -160,48 +160,10 @@ public abstract partial class CheckpointStoreBase : ICheckpointStore {
 
         var previous = await LoadLatestAsync(droneId, ct).ConfigureAwait(false);
 
-        LogResetting(ProcessorId, droneId, positions.AsLogValue(FormatPosition));
+        LogResetting(ProcessorId, droneId, position);
 
         try {
-            await OnResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
-            LogReset(ProcessorId, droneId, previous.Positions.AsLogValue(FormatPosition));
-        }
-        catch (OperationCanceledException) {
-            throw;
-        }
-        catch (Exception ex) {
-            throw new CheckpointStoreException(StoreName, "Failed to reset checkpoint.", ex);
-        }
-
-        return previous;
-    }
-
-    /// <inheritdoc/>
-    public async ValueTask<ProcessorCheckpoint> ResetAsync(
-        string droneId,
-        string checkpointId,
-        RecordPosition position,
-        CancellationToken ct = default
-    ) {
-        if (position.IsUnset)
-            return await ResetAsync(droneId, checkpointId, [], ct).ConfigureAwait(false);
-
-        ct.ThrowIfCancellationRequested();
-        ArgumentException.ThrowIfNullOrWhiteSpace(droneId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
-
-        await EnsureReadyAsync(ct).ConfigureAwait(false);
-
-        var previous = await LoadLatestAsync(droneId, ct).ConfigureAwait(false);
-
-        var positions = previous.Positions
-            .Select(p => position with { Partition = p.Partition })
-            .ToArray();
-
-        LogResetting(ProcessorId, droneId, positions.AsLogValue(FormatPosition));
-
-        try {
-            await OnResetAsync(droneId, checkpointId, positions, ct).ConfigureAwait(false);
+            await OnResetAsync(droneId, checkpointId, position, ct).ConfigureAwait(false);
             LogReset(ProcessorId, droneId, previous.Positions.AsLogValue(FormatPosition));
         }
         catch (OperationCanceledException) {
@@ -236,13 +198,14 @@ public abstract partial class CheckpointStoreBase : ICheckpointStore {
     );
 
     /// <summary>
-    /// Resets partition positions. Empty <paramref name="positions"/> = full wipe;
-    /// non-empty = selective reset (those partitions repositioned).
+    /// Resets to a single <paramref name="position"/> — the whole group's barrier. Implementations
+    /// materialise it across their partitions (fan on load for an event-sourced store, on write for a
+    /// table store). <see cref="LogPosition.Unset"/> is a full wipe.
     /// </summary>
     protected abstract ValueTask OnResetAsync(
         string droneId,
         string checkpointId,
-        RecordPosition[] positions,
+        LogPosition position,
         CancellationToken ct
     );
     
@@ -269,8 +232,8 @@ public abstract partial class CheckpointStoreBase : ICheckpointStore {
     [LoggerMessage(Level = LogLevel.Debug, Message = "[{DroneId}] Stored {PartitionCount} partitions: {Positions}")]
     partial void LogStored(string processorId, string droneId, int partitionCount, DefferedLogValue<RecordPosition> positions);
 
-    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Resetting positions to :: {Positions}")]
-    partial void LogResetting(string processorId, string droneId, DefferedLogValue<RecordPosition> positions);
+    [LoggerMessage(Level = LogLevel.Trace, Message = "[{DroneId}] Resetting to :: {Position}")]
+    partial void LogResetting(string processorId, string droneId, LogPosition position);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Reset from :: {PreviousPositions}")]
     partial void LogReset(string processorId, string droneId, DefferedLogValue<RecordPosition> previousPositions);

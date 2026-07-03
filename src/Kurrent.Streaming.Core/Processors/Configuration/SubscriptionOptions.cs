@@ -49,7 +49,8 @@ public record SubscriptionOptions {
     internal string PartitionKeySelector { get; set; } = "";
 
     /// <summary>
-    /// When set, overrides the stored checkpoint and forces subscription to start from this position.
+    /// Overrides the stored checkpoint and forces the subscription to start from this log position.
+    /// <see cref="LogPosition.Unset"/> (the default) means no override — resume from the checkpoint.
     /// </summary>
-    internal RecordPosition? StartPosition { get; set; }
+    internal LogPosition StartPosition { get; set; } = LogPosition.Unset;
 }

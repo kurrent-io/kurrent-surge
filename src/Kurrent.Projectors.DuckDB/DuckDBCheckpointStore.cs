@@ -12,8 +12,8 @@ namespace Kurrent.Projectors.DuckDB;
 /// </summary>
 /// <remarks>
 /// Stream/revision values are persisted exactly as supplied by the caller. No log-position
-/// resolution. Full wipes delete every row for the processor; selective resets overwrite
-/// the supplied partitions without fencing (reset is a deliberate override).
+/// resolution. A reset is a global barrier that deletes every row for the processor (see
+/// <see cref="OnResetAsync"/> for the current limitation on a concrete reset baseline).
 /// </remarks>
 [PublicAPI]
 public sealed partial class DuckDBCheckpointStore(
@@ -138,33 +138,23 @@ public sealed partial class DuckDBCheckpointStore(
     protected override ValueTask OnResetAsync(
         string droneId,
         string checkpointId,
-        RecordPosition[] positions,
+        LogPosition position,
         CancellationToken ct
     ) {
-        var timestamp = Time.GetUtcNow().UtcDateTime;
-
+        // A reset is a global barrier. This table store keys rows by (processor_id, partition) and holds no
+        // partition count, so it cannot materialise a concrete reset baseline across partitions the way the
+        // event-sourced store fans one on load. It therefore wipes all rows — exact for Unset (full wipe →
+        // InitialPosition fallback); for a concrete/sentinel position it drops committed state WITHOUT
+        // recording the baseline. This store is currently orphaned (no construction sites); when it gains a
+        // caller, honour a concrete reset by persisting the baseline (a reserved row) and fanning it on load.
         using var connection = connectionProvider.GetConnection();
         using var tx         = connection.BeginTransaction();
 
-        if (positions.Length == 0)
-            connection.ExecuteNonQuery<ProcessorIdArgs, DeleteAllStatement>(new(ProcessorId));
-        else {
-            foreach (var p in positions)
-                connection.ExecuteNonQuery<UpsertArgs, UpsertStatement>(
-                    BuildUpsertArgs(
-                        p, droneId, checkpointId,
-                        timestamp));
-        }
+        connection.ExecuteNonQuery<ProcessorIdArgs, DeleteAllStatement>(new(ProcessorId));
 
         tx.CommitOnDispose();
 
-
-        if (positions.Length == 0)
-            _lastStored.Clear();
-        else {
-            foreach (var p in positions)
-                _lastStored[p.Partition.Value] = p.LogPosition;
-        }
+        _lastStored.Clear();
 
         return ValueTask.CompletedTask;
     }

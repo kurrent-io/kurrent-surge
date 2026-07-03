@@ -26,11 +26,6 @@ sealed class SeededCheckpointStore(RecordPosition[] seed) : ICheckpointStore {
 
     public ValueTask<ProcessorCheckpoint> ResetAsync(
         string droneId, string checkpointId,
-        RecordPosition[] positions, CancellationToken ct = default
-    ) => new(ProcessorCheckpoint.Empty);
-
-    public ValueTask<ProcessorCheckpoint> ResetAsync(
-        string droneId, string checkpointId,
-        RecordPosition position, CancellationToken ct = default
+        LogPosition position, CancellationToken ct = default
     ) => new(ProcessorCheckpoint.Empty);
 }
