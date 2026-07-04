@@ -226,7 +226,7 @@ public class ProcessorResilienceTests {
         var pipeline = options.BuildResiliencePipeline(NullLoggerFactory.Instance);
 
         var context = ResilienceContextPool.Shared.Get(CancellationToken.None);
-        context.Properties.Set(ProcessorResilienceStrategy.LoggerKey, logger);
+        context.Logger = logger;
 
         var attempts = 0;
 

@@ -171,35 +171,12 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
 
     /// <summary>
     /// Replaces the pipeline entirely — the SDK defaults are skipped and the user owns every
-    /// strategy. Append <see cref="ProcessorResilienceStrategy.DefaultRetry"/> to keep the SDK's
+    /// strategy. Append <c>ProcessorResilienceStrategy.DefaultRetry</c> to keep the SDK's
     /// transient-error knowledge.
     /// </summary>
     public void ConfigureResilience(Action<ResiliencePipelineBuilder> configure) {
         ResilienceReplacement = configure;
         ResilienceExtension   = null;
-    }
-
-    /// <summary>
-    /// Builds the subscription reconnection pipeline from the configured mode: replacement wins,
-    /// otherwise user extensions are prepended and the SDK default retry appended. Polly telemetry
-    /// is wired here so every strategy reports through the processor's logging.
-    /// </summary>
-    internal ResiliencePipeline BuildResiliencePipeline(ILoggerFactory loggerFactory) {
-        var builder = new ResiliencePipelineBuilder().ConfigureTelemetry(loggerFactory);
-
-        if (ResilienceReplacement is not null) {
-            ResilienceReplacement(builder);
-            return builder.Build();
-        }
-
-        ResilienceExtension?.Invoke(builder);
-
-        // MaxRetryAttempts = 0 means "retries disabled"; Polly rejects it at build time, so the
-        // default strategy is simply not added.
-        if (Resilience.MaxRetryAttempts > 0)
-            builder.AddRetry(ProcessorResilienceStrategy.DefaultRetry(Resilience));
-
-        return builder.Build();
     }
 
     #endregion

@@ -65,9 +65,7 @@ public class KdbDataSource : IDataSource {
 
         var context = ResilienceContextPool.Shared.Get(ct);
 
-        context.Properties.Set(
-            ProcessorResilienceStrategy.LoggerKey,
-            _loggerFactory.CreateLogger<KdbDataSource>());
+        context.Logger = _loggerFactory.CreateLogger<KdbDataSource>();
 
         try {
             await _options.ResiliencePipeline.ExecuteAsync(async ctx => {

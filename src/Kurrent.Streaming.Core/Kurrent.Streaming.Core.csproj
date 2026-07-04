@@ -23,6 +23,8 @@
          the message catalog generator ships in Kurrent.Client's analyzers/dotnet/cs and must
          flow to consumers that install only Kurrent.Streaming (NuGet excludes Build,Analyzers
          on dependency edges by default). -->
+    <!-- TEMPORARY: this reference is being severed by the Surge.Core consolidation. It comes out
+         for good once the client contracts + options move up to Kurrent.Surge.Core. -->
     <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" PrivateAssets="none" />
   </ItemGroup>
 
@@ -34,6 +36,7 @@
 
   <ItemGroup>
 <!--    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />-->
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>

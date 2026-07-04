@@ -14,15 +14,6 @@ namespace Kurrent.Streaming.Options;
 /// </summary>
 [PublicAPI]
 public static class ProcessorResilienceStrategy {
-    /// <summary>
-    /// Resilience-context key carrying the processor's <see cref="ILogger"/>. The SDK sets it
-    /// before executing the pipeline, so both the default retry and any user strategy added via
-    /// <see cref="ProcessorOptions.ExtendResilience"/> or
-    /// <see cref="ProcessorOptions.ConfigureResilience(Action{ResiliencePipelineBuilder})"/>
-    /// can log from their callbacks:
-    /// <c>args.Context.Properties.TryGetValue(ProcessorResilienceStrategy.LoggerKey, out var logger)</c>.
-    /// </summary>
-    public static readonly ResiliencePropertyKey<ILogger> LoggerKey = new("kurrent.processor.logger");
 
     /// <summary>
     /// Kurrent error codes the server documents as retriable. They cover both exception shapes
@@ -83,4 +74,34 @@ public static class ProcessorResilienceStrategy {
     static bool HasRetryableErrorCode(RpcException exception) =>
         exception.GetRpcStatus()?.GetDetail<ErrorInfo>()?.Reason is { Length: > 0 } reason &&
         RetryableErrorCodes.Contains(reason);
+
+    extension(ProcessorOptions options) {
+        /// <summary>
+        /// Builds the subscription reconnection pipeline from the configured mode: replacement wins,
+        /// otherwise user extensions are prepended and the SDK default retry appended. Polly telemetry
+        /// is wired here so every strategy reports through the processor's logging.
+        /// </summary>
+        /// <remarks>
+        /// Lives with the strategy rather than on <see cref="ProcessorOptions"/> so the engine stays
+        /// transport-agnostic: the options only carry the configured pipeline pieces, and the
+        /// gRPC-aware default retry is attached here in the KurrentDB implementation.
+        /// </remarks>
+        internal ResiliencePipeline BuildResiliencePipeline(ILoggerFactory loggerFactory) {
+            var builder = new ResiliencePipelineBuilder().ConfigureTelemetry(loggerFactory);
+
+            if (options.ResilienceReplacement is not null) {
+                options.ResilienceReplacement(builder);
+                return builder.Build();
+            }
+
+            options.ResilienceExtension?.Invoke(builder);
+
+            // MaxRetryAttempts = 0 means "retries disabled"; Polly rejects it at build time, so the
+            // default strategy is simply not added.
+            if (options.Resilience.MaxRetryAttempts > 0)
+                builder.AddRetry(DefaultRetry(options.Resilience));
+
+            return builder.Build();
+        }
+    }
 }
