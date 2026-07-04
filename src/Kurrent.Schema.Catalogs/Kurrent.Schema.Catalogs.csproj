@@ -25,9 +25,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- BuildResolver in Kurrent.Client still calls internal MessageCatalogDiscovery.GetCatalogs();
-         discovery stays internal to this package, so the client needs visibility. -->
+    <!-- BuildResolver (KurrentClientMessageOptions, now in Kurrent.Surge.Core) calls internal
+         MessageCatalogDiscovery.GetCatalogs(); discovery stays internal to this package, so the
+         calling assemblies need visibility. -->
     <InternalsVisibleTo Include="Kurrent.Client" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Core" />
     <InternalsVisibleTo Include="Kurrent.Schema.Catalogs.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />

@@ -8,13 +8,6 @@ using Kurrent.Schema.Catalogs;
 
 namespace Kurrent.Client.Schema.Serialization;
 
-public record SchemaSerializerOptions {
-	/// <summary>
-	/// Configuration options for schema registration, validation, and type mapping behaviors.
-	/// </summary>
-	public SchemaRegistrationOptions SchemaRegistration { get; init; } = new();
-}
-
 public abstract class SchemaSerializerBase(SchemaSerializerOptions options, SchemaManager schemaManager) : ISchemaSerializer {
 	SchemaSerializerOptions Options       { get; } = options;
 	SchemaManager           SchemaManager { get; } = schemaManager;

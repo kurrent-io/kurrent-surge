@@ -1,10 +1,30 @@
+using Google.Protobuf.Collections;
 using Kurrent.Client.Streams;
 using Kurrent.Schema;
+using NJsonSchema;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Client.Registry;
 
 static class RegistryClientMapper {
+    // The proto-facing halves of SchemaCompatibilityError(s): the models moved to the contract
+    // package with the schema subsystem, but these mappers speak proto-generated types compiled
+    // in this assembly, so they stay behind.
+    internal static SchemaCompatibilityError ToSchemaCompatibilityError(this Contracts.SchemaCompatibilityError error) {
+        ArgumentNullException.ThrowIfNull(error);
+
+        return new() {
+            Kind         = (SchemaCompatibilityErrorKind)error.Kind,
+            Details      = error.Details,
+            PropertyPath = error.PropertyPath,
+            OriginalType = Enum.TryParse<JsonObjectType>(error.OriginalType, out var originalType) ? originalType : JsonObjectType.None,
+            NewType      = Enum.TryParse<JsonObjectType>(error.NewType, out var newType) ? newType : JsonObjectType.None
+        };
+    }
+
+    internal static SchemaCompatibilityErrors ToSchemaCompatibilityErrors(this RepeatedField<Contracts.SchemaCompatibilityError> errors) =>
+        SchemaCompatibilityErrors.From(errors.Select(e => e.ToSchemaCompatibilityError()).ToArray());
+
     internal static SchemaVersionDescriptor ToSchemaVersionDescriptor(this Contracts.CreateSchemaResponse response) =>
         new(Guid.Parse(response.SchemaVersionId), response.VersionNumber);
 

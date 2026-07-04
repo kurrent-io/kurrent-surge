@@ -1,8 +1,5 @@
 using System.Collections;
-using Google.Protobuf.Collections;
 using NJsonSchema;
-
-using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Client.Registry;
 
@@ -16,18 +13,6 @@ public readonly record struct SchemaCompatibilityError() {
 
     public override string ToString() =>
         $"{Kind} at '{PropertyPath}': {Details}";
-
-    internal static SchemaCompatibilityError FromProto(Contracts.SchemaCompatibilityError error) {
-		ArgumentNullException.ThrowIfNull(error);
-
-		return new() {
-            Kind         = (SchemaCompatibilityErrorKind)error.Kind,
-            Details      = error.Details,
-            PropertyPath = error.PropertyPath,
-            OriginalType = Enum.TryParse<JsonObjectType>(error.OriginalType, out var originalType) ? originalType : JsonObjectType.None,
-            NewType      = Enum.TryParse<JsonObjectType>(error.NewType, out var newType) ? newType : JsonObjectType.None
-        };
-    }
 }
 
 public record SchemaCompatibilityErrors : IEnumerable<SchemaCompatibilityError> {
@@ -40,9 +25,6 @@ public record SchemaCompatibilityErrors : IEnumerable<SchemaCompatibilityError> 
 
     public static SchemaCompatibilityErrors From(params SchemaCompatibilityError[] errors) =>
         new(errors);
-
-    internal static SchemaCompatibilityErrors FromProto(RepeatedField<Contracts.SchemaCompatibilityError> errors) =>
-        new(errors.Select(SchemaCompatibilityError.FromProto).ToArray());
 
     public IEnumerator<SchemaCompatibilityError> GetEnumerator() => Errors.GetEnumerator();
 

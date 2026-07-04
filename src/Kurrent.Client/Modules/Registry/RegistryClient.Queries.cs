@@ -185,7 +185,7 @@ public partial class RegistryClient {
             if (response.ResultCase is Contracts.CheckSchemaCompatibilityResponse.ResultOneofCase.Success)
                 return SchemaVersionId.From(response.Success.SchemaVersionId);
 
-            throw new SchemaIncompatibleException(SchemaCompatibilityErrors.FromProto(response.Failure.Errors));
+            throw new SchemaIncompatibleException(response.Failure.Errors.ToSchemaCompatibilityErrors());
         }
         catch (Exception ex) {
             throw ex.ToException(
