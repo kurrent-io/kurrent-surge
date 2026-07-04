@@ -1,18 +1,5 @@
 namespace Kurrent.Client.Streams;
 
-public delegate TState Evolve<TState>(
-    TState state,
-    Record record);
-
-public delegate ValueTask<TState> EvolveAsync<TState>(
-    TState state,
-    Record record,
-    CancellationToken ct);
-
-public record FoldResponse<TState>(
-    TState State,
-    RecordPosition Position);
-
 public static partial class StreamsClientExtensions {
     extension(IAsyncEnumerable<ReadMessage> source) {
         public async ValueTask<FoldResponse<TState>> FoldAsync<TState>(
