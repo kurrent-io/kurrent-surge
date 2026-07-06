@@ -18,16 +18,6 @@
     <!-- <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator> -->
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- PrivateAssets="none" so the nuspec dependency on Kurrent.Client includes ALL assets:
-         the message catalog generator ships in Kurrent.Client's analyzers/dotnet/cs and must
-         flow to consumers that install only Kurrent.Streaming (NuGet excludes Build,Analyzers
-         on dependency edges by default). -->
-    <!-- TEMPORARY: this reference is being severed by the Surge.Core consolidation. It comes out
-         for good once the client contracts + options move up to Kurrent.Surge.Core. -->
-    <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" PrivateAssets="none" />
-  </ItemGroup>
-
   <!-- AOT/Trimming Support -->
   <PropertyGroup>
     <IsTrimmable>true</IsTrimmable>
@@ -37,6 +27,13 @@
   <ItemGroup>
 <!--    <ProjectReference Include="..\Kurrent.Client.SourceGenerators\Kurrent.Client.SourceGenerators.csproj" Analyzer="true" />-->
     <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+    <!-- Direct (not just transitive via Surge.Core) for two reasons: the filename triggers the
+         in-repo packed-analyzer wiring in Directory.Build.targets, so the message catalog
+         generator runs on THIS compilation (the streaming proto contracts need their generated
+         catalog — checkpoint appends fail to map without it); and PrivateAssets="none" makes the
+         nuspec dependency carry ALL assets so NuGet consumers receive the same generator
+         (analyzers are excluded on dependency edges by default). -->
+    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
   </ItemGroup>
