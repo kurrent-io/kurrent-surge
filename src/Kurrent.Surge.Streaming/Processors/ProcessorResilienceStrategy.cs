@@ -46,7 +46,7 @@ public static class ProcessorResilienceStrategy {
         var knobs = defaults ?? new ProcessorResilienceOptions();
 
         return new RetryStrategyOptions {
-            ShouldHandle     = args => ValueTask.FromResult(IsRetryable(args.Outcome.Exception, knobs.RetryableStatusCodes)),
+            ShouldHandle     = args => ValueTask.FromResult(args.Outcome.Exception is { } ex && (knobs.ShouldRetry ?? DefaultShouldRetry)(ex)),
             MaxRetryAttempts = knobs.MaxRetryAttempts,
             Delay            = knobs.BaseDelay,
             MaxDelay         = knobs.MaxDelay,
@@ -63,10 +63,28 @@ public static class ProcessorResilienceStrategy {
         };
     }
 
-    static bool IsRetryable(Exception? exception, StatusCode[] retryableStatusCodes) =>
+    /// <summary>
+    /// gRPC status codes treated as transient when a raw <see cref="RpcException"/> surfaces
+    /// without a Kurrent error code.
+    /// </summary>
+    static readonly StatusCode[] DefaultRetryableStatusCodes = [
+        StatusCode.Unavailable,
+        StatusCode.Unknown,
+        StatusCode.ResourceExhausted,
+        StatusCode.Internal,
+        StatusCode.Aborted
+    ];
+
+    /// <summary>
+    /// The SDK's default transient-error classification, applied when
+    /// <see cref="ProcessorResilienceOptions.ShouldRetry"/> is not set. Compose with it to
+    /// extend rather than replace the SDK's knowledge:
+    /// <c>r.ShouldRetry = ex =&gt; ex is TimeoutException || ProcessorResilienceStrategy.DefaultShouldRetry(ex);</c>
+    /// </summary>
+    public static bool DefaultShouldRetry(Exception exception) =>
         exception switch {
             KurrentException kex => RetryableErrorCodes.Contains(kex.ErrorDetails.ErrorCode.Value),
-            RpcException rex     => retryableStatusCodes.Contains(rex.StatusCode) || HasRetryableErrorCode(rex),
+            RpcException rex     => DefaultRetryableStatusCodes.Contains(rex.StatusCode) || HasRetryableErrorCode(rex),
             IOException          => true,
             _                    => false
         };

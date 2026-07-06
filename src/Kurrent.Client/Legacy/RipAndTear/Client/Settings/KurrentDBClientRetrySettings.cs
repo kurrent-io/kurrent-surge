@@ -33,16 +33,6 @@ record KurrentDBClientRetrySettings {
 	public double BackoffMultiplier { get; init; } = 2.0;
 
 	/// <summary>
-	/// Gets or sets the gRPC status codes that should trigger a retry.
-	/// </summary>
-	public StatusCode[] RetryableStatusCodes { get; init; } = [
-		StatusCode.Unavailable,       // Server temporarily unavailable
-		StatusCode.Unknown,           // Unknown error (often network issues)
-		StatusCode.DeadlineExceeded,  // Server took too long to respond
-		StatusCode.ResourceExhausted, // Server overloaded
-	];
-
-	/// <summary>
 	/// Default retry settings with the default values.
 	/// </summary>
 	public static KurrentDBClientRetrySettings Default => new();
@@ -51,6 +41,16 @@ record KurrentDBClientRetrySettings {
 	/// Retry settings with retry disabled.
 	/// </summary>
 	public static KurrentDBClientRetrySettings NoRetry => new() { IsEnabled = false };
+
+	// The retryable codes are fixed, not a knob: the declarative channel retry policy is data
+	// evaluated inside Grpc.Net and cannot consult the contract's ShouldRetry predicate — these
+	// are the classic transient codes the policy always retried.
+	static readonly StatusCode[] RetryableStatusCodes = [
+		StatusCode.Unavailable,       // Server temporarily unavailable
+		StatusCode.Unknown,           // Unknown error (often network issues)
+		StatusCode.DeadlineExceeded,  // Server took too long to respond
+		StatusCode.ResourceExhausted, // Server overloaded
+	];
 
     internal MethodConfig GetRetryMethodConfig() {
         var retryPolicy = new RetryPolicy {

@@ -267,9 +267,6 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
                 .GreaterThanOrEqualTo(o => o.Resilience.BaseDelay)
                 .WithMessage("Resilience.MaxDelay must be greater than or equal to Resilience.BaseDelay.");
 
-            RuleFor(o => o.Resilience.RetryableStatusCodes)
-                .Must(codes => codes.Length > 0, "Resilience.RetryableStatusCodes cannot be empty.");
-
             RuleFor(o => o.ClientOptions)
                 .Must(clientOptions => clientOptions is not null,
                     "No connection configured. Call Connection() to set a connection string or provide client options.");

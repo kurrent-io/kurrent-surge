@@ -1,6 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Grpc.Core;
-using Grpc.Net.Client.Configuration;
 using Kurrent.Validation;
 
 namespace Kurrent.Client;
@@ -67,7 +65,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </para>
     /// <para>
     /// If a finite deadline is set, it represents the total time allowed for the call, including all retry attempts.
-    /// If this deadline is exceeded, the call will fail with <see cref="StatusCode.DeadlineExceeded"/>, and no
+    /// If this deadline is exceeded, the call will fail with a deadline-exceeded transport error, and no
     /// further retries will occur for that call.
     /// </para>
     /// <para>
@@ -99,7 +97,6 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// Biased towards resilience, allowing operations to complete without client-side time limits.</para>
     /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
     /// <para>Retries: 3 attempts with moderate exponential backoff (250ms initial, up to 10s, 1.5x multiplier).</para>
-    /// <para>Retryable Status Codes: Unavailable, Unknown, ResourceExhausted, Internal.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with default settings.</returns>
     public static KurrentClientResilienceOptions Default => new() {
@@ -110,13 +107,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
             MaxAttempts       = 3,
             InitialBackoff    = TimeSpan.FromMilliseconds(250),
             MaxBackoff        = TimeSpan.FromSeconds(10),
-            BackoffMultiplier = 1.5,
-            RetryableStatusCodes = [
-                StatusCode.Unavailable,
-                StatusCode.Unknown,
-                StatusCode.ResourceExhausted,
-                StatusCode.Internal
-            ]
+            BackoffMultiplier = 1.5
         }
     };
 
@@ -158,7 +149,6 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// <para>Application: Critical reads or highly critical idempotent writes that must eventually succeed and can tolerate long retry periods.</para>
     /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
     /// <para>Retries: Infinite attempts with aggressive exponential backoff (100ms initial, up to 30s, 2.0x multiplier).</para>
-    /// <para>Retryable Status Codes: Unavailable, Unknown, ResourceExhausted, Internal.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with unlimited retry attempts.</returns>
     public static KurrentClientResilienceOptions RetryForever => new() {
@@ -169,13 +159,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
             MaxAttempts       = -1, // -1 indicates infinite retries
             InitialBackoff    = TimeSpan.FromMilliseconds(100),
             MaxBackoff        = TimeSpan.FromSeconds(30),
-            BackoffMultiplier = 2.0,
-            RetryableStatusCodes = [
-                StatusCode.Unavailable,
-                StatusCode.Unknown,
-                StatusCode.ResourceExhausted,
-                StatusCode.Internal
-            ]
+            BackoffMultiplier = 2.0
         }
     };
 
@@ -186,7 +170,6 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// <para>Application: Long-running streaming reads that need to remain connected and recover from transient issues.</para>
     /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
     /// <para>Retries: 8 attempts with aggressive exponential backoff (100ms initial, up to 15s, 2.0x multiplier).</para>
-    /// <para>Retryable Status Codes: Unavailable, Unknown, ResourceExhausted, Internal.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance optimized for subscriptions.</returns>
     public static KurrentClientResilienceOptions Subscription => new() {
@@ -197,13 +180,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
             MaxAttempts       = 8,
             InitialBackoff    = TimeSpan.FromMilliseconds(100),
             MaxBackoff        = TimeSpan.FromSeconds(15),
-            BackoffMultiplier = 2.0,
-            RetryableStatusCodes = [
-                StatusCode.Unavailable,
-                StatusCode.Unknown,
-                StatusCode.ResourceExhausted,
-                StatusCode.Internal
-            ]
+            BackoffMultiplier = 2.0
         }
     };
 
@@ -214,7 +191,6 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// <para>Application: Reads or idempotent writes requiring fast, predictable retry attempts within a moderate, fixed deadline.</para>
     /// <para>Call Deadline: 30 seconds. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
     /// <para>Retries: 5 attempts with fixed 200ms backoff interval.</para>
-    /// <para>Retryable Status Codes: Unavailable, Unknown, ResourceExhausted, Internal, DeadlineExceeded.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with high-availability settings.</returns>
     public static KurrentClientResilienceOptions HighAvailability => new() {
@@ -225,14 +201,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
             MaxAttempts       = 5,
             InitialBackoff    = TimeSpan.FromMilliseconds(200),
             MaxBackoff        = TimeSpan.FromMilliseconds(200), // Aligned with InitialBackoff for fixed interval
-            BackoffMultiplier = 1.0, // No multiplier - fixed interval retries
-            RetryableStatusCodes = [
-                StatusCode.Unavailable,
-                StatusCode.Unknown,
-                StatusCode.ResourceExhausted,
-                StatusCode.Internal,
-                StatusCode.DeadlineExceeded // Safe for idempotent ops with finite deadline
-            ]
+            BackoffMultiplier = 1.0 // No multiplier - fixed interval retries
         }
     };
 
@@ -243,7 +212,6 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// <para>Application: Write operations where idempotency isn't guaranteed, or to explicitly avoid retrying on client-side timeouts.</para>
     /// <para>Call Deadline: 60 seconds. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
     /// <para>Retries: 3 attempts with moderate exponential backoff (500ms initial, up to 15s, 1.5x multiplier).</para>
-    /// <para>Retryable Status Codes: Unavailable, Unknown, ResourceExhausted, Internal. (Notably, does NOT include DeadlineExceeded).</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance for cautious writes.</returns>
     public static KurrentClientResilienceOptions CautiousWrite => new() {
@@ -254,50 +222,9 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
             MaxAttempts       = 3,
             InitialBackoff    = TimeSpan.FromMilliseconds(500),
             MaxBackoff        = TimeSpan.FromSeconds(15),
-            BackoffMultiplier = 1.5,
-            RetryableStatusCodes = [
-                StatusCode.Unavailable,
-                StatusCode.Unknown,
-                StatusCode.ResourceExhausted,
-                StatusCode.Internal
-            ]
+            BackoffMultiplier = 1.5
         }
     };
-
-    /// <summary>
-    /// Converts these resilience options to a gRPC MethodConfig that can be used with the gRPC client.
-    /// </summary>
-    /// <param name="methodName">Optional method name to apply this configuration to. If null, applies to all methods.</param>
-    /// <returns>A MethodConfig object configured according to these options.</returns>
-    /// <remarks>
-    /// <para>
-    /// The returned MethodConfig contains the retry policy configured according to the retry settings.
-    /// </para>
-    /// <para>
-    /// If retry is not enabled, the returned MethodConfig will not include a retry policy.
-    /// </para>
-    /// </remarks>
-    public MethodConfig ToMethodConfig(MethodName? methodName = null) {
-        methodName ??= MethodName.Default; // Default to all methods if none specified
-
-        if (!Retry.Enabled)
-            return new() { Names = { methodName } };
-
-        var config = new MethodConfig {
-            Names = { methodName },
-            RetryPolicy = new() {
-                MaxAttempts       = Retry.MaxAttempts < 0 ? int.MaxValue : Retry.MaxAttempts,
-                InitialBackoff    = Retry.InitialBackoff,
-                MaxBackoff        = Retry.MaxBackoff,
-                BackoffMultiplier = Retry.BackoffMultiplier
-            }
-        };
-
-        foreach (var statusCode in Retry.RetryableStatusCodes)
-            config.RetryPolicy.RetryableStatusCodes.Add(statusCode);
-
-        return config;
-    }
 
     /// <summary>
     /// Retry configuration options.
@@ -388,25 +315,11 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
         public double BackoffMultiplier { get; set; } = 1.5;
 
         /// <summary>
-        /// The gRPC status codes that should trigger a retry.
+        /// Decides whether a failed operation is transient and should be retried. Receives the
+        /// raw exception; return <see langword="true"/> to retry. When null, the
+        /// implementation's default transient-error classification applies.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// By default, includes:
-        /// </para>
-        /// <list type="table">
-        ///   <item><description><see cref="StatusCode.Unavailable"/> - Server temporarily unavailable</description></item>
-        ///   <item><description><see cref="StatusCode.Unknown"/> - Unknown error (often network issues)</description></item>
-        ///   <item><description><see cref="StatusCode.DeadlineExceeded"/> - Server took too long to respond</description></item>
-        ///   <item><description><see cref="StatusCode.ResourceExhausted"/> - Server overloaded</description></item>
-        /// </list>
-        /// </remarks>
-        public StatusCode[] RetryableStatusCodes { get; set; } = [
-            StatusCode.Unavailable,      // Server temporarily unavailable
-            StatusCode.Unknown,          // Unknown error (often network issues)
-            StatusCode.DeadlineExceeded, // Server took too long to respond
-            StatusCode.ResourceExhausted // Server overloaded
-        ];
+        public Predicate<Exception>? ShouldRetry { get; set; }
     }
 
     public class Validator : Validator<Validator, KurrentClientResilienceOptions> {
@@ -439,10 +352,6 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
                 RuleFor(options => options.Retry.InitialBackoff)
                     .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(10))
                     .WithMessage("InitialBackoff must be at least 10ms.");
-
-                // RetryableStatusCodes validation
-                RuleFor(options => options.Retry.RetryableStatusCodes)
-                    .Must(codes => codes.Length > 0, "RetryableStatusCodes cannot be empty when retry is enabled.");
             });
 
             // Deadline consistency warning

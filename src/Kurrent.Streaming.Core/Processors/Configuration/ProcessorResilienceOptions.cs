@@ -1,10 +1,8 @@
-using Grpc.Core;
-
 namespace Kurrent.Processors.Configuration;
 
 /// <summary>
-/// Knobs for the SDK's default reconnection pipeline — retry attempts, backoff, and which
-/// raw gRPC status codes count as transient. Tweak via
+/// Knobs for the SDK's default reconnection pipeline — retry attempts, backoff, and the
+/// transient-error decision. Tweak via
 /// <see cref="ProcessorOptions.ConfigureResilience(Action{ProcessorResilienceOptions})"/>
 /// or bind from configuration; no Polly types required.
 /// </summary>
@@ -34,15 +32,11 @@ public record ProcessorResilienceOptions {
     public TimeSpan MaxDelay { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// gRPC status codes that trigger a reconnection when a raw <see cref="RpcException"/>
-    /// surfaces without a Kurrent error code. Errors with any other status code propagate
-    /// to the processor immediately instead of being retried.
+    /// Decides whether a failed subscribe attempt is transient and should trigger a
+    /// reconnection. Receives the raw exception; return <see langword="true"/> to retry.
+    /// When null, the implementation's default classification applies — retriable Kurrent
+    /// error codes, transient gRPC status codes, and IO failures. Errors classified as
+    /// non-transient propagate to the processor immediately.
     /// </summary>
-    public StatusCode[] RetryableStatusCodes { get; set; } = [
-        StatusCode.Unavailable,
-        StatusCode.Unknown,
-        StatusCode.ResourceExhausted,
-        StatusCode.Internal,
-        StatusCode.Aborted
-    ];
+    public Predicate<Exception>? ShouldRetry { get; set; }
 }

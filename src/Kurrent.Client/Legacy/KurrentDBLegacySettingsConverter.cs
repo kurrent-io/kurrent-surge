@@ -61,14 +61,15 @@ static class KurrentDBLegacySettingsConverter {
         if (options.ConnectionScheme == KurrentConnectionScheme.Direct)
             connectivitySettings.Address = options.Address;
 
-        // Convert retry settings
+        // Convert retry settings. The legacy channel retries declaratively (gRPC service config),
+        // which cannot consult the contract's ShouldRetry predicate — the retryable status codes
+        // are fixed inside KurrentDBClientRetrySettings.
         var retrySettings = new KurrentDBClientRetrySettings {
-            IsEnabled            = options.Resilience.Retry.Enabled,
-            MaxAttempts          = options.Resilience.Retry.MaxAttempts,
-            InitialBackoff       = options.Resilience.Retry.InitialBackoff,
-            MaxBackoff           = options.Resilience.Retry.MaxBackoff,
-            BackoffMultiplier    = options.Resilience.Retry.BackoffMultiplier,
-            RetryableStatusCodes = options.Resilience.Retry.RetryableStatusCodes.ToArray()
+            IsEnabled         = options.Resilience.Retry.Enabled,
+            MaxAttempts       = options.Resilience.Retry.MaxAttempts,
+            InitialBackoff    = options.Resilience.Retry.InitialBackoff,
+            MaxBackoff        = options.Resilience.Retry.MaxBackoff,
+            BackoffMultiplier = options.Resilience.Retry.BackoffMultiplier
         };
 
         // Convert default credentials
