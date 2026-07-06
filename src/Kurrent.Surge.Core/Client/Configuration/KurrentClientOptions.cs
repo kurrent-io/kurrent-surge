@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Net;
 using System.Text;
-using Grpc.Core.Interceptors;
 using Kurrent.Client.Streams;
 using Kurrent.Validation;
 using KurrentDB.Client;
@@ -143,19 +142,6 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// </para>
     /// </remarks>
     public KurrentClientSchemaOptions Schema { get; set; } = KurrentClientSchemaOptions.FullValidation;
-
-	/// <summary>
-	/// An optional list of <see cref="Interceptor"/>s to use.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Interceptors allow for inspection and modification of gRPC calls.
-	/// </para>
-	/// <para>
-	/// Common uses include logging, metrics collection, and authentication.
-	/// </para>
-	/// </remarks>
-	public IReadOnlyList<Interceptor> Interceptors { get; set; } = [];
 
 	/// <summary>
 	/// Metadata decoder for processing event metadata.

@@ -2,6 +2,7 @@ using Google.Protobuf.WellKnownTypes;
 using Google.Rpc;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Kurrent.Client;
 using Kurrent.Client.Exceptions;
 using Kurrent.Client.Streams;
 using Kurrent.Rpc;
