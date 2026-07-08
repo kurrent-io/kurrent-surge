@@ -4,7 +4,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Kurrent.Surge.Streaming\Kurrent.Surge.Streaming.csproj" />
     <ProjectReference Include="..\..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
     <ProjectReference Include="..\..\Transfermarkt.Domain\Transfermarkt.Domain.csproj" />
   </ItemGroup>

@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectOrPackageReference Include="Kurrent.Surge" />
-    <ProjectOrPackageReference Include="Kurrent.Surge.Streaming" />
   </ItemGroup>
 
 </Project>

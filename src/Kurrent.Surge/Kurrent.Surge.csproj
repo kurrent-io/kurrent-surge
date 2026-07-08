@@ -12,7 +12,16 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <RootNamespace>Kurrent</RootNamespace>
     
-    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!-- Reflection-based config binding: FromConfiguration binds ProcessorOptions with
+         BindNonPublicProperties=true (internal MaxParallelism et al.), which the source-generated
+         binder does not support. Disabling the generator restores the reflection binder that does.
+         Tradeoff: config binding here is no longer AOT/trim-safe (IL2026/IL3050). -->
+    <EnableConfigurationBindingGenerator>false</EnableConfigurationBindingGenerator>
+
+    <!-- The source-generated metric attributes (Unit, generic [Gauge<T>]) sit behind the
+         EXTEXP0003 experimental gate (Microsoft.Extensions.Diagnostics.Metrics), used by the
+         streaming instruments merged in from Kurrent.Surge.Streaming. -->
+    <NoWarn>$(NoWarn);EXTEXP0003</NoWarn>
   </PropertyGroup>
 
   <!-- AOT/Trimming Support -->
@@ -51,6 +60,8 @@
 <!--    <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" />-->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Polly.Extensions" />
+    <PackageReference Include="OpenTelemetry.Api" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
     <PackageReference Include="NJsonSchema" />
@@ -86,13 +97,18 @@
     <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit.Hosting" />
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
 
 </Project>

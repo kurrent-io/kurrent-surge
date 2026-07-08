@@ -39,7 +39,6 @@
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core.Tests" />
 
-    <InternalsVisibleTo Include="Kurrent.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
   </ItemGroup>
 

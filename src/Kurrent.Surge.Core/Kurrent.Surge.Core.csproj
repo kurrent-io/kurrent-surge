@@ -91,7 +91,6 @@
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
-    <InternalsVisibleTo Include="Kurrent.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
