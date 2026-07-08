@@ -45,9 +45,6 @@ public partial class AdminClient {
         }
     }
 
-    public ValueTask<ScavengeResponse> StartScavenge(CancellationToken cancellationToken = default) =>
-        StartScavenge(1, 0, cancellationToken);
-
     public async ValueTask<ScavengeResponse> StopScavenge(string scavengeId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(scavengeId);
 
@@ -81,25 +78,9 @@ public partial class AdminClient {
         }
     }
 
-    public async ValueTask<ScavengeResponse> StopCurrentScavenge(CancellationToken cancellationToken = default) {
-        var latest = await GetLatestScavenge(cancellationToken).ConfigureAwait(false);
-
-        if (latest is not { State: ScavengeState.Running })
-            throw new InvalidOperationException("No scavenge is currently running.");
-
-        return await StopScavenge(latest.ScavengeId, cancellationToken).ConfigureAwait(false);
-    }
-
     #endregion
 
     #region ->> Queries <<-
-
-    public async ValueTask<ScavengeSummary?> GetLatestScavenge(CancellationToken cancellationToken = default) {
-        await foreach (var summary in ListScavenges(cancellationToken).ConfigureAwait(false))
-            return summary;
-
-        return null;
-    }
 
     public async IAsyncEnumerable<ScavengeSummary> ListScavenges(
         [EnumeratorCancellation] CancellationToken cancellationToken = default

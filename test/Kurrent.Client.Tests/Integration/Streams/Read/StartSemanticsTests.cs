@@ -221,7 +221,7 @@ public class StartSemanticsTests {
 
         long? caughtUpRevision = null;
 
-        using var session = Fixture.Client.Streams.LegacyServiceClient.Read(request, cancellationToken: ct);
+        using var session = ((StreamsClient)Fixture.Client.Streams).LegacyServiceClient.Read(request, cancellationToken: ct);
 
         while (await session.ResponseStream.MoveNext(ct)) {
             var rsp = session.ResponseStream.Current;

@@ -1,10 +1,8 @@
 using Kurrent.Client;
-using Kurrent.Schema.Naming;
 using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Kurrent.Validation;
-using Microsoft.Extensions.Configuration;
 using Polly;
 
 namespace Kurrent.Processors.Configuration;
@@ -98,36 +96,13 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// </summary>
     public ProcessorResilienceOptions Resilience { get; init; } = new();
 
-    #region ->> Connection <<-
-
     /// <summary>
-    /// Client options used to build the drone's <see cref="KurrentClient"/>. Set via
-    /// one of the <see cref="Connection(string)"/> overloads. The drone always builds
-    /// and owns its own <see cref="KurrentClient"/> — client instances are never shared.
+    /// Client options used to build the processor's client. Set via one of the
+    /// <c>Connection(...)</c> extension overloads, which live in the implementation package
+    /// since connection configuration is transport-specific. The processor always builds and
+    /// owns its own client — client instances are never shared.
     /// </summary>
-    internal KurrentClientOptions? ClientOptions { get; private set; }
-
-    /// <summary>
-    /// Sets the KurrentDB connection string.
-    /// </summary>
-    public void Connection(string connectionString) =>
-        ClientOptions = KurrentClientOptions.Parse(connectionString);
-
-    /// <summary>
-    /// Sets a connection string and applies additional options configuration.
-    /// </summary>
-    public void Connection(string connectionString, Action<KurrentClientOptions> configure) {
-        ClientOptions = KurrentClientOptions.Parse(connectionString);
-        configure(ClientOptions);
-    }
-
-    /// <summary>
-    /// Sets the client options directly.
-    /// </summary>
-    public void Connection(KurrentClientOptions clientOptions) =>
-        ClientOptions = clientOptions;
-
-    #endregion
+    internal IKurrentClientOptions? ClientOptions { get; set; }
 
     #region ->> Convenience Builders <<-
 
@@ -177,40 +152,6 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     public void ConfigureResilience(Action<ResiliencePipelineBuilder> configure) {
         ResilienceReplacement = configure;
         ResilienceExtension   = null;
-    }
-
-    #endregion
-
-    #region ->> Configuration Binding <<-
-
-    /// <summary>
-    /// Loads options from an <see cref="IConfiguration"/> section.
-    /// Section path: <c>Kurrent:Processors:{sectionName}</c>.
-    /// Values loaded from config can be overridden by subsequent property assignments.
-    /// </summary>
-    /// <param name="configuration">The configuration root.</param>
-    /// <param name="sectionName">
-    /// The section name under <c>Kurrent:Processors</c>.
-    /// If ProcessorId is not set in config, it will be auto-generated from this name.
-    /// </param>
-    public void FromConfiguration(IConfiguration configuration, string sectionName) {
-        var sectionPath = $"Kurrent:Processors:{sectionName}";
-        var section     = configuration.GetSection(sectionPath);
-
-        if (!section.Exists()) return;
-
-        section.Bind(this, o => o.BindNonPublicProperties = true);
-
-        // Auto-generate ProcessorId from section name if not set in config
-        if (string.IsNullOrEmpty(ProcessorId))
-            ProcessorId = sectionName.ToKebabCase();
-
-        // Check for connection string: ConnectionStrings:{sectionName} or ConnectionStrings:Default
-        var connectionString = configuration.GetConnectionString(sectionName)
-                            ?? configuration.GetConnectionString("Default");
-
-        if (connectionString is not null)
-            Connection(connectionString);
     }
 
     #endregion

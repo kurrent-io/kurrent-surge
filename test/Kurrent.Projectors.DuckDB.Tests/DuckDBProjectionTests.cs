@@ -1,6 +1,7 @@
 using DuckDB.NET.Data;
 using Kurrent.Client;
 using Kurrent.Client.Streams;
+using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 

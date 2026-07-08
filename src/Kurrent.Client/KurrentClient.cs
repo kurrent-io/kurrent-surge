@@ -13,14 +13,6 @@ using ProtobufMessages = Kurrent.Client.Schema.Serialization.Protobuf.ProtobufMe
 
 namespace Kurrent.Client;
 
-public interface IKurrentClient : IAsyncDisposable {
-    StreamsClient    Streams    { get; }
-    RegistryClient   Registry   { get; }
-    IndexesClient    Indexes    { get; }
-    ConnectorsClient Connectors { get; }
-    AdminClient      Admin      { get; }
-}
-
 [PublicAPI]
 public class KurrentClient : IKurrentClient {
     public KurrentClient(KurrentClientOptions options) {
@@ -50,11 +42,11 @@ public class KurrentClient : IKurrentClient {
 	        new ProtobufSchemaSerializer(options.Messages.Protobuf, schemaManager)
         ]);
 
-        Registry   = new(this);
-        Streams    = new(this);
-        Indexes    = new(this);
-        Connectors = new(this);
-        Admin      = new(this);
+        Registry   = new RegistryClient(this);
+        Streams    = new StreamsClient(this);
+        Indexes    = new IndexesClient(this);
+        Connectors = new ConnectorsClient(this);
+        Admin      = new AdminClient(this);
     }
 
     internal bool Shared { get; init; }
@@ -64,13 +56,12 @@ public class KurrentClient : IKurrentClient {
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
     internal ISchemaSerializerProvider    SerializerProvider    { get; }
 
-    public StreamsClient    Streams    { get; }
-    public RegistryClient   Registry   { get; }
-    public IndexesClient    Indexes    { get; }
-    public ConnectorsClient Connectors { get; }
-    public AdminClient      Admin      { get; }
+    public IStreamsClient    Streams    { get; }
+    public IRegistryClient   Registry   { get; }
+    public IIndexesClient    Indexes    { get; }
+    public IConnectorsClient Connectors { get; }
+    public IAdminClient      Admin      { get; }
 
-    
     public async ValueTask DisposeAsync() {
         if (Shared) return;
 
@@ -80,7 +71,7 @@ public class KurrentClient : IKurrentClient {
             .DisposeAsync()
             .ConfigureAwait(false);
     }
-    
+
     /// <summary>
     /// Creates a client from a pre-built <see cref="KurrentClientOptions"/> instance.
     /// </summary>

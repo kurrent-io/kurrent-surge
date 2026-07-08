@@ -1,7 +1,7 @@
 namespace Kurrent.Client.Indexes;
 
 public static partial class IndexesClientExtensions {
-    extension(IndexesClient client) {
+    extension(IIndexesClient client) {
         #region ->> Create <<-
 
         public ValueTask Create(

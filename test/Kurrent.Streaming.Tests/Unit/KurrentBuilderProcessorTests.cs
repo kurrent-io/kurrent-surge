@@ -45,7 +45,7 @@ public class KurrentBuilderProcessorTests {
         var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
 
         await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
-        await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
     }
 
     [Test]
@@ -63,7 +63,7 @@ public class KurrentBuilderProcessorTests {
         var provider     = services.BuildServiceProvider();
         var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
 
-        await Assert.That(droneService.Drone.Options.ClientOptions!.Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
     }
 
     [Test]

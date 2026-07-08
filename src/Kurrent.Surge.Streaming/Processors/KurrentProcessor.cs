@@ -85,7 +85,7 @@ public sealed class KurrentProcessor {
 
 		_options.EnsureValid();
 
-		var client = new KurrentClient(_options.ClientOptions);
+		var client = new KurrentClient((KurrentClientOptions)_options.ClientOptions);
 
 		// Buffer holds a few batches' worth so the reader can fill one batch by size while another
 		// is in flight — capacity is a multiple of the batch size, never smaller than it.

@@ -27,7 +27,7 @@ public partial class StreamsClient {
 
         await foreach (var record in records.WithCancellation(cancellationToken).ConfigureAwait(false)) {
             EnsureValid(record);
-            
+
             // Metadata.WithMany mutates the record's metadata, so there is no record copy.
             // This also mutates the caller's metadata — intentional.
             if (options?.Metadata is { Count: > 0 } meta)
@@ -42,7 +42,7 @@ public partial class StreamsClient {
             var recordSize = serialized.CalculateSize();
             if (recordSize > maxRecordSize)
                 throw new MaxAppendRecordSizeExceededException(
-                    string.Format("Record '{0}' size {1} bytes exceeds the maximum append record size of {2} bytes.", record.RecordId, recordSize, maxRecordSize)) {
+                    $"Record '{record.RecordId}' size {recordSize} bytes exceeds the maximum append record size of {maxRecordSize} bytes.") {
                     RecordId         = record.RecordId,
                     RecordActualSize = recordSize,
                     RecordMaxSize    = maxRecordSize
@@ -51,7 +51,7 @@ public partial class StreamsClient {
             transactionSize += recordSize;
             if (transactionSize > maxTransactionSize)
                 throw new MaxAppendTransactionSizeExceededException(
-                    string.Format("Append transaction size {0} bytes exceeds the maximum append transaction size of {1} bytes.", transactionSize, maxTransactionSize)) {
+                    $"Append transaction size {transactionSize} bytes exceeds the maximum append transaction size of {maxTransactionSize} bytes.") {
                     TransactionActualSize = transactionSize,
                     TransactionMaxSize    = maxTransactionSize
                 };
@@ -109,37 +109,6 @@ public partial class StreamsClient {
                 request.Checks.Add(check.ToContract());
         }
     }
-    
-    /// <summary>
-    /// Appends records from an async enumerable source with optional consistency checks and
-    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
-    /// as it is yielded.
-    /// </summary>
-    public ValueTask<AppendRecordsResponse> AppendRecords(
-        IAsyncEnumerable<AppendRecord> records,
-        CancellationToken cancellationToken
-    ) => AppendRecords(records, (AppendRecordsOptions?)null, cancellationToken);
-    
-    /// <summary>
-    /// Appends records from an enumerable source with optional consistency checks and
-    /// batch-level overrides. Single-pass: each record is validated, stamped, and serialized
-    /// as it is iterated.
-    /// </summary>
-    public ValueTask<AppendRecordsResponse> AppendRecords(
-        IEnumerable<AppendRecord> records,
-        AppendRecordsOptions? options,
-        CancellationToken cancellationToken
-    ) => AppendRecords(records.ToAsyncEnumerable(), options, cancellationToken);
-    
-    /// <summary>
-    /// Appends records from an enumerable source in a single pass — each record is validated,
-    /// stamped with batch overrides, and serialized as it is iterated. The records are never
-    /// materialized into an intermediate collection.
-    /// </summary>
-    public ValueTask<AppendRecordsResponse> AppendRecords(
-        IEnumerable<AppendRecord> records,
-        CancellationToken cancellationToken
-    ) => AppendRecords(records, (AppendRecordsOptions?)null, cancellationToken);
 
     /// <summary>
     /// Appends records from an async enumerable source, configuring the batch options inline
@@ -150,16 +119,6 @@ public partial class StreamsClient {
         Func<AppendRecordsOptions, AppendRecordsOptions> configure,
         CancellationToken cancellationToken
     ) => AppendRecords(records, configure(new()), cancellationToken);
-
-    /// <summary>
-    /// Appends records from an enumerable source, configuring the batch options inline
-    /// from a fresh <see cref="AppendRecordsOptions"/>.
-    /// </summary>
-    public ValueTask<AppendRecordsResponse> AppendRecords(
-        IEnumerable<AppendRecord> records,
-        Func<AppendRecordsOptions, AppendRecordsOptions> configure,
-        CancellationToken cancellationToken
-    ) => AppendRecords(records.ToAsyncEnumerable(), configure(new()), cancellationToken);
 
     #endregion // AppendRecords
 
@@ -196,44 +155,6 @@ public partial class StreamsClient {
             throw vex.Violations[0].AsStreamStateViolation.ToStreamException();
         }
     }
-
-    /// <inheritdoc cref="AppendStream(StreamName, IAsyncEnumerable{AppendRecord}, ExpectedStreamState, CancellationToken)"/>
-    public ValueTask<AppendStreamResponse> AppendStream(
-        StreamName stream,
-        IAsyncEnumerable<AppendRecord> records,
-        CancellationToken cancellationToken
-    ) => AppendStream(stream, records, ExpectedStreamState.Any, cancellationToken);
-
-    /// <inheritdoc cref="AppendStream(StreamName, IAsyncEnumerable{AppendRecord}, ExpectedStreamState, CancellationToken)"/>
-    public ValueTask<AppendStreamResponse> AppendStream(
-        StreamName stream,
-        IEnumerable<AppendRecord> records,
-        ExpectedStreamState expectedState,
-        CancellationToken cancellationToken = default
-    ) => AppendStream(stream, records.ToAsyncEnumerable(), expectedState, cancellationToken);
-
-    /// <inheritdoc cref="AppendStream(StreamName, IAsyncEnumerable{AppendRecord}, ExpectedStreamState, CancellationToken)"/>
-    public ValueTask<AppendStreamResponse> AppendStream(
-        StreamName stream,
-        IEnumerable<AppendRecord> records,
-        CancellationToken cancellationToken = default
-    ) => AppendStream(stream, records.ToAsyncEnumerable(), ExpectedStreamState.Any, cancellationToken);
-
-    /// <summary>
-    /// Appends a single record to its own <see cref="AppendRecord.Stream"/>, guarding on
-    /// <paramref name="expectedState"/>.
-    /// </summary>
-    public ValueTask<AppendStreamResponse> AppendStream(
-        AppendRecord record,
-        ExpectedStreamState expectedState,
-        CancellationToken cancellationToken = default
-    ) => AppendStream(record.Stream, new[] { record }, expectedState, cancellationToken);
-
-    /// <inheritdoc cref="AppendStream(AppendRecord, ExpectedStreamState, CancellationToken)"/>
-    public ValueTask<AppendStreamResponse> AppendStream(
-        AppendRecord record,
-        CancellationToken cancellationToken = default
-    ) => AppendStream(record.Stream, new[] { record }, ExpectedStreamState.Any, cancellationToken);
 
     #endregion // AppendStream
 }

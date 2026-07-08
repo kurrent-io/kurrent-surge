@@ -62,7 +62,7 @@ sealed class DroneCommander(ProcessorOptions options, Func<IProcessor> processor
         var clientOptions = options.ClientOptions
                          ?? throw new InvalidOperationException("No connection configured. Call opts.Connection(...) first.");
 
-        var client  = new KurrentClient(clientOptions);
+        var client  = new KurrentClient((KurrentClientOptions)clientOptions);
         var streams = new StreamsClient(client);
         var maxP    = options.MaxParallelism;
 

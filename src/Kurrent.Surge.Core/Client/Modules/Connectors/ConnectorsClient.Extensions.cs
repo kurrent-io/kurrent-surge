@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 namespace Kurrent.Client.Connectors;
 
 public static partial class ConnectorsClientExtensions {
-    extension(ConnectorsClient client) {
+    extension(IConnectorsClient client) {
         #region ->> Create <<-
 
         public ValueTask<Success> Create(ConnectorId id, CancellationToken ct = default) =>

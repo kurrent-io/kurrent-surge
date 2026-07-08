@@ -23,7 +23,7 @@ namespace Kurrent.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientOptions : SelfValidating<KurrentClientOptions, KurrentClientOptions.Validator> {
+public record KurrentClientOptions : SelfValidating<KurrentClientOptions, KurrentClientOptions.Validator>, IKurrentClientOptions {
     public static KurrentClientOptions Parse(string connectionString) =>
         KurrentConnectionString.Parse(connectionString).ToClientOptions();
 
@@ -69,7 +69,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// It can be either "kurrentdb" for single-node connections or "kurrentdb+discover" for multi-node clusters with discovery.
     /// </summary>
     public KurrentConnectionScheme ConnectionScheme { get; set; } = KurrentConnectionScheme.Direct;
-    
+
     /// <summary>
     /// Gets the address of the KurrentDB cluster based on the connection scheme and endpoints.
     /// </summary>
@@ -165,7 +165,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// </para>
     /// </remarks>
     public ILoggerFactory LoggerFactory { get; set; } = NullLoggerFactory.Instance;
-    
+
     public KurrentClientMessageOptions Messages { get; private set; } = new();
 
     /// <summary>
@@ -207,7 +207,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     }
 
     public override string ToString() => GenerateConnectionString(this);
-    
+
     public class Validator : Validator<Validator, KurrentClientOptions> {
         public Validator() {
             // Connection name validation
@@ -268,7 +268,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
                 .SetValidator(KurrentClientSecurityOptions.Validator.Instance);
         }
     }
-    
+
     /// <summary>
     /// Converts the current options to a valid KurrentDB connection string.
     /// </summary>

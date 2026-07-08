@@ -21,6 +21,10 @@ public class ResolveStartTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
+    // The Resolve* hooks are internal white-box members of the concrete client — they are not
+    // part of the IStreamsClient contract, so these tests reach them through the concrete type.
+    StreamsClient Streams => (StreamsClient)Fixture.Client.Streams;
+
     #region ->> Pass-through <<-
 
     [Test]
@@ -31,7 +35,7 @@ public class ResolveStartTests {
         var complete = seed.A[1].Position; // all three halves present
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(complete, ct: ct);
+        var resolved = await Streams.ResolveReadStart(complete, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(complete);
@@ -40,8 +44,8 @@ public class ResolveStartTests {
     [Test]
     public async ValueTask returns_sentinels_unchanged(CancellationToken ct) {
         // Act
-        var earliest = await Fixture.Client.Streams.ResolveReadStart(RecordPosition.Earliest, ct: ct);
-        var latest   = await Fixture.Client.Streams.ResolveSubscriptionStart(RecordPosition.Latest, ct);
+        var earliest = await Streams.ResolveReadStart(RecordPosition.Earliest, ct: ct);
+        var latest   = await Streams.ResolveSubscriptionStart(RecordPosition.Latest, ct);
 
         // Assert
         await Assert.That(earliest).IsEqualTo(RecordPosition.Earliest);
@@ -52,7 +56,7 @@ public class ResolveStartTests {
     public async ValueTask throws_when_position_is_unset(CancellationToken ct) {
         // Act & Assert — a fully unset position is a caller bug, not a resolvable outcome
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await Fixture.Client.Streams.ResolveReadStart(RecordPosition.Unset, ct: ct));
+            async () => await Streams.ResolveReadStart(RecordPosition.Unset, ct: ct));
     }
 
     #endregion // Pass-through
@@ -69,7 +73,7 @@ public class ResolveStartTests {
 
         // Act
         Fixture.Logger.LogInformation("Resolving (stream, r{Revision}) without log half — expect {Expected}", expected.Revision.Value, expected);
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
+        var resolved = await Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -81,7 +85,7 @@ public class ResolveStartTests {
         var input = RecordPosition.From(LogPosition.Unset, StreamName.From($"missing-{Guid.NewGuid():N}"), Revision.Min);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
+        var resolved = await Streams.ResolveReadStart(input, ct: ct);
 
         // Assert — known outcome, never throws
         await Assert.That(resolved).IsEqualTo(RecordPosition.Unset);
@@ -100,7 +104,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(expected.LogPosition, expected.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
+        var resolved = await Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -117,7 +121,7 @@ public class ResolveStartTests {
 
         // Act
         Fixture.Logger.LogInformation("Resolving read start at foreign mid-range anchor {Anchor} — expect {Expected}", anchor.Value, expected);
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
+        var resolved = await Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -133,7 +137,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(anchor.LogPosition, anchor.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ReadDirection.Backwards, ct);
+        var resolved = await Streams.ResolveReadStart(input, ReadDirection.Backwards, ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -149,7 +153,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(anchor, seed.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ReadDirection.Backwards, ct);
+        var resolved = await Streams.ResolveReadStart(input, ReadDirection.Backwards, ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -163,7 +167,7 @@ public class ResolveStartTests {
         var input = RecordPosition.From(seed.A[0].Position.LogPosition, seed.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ReadDirection.Backwards, ct);
+        var resolved = await Streams.ResolveReadStart(input, ReadDirection.Backwards, ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(RecordPosition.Unset);
@@ -179,7 +183,7 @@ public class ResolveStartTests {
         var input = RecordPosition.From(after.Position, seed.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
+        var resolved = await Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(RecordPosition.Unset);
@@ -198,7 +202,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(expected.LogPosition, expected.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveSubscriptionStart(input, ct);
+        var resolved = await Streams.ResolveSubscriptionStart(input, ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -215,7 +219,7 @@ public class ResolveStartTests {
 
         // Act
         Fixture.Logger.LogInformation("Resolving subscription start at foreign anchor {Anchor} — expect {Expected}", anchor.Value, expected);
-        var resolved = await Fixture.Client.Streams.ResolveSubscriptionStart(input, ct);
+        var resolved = await Streams.ResolveSubscriptionStart(input, ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);
@@ -230,7 +234,7 @@ public class ResolveStartTests {
         var input = RecordPosition.From(preSeed.LogPosition, seed.Stream, Revision.Unset);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveSubscriptionStart(input, ct);
+        var resolved = await Streams.ResolveSubscriptionStart(input, ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(RecordPosition.Unset);
@@ -249,7 +253,7 @@ public class ResolveStartTests {
         var input    = RecordPosition.From(expected.LogPosition);
 
         // Act
-        var resolved = await Fixture.Client.Streams.ResolveReadStart(input, ct: ct);
+        var resolved = await Streams.ResolveReadStart(input, ct: ct);
 
         // Assert
         await Assert.That(resolved).IsEqualTo(expected);

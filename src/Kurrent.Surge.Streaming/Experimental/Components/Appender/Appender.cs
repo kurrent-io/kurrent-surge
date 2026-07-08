@@ -38,7 +38,9 @@ sealed class Appender : IAppender {
         _options = options;
 
         _client  = KurrentClient.Create(options.ClientOptions!);
-        _streams = _client.Streams;
+        // The experimental appender speaks concrete-client internals (mapping context, raw service
+        // client), so it builds its own StreamsClient instead of taking IKurrentClient.Streams.
+        _streams = new StreamsClient(_client);
 
         //TODO SS: could the default lane be 0 if we simply start the keyed lanes on 1? :)
 

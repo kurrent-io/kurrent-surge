@@ -10,9 +10,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace KurrentDB.Client;
 
-/// <summary>
-/// Represents the settings to use for operations made from an implementation of <see cref="KurrentDBClientBase"/>.
-/// </summary>
 class KurrentDBClientSettings {
     /// <summary>
     /// The name of the connection.
@@ -263,5 +260,5 @@ static class KurrentDBConnectionStringConverter {
     }
 }
 
-public class InvalidLegacyClientSettingsException(string reason, Exception? innerException = null) 
+public class InvalidLegacyClientSettingsException(string reason, Exception? innerException = null)
     : KurrentException(ErrorCode.FromType<InvalidLegacyClientSettingsException>(), reason, innerException);

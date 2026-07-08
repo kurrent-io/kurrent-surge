@@ -23,13 +23,13 @@ public record KdbDataSourceOptions {
 
 public class KdbDataSource : IDataSource {
     readonly KdbDataSourceOptions   _options;
-    readonly StreamsClient          _client;
+    readonly IStreamsClient         _client;
     readonly ILoggerFactory         _loggerFactory;
     readonly IPartitionKeyExtractor _partitionKeyExtractor;
 
     public KdbDataSource(
         KdbDataSourceOptions options,
-        StreamsClient client,
+        IStreamsClient client,
         ILoggerFactory loggerFactory
     ) {
         _options               = options;

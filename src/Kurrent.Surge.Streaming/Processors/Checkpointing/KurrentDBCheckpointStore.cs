@@ -27,7 +27,7 @@ namespace Kurrent.Streaming.Checkpointing;
 /// </remarks>
 [PublicAPI]
 public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
-    readonly StreamsClient _client;
+    readonly IStreamsClient _client;
     readonly ILogger       _logger;
     readonly int           _maxCount;
     readonly int           _partitionCount;
@@ -55,7 +55,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
         string processorId,
         int partitionCount,
         int maxCount,
-        StreamsClient client,
+        IStreamsClient client,
         TimeProvider time,
         ILogger<KurrentDBCheckpointStore> logger
     ) : base(processorId, time, logger) {

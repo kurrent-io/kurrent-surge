@@ -175,9 +175,6 @@ public partial class StreamsClient {
         }
     }
 
-    public ValueTask<LogPosition> Delete(StreamName stream, CancellationToken cancellationToken = default) =>
-        Delete(stream, Revision.Unset, cancellationToken);
-
     #endregion
 
     #region ->> Tombstone <<-
@@ -216,9 +213,6 @@ public partial class StreamsClient {
             throw ex.AsWellKnownException();
         }
     }
-
-    public ValueTask<LogPosition> Tombstone(StreamName stream, CancellationToken cancellationToken = default) =>
-        Tombstone(stream, Revision.Unset, cancellationToken);
 
     #endregion
 
@@ -306,9 +300,6 @@ public partial class StreamsClient {
             .ConfigureAwait(false);
     }
 
-    public ValueTask<Revision> SetCustomMetadata(StreamName stream, Metadata metadata, CancellationToken cancellationToken = default) =>
-        SetCustomMetadata(stream, x => x.Reset(metadata), cancellationToken);
-
     #endregion
 
     #region ->> ConfigureDataRetention <<-
@@ -372,15 +363,6 @@ public partial class StreamsClient {
             .ConfigureAwait(false);
     }
 
-    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, StreamRetention options, CancellationToken cancellationToken = default) =>
-        ConfigureDataRetention(stream, x => { x.MaxCount = options.MaxCount; x.MaxAge = options.MaxAge; }, cancellationToken);
-
-    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, int maxCount, CancellationToken cancellationToken = default) =>
-        ConfigureDataRetention(stream, x => x.MaxCount = maxCount, cancellationToken);
-
-    public ValueTask<Revision> ConfigureDataRetention(StreamName stream, TimeSpan maxAge, CancellationToken cancellationToken = default) =>
-        ConfigureDataRetention(stream, x => x.MaxAge = maxAge, cancellationToken);
-
     #endregion
 
     async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision rev, CancellationToken ct) {
@@ -393,8 +375,8 @@ public partial class StreamsClient {
         // Unset (or Any) guard; the new core only short-circuits on Any, so branch here to avoid sending
         // an invalid revision check on the metastream.
         var result = rev == Revision.Unset
-            ? await AppendStream(stream.Metastream, [record], ct).ConfigureAwait(false)
-            : await AppendStream(stream.Metastream, [record], rev, ct).ConfigureAwait(false);
+            ? await this.AppendStream(stream.Metastream, [record], ct).ConfigureAwait(false)
+            : await this.AppendStream(stream.Metastream, [record], rev, ct).ConfigureAwait(false);
 
         return result.Revision;
     }

@@ -10,7 +10,7 @@ public static class LogPositionExtensions {
         /// Relative or symbolic sentinels (<see cref="LogPosition.Unset"/>, <see cref="LogPosition.Earliest"/>, <see cref="LogPosition.Latest"/>) are rejected.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">The position is negative or equal to <see cref="LogPosition.Latest"/>.</exception>
-        public void EnsureAbsolute() {
+        public void EnsureAbsolute() { // TODO SS: nah, we need to accept earliest but not unset or latest. This is a connector-specific requirement, so maybe this should be in the connector base class instead of here.
             if (position.Value >= 0 && position != LogPosition.Latest)
                 return;
 

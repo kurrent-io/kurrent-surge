@@ -1,4 +1,5 @@
 using Kurrent.Client.Exceptions;
+using Kurrent.Client.Streams;
 
 namespace Kurrent.Client.Tests.Streams;
 

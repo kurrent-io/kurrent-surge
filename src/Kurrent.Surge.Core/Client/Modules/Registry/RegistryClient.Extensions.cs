@@ -4,7 +4,7 @@ using Kurrent.Schema;
 namespace Kurrent.Client.Registry;
 
 public static partial class RegistryClientExtensions {
-    extension(RegistryClient client) {
+    extension(IRegistryClient client) {
         #region ->> CreateSchema <<-
 
         public ValueTask<SchemaVersionDescriptor> CreateSchema(

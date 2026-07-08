@@ -14,7 +14,3 @@ public interface IKurrentBuilder {
     /// </summary>
     IServiceCollection Services { get; }
 }
-
-sealed class KurrentBuilder(IServiceCollection services) : IKurrentBuilder {
-    public IServiceCollection Services { get; } = services;
-}
