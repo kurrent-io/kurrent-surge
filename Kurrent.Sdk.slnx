@@ -14,7 +14,7 @@
   </Folder>
 
   <Folder Name="/Client/">
-    <Project Path="src/Kurrent.Client/Kurrent.Client.csproj" />
+    <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
     <Project Path="src/Kurrent.Surge.Arrow/Kurrent.Surge.Arrow.csproj" />
     <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
     <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />

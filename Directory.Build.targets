@@ -170,7 +170,7 @@
     ProjectReference (local dev) or PackageReference (CI / explicit opt-in).
 
     Usage in csproj:
-      <ProjectOrPackageReference Include="Kurrent.Client" />
+      <ProjectOrPackageReference Include="Kurrent.Surge" />
 
     ProjectReference mode (default locally):
       dotnet build
@@ -207,8 +207,7 @@
     SDK by source, so they never match and need no name-based exclusion.
   -->
   <ItemGroup Condition="'$(TestPackages)' != 'true'">
-    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Client'))" />
-    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Streaming.Core'))" />
+    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge'))" />
     <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge.Streaming'))" />
     <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Schema.Catalogs'))" />
   </ItemGroup>

@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <PackageId>Kurrent.Client</PackageId>
+    <PackageId>Kurrent.Surge</PackageId>
     <IsPackable>true</IsPackable>
     <Title>Kurrent .NET Client</Title>
     <Product>Kurrent .NET Client</Product>
@@ -83,11 +83,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Kurrent.Client" />
+    <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit.Hosting" />

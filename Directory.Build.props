@@ -43,7 +43,7 @@
 
   <!--
     Source generators that ship inside SDK packages as analyzers (analyzers/dotnet/cs). Single
-    source of truth: Kurrent.Client packs these (PackedAnalyzer), and Directory.Build.targets wires
+    source of truth: Kurrent.Surge packs these (PackedAnalyzer), and Directory.Build.targets wires
     the same set as analyzers for in-repo projects that reference the SDK by source — analyzers are
     not transitive through a ProjectReference, so source consumers need them added explicitly.
     Add a future packed analyzer here once; both the package and source consumers pick it up.

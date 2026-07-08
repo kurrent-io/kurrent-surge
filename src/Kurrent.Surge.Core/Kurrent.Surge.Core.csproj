@@ -87,7 +87,7 @@
          has an internal set; the Internal/Validation infra is internal). The assemblies that touch
          those internals are granted access here. -->
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
-    <InternalsVisibleTo Include="Kurrent.Client" />
+    <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />

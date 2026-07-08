@@ -28,7 +28,7 @@
     <!-- BuildResolver (KurrentClientMessageOptions, now in Kurrent.Surge.Core) calls internal
          MessageCatalogDiscovery.GetCatalogs(); discovery stays internal to this package, so the
          calling assemblies need visibility. -->
-    <InternalsVisibleTo Include="Kurrent.Client" />
+    <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Core" />
     <InternalsVisibleTo Include="Kurrent.Schema.Catalogs.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
@@ -40,7 +40,6 @@
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core.Tests" />
 
     <InternalsVisibleTo Include="Kurrent.Streaming" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
   </ItemGroup>
 

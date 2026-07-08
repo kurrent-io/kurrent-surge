@@ -5,7 +5,7 @@
   </PropertyGroup>
   <!-- Kurrent SDK packages — version shared across all, overridden in CI via -p:Version -->
   <ItemGroup>
-    <PackageVersion Include="Kurrent.Client" Version="$(Version)" />
+    <PackageVersion Include="Kurrent.Surge" Version="$(Version)" />
     <PackageVersion Include="Kurrent.Schema.Catalogs" Version="$(Version)" />
     <PackageVersion Include="Kurrent.Streaming.Core" Version="$(Version)" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.9" />

@@ -14,6 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Kurrent.Surge.Streaming\Kurrent.Surge.Streaming.csproj" />
-    <ProjectReference Include="..\..\..\src\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
   </ItemGroup>
 </Project>
