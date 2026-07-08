@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
     <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
-    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 

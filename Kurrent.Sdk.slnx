@@ -10,14 +10,14 @@
   </Folder>
 
   <Folder Name="/Benchmarks/">
-    <Project Path="perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
+    <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
   </Folder>
 
   <Folder Name="/Client/">
     <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
     <Project Path="src/Kurrent.Surge.Arrow/Kurrent.Surge.Arrow.csproj" />
     <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
-    <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
+    <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
     <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
   </Folder>
@@ -64,7 +64,7 @@
     <Project Path="test/Kurrent.CodeAnalysis.Tests/Kurrent.CodeAnalysis.Tests.csproj" />
   </Folder>
   <Folder Name="/Shared/Testkit/">
-    <Project Path="test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj" />
+    <Project Path="test/Kurrent.Surge.Testkit/Kurrent.Surge.Testkit.csproj" />
     <Project Path="test/Kurrent.Testkit/Kurrent.Testkit.csproj" />
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
   </Folder>
@@ -77,6 +77,6 @@
   <Folder Name="/Streaming/">
     <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />
     <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
-    <Project Path="test/Kurrent.Streaming.Tests/Kurrent.Streaming.Tests.csproj" />
+    <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   </Folder>
 </Solution>

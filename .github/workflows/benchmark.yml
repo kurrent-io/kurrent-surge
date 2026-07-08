@@ -106,7 +106,7 @@ jobs:
 
       - name: Run Benchmarks
         run: >-
-          dotnet run -c Release --no-build --framework net10.0 --project perf/Kurrent.Client.Benchmarks/ --
+          dotnet run -c Release --no-build --framework net10.0 --project perf/Kurrent.Surge.Benchmarks/ --
           --artifacts ./artifacts/benchmarks
           --exporters json github
           --filter ${{ matrix.filter }}

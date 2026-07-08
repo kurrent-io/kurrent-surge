@@ -6,7 +6,9 @@ using Kurrent.Client.Tests.Schema.Catalogs.Explicit;
 using Kurrent.Client.Tests.Schema.Catalogs.External;
 using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
 using Kurrent.Client.Tests.Schema.Catalogs.Scanned;
-using GeneratedCatalogs = Kurrent.Client.Tests.MessageCatalogs;
+// The catalog generator names its output after the assembly (compilation.AssemblyName),
+// so the generated namespace tracked the test project's rename to Kurrent.Surge.Tests.
+using GeneratedCatalogs = Kurrent.Surge.Tests.MessageCatalogs;
 
 namespace Kurrent.Client.Tests.Schema;
 

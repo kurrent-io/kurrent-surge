@@ -25,8 +25,9 @@ body:
       description: Which NuGet package(s) is the bug in? Select all that apply.
       multiple: true
       options:
-        - Kurrent.Client
-        - Kurrent.Streaming
+        - Kurrent.Surge
+        - Kurrent.Surge.Core
+        - Kurrent.Schema.Catalogs
         - Not sure
     validations:
       required: true

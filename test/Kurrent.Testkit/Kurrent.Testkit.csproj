@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Testkit.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
   </ItemGroup>
 
   <ItemGroup>

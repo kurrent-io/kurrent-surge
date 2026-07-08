@@ -88,13 +88,13 @@
          those internals are granted access here. -->
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Surge" />
-    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
-    <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 

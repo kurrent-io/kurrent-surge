@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Projectors.DuckDB\Kurrent.Projectors.DuckDB.csproj" />
-    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Kurrent.Testkit" />

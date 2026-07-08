@@ -96,13 +96,13 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
-    <InternalsVisibleTo Include="Kurrent.Client.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit.Hosting" />
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
-    <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
