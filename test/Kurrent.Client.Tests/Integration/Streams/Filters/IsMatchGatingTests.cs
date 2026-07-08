@@ -151,12 +151,16 @@ public class IsMatchGatingTests {
 
         // Act — scan $all filtered to our unique index prefix from the pre-seed anchor (bounded result:
         // only our records carry this category). Poll for the eventually-consistent index.
+        //
+        // The $idx-ce-{cat} secondary index is eventually consistent, and its catch-up lag grows with the
+        // total log volume the server has accumulated — on a saturated shared container it can trail well
+        // past the 10s the $ce-{cat} link stream needs above. Poll on a wall-clock deadline (not a fixed
+        // attempt count) so the wait scales to the lag, bounded safely under the 60s test timeout; the
+        // loop exits the instant the index has caught up.
         var delivered = new List<Record>();
+        var deadline  = DateTime.UtcNow + TimeSpan.FromSeconds(45);
 
-        for (var attempt = 0; attempt < 20 && delivered.Count < seeded; attempt++) {
-            if (attempt > 0)
-                await Task.Delay(500, ct);
-
+        while (true) {
             delivered.Clear();
 
             await foreach (var msg in Fixture.Client.Streams.ReadRecords(
@@ -167,6 +171,11 @@ public class IsMatchGatingTests {
                 if (msg.Value is Record record)
                     delivered.Add(record);
             }
+
+            if (delivered.Count >= seeded || DateTime.UtcNow >= deadline)
+                break;
+
+            await Task.Delay(500, ct);
         }
 
         // Assert — the index delivers our records as resolved origins whose category matches the filter.
