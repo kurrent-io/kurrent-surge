@@ -6,9 +6,14 @@
     <RootNamespace>Kurrent</RootNamespace>
     <Title>Kurrent .NET Abstractions</Title>
     <Product>Kurrent .NET Abstractions</Product>
-    <Description>The contract layer for the Kurrent .NET SDK: the client interfaces and the data types they accept and return — options, results, value objects, filters — with no gRPC, protobuf, or transport. Reference this to depend on the Kurrent client contract without the client implementation.</Description>
-    <PackageTags>kurrent kurrentdb abstractions contracts sdk event-sourcing</PackageTags>
+    <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — with no gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
+    <PackageTags>kurrent kurrentdb abstractions contracts sdk event-sourcing stream-processing</PackageTags>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+
+    <!-- The source-generated metric attributes (Unit, generic [Gauge<T>]) sit behind the
+         EXTEXP0003 experimental gate (Microsoft.Extensions.Diagnostics.Metrics), used by the
+         streaming instruments merged in from Kurrent.Streaming.Core. -->
+    <NoWarn>$(NoWarn);EXTEXP0003</NoWarn>
   </PropertyGroup>
 
   <!-- AOT/Trimming Support -->
@@ -24,7 +29,12 @@
          this package and transitively to Kurrent.Client. -->
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
-    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" />
+    <!-- PrivateAssets="none": the filename triggers the in-repo packed-analyzer wiring in
+         Directory.Build.targets so the message-catalog generator runs on THIS compilation (the
+         streaming proto contracts need their generated catalog — checkpoint appends fail to map
+         without it), and the nuspec dependency carries all assets so consumers get the generator
+         too (analyzers are excluded on dependency edges by default). -->
+    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,7 +50,7 @@
   <ItemGroup>
     <!-- The Schema subsystem lives in core by decision: serializer contracts AND the concrete
          JSON/Protobuf serialization stack, so these serialization packages are accepted core
-         dependencies. Transport (gRPC) remains excluded. -->
+         dependencies. Transport (gRPC client) remains excluded. -->
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="NJsonSchema" />
     <PackageReference Include="NodaTime" />
@@ -48,21 +58,45 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Streaming contracts merged from Kurrent.Streaming.Core: proto-compilation tooling,
+         resilience primitives on ProcessorOptions, and OpenTelemetry metrics. -->
+    <PackageReference Include="Google.Protobuf.Tools" PrivateAssets="All" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
+    <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Polly.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Streaming wire contracts merged from Kurrent.Streaming.Core. Message types only
+         (no GrpcServices); Access=Public so consumers see them. -->
+    <Protobuf ProtoRoot="../../proto/kurrent"
+              Include="../../proto/kurrent/streaming/**/*.proto"
+              Link="Contracts\%(RecursiveDir)/%(FileName)%(Extension)"
+              AdditionalImportDirs="../../proto"
+              Access="Public" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Moved contract types carry internal members the implementation writes (e.g. Record.Value
          has an internal set; the Internal/Validation infra is internal). The assemblies that touch
-         those internals are granted access here, by the new project. Starting set per the
-         extraction plan; the build adds any that the compiler flags as inaccessible. -->
+         those internals are granted access here. -->
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Client" />
     <InternalsVisibleTo Include="Kurrent.Client.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Streaming.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Core.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Client.Benchmarks" />
     <InternalsVisibleTo Include="Kurrent.Sdk.Testkit" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
 </Project>
