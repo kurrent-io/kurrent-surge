@@ -7,9 +7,9 @@ using System.Net;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Represents a collection of metadata as key-value pairs with additional helper methods.

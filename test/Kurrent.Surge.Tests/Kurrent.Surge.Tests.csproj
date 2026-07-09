@@ -17,7 +17,8 @@
     <Using Include="Kurrent.Testkit.TUnit" />
     <Using Include="Kurrent.Testkit.TUnit.Assertions" />
     <Using Include="Kurrent.Surge.Testkit" />
-    <Using Include="Kurrent.Client.Tests.EventuallyDefaults" Static="true" />
+    <Using Include="Kurrent.Surge.Client" />
+    <Using Include="Kurrent.Surge.Tests.EventuallyDefaults" Static="true" />
   </ItemGroup>
 
   <ItemGroup>

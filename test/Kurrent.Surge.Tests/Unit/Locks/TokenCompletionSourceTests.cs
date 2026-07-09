@@ -1,6 +1,6 @@
 using System.Runtime.ExceptionServices;
 
-namespace Kurrent.Client.Tests.Locks;
+namespace Kurrent.Surge.Tests.Locks;
 
 [Category("Locks")]
 public class TokenCompletionSourceTests {

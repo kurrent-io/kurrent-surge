@@ -1,17 +1,17 @@
-using Kurrent.Client.Admin;
-using Kurrent.Client.Indexes;
-using Kurrent.Client.Connectors;
-using Kurrent.Client.Legacy;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Schema.Serialization.Bytes;
-using Kurrent.Client.Schema.Serialization.Json;
-using Kurrent.Client.Schema.Serialization.Protobuf;
-using Kurrent.Client.Streams;
-using ProtobufMessages = Kurrent.Client.Schema.Serialization.Protobuf.ProtobufMessages;
+using Kurrent.Surge.Client.Admin;
+using Kurrent.Surge.Client.Indexes;
+using Kurrent.Surge.Client.Connectors;
+using Kurrent.Surge.Client.Legacy;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Bytes;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
+using Kurrent.Surge.Client.Streams;
+using ProtobufMessages = Kurrent.Surge.Client.Schema.Serialization.Protobuf.ProtobufMessages;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 [PublicAPI]
 public class KurrentClient : IKurrentClient {

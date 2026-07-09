@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// A consistency check that was violated during an append operation.

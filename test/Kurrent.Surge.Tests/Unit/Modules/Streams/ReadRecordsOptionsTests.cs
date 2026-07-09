@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Tests.Modules.Streams;
+namespace Kurrent.Surge.Tests.Modules.Streams;
 
 [Category("Streams")]
 public class ReadRecordsOptionsTests {

@@ -1,13 +1,13 @@
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using Kurrent.Client.Legacy;
+using Kurrent.Surge.Client.Legacy;
 using Kurrent.Http;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
 using Polly;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Factory for creating HTTP clients that communicate with the Kurrent backdoor service.

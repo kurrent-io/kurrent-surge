@@ -1,15 +1,15 @@
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Schema;
 using Kurrent.Schema.Catalogs;
 using Kurrent.Schema.Naming;
-using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Tests.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]

@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 public abstract class AppendConsistencyTestBase {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]

@@ -1,7 +1,7 @@
 using Connector.Management;
-using Kurrent.Client;
-using Kurrent.Client.Connectors;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Connectors;
+using Kurrent.Surge.Client.Exceptions;
 using Serilog;
 using Serilog.Events;
 

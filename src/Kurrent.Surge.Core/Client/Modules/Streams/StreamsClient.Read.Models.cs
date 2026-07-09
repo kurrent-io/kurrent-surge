@@ -1,7 +1,7 @@
 using Kurrent.Validation;
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// A single element of a read, which can be either a <see cref="Record"/> or a <see cref="Checkpoint"/>.

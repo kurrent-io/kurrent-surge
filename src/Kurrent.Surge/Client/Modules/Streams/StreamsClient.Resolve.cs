@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public partial class StreamsClient {
     /// <summary>

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public static partial class StreamsClientExtensions {
     extension(IAsyncEnumerable<ReadMessage> source) {

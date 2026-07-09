@@ -1,6 +1,6 @@
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 static partial class StreamsClientMapping {
     internal static partial class Requests {

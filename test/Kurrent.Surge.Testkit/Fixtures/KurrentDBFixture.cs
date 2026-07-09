@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using Bogus;
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using Kurrent.Schema.Catalogs;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Aspire.Hosting.KurrentDB;
 using Kurrent.Testkit.Aspire;
 using Microsoft.Extensions.Configuration;

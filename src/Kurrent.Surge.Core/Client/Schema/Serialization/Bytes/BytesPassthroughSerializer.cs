@@ -2,10 +2,10 @@
 
 using System.Buffers;
 using System.Diagnostics;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Schema.Serialization.Bytes;
+namespace Kurrent.Surge.Client.Schema.Serialization.Bytes;
 
 /// <summary>
 /// Provides a passthrough implementation of the <see cref="ISchemaSerializer"/> interface

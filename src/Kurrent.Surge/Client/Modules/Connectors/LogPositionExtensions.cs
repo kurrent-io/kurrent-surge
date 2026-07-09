@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 [PublicAPI]
 public static class LogPositionExtensions {

@@ -1,9 +1,9 @@
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
 using static KurrentDB.Protocol.V2.Indexes.IndexesService;
 using Contracts = KurrentDB.Protocol.V2.Indexes;
 
-namespace Kurrent.Client.Indexes;
+namespace Kurrent.Surge.Client.Indexes;
 
 [PublicAPI]
 public class IndexesClient : ClientModuleBase, IIndexesClient {

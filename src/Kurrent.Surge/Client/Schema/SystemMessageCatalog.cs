@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema.Catalogs;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// SDK-internal system mappings ($metadata, $>, scavenge events). Discovered automatically like

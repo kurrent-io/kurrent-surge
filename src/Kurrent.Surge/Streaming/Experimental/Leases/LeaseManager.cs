@@ -1,5 +1,5 @@
-// using Kurrent.Client;
-// using Kurrent.Client.Streams;
+// using Kurrent.Surge.Client;
+// using Kurrent.Surge.Client.Streams;
 // using Kurrent.Processors.Models;
 // using Kurrent.Surge.Producers;
 // using Kurrent.Surge.Readers;

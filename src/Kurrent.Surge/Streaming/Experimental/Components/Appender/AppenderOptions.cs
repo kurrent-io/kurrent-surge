@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using Kurrent.Validation;
 
 namespace Kurrent.Appender;

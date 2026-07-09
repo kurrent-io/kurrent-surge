@@ -1,9 +1,9 @@
-using Kurrent.Client.Schema.Serialization.Json;
-using Kurrent.Client.Schema.Serialization.Protobuf;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Schema.Catalogs;
 using Kurrent.Schema.Naming;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Client message handling: which message types this client speaks and what wire names they

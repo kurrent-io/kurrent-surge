@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Represents information about a stream in KurrentDB.

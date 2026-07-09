@@ -1,9 +1,9 @@
 using Bogus;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Tests.Schema.Serialization;
+namespace Kurrent.Surge.Tests.Schema.Serialization;
 
 /// <summary>
 /// Shared test fixture for all <see cref="ISchemaSerializer"/> implementations.

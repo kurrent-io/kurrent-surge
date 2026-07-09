@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 /// <summary>
 /// Defines the contract for schema-based serialization and deserialization operations.

@@ -1,11 +1,11 @@
 using System.Text.Json.Nodes;
-using Kurrent.Client.Schema.Serialization.Json;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using NJsonSchema;
 using NJsonSchema.Generation;
 
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Surge.Client.Schema;
 
 public interface ISchemaExporter {
 	string Export(Type messageType, SchemaDataFormat dataFormat);

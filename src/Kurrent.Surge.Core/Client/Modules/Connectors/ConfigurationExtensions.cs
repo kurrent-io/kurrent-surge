@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 using Google.Protobuf.WellKnownTypes;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 /// <summary>
 /// Extension methods for converting between IConfiguration, JSON strings, and Protobuf Struct.

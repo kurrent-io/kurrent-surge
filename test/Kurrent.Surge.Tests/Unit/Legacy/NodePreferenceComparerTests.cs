@@ -3,7 +3,7 @@
 //
 // using static KurrentDB.Client.ClusterMessages.VNodeState;
 //
-// namespace Kurrent.Client.Tests.Legacy;
+// namespace Kurrent.Surge.Tests.Legacy;
 //
 // [Category("Legacy")]
 // public class NodePreferenceComparerTests {

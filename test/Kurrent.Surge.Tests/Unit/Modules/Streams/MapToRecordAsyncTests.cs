@@ -1,11 +1,11 @@
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Schema;
-using Kurrent.Client.Streams;
-using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Client.Streams.Checkpoints;
 using KurrentDB.Client;
 
-namespace Kurrent.Client.Tests.Modules.Streams;
+namespace Kurrent.Surge.Tests.Modules.Streams;
 
 [Category("Streams")]
 public class MapToRecordAsyncTests {

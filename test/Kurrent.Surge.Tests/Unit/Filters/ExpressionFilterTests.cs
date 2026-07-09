@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Tests.Filters;
+namespace Kurrent.Surge.Tests.Filters;
 
 [Category("Filters")]
 public class ExpressionFilterTests {

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Legacy;
+namespace Kurrent.Surge.Client.Legacy;
 
 static class LegacyErrorCodes {
     public const string StreamDeleted        = "stream-deleted";

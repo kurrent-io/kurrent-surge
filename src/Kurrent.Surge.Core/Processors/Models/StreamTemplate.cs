@@ -1,7 +1,7 @@
 // ReSharper disable PartialTypeWithSinglePart
 
 using System.Runtime.CompilerServices;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Streaming.Models;
 

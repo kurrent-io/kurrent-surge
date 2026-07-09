@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kurrent.Client.Tests.Options;
+namespace Kurrent.Surge.Tests.Options;
 
 /// <summary>
 /// Unit tests for the <c>AddKurrent</c> entry point and the scope's default client registration.

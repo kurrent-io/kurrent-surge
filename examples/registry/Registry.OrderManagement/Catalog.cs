@@ -1,5 +1,5 @@
-using Kurrent.Client;
-using Kurrent.Client.Schema;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Schema.Catalogs;
 using Registry.OrderManagement.Events;
 

@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 
-namespace Kurrent.Client.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 
 static class ProtobufExtensions {
     public static MessageParser GetProtoMessageParser(this Type messageType) =>

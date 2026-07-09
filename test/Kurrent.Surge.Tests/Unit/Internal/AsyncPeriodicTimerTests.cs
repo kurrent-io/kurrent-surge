@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 
-namespace Kurrent.Client.Tests.Internal;
+namespace Kurrent.Surge.Tests.Internal;
 
 public class AsyncPeriodicTimerTests {
     static readonly TimeSpan Period = TimeSpan.FromSeconds(1);

@@ -1,7 +1,7 @@
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.KurrentDB;
 
-namespace Kurrent.Client.Arrow.Tests;
+namespace Kurrent.Surge.Arrow.Tests;
 
 public sealed class ArrowFixture : KurrentDBFixture {
     protected override string ResourceName => "ArrowKurrentDB";

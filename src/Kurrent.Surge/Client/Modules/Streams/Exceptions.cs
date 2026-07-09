@@ -2,13 +2,13 @@
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
 using Grpc.Core;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using static System.String;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
 using Status = Google.Rpc.Status;
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 [KurrentOperationError(Contracts.Errors.StreamsError.StreamNotFound)]
 public partial class StreamNotFoundException {

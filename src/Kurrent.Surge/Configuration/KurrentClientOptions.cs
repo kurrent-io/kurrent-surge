@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Net;
 using System.Text;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Validation;
 using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
@@ -11,7 +11,7 @@ using static System.TimeSpan;
 
 #pragma warning disable CS8524 // The switch expression does not handle some values of its input type (it is not exhaustive) involving an unnamed enum value.
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Configuration options for the Kurrent client.

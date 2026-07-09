@@ -1,4 +1,4 @@
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class SystemMetadataKeys {
     const string SystemPrefix = "$";

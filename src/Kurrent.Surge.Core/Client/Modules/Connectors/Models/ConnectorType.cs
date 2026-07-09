@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 public enum ConnectorType {
     Unspecified = 0,

@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using Google.Rpc;
-using Kurrent.Client.Errors;
+using Kurrent.Surge.Client.Errors;
 using Status = Google.Rpc.Status;
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 /// <summary>
 /// Interface for Kurrent exceptions that can be parsed from gRPC Status messages. This is the

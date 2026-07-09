@@ -1,9 +1,9 @@
 // ReSharper disable CheckNamespace
 
-using Kurrent.Client.Connectors;
+using Kurrent.Surge.Client.Connectors;
 using static System.String;
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 [KurrentOperationError("ConnectorNotFound")]
 public partial class ConnectorNotFoundException {

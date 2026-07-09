@@ -1,6 +1,6 @@
 using SchemaUrn = Kurrent.Schema.Naming.SchemaUrn;
 
-namespace Kurrent.Client.Tests.SchemaRegistry.NameStrategies;
+namespace Kurrent.Surge.Tests.SchemaRegistry.NameStrategies;
 
 public class SchemaUrnTests {
 	const string ValidNamespace   = "company.department.service";

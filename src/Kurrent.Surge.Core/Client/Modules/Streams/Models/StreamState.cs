@@ -1,6 +1,6 @@
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Represents the expected state of a stream when performing operations such as appending records.

@@ -1,9 +1,9 @@
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 /// <summary>
 /// Base class for serialization exceptions.

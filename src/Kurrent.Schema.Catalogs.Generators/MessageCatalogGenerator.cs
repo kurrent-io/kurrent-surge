@@ -17,7 +17,7 @@ namespace Kurrent.Schema.Catalogs.Generators;
 ///      null on miss;
 ///   2. a derived MessageCatalogProviderAttribute applied at assembly level — the export
 ///      manifest that makes catalogs auto-discoverable (and AOT-rooted) with zero user input;
-///   3. Use*Catalog() extension methods in the Kurrent.Client namespace, ASP.NET-style, so
+///   3. Use*Catalog() extension methods in the Kurrent.Surge.Client namespace, ASP.NET-style, so
 ///      IntelliSense surfaces every catalog on the message options without extra usings.
 /// </summary>
 [Generator]
@@ -106,10 +106,10 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
 
     static CatalogsInfo Extract(Compilation compilation, CancellationToken ct) {
         // Client-coupled emission gate: the generated Use*Catalog() extensions extend
-        // KurrentClientMessageOptions, which exists only when Kurrent.Client is referenced. A
+        // KurrentClientMessageOptions, which exists only when Kurrent.Surge.Client is referenced. A
         // contracts-only compilation lacks that type, so those extensions must be skipped or the
         // generated code would fail to compile.
-        var hasClient = compilation.GetTypeByMetadataName("Kurrent.Client.KurrentClientMessageOptions") is not null;
+        var hasClient = compilation.GetTypeByMetadataName("Kurrent.Surge.Client.KurrentClientMessageOptions") is not null;
 
         // key → (registration identity → registration); same key declared twice merges.
         var catalogs    = new Dictionary<string, Dictionary<(string, string?, string?), RegistrationInfo>>(StringComparer.Ordinal);
@@ -367,22 +367,22 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         }
         """;
 
-        // The Use*Catalog() extensions extend KurrentClientMessageOptions (in Kurrent.Client); emitted
+        // The Use*Catalog() extensions extend KurrentClientMessageOptions (in Kurrent.Surge.Client); emitted
         // only when the client is referenced — a contracts-only compilation lacks that type, so this
         // section is empty there and Compose drops it.
         var customExtensions = string.Join("\n", customs.Select(c =>
             $"""
-                    public static global::Kurrent.Client.KurrentClientMessageOptions Use{c.Name}Catalog(this global::Kurrent.Client.KurrentClientMessageOptions options) =>
+                    public static global::Kurrent.Surge.Client.KurrentClientMessageOptions Use{c.Name}Catalog(this global::Kurrent.Surge.Client.KurrentClientMessageOptions options) =>
                         options.UseCatalog(global::{info.RootNamespace}.MessageCatalogs.{c.Name});
             """));
 
         var extensions = !info.HasClient ? "" : $$"""
         // ASP.NET-style: extensions live in the SDK namespace so IntelliSense surfaces every
         // referenced module's catalogs on the message options without extra usings.
-        namespace Kurrent.Client {
+        namespace Kurrent.Surge.Client {
             [global::System.CodeDom.Compiler.GeneratedCode("MessageCatalogGenerator", "3.0.0")]
             public static partial class {{info.AssemblyId}}MessageCatalogExtensions {
-                public static global::Kurrent.Client.KurrentClientMessageOptions Use{{info.AssemblyId}}Catalogs(this global::Kurrent.Client.KurrentClientMessageOptions options) =>
+                public static global::Kurrent.Surge.Client.KurrentClientMessageOptions Use{{info.AssemblyId}}Catalogs(this global::Kurrent.Surge.Client.KurrentClientMessageOptions options) =>
                     options.UseCatalog(global::{{info.RootNamespace}}.MessageCatalogs.All);
         {{customExtensions}}
             }
@@ -438,12 +438,12 @@ public sealed class MessageCatalogGenerator : IIncrementalGenerator {
         }
         """;
 
-        // Per-catalog Use*Catalog() extension — emitted only when Kurrent.Client is referenced (same
+        // Per-catalog Use*Catalog() extension — emitted only when Kurrent.Surge.Client is referenced (same
         // gate as GenerateSharedFile; the type it extends lives in the client), empty otherwise.
         var extensions = !info.HasClient ? "" : $$"""
-        namespace Kurrent.Client {
+        namespace Kurrent.Surge.Client {
             public static partial class {{info.AssemblyId}}MessageCatalogExtensions {
-                public static global::Kurrent.Client.KurrentClientMessageOptions Use{{property}}Catalog(this global::Kurrent.Client.KurrentClientMessageOptions options) =>
+                public static global::Kurrent.Surge.Client.KurrentClientMessageOptions Use{{property}}Catalog(this global::Kurrent.Surge.Client.KurrentClientMessageOptions options) =>
                     options.UseCatalog(global::{{info.RootNamespace}}.MessageCatalogs.{{property}});
             }
         }

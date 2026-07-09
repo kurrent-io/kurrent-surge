@@ -1,7 +1,7 @@
 using System.Collections;
 using NJsonSchema;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public readonly record struct SchemaCompatibilityError() {
     public SchemaCompatibilityErrorKind Kind    { get; init; } = SchemaCompatibilityErrorKind.Unspecified;

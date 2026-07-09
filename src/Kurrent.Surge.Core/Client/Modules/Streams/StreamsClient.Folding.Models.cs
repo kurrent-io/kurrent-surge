@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public delegate TState Evolve<TState>(
     TState state,

@@ -1,12 +1,12 @@
 using System.Collections.Concurrent;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Kurrent.Schema.Catalogs;
 using SchemaDataFormat = Kurrent.Schema.SchemaDataFormat;
 
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 [PublicAPI]
 public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter schemaExporter, MessageResolver resolver) {

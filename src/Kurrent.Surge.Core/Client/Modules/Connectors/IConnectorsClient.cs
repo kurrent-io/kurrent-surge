@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 public interface IConnectorCommands {
     ValueTask<Success> Create(ConnectorId id, string name, Dictionary<string, string> settings, CancellationToken ct = default);

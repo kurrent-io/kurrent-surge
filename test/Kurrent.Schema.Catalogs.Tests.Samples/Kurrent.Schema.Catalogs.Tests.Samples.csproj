@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- Acceptance sample for `contracts_only_project_compiles_without_client_reference`. A
          dependency-light contracts assembly modelling a real smart-home domain that references ONLY
-         Kurrent.Schema.Catalogs (no Kurrent.Client) — exactly what a consumer's domain project looks
+         Kurrent.Schema.Catalogs (no Kurrent.Surge.Client) — exactly what a consumer's domain project looks
          like. It must still get the catalog generator (via the package's source-consumer analyzer
          flow) AND the emission gate must suppress the Use*Catalog() extensions, or the generated code
          would reference the absent KurrentClientMessageOptions and this project would fail to build.

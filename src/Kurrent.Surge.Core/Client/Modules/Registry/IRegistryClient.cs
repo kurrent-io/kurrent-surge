@@ -1,6 +1,6 @@
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public interface IRegistryCommands {
     ValueTask<SchemaVersionDescriptor> CreateSchema(CreateSchemaOptions options, CancellationToken ct = default);

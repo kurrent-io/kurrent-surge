@@ -1,11 +1,11 @@
 using System.Text.Json.Nodes;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
 using Kurrent.Schema;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 // The concrete decoder lives in the client, not the contract: it depends on the schema
 // serialization layer (ISchemaSerializerProvider, SchemaSerializationContext) and the JSON

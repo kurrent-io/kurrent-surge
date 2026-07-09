@@ -1,6 +1,6 @@
 using Grpc.Core;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Configures the resilience strategy for <see cref="StreamsClient.SubscribeWithResilience"/>.

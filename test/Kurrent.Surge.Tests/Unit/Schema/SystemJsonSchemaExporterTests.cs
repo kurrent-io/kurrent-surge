@@ -2,12 +2,12 @@
 // ReSharper disable NotAccessedPositionalProperty.Local
 
 using System.Text.Json.Nodes;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using NodaTime;
 
-namespace Kurrent.Client.Tests.Schema;
+namespace Kurrent.Surge.Tests.Schema;
 
 /// <summary>
 /// Unit-level checks on <see cref="SystemJsonSchemaExporter"/> output shape (no server). Verifies the

@@ -2,11 +2,11 @@
 
 using System.Runtime.CompilerServices;
 using Grpc.Core;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Streams;
 using KurrentDB.Protocol.V1.Operations;
 
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 public partial class AdminClient {
     const string ScavengesStream = "$scavenges";

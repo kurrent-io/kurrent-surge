@@ -1,7 +1,7 @@
-using Kurrent.Client.Registry;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 [PublicAPI]
 public static class MetadataSchemaExtensions {

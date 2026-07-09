@@ -1,6 +1,6 @@
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 // Checkpoint is a barrier (coordination token). Scan-progress cases (FilterCheckpoint,
 // CaughtUpCheckpoint) carry a confirmed scan position; the client-side interval timer and

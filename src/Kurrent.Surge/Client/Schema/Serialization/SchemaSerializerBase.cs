@@ -1,12 +1,12 @@
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 
 using System.Diagnostics;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Kurrent.Schema.Catalogs;
 
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 public abstract class SchemaSerializerBase(SchemaSerializerOptions options, SchemaManager schemaManager) : ISchemaSerializer {
 	SchemaSerializerOptions Options       { get; } = options;

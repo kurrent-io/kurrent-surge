@@ -1,4 +1,4 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming.Checkpointing;
 
 namespace Kurrent.Streaming.Tests.Checkpoints;

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Validation;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Defines resilience configuration for gRPC operations.

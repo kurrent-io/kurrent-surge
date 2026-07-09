@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Implementation-agnostic client configuration contract. Holds only the knobs a client

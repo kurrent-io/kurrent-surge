@@ -1,13 +1,13 @@
 using System.Text;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
 using Kurrent.Schema;
 using Kurrent.Schema.Catalogs;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer;
 
-namespace Kurrent.Client.Tests.Schema.Serialization.Json;
+namespace Kurrent.Surge.Tests.Schema.Serialization.Json;
 
 [InheritsTests]
 [Category("SerDe")]

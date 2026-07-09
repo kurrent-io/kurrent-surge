@@ -3,9 +3,9 @@
 
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Record position in the global log.

@@ -1,7 +1,7 @@
 using Apache.Arrow.Adbc.Client;
 using Apache.Arrow.Adbc.Drivers.FlightSql;
 
-namespace Kurrent.Client.Arrow.Tests;
+namespace Kurrent.Surge.Arrow.Tests;
 
 [Category("Arrow")]
 [Category("Integration")]

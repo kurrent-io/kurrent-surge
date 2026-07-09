@@ -6,7 +6,7 @@ using KurrentDB.Protocol.V1;
 using ReadEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent;
 using RecordedEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent.Types.RecordedEvent;
 
-namespace Kurrent.Client.Tests.Modules.Streams;
+namespace Kurrent.Surge.Tests.Modules.Streams;
 
 //TODO SS: This is the way to create fakers. Must refactor it all in one go.
 

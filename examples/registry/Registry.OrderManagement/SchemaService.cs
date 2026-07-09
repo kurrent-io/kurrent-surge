@@ -1,6 +1,6 @@
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
 namespace Registry.OrderManagement;

@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
-using Kurrent.Client.Registry;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 [PublicAPI]
 [DebuggerDisplay("{ToDebugString()}")]

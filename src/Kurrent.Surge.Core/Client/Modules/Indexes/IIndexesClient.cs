@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Indexes;
+namespace Kurrent.Surge.Client.Indexes;
 
 public interface IIndexesClient {
     ValueTask Create(CreateIndexOptions options, CancellationToken cancellationToken = default);

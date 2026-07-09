@@ -1,7 +1,7 @@
 // ReSharper disable CheckNamespace
 
 using System.Diagnostics;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Diagnostics;
 

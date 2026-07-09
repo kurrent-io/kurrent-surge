@@ -5,11 +5,11 @@ using System.Net;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
 using Grpc.Core;
-using Kurrent.Client.Errors;
+using Kurrent.Surge.Client.Errors;
 using Kurrent.Rpc;
 using Status = Google.Rpc.Status;
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 [KurrentOperationError(ServerError.LeaderForwardingTimeout)]
 public partial class LeaderForwardingTimeoutException;

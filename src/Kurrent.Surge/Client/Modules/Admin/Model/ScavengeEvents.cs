@@ -1,10 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Kurrent.Client.Admin;
-using Kurrent.Client.Schema;
+using Kurrent.Surge.Client.Admin;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Schema.Catalogs;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Handles the standard .NET TimeSpan format strings written by the KurrentDB server (e.g. "00:01:23.4567890"),
@@ -177,7 +177,7 @@ record ScavengeIndexCompleted {
     public string ErrorMessage { get; init; } = "";
 }
 
-// ScavengeCompletionResult is replaced by Kurrent.Client.Admin.ScavengeState
+// ScavengeCompletionResult is replaced by Kurrent.Surge.Client.Admin.ScavengeState
 
 static class ScavengeMessageCatalogExtensions {
     extension(MessageCatalog catalog) {

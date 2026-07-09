@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 public static class AdminClientExtensions {
     extension(IAdminClient client) {

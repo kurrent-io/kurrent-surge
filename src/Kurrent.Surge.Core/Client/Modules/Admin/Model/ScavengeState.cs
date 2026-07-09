@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 /// <summary>
 /// The state of a scavenge operation.

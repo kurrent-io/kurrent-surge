@@ -1,7 +1,7 @@
 using System.Net;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Represents a parsed KurrentDB connection string with all its components.

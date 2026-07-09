@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Grpc.Core.Interceptors;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Implementation-side attachment of gRPC interceptors to the transport-agnostic client options.

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public readonly record struct SchemaVersionDescriptor(SchemaVersionId VersionId, int VersionNumber) {
     public static readonly SchemaVersionDescriptor Unset = new(SchemaVersionId.Unset, 0);

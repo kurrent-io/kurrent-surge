@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 /// <summary>
 /// Provides context information for schema serialization and deserialization operations.

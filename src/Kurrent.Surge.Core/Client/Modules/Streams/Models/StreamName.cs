@@ -1,6 +1,6 @@
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Represents the name of a stream in KurrentDB.

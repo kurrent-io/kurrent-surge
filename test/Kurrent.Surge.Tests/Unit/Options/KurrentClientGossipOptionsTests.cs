@@ -1,6 +1,6 @@
 using KurrentDB.Client;
 
-namespace Kurrent.Client.Tests.Options;
+namespace Kurrent.Surge.Tests.Options;
 
 public class KurrentClientGossipOptionsTests {
     [Test]

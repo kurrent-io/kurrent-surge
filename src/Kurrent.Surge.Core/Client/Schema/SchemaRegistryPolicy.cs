@@ -1,8 +1,8 @@
-// using Kurrent.Client.Features;
-using Kurrent.Client.Streams;
+// using Kurrent.Surge.Client.Features;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Surge.Client.Schema;
 
 /// <summary>
 /// Defines the schema registry policy for controlling schema registration, validation,

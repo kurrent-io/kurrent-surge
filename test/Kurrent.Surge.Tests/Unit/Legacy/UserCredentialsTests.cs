@@ -1,7 +1,7 @@
-using Kurrent.Client.Legacy;
+using Kurrent.Surge.Client.Legacy;
 using KurrentDB.Client;
 
-namespace Kurrent.Client.Tests.Legacy;
+namespace Kurrent.Surge.Tests.Legacy;
 
 [Category("Legacy")]
 public class UserCredentialsTests {

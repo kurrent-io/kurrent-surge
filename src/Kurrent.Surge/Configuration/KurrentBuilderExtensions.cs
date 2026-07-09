@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using static Kurrent.Client.KurrentClientServiceCollectionExtensions;
+using static Kurrent.Surge.Client.KurrentClientServiceCollectionExtensions;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Single entry point for registering Kurrent components with dependency injection.

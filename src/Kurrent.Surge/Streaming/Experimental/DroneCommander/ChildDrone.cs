@@ -1,7 +1,7 @@
 using System.Threading.Channels;
-using Kurrent.Client;
-using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Diagnostics;
 using Kurrent.Streaming.Gateway;

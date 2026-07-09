@@ -1,9 +1,9 @@
 using Google.Protobuf;
-using Kurrent.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 static class AppendRecordsMapping {
     extension(AppendRecord source) {

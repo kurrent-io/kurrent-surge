@@ -1,7 +1,7 @@
 using Kurrent.Schema.Naming;
 using Kurrent.Validation;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Defines schema settings for a KurrentDB client, including naming strategies and auto-registration.

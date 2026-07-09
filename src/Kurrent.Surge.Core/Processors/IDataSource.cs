@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Variant;
 
 namespace Kurrent.Streaming.Gateway;

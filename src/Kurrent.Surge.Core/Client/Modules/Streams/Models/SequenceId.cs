@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams.Checkpoints;
+namespace Kurrent.Surge.Client.Streams.Checkpoints;
 
 /// <summary>
 /// Represents a unique identifier used for sequencing items.

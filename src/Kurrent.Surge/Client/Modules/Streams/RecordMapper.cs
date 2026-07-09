@@ -1,9 +1,9 @@
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Streams.Checkpoints;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Maps wire protocol events to domain <see cref="Record"/> instances.

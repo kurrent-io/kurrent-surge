@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Grpc.Core;
-using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Processors.Partitioning;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;
 using Kurrent.Variant;

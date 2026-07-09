@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class EnumerableTaskExtensions {
 	extension(IEnumerable<Task> source) {

@@ -1,7 +1,7 @@
 using Kurrent.Schema.Naming;
 using static Kurrent.Schema.Naming.SchemaNameOutputFormat;
 
-namespace Kurrent.Client.Tests.SchemaRegistry.NameStrategies;
+namespace Kurrent.Surge.Tests.SchemaRegistry.NameStrategies;
 
 public class SchemaNameStrategiesTests {
 	# region . happy path .

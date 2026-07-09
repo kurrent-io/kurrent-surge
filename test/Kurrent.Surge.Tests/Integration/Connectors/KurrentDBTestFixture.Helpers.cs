@@ -2,7 +2,7 @@
 
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Tests.Fixtures;
+namespace Kurrent.Surge.Tests.Fixtures;
 
 public static class KurrentDBTestFixtureConnectorExtensions {
 	extension(KurrentDBFixture) {

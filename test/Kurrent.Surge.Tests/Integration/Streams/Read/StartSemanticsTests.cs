@@ -1,9 +1,9 @@
 using Grpc.Core;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using KurrentDB.Protocol.V1.Streams;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 /// <summary>
 /// Pins the server's Start position semantics so any drift breaks loudly on image bumps.

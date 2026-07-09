@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class MetadataJsonExtensions {
     extension(Metadata metadata) {

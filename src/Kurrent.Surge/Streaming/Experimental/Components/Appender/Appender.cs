@@ -1,6 +1,6 @@
-using Kurrent.Client;
-using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Processors.Partitioning;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Appender;
 

@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 /// <summary>
 /// Exercises <c>ResolveReadStart</c> / <c>ResolveSubscriptionStart</c> (internal, not yet

@@ -3,7 +3,7 @@ using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
 // Exports the testkit's shared test contracts through the message catalog GENERATOR — the
-// same path consumers use. The types live in Kurrent.Testkit (which has no Kurrent.Client
+// same path consumers use. The types live in Kurrent.Testkit (which has no Kurrent.Surge.Client
 // reference), so the assembly-level "types you don't own" form applies. No pins: schema
 // names come from the default convention (full type name), matching what tests always used.
 [assembly: MessageType<RaceCar>(Catalog = "Testkit")]

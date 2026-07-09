@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Pre-built <see cref="PropertyMap{T}"/> for <see cref="Record"/> with the standard column aliases

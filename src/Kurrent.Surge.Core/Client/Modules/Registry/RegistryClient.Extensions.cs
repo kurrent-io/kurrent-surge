@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public static partial class RegistryClientExtensions {
     extension(IRegistryClient client) {

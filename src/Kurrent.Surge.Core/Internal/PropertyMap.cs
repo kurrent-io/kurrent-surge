@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Strategy for parsing property paths into (name, key) candidates.

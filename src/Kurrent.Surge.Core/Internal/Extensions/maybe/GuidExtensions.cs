@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class GuidExtensions {
     extension(Guid source) {

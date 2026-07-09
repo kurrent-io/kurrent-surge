@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using Grpc.Net.Client;
 using KurrentDB.Client;
 
-namespace Kurrent.Client.Legacy;
+namespace Kurrent.Surge.Client.Legacy;
 
 static class ChannelFactoryExtensions {
     const int MaxReceiveMessageLength = 17 * 1024 * 1024; // 17MB

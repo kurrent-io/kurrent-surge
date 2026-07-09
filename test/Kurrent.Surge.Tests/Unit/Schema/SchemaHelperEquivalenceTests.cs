@@ -1,10 +1,10 @@
 using System.Text.Json.Nodes;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Tests.Fixtures;
 using NJsonSchema;
-using NJ = Kurrent.Client.Tests.Fixtures.JsonNodeSchemaHelpers;
+using NJ = Kurrent.Surge.Tests.Fixtures.JsonNodeSchemaHelpers;
 
-namespace Kurrent.Client.Tests.Schema;
+namespace Kurrent.Surge.Tests.Schema;
 
 /// <summary>
 /// Proves the NJsonSchema-free <see cref="JsonNodeSchemaHelpers"/> produce schemas semantically

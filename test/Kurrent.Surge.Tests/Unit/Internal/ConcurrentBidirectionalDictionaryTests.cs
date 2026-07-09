@@ -1,6 +1,6 @@
 using Kurrent.Schema.Catalogs;
 
-namespace Kurrent.Client.Tests.Internal;
+namespace Kurrent.Surge.Tests.Internal;
 
 public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     readonly ConcurrentBidirectionalDictionary<string, int> _sut = new();

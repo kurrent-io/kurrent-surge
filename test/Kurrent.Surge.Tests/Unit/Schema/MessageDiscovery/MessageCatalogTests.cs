@@ -1,16 +1,16 @@
-using Kurrent.Client.Schema;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Schema.Catalogs;
-using Kurrent.Client.Tests.Schema.Catalogs.Ambient;
-using Kurrent.Client.Tests.Schema.Catalogs.Custom;
-using Kurrent.Client.Tests.Schema.Catalogs.Explicit;
-using Kurrent.Client.Tests.Schema.Catalogs.External;
-using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
-using Kurrent.Client.Tests.Schema.Catalogs.Scanned;
+using Kurrent.Surge.Tests.Schema.Catalogs.Ambient;
+using Kurrent.Surge.Tests.Schema.Catalogs.Custom;
+using Kurrent.Surge.Tests.Schema.Catalogs.Explicit;
+using Kurrent.Surge.Tests.Schema.Catalogs.External;
+using Kurrent.Surge.Tests.Schema.Catalogs.Filtered;
+using Kurrent.Surge.Tests.Schema.Catalogs.Scanned;
 // The catalog generator names its output after the assembly (compilation.AssemblyName),
 // so the generated namespace tracked the test project's rename to Kurrent.Surge.Tests.
 using GeneratedCatalogs = Kurrent.Surge.Tests.MessageCatalogs;
 
-namespace Kurrent.Client.Tests.Schema;
+namespace Kurrent.Surge.Tests.Schema;
 
 [Category("Schema")]
 public class MessageCatalogTests {

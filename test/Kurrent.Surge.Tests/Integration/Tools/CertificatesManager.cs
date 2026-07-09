@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Tests.Tools;
+namespace Kurrent.Surge.Tests.Tools;
 
 public static class CertificatesManager {
     // static readonly DirectoryInfo CertificateDirectory;

@@ -1,6 +1,6 @@
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
 public record ListSchemasOptions : SelfValidating<ListSchemasOptions, ListSchemasOptions.Validator> {

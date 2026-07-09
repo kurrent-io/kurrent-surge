@@ -1,7 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using Kurrent.Validation;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Comprehensive security configuration for KurrentDB client connections.

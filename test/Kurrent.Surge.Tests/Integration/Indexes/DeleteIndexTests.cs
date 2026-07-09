@@ -1,7 +1,7 @@
 using Grpc.Core;
-using Kurrent.Client.Indexes;
+using Kurrent.Surge.Client.Indexes;
 
-namespace Kurrent.Client.Tests.Indexes;
+namespace Kurrent.Surge.Tests.Indexes;
 
 [Category("Indexes")]
 [Category("Integration")]

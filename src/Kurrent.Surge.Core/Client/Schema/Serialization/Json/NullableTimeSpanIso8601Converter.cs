@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Xml;
 
-namespace Kurrent.Client.Schema.Serialization.Json;
+namespace Kurrent.Surge.Client.Schema.Serialization.Json;
 
 public class NullableTimeSpanIso8601Converter : JsonConverter<TimeSpan?> {
     public override TimeSpan? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {

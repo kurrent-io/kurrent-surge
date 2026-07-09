@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Indexes;
+namespace Kurrent.Surge.Client.Indexes;
 
 [PublicAPI]
 public enum IndexFieldType {

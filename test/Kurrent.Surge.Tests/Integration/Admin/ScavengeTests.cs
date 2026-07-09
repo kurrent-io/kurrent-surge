@@ -1,10 +1,10 @@
-using Kurrent.Client.Admin;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Admin;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Streams;
 using Serilog;
 using TUnit.Core.Interfaces;
 
-namespace Kurrent.Client.Tests.Admin;
+namespace Kurrent.Surge.Tests.Admin;
 
 record ScavengeParallelLimit : IParallelLimit {
     public int Limit => 4;

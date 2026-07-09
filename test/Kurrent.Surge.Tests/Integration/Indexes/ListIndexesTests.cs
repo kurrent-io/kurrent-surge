@@ -1,7 +1,7 @@
-using Kurrent.Client.Indexes;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Surge.Client.Indexes;
+using Kurrent.Surge.Tests.Fixtures;
 
-namespace Kurrent.Client.Tests.Indexes;
+namespace Kurrent.Surge.Tests.Indexes;
 
 [Category("Indexes")]
 [Category("Integration")]

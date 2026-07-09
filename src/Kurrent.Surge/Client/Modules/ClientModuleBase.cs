@@ -1,10 +1,10 @@
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Streams;
 using KurrentDB.Client;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Base class for client modules that provides access to the Kurrent client, logger, and other common functionality.

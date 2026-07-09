@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Kurrent.Client.Streams" />
+    <Using Include="Kurrent.Surge.Client.Streams" />
     <Using Include="Kurrent.Streaming" />
     <Using Include="Kurrent.Streaming.Checkpointing" />
     <Using Include="Serilog" />

@@ -1,6 +1,6 @@
 using Grpc.Core;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class RpcMetadataExtensions {
     extension(RpcException rex) {

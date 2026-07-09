@@ -1,7 +1,7 @@
-using Kurrent.Client.Registry;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Represents information about the schema of a record, including its name, format, and version identifier.

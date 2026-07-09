@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public enum CompatibilityMode {
     /// <summary>

@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 // Maps a StreamStateViolation onto the typed stream exceptions. Those exceptions are gRPC-coupled
 // (they parse Google.Rpc.Status) and stay in the client, so the mapper lives here as a C# 14

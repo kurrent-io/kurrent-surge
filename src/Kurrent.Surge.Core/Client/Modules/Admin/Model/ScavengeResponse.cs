@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 /// <summary>
 /// Acknowledged response from a scavenge command (start or stop).

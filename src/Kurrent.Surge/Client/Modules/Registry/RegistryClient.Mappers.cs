@@ -1,10 +1,10 @@
 using Google.Protobuf.Collections;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using NJsonSchema;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 static class RegistryClientMapper {
     // The proto-facing halves of SchemaCompatibilityError(s): the models moved to the contract

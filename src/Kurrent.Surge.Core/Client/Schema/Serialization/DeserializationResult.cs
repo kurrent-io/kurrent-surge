@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 /// <summary>
 /// The result of a deserialization attempt — a closed hierarchy so call sites pattern-match

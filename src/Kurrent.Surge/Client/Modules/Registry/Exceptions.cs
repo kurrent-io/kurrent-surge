@@ -1,13 +1,13 @@
 // ReSharper disable CheckNamespace
 
-using Kurrent.Client.Registry;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Schema;
 using KurrentDB.Protocol.V2.Registry.Errors;
 using static System.String;
 
 using Status = Google.Rpc.Status;
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 [KurrentOperationError(RegistryError.SchemaNotFound)]
 public partial class SchemaNotFoundException {

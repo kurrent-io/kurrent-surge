@@ -1,5 +1,5 @@
-using Kurrent.Client;
-using Kurrent.Client.Admin;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Admin;
 using Aspire.Hosting.KurrentDB;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;

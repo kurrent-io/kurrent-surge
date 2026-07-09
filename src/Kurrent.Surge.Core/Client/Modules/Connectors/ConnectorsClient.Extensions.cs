@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 public static partial class ConnectorsClientExtensions {
     extension(IConnectorsClient client) {

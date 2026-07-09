@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public readonly record struct SchemaVersionId(Guid Value) {
     public static readonly SchemaVersionId Unset = new(Guid.Empty);

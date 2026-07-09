@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 /// <summary>
 /// Connector configuration with metadata.

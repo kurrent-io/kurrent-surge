@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using NodaTime;
 using NodaTime.Serialization.SystemTextJson;
 
-namespace Kurrent.Client.Schema.Serialization.Json;
+namespace Kurrent.Surge.Client.Schema.Serialization.Json;
 
 /// <summary>
 /// Forwarding wrapper around a NodaTime <see cref="JsonConverter"/> instance.

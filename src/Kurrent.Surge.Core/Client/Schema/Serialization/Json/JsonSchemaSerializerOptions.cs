@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
-namespace Kurrent.Client.Schema.Serialization.Json;
+namespace Kurrent.Surge.Client.Schema.Serialization.Json;
 
 [PublicAPI]
 public record JsonSchemaSerializerOptions : SchemaSerializerOptions {

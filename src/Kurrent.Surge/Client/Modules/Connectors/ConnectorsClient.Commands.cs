@@ -1,9 +1,9 @@
 using Grpc.Core;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Streams;
 using Commands = KurrentDB.Connectors.Management.Contracts.Commands;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 public partial class ConnectorsClient {
     #region ->> Create <<-

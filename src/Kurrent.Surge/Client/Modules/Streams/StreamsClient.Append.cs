@@ -1,9 +1,9 @@
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Validation;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public partial class StreamsClient {
     #region ->> AppendRecords <<-

@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using Kurrent.Client;
-using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Filters;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Tests.Filters;
 
 namespace Benchmarks;
 

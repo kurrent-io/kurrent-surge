@@ -1,4 +1,4 @@
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using Kurrent.Processors.Configuration;
 using Kurrent.Schema.Naming;
 using Microsoft.Extensions.Configuration;

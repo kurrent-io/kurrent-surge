@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Tests.Modules.Streams;
+namespace Kurrent.Surge.Tests.Modules.Streams;
 
 [Category("Streams")]
 public class ActualStreamStateTests {

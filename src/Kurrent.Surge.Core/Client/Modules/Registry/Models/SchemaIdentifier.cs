@@ -1,7 +1,7 @@
 using Kurrent.Schema;
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public readonly partial record struct SchemaIdentifier : IVariant<SchemaName, SchemaVersionId> {
     /// <summary>

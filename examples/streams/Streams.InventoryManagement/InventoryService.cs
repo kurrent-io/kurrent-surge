@@ -1,7 +1,7 @@
 // ReSharper disable RedundantSwitchExpressionArms
 
-using Kurrent.Client;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
 using Streams.InventoryManagement.Events;
 
 namespace Streams.InventoryManagement;

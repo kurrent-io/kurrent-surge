@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class ChannelExtensions {
     /// <param name="reader">The reader to read data from the channel.</param>

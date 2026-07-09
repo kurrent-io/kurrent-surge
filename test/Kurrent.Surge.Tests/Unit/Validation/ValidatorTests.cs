@@ -1,6 +1,6 @@
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Tests.Validation;
+namespace Kurrent.Surge.Tests.Validation;
 
 [Category("Validation")]
 public class ValidatorTests {

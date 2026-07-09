@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Tests.Modules.Streams;
+namespace Kurrent.Surge.Tests.Modules.Streams;
 
 // Stream-name rejection ($all / unset) used to live on the request validator. It now lives on the
 // StreamsClient.ReadStream(stream, options, ct) method guard, so it is covered by the integration

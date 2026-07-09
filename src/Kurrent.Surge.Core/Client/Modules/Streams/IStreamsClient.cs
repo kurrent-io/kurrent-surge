@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public interface IStreamReader {
     IAsyncEnumerable<SubscribeMessage> Subscribe(SubscribeOptions options, CancellationToken ct = default);

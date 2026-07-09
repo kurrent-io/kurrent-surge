@@ -1,7 +1,7 @@
 using Google.Protobuf.WellKnownTypes;
-using Kurrent.Client.Schema.Serialization.Protobuf;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 
-namespace Kurrent.Client.Tests.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Tests.Schema.Serialization.Protobuf;
 
 [Category("SerDe")]
 public class ProtoSerializerContextTests {

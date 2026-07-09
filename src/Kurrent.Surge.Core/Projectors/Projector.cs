@@ -2,7 +2,7 @@
 // Disabled from compilation; re-enable by removing the #if false / #endif wrapping below.
 #if false
 
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using Kurrent.Surge.Consumers.Checkpoints;
 using Kurrent.Surge.Consumers.Configuration;
 using Microsoft.Extensions.Hosting;

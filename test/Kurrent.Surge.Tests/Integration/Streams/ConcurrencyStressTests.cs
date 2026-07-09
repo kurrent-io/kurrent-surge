@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Serilog;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]

@@ -1,6 +1,6 @@
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public readonly record struct Schema(
     SchemaName SchemaName,

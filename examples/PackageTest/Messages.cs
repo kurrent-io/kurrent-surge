@@ -1,18 +1,18 @@
 using Kurrent.Schema.Catalogs;
-using Kurrent.Client.Tests.Schema.Catalogs.Filtered;
+using Kurrent.Surge.Tests.Schema.Catalogs.Filtered;
 
 // Exercises the MessageCatalogGenerator against this assembly: the generator emits the
 // MessageCatalogs class from these attributes, and MessageCatalogTests asserts on it.
-[assembly: MessageCatalog("Kurrent.Client.Tests.Schema.Catalogs.Scanned", Key = "scanned")]
-[assembly: MessageCatalog<ICatalogMarker>("Kurrent.Client.Tests.Schema.Catalogs.Filtered", Key = "filtered")]
+[assembly: MessageCatalog("Kurrent.Surge.Tests.Schema.Catalogs.Scanned", Key = "scanned")]
+[assembly: MessageCatalog<ICatalogMarker>("Kurrent.Surge.Tests.Schema.Catalogs.Filtered", Key = "filtered")]
 
 // Assembly-level explicit registration — the "types you don't own" form; no Catalog key → "Default".
-[assembly: MessageType<Kurrent.Client.Tests.Schema.Catalogs.External.ExternalInvoiceIssued>("external.invoice-issued.v1")]
+[assembly: MessageType<Kurrent.Surge.Tests.Schema.Catalogs.External.ExternalInvoiceIssued>("external.invoice-issued.v1")]
 
 // Always-active scan: registers into every client with no UseCatalog call.
-[assembly: MessageCatalog("Kurrent.Client.Tests.Schema.Catalogs.Ambient", Key = "ambient", AlwaysActive = true)]
+[assembly: MessageCatalog("Kurrent.Surge.Tests.Schema.Catalogs.Ambient", Key = "ambient", AlwaysActive = true)]
 
-namespace Kurrent.Client.Tests.Schema.Catalogs.Scanned {
+namespace Kurrent.Surge.Tests.Schema.Catalogs.Scanned {
     public record ScannedOrderPlaced(string OrderId);
 
     public record ScannedOrderShipped(string OrderId);
@@ -25,7 +25,7 @@ namespace Kurrent.Client.Tests.Schema.Catalogs.Scanned {
     public record OpenGenericMessage<T>(T Value);
 }
 
-namespace Kurrent.Client.Tests.Schema.Catalogs.Filtered {
+namespace Kurrent.Surge.Tests.Schema.Catalogs.Filtered {
     public interface ICatalogMarker;
 
     public record MarkedMessage(string Id) : ICatalogMarker;
@@ -34,7 +34,7 @@ namespace Kurrent.Client.Tests.Schema.Catalogs.Filtered {
     public record UnmarkedMessage(string Id);
 }
 
-namespace Kurrent.Client.Tests.Schema.Catalogs.Explicit {
+namespace Kurrent.Surge.Tests.Schema.Catalogs.Explicit {
     // Pin form joining a named catalog.
     [MessageType<PinnedOrderPlaced>("pinned.order-placed.v9", Catalog = "pinned")]
     public record PinnedOrderPlaced(string Id);
@@ -47,13 +47,13 @@ namespace Kurrent.Client.Tests.Schema.Catalogs.Explicit {
         Kurrent.Schema.Naming.MessageSchemaNameStrategy(Kurrent.Schema.Naming.SchemaNameOutputFormat.KebabCase);
 }
 
-namespace Kurrent.Client.Tests.Schema.Catalogs.External {
+namespace Kurrent.Surge.Tests.Schema.Catalogs.External {
     // Registered via the assembly-level [MessageType<T>] above — no scan covers this
     // namespace and the type carries no attribute, simulating a referenced contract.
     public record ExternalInvoiceIssued(string Id);
 }
 
-namespace Kurrent.Client.Tests.Schema.Catalogs.Ambient {
+namespace Kurrent.Surge.Tests.Schema.Catalogs.Ambient {
     // Scanned into the always-active "ambient" catalog above.
     public record AmbientSignal(string Id);
 }

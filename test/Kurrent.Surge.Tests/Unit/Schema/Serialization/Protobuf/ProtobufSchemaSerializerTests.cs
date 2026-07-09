@@ -1,13 +1,13 @@
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Schema.Serialization.Protobuf;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Schema;
 using Kurrent.Schema.Catalogs;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
 using StreamRevision = KurrentDB.Protocol.V2.Streams.StreamRevision;
 
-namespace Kurrent.Client.Tests.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Tests.Schema.Serialization.Protobuf;
 
 [InheritsTests]
 [Category("SerDe")]

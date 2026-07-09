@@ -1,15 +1,15 @@
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
-using Kurrent.Client.Tests.Fixtures;
-using static Kurrent.Client.Registry.CompatibilityMode;
+using Kurrent.Surge.Tests.Fixtures;
+using static Kurrent.Surge.Client.Registry.CompatibilityMode;
 
-// Deliberately outside the Kurrent.Client.Tests.Registry namespace: that whole namespace is
+// Deliberately outside the Kurrent.Surge.Tests.Registry namespace: that whole namespace is
 // blanket-skipped in TestkitBootstrap.cs ("Flaky tests"). This is a proof harness that must
 // actually run against the live server.
-namespace Kurrent.Client.Tests.SchemaExportProof;
+namespace Kurrent.Surge.Tests.SchemaExportProof;
 
 /// <summary>
 /// Proves the in-box <see cref="SystemJsonSchemaExporter"/> (the AOT-safe candidate replacing NJsonSchema)

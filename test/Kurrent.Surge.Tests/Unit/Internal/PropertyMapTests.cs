@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Tests.Internal;
+namespace Kurrent.Surge.Tests.Internal;
 
 public class PropertyMapTests {
     record Target(string Name, int Age, Dictionary<string, object> Tags);

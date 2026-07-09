@@ -1,6 +1,6 @@
 // #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 //
-// namespace Kurrent.Client.Tests.Extensions;
+// namespace Kurrent.Surge.Tests.Extensions;
 //
 // public class ReadBatchedTests {
 //     // Classification helper

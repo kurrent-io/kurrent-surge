@@ -1,10 +1,10 @@
 using System.Collections;
 using System.Collections.Immutable;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Processors.Gateway.Messages;
+namespace Kurrent.Surge.Client.Processors.Gateway.Messages;
 
 #region ->> Inbound - Control Messages <<-
 

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 /// <summary>
 /// Represents a violation of a field in a request, typically used to indicate validation errors.

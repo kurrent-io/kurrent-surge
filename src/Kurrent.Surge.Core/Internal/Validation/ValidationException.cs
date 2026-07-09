@@ -1,4 +1,4 @@
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
 namespace Kurrent.Validation;
 

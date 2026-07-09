@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Kurrent.Client;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Exceptions;
 using static System.String;
 
 // ReSharper disable MemberCanBePrivate.Global

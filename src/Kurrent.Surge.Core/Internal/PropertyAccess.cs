@@ -1,4 +1,4 @@
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// A parsed property path expression — a column name with an optional key

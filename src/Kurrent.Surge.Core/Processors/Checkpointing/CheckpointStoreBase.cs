@@ -1,5 +1,5 @@
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming.Models;
 
 namespace Kurrent.Streaming.Checkpointing;

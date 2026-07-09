@@ -2,9 +2,9 @@
 
 using Bogus;
 using Humanizer;
-using Kurrent.Client;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Kurrent.Schema.Naming;
 

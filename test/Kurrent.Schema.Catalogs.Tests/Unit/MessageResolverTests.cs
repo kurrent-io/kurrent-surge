@@ -93,7 +93,7 @@ public class MessageResolverTests {
     #region ->> Sample contracts <<-
 
     // Minimal record contracts the resolver tests map. Declared locally so this assembly stays
-    // free of the Kurrent.Client.Tests sample types and proves the package resolver in isolation.
+    // free of the Kurrent.Surge.Tests sample types and proves the package resolver in isolation.
     record ScannedOrderPlaced(string OrderId);
 
     record PinnedOrderPlaced(string Id);

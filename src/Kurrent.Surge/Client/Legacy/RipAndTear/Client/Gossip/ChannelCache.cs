@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using Grpc.Core;
 using Grpc.Net.Client;
-using Kurrent.Client.Legacy;
+using Kurrent.Surge.Client.Legacy;
 
 namespace KurrentDB.Client;
 

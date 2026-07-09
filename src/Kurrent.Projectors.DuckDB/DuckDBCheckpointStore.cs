@@ -1,4 +1,4 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Quack;
 using Kurrent.Streaming.Checkpointing;
 using Microsoft.Extensions.Logging;

@@ -1,9 +1,9 @@
-using Kurrent.Client.Indexes;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Indexes;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Testing.ArcadeRacer;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Subscribe")]

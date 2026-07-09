@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using Kurrent.Variant;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 [PublicAPI]
 public readonly partial record struct ClientCredentials : IVariant<NoCredentials, BasicCredentials, FileCertificateCredentials, X509CertificateCredentials> {

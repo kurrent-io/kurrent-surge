@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Streaming.Tests;
 

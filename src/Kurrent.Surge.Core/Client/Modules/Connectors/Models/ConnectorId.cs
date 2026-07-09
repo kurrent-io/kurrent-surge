@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 public readonly record struct ConnectorId {
     public static readonly ConnectorId Unset = new("");

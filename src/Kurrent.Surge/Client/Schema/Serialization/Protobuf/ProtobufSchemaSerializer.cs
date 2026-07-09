@@ -1,8 +1,8 @@
 using Google.Protobuf;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 
 public class ProtobufSchemaSerializer(ProtobufSchemaSerializerOptions options, SchemaManager schemaManager)
 	: SchemaSerializerBase(options, schemaManager) {

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 /// <summary>
 /// Enum representing the various states a connector can be in.

@@ -1,5 +1,5 @@
 using BenchmarkDotNet.Attributes;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
 namespace Benchmarks;
 

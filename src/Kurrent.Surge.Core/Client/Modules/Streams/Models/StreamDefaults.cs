@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 // Canonical default for the filtered read/subscribe search window. It lives in the contract
 // layer because the option types that default to it (SubscribeOptions, ReadRecordsOptions,

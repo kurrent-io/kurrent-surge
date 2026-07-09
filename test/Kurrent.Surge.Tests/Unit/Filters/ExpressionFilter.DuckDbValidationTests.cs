@@ -1,6 +1,6 @@
 using DuckDB.NET.Data;
 
-namespace Kurrent.Client.Tests.Filters;
+namespace Kurrent.Surge.Tests.Filters;
 
 [Category("Filters")]
 [Category("DuckDB")]

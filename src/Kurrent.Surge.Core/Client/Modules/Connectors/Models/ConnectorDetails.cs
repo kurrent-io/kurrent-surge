@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 /// <summary>
 /// Represents detailed information about a connector in KurrentDB.

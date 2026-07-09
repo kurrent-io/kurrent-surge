@@ -1,10 +1,10 @@
 using Google.Protobuf;
 using Grpc.Core;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Schema;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 public partial class RegistryClient {
     #region ->> CreateSchema <<-

@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Kurrent.Schema;
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 #pragma warning disable CS8604
 

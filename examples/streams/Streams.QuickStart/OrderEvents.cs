@@ -2,7 +2,7 @@ using Kurrent.Schema.Catalogs;
 
 // Declared once: a namespace scan turns these records into a message catalog, and AlwaysActive
 // registers it into every client automatically — no UseCatalog call needed. The source generator
-// (shipped inside the Kurrent.Client package) produces the catalog from this single attribute.
+// (shipped inside the Kurrent.Surge.Client package) produces the catalog from this single attribute.
 [assembly: MessageCatalog("Streams.QuickStart.Events", Key = "orders", AlwaysActive = true)]
 
 namespace Streams.QuickStart.Events;

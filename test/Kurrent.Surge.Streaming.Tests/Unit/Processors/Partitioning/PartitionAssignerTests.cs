@@ -1,5 +1,5 @@
-using Kurrent.Client.Processors.Partitioning;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Processors.Partitioning;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming.Partitioning;
 
 namespace Kurrent.Streaming.Tests.Partitioning;

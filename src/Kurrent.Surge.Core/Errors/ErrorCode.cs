@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using static System.StringComparison;
 
 namespace Kurrent;

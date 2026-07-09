@@ -1,8 +1,8 @@
-using Kurrent.Client.Schema;
+using Kurrent.Surge.Client.Schema;
 using LegacyStreamsServiceClient = KurrentDB.Protocol.V1.Streams.Streams.StreamsClient;
 using static KurrentDB.Protocol.V2.Streams.StreamsService;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public partial class StreamsClient : ClientModuleBase, IStreamsClient {
     internal StreamsClient(KurrentClient client) : base(client) {

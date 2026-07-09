@@ -1,7 +1,7 @@
 using Grpc.Core;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Client.Tests;
+namespace Kurrent.Surge.Tests;
 
 /// <summary>
 /// Shared transient-error defaults for <c>EventuallyPasses</c> assertions in this test suite.

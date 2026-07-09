@@ -35,7 +35,7 @@ public interface ISchemaNameStrategy {
 /// </summary>
 public abstract class SchemaNameStrategyBase(SchemaNameOutputFormat format) : ISchemaNameStrategy {
 	// Runtime type of System.Reflection.Missing.Value — the sentinel a "no type" reflection result
-	// yields. Reproduced locally (was Type.MissingType, a Kurrent.Client internal extension) so the
+	// yields. Reproduced locally (was Type.MissingType, a Kurrent.Surge.Client internal extension) so the
 	// naming layer stays BCL-only after the extraction into Kurrent.Schema.Catalogs.
 	static readonly Type MissingType = Type.Missing.GetType();
 

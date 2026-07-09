@@ -2,15 +2,15 @@
 #pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
 using Grpc.Core;
-using Kurrent.Client.Legacy;
+using Kurrent.Surge.Client.Legacy;
 using Kurrent.Schema;
 using KurrentDB.Protocol.V1.Streams;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Streams.Checkpoints;
 using Microsoft.Extensions.Logging;
-using static Kurrent.Client.Streams.StreamsClientMapping;
+using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public partial class StreamsClient {
     #region ->> GetStreamInfo <<-

@@ -1,7 +1,7 @@
 using Kurrent.Validation;
 using KurrentDB.Client;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Represents configuration settings for the gossip protocol used in cluster discovery and management.

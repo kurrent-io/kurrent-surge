@@ -1,5 +1,5 @@
 using System.Threading.Channels;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming.Gateway;
 
 namespace Kurrent.Streaming.Tests.Fakes;

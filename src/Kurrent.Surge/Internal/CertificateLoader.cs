@@ -1,7 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using static System.String;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 static class CertificateLoader {
     /// <summary>

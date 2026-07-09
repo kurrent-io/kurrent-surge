@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
 namespace Testing.ArcadeRacer;
 

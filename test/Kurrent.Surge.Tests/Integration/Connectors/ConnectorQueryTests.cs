@@ -1,7 +1,7 @@
-using Kurrent.Client.Connectors;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Surge.Client.Connectors;
+using Kurrent.Surge.Tests.Fixtures;
 
-namespace Kurrent.Client.Tests.Connectors;
+namespace Kurrent.Surge.Tests.Connectors;
 
 [Category("Connectors")]
 [Category("Integration")]

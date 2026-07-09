@@ -1,5 +1,5 @@
-using Kurrent.Client;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming.Models;
 using Kurrent.Projectors;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;

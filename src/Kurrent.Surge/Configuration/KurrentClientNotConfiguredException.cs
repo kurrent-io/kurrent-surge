@@ -1,6 +1,6 @@
 // ReSharper disable CheckNamespace
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 /// <summary>
 /// Thrown when <c>AddKurrentClient()</c> is called with no usable configuration source —

@@ -1,8 +1,8 @@
 using System.Text;
-using Kurrent.Client.Registry;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Schema;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Represents the target of a link event, indicating which stream and revision the link points to.

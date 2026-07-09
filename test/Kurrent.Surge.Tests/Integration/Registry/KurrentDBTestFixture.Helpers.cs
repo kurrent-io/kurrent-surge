@@ -3,7 +3,7 @@
 using Google.Protobuf;
 using NJsonSchema;
 
-namespace Kurrent.Client.Tests.Fixtures;
+namespace Kurrent.Surge.Tests.Fixtures;
 
 public static class KurrentDBTestFixtureRegistryExtensions {
     extension(KurrentDBFixture) {

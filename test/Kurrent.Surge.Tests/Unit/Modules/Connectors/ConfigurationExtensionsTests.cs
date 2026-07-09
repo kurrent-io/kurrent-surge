@@ -1,7 +1,7 @@
-using Kurrent.Client.Connectors;
+using Kurrent.Surge.Client.Connectors;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Client.Tests.Connectors;
+namespace Kurrent.Surge.Tests.Connectors;
 
 [Category("Connectors")]
 [Category("Unit")]

@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using Kurrent.Client.Schema.Serialization.Json;
-using Kurrent.Client.Tests.Schema.Serialization.Fixtures;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Tests.Schema.Serialization.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using NodaTime;
 
-namespace Kurrent.Client.Tests.Schema.Serialization.Json;
+namespace Kurrent.Surge.Tests.Schema.Serialization.Json;
 
 [Category("SerDe")]
 public class JsonSchemaSerializerOptionsTests {

@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Tests.Legacy;
+namespace Kurrent.Surge.Tests.Legacy;
 
 [Category("Legacy")]
 public class NewConnectionStringTests {

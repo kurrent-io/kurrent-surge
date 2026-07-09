@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Text;
 
-namespace Kurrent.Client.Processors.Partitioning;
+namespace Kurrent.Surge.Client.Processors.Partitioning;
 
 /// <summary>
 /// Calculates which partition a key belongs to using a deterministic hash function.

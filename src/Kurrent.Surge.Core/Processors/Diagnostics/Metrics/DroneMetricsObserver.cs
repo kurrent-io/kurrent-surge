@@ -32,7 +32,7 @@ sealed class DroneMetricsObserver : IObserver<KeyValuePair<string, object?>>, ID
     /// </summary>
     /// <param name="meterFactory">Factory to create the meter for metrics.</param>
     public DroneMetricsObserver(IMeterFactory meterFactory) {
-        var meter = meterFactory.Create("Kurrent.Client.Processors");
+        var meter = meterFactory.Create("Kurrent.Surge.Client.Processors");
         _recordsProcessed     = ProcessorMetrics.CreateRecordsProcessed(meter);
         _recordDuration       = ProcessorMetrics.CreateRecordDuration(meter);
         _batchDuration        = ProcessorMetrics.CreateBatchDuration(meter);

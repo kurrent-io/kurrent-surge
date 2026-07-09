@@ -1,6 +1,6 @@
 using Bogus;
 
-namespace Kurrent.Client.Tests.Model;
+namespace Kurrent.Surge.Tests.Model;
 
 public class MetadataTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]

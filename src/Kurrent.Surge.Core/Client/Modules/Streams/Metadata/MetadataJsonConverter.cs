@@ -3,11 +3,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Kurrent.Client.Registry;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Schema;
 using KurrentDB.Diagnostics.Tracing;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 // The contract-layer JSON converter for Metadata: Metadata is decorated [JsonConverter(typeof(MetadataJsonConverter))],
 // so the converter must live alongside it in Kurrent.Surge.Core. It is pure System.Text.Json —

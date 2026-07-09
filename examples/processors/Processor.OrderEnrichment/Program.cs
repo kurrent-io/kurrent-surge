@@ -1,4 +1,4 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Streaming;
 using Processor.OrderEnrichment;
 using Serilog;

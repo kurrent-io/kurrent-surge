@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Kurrent.Client.Errors;
+namespace Kurrent.Surge.Client.Errors;
 
 /// <summary>
 /// Detailed information about a Kurrent error, including reason, metadata, retry info, resource info, and auth info.

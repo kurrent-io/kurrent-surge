@@ -14,7 +14,7 @@ namespace Kurrent.Schema.Catalogs.Tests.Unit;
 /// </summary>
 [Category("Schema")]
 public class MessageCatalogGeneratorTests {
-    // A namespace-scan catalog declaration that drives the generator. No Kurrent.Client anywhere.
+    // A namespace-scan catalog declaration that drives the generator. No Kurrent.Surge.Client anywhere.
     const string ContractsSource =
         """
         using Kurrent.Schema.Catalogs;
@@ -31,7 +31,7 @@ public class MessageCatalogGeneratorTests {
     // presence in the compilation is what the generator's emission gate keys on.
     const string ClientStub =
         """
-        namespace Kurrent.Client;
+        namespace Kurrent.Surge.Client;
 
         public class KurrentClientMessageOptions {
             public KurrentClientMessageOptions UseCatalog(System.Collections.Generic.IEnumerable<global::Kurrent.Schema.Catalogs.MessageCatalog> catalogs) => this;
@@ -72,7 +72,7 @@ public class MessageCatalogGeneratorTests {
     [Test]
     public async ValueTask generates_catalog_in_the_contracts_only_samples_assembly() {
         // Arrange — climate events the namespace-scan catalog should have collected in the real
-        // contracts-only Kurrent.Schema.Catalogs.Tests.Samples assembly (references no Kurrent.Client).
+        // contracts-only Kurrent.Schema.Catalogs.Tests.Samples assembly (references no Kurrent.Surge.Client).
         var temperatureMeasured = typeof(Samples.SmartHome.Climate.TemperatureMeasured);
         var humidityMeasured    = typeof(Samples.SmartHome.Climate.HumidityMeasured);
 

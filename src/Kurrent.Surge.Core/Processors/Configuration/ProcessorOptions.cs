@@ -1,4 +1,4 @@
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using Kurrent.Streaming;
 using Kurrent.Streaming.Models;
 using Kurrent.Streaming.Options;

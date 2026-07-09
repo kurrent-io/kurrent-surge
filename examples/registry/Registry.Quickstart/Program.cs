@@ -1,9 +1,9 @@
 using System.Text.Json;
-using Kurrent.Client;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Registry.Quickstart;
 using Registry.Quickstart.Events;

@@ -32,19 +32,19 @@
 
   <ItemGroup>
     <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
-         dependency (not bundled) — Kurrent.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
+         dependency (not bundled) — Kurrent.Surge.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
     <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <ProjectReference Include="..\Kurrent.Surge.SourceGenerators\Kurrent.Surge.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.
          PrivateAssets="none" so the nuspec dependency carries ALL assets: the catalog generator ships
          in Kurrent.Schema.Catalogs's analyzers/dotnet/cs and must flow to consumers that install
-         Kurrent.Client (NuGet excludes Build,Analyzers on dependency edges by default). The generator
+         Kurrent.Surge.Client (NuGet excludes Build,Analyzers on dependency edges by default). The generator
          is wired onto THIS project's own compilation by Directory.Build.targets (_SdkSourceRef). -->
     <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
     <!-- Variant.SourceGenerators (above) still runs here for the client's own IVariant unions
          (TransportSecurity, ClientCredentials). The Variant RUNTIME assembly is NOT bundled here:
-         Kurrent.Abstractions bundles it, and Kurrent.Client gets it transitively through that package
+         Kurrent.Abstractions bundles it, and Kurrent.Surge.Client gets it transitively through that package
          reference. Bundling it in both would ship Kurrent.Variant.dll twice and conflict at restore. -->
   </ItemGroup>
 

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Provides detailed version and attribute information for an assembly.

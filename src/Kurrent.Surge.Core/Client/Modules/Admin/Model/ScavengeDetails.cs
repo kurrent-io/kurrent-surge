@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 /// <summary>
 /// Projected state of a scavenge operation, assembled from events in <c>$scavenges-{id}</c>.

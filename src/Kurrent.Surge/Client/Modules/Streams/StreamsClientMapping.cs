@@ -5,17 +5,17 @@ using System.Collections;
 using System.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization;
-using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Schema;
 using Kurrent.Schema.Catalogs;
 using KurrentDB.Client;
 
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Bundles the dependencies and cancellation token needed by mapping extensions.

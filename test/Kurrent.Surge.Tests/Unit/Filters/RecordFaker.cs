@@ -2,12 +2,12 @@
 
 using Bogus;
 using Humanizer;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Kurrent.Schema.Naming;
 
-namespace Kurrent.Client.Tests.Filters;
+namespace Kurrent.Surge.Tests.Filters;
 
 /// <summary>
 /// A Bogus faker for generating test Record instances with realistic data.
@@ -106,11 +106,11 @@ sealed class RecordFaker : Faker<Record> {
 
 // using Bogus;
 // using Humanizer;
-// using Kurrent.Client.Registry;
-// using Kurrent.Client.Schema.NameStrategies;
-// using Kurrent.Client.Streams;
+// using Kurrent.Surge.Client.Registry;
+// using Kurrent.Surge.Client.Schema.NameStrategies;
+// using Kurrent.Surge.Client.Streams;
 //
-// namespace Kurrent.Client.Tests.Filters;
+// namespace Kurrent.Surge.Tests.Filters;
 //
 // /// <summary>
 // /// A Bogus faker for generating test Record instances with realistic data.

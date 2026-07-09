@@ -3,12 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bogus;
 using KurrentDB.Diagnostics.Tracing;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
-using JsonSerializer = Kurrent.Client.Schema.Serialization.Json.JsonSerializer;
+using JsonSerializer = Kurrent.Surge.Client.Schema.Serialization.Json.JsonSerializer;
 
-namespace Kurrent.Client.Tests.Model;
+namespace Kurrent.Surge.Tests.Model;
 
 /// <summary>
 /// Round-trip coverage for the metadata JSON converter: what goes in must come back out

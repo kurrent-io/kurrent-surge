@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Serilog;
 
-namespace Kurrent.Client.Tests.Filters;
+namespace Kurrent.Surge.Tests.Filters;
 
 [Category("Filters")]
 public class StreamNameFilterTests {

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 
-namespace Kurrent.Client.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 
 /// <summary>
 /// Provides AOT-compatible registration of protobuf message types, replacing

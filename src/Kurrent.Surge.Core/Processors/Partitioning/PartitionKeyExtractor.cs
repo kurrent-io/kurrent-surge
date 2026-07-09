@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Processors.Partitioning;
+namespace Kurrent.Surge.Client.Processors.Partitioning;
 
 /// <summary>
 /// Extracts partition keys from records based on a property path expression.

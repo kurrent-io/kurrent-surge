@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 
 namespace Kurrent.Validation;
 

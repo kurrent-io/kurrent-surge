@@ -5,15 +5,15 @@
 
 using System.Runtime.CompilerServices;
 using Grpc.Core;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Legacy;
-using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Legacy;
+using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
 using KurrentDB.Protocol.V1.Streams;
-using static Kurrent.Client.Streams.StreamsClientMapping;
+using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public partial class StreamsClient {
     /// <summary>

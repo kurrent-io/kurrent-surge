@@ -1,8 +1,8 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Registry;
+namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
 public record CheckSchemaCompatibilityOptions : SelfValidating<CheckSchemaCompatibilityOptions, CheckSchemaCompatibilityOptions.Validator> {

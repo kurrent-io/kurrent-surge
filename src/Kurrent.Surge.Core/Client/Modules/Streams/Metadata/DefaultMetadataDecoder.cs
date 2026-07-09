@@ -1,6 +1,6 @@
-using JsonSerializer = Kurrent.Client.Schema.Serialization.Json.JsonSerializer;
+using JsonSerializer = Kurrent.Surge.Client.Schema.Serialization.Json.JsonSerializer;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// The default metadata decoder that deserializes metadata from JSON-encoded byte arrays.

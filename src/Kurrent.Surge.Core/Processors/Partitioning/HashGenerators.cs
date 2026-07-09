@@ -3,7 +3,7 @@
 using Kurrent.Streaming.Partitioning.Hashing;
 using static System.Text.Encoding;
 
-namespace Kurrent.Client.Processors.Partitioning;
+namespace Kurrent.Surge.Client.Processors.Partitioning;
 
 public delegate uint GenerateHash(string input);
 

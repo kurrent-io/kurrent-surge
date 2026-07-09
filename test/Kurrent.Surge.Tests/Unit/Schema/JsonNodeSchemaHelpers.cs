@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 
 // ReSharper disable CheckNamespace
-namespace Kurrent.Client.Tests.Fixtures;
+namespace Kurrent.Surge.Tests.Fixtures;
 
 /// <summary>
 /// NJsonSchema-free equivalents of the <see cref="JsonSchemaExtensions"/> test helpers, built on

@@ -4,9 +4,9 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Apache.Arrow.Adbc.Client;
 using Apache.Arrow.Adbc.Drivers.FlightSql;
-using Kurrent.Client;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 
 namespace Kurrent;

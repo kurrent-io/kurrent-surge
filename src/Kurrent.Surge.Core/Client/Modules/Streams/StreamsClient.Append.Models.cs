@@ -3,7 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Variant;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Lightweight options for the streaming <see cref="StreamsClient.AppendRecords(IEnumerable{AppendRecord}, AppendRecordsOptions?, CancellationToken)"/>

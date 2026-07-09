@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Tests.Secure;
+namespace Kurrent.Surge.Tests.Secure;
 
 [Category("Secure")]
 [Category("Integration")]

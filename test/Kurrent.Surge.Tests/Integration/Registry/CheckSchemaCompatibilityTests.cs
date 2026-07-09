@@ -1,12 +1,12 @@
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Streams;
-using Kurrent.Client.Tests.Fixtures;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Tests.Fixtures;
 using Kurrent.Schema;
 using NJsonSchema;
-using static Kurrent.Client.Registry.CompatibilityMode;
+using static Kurrent.Surge.Client.Registry.CompatibilityMode;
 
-namespace Kurrent.Client.Tests.Registry;
+namespace Kurrent.Surge.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]

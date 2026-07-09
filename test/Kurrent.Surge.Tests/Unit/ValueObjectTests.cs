@@ -1,6 +1,6 @@
 // using Kurrent.Validation;
 //
-// namespace Kurrent.Client.Tests;
+// namespace Kurrent.Surge.Tests;
 //
 // public class ValueObjectTests {
 //     [Test]

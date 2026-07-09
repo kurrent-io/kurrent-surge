@@ -1,7 +1,7 @@
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 /// <summary>
 /// <see cref="RecordFilter.RequiresClientEvaluation"/> is the sole authority on whether the SDK runs

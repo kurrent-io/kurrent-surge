@@ -2,7 +2,7 @@
 
 using KurrentDB.Client;
 
-namespace Kurrent.Client.Tests.Legacy;
+namespace Kurrent.Surge.Tests.Legacy;
 
 [Category("Legacy")]
 public class SharingProviderTests {

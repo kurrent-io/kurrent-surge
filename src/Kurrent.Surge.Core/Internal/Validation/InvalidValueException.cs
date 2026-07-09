@@ -1,6 +1,6 @@
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 public sealed class InvalidValueException<TValue>(object? value, string reason, params ValidationProblem[] problems) 
     : ValidationException(ErrorCodeCache<TValue>.Value, FormatReason(value, reason), problems) {

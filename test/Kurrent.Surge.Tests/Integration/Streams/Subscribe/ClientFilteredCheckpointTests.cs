@@ -1,7 +1,7 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Client.Tests.Streams;
+namespace Kurrent.Surge.Tests.Streams;
 
 /// <summary>
 /// Whenever the SDK evaluates a filter client-side it discards records the consumer never sees,

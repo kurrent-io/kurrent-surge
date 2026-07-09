@@ -1,8 +1,8 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Schema.Serialization.Json;
+namespace Kurrent.Surge.Client.Schema.Serialization.Json;
 
 [UsedImplicitly]
 [JsonSerializable(typeof(JsonNode))]

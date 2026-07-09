@@ -1,6 +1,6 @@
 using Kurrent.Validation;
 
-namespace Kurrent.Client.Indexes;
+namespace Kurrent.Surge.Client.Indexes;
 
 [PublicAPI]
 public record CreateIndexOptions : SelfValidating<CreateIndexOptions, CreateIndexOptions.Validator> {

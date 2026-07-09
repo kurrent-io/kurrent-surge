@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Grpc.Core;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Legacy;
-using Kurrent.Client.Streams.Checkpoints;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Legacy;
+using Kurrent.Surge.Client.Streams.Checkpoints;
 using KurrentDB.Protocol.V1.Streams;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 public partial class StreamsClient {
     public async IAsyncEnumerable<SubscribeMessage> Subscribe(

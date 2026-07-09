@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Arrow.Tests;
+namespace Kurrent.Surge.Arrow.Tests;
 
 [Category("Arrow")]
 [Category("Integration")]

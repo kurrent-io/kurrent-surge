@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 /// <summary>
 /// Result of a connector list operation.

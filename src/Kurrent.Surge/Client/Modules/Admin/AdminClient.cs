@@ -1,8 +1,8 @@
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client.Exceptions;
 using KurrentDB.Protocol.V1;
 using OperationsServiceClient = KurrentDB.Protocol.V1.Operations.Operations.OperationsClient;
 
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 public partial class AdminClient : IAdminClient {
     internal AdminClient(KurrentClient client) {

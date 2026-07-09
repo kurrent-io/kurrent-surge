@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 
 public record ProtobufSchemaSerializerOptions : SchemaSerializerOptions {
 	public static ProtobufSchemaSerializerOptions Default => new();

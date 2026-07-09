@@ -2,7 +2,7 @@
 
 using System.Text.RegularExpressions;
 
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Extracts server-side filter components from parsed filter expressions.

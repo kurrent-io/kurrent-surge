@@ -4,12 +4,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
 using System.Text.Json.Serialization;
-using Kurrent.Client.Schema.Serialization.Json;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using NodaTime;
 
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Surge.Client.Schema;
 
 /// <summary>
 /// AOT-safe <see cref="ISchemaExporter"/> built on the in-box <see cref="JsonSchemaExporter"/>

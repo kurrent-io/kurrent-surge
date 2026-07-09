@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 static class ErrorCodeCache<TValue> {
     public static readonly ErrorCode Value =

@@ -1,7 +1,7 @@
 using Google.Rpc;
 using Kurrent.GoogleRpc;
 
-namespace Kurrent.Client.Errors;
+namespace Kurrent.Surge.Client.Errors;
 
 [PublicAPI]
 public static class ErrorCodeExtensions {

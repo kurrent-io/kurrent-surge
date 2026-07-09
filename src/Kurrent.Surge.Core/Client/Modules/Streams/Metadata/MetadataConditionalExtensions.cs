@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Streams;
+namespace Kurrent.Surge.Client.Streams;
 
 [PublicAPI]
 public static class MetadataConditionalExtensions {

@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Channels;
-using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming.Checkpointing;

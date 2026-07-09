@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema;
+namespace Kurrent.Surge.Client.Schema;
 
 /// <summary>
 /// Configuration for schema registration behavior

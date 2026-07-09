@@ -3,8 +3,8 @@ using System.Security.Cryptography.X509Certificates;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Kurrent;
-using Kurrent.Client;
-using Kurrent.Client.Exceptions;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 

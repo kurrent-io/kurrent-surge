@@ -1,5 +1,5 @@
-using Kurrent.Client.Processors.Gateway.Messages;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Streaming.Pipeline;
 

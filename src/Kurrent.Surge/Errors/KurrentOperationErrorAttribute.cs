@@ -1,6 +1,6 @@
 // ReSharper disable UnusedMember.Global
 
-namespace Kurrent.Client;
+namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Marks a class as representing a Kurrent operation error exception.

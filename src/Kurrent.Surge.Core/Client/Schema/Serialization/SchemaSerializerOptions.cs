@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Schema.Serialization;
+namespace Kurrent.Surge.Client.Schema.Serialization;
 
 public record SchemaSerializerOptions {
 	/// <summary>

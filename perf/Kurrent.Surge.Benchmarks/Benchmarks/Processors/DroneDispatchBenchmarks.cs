@@ -1,6 +1,6 @@
 using System.Threading.Channels;
 using BenchmarkDotNet.Attributes;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Streaming;

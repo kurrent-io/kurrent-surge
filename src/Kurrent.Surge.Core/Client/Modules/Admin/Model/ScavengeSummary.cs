@@ -1,4 +1,4 @@
-namespace Kurrent.Client.Admin;
+namespace Kurrent.Surge.Client.Admin;
 
 /// <summary>
 /// Lightweight summary of a scavenge operation, used by <see cref="AdminClient.ListScavenges"/>.

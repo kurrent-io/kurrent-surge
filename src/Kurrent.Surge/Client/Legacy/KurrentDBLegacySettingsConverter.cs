@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using KurrentDB.Client;
 using UserCredentials = KurrentDB.Client.UserCredentials;
 
-namespace Kurrent.Client.Legacy;
+namespace Kurrent.Surge.Client.Legacy;
 
 static class KurrentDBLegacySettingsConverter {
     /// <summary>

@@ -1,6 +1,6 @@
 // ReSharper disable CheckNamespace
 
-namespace Kurrent.Client.Exceptions;
+namespace Kurrent.Surge.Client.Exceptions;
 
 // [KurrentOperationError(RegistryError.SchemaNotFound)]
 // public partial class SchemaNotFoundException {

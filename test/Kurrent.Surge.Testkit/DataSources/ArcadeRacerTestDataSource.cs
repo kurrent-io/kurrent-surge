@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using Bogus;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 

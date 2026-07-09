@@ -1,7 +1,7 @@
 using static KurrentDB.Connectors.Management.Contracts.Commands.ConnectorsCommandService;
 using static KurrentDB.Connectors.Management.Contracts.Queries.ConnectorsQueryService;
 
-namespace Kurrent.Client.Connectors;
+namespace Kurrent.Surge.Client.Connectors;
 
 public partial class ConnectorsClient : ClientModuleBase, IConnectorsClient {
     internal ConnectorsClient(KurrentClient client) : base(client) {

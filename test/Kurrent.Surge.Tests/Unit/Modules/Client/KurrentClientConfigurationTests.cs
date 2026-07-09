@@ -1,11 +1,11 @@
 using System.Text;
-using Kurrent.Client.Exceptions;
-using Kurrent.Client.Schema;
+using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Schema.Catalogs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kurrent.Client.Tests.Modules.Client;
+namespace Kurrent.Surge.Tests.Modules.Client;
 
 /// <summary>
 /// Unit tests for KurrentClient configuration and DI registration.

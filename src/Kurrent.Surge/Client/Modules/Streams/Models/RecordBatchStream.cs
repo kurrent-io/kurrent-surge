@@ -2,7 +2,7 @@
 // using System.Threading.Channels;
 // using Kurrent.Variant;
 //
-// namespace Kurrent.Client.Streams;
+// namespace Kurrent.Surge.Client.Streams;
 //
 // /// <summary>
 // /// Provides efficient batched reading of records.
