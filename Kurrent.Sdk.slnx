@@ -57,11 +57,11 @@
     <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/Extensions/">
-    <Project Path="src/Kurrent.Schema.Catalogs.Generators/Kurrent.Schema.Catalogs.Generators.csproj" />
-    <Project Path="src/Kurrent.Schema.Catalogs/Kurrent.Schema.Catalogs.csproj" />
+    <Project Path="src/Kurrent.Surge.Schema.Catalogs.Generators/Kurrent.Surge.Schema.Catalogs.Generators.csproj" />
+    <Project Path="src/Kurrent.Surge.Schema.Catalogs/Kurrent.Surge.Schema.Catalogs.csproj" />
     <Project Path="src/Kurrent.Surge.Arrow/Kurrent.Surge.Arrow.csproj" />
-    <Project Path="test/Kurrent.Schema.Catalogs.Tests.Samples/Kurrent.Schema.Catalogs.Tests.Samples.csproj" />
-    <Project Path="test/Kurrent.Schema.Catalogs.Tests/Kurrent.Schema.Catalogs.Tests.csproj" />
+    <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests.Samples/Kurrent.Surge.Schema.Catalogs.Tests.Samples.csproj" />
+    <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests/Kurrent.Surge.Schema.Catalogs.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
   </Folder>
   <Folder Name="/Projectors/">

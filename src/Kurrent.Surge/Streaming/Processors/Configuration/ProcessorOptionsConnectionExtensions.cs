@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client;
 using Kurrent.Processors.Configuration;
-using Kurrent.Schema.Naming;
+using Kurrent.Surge.Schema.Naming;
 using Microsoft.Extensions.Configuration;
 
 // Home the connection sugar in Kurrent.Surge.Streaming — the namespace of KurrentProcessor, the primary

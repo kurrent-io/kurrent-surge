@@ -1,5 +1,5 @@
-using Kurrent.Schema.Naming;
-using static Kurrent.Schema.Naming.SchemaNameOutputFormat;
+using Kurrent.Surge.Schema.Naming;
+using static Kurrent.Surge.Schema.Naming.SchemaNameOutputFormat;
 
 namespace Kurrent.Surge.Tests.SchemaRegistry.NameStrategies;
 

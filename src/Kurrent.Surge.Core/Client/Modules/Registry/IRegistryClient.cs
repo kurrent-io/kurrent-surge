@@ -1,4 +1,4 @@
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Registry;
 

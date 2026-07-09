@@ -4,7 +4,7 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using Registry.Quickstart;
 using Registry.Quickstart.Events;
 using Serilog;

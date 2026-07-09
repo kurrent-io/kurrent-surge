@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Schema;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 using Registry.Quickstart.Events;
 
 namespace Registry.Quickstart;

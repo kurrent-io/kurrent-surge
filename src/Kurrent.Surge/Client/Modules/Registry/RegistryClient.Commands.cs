@@ -1,7 +1,7 @@
 using Google.Protobuf;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Surge.Client.Registry;

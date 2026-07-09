@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using TUnit.Core.Interfaces;
 
 namespace Benchmarks;

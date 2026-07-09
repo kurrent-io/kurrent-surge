@@ -5,8 +5,8 @@ using Humanizer;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
-using Kurrent.Schema.Naming;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Naming;
 
 namespace Kurrent.Surge.Streaming.Tests.Fakes;
 

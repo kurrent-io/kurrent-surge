@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Streaming;
 using Kurrent.Surge.Streaming.Models;
 using Processor.WordCount;

@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client;
-using Kurrent.Schema.Naming;
+using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Streaming;
 using Kurrent.Surge.Streaming.Diagnostics.Metrics;
 using Kurrent.Surge.Streaming.Hosting;

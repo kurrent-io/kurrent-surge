@@ -1,4 +1,4 @@
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 
 // Declared once: a namespace scan turns these records into a message catalog, and AlwaysActive
 // registers it into every client automatically — no UseCatalog call needed. The source generator

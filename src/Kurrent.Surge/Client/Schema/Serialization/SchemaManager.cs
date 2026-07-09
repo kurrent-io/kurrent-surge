@@ -2,9 +2,9 @@ using System.Collections.Concurrent;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
-using Kurrent.Schema.Catalogs;
-using SchemaDataFormat = Kurrent.Schema.SchemaDataFormat;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
+using SchemaDataFormat = Kurrent.Surge.Schema.SchemaDataFormat;
 
 namespace Kurrent.Surge.Client.Schema.Serialization;
 

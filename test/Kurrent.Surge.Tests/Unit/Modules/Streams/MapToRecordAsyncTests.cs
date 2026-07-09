@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using KurrentDB.Client;

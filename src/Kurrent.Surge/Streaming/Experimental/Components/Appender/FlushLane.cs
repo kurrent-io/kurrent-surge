@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Appender;

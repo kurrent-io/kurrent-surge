@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using Kurrent.Validation;
 
 namespace Kurrent.Surge.Client.Streams;

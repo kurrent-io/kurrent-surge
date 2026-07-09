@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge.Schema.Catalogs</PackageId>
+    <IsPackable>true</IsPackable>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <Title>Kurrent .NET Schema Catalogs</Title>
+    <Product>Kurrent .NET Schema Catalogs</Product>
+    <Description>The message declaration layer for the Kurrent Platform. Declare which message types exist and the wire names they carry from dependency-light contracts/domain assemblies — no gRPC, no client. The Kurrent client references the same package, so both sides speak the same types.</Description>
+    <PackageTags>kurrent kurrentdb schema message-catalog contracts event-sourcing</PackageTags>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The message catalog generator ships INSIDE this package (analyzers/dotnet/cs) so catalogs
+         generate in consumer compilations. @(PackedAnalyzerProject) is the shared list
+         (Directory.Build.props); Directory.Build.targets wires the same set for in-repo source
+         consumers (analyzers are not transitive through a ProjectReference). -->
+    <ProjectReference Include="@(PackedAnalyzerProject)" PackedAnalyzer="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- BuildResolver (KurrentClientMessageOptions, now in Kurrent.Surge.Core) calls internal
+         MessageCatalogDiscovery.GetCatalogs(); discovery stays internal to this package, so the
+         calling assemblies need visibility. -->
+    <InternalsVisibleTo Include="Kurrent.Surge" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Core" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Schema.Catalogs.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
+
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core.Tests" />
+
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
+  </ItemGroup>
+
+</Project>

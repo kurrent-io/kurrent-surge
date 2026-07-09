@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using KurrentDB.Diagnostics.Tracing;
 
 namespace Kurrent.Surge.Client.Streams;

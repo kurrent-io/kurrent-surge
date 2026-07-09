@@ -1,9 +1,9 @@
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Schema;
-using Kurrent.Schema.Catalogs;
-using Kurrent.Schema.Naming;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
+using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Tests.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;

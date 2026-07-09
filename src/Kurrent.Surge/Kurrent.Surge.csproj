@@ -38,10 +38,10 @@
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.
          PrivateAssets="none" so the nuspec dependency carries ALL assets: the catalog generator ships
-         in Kurrent.Schema.Catalogs's analyzers/dotnet/cs and must flow to consumers that install
+         in Kurrent.Surge.Schema.Catalogs's analyzers/dotnet/cs and must flow to consumers that install
          Kurrent.Surge.Client (NuGet excludes Build,Analyzers on dependency edges by default). The generator
          is wired onto THIS project's own compilation by Directory.Build.targets (_SdkSourceRef). -->
-    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs\Kurrent.Surge.Schema.Catalogs.csproj" PrivateAssets="none" />
     <!-- Variant.SourceGenerators (above) still runs here for the client's own IVariant unions
          (TransportSecurity, ClientCredentials). The Variant RUNTIME assembly is NOT bundled here:
          Kurrent.Abstractions bundles it, and Kurrent.Surge.Client gets it transitively through that package

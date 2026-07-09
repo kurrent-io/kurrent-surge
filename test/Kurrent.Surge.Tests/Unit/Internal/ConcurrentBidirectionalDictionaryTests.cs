@@ -1,4 +1,4 @@
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 
 namespace Kurrent.Surge.Tests.Internal;
 

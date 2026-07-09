@@ -15,7 +15,7 @@ Console.WriteLine($"Kurrent.Surge.Streaming.Core: {streamingAsm.GetName().Name} 
 Console.WriteLine($"Kurrent.Surge.Client:    {clientAsm.GetName().Name} v{clientAsm.GetName().Version}");
 Console.WriteLine($"Kurrent.Variant:   {variantAsm.GetName().Name} v{variantAsm.GetName().Version}");
 
-// Two-hop generator-flow probe: the catalog generator (shipped in Kurrent.Schema.Catalogs) must
+// Two-hop generator-flow probe: the catalog generator (shipped in Kurrent.Surge.Schema.Catalogs) must
 // reach this Streaming-only consumer. Referencing the generated catalog fails the build if it didn't.
 var generatedCatalogs = PackageTest.Streaming.MessageCatalogs.All;
 Console.WriteLine($"Generated catalogs flowed two hops: {generatedCatalogs.Count}");

@@ -3,8 +3,8 @@
 using System.Diagnostics;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
 
 namespace Kurrent.Surge.Client.Schema.Serialization;
 

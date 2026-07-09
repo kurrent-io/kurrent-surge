@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Kurrent.Surge.Client.Streams;

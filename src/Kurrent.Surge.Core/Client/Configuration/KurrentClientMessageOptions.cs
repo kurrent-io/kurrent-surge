@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Schema.Serialization.Json;
 using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
-using Kurrent.Schema.Catalogs;
-using Kurrent.Schema.Naming;
+using Kurrent.Surge.Schema.Catalogs;
+using Kurrent.Surge.Schema.Naming;
 
 namespace Kurrent.Surge.Client;
 

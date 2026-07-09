@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Streams;
 

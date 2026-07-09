@@ -2,7 +2,7 @@ using System.Buffers;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Schema.Serialization.Bytes;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Tests.Schema.Serialization.Bytes;
 

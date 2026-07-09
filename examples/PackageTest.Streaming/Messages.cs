@@ -1,6 +1,6 @@
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 
-// Two-hop analyzer-flow probe. The message-catalog generator ships inside Kurrent.Schema.Catalogs;
+// Two-hop analyzer-flow probe. The message-catalog generator ships inside Kurrent.Surge.Schema.Catalogs;
 // this project references ONLY Kurrent.Surge.Streaming.Core, so the generator must reach it through
 // Streaming -> Client -> Schema.Catalogs (NuGet does not flow analyzers transitively by default —
 // each edge carries them only because of PrivateAssets="none"). This declaration drives the

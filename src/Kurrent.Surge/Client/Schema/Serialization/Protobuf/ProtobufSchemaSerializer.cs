@@ -1,6 +1,6 @@
 using Google.Protobuf;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 

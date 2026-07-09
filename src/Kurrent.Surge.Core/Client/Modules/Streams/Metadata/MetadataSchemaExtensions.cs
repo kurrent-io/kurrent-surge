@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Streams;
 

@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 using Serilog;
 
 namespace Kurrent.Surge.Tests.Streams;

@@ -1,6 +1,6 @@
 using Google.Protobuf.Collections;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using NJsonSchema;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 

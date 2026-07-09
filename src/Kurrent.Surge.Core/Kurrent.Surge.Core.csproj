@@ -34,7 +34,7 @@
          streaming proto contracts need their generated catalog — checkpoint appends fail to map
          without it), and the nuspec dependency carries all assets so consumers get the generator
          too (analyzers are excluded on dependency edges by default). -->
-    <ProjectReference Include="..\Kurrent.Schema.Catalogs\Kurrent.Schema.Catalogs.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs\Kurrent.Surge.Schema.Catalogs.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <ItemGroup>

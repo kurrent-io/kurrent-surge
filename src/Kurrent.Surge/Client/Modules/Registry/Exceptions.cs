@@ -1,7 +1,7 @@
 // ReSharper disable CheckNamespace
 
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using KurrentDB.Protocol.V2.Registry.Errors;
 using static System.String;
 

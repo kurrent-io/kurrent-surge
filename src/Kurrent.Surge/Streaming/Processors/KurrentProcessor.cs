@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema.Naming;
+using Kurrent.Surge.Schema.Naming;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Streaming.Checkpointing;

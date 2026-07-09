@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
-using Kurrent.Schema;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Client.Streams;
 
 using StreamRevision = KurrentDB.Protocol.V2.Streams.StreamRevision;

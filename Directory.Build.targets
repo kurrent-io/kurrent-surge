@@ -208,7 +208,7 @@
   -->
   <ItemGroup Condition="'$(TestPackages)' != 'true'">
     <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge'))" />
-    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Schema.Catalogs'))" />
+    <_SdkSourceRef Include="@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge.Schema.Catalogs'))" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TestPackages)' != 'true' and '@(_SdkSourceRef)' != ''">

@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Tests.Fixtures;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Tests.Registry;
 

@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

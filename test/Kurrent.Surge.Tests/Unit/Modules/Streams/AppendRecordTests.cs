@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Schema;
+using Kurrent.Surge.Schema;
 using Kurrent.Validation;
 
 namespace Kurrent.Surge.Tests.Modules.Streams;
