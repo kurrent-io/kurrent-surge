@@ -10,7 +10,7 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <RootNamespace>Kurrent</RootNamespace>
+    <RootNamespace>Kurrent.Surge</RootNamespace>
     
     <!-- Reflection-based config binding: FromConfiguration binds ProcessorOptions with
          BindNonPublicProperties=true (internal MaxParallelism et al.), which the source-generated

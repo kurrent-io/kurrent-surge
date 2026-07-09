@@ -3,7 +3,7 @@
   <PropertyGroup>
     <PackageId>Kurrent.Surge.Core</PackageId>
     <IsPackable>true</IsPackable>
-    <RootNamespace>Kurrent</RootNamespace>
+    <RootNamespace>Kurrent.Surge</RootNamespace>
     <Title>Kurrent .NET Abstractions</Title>
     <Product>Kurrent .NET Abstractions</Product>
     <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — with no gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
