@@ -1,9 +1,9 @@
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
-using Kurrent.Streaming.Diagnostics;
+using Kurrent.Surge.Streaming.Diagnostics;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// EXPERIMENTAL SKETCH — not integrated, not wired into the Drone, intentionally not finished.

@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 /// <summary>
 /// A checkpoint store that always loads a fixed set of per-partition positions — the catch-up floor a

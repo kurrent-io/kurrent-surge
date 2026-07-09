@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// Tracks processing progress for a session. Push-based: the Drone feeds it explicitly at each step.

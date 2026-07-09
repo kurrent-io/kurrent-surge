@@ -1,7 +1,7 @@
 using Kurrent.Schema.Catalogs;
-using Kurrent.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Checkpointing;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// This assembly's contract mappings, discovered through the message catalog generator — the same
@@ -13,5 +13,5 @@ namespace Kurrent.Streaming;
 [CustomMessageCatalog]
 sealed class StreamingMessageCatalog() : MessageCatalog(
     "KurrentStreaming", alwaysActive: true, catalog => catalog
-        .Map<PartitionsCheckpointed>("Kurrent.Streaming.Core.Checkpointing.PartitionsCheckpointed")
-        .Map<CheckpointReset>("Kurrent.Streaming.Core.Checkpointing.CheckpointReset"));
+        .Map<PartitionsCheckpointed>("Kurrent.Surge.Streaming.Checkpointing.PartitionsCheckpointed")
+        .Map<CheckpointReset>("Kurrent.Surge.Streaming.Checkpointing.CheckpointReset"));

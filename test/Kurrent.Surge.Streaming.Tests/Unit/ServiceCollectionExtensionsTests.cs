@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 [Category("Processors")]
 public class ServiceCollectionExtensionsTests {

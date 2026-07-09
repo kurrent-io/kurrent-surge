@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using Testing.ArcadeRacer;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 [Category("Processors")]
 [Category("Integration")]

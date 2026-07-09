@@ -1,7 +1,7 @@
 using System.Text;
-using Kurrent.Streaming.Partitioning.Hashing;
+using Kurrent.Surge.Streaming.Partitioning.Hashing;
 
-namespace Kurrent.Streaming.Tests.Partitioning.Hashing;
+namespace Kurrent.Surge.Streaming.Tests.Partitioning.Hashing;
 
 [Category("Processors")]
 public class XXHashTests {

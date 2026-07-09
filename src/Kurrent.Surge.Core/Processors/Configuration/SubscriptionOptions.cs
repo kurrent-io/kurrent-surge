@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 
 namespace Kurrent.Processors.Configuration;
 

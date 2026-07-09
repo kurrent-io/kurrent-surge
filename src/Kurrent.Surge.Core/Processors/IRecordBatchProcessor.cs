@@ -2,7 +2,7 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// Defines the interface for processing records in batches. The drone accumulates records up to

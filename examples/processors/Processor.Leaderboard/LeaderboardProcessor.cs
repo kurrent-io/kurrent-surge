@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 using Processor.Leaderboard.Events;
 using StackExchange.Redis;
 

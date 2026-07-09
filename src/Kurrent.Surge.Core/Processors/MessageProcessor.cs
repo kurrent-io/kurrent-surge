@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// A high-performance, zero-allocation record processor that dispatches

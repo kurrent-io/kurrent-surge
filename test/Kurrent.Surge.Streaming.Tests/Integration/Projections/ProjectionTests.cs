@@ -1,10 +1,10 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 using Kurrent.Projectors;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
-namespace Kurrent.Streaming.Tests.Projections;
+namespace Kurrent.Surge.Streaming.Tests.Projections;
 
 [Category("Projections")]
 [Category("Integration")]

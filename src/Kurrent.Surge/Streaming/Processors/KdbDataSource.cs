@@ -3,12 +3,12 @@ using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Surge.Client.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
+using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Streaming.Options;
 using Kurrent.Variant;
 using Polly;
 
-namespace Kurrent.Streaming.Gateway;
+namespace Kurrent.Surge.Streaming.Gateway;
 
 
 public record KdbDataSourceOptions {

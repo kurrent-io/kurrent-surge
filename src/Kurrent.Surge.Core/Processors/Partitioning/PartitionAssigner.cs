@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming.Partitioning;
+namespace Kurrent.Surge.Streaming.Partitioning;
 
 /// <summary>
 /// Assigns partitions to drones using a configurable distribution strategy.

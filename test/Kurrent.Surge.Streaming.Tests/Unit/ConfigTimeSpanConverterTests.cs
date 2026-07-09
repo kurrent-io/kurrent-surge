@@ -1,7 +1,7 @@
 using System.Text;
 using Microsoft.Extensions.Configuration;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Verifies the module-initializer-registered TimeSpan converter: numeric ms and TimeSpan

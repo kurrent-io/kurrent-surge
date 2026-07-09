@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Kurrent.Streaming.Diagnostics;
-using Kurrent.Streaming.Diagnostics.Metrics;
+using Kurrent.Surge.Streaming.Diagnostics;
+using Kurrent.Surge.Streaming.Diagnostics.Metrics;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 /// <summary>
 /// Captures a single drone's telemetry — tracing spans and metric measurements — using only BCL
@@ -14,7 +14,7 @@ namespace Kurrent.Streaming.Tests.Fakes;
 /// <para>
 /// Drives the real <see cref="DroneMetricsObserver"/> through a <see cref="TestMeterFactory"/>, then
 /// reads the resulting instruments with a <see cref="MeterListener"/>. The observer subscribes to the
-/// process-global <c>Kurrent.Streaming.Core</c> diagnostic listener, so it receives events from every drone
+/// process-global <c>Kurrent.Surge.Streaming.Core</c> diagnostic listener, so it receives events from every drone
 /// running in parallel; measurements are therefore filtered to the probe's own <c>processor_id</c>.
 /// Each test must use a unique processor id (see <see cref="DroneTelemetryProbe(string)"/>).
 /// </para>

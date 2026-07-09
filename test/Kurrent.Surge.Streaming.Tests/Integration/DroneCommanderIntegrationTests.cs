@@ -2,11 +2,11 @@ using System.Text.RegularExpressions;
 using Kurrent.Surge.Client.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
+using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Streaming.Options;
 using Testing.ArcadeRacer;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 [Category("Processors")]
 [Category("Integration")]

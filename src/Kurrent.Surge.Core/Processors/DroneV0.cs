@@ -3,9 +3,9 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Gateway;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// Bare drone for studying the data source ↔ checkpointer responsibility split. The ONLY things removed

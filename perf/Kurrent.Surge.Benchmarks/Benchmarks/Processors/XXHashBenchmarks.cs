@@ -1,5 +1,5 @@
 using BenchmarkDotNet.Attributes;
-using Kurrent.Streaming.Partitioning.Hashing;
+using Kurrent.Surge.Streaming.Partitioning.Hashing;
 
 namespace Benchmarks;
 

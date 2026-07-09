@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Test helpers for CheckpointStore tests.

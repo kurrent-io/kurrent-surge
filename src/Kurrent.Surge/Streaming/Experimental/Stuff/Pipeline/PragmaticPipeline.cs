@@ -2,7 +2,7 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 
-namespace Kurrent.Streaming.Pipeline.Pragmatic;
+namespace Kurrent.Surge.Streaming.Pipeline.Pragmatic;
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // VARIANT 1 — PRAGMATIC. Reuse the Drone's real types. The source yields the existing

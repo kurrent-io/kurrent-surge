@@ -1,10 +1,10 @@
 using Kurrent.Surge.Client;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Hosting;
+using Kurrent.Surge.Streaming.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Unit tests for processor registration through the <c>AddKurrent</c> builder scope.

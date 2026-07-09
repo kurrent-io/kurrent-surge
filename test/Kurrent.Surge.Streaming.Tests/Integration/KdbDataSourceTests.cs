@@ -1,9 +1,9 @@
 using System.Threading.Channels;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Gateway;
 using Polly;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 // Pruning the caught-up prefix moved off the drone and onto the data source (see IDataSource / KdbDataSource).
 // These exercise the REAL source against a live KurrentDB: given per-partition floors, the source must feed only

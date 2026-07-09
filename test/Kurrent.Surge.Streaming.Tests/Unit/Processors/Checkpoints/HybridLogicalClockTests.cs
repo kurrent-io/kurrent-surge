@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
-using Kurrent.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Checkpointing;
 using Microsoft.Extensions.Time.Testing;
 
-namespace Kurrent.Streaming.Tests.Checkpoints;
+namespace Kurrent.Surge.Streaming.Tests.Checkpoints;
 
 [Category("Processors")]
 public class HybridLogicalClockTests {

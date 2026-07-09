@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 using Processor.AspNetMinimal;
 
 Log.Logger = new LoggerConfiguration()

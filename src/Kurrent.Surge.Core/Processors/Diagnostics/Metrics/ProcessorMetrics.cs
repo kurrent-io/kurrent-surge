@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Diagnostics.Metrics;
 
-namespace Kurrent.Streaming.Diagnostics.Metrics;
+namespace Kurrent.Surge.Streaming.Diagnostics.Metrics;
 
 /// <summary>
 /// Source-generated metrics for drones.

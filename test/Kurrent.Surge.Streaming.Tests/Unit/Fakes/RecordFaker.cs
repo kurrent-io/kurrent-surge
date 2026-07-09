@@ -8,7 +8,7 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Schema;
 using Kurrent.Schema.Naming;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 /// <summary>
 /// A Bogus faker for generating test Record instances with realistic data.

@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 using Processor.ClickstreamSessions;
 using Serilog;
 

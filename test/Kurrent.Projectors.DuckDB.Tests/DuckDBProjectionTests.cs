@@ -1,8 +1,8 @@
 using DuckDB.NET.Data;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Streaming.Models;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
 namespace Kurrent.Projectors.DuckDB.Tests;

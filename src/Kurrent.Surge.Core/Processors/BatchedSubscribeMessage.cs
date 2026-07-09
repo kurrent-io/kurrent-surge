@@ -2,7 +2,7 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Variant;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// Sum yielded by <c>ReadBatched</c> on the drone's batched path. Records are

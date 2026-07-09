@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Shared test processor with optional hooks and record collection.

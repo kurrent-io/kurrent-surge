@@ -2,15 +2,15 @@ using System.Text;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Hosting;
-using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
+using Kurrent.Surge.Streaming.Hosting;
+using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Streaming.Options;
 using Kurrent.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Unit tests for processor configuration, validation, and drone creation.

@@ -1,4 +1,4 @@
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 sealed class SafeRecordBatchProcessor(IRecordBatchProcessor inner) : IRecordBatchProcessor {
     public async ValueTask ProcessBatch(BatchContext context) {

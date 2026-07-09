@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Gateway;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Guards the zero-allocation bridge between the client's <see cref="SubscribeMessage"/> and the data

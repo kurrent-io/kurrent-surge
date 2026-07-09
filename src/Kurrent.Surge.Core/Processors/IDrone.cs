@@ -1,6 +1,6 @@
 using Kurrent.Processors.Configuration;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// Represents a running processor drone instance.

@@ -6,12 +6,12 @@ using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Rpc;
-using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
+using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Streaming.Options;
 using KurrentDB.Protocol.V1.Streams;
 using Status = Grpc.Core.Status;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// End-to-end reconnection tests against a real server. Failures are injected client-side via a

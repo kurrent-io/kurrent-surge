@@ -1,8 +1,8 @@
 using System.Threading.Channels;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Gateway;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 /// <summary>
 /// In-memory data source that lets tests inject specific messages into the drone's channel.

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 sealed class TestRecordBatchProcessor : RecordBatchProcessor {
     readonly ConcurrentQueue<RecordBatch>       _batches     = new();

@@ -10,8 +10,8 @@
 
   <ItemGroup>
     <Using Include="Kurrent.Surge.Client.Streams" />
-    <Using Include="Kurrent.Streaming" />
-    <Using Include="Kurrent.Streaming.Checkpointing" />
+    <Using Include="Kurrent.Surge.Streaming" />
+    <Using Include="Kurrent.Surge.Streaming.Checkpointing" />
     <Using Include="Serilog" />
     <Using Include="Transfermarkt.Domain" />
   </ItemGroup>

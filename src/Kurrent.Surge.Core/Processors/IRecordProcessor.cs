@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// Defines the interface for processing records one at a time.

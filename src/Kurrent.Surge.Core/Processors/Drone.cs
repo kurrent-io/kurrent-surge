@@ -4,11 +4,11 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Diagnostics;
-using Kurrent.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Diagnostics;
+using Kurrent.Surge.Streaming.Gateway;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 sealed class Drone : IDrone {
     readonly IDataSource        _dataSource;

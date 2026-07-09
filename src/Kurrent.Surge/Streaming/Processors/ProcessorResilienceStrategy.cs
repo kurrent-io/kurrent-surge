@@ -6,7 +6,7 @@ using Kurrent.Processors.Configuration;
 using Polly;
 using Polly.Retry;
 
-namespace Kurrent.Streaming.Options;
+namespace Kurrent.Surge.Streaming.Options;
 
 /// <summary>
 /// The SDK's default subscription reconnection strategy and the resilience-context keys

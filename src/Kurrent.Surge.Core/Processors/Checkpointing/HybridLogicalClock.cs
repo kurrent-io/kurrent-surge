@@ -2,7 +2,7 @@ using System.Globalization;
 
 using static System.DateTimeOffset;
 
-namespace Kurrent.Streaming.Checkpointing;
+namespace Kurrent.Surge.Streaming.Checkpointing;
 
 /// <summary>
 /// A thread-safe Hybrid Logical Clock (HLC) that generates monotonically increasing timestamps

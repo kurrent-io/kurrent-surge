@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Streaming.Checkpointing;
+namespace Kurrent.Surge.Streaming.Checkpointing;
 
 readonly struct DefferedLogValue<T>(T[] items, Func<T, string?> formatter, string separator = ", ") {
     public override string ToString() => string.Join(separator, items.Select(formatter).Where(x => x is { }));

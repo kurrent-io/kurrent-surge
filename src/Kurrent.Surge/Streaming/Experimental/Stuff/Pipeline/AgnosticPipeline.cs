@@ -1,9 +1,9 @@
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Streaming.Pipeline.Agnostic;
+namespace Kurrent.Surge.Streaming.Pipeline.Agnostic;
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // VARIANT 2 — AGNOSTIC, NON-GENERIC. The engine deals in `object` + abstract signals, exactly like

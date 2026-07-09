@@ -4,7 +4,7 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 [Category("Appender")]
 [Category("Integration")]

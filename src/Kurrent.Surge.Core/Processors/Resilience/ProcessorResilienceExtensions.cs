@@ -1,7 +1,7 @@
 using Kurrent.Processors.Configuration;
 using Polly;
 
-namespace Kurrent.Streaming.Options;
+namespace Kurrent.Surge.Streaming.Options;
 
 /// <summary>
 /// Convenience access to the processor logger from resilience callbacks without touching

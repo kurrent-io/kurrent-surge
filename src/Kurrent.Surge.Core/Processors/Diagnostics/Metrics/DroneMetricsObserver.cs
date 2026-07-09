@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
-namespace Kurrent.Streaming.Diagnostics.Metrics;
+namespace Kurrent.Surge.Streaming.Diagnostics.Metrics;
 
 /// <summary>
 /// Observes drone diagnostic events and records metrics.

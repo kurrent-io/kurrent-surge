@@ -3,10 +3,10 @@ using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Diagnostics;
-using Kurrent.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Diagnostics;
+using Kurrent.Surge.Streaming.Gateway;
 
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// EXPERIMENTAL — a child of <see cref="DroneCommander"/> owning ONE partition. A pure process-and-report

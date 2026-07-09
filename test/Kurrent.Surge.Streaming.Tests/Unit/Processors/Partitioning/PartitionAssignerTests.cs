@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Partitioning;
+using Kurrent.Surge.Streaming.Partitioning;
 
-namespace Kurrent.Streaming.Tests.Partitioning;
+namespace Kurrent.Surge.Streaming.Tests.Partitioning;
 
 [Category("Processors")]
 public class PartitionAssignerTests {

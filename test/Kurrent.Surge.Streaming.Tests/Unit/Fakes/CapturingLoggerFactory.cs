@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 /// <summary>
 /// An <see cref="ILoggerFactory"/> that records every log entry so tests can assert what the drone

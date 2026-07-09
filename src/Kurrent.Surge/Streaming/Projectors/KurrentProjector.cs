@@ -1,4 +1,4 @@
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 
 namespace Kurrent.Projectors;
 

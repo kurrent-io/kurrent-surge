@@ -1,7 +1,7 @@
 using Kurrent.Projectors;
 using Kurrent.Validation;
 
-namespace Kurrent.Streaming.Tests.Projections;
+namespace Kurrent.Surge.Streaming.Tests.Projections;
 
 [Category("Projectors")]
 public class KurrentProjectorTests {

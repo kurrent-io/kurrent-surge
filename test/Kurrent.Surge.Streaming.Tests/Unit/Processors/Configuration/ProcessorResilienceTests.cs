@@ -4,14 +4,14 @@ using Google.Rpc;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Options;
+using Kurrent.Surge.Streaming.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Polly;
 using Polly.Retry;
 using Status = Grpc.Core.Status;
 
-namespace Kurrent.Streaming.Tests.Options;
+namespace Kurrent.Surge.Streaming.Tests.Options;
 
 [Category("Processors")]
 public class ProcessorResilienceTests {

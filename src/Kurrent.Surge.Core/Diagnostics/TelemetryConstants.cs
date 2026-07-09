@@ -1,12 +1,12 @@
 using System.Diagnostics;
 
-namespace Kurrent.Streaming.Diagnostics;
+namespace Kurrent.Surge.Streaming.Diagnostics;
 
 static class TelemetryConstants {
     /// <summary>
     /// The source name used for <see cref="DiagnosticListener"/> and <see cref="ActivitySource"/>.
     /// </summary>
-    public const string SourceName = "Kurrent.Streaming.Core";
+    public const string SourceName = "Kurrent.Surge.Streaming";
 
     /// <summary>
     /// The version used for <see cref="ActivitySource"/>.

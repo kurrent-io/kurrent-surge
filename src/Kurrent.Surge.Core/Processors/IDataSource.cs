@@ -2,7 +2,7 @@ using System.Threading.Channels;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Variant;
 
-namespace Kurrent.Streaming.Gateway;
+namespace Kurrent.Surge.Streaming.Gateway;
 
 public readonly partial record struct DataSourceMessage : IVariant<Connected, Record, Checkpoint> {
     public static readonly DataSourceMessage None;

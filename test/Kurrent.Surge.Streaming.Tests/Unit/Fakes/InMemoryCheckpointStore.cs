@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 sealed class InMemoryCheckpointStore() : ICheckpointStore {
 

@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Processors.Partitioning;
-using Kurrent.Streaming.Tests.Fakes;
+using Kurrent.Surge.Streaming.Tests.Fakes;
 
-namespace Kurrent.Streaming.Tests.Partitioning;
+namespace Kurrent.Surge.Streaming.Tests.Partitioning;
 
 [Category("Processors")]
 public class PartitionKeyExtractorTests {

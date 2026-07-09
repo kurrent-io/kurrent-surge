@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Checkpointing;
 
-namespace Kurrent.Streaming.Tests.Checkpoints;
+namespace Kurrent.Surge.Streaming.Tests.Checkpoints;
 
 [Category("Processors")]
 public class PartitionedPositionTrackerTests {

@@ -1,4 +1,4 @@
-namespace Kurrent.Streaming;
+namespace Kurrent.Surge.Streaming;
 
 sealed class SafeRecordProcessor(IRecordProcessor inner) : IRecordProcessor {
     public async ValueTask ProcessRecord(ProcessRecordContext context) {

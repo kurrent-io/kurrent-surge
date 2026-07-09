@@ -1,9 +1,9 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Tests.Fakes;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Tests.Fakes;
 using Kurrent.Testkit.TUnit.Assertions;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 [Category("Processors")]
 public class ManualCheckpointingTests {

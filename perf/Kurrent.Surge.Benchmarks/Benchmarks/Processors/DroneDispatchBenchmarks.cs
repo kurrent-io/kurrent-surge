@@ -3,10 +3,10 @@ using BenchmarkDotNet.Attributes;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Gateway;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Benchmarks;

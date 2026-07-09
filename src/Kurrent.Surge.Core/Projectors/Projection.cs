@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 
 namespace Kurrent.Projectors;
 

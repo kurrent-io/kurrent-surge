@@ -1,9 +1,9 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
 /// Integration tests for KurrentDBCheckpointStore against a real KurrentDB instance.

@@ -5,17 +5,17 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Checkpointing;
-using Kurrent.Streaming.Gateway;
-using Kurrent.Streaming.Models;
-using Kurrent.Streaming.Options;
-using Kurrent.Streaming.Tests.Fakes;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Streaming.Options;
+using Kurrent.Surge.Streaming.Tests.Fakes;
 using Kurrent.Testkit.TUnit.Assertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
-namespace Kurrent.Streaming.Tests;
+namespace Kurrent.Surge.Streaming.Tests;
 
 [Category("Processors")]
 public class DroneLifecycleTests {

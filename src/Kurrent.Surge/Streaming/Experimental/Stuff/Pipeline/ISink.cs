@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Streaming.Pipeline;
+namespace Kurrent.Surge.Streaming.Pipeline;
 
 public record SinkCheckpointContext {
     public required CheckpointId      CheckpointId { get; init; }

@@ -2,7 +2,7 @@
 // Disabled from compilation; re-enable by removing the #if false / #endif wrapping below.
 #if false
 
-using Kurrent.Streaming.Core;
+using Kurrent.Surge.Streaming.Core;
 
 namespace Kurrent.Surge.Projectors;
 

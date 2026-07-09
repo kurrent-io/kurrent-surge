@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Kurrent.Streaming.Diagnostics;
+namespace Kurrent.Surge.Streaming.Diagnostics;
 
 /// <summary>
 /// Abstract base for dual-dispatch diagnostics loggers.

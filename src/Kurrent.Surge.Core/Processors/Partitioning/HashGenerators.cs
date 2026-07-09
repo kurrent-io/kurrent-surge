@@ -1,6 +1,6 @@
 // ReSharper disable InconsistentNaming
 
-using Kurrent.Streaming.Partitioning.Hashing;
+using Kurrent.Surge.Streaming.Partitioning.Hashing;
 using static System.Text.Encoding;
 
 namespace Kurrent.Surge.Client.Processors.Partitioning;

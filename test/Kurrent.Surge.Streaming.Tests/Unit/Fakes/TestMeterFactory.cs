@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 
-namespace Kurrent.Streaming.Tests.Fakes;
+namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
 /// <summary>
 /// Minimal <see cref="IMeterFactory"/> for tests — no DI container required. Tracks the meters it

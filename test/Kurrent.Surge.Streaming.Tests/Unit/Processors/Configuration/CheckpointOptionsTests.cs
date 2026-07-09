@@ -1,7 +1,7 @@
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Options;
+using Kurrent.Surge.Streaming.Options;
 
-namespace Kurrent.Streaming.Tests.Options;
+namespace Kurrent.Surge.Streaming.Tests.Options;
 
 [Category("Processors")]
 public class CheckpointOptionsTests {

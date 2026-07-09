@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Streaming.Models;
 using Processor.WithRedisCache;
 using Serilog;
 using StackExchange.Redis;

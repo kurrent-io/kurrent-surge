@@ -1,9 +1,9 @@
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client;
 using Kurrent.Schema.Naming;
-using Kurrent.Streaming;
-using Kurrent.Streaming.Diagnostics.Metrics;
-using Kurrent.Streaming.Hosting;
+using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Streaming.Diagnostics.Metrics;
+using Kurrent.Surge.Streaming.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
