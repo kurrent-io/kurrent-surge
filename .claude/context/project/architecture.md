@@ -1,272 +1,258 @@
 # Architecture
 
-> Layered monorepo where each package is independently installable; `Kurrent.Client` is the foundation.
+> Two-layer SDK: `Kurrent.Surge.Core` holds the contracts, `Kurrent.Surge` holds the implementation
+> (gRPC client **and** stream processing, fused into one package). `Kurrent.Surge.Schema.Catalogs` is a
+> standalone message-vocabulary package both depend on.
 
 ## Architectural Style
 
-- **Feature-modular with layered dependencies** — each publishable package owns a vertical slice of
-  functionality. Within `Kurrent.Client`, modules (Streams, Registry, Indexes, Connectors, Admin) are
-  isolated behind their own client type, sharing only the base infrastructure in `ClientModuleBase`.
-- **Dual-protocol gRPC** — V1 legacy handles reads, subscriptions, and admin; V2 handles appends,
-  registry, indexes, and connectors. Both are compiled from proto definitions into the same assembly.
-- **Source-generated plumbing** — discriminated unions (`IVariant`), exception constructors
-  (`[KurrentOperationError]`), and message type resolvers are all generated at compile time. No
-  reflection.
-- **Primary constraint**: AOT compatibility — all serialization uses source generators; no reflection,
-  no `Activator.CreateInstance`, no runtime expression compilation.
+- **Core + implementation split.** `Kurrent.Surge.Core` is a transport-free contract layer (interfaces,
+  options, value types, wire contracts). `Kurrent.Surge` is the single implementation package — the gRPC
+  client (`Client/`) and the stream-processing runtime (`Streaming/`) live side by side in it. Consumers
+  install `Kurrent.Surge`; a second client (e.g. in-proc inside KurrentDB) could depend on `Kurrent.Surge.Core`
+  alone.
+- **Dual-protocol gRPC.** V1 legacy handles reads, subscriptions, and admin; V2 handles appends, registry,
+  indexes, and connectors. Both compile from proto into the `Kurrent.Surge` assembly. The V1/V2 label is the
+  protocol version, not the call path — Indexes/Connectors use V2 messages but still route through the V1
+  legacy call invoker.
+- **Source-generated plumbing.** Discriminated unions (`IVariant`), operation-error exception types
+  (`[KurrentOperationError]`), and message-type catalogs/resolvers are generated at compile time.
+- **Primary constraint: AOT.** The three packable projects are `IsAotCompatible`. No reflection, no
+  `Activator.CreateInstance`, no runtime expression compilation; serialization goes through source generators
+  or explicit code. (One documented exception: `ProcessorOptions.FromConfiguration` uses the reflection config
+  binder, so `EnableConfigurationBindingGenerator=false` on `Kurrent.Surge` — see that csproj.)
 
 ## Components
 
-### Publishable Packages
+### Publishable packages
 
-| Package             | Purpose                                                     | Depends on       |
-|---------------------|-------------------------------------------------------------|------------------|
-| `Kurrent.Client`    | gRPC client (streams, registry, connectors, indexes, admin) | None             |
-| `Kurrent.Streaming` | Stream processing, projections, checkpointing               | `Kurrent.Client` |
+| Package                       | Purpose                                                              | Depends on (NuGet)                          | AOT |
+|-------------------------------|----------------------------------------------------------------------|---------------------------------------------|-----|
+| `Kurrent.Surge.Core`          | Contract layer: client + streaming interfaces, options, value types, wire contracts | `Kurrent.Surge.Schema.Catalogs`; bundles `Variant` | yes |
+| `Kurrent.Surge`               | Implementation: gRPC client (`Client/`) + stream processing (`Streaming/`) | `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs` | yes |
+| `Kurrent.Surge.Schema.Catalogs` | Message vocabulary: `SchemaName`, catalogs, `MessageResolver`, naming strategies (BCL-only, standalone) | none (bundles its own generator)          | yes |
 
-### Solution-Level Shared Libraries (not published)
+### Solution-level libraries (not published)
 
-| Library                           | Purpose                                                                   | TFM            |
-|-----------------------------------|---------------------------------------------------------------------------|----------------|
-| `Variant`                         | Discriminated union interfaces + `Result<T,E>`                            | net10.0        |
-| `Variant.SourceGenerators`        | Generates `IVariant` union plumbing                                       | netstandard2.0 |
-| `Kurrent.Client.SourceGenerators` | Generates `[KurrentOperationError]` exception types + message resolvers   | netstandard2.0 |
-| `Kurrent.CodeAnalysis`            | Shared Roslyn infrastructure (type pipeline, source writer, symbol model) | netstandard2.0 |
+| Library                             | Purpose                                                              | TFM            |
+|-------------------------------------|----------------------------------------------------------------------|----------------|
+| `Variant`                           | `IVariant` discriminated-union runtime + `Result<T,E>` (assembly name `Kurrent.Variant`) | net10.0 |
+| `Variant.SourceGenerators`          | Generates `IVariant` union plumbing                                  | netstandard2.0 |
+| `Kurrent.Surge.SourceGenerators`    | Generates `[KurrentOperationError]` exception members + the RPC-status mapping | netstandard2.0 |
+| `Kurrent.Surge.Schema.Catalogs.Generators` | The message-catalog generator (ships bundled inside the Schema.Catalogs package) | netstandard2.0 |
+| `Kurrent.CodeAnalysis`              | Shared Roslyn infrastructure (type pipeline, source writer, symbol model) | netstandard2.0 |
+| `Kurrent.Surge.Arrow`               | Arrow Flight SQL query helper over the client                        | net10.0        |
 
-`Variant` is embedded into consuming packages via `PrivateAssets=all` (not a separate NuGet dependency).
+`Variant` is bundled into `Kurrent.Surge.Core` (`Bundle="true"`, not a separate NuGet dependency) and reaches
+`Kurrent.Surge` transitively. `Kurrent.Surge.Schema.Catalogs` is referenced with `PrivateAssets="none"` so its
+bundled generator flows to downstream consumers.
 
-### Test Infrastructure
+### Separate implementation package
 
-| Project                    | Purpose                                                                                      |
-|----------------------------|----------------------------------------------------------------------------------------------|
-| `Aspire.Hosting.KurrentDB` | Aspire integration: container lifecycle, health checks, TLS certs                            |
-| `Kurrent.Sdk.Testkit`      | Test fixtures: `KurrentDBFixture`, `*InsecureFixture`, `*ScavengeFixture`, `*ClusterFixture` |
-| `Kurrent.Testkit`          | Reusable datasets (ArcadeRacer, HomeAutomation), TUnit extensions, Bogus wrapper             |
+| Package                   | Purpose                                                         | Depends on      |
+|---------------------------|-----------------------------------------------------------------|-----------------|
+| `Kurrent.Projectors.DuckDB` | DuckDB-backed projection client + checkpoint store (uses `kurrent.quack` + `DuckDB.NET`) | `Kurrent.Surge` |
 
-## Kurrent.Client Internals
+### Test infrastructure
 
-### Entry Point
+| Project                    | Purpose                                                                          |
+|----------------------------|----------------------------------------------------------------------------------|
+| `Aspire.Hosting.KurrentDB` | Aspire integration: container lifecycle, health checks, TLS cert generation      |
+| `Kurrent.Surge.Testkit`    | SDK fixtures: `KurrentDBFixture`, `*InsecureFixture`, `*ScavengeFixture`, `*ClusterFixture` (namespace `Kurrent.Sdk.Testkit`) |
+| `Kurrent.Testkit`          | Reusable datasets (ArcadeRacer, HomeAutomation), TUnit extensions, Bogus wrapper |
 
-`KurrentClient` (`src/Kurrent.Client/KurrentClient.cs`) implements `IKurrentClient`. Exposes five
-module clients as properties:
+## Namespace map
 
-| Module                                      | Property            | Protocol | Status                |
-|---------------------------------------------|---------------------|----------|-----------------------|
-| Streams                                     | `client.Streams`    | V1 + V2  | Active                |
-| Registry                                    | `client.Registry`   | V2       | Active                |
-| Indexes                                     | `client.Indexes`    | V2       | Active                |
-| Connectors                                  | `client.Connectors` | V2       | Active                |
-| Admin                                       | `client.Admin`      | V1       | Active                |
-| Users, PersistentSubscriptions, Projections | —                   | —        | Commented out, future |
+Code namespaces follow the package family, with known orphans left on the old root by decision:
 
-All modules inherit from `ClientModuleBase` (`src/Kurrent.Client/Modules/ClientModuleBase.cs`), which
-provides: `KurrentClient`, `Logger`, `SerializerProvider`, `ServerCapabilities`, `TypeMapper`,
-`MetadataDecoder`, `TimeProvider`, `LoggerFactory`, `GetBackdoorClient()`.
+| Area                              | Namespace root                        |
+|-----------------------------------|---------------------------------------|
+| Client (contracts + impl)         | `Kurrent.Surge.Client.*`              |
+| Streaming (contracts + impl)      | `Kurrent.Surge.Streaming.*`           |
+| Schema vocabulary                 | `Kurrent.Surge.Schema.*`              |
+| **Orphans (not yet renamed)**     | `Kurrent.Processors.*` (`ProcessorOptions`, locks), `Kurrent.Projectors` (projector types), `Kurrent.Appender`, bare `Kurrent`, and infra `Kurrent.Grpc/.Rpc/.Http/.GoogleRpc/.Diagnostics/.Validation` |
+| Legacy transport (vendored)       | `KurrentDB.Client` (under `Client/Legacy/RipAndTear/`) |
+| Proto-generated                   | `KurrentDB.Protocol.*` (V1/V2), `Kurrent.Surge.Streaming.Checkpointing` (streaming) |
 
-### Module Structure
+`RootNamespace` is `Kurrent.Surge` on both `Kurrent.Surge` and `Kurrent.Surge.Core`. The generated
+message-catalog namespace follows the consuming **assembly** name (`{Assembly}.MessageCatalogs`), not
+`RootNamespace`.
 
-Each module lives under `src/Kurrent.Client/Modules/{Module}/`. The Streams module — the most mature —
-is split across 15+ partial class files:
+## Kurrent.Surge.Core (contracts)
 
-| File pattern                                   | Content                |
-|------------------------------------------------|------------------------|
-| `StreamsClient.{Operation}.cs`                 | Core operation method  |
-| `StreamsClient.{Operation}.Models.cs`          | Request/response types |
-| `StreamsClient.{Operation}.Mappers.cs`         | Proto ↔ domain mapping |
-| `StreamsClient.{Operation}.Extensions.cs`      | Convenience overloads  |
-| `StreamsClient.{Operation}.Models.Builders.cs` | Builder types          |
+Transport-free. Folders: `Client/` (client interfaces, module contracts, schema serializer contracts,
+configuration contracts), `Processors/` (streaming contracts), `Projectors/` (projection base types),
+`Diagnostics/`, `Errors/` (`KurrentException` base), `Internal/`. Also compiles the streaming checkpoint
+proto (`proto/kurrent/streaming/`, `csharp_namespace = Kurrent.Surge.Streaming.Checkpointing`) and pins the
+checkpoint wire names in `MessageCatalog.cs` (`StreamingMessageCatalog`).
 
-**Streams operations**: AppendRecords (V2), AppendStream (V2), ReadRecords (V1), ReadStreamEdge (V1),
-InspectRecord (V1), Subscribe (V1), Query, Manage (Delete, Tombstone, SetStreamMetadata, Truncate,
-ConfigureStreamDataRetention, GetStreamInfo).
+Key contracts: `IKurrentClient` and the five module interfaces (`IStreamsClient`, `IRegistryClient`,
+`IIndexesClient`, `IConnectorsClient`, `IAdminClient`); `IKurrentClientOptions` / `IKurrentBuilder`; the
+processor surface (`IDrone`, `Drone`, `IDataSource`, `ICheckpointStore`, `ProcessorOptions`); `Projection<TClient>`.
 
-### Schema System
+## Kurrent.Surge — Client (`src/Kurrent.Surge/Client/`)
 
-Located at `src/Kurrent.Client/Schema/`. Type-safe serialization with optional registry governance.
+### Entry point
 
-Pipeline: `CLR Type → MessageTypeMapper → SchemaManager → Serializer → Bytes`.
+`KurrentClient` (`Client/KurrentClient.cs`, namespace `Kurrent.Surge.Client`) implements `IKurrentClient`.
+Factories: `Create(KurrentClientOptions)` and `Create(string connectionString, Action<KurrentClientOptions>?)`.
+Construction wires the `KurrentDBLegacyCallInvoker` (transport), a frozen `MessageResolver` from
+`options.Messages.BuildResolver()`, a `SchemaManager`, and an `ISchemaSerializerProvider` (Bytes + Json +
+Protobuf). `KurrentClientOptions` and the DI surface (`AddKurrent`, `KurrentBuilder`) live under
+`Configuration/`, not `Client/`.
 
-| Component                   | Path                                    | Role                                                                   |
-|-----------------------------|-----------------------------------------|------------------------------------------------------------------------|
-| `MessageTypeMapper`         | `Schema/MessageTypeMapper.cs`           | Maps CLR types to schema names                                         |
-| `SchemaRegistrationOptions` | `Schema/SchemaRegistrationOptions.cs`   | Policy: AutoMap, ManualMap, AutoRegister, ManualRegister, ServerPolicy |
-| Name strategies             | `Schema/NameStrategies/`                | Message, Category, Namespace, NamespaceCategory                        |
-| `SchemaUrn`                 | `Schema/NameStrategies/SchemaUrn.cs`    | Format: `urn:schemas-kurrent:{ns}:{name}[:{guid}]`                     |
-| `SchemaManager`             | `Schema/Serialization/SchemaManager.cs` | Orchestrates schema resolution                                         |
-| `SchemaSerializerProvider`  | `Schema/Serialization/`                 | Routes to Json, Protobuf, or Bytes serializer                          |
-| `NJsonSchemaExporter`       | `Schema/NJsonSchemaExporter.cs`         | Exports JSON Schema for registry                                       |
+### Modules
 
-Serializers: `JsonSchemaSerializer` (System.Text.Json), `ProtobufSchemaSerializer` (Google.Protobuf),
-`BytesPassthroughSerializer`.
+Five module clients, each wrapping the shared legacy call invoker:
 
-### Error Handling
+| Module     | Property            | Impl              | Protocol |
+|------------|---------------------|-------------------|----------|
+| Streams    | `client.Streams`    | `StreamsClient`   | V1 + V2  |
+| Registry   | `client.Registry`   | `RegistryClient`  | V2       |
+| Indexes    | `client.Indexes`    | `IndexesClient`   | V2       |
+| Connectors | `client.Connectors` | `ConnectorsClient`| V2       |
+| Admin      | `client.Admin`      | `AdminClient`     | V1       |
 
-Exception types decorated with `[KurrentOperationError(ErrorCode)]` are source-generated by
-`KurrentOperationErrorGenerator`. Each generated type implements `IKurrentOperationException<T>` with
-`TryParseRpcStatus`/`From` factory methods. Operations throw these directly; RPC errors are parsed via
-`ex.ToException(parsers...)` where parsers are static `From` method groups.
+`ClientModuleBase` (`Client/Modules/ClientModuleBase.cs`) provides shared plumbing — `Time`, `LoggerFactory`,
+`Logger`, `SerializerProvider`, `ServerCapabilities`, `MetadataDecoder`, `GetBackdoorClient()`. (Streams and
+Registry derive from it directly; the leaner modules construct their service client without it.) Public
+contract types for each module live in `Kurrent.Surge.Core/Client/Modules/{Module}/`; the impl holds only the
+concrete client + RPC glue.
 
-### Filter System
+**Per-module file convention** — `{Module}Client.cs` holds the ctor/fields; each RPC area is a partial
+`{Module}Client.{Area}.cs`, with wire↔model mapping split into a sibling `.Mapping.cs`/`.Mappers.cs`. Streams
+is the most elaborate: `.Append`, `.Read`, `.Subscribe`, `.Manage`, `.Resolve`, `.Folding`, plus `Metadata/`,
+`Models/`, `RecordDecoder`, `RecordMapper`.
 
-Filters implement `IRecordFilter`. Factory: `RecordFilter`. Available: `ByStream`, `ByStreamPrefix`,
-`ByCategory`, `BySchema`, `BySchemaPrefix`, `ByExpression(string)`.
+### Legacy layer
 
-`ByExpression` uses a SQL-like DSL parsed by a Pratt parser. `ExpressionFilter` extracts a `ServerFilter`
-for server-side pushdown and evaluates the full AST client-side via `IsMatch`.
+`Client/Legacy/` bridges the modern client onto the original EventStore-style gRPC/gossip machinery
+(`KurrentDBLegacyCallInvoker`, settings/error converters). `Client/Legacy/RipAndTear/` is vendored legacy
+transport (gossip discovery, channel selection, interceptors, `Uuid`/`X509` helpers) still under
+`namespace KurrentDB.Client` — internal-only, slated for removal once the .NET48-era discovery code is retired.
 
-### Legacy Layer
+### Schema system (three layers)
 
-`src/Kurrent.Client/Legacy/` wraps the original EventStore-style V1 gRPC channel management:
-`KurrentDBLegacyCallInvoker`, gossip-based `LegacyClusterClient`, `ChannelSelector` hierarchy (single-node
-and gossip variants), `AuthenticationInterceptor`, `LeaderNotFoundInterceptor`, `TypedExceptionInterceptor`,
-server capabilities detection. The `RipAndTear/` subfolder marks code intended for eventual removal.
+`CLR type → MessageResolver/MessageTypeMapper → SchemaManager → ISchemaSerializer → bytes`, split across the
+three packages:
 
-### Internal Utilities
+| Layer                                   | Where                                              | Key types                                                                 |
+|-----------------------------------------|----------------------------------------------------|---------------------------------------------------------------------------|
+| Vocabulary (naming + catalogs)          | `Kurrent.Surge.Schema.Catalogs`                    | `SchemaName`, `MessageCatalog`, `MessageResolver`, `MessageTypeDescriptor`, naming strategies, `SchemaUrn` |
+| Serializer contracts + options/context  | `Kurrent.Surge.Core/Client/Schema[/Serialization]` | `ISchemaSerializer`, `SchemaSerializerProvider`, Json/Protobuf options + `JsonSerializerContext`s, `BytesPassthroughSerializer`, `NJsonSchemaExporter`, `SystemJsonSchemaExporter`, `SchemaRegistrationOptions` |
+| Concrete serializers + manager          | `Kurrent.Surge/Client/Schema/Serialization`        | `SchemaManager` (talks to `RegistryClient`), `JsonSchemaSerializer`, `ProtobufSchemaSerializer`, `SystemMessageCatalog` (always-active `$metadata`/link/scavenge mappings) |
 
-`src/Kurrent.Client/Internal/` provides cross-cutting infrastructure:
+### Error handling
 
-| Area        | Key types                                                                                            |
-|-------------|------------------------------------------------------------------------------------------------------|
-| Diagnostics | `ActivityExtensions`, `TelemetryTags`, `TracingConstants`                                            |
-| Extensions  | `AsyncEnumerableExtensions`, `ChannelExtensions`, `GuidExtensions`, `StringExtensions` (C# 14 style) |
-| GoogleRpc   | `StatusExtensions`, `DebugInfoExtensions`, exception mappers                                         |
-| gRPC        | `GrpcServerStream`, `CompressionInterceptor`, `HeadersInterceptor`                                   |
-| HTTP        | `HttpSecurity`, `EnsureSuccessStatusHandler`                                                         |
-| Validation  | `SelfValidating`, `Validator`, `ValidationException`                                                 |
-| Core        | `FluentBuilder`, `ConcurrentBidirectionalDictionary`, `TokenCompletionSource`                        |
+Exception types tagged `[KurrentOperationError(ErrorCode)]` (attribute in `Kurrent.Surge.Client`) get their
+members source-generated by `KurrentOperationErrorGenerator`. `KurrentException` (the pure-data base) lives in
+`Kurrent.Surge.Core`; the `Google.Rpc.Status` → details mapping is generated (`KurrentRpcStatusMapping.g.cs`),
+keeping the `Google.Rpc` coupling out of Core's base type.
 
-## Kurrent.Streaming Internals
+### Filters
 
-Stream processing framework built on top of `Kurrent.Client`. Key dependency graph:
+Filters implement `IRecordFilter`; factory `RecordFilter` (`ByStream`, `ByStreamPrefix`, `ByCategory`,
+`BySchema`, `BySchemaPrefix`, `ByExpression`). `ByExpression` parses a SQL-like DSL and extracts a server-side
+`ServerFilter` for pushdown, evaluating the full AST client-side via `IsMatch`. (Pure-equality `stream = 'X'`
+routes to a direct stream read, not a `$all` scan — use `LIKE`/`IN`/compound for log filtering.)
+
+## Kurrent.Surge — Streaming (`src/Kurrent.Surge/Streaming/`)
+
+### Entry point and pipeline
+
+`KurrentProcessor` (`Streaming/Processors/KurrentProcessor.cs`, namespace `Kurrent.Surge.Streaming`) is the
+public entry: `Create(IRecordProcessor | IRecordBatchProcessor | Action<MessageProcessor>, ProcessorOptions?)`,
+then `RunAsync(ct)` / `RunWithGracefulShutdownAsync(timeout)`. It builds a `KurrentClient`, a bounded
+`Channel<DataSourceMessage>`, a `KurrentDBCheckpointStore` + `Checkpointer`, a `KdbDataSource`, and a `Drone`,
+returning the `Drone` as `IDrone`.
 
 ```text
-KurrentProcessor → Drone → SubscriptionSource → StreamsClient.Subscribe
-                 → Checkpointer → KurrentDBCheckpointStore
-                 → PartitionAssigner → XXHash
+KdbDataSource.Connect  (IStreamsClient.Subscribe → partition-assign → prune caught-up → Polly retry)
+   → Channel<DataSourceMessage>   (Connected | Record | Checkpoint; IVariant)
+      → Drone.Run  (batches via ReadBatched → dispatch to IRecordProcessor / IRecordBatchProcessor)
+         → Checkpointer  (auto-track / manual / shutdown / rebalance triggers)
+            → ICheckpointStore   (append to $processors/{processorId}/checkpoints)
 ```
 
-### Core Abstractions
+| Type                    | Where                                              | Role                                                        |
+|-------------------------|----------------------------------------------------|-------------------------------------------------------------|
+| `KurrentProcessor`      | `Kurrent.Surge/Streaming/Processors`               | Public entry; builds and runs the pipeline                  |
+| `IDataSource` / `DataSourceMessage` | `Kurrent.Surge.Core/Processors/IDataSource.cs` (ns `Kurrent.Surge.Streaming.Gateway`) | Data-source contract; feeds a `ChannelWriter<DataSourceMessage>` |
+| `KdbDataSource`         | `Kurrent.Surge/Streaming/Processors`               | KurrentDB data source — wraps `IStreamsClient.Subscribe`, partitions, prunes, retries |
+| `IDrone` / `Drone`      | `Kurrent.Surge.Core/Processors`                    | Runtime loop: batch, dispatch, checkpoint; `DroneStatus`    |
+| `Checkpointer`, `ICheckpointStore`, `CheckpointStoreBase` | `Kurrent.Surge.Core/Processors/Checkpointing` | Checkpoint orchestration + store contract (`ProcessorCheckpoint`, position trackers, `HybridLogicalClock`) |
+| `KurrentDBCheckpointStore` | `Kurrent.Surge/Streaming/Processors/Checkpointing` | Event-sources checkpoints to `$processors/{id}/checkpoints` (one `PartitionsCheckpointed` per cycle; `CheckpointReset` barrier; `ExpectedStreamState.Any`) |
+| `DroneService<T>`       | `Kurrent.Surge.Core/Processors/DroneService.cs` (ns `Kurrent.Surge.Streaming.Hosting`) | `BackgroundService` for the DI path (`AddKurrentProcessor<T>`) |
 
-| Type                    | Path                       | Role                                               |
-|-------------------------|----------------------------|----------------------------------------------------|
-| `KurrentProcessor`      | `KurrentProcessor.cs`      | Public entry point; `Create()`, `RunAsync()`       |
-| `IRecordProcessor`      | `IRecordProcessor.cs`      | Per-record handler                                 |
-| `IRecordBatchProcessor` | `IRecordBatchProcessor.cs` | Batch handler                                      |
-| `IDrone`                | `IDrone.cs`                | Runtime control surface for a running processor    |
-| `Drone`                 | `Drone.cs`                 | Connects subscription → channel → processor loop   |
-| `MessageProcessor`      | `MessageProcessor.cs`      | Fluent `IRecordProcessor` via handler registration |
+`ProcessorOptions` (namespace `Kurrent.Processors.Configuration` — an orphan not yet renamed) carries
+`Subscription`, `Checkpoint`, `Batching`, `Resilience`, and the client options. Partitioning contracts
+(`IDistributionStrategy`, `PartitionAssigner`, `PartitionCalculator`, `XXHash`, Range/Sticky strategies) live
+in `Kurrent.Surge.Core/Processors/Partitioning/`.
 
-### Subsystems
+### Projectors
 
-| Subsystem     | Path             | Purpose                                                                                                                |
-|---------------|------------------|------------------------------------------------------------------------------------------------------------------------|
-| Checkpointing | `Checkpointing/` | `ICheckpointStore`, `KurrentDBCheckpointStore` (event-sourced to `$processors/{id}/checkpoints`), `HybridLogicalClock` |
-| Partitioning  | `Partitioning/`  | `IDistributionStrategy`, `PartitionAssigner`, `XXHash`, Range and Sticky strategies                                    |
-| Gateway       | `Gateway/`       | `ISubscriptionSource`, `SubscriptionSource` (wraps `StreamsClient.Subscribe` into a channel)                           |
-| Hive          | `Hive/`          | Runs N Drones against a shared `MasterSubscriptionSource`                                                              |
-| Projections   | `Projections/`   | `KurrentProjector`, `RecordProjector`, DuckDB projection store                                                         |
-| Hosting       | `Hosting/`       | `DroneService<T>` (IHostedService), `AddKurrentProcessor<T>` DI extension                                              |
-| Leases        | `Leases/`        | `ILeaseManager` for distributed processor coordination                                                                 |
-| Locks         | `Locks/`         | `ServiceLocker` for exclusive access                                                                                   |
-| Pipeline      | `Pipeline/`      | `SinkCoordinator`, Kafka sink                                                                                          |
-| Configuration | `Configuration/` | `ProcessorOptions`, `CheckpointOptions`, `SubscriptionOptions`                                                         |
-| Diagnostics   | `Diagnostics/`   | `ProcessorMetrics`, `DroneTelemetry`, OTel integration                                                                 |
-| Experimental  | `Experimental/`  | Alternative `Consumer`/`Drone`/`Subscription` implementations                                                          |
+A projector is a `KurrentProcessor` running a `Projection<TClient>` as its `IRecordProcessor`.
+`KurrentProjector` (impl, ns `Kurrent.Projectors`) wraps a `KurrentProcessor`; `Projection<TClient>` (Core,
+`: IRecordProcessor`) provides fluent per-type dispatch (`Project<T>`, `Fallback`, `Setup`) with a lazily
+resolved client. `Kurrent.Projectors.DuckDB` supplies the DuckDB `TClient` closures (`DuckDBProjection`,
+`DuckDBProjectorOptions`) and an alternate `DuckDBCheckpointStore` (one row per `(processor_id, partition)`,
+optimistic-concurrency fenced on `log_position`).
+
+### Experimental (`Streaming/Experimental/`) — not the supported pipeline
+
+Staged/incomplete work that compiles but is not wired into `KurrentProcessor`: `Components/Appender/`
+(buffered producer), `DroneCommander/` (parent/child drone control-plane), `Leases/` (`ILeaseManager`
+interface only — `LeaseManager` is commented out), `Locks/` (`ServiceLocker`, compiles against the lease
+interface), `Stuff/` (agnostic/pragmatic pipelines, `ISink`, a commented-out `IProjection`). Treat as spikes.
 
 ## Protocols
-
-Proto layout has three layers plus shared namespaces:
 
 | Layer              | Path                           | Status                                         |
 |--------------------|--------------------------------|------------------------------------------------|
 | V0 (draft)         | `proto/kurrentdb/protocol/v0/` | Excluded from build                            |
 | V1 (legacy gRPC)   | `proto/kurrentdb/protocol/v1/` | Active: reads, subscriptions, admin, gossip    |
 | V2 (new gRPC)      | `proto/kurrentdb/protocol/v2/` | Active: appends, registry, indexes, connectors |
-| Shared error types | `proto/kurrent/rpc/`           | Public, compiled without GrpcServices          |
-| Google imports     | `proto/google/`                | Not compiled, import targets only              |
+| Shared RPC types   | `proto/kurrent/rpc/`           | Public, compiled without gRPC services         |
+| Streaming contracts| `proto/kurrent/streaming/`     | Checkpoint messages (`csharp_namespace = Kurrent.Surge.Streaming.Checkpointing`) |
+| Google imports     | `proto/google/`                | Import targets only, not compiled              |
 
-V1 service: `KurrentDB.Protocol.V1.Streams.Streams.StreamsClient` — reads, subscriptions, management.
-V2 service: `KurrentDB.Protocol.V2.Streams.StreamsService.StreamsServiceClient` — appends.
+`Kurrent.Surge.csproj` compiles the `kurrentdb/protocol/{v1,v2}` + `kurrent/rpc` + `google` protos
+(`Access="Internal"`, `GrpcServices="Client"`, V0 excluded). `Kurrent.Surge.Core.csproj` compiles the
+`kurrent/streaming` checkpoint protos (`Access="Public"`, message types only). The V2 **read** path is
+commented out — those RPCs do not exist in the proto yet.
 
-Both are compiled from `Kurrent.Client.csproj` via `<Protobuf>` item groups with `Access="Internal"` and
-`GrpcServices="Client"`. V0 protos are excluded via glob. The `kurrent/rpc/` protos are compiled as
-`Access="Public"` without gRPC service generation (message types only).
+## Source generators
 
-V2 read path is entirely commented out; those RPCs do not exist yet. Despite using V2 protos, Connectors
-and Indexes still route through `LegacyCallInvoker` — the V1/V2 label describes protocol version, not
-call path.
+| Generator                        | Project                              | Trigger                                             | Generates                                                     |
+|----------------------------------|--------------------------------------|-----------------------------------------------------|---------------------------------------------------------------|
+| `VariantGenerator`               | `Variant.SourceGenerators`           | type implementing `Kurrent.Variant.IVariant<...>`   | union case enum, `Match`/switch, implicit ops                 |
+| `KurrentOperationErrorGenerator` | `Kurrent.Surge.SourceGenerators`     | `[Kurrent.Surge.Client.KurrentOperationErrorAttribute]` on a partial class | exception members, RPC-status mapping (`KurrentRpcStatusMapping.g.cs`) |
+| `MessageCatalogGenerator`        | `Kurrent.Surge.Schema.Catalogs.Generators` | `[assembly: MessageCatalog(...)]` + `[MessageType]` + `[CustomMessageCatalog]` | `{Assembly}.MessageCatalogs`, provider attribute, `Use{X}Catalog()` extensions |
 
-## Data Flow
-
-### Append (V2 gRPC)
-
-```text
-AppendRecords(request) → EnsureValid() → StreamsProtocolMapper.ToContract()
-  → SchemaSerializerProvider.GetSerializer(format).Serialize(value, context)
-  → StreamsServiceClient.AppendRecordsAsync(V2 proto request)
-  → MapToAppendRecordsResponse() → AppendRecordsResponse { StreamPosition[], LogPosition }
-```
-
-On error: `ex.AsWellKnownException(parsers...)` maps gRPC status to typed SDK exceptions.
-
-### Read (V1 legacy gRPC)
-
-```text
-ReadRecords(request) → EnsureValid() → CreateReadRecordsRequest(V1 ReadReq)
-  → LegacyStreamsServiceClient.Read(request) [server-streaming]
-  → for each ReadResp:
-      StreamNotFound → throw typed exception
-      CaughtUp → yield Heartbeat
-      Event → MapToRecordAsync(deserialize, decode metadata) → apply filter → yield Record
-```
-
-Returns `IAsyncEnumerable<ReadRecordsResult>` (variant of `Record | Heartbeat`).
-
-### Subscribe (V1 legacy gRPC)
-
-```text
-Subscribe(filter, startPosition) → build V1 ReadReq (stream or log subscription)
-  → LegacyServiceClient.Read(request)
-  → first message: Confirmation → yield Connected(sessionId)
-  → loop:
-      Checkpoint → yield IntervalCheckpoint or CaughtUpCheckpoint
-      Event → deserialize → filter.IsMatch → yield Record
-```
-
-Returns `IAsyncEnumerable<SubscribeMessage>` — a source-generated variant of
-`Connected | Record | Checkpoint`.
-
-### Streaming Processor
-
-```text
-KurrentProcessor.RunAsync()
-  → Drone.RunAsync()
-    → SubscriptionSource.Subscribe() wraps StreamsClient.Subscribe into Channel<SubscribeMessage>
-    → for each message:
-        compute partition key via XXHash
-        dispatch to IRecordProcessor.ProcessRecord or IRecordBatchProcessor.ProcessBatch
-        checkpoint via Checkpointer → KurrentDBCheckpointStore (appends to $processors/{id}/checkpoints)
-```
-
-## Source Generators
-
-| Generator                              | Project                           | Trigger                        | Generates                                                             |
-|----------------------------------------|-----------------------------------|--------------------------------|-----------------------------------------------------------------------|
-| `VariantGenerator`                     | `Variant.SourceGenerators`        | `IVariant<T1,...,Tn>`          | Case enum, `IsX`/`AsX`, implicit ops, `Switch`/`Match` (sync + async) |
-| `VariantResultsGenerator`              | `Variant.SourceGenerators`        | Result variant types           | Result-specific operator overloads                                    |
-| `KurrentOperationErrorGenerator`       | `Kurrent.Client.SourceGenerators` | `[KurrentOperationError]`      | Exception ctors, `TryParseRpcStatus`, `From` factory, `ErrorCode`     |
-| `MessageDiscoveryGenerator`            | `Kurrent.Client.SourceGenerators` | `[MessageDiscovery("prefix")]` | `MessageResolver` with `string → Type` switch                         |
-| `ResultBaseImplicitOperatorsGenerator` | `Kurrent.Client.SourceGenerators` | Result base types              | Implicit conversion operators                                         |
-
-All generators share `Kurrent.CodeAnalysis` for Roslyn pipeline helpers, symbol model wrappers, and
-source emission utilities.
+`VariantGenerator` and `KurrentOperationErrorGenerator` build on `Kurrent.CodeAnalysis` (shared Roslyn pipeline
++ source writer); `MessageCatalogGenerator` uses raw Roslyn APIs. The catalog generator is wired onto
+`Kurrent.Surge` and `Kurrent.Surge.Core` compilations via `Directory.Build.targets` (`_SdkSourceRef`,
+keyed on the `Kurrent.Surge.Schema.Catalogs` project filename) and ships bundled in the Schema.Catalogs
+package so it also runs in consumer projects.
 
 ## Gotchas
 
-- The `Result` type in `src/Variant/` is intentionally unused by client/processor code — do not wire it back in.
-- V2 read code is commented out by design; do not uncomment it until the proto RPCs are defined.
-- Never reach from a higher-level package into `Kurrent.Client` internals.
-- `Kurrent.Toolkit` is referenced in CLAUDE.md but does not exist as a project — do not create it.
-- `src/Shared/` exists as an empty directory; no shared source code lives there.
-- The `Legacy/RipAndTear/` folder marks V1 channel infrastructure slated for removal.
-- `Variant` assembly is named `Kurrent.Variant` (via `<AssemblyName>`) despite the project directory name.
+- **Namespace inconsistency (intentional, for now).** Processor/projector/appender/infra namespaces
+  (`Kurrent.Processors.*`, `Kurrent.Projectors`, `Kurrent.Appender`, bare `Kurrent`, `Kurrent.Grpc/.Rpc/...`)
+  were **not** renamed to `Kurrent.Surge.*` in the namespace sweep — left frozen by decision. Expect
+  `Kurrent.Surge.Streaming` types sitting next to `Kurrent.Processors.Configuration` options.
+- **Preserved dead code.** `#if false` / fully-commented blocks kept for reference during the projector
+  refactor: `Kurrent.Surge.Core/Projectors/Projector.cs` and `RecordProjector.cs`,
+  `Kurrent.Projectors.DuckDB/DuckDBCheckpointStoreOld.cs`, `Experimental/Leases/LeaseManager.cs`,
+  `Experimental/Stuff/IProjection.cs`. Do not treat as current API.
+- **Misleading filename.** `Kurrent.Surge.Core/Processors/SubscriptionSource.Messages.cs` no longer defines a
+  `SubscriptionSource` — it holds the drone/server control-message variants (`WorkOrder`, `RecordBatch`,
+  `ProcessorControlMessage`, `DroneMessage`, …). The old `SubscriptionSource`/`Gateway`/`Hive` classes are gone.
+- **Legacy transport.** `Client/Legacy/RipAndTear/` is vendored `KurrentDB.Client` code; never treat it as
+  public API.
+- **`Variant` assembly is `Kurrent.Variant`** (via `<AssemblyName>`), despite the project directory name.
+- **`src/Kurrent.Surge.Streaming/` and `src/untitled folder/` are on-disk cruft** — not projects, not in the
+  solution (only stale `obj/` residue). Candidates for deletion; do not document as packages.
+- V2 read RPCs are commented out by design — do not uncomment until the proto defines them.
+- Never cite anything under `obj/`: it contains pre-rename generated `.g.cs` (old `Kurrent.Client.*` /
+  `Kurrent.Streaming.*` namespaces) that no longer exist in source.
