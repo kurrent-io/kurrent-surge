@@ -89,10 +89,7 @@
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Surge.Streaming" />
-    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Core" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
     <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />

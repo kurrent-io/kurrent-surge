@@ -3,10 +3,10 @@
   <PropertyGroup>
     <PackageId>Kurrent.Surge</PackageId>
     <IsPackable>true</IsPackable>
-    <Title>Kurrent .NET Client</Title>
-    <Product>Kurrent .NET Client</Product>
-    <Description>The official .NET client for the Kurrent Platform. Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
-    <PackageTags>kurrent kurrentdb client sdk eventstore event-sourcing</PackageTags>
+    <Title>Kurrent Surge</Title>
+    <Product>Kurrent Surge</Product>
+    <Description>The official .NET SDK for the Kurrent platform: the gRPC client (streams, registry, connectors, indexes, admin) and the stream-processing runtime (processors, projectors, checkpointing). Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
+    <PackageTags>kurrent kurrentdb surge client sdk eventstore event-sourcing stream-processing processors</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
@@ -89,9 +89,7 @@
     <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
     <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Streaming.Integration.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
-    <InternalsVisibleTo Include="Kurrent.Sdk.Testkit.Hosting" />
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />

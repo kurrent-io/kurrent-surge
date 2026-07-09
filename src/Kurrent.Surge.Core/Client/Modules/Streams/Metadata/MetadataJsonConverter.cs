@@ -62,7 +62,7 @@ class MetadataJsonConverter : JsonConverter<Metadata> {
             // W3C trace IDs are 32/16-char hex strings — valid base64 alphabet at %4 lengths,
             // so the probe below would reinterpret them as bytes and silently kill distributed
             // tracing on the consume side. Key-driven exemption keeps them strings. The same
-            // literals are public as TraceContextKeys in Kurrent.Surge.Streaming.Core — keep in lockstep.
+            // literals are public as TraceContextKeys in Kurrent.Surge.Streaming — keep in lockstep.
             if (propertyName.Equals(TracingConstants.Metadata.TraceId, StringComparison.OrdinalIgnoreCase) ||
                 propertyName.Equals(TracingConstants.Metadata.SpanId, StringComparison.OrdinalIgnoreCase))
                 return reader.GetString();

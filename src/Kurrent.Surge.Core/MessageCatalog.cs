@@ -5,8 +5,8 @@ namespace Kurrent.Surge.Streaming;
 
 /// <summary>
 /// This assembly's contract mappings, discovered through the message catalog generator — the same
-/// path consumers use. Names are pinned: they are the established wire contract for checkpoint
-/// streams and must not follow the protobuf type's full name.
+/// path consumers use. Names are pinned explicitly rather than derived, so they remain the stable
+/// wire contract for checkpoint streams across type or namespace refactors.
 /// <c>AlwaysActive = true</c> keeps the catalog active, so checkpoint contracts resolve in every
 /// client regardless of its auto-discovery setting.
 /// </summary>
