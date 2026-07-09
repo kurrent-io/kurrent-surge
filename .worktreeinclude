@@ -1,0 +1,13 @@
+# .worktreeinclude — gitignore syntax.
+# Copies gitignored-but-present files from the main checkout into every new
+# worktree. A git worktree only checks out TRACKED files; these are ignored,
+# so without this list they vanish in worktrees. Tracked agent tooling
+# (.claude/context, .claude/skills, .claude/settings.json, CLAUDE.md/AGENTS.md)
+# already travels with the checkout and does not belong here.
+
+# Local agent source: system-prompts, sub-agents, skills
+.agents/
+
+# Personal, machine-local overrides.
+CLAUDE.local.md
+.claude/settings.local.json

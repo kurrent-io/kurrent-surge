@@ -80,7 +80,7 @@ Sum types use source-generated `IVariant` discriminated unions. Exception types 
 ## Project context
 
 Knowledge base at `.claude/context/` (see Knowledge Base system prompt for structure and rules).
-Plan-mode scratch at `.claude/plans/`. Throwaway files at `.project/.scratch/`.
+Plan-mode scratch at `.claude/plans/`. Throwaway files at `.claude/context/.scratch/`.
 
 ## Reference
 
@@ -101,9 +101,10 @@ Read these before working on related areas. Do not read all upfront.
 ### Issue tracker
 
 Issues live in **Linear** — DevEx team, `Kurrent SDK .NET` project, referenced as `DEV-XXXX` and operated
-through the Linear MCP. PRs are not a request surface. The full workflow lives in
-`.claude/context/project/issue-tracker-linear.md` and the `ksdk-linear-workflow` skill (MUST be consulted
-before any Linear operation). See `.agents/matt-pocock/issue-tracker.md`.
+through the Linear MCP. PRs are not a request surface.
+
+The full workflow lives in `.claude/context/project/issue-tracker-linear.md` and the `ksdk-linear-workflow` 
+skill (MUST be consulted before any Linear operation). See `.agents/matt-pocock/issue-tracker.md`.
 
 ### Triage labels
 
@@ -113,5 +114,8 @@ See `.agents/matt-pocock/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` at the repo root, ADRs under `.claude/context/docs/adr/`, existing reference
-docs under `.claude/context/project/`. See `.agents/matt-pocock/domain.md`.
+- Single-context: `CONTEXT.md` at the repo root, 
+- Existing reference docs under `.claude/context/project/`.
+- ADRs under `.claude/context/docs/adr/`
+
+See `.agents/matt-pocock/domain.md`.
