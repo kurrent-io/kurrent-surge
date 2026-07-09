@@ -9,7 +9,7 @@
   <ItemGroup>
     <Using Include="Kurrent.Testkit" />
     <Using Include="Kurrent.Testkit.TUnit" />
-    <Using Include="Kurrent.Sdk.Testkit" />
+    <Using Include="Kurrent.Surge.Testkit" />
     <Using Include="TUnit" />
     <Using Include="TUnit.Core.Executors" />
   </ItemGroup>

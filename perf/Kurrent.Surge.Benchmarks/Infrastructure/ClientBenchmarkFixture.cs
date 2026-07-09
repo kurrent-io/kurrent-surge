@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Bogus;
 using Kurrent.Client.Streams;
-using Kurrent.Sdk.Testkit;
+using Kurrent.Surge.Testkit;
 using Testing.ArcadeRacer;
 
 namespace Benchmarks.Infrastructure;

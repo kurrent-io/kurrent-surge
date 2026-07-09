@@ -1,4 +1,4 @@
-using Kurrent.Sdk.Testkit;
+using Kurrent.Surge.Testkit;
 
 namespace Aspire.Hosting.KurrentDB.Tests;
 

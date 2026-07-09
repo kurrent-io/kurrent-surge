@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Testing.ArcadeRacer;
 
-namespace Kurrent.Sdk.Testkit;
+namespace Kurrent.Surge.Testkit;
 
 public class KurrentDBFixture : AspireFixture {
     protected virtual string ResourceName => KurrentDBServerResource.DefaultResourceName;
