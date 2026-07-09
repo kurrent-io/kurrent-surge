@@ -27,7 +27,7 @@ body:
       options:
         - Kurrent.Surge
         - Kurrent.Surge.Core
-        - Kurrent.Schema.Catalogs
+        - Kurrent.Surge.Schema.Catalogs
         - Not sure
     validations:
       required: true
