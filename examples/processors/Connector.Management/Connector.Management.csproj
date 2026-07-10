@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
-    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+    <ProjectReference Include="..\..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
+    <ProjectReference Include="..\..\..\src\Variant\Variant.csproj" />
   </ItemGroup>
 </Project>
