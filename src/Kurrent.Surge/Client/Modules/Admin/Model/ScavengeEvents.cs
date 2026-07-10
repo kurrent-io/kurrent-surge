@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kurrent.Surge.Client.Admin;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
 namespace Kurrent.Surge.Client;

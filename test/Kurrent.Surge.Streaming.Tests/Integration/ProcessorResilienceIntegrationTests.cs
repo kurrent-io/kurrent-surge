@@ -7,7 +7,6 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Rpc;
 using Kurrent.Surge.Streaming.Models;
-using Kurrent.Surge.Streaming.Options;
 using KurrentDB.Protocol.V1.Streams;
 using Status = Grpc.Core.Status;
 

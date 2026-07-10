@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading.Channels;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
@@ -8,7 +7,6 @@ using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Streaming.Checkpointing;
 using Kurrent.Surge.Streaming.Gateway;
 using Kurrent.Surge.Streaming.Models;
-using Kurrent.Surge.Streaming.Options;
 using Kurrent.Surge.Streaming.Tests.Fakes;
 using Kurrent.Testkit.TUnit.Assertions;
 using Microsoft.Extensions.Logging;

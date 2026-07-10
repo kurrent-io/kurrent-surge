@@ -1,4 +1,3 @@
-using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Naming;
 
 namespace Kurrent.Surge.Schema.Catalogs;

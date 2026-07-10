@@ -7,7 +7,6 @@ using Kurrent.Surge.Schema;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams.Checkpoints;
-using Microsoft.Extensions.Logging;
 using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 
 namespace Kurrent.Surge.Client.Streams;

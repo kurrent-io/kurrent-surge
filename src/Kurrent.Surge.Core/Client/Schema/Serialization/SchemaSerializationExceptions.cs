@@ -1,6 +1,4 @@
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Schema.Serialization;

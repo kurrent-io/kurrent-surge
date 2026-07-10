@@ -1,6 +1,5 @@
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
-using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Schema.Naming;

@@ -1,4 +1,3 @@
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Tests.Schema.Catalogs.Ambient;
 using Kurrent.Surge.Tests.Schema.Catalogs.Custom;

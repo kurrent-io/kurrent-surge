@@ -1,5 +1,4 @@
 using Kurrent.Surge.Client.Indexes;
-using Kurrent.Surge.Tests.Fixtures;
 
 namespace Kurrent.Surge.Tests.Indexes;
 

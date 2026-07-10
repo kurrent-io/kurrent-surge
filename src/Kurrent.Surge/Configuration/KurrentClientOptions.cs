@@ -4,8 +4,6 @@ using System.Text;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Validation;
 using KurrentDB.Client;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using static System.StringComparer;
 using static System.TimeSpan;
 

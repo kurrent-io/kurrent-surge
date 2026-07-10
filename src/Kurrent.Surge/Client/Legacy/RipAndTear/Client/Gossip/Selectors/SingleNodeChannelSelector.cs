@@ -1,6 +1,5 @@
 using System.Net;
 using Grpc.Net.Client;
-using Microsoft.Extensions.Logging;
 
 namespace KurrentDB.Client;
 

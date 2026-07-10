@@ -3,7 +3,6 @@
 
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Schema;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using NodaTime;
 

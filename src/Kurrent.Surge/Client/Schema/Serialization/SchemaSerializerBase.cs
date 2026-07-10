@@ -2,7 +2,6 @@
 
 using System.Diagnostics;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 

@@ -5,7 +5,6 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
 using System.Text.Json.Serialization;
 using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using NodaTime;
 

@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using NJsonSchema;
 using NJsonSchema.Generation;

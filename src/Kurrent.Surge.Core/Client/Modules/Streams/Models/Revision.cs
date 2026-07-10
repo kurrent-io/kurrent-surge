@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Kurrent.Surge.Client.Exceptions;
 
 namespace Kurrent.Surge.Client.Streams;

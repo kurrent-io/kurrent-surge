@@ -1,7 +1,5 @@
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Streaming;
 using Kurrent.Surge.Streaming.Models;
-using Kurrent.Surge.Streaming.Options;
 using Kurrent.Validation;
 using Polly;
 

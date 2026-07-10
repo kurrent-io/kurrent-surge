@@ -1,7 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-
-namespace KurrentDB.Client;
+﻿namespace KurrentDB.Client;
 
 class SharingProvider(ILogger logger) {
 	protected ILogger Logger { get; } = logger;

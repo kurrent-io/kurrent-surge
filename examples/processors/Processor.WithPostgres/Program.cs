@@ -1,8 +1,11 @@
+using System;
 using Dapper;
+using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Processors.Configuration;
-using Kurrent.Surge.Streaming;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;

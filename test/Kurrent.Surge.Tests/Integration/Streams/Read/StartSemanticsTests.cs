@@ -1,4 +1,3 @@
-using Grpc.Core;
 using Kurrent.Surge.Client.Streams;
 using KurrentDB.Protocol.V1.Streams;
 using Microsoft.Extensions.Logging;

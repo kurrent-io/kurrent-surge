@@ -5,7 +5,6 @@ using System.Text.Json.Nodes;
 using Apache.Arrow.Adbc.Client;
 using Apache.Arrow.Adbc.Drivers.FlightSql;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 

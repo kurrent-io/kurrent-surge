@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using Google.Rpc;
-using Kurrent.Surge.Client.Errors;
 using Status = Google.Rpc.Status;
 
 namespace Kurrent.Surge.Client.Exceptions;

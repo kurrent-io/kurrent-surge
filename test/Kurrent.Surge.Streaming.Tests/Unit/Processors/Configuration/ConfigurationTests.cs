@@ -4,7 +4,6 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Streaming.Hosting;
 using Kurrent.Surge.Streaming.Models;
-using Kurrent.Surge.Streaming.Options;
 using Kurrent.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

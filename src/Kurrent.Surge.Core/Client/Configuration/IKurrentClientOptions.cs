@@ -1,5 +1,4 @@
 using Kurrent.Surge.Client.Streams;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.Client;
 

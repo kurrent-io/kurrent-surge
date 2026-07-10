@@ -1,4 +1,3 @@
-using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
 
 namespace Registry.Quickstart;

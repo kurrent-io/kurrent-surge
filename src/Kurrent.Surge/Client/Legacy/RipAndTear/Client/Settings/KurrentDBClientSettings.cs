@@ -5,8 +5,6 @@ using Grpc.Core.Interceptors;
 using Kurrent;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Exceptions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace KurrentDB.Client;
 

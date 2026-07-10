@@ -1,5 +1,4 @@
 using System.Text;
-using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Streams;

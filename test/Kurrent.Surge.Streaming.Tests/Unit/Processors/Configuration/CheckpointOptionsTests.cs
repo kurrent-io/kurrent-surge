@@ -1,5 +1,4 @@
 using Kurrent.Processors.Configuration;
-using Kurrent.Surge.Streaming.Options;
 
 namespace Kurrent.Surge.Streaming.Tests.Options;
 

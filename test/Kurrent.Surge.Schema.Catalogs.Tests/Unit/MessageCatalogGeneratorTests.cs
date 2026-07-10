@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Kurrent.Surge.Schema.Catalogs.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;

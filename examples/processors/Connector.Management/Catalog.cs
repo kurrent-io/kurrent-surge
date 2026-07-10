@@ -1,5 +1,3 @@
-using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Schema;
 using Connector.Management.Events;
 using Kurrent.Surge.Schema.Catalogs;
 

@@ -1,8 +1,6 @@
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using KurrentDB.Client;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.Client;
 

@@ -4,7 +4,6 @@ using System.Security.Cryptography.X509Certificates;
 using Kurrent.Surge.Client.Legacy;
 using Kurrent.Http;
 using Microsoft.Extensions.Http.Resilience;
-using Microsoft.Extensions.Logging;
 using Polly;
 
 namespace Kurrent.Surge.Client;

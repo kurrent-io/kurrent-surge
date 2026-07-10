@@ -6,7 +6,6 @@ using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Streaming.Checkpointing;
 using Kurrent.Surge.Streaming.Gateway;
 using Kurrent.Surge.Streaming.Models;
-using Kurrent.Surge.Streaming.Options;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.Streaming.Tests;

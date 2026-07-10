@@ -2,7 +2,6 @@ using System.Net;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Kurrent.Surge.Client.Legacy;
-using Microsoft.Extensions.Logging;
 using static System.Threading.Tasks.TaskContinuationOptions;
 
 namespace KurrentDB.Client.Interceptors;

@@ -1,8 +1,12 @@
+using System;
+using System.Linq;
+using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Processors.Configuration;
-using Kurrent.Surge.Streaming;
 using Kurrent.Surge.Streaming.Models;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Processor.WithRedisCache;
 using Serilog;
 using StackExchange.Redis;

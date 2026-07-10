@@ -1,6 +1,5 @@
 using Bogus;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Tests.Schema.Serialization;
