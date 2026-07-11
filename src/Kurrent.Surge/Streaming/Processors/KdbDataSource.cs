@@ -16,7 +16,9 @@ public record KdbDataSourceOptions {
     public uint                        MaxSearchWindow      { get; init; } = StreamDefaults.DefaultMaxSearchWindow;
     public string                      PartitionKeySelector { get; set; }  = "";
     public int                         MaxParallelism       { get; set; }  = 1;
-    public ResiliencePipeline          ResiliencePipeline   { get; init; } = null!;
+    // Safe no-op default so default construction can't NRE in Connect (which executes the
+    // pipeline unconditionally). The real pipeline is injected by the processor builder.
+    public ResiliencePipeline          ResiliencePipeline   { get; init; } = ResiliencePipeline.Empty;
 }
 
 public class KdbDataSource : IDataSource {
