@@ -5,19 +5,23 @@
     <IsPackable>true</IsPackable>
     <Title>Kurrent Surge MCP Task Store</Title>
     <Product>Kurrent Surge MCP Task Store</Product>
-    <Description>DuckDB-backed IMcpTaskStore for the Model Context Protocol C# SDK (ModelContextProtocol.Core 2.0). Durable, restart-surviving task persistence for MCP servers, over a version-neutral DuckDB engine (Kurrent.Surge.Mcp.Core).</Description>
+    <Description>Self-contained DuckDB-backed IMcpTaskStore for the Model Context Protocol C# SDK (ModelContextProtocol.Core 2.0). Durable, restart-surviving task persistence for MCP servers.</Description>
     <PackageTags>kurrent mcp model-context-protocol task-store duckdb</PackageTags>
     <!-- IMcpTaskStore and the task protocol types are marked experimental in the MCP SDK. -->
     <NoWarn>$(NoWarn);MCPEXP001</NoWarn>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Kurrent.Surge.Mcp.Core\Kurrent.Surge.Mcp.Core.csproj" />
-  </ItemGroup>
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.Core" />
+    <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Polly.Core" />
   </ItemGroup>
 
   <ItemGroup>

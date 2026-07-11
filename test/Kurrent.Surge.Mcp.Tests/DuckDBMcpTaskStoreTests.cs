@@ -24,10 +24,8 @@ public class DuckDBMcpTaskStoreTests {
     // Deterministic clock so CreatedAt/LastUpdatedAt assertions are exact and reproducible.
     FakeTimeProvider Time { get; } = new();
 
-    // Cleanup timer disabled — these tests exercise the adapter's transition logic, not the
-    // engine's background expiry sweep (already covered by DuckDBTaskStoreTests).
     DuckDBMcpTaskStore NewStore() =>
-        new(Db.ConnectionString, new DuckDBTaskStoreOptions { CleanupInterval = Timeout.InfiniteTimeSpan }, Time);
+        new(Db.ConnectionString, timeProvider: Time);
 
     [Test]
     public async ValueTask create_task_returns_working_status_with_clock_timestamps() {
@@ -297,6 +295,32 @@ public class DuckDBMcpTaskStoreTests {
 
         // Assert
         await Assert.That(received.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async ValueTask concurrent_writes_to_same_task_all_succeed_without_conflict() {
+        // Arrange
+        using var store = NewStore();
+        var created = await store.CreateTaskAsync();
+        const int writers = 32;
+        var keys = Enumerable.Range(0, writers).Select(_ => Faker.Random.AlphaNumeric(10)).Distinct().ToArray();
+
+        // Act — fire many writers concurrently at the SAME task row. Each merges one distinct
+        // input-request key. Under DuckDB's optimistic MVCC these transactions collide on the
+        // row; the store must absorb the write-write conflicts (DuckDBErrorType.Transaction) via
+        // its bounded retry rather than surface them to the caller, and no merge may be lost.
+        var tasks = keys.Select(key => Task.Run(() =>
+            store.SetInputRequestsAsync(created.TaskId, new Dictionary<string, InputRequest> {
+                [key] = InputRequest.ForElicitation(new ElicitRequestParams { Message = Faker.Lorem.Sentence() })
+            }))).ToArray();
+        await Task.WhenAll(tasks);
+
+        // Assert — no writer threw, the task is InputRequired, and every concurrent merge survived.
+        var fetched = await store.GetTaskAsync(created.TaskId);
+        await Assert.That(fetched).IsNotNull();
+        await Assert.That(fetched!.Status).IsEqualTo(McpTaskStatus.InputRequired);
+        await Assert.That(fetched.InputRequests).IsNotNull();
+        await Assert.That(fetched.InputRequests!.Count).IsEqualTo(keys.Length);
     }
 
     [Test]
