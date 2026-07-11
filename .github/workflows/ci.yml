@@ -65,8 +65,20 @@ jobs:
         with:
           filters: .github/ci-path-filters.yml
 
+      # Mint a short-lived GitHub App token so the private GitHub Packages feed
+      # (nuget.config -> "GitHub") can be authenticated. Mirrors release.yml / benchmark.yml.
+      - name: Generate Token
+        id: app-token
+        if: steps.changes.outputs.build == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
+
       - name: Prepare Environment
         run: |
+          # NuGet reads this env var to authenticate to the private GitHub Packages source.
+          echo "NuGetPackageSourceCredentials_GitHub=Username=kurrent-ci;Password=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
           echo "DOTNET_INSTALL_DIR=${DOTNET_INSTALL_DIR:-$HOME/.dotnet}" >> $GITHUB_ENV
           echo "NUGET_PACKAGES=${NUGET_PACKAGES:-$HOME/.nuget/packages}" >> $GITHUB_ENV
           echo "DOTNET_MULTILEVEL_LOOKUP=0" >> $GITHUB_ENV
@@ -149,9 +161,6 @@ jobs:
 
       - name: Build Examples (Package Validation)
         if: steps.changes.outputs.build == 'true'
-        # Temporary: non-blocking while the package-validation build cannot authenticate to the
-        # GitHub Packages feed (401). Remove once feed credentials are wired into this job.
-        continue-on-error: true
         run: >-
           dotnet build examples/Examples.slnx -c Release
           -p:TestPackages=true
