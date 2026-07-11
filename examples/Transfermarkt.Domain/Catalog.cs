@@ -1,6 +1,4 @@
-using Kurrent.Client;
-using Kurrent.Client.Schema;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 using Transfermarkt.Domain.Events;
 
 namespace Transfermarkt.Domain;

@@ -1,7 +1,7 @@
-using Kurrent.Client;
-using Kurrent.Client.Registry;
-using Kurrent.Client.Schema;
-using Kurrent.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
 using Registry.OrderManagement;
 using Registry.OrderManagement.Events;
 using Registry.OrderManagement.Schemas;

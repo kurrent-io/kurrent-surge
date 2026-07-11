@@ -1,4 +1,4 @@
-using Kurrent.Client.Queries;
+using Kurrent.Surge.Client.Queries;
 
 var passed = 0;
 var failed = 0;

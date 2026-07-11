@@ -1,7 +1,12 @@
-using Kurrent.Client;
+using System;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming.Models;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Streaming.Models;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Processor.AspNetMinimal;
+using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -14,7 +19,7 @@ try {
 
     builder.Services.AddKurrent(kurrent => {
         kurrent.Connection("kurrentdb://admin:changeit@127.0.0.1:32769?tls=false");
-        
+
         kurrent.AddProcessor(new LiveTransferProcessor(), prx => {
             prx.ProcessorId                  = $"live-transfer-processor-{Guid.NewGuid().ToString()[..8]}";
             prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;

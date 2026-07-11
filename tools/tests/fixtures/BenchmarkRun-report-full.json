@@ -1,5 +1,5 @@
 {
-  "Title": "Kurrent.Client Benchmark Suite",
+  "Title": "Kurrent.Surge Benchmark Suite",
   "HostEnvironmentInfo": {
     "BenchmarkDotNetVersion": "0.14.0",
     "OsVersion": "macOS Sequoia 15.3.1",

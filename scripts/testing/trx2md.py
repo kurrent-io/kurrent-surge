@@ -374,8 +374,8 @@ def parse_trx(path: Path) -> TestRun:
         machine = first_result.get("computerName", "")
 
     # Assembly name — storage is lowercased by MTP, recover original casing
-    # from the className prefix (e.g., "Kurrent.Client.Tests.Streams.ReadTests"
-    # → first 3 segments match "kurrent.client.tests" → "Kurrent.Client.Tests")
+    # from the className prefix (e.g., "Kurrent.Surge.Tests.Streams.ReadTests"
+    # → first 3 segments match "kurrent.surge.tests" → "Kurrent.Surge.Tests")
     assembly_names_lower = sorted(set(r.assembly for r in results if r.assembly))
     assemblies: list[str] = []
     for asm_lower in assembly_names_lower:

@@ -1,5 +1,5 @@
-using Kurrent.Client.Streams;
-using Kurrent.Streaming;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Streaming;
 using Processor.FraudDetection;
 using Serilog;
 using Serilog.Extensions.Logging;

@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Kurrent.Client;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Processors.Configuration;
 using Processor.Leaderboard;
 using Serilog;

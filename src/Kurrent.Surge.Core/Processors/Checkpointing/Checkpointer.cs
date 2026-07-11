@@ -1,0 +1,228 @@
+using System.Threading.Channels;
+using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Streaming.Gateway;
+using Kurrent.Surge.Streaming.Models;
+
+namespace Kurrent.Processors.Checkpointing;
+
+/// <summary>
+/// Manages checkpointing for a stream processor: tracks processed positions, periodically raises checkpoints,
+/// and commits them to a store. Checkpoints are raised by writing barrier messages into a channel, which the
+/// processor's dispatch loop reads and handles by snapshotting the current pending positions and sending them
+/// to the store. On shutdown or rebalance, the checkpointer raises a final checkpoint and completes the channel
+/// so the dispatch loop can drain and exit gracefully. The checkpointer also supports manual checkpoints
+/// triggered by the processor's context, and a global scan watermark that advances all partitions to a given
+/// log position.
+/// </summary>
+sealed class Checkpointer : IAsyncDisposable {
+    readonly string                          _droneId;
+    readonly ChannelWriter<DataSourceMessage> _writer;
+    readonly ICheckpointStore                _store;
+    readonly PartitionedPositionTracker      _tracker;
+    readonly HybridLogicalClock              _clock;
+    readonly AsyncPeriodicTimer              _timer;
+    readonly bool                            _autoCheckpoint;
+
+	volatile bool _shutdownIssued;
+
+	public Checkpointer(
+		string droneId,
+		CheckpointOptions options,
+		ICheckpointStore store,
+		ChannelWriter<DataSourceMessage> writer,
+		TimeProvider timeProvider
+	) {
+		_droneId = droneId;
+		_writer  = writer;
+		_store   = store;
+		_tracker = new();
+		_clock   = new(timeProvider);
+
+		_autoCheckpoint = options.AutoCheckpoint;
+
+		_timer = new(
+			options.Interval, timeProvider,
+			_ => _shutdownIssued || !_initialized || !_tracker.HasPendingPositions
+				? Task.CompletedTask
+				: RaiseCheckpoint(CheckpointTrigger.Interval).AsTask());
+	}
+
+	bool _initialized;
+
+	/// <summary>
+	/// Initializes the checkpointer: loads the latest checkpoint and starts the timer.
+	/// When <paramref name="startFrom"/> is not <see cref="LogPosition.Unset"/>, every owned partition
+	/// is reset to that log position before loading.
+	/// </summary>
+	public async ValueTask<RecordPosition[]> Initialize(
+		Partition[] partitions,
+		SubscriptionInitialPosition initialPosition,
+		LogPosition startFrom,
+		CancellationToken ct = default
+	) {
+		ArgumentOutOfRangeException.ThrowIfZero(partitions.Length, nameof(partitions));
+
+		if (_initialized)
+			throw new InvalidOperationException("Checkpointer has already been initialized.");
+
+        // An explicit start is a global reset: persist the single position as a barrier (all partitions
+        // resume from it, fanned on load), so a fresh processor with no prior checkpoint honours the
+        // override too. Unset means normal resume — nothing to persist.
+        if (startFrom != LogPosition.Unset)
+            await _store.ResetAsync(_droneId, _clock.Now(), startFrom, ct).ConfigureAwait(false);
+
+		var checkpoint = await _store
+			.LoadLatestAsync(_droneId, partitions, initialPosition, ct)
+			.ConfigureAwait(false);
+
+		// The Latest sentinel (live-end start) and Unset are NOT real committed floors. Seed the tracker's
+		// flushed baseline with Earliest for those: the tracker is strictly monotonic and would otherwise
+		// reject every real position (`position <= Latest`), and an Earliest baseline keeps a no-progress
+		// snapshot filterable. The RETURNED positions keep the sentinel so the subscription still starts at
+		// the live end and the catch-up floor stays correct.
+		var trackerSeed = checkpoint.Positions
+			.Select(p => p.LogPosition == LogPosition.Latest || p.LogPosition == LogPosition.Unset
+				? RecordPosition.From(LogPosition.Earliest, p.Partition)
+				: p)
+			.ToArray();
+
+		_tracker.Reset(trackerSeed);
+
+		// AutoCheckpoint gates the interval commit timer: when off, pending positions are committed
+		// only by a manual ctx.Checkpoint barrier or on shutdown, so the timer simply never starts.
+		if (_autoCheckpoint)
+			_timer.Start(ct);
+
+		_initialized = true;
+
+		return checkpoint.Positions;
+	}
+
+    /// <summary>Loads the latest checkpoint without resetting.</summary>
+    public async ValueTask<RecordPosition[]> Initialize(
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition,
+        CancellationToken ct = default
+    ) => await Initialize(partitions, initialPosition, LogPosition.Unset, ct).ConfigureAwait(false);
+
+	/// <summary>Tracks a processed position for its partition.</summary>
+	public void Track(RecordPosition position) {
+		EnsureIsInitialized();
+		_tracker.Track(position);
+	}
+
+	/// <summary>
+	/// Broadcasts a global scan watermark: advances every given partition to <paramref name="logPosition"/>,
+	/// skipping any already at or past it (and skipping an unset position). Lets a server checkpoint's log
+	/// position fold into all owned partitions so a cold restart skips already-scanned regions. The skip is
+	/// required because the underlying tracker is strictly monotonic — re-tracking a reached position throws.
+	/// </summary>
+	public void AdvanceWatermark(LogPosition logPosition, Partition[] partitions) {
+		EnsureIsInitialized();
+
+		if (logPosition == LogPosition.Unset)
+			return;
+
+		// Current position per partition (last pending, else last flushed) — only advance the ones behind.
+		var current = _tracker.Snapshot().ToDictionary(p => p.Partition);
+
+		foreach (var partition in partitions) {
+			var watermark = RecordPosition.From(logPosition, partition);
+
+			if (current.TryGetValue(partition, out var pos) && watermark <= pos)
+				continue;
+
+			_tracker.Track(watermark);
+		}
+	}
+
+	/// <summary>
+	/// Returns true if there are tracked positions that have not yet been committed.
+	/// </summary>
+	public bool HasPendingPositions => _tracker.HasPendingPositions;
+
+	/// <summary>
+	/// Snapshots all pending positions (tracked but not yet committed). Positions
+	/// still at <see cref="LogPosition.Earliest"/> are filtered out — they represent
+	/// partitions with no progress.
+	/// </summary>
+	public RecordPosition[] PendingPositions() {
+		EnsureIsInitialized();
+		return _tracker.Snapshot()
+			.Where(x => x.LogPosition != LogPosition.Earliest)
+			.ToArray();
+	}
+
+	/// <summary>
+	/// Writes a barrier into the channel. Barriers carry no positions — the Drone
+	/// snapshots from <see cref="PendingPositions"/> at handle time. On Shutdown/Rebalance,
+	/// completes the writer so the dispatch loop drains and exits.
+	/// </summary>
+	public async ValueTask RaiseCheckpoint(CheckpointTrigger trigger, string? reason = null) {
+		ArgumentOutOfRangeException.ThrowIfEqual(trigger, CheckpointTrigger.Unspecified);
+
+		EnsureIsInitialized();
+
+		if (_shutdownIssued)
+			throw new InvalidOperationException("Shutdown has already been issued, cannot raise further checkpoints.");
+
+		var now = _clock.Now();
+
+		CheckpointId id = new(now);
+
+		Checkpoint checkpoint = trigger switch {
+			CheckpointTrigger.Interval  => new IntervalCheckpoint(id, now.DateTimeOffset),
+			CheckpointTrigger.CaughtUp  => new CaughtUpCheckpoint(id, now.DateTimeOffset),
+			CheckpointTrigger.Manual    => new ManualCheckpoint(id, now.DateTimeOffset, reason),
+			CheckpointTrigger.Shutdown  => new ShutdownCheckpoint(id, now.DateTimeOffset),
+			CheckpointTrigger.Rebalance => new RebalanceCheckpoint(id, now.DateTimeOffset),
+			_                           => throw new ArgumentOutOfRangeException(nameof(trigger), trigger, null)
+		};
+
+		try {
+			await _writer
+				.WriteAsync(checkpoint)
+				.ConfigureAwait(false);
+		}
+		catch (ChannelClosedException) {
+			return;
+		}
+
+		if (trigger is CheckpointTrigger.Shutdown or CheckpointTrigger.Rebalance) {
+			_shutdownIssued = true;
+			_writer.TryComplete();
+		}
+	}
+
+	/// <summary>
+	/// Commits a checkpoint to the store and advances the tracker past the committed positions.
+	/// </summary>
+	public async ValueTask CommitCheckpoint(
+		string checkpointId,
+		RecordPosition[] positions,
+		CancellationToken ct = default
+	) {
+		ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
+
+		EnsureIsInitialized();
+
+		await _store
+			.StoreAsync(_droneId, checkpointId, positions, ct)
+			.ConfigureAwait(false);
+
+		_tracker.FlushUpTo(positions);
+	}
+
+	void EnsureIsInitialized() {
+		if (!_initialized)
+			throw new InvalidOperationException("Checkpointer has not been initialized yet.");
+	}
+
+	public async ValueTask DisposeAsync() {
+		await _timer.DisposeAsync();
+		_tracker.Dispose();
+	}
+}

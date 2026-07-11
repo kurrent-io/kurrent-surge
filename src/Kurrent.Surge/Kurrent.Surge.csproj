@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent Surge</Title>
+    <Product>Kurrent Surge</Product>
+    <Description>The official .NET SDK for the Kurrent platform: the gRPC client (streams, registry, connectors, indexes, admin) and the stream-processing runtime (processors, projectors, checkpointing). Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
+    <PackageTags>kurrent kurrentdb surge client sdk eventstore event-sourcing stream-processing processors</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <RootNamespace>Kurrent.Surge</RootNamespace>
+
+    <!-- Reflection-based config binding: FromConfiguration binds ProcessorOptions with
+         BindNonPublicProperties=true (internal MaxParallelism et al.), which the source-generated
+         binder does not support. Disabling the generator restores the reflection binder that does.
+         Tradeoff: config binding here is no longer AOT/trim-safe (IL2026/IL3050). -->
+    <EnableConfigurationBindingGenerator>false</EnableConfigurationBindingGenerator>
+
+    <!-- The source-generated metric attributes (Unit, generic [Gauge<T>]) sit behind the
+         EXTEXP0003 experimental gate (Microsoft.Extensions.Diagnostics.Metrics), used by the
+         streaming instruments merged in from Kurrent.Surge.Streaming. -->
+    <NoWarn>$(NoWarn);EXTEXP0003</NoWarn>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
+         dependency (not bundled) — Kurrent.Surge.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.SourceGenerators\Kurrent.Surge.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
+    <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.
+         PrivateAssets="none" so the nuspec dependency carries ALL assets: the catalog generator ships
+         in Kurrent.Surge.Schema.Catalogs's analyzers/dotnet/cs and must flow to consumers that install
+         Kurrent.Surge.Client (NuGet excludes Build,Analyzers on dependency edges by default). The generator
+         is wired onto THIS project's own compilation by Directory.Build.targets (_SdkSourceRef). -->
+    <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs\Kurrent.Surge.Schema.Catalogs.csproj" PrivateAssets="none" />
+    <!-- Variant.SourceGenerators (above) still runs here for the client's own IVariant unions
+         (TransportSecurity, ClientCredentials). The Variant RUNTIME assembly is NOT bundled here:
+         Kurrent.Abstractions bundles it, and Kurrent.Surge.Client gets it transitively through that package
+         reference. Bundling it in both would ship Kurrent.Variant.dll twice and conflict at restore. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Api.CommonProtos" />
+    <PackageReference Include="Grpc.StatusProto" />
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+<!--    <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" />-->
+<!--    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />-->
+    <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- protocol -->
+    <Protobuf ProtoRoot="../../proto/kurrentdb/protocol"
+              Include="../../proto/kurrentdb/protocol/**/*.proto"
+              Link="Contracts\kurrentdb\protocol\%(RecursiveDir)/%(FileName)%(Extension)"
+              AdditionalImportDirs="../../proto"
+              Access="Internal"
+              GrpcServices="Client"
+              Exclude="../../proto/kurrentdb/protocol/v1/code.proto;../../proto/kurrentdb/protocol/v1/status.proto;../../proto/kurrentdb/protocol/v0/**/*.proto" />
+
+    <!-- kurrent -->
+    <Protobuf ProtoRoot="../../proto/kurrent"
+              Include="../../proto/kurrent/rpc/**/*.proto"
+              Link="Contracts\kurrent\rpc\%(RecursiveDir)/%(FileName)%(Extension)"
+              AdditionalImportDirs="../../proto"
+              Access="Public" />
+
+    <!-- google -->
+    <Protobuf ProtoRoot="../../proto/google"
+              Include="../../proto/google/**/*.proto"
+              Link="Contracts\google\%(RecursiveDir)/%(FileName)%(Extension)"
+              Access="Internal"
+              ProtoCompile="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Surge" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
+    <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.Logging" />
+    <Using Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+</Project>

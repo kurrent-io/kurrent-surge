@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Queries;
+namespace Kurrent.Surge.Client.Queries;
 
 public sealed record ParsedQuery(
     IReadOnlyList<ProjectionField> Fields,

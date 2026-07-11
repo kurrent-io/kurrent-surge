@@ -1,32 +1,11 @@
 <Solution>
-  <Folder Name="/.Solution/">
-    <File Path="context7.json" />
-    <File Path="Directory.Build.props" />
-    <File Path="Directory.Build.targets" />
-    <File Path="Directory.Packages.props" />
-    <File Path="global.json" />
-    <File Path="nuget.config" />
-    <File Path="wrangler.toml" />
-  </Folder>
-
-  <Folder Name="/Benchmarks/">
-    <Project Path="perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj" />
-  </Folder>
-
-  <Folder Name="/Client/">
-    <Project Path="src/Kurrent.Client/Kurrent.Client.csproj" />
-    <Project Path="src/Kurrent.Client.Arrow/Kurrent.Client.Arrow.csproj" />
-    <Project Path="src/Kurrent.Client.SourceGenerators/Kurrent.Client.SourceGenerators.csproj" />
-    <Project Path="test/Kurrent.Client.Tests/Kurrent.Client.Tests.csproj" />
-    <Project Path="test/Kurrent.Client.Arrow.Tests/Kurrent.Client.Arrow.Tests.csproj" />
-  </Folder>
-  <Folder Name="/Examples/">
-    <Project Path="examples/Connector.Management/Connector.Management.csproj" />
+  <Folder Name="/.Examples/">
+    <Project Path="examples/processors/Connector.Management/Connector.Management.csproj" />
     <Project Path="examples/PackageTest.Streaming/PackageTest.Streaming.csproj" />
     <Project Path="examples/PackageTest/PackageTest.csproj" />
     <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
   </Folder>
-  <Folder Name="/Examples/Processors/">
+  <Folder Name="/.Examples/Processors/">
     <Project Path="examples/processors/Processor.AspNetMinimal/Processor.AspNetMinimal.csproj" />
     <Project Path="examples/processors/Processor.ClickstreamSessions/Processor.ClickstreamSessions.csproj" />
     <Project Path="examples/processors/Processor.FraudDetection/Processor.FraudDetection.csproj" />
@@ -38,45 +17,60 @@
     <Project Path="examples/processors/Processor.WithRedisCache/Processor.WithRedisCache.csproj" />
     <Project Path="examples/processors/Processor.WordCount/Processor.WordCount.csproj" />
   </Folder>
-  <Folder Name="/Examples/Registry/">
+  <Folder Name="/.Examples/Registry/">
     <Project Path="examples/registry/Registry.OrderManagement/Registry.OrderManagement.csproj" />
     <Project Path="examples/registry/Registry.Quickstart/Registry.Quickstart.csproj" />
   </Folder>
-  <Folder Name="/Examples/Streams/">
+  <Folder Name="/.Examples/Streams/">
     <Project Path="examples/streams/Streams.InventoryManagement/Streams.InventoryManagement.csproj" />
     <Project Path="examples/streams/Streams.QuickStart/Streams.QuickStart.csproj" />
   </Folder>
-  <Folder Name="/Packages/">
-    <Project Path="src/Kurrent.Schema.Catalogs/Kurrent.Schema.Catalogs.csproj" />
-    <Project Path="src/Kurrent.Schema.Catalogs.Generators/Kurrent.Schema.Catalogs.Generators.csproj" />
-    <Project Path="test/Kurrent.Schema.Catalogs.Tests/Kurrent.Schema.Catalogs.Tests.csproj" />
-    <Project Path="test/Kurrent.Schema.Catalogs.Tests.Samples/Kurrent.Schema.Catalogs.Tests.Samples.csproj" />
-  </Folder>
-
-  <Folder Name="/Shared/" />
-  <Folder Name="/Shared/Aspire/">
-    <Project Path="test/Aspire.Hosting.KurrentDB/Aspire.Hosting.KurrentDB.csproj" />
+  <Folder Name="/.Shared/" />
+  <Folder Name="/.Shared/Aspire/">
     <Project Path="test/Aspire.Hosting.KurrentDB.Tests/Aspire.Hosting.KurrentDB.Tests.csproj" />
+    <Project Path="test/Aspire.Hosting.KurrentDB/Aspire.Hosting.KurrentDB.csproj" />
   </Folder>
-  <Folder Name="/Shared/CodeAnalysis/">
+  <Folder Name="/.Shared/CodeAnalysis/">
     <Project Path="src/Kurrent.CodeAnalysis/Kurrent.CodeAnalysis.csproj" />
     <Project Path="test/Kurrent.CodeAnalysis.Tests/Kurrent.CodeAnalysis.Tests.csproj" />
   </Folder>
-  <Folder Name="/Shared/Testkit/">
-    <Project Path="test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj" />
-    <Project Path="test/Kurrent.Testkit/Kurrent.Testkit.csproj" />
+  <Folder Name="/.Shared/Testkit/">
+    <Project Path="test/Kurrent.Surge.Testkit/Kurrent.Surge.Testkit.csproj" />
     <Project Path="test/Kurrent.Testkit.Tests/Kurrent.Testkit.Tests.csproj" />
+    <Project Path="test/Kurrent.Testkit/Kurrent.Testkit.csproj" />
   </Folder>
-  <Folder Name="/Shared/Variant/">
-    <Project Path="src/Variant/Variant.csproj" />
+  <Folder Name="/.Shared/Variant/">
     <Project Path="src/Variant.SourceGenerators/Variant.SourceGenerators.csproj" />
+    <Project Path="src/Variant/Variant.csproj" />
     <Project Path="test/Variant.Tests/Variant.Tests.csproj" />
   </Folder>
-
-  <Folder Name="/Streaming/">
-    <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />
-    <Project Path="src/Kurrent.Streaming/Kurrent.Streaming.csproj" />
-    <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
-    <Project Path="test/Kurrent.Streaming.Tests/Kurrent.Streaming.Tests.csproj" />
+  <Folder Name="/.Solution/">
+    <File Path="context7.json" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+    <File Path="wrangler.toml" />
   </Folder>
+  <Folder Name="/Benchmarks/">
+    <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/Extensions/">
+    <Project Path="src/Kurrent.Surge.Schema.Catalogs.Generators/Kurrent.Surge.Schema.Catalogs.Generators.csproj" />
+    <Project Path="src/Kurrent.Surge.Schema.Catalogs/Kurrent.Surge.Schema.Catalogs.csproj" />
+    <Project Path="src/Kurrent.Surge.Arrow/Kurrent.Surge.Arrow.csproj" />
+    <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests.Samples/Kurrent.Surge.Schema.Catalogs.Tests.Samples.csproj" />
+    <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests/Kurrent.Surge.Schema.Catalogs.Tests.csproj" />
+    <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Projectors/">
+    <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />
+    <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
+  </Folder>
+  <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
+  <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
+  <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+  <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
 </Solution>

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Dapper;
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 using Npgsql;
 using StackExchange.Redis;
 using Transfermarkt.Domain.Events;
