@@ -33,7 +33,7 @@ and wait for direction. Heuristics like "majority of call sites" are not permiss
 Before referring to any project, file, or path by name — verify it exists on disk. Do not assume sibling
 projects exist from naming convention alone.
 
-Playground, probe, and throwaway projects (`playground/`, `.project/.scratch/`) always target net10.0 — they
+Playground, probe, and throwaway projects (`playground/`, `.claude/context/.scratch/`) always target net10.0 — they
 are not consumer-facing, so the minimum-supported TFM rule does not apply.
 
 When debugging CI or workflow issues, create a minimal throwaway workflow targeting just the failing step
@@ -116,6 +116,6 @@ See `.agents/matt-pocock/triage-labels.md`.
 
 - Single-context: `CONTEXT.md` at the repo root, 
 - Existing reference docs under `.claude/context/project/`.
-- ADRs under `.claude/context/docs/adr/`
+- ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created it goes in `.claude/context/docs/adr/`, reserved so those skills work.
 
 See `.agents/matt-pocock/domain.md`.
