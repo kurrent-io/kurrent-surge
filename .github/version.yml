@@ -1,4 +1,4 @@
 auto-increment: patch
-minimum-major-minor: 0.1
+minimum-major-minor: 2.0
 pre-release: @simple
 pull-request: @traceable
