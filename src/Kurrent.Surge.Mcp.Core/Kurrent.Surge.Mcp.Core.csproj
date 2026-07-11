@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge.Mcp.Core</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent Surge MCP Task Store — Core</Title>
+    <Product>Kurrent Surge MCP Task Store</Product>
+    <Description>DuckDB-backed durable task-storage engine for Model Context Protocol (MCP) task stores. Version-neutral: no ModelContextProtocol dependency. Persists a canonical task record (scalar columns plus opaque JSON payloads) and exposes create/get/update/list/cleanup primitives. The Kurrent.Surge.Mcp (2.0) and Kurrent.Surge.Mcp.Legacy (1.4.1) adapters map their IMcpTaskStore contracts onto it.</Description>
+    <PackageTags>kurrent mcp model-context-protocol task-store duckdb event-sourcing</PackageTags>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.NET.Data.Full" />
+    <PackageReference Include="kurrent.quack" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Adapters map their version-specific IMcpTaskStore onto the internal engine. -->
+    <InternalsVisibleTo Include="Kurrent.Surge.Mcp" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Mcp.Legacy" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Mcp.Core.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Mcp.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Mcp.Legacy.Tests" />
+  </ItemGroup>
+
+</Project>

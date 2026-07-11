@@ -1,0 +1,1 @@
+[assembly: TestExecutor<TestkitTestExecutor>]

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The MCP task types are experimental (MCPEXP001). -->
+    <NoWarn>$(NoWarn);MCPEXP001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Mcp.Legacy\Kurrent.Surge.Mcp.Legacy.csproj" />
+    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Testkit.TUnit" />
+    <Using Include="Kurrent.Sdk.Testkit" />
+    <Using Include="Bogus" />
+    <Using Include="TUnit" />
+    <Using Include="TUnit.Core.Executors" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+</Project>

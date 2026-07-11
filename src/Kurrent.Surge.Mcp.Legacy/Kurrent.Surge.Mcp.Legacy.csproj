@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge.Mcp.Legacy</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent Surge MCP Task Store — Legacy (1.4.1)</Title>
+    <Product>Kurrent Surge MCP Task Store</Product>
+    <Description>DuckDB-backed IMcpTaskStore for the stable Model Context Protocol C# SDK (ModelContextProtocol.Core 1.4.1). Durable, session-scoped task persistence with listing and result retrieval, over the version-neutral DuckDB engine (Kurrent.Surge.Mcp.Core).</Description>
+    <PackageTags>kurrent mcp model-context-protocol task-store duckdb</PackageTags>
+    <!-- IMcpTaskStore and the task protocol types are marked experimental in the MCP SDK. -->
+    <NoWarn>$(NoWarn);MCPEXP001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kurrent.Surge.Mcp.Core\Kurrent.Surge.Mcp.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Pin the stable 1.4.1 contract; the central version is the 2.0 preview used by Kurrent.Surge.Mcp. -->
+    <PackageReference Include="ModelContextProtocol.Core" VersionOverride="1.4.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Surge.Mcp.Legacy.Tests" />
+  </ItemGroup>
+
+</Project>
