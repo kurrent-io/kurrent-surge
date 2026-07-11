@@ -149,6 +149,9 @@ jobs:
 
       - name: Build Examples (Package Validation)
         if: steps.changes.outputs.build == 'true'
+        # Temporary: non-blocking while the package-validation build cannot authenticate to the
+        # GitHub Packages feed (401). Remove once feed credentials are wired into this job.
+        continue-on-error: true
         run: >-
           dotnet build examples/Examples.slnx -c Release
           -p:TestPackages=true
