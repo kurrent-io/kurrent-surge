@@ -56,17 +56,22 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         // single-statement op on a fresh connection re-reads the winner's committed row and re-applies
         // the guard/merge, so concurrent same-task writers converge without a lock. Different tasks are
         // different rows and never conflict. Only that error is retried; everything else propagates.
-        _pipeline = (pipelineBuilder ?? new ResiliencePipelineBuilder())
-            .AddRetry(new RetryStrategyOptions {
-                ShouldHandle     = args => ValueTask.FromResult(
-                    args.Outcome.Exception is DuckDBException { ErrorType: DuckDBErrorType.Transaction }),
-                MaxRetryAttempts = 10,
-                Delay            = TimeSpan.FromMilliseconds(10),
-                MaxDelay         = TimeSpan.FromMilliseconds(250),
-                BackoffType      = DelayBackoffType.Exponential,
-                UseJitter        = true
-            })
-            .Build();
+        // A caller-supplied builder is used as-is — it fully owns the pipeline, including whether to
+        // retry (pass an empty builder to disable retry entirely). When none is supplied we default
+        // to the write-conflict retry.
+        _pipeline = pipelineBuilder is not null
+            ? pipelineBuilder.Build()
+            : new ResiliencePipelineBuilder()
+                .AddRetry(new RetryStrategyOptions {
+                    ShouldHandle     = args => ValueTask.FromResult(
+                        args.Outcome.Exception is DuckDBException { ErrorType: DuckDBErrorType.Transaction }),
+                    MaxRetryAttempts = 10,
+                    Delay            = TimeSpan.FromMilliseconds(10),
+                    MaxDelay         = TimeSpan.FromMilliseconds(250),
+                    BackoffType      = DelayBackoffType.Exponential,
+                    UseJitter        = true
+                })
+                .Build();
 
         EnsureSchema();
     }
@@ -82,27 +87,49 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
             return execute(command);
         });
 
-    void EnsureSchema() =>
+    void EnsureSchema() {
+        const string sql = """
+        CREATE TABLE IF NOT EXISTS mcp_tasks (
+            task_id             VARCHAR   NOT NULL PRIMARY KEY,
+            status              VARCHAR   NOT NULL,
+            status_message      VARCHAR,
+            created_at          TIMESTAMP NOT NULL,
+            last_updated_at     TIMESTAMP NOT NULL,
+            ttl_ms              BIGINT,
+            poll_interval_ms    BIGINT,
+            result_json         JSON,
+            error_json          JSON,
+            input_requests_json JSON
+        );
+        """;
+
         Execute(command => {
-            command.CommandText = """
-            CREATE TABLE IF NOT EXISTS mcp_tasks (
-                task_id             VARCHAR   NOT NULL PRIMARY KEY,
-                status              VARCHAR   NOT NULL,
-                status_message      VARCHAR,
-                created_at          TIMESTAMP NOT NULL,
-                last_updated_at     TIMESTAMP NOT NULL,
-                ttl_ms              BIGINT,
-                poll_interval_ms    BIGINT,
-                result_json         JSON,
-                error_json          JSON,
-                input_requests_json JSON
-            );
-            """;
+            command.CommandText = sql;
             return command.ExecuteNonQuery();
         });
+    }
 
     /// <inheritdoc/>
     public Task<McpTaskInfo> CreateTaskAsync(CancellationToken cancellationToken = default) {
+        const string sql = """
+        INSERT INTO mcp_tasks (
+            task_id,
+            status,
+            created_at,
+            last_updated_at,
+            ttl_ms,
+            poll_interval_ms
+        )
+        VALUES (
+            $task_id,
+            $status,
+            $created_at,
+            $last_updated_at,
+            $ttl_ms,
+            $poll_interval_ms
+        );
+        """;
+
         var now = _time.GetUtcNow();
 
         var info = new McpTaskInfo(
@@ -113,10 +140,7 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
             _options.DefaultPollIntervalMs);
 
         Execute(command => {
-            command.CommandText = """
-            INSERT INTO mcp_tasks (task_id, status, created_at, last_updated_at, ttl_ms, poll_interval_ms)
-            VALUES ($task_id, $status, $created_at, $last_updated_at, $ttl_ms, $poll_interval_ms);
-            """;
+            command.CommandText = sql;
             Bind(command, "task_id", info.TaskId);
             Bind(command, "status", StatusToDb(info.Status));
             Bind(command, "created_at", info.CreatedAt.UtcDateTime);
@@ -131,13 +155,23 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
     /// <inheritdoc/>
     public Task<McpTaskInfo?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) {
+        const string sql = """
+        SELECT
+            status,
+            status_message,
+            created_at,
+            last_updated_at,
+            ttl_ms,
+            poll_interval_ms,
+            CAST(result_json AS VARCHAR),
+            CAST(error_json AS VARCHAR),
+            CAST(input_requests_json AS VARCHAR)
+        FROM mcp_tasks
+        WHERE task_id = $task_id;
+        """;
+
         var info = Execute<McpTaskInfo?>(command => {
-            command.CommandText = """
-            SELECT status, status_message, created_at, last_updated_at, ttl_ms, poll_interval_ms,
-                   CAST(result_json AS VARCHAR), CAST(error_json AS VARCHAR), CAST(input_requests_json AS VARCHAR)
-            FROM mcp_tasks
-            WHERE task_id = $task_id;
-            """;
+            command.CommandText = sql;
             Bind(command, "task_id", taskId);
 
             using var reader = command.ExecuteReader();
@@ -163,11 +197,17 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
     /// <inheritdoc/>
     public Task SetCompletedAsync(string taskId, JsonElement result, CancellationToken cancellationToken = default) {
+        const string sql = """
+        UPDATE mcp_tasks
+        SET status = $status,
+            result_json = $payload,
+            last_updated_at = $now
+        WHERE task_id = $task_id
+          AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
+        """;
+
         var affected = Execute(command => {
-            command.CommandText = """
-            UPDATE mcp_tasks SET status = $status, result_json = $payload, last_updated_at = $now
-            WHERE task_id = $task_id AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
-            """;
+            command.CommandText = sql;
             BindTransition(command, taskId, McpTaskStatus.Completed);
             Bind(command, "payload", result.GetRawText());
             return command.ExecuteNonQuery();
@@ -182,11 +222,17 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
     /// <inheritdoc/>
     public Task SetFailedAsync(string taskId, JsonElement error, CancellationToken cancellationToken = default) {
+        const string sql = """
+        UPDATE mcp_tasks
+        SET status = $status,
+            error_json = $payload,
+            last_updated_at = $now
+        WHERE task_id = $task_id
+          AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
+        """;
+
         var affected = Execute(command => {
-            command.CommandText = """
-            UPDATE mcp_tasks SET status = $status, error_json = $payload, last_updated_at = $now
-            WHERE task_id = $task_id AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
-            """;
+            command.CommandText = sql;
             BindTransition(command, taskId, McpTaskStatus.Failed);
             Bind(command, "payload", error.GetRawText());
             return command.ExecuteNonQuery();
@@ -200,11 +246,16 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
     /// <inheritdoc/>
     public Task<bool> SetCancelledAsync(string taskId, CancellationToken cancellationToken = default) {
+        const string sql = """
+        UPDATE mcp_tasks
+        SET status = $status,
+            last_updated_at = $now
+        WHERE task_id = $task_id
+          AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
+        """;
+
         var affected = Execute(command => {
-            command.CommandText = """
-            UPDATE mcp_tasks SET status = $status, last_updated_at = $now
-            WHERE task_id = $task_id AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
-            """;
+            command.CommandText = sql;
             BindTransition(command, taskId, McpTaskStatus.Cancelled);
             return command.ExecuteNonQuery();
         });
@@ -219,14 +270,17 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         IDictionary<string, InputRequest> inputRequests,
         CancellationToken cancellationToken = default
     ) {
+        const string sql = """
+        UPDATE mcp_tasks
+        SET input_requests_json = json_merge_patch(COALESCE(input_requests_json, '{}'), $patch),
+            status = $status,
+            last_updated_at = $now
+        WHERE task_id = $task_id
+          AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
+        """;
+
         var affected = Execute(command => {
-            command.CommandText = """
-            UPDATE mcp_tasks
-            SET input_requests_json = json_merge_patch(COALESCE(input_requests_json, '{}'), $patch),
-                status = $status,
-                last_updated_at = $now
-            WHERE task_id = $task_id AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
-            """;
+            command.CommandText = sql;
             BindTransition(command, taskId, McpTaskStatus.InputRequired);
             Bind(command, "patch", SerializeInputRequests(inputRequests));
             return command.ExecuteNonQuery();
@@ -244,17 +298,22 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         IDictionary<string, InputResponse> inputResponses,
         CancellationToken cancellationToken = default
     ) {
+        // Delete the satisfied keys via a null-patch, and drop back to Working once none remain —
+        // all in one statement.
+        const string sql = """
+        UPDATE mcp_tasks
+        SET input_requests_json = json_merge_patch(COALESCE(input_requests_json, '{}'), $patch),
+            status = CASE
+                WHEN len(json_keys(json_merge_patch(COALESCE(input_requests_json, '{}'), $patch))) = 0 THEN $status
+                ELSE status
+            END,
+            last_updated_at = $now
+        WHERE task_id = $task_id
+          AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
+        """;
+
         var affected = Execute(command => {
-            // Delete the satisfied keys via a null-patch, and drop back to Working once none remain —
-            // all in one statement.
-            command.CommandText = """
-            UPDATE mcp_tasks
-            SET input_requests_json = json_merge_patch(COALESCE(input_requests_json, '{}'), $patch),
-                status = CASE WHEN len(json_keys(json_merge_patch(COALESCE(input_requests_json, '{}'), $patch))) = 0
-                              THEN $status ELSE status END,
-                last_updated_at = $now
-            WHERE task_id = $task_id AND status NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled);
-            """;
+            command.CommandText = sql;
             BindTransition(command, taskId, McpTaskStatus.Working);
             Bind(command, "patch", BuildNullPatch(inputResponses.Keys));
             return command.ExecuteNonQuery();
@@ -288,8 +347,16 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     // (no SQL-Server-style OUTPUT deleted.*), so a targeted EXISTS on the rare 0-row path is the
     // pragmatic distinction; the happy path stays a single statement.
     void ThrowIfMissing(string taskId) {
+        const string sql = """
+        SELECT EXISTS (
+            SELECT 1
+            FROM mcp_tasks
+            WHERE task_id = $task_id
+        );
+        """;
+
         var exists = Execute(command => {
-            command.CommandText = "SELECT EXISTS(SELECT 1 FROM mcp_tasks WHERE task_id = $task_id);";
+            command.CommandText = sql;
             Bind(command, "task_id", taskId);
             return Convert.ToBoolean(command.ExecuteScalar());
         });
