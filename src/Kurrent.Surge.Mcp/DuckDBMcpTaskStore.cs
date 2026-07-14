@@ -42,6 +42,16 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     readonly TimeProvider           _time;
     readonly ResiliencePipeline     _pipeline;
 
+    /// <summary>
+    /// Creates a store over the given DuckDB connection string (use a file data source for durability).
+    /// </summary>
+    /// <param name="connectionString">DuckDB connection string. File-backed only — <c>:memory:</c> is rejected.</param>
+    /// <param name="options">Store options (poll interval, default TTL); defaults are used when <see langword="null"/>.</param>
+    /// <param name="timeProvider">Clock for task timestamps; <see cref="TimeProvider.System"/> when <see langword="null"/>.</param>
+    /// <param name="pipelineBuilder">
+    /// Resilience pipeline for the store's operations. When <see langword="null"/> a default write-conflict
+    /// retry is used, so concurrent writers to the same task converge; pass an empty builder to disable retry.
+    /// </param>
     public DuckDBMcpTaskStore(
         string connectionString,
         DuckDBTaskStoreOptions? options = null,

@@ -181,9 +181,6 @@ static partial class McpTaskConnectionExtensions {
     // }
 }
 
-/// <summary>
-/// CreateTask
-/// </summary>
 static partial class McpTaskConnectionExtensions {
     extension(DuckDBAdvancedConnection connection) {
         public long CreateTask(McpTaskInfo info) {
@@ -246,9 +243,6 @@ static partial class McpTaskConnectionExtensions {
     );
 }
 
-/// <summary>
-/// GetTask
-/// </summary>
 static partial class McpTaskConnectionExtensions {
     extension(DuckDBAdvancedConnection connection) {
         public McpTaskInfo? GetTask(string taskId) {
@@ -296,12 +290,7 @@ static partial class McpTaskConnectionExtensions {
     readonly record struct TaskIdArgs(string TaskId);
 }
 
-/// <summary>
-/// TaskExists
-/// </summary>
 static partial class McpTaskConnectionExtensions {
-    #region ->> Commands <<-
-
     extension(DuckDBAdvancedConnection connection) {
         public bool TaskExists(string taskId) {
             var row = connection.QueryFirstOrDefault<TaskIdArgs, bool, ExistsStatement>(new(taskId));
@@ -309,8 +298,6 @@ static partial class McpTaskConnectionExtensions {
         }
     }
 
-    #endregion
-    
     struct ExistsStatement : IQuery<TaskIdArgs, bool> {
         public static StatementBindingResult Bind(in TaskIdArgs args, PreparedStatement statement) =>
             new(statement) { args.TaskId };
@@ -329,9 +316,6 @@ static partial class McpTaskConnectionExtensions {
     }
 }
 
-/// <summary>
-/// SetCompleted / SetFailed / SetCancelled / SetInputRequests / ResolveInputRequests
-/// </summary>
 static partial class McpTaskConnectionExtensions {
     extension(DuckDBAdvancedConnection connection) {
         public long SetCompleted(string taskId, JsonElement result, DateTimeOffset now) =>
