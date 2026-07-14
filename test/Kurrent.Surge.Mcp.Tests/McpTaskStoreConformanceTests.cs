@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using ModelContextProtocol.Protocol;
@@ -390,6 +391,30 @@ public sealed class McpTaskStoreConformanceTests : IDisposable {
         // Assert
         await Assert.That(first).IsNotNull();
         await Assert.That(second).IsSameReferenceAs(first);
+    }
+
+    [Test]
+    public async ValueTask add_duckdb_mcp_task_store_binds_options_from_configuration() {
+        // Arrange — a configuration section for the store with a non-default poll interval.
+        var expectedPollIntervalMs = Faker.Random.Long(2_000, 9_000);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> {
+                [$"{DuckDBTaskStoreOptions.ConfigurationSection}:{nameof(DuckDBTaskStoreOptions.DefaultPollIntervalMs)}"] = expectedPollIntervalMs.ToString()
+            })
+            .Build();
+
+        using var provider = new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddDuckDBMcpTaskStore(Db.ConnectionString)
+            .BuildServiceProvider();
+
+        var store = provider.GetRequiredService<IMcpTaskStore>();
+
+        // Act — the poll interval a created task advertises comes from the bound options.
+        var task = await store.CreateTaskAsync();
+
+        // Assert
+        await Assert.That(task.PollIntervalMs).IsEqualTo(expectedPollIntervalMs);
     }
 
     sealed record ResultDto(string Value);
