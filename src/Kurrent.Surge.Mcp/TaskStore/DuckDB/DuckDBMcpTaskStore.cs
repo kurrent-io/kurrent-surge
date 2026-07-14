@@ -15,10 +15,11 @@ namespace Kurrent.Surge.Mcp.DuckDB;
 
 /// <summary>
 /// A DuckDB-backed <see cref="IMcpTaskStore"/> (ModelContextProtocol.Core 2.0) that persists each task as a
-/// single JSON document — <c>(task_id, json)</c> — and applies every transition as a server-side patch: a
-/// guarded single-statement <c>UPDATE … json_merge_patch(…)</c> fenced on the document's own
-/// <c>$.status</c>, with no read-modify-write. Connections come from a Kurrent.Quack
-/// <see cref="DuckDBConnectionPool"/> via the plain ADO.NET command API.
+/// single JSON document — <c>(task_id, json)</c>, with a denormalized <c>expires_at</c> column for the sweep —
+/// and applies every transition as a server-side patch: a guarded single-statement
+/// <c>UPDATE … json_merge_patch(…)</c> fenced on the document's own <c>$.status</c>, with no
+/// read-modify-write. Connections come from a Kurrent.Quack <see cref="DuckDBConnectionPool"/> via the plain
+/// ADO.NET command API.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -33,6 +34,15 @@ namespace Kurrent.Surge.Mcp.DuckDB;
 /// (<see cref="DuckDBConnectionPool"/> rejects <c>:memory:</c> data sources). The
 /// <see cref="InputResponseReceived"/> event is in-process.
 /// </para>
+/// <para>
+/// <b>TTL sweep (SEP-2663).</b> A durable store — unlike the reference in-memory store, which drops
+/// expired tasks on process restart — must expire and delete them itself, or rows accumulate forever. A
+/// background timer built from the injected <see cref="TimeProvider"/> runs a two-phase sweep: expired live
+/// tasks are marked <c>failed</c> (so a poll within <see cref="DuckDBMcpTaskStoreOptions.GracePeriod"/>
+/// observes the failure), then deleted once the grace period also elapses. The spec sanctions both — a
+/// server MAY mark a task failed after its TTL and delete it thereafter, and returning not-found for a
+/// purged task is compliant. See <see cref="DuckDBMcpTaskStoreOptions.SweepInterval"/>.
+/// </para>
 /// </remarks>
 [PublicAPI]
 public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
@@ -40,6 +50,10 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     readonly DuckDBMcpTaskStoreOptions _options;
     readonly TimeProvider              _time;
     readonly ResiliencePipeline        _pipeline;
+    readonly ITimer                    _sweepTimer;
+
+    // Reentrancy gate for the sweep timer: a sweep slower than the interval must not pile up ticks.
+    int _sweeping;
 
     /// <summary>
     /// Creates a store over the given DuckDB connection string (use a file data source for durability).
@@ -57,23 +71,47 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         TimeProvider? timeProvider = null,
         ResiliencePipelineBuilder? pipelineBuilder = null
     ) {
-        _pool    = new(connectionString);
-        _options = options      ?? new DuckDBMcpTaskStoreOptions();
-        _time    = timeProvider ?? TimeProvider.System;
+        _options = options ?? new DuckDBMcpTaskStoreOptions();
+
+        // Config is validated before any resource is allocated. These two invariants make the store
+        // self-bounding: every task must have a positive lifetime, and the sweep that reclaims it cannot be
+        // switched off (a non-positive interval would also spin up a runaway 0 ms timer).
+        if (_options.DefaultTimeToLive <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(
+                $"{nameof(options)}.{nameof(DuckDBMcpTaskStoreOptions.DefaultTimeToLive)}",
+                _options.DefaultTimeToLive,
+                "DefaultTimeToLive must be positive; a task born already expired would be failed by the next sweep.");
+
+        if (_options.SweepInterval <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(
+                $"{nameof(options)}.{nameof(DuckDBMcpTaskStoreOptions.SweepInterval)}",
+                _options.SweepInterval,
+                "SweepInterval must be positive; the sweep cannot be disabled.");
+
+        _pool = new(connectionString);
+        _time = timeProvider ?? TimeProvider.System;
 
         _pipeline = pipelineBuilder is not null
             ? pipelineBuilder.Build()
             : Resilience.GetDefaultPipelineBuilder().Build();
 
+        // expires_at (createdAt + ttl) is denormalized out of the JSON document so the sweep can compare it
+        // directly: the ttl inside the JSON is a .NET TimeSpan string (e.g. "1.02:00:00") that DuckDB cannot
+        // cast to an INTERVAL, whereas a TIMESTAMP column compares cleanly.
         Execute(command => {
             command.CommandText = """
             CREATE TABLE IF NOT EXISTS mcp_tasks (
-                task_id VARCHAR NOT NULL PRIMARY KEY,
-                json    JSON    NOT NULL
+                task_id    VARCHAR   NOT NULL PRIMARY KEY,
+                json       JSON      NOT NULL,
+                expires_at TIMESTAMP
             );
             """;
             return command.ExecuteNonQuery();
         });
+
+        // Expire and delete tasks on a background timer built from the injected TimeProvider (so tests drive it
+        // deterministically via a fake clock). The first tick is one interval out, after the schema above exists.
+        _sweepTimer = _time.CreateTimer(OnSweepTick, null, _options.SweepInterval, _options.SweepInterval);
     }
 
     // The one I/O primitive: rent a pooled connection, run a single command through the resilience
@@ -96,14 +134,19 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
             _options.DefaultTimeToLive,
             _options.DefaultPollIntervalMs);
 
+        // Every task gets a bounded expiry (the store never advertises unlimited TTL), so the sweep can
+        // always reclaim it. This is the same instant the task advertises as its TTL: createdAt + ttl.
+        var expiresAt = now.Add(_options.DefaultTimeToLive);
+
         const string sql = """
-        INSERT INTO mcp_tasks (task_id, json) VALUES ($task_id, $json);
+        INSERT INTO mcp_tasks (task_id, json, expires_at) VALUES ($task_id, $json, $expires_at);
         """;
 
         Execute(command => {
             command.CommandText = sql;
             Bind(command, "task_id", info.TaskId);
             Bind(command, "json", Serialize(info));
+            Bind(command, "expires_at", expiresAt.UtcDateTime);
             return command.ExecuteNonQuery();
         });
 
@@ -162,7 +205,6 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
         var transitioned = Execute(command => {
             command.CommandText = sql;
-            // BindGuard(command, taskId);
             Bind(command, "task_id", taskId);
             Bind(command, "patch", BuildPatch(McpTaskStatus.Cancelled).ToJsonString());
             using var reader = command.ExecuteReader();
@@ -205,17 +247,30 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         RETURNING json_extract_string(json, '$.status');
         """;
 
-        // RETURNING the post-patch status as a column expression — DuckDB can't prepare a bound parameter
-        // inside a RETURNING clause, so the terminal check lives in C#. null => the task is missing.
-        var status = Execute<string?>(command => {
+        // Two statements on one connection: snapshot the currently-outstanding request keys (the pre-image),
+        // then apply the resolve. The pre-image only decides which advisory events to raise — SEP-2663: a
+        // server SHOULD ignore responses whose key is not currently outstanding — while the durable state
+        // change stays the single atomic UPDATE below. On a write-write conflict the pipeline re-runs the whole
+        // lambda, re-reading a fresh pre-image, so read and update never drift apart on the committed attempt.
+        // RETURNING carries the post-patch status (DuckDB can't bind a parameter inside RETURNING, so the
+        // terminal check lives in C#); a null status => the task is missing.
+        var (status, outstanding) = Execute<(string? Status, HashSet<string> Outstanding)>(command => {
+            command.CommandText = "SELECT CAST(json_extract(json, '$.inputRequests') AS VARCHAR) FROM mcp_tasks WHERE task_id = $task_id;";
+            Bind(command, "task_id", taskId);
+
+            HashSet<string> pending;
+            using (var reader = command.ExecuteReader())
+                pending = reader.Read() && !reader.IsDBNull(0) ? OutstandingKeys(reader.GetString(0)) : [];
+
+            command.Parameters.Clear();
             command.CommandText = sql;
-            // BindGuard(command, taskId);
             Bind(command, "task_id", taskId);
             Bind(command, "working", TaskStatusWire(McpTaskStatus.Working));
             Bind(command, "deletes", NullPatch(inputResponses.Keys));
             Bind(command, "now", NowWire());
-            using var reader = command.ExecuteReader();
-            return reader.Read() ? reader.GetString(0) : null;
+
+            using (var reader = command.ExecuteReader())
+                return (reader.Read() ? reader.GetString(0) : null, pending);
         });
 
         if (status is null)
@@ -227,17 +282,44 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
                             && status != TaskStatusWire(McpTaskStatus.Failed)
                             && status != TaskStatusWire(McpTaskStatus.Cancelled);
 
-        if (resolvedLiveTask)
-            foreach (var kvp in inputResponses)
-                InputResponseReceived?.Invoke(
-                    new InputResponseReceivedEventArgs {
-                        TaskId    = taskId,
-                        RequestId = kvp.Key,
-                        Response  = kvp.Value
-                    });
+        // The resolve is already durably committed. Snapshot the delegate once (a subscriber may unsubscribe
+        // mid-dispatch) and invoke each handler in isolation: a throwing subscriber must neither fail this
+        // call — the caller would treat resolve as failed and retry, double-notifying — nor block the
+        // remaining subscribers. A handler's failure is its own concern, so it is swallowed here.
+        if (resolvedLiveTask && InputResponseReceived is { } handlers) {
+            var subscribers = handlers.GetInvocationList();
+
+            foreach (var kvp in inputResponses) {
+                // SEP-2663: ignore a response whose key was not actually outstanding on this task.
+                if (!outstanding.Contains(kvp.Key))
+                    continue;
+
+                var args = new InputResponseReceivedEventArgs {
+                    TaskId    = taskId,
+                    RequestId = kvp.Key,
+                    Response  = kvp.Value
+                };
+
+                foreach (var subscriber in subscribers) {
+                    try {
+                        ((Action<InputResponseReceivedEventArgs>)subscriber)(args);
+                    } catch {
+                        // Intentionally isolated — see the note above. This type has no logger; surfacing
+                        // handler failures (trace/log) would be a follow-up if observability is wanted.
+                    }
+                }
+            }
+        }
 
         return Task.CompletedTask;
-        
+
+        // The request keys currently outstanding on the task, parsed from the pre-image inputRequests object
+        // (an absent or non-object value => no outstanding keys).
+        static HashSet<string> OutstandingKeys(string inputRequestsJson) =>
+            JsonNode.Parse(inputRequestsJson) is JsonObject requests
+                ? requests.Select(entry => entry.Key).ToHashSet()
+                : [];
+
         // A merge-patch fragment that deletes each satisfied request key (RFC 7386: a null value removes the
         // member). Keys are request ids; embedded via CAST(… AS JSON) as a real object.
         static string NullPatch(IEnumerable<string> keys) {
@@ -253,7 +335,76 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     /// <inheritdoc/>
     public event Action<InputResponseReceivedEventArgs>? InputResponseReceived;
 
-    public void Dispose() => _pool.Dispose();
+    // Stop the timer first so no new sweep starts, then release the pool. A sweep already in flight may
+    // observe the disposed pool and throw; OnSweepTick swallows it.
+    public void Dispose() {
+        _sweepTimer.Dispose();
+        _pool.Dispose();
+    }
+
+    // SEP-2663 permits marking a task failed once its TTL elapses. A JSON-RPC-shaped error with a
+    // server-defined code (-32001) records why; stored opaquely (like SetFailedAsync) so GetTaskAsync
+    // surfaces it verbatim.
+    const string ExpiryErrorJson =
+        """{"code":-32001,"message":"Task expired: its time-to-live elapsed before completion."}""";
+
+    // Timer callback: skip if a prior sweep is still running, and never let a failure escape the timer.
+    void OnSweepTick(object? state) {
+        if (Interlocked.CompareExchange(ref _sweeping, 1, 0) != 0)
+            return;
+
+        try {
+            SweepExpiredTasks();
+        } catch {
+            // Best-effort background cleanup: a failed sweep (pool disposed mid-tick at shutdown, or a
+            // transient DuckDB error the pipeline exhausted) is swallowed and the next tick retries. This
+            // type has no logger; surfacing sweep failures would be a follow-up if observability is wanted.
+        } finally {
+            Volatile.Write(ref _sweeping, 0);
+        }
+    }
+
+    // Two-phase TTL sweep against one snapshot of the clock:
+    //   1. mark expired live tasks failed, so a poll inside the grace window observes the failure;
+    //   2. delete every task whose expiry is older than the grace period (terminal ones too).
+    // Both statements are idempotent, so the resilience pipeline may safely retry the whole batch on a
+    // write-write conflict. One pooled connection carries both phases.
+    void SweepExpiredTasks() {
+        var now         = _time.GetUtcNow();
+        var purgeCutoff = now - _options.GracePeriod;
+
+        // status + lastUpdatedAt like BuildPatch, plus the error stored as an opaque JSON string so
+        // GetTaskAsync's json_extract_string('$.error') reads it back exactly.
+        var failedPatch = new JsonObject {
+            ["status"]        = TaskStatusWire(McpTaskStatus.Failed),
+            ["lastUpdatedAt"] = now.ToString("O"),
+            ["error"]         = JsonValue.Create(ExpiryErrorJson)
+        }.ToJsonString();
+
+        Execute(command => {
+            command.CommandText = """
+            UPDATE mcp_tasks
+            SET json = json_merge_patch(json, $patch)
+            WHERE expires_at IS NOT NULL
+              AND expires_at <= $now
+              AND json_extract_string(json, '$.status') NOT IN ('completed', 'failed', 'cancelled');
+            """;
+            Bind(command, "patch", failedPatch);
+            Bind(command, "now", now.UtcDateTime);
+            var marked = command.ExecuteNonQuery();
+
+            command.Parameters.Clear();
+            command.CommandText = """
+            DELETE FROM mcp_tasks
+            WHERE expires_at IS NOT NULL
+              AND expires_at <= $cutoff;
+            """;
+            Bind(command, "cutoff", purgeCutoff.UtcDateTime);
+            var deleted = command.ExecuteNonQuery();
+
+            return marked + deleted;
+        });
+    }
 
     // complete / fail / set-input-requests: patch the row iff it is still live, leaving terminal rows
     // untouched. The guard lives in the SET's CASE, not the WHERE, so the row still matches on existence:
@@ -271,7 +422,6 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
         var exists = Execute(command => {
             command.CommandText = sql;
-            // BindGuard(command, taskId);
             Bind(command, "task_id", taskId);
             Bind(command, "patch", BuildPatch(status, body).ToJsonString());
             using var reader = command.ExecuteReader();
@@ -299,15 +449,6 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
     static InvalidOperationException NotFound(string taskId) =>
         new($"Task '{taskId}' not found.");
-
-    // // Binds the terminal-status guard shared by every transition, all from the enum so the WHERE clause
-    // // carries no status literals.
-    // static void BindGuard(DbCommand command, string taskId) {
-    //     Bind(command, "task_id", taskId);
-    //     Bind(command, "terminal_completed", TaskStatusWire(McpTaskStatus.Completed));
-    //     Bind(command, "terminal_failed",    TaskStatusWire(McpTaskStatus.Failed));
-    //     Bind(command, "terminal_cancelled", TaskStatusWire(McpTaskStatus.Cancelled));
-    // }
 
     static void Bind(DbCommand command, string name, object? value) =>
         command.Parameters.Add(new DuckDBParameter(name, value ?? DBNull.Value));
