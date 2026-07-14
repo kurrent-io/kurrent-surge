@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Polly;
 
 namespace Kurrent.Surge.Mcp.Tests;
 
@@ -30,17 +29,12 @@ public sealed class McpTaskStoreConformanceTests : IDisposable {
     /// <summary>Builds an <see cref="IMcpTaskStore"/> from a connection string and clock.</summary>
     public delegate IMcpTaskStore StoreFactory(string connectionString, TimeProvider timeProvider);
 
-    // The implementations under test. Add or remove a store here and the entire suite follows.
-    // Retry is DISABLED for every store: an empty ResiliencePipelineBuilder means no retry policy at
-    // all, so the concurrency test exercises each store's raw behaviour under write-write contention.
+    // The implementations under test. Add or remove a store here and the entire suite follows. Each is
+    // built with its default resilience (the write-conflict retry) — i.e. how it is actually used — so the
+    // concurrency test verifies that same-task writers converge under contention.
     public static IEnumerable<Func<StoreFactory>> Stores() {
-        yield return () => (cs, time) => new DuckDBMcpTaskStore(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
-        yield return () => (cs, time) => new DuckDBMcpTaskStoreV2(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
-        yield return () => (cs, time) => new QuackMcpTaskStore(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
-        yield return () => (cs, time) => new JsonMcpTaskStore(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
-        yield return () => (cs, time) => new JsonMcpTaskStoreV2(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
-        yield return () => (cs, time) => new JsonMcpTaskStoreV3(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
-        yield return () => (cs, time) => new DuckDBMcpTaskStoreV3(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
+        yield return () => (cs, time) => new DuckDBMcpTaskStore(cs, timeProvider: time);
+        yield return () => (cs, time) => new QuackMcpTaskStore(cs, timeProvider: time);
     }
 
     // One store per test, disposed with the test instance.

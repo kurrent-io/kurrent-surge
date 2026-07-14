@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using DuckDB.NET.Data;
 using DuckDB.NET.Native;
@@ -14,18 +15,34 @@ using Polly.Retry;
 namespace Kurrent.Surge.Mcp;
 
 /// <summary>
-/// Leaner rewrite of <see cref="JsonMcpTaskStoreV2"/>: the same single-row JSON-patch behavior over a
-/// Kurrent.Quack <see cref="DuckDBConnectionPool"/>, with the near-identical complete/fail transitions
-/// collapsed into one generic body-patch helper.
+/// A DuckDB-backed <see cref="IMcpTaskStore"/> (ModelContextProtocol.Core 2.0) that persists each task as a
+/// single JSON document — <c>(task_id, json)</c> — and applies every transition as a server-side patch: a
+/// guarded single-statement <c>UPDATE … json_merge_patch(…)</c> fenced on the document's own
+/// <c>$.status</c>, with no read-modify-write. Connections come from a Kurrent.Quack
+/// <see cref="DuckDBConnectionPool"/> via the plain ADO.NET command API.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Payloads round-trip byte-for-byte: <c>result</c> and <c>error</c> are stored as opaque JSON string
+/// values — the caller's raw text is never re-parsed by DuckDB — and read back with
+/// <c>json_extract_string</c>, the exact inverse of JSON string-escaping. <c>inputRequests</c> is a real
+/// nested object so <c>json_merge_patch</c> merges concurrent additions.
+/// </para>
+/// <para>
+/// No lock: each operation is one statement on a pooled connection, and DuckDB's optimistic write-write
+/// conflicts are absorbed by the resilience pipeline's retry. Register as a singleton; file-backed only
+/// (<see cref="DuckDBConnectionPool"/> rejects <c>:memory:</c> data sources). The
+/// <see cref="InputResponseReceived"/> event is in-process.
+/// </para>
+/// </remarks>
 [PublicAPI]
-public sealed class JsonMcpTaskStoreV3 : IMcpTaskStore, IDisposable {
+public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     readonly DuckDBConnectionPool   _pool;
     readonly DuckDBTaskStoreOptions _options;
     readonly TimeProvider           _time;
     readonly ResiliencePipeline     _pipeline;
 
-    public JsonMcpTaskStoreV3(
+    public DuckDBMcpTaskStore(
         string connectionString,
         DuckDBTaskStoreOptions? options = null,
         TimeProvider? timeProvider = null,
@@ -316,3 +333,13 @@ public sealed class JsonMcpTaskStoreV3 : IMcpTaskStore, IDisposable {
     static string SerializeInputRequests(IDictionary<string, InputRequest> requests) =>
         JsonSerializer.Serialize(requests, InputRequestMapTypeInfo);
 }
+
+// Source-generated (AOT-safe) contract for the whole task document. The MCP SDK registers the input-request
+// map but not McpTaskInfo itself, so this store owns the context. CamelCase + string enums reproduce the
+// SDK's wire shape (status carries the SEP-2663 names).
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    UseStringEnumConverter = true,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(McpTaskInfo))]
+partial class JsonMcpTaskContext : JsonSerializerContext;
