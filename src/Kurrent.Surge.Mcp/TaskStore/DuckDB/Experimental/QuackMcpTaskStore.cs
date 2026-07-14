@@ -8,7 +8,7 @@ using ModelContextProtocol.Server;
 using Polly;
 using Polly.Retry;
 
-namespace Kurrent.Surge.Mcp;
+namespace Kurrent.Surge.Mcp.DuckDB.Experimental;
 
 /// <summary>
 /// A self-contained DuckDB-backed <see cref="IMcpTaskStore"/> (ModelContextProtocol.Core 2.0) built on
@@ -33,7 +33,7 @@ sealed class QuackMcpTaskStore : IMcpTaskStore, IDisposable {
     readonly DuckDBConnectionPool     _pool;   // concurrent reads
     readonly DuckDBAdvancedConnection _writer; // dedicated, serialized writer (not from the pool)
     readonly SemaphoreSlim            _writeLock = new(1, 1);
-    readonly DuckDBTaskStoreOptions   _options;
+    readonly DuckDBMcpTaskStoreOptions   _options;
     readonly TimeProvider             _time;
     readonly ResiliencePipeline       _pipeline;
 
@@ -45,13 +45,13 @@ sealed class QuackMcpTaskStore : IMcpTaskStore, IDisposable {
     /// </summary>
     public QuackMcpTaskStore(
         DuckDBConnectionPool connectionPool,
-        DuckDBTaskStoreOptions? options = null,
+        DuckDBMcpTaskStoreOptions? options = null,
         TimeProvider? timeProvider = null,
         ResiliencePipelineBuilder? pipelineBuilder = null
     ) {
         _pool    = connectionPool;
         _writer  = _pool.Open(); // a dedicated connection, deliberately NOT returned to the pool
-        _options = options      ?? new DuckDBTaskStoreOptions();
+        _options = options      ?? new DuckDBMcpTaskStoreOptions();
         _time    = timeProvider ?? TimeProvider.System;
 
         // A caller-supplied builder is used as-is — it fully owns the pipeline, including whether to
@@ -76,7 +76,7 @@ sealed class QuackMcpTaskStore : IMcpTaskStore, IDisposable {
 
     public QuackMcpTaskStore(
         string connectionString,
-        DuckDBTaskStoreOptions? options = null,
+        DuckDBMcpTaskStoreOptions? options = null,
         TimeProvider? timeProvider = null,
         ResiliencePipelineBuilder? pipelineBuilder = null
     ) : this(

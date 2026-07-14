@@ -6,7 +6,7 @@ using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace Kurrent.Surge.Mcp;
+namespace Kurrent.Surge.Mcp.DuckDB.Experimental;
 
 /// <summary>
 /// Command extensions over a <see cref="DuckDBAdvancedConnection"/> that encapsulate the Kurrent.Quack

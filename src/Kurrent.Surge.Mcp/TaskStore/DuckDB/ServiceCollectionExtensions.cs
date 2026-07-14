@@ -1,11 +1,9 @@
-using Kurrent.Surge.Mcp;
+using Kurrent.Surge.Mcp.DuckDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ModelContextProtocol.Server;
 using Polly;
 
-// DI extensions conventionally live in the Microsoft.Extensions.DependencyInjection namespace
-// so they surface on IServiceCollection without an extra using.
 namespace Microsoft.Extensions.DependencyInjection;
 
 [PublicAPI]
@@ -19,8 +17,8 @@ public static class DuckDBMcpTaskStoreServiceCollectionExtensions {
     /// <param name="connectionString">DuckDB connection string. Use a file source for durability.</param>
     /// <param name="options">
     /// Store options. When <see langword="null"/> they are resolved from a registered
-    /// <see cref="DuckDBTaskStoreOptions"/>, then bound from the
-    /// <see cref="DuckDBTaskStoreOptions.ConfigurationSection"/> section of a registered
+    /// <see cref="DuckDBMcpTaskStoreOptions"/>, then bound from the
+    /// <see cref="DuckDBMcpTaskStoreOptions.ConfigurationSection"/> section of a registered
     /// <see cref="IConfiguration"/>, then defaulted.
     /// </param>
     /// <param name="pipelineBuilder">
@@ -30,16 +28,16 @@ public static class DuckDBMcpTaskStoreServiceCollectionExtensions {
     public static IServiceCollection AddDuckDBMcpTaskStore(
         this IServiceCollection services,
         string connectionString,
-        DuckDBTaskStoreOptions? options = null,
+        DuckDBMcpTaskStoreOptions? options = null,
         ResiliencePipelineBuilder? pipelineBuilder = null
     ) {
         services.TryAddSingleton<IMcpTaskStore>(sp => {
-            var resolved = options ?? sp.GetService<DuckDBTaskStoreOptions>();
+            var resolved = options ?? sp.GetService<DuckDBMcpTaskStoreOptions>();
 
             // Bind from configuration; a definite (non-null) IConfiguration keeps the Get<T> call
             // interceptable by the AOT-safe source-generated configuration binder.
             if (resolved is null && sp.GetService<IConfiguration>() is { } configuration)
-                resolved = configuration.GetSection(DuckDBTaskStoreOptions.ConfigurationSection).Get<DuckDBTaskStoreOptions>();
+                resolved = configuration.GetSection(DuckDBMcpTaskStoreOptions.ConfigurationSection).Get<DuckDBMcpTaskStoreOptions>();
 
             return new DuckDBMcpTaskStore(connectionString, resolved, sp.GetService<TimeProvider>(), pipelineBuilder);
         });

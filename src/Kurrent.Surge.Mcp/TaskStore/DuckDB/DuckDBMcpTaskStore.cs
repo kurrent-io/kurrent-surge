@@ -1,7 +1,6 @@
 using System.Data.Common;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using DuckDB.NET.Data;
 using DuckDB.NET.Native;
@@ -12,7 +11,7 @@ using ModelContextProtocol.Server;
 using Polly;
 using Polly.Retry;
 
-namespace Kurrent.Surge.Mcp;
+namespace Kurrent.Surge.Mcp.DuckDB;
 
 /// <summary>
 /// A DuckDB-backed <see cref="IMcpTaskStore"/> (ModelContextProtocol.Core 2.0) that persists each task as a
@@ -37,10 +36,10 @@ namespace Kurrent.Surge.Mcp;
 /// </remarks>
 [PublicAPI]
 public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
-    readonly DuckDBConnectionPool   _pool;
-    readonly DuckDBTaskStoreOptions _options;
-    readonly TimeProvider           _time;
-    readonly ResiliencePipeline     _pipeline;
+    readonly DuckDBConnectionPool      _pool;
+    readonly DuckDBMcpTaskStoreOptions _options;
+    readonly TimeProvider              _time;
+    readonly ResiliencePipeline        _pipeline;
 
     /// <summary>
     /// Creates a store over the given DuckDB connection string (use a file data source for durability).
@@ -54,27 +53,17 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     /// </param>
     public DuckDBMcpTaskStore(
         string connectionString,
-        DuckDBTaskStoreOptions? options = null,
+        DuckDBMcpTaskStoreOptions? options = null,
         TimeProvider? timeProvider = null,
         ResiliencePipelineBuilder? pipelineBuilder = null
     ) {
-        _pool    = new DuckDBConnectionPool(connectionString);
-        _options = options ?? new DuckDBTaskStoreOptions();
+        _pool    = new(connectionString);
+        _options = options      ?? new DuckDBMcpTaskStoreOptions();
         _time    = timeProvider ?? TimeProvider.System;
 
         _pipeline = pipelineBuilder is not null
             ? pipelineBuilder.Build()
-            : new ResiliencePipelineBuilder()
-                .AddRetry(new RetryStrategyOptions {
-                    ShouldHandle     = args => ValueTask.FromResult(
-                        args.Outcome.Exception is DuckDBException { ErrorType: DuckDBErrorType.Transaction }),
-                    MaxRetryAttempts = 10,
-                    Delay            = TimeSpan.FromMilliseconds(10),
-                    MaxDelay         = TimeSpan.FromMilliseconds(250),
-                    BackoffType      = DelayBackoffType.Exponential,
-                    UseJitter        = true
-                })
-                .Build();
+            : Resilience.GetDefaultPipelineBuilder().Build();
 
         Execute(command => {
             command.CommandText = """
@@ -107,8 +96,12 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
             _options.DefaultTimeToLive,
             _options.DefaultPollIntervalMs);
 
+        const string sql = """
+        INSERT INTO mcp_tasks (task_id, json) VALUES ($task_id, $json);
+        """;
+
         Execute(command => {
-            command.CommandText = "INSERT INTO mcp_tasks (task_id, json) VALUES ($task_id, $json);";
+            command.CommandText = sql;
             Bind(command, "task_id", info.TaskId);
             Bind(command, "json", Serialize(info));
             return command.ExecuteNonQuery();
@@ -122,8 +115,11 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         // result/error were stored as opaque JSON strings, so json_extract_string returns the caller's
         // exact raw text; re-parsing it yields a JsonElement whose GetRawText is byte-identical.
         const string sql = """
-        SELECT CAST(json AS VARCHAR), json_extract_string(json, '$.result'), json_extract_string(json, '$.error')
-        FROM mcp_tasks
+        SELECT 
+            CAST(json AS VARCHAR), 
+            json_extract_string(json, '$.result'), 
+            json_extract_string(json, '$.error')
+        FROM  mcp_tasks
         WHERE task_id = $task_id;
         """;
 
@@ -155,18 +151,19 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     /// <inheritdoc/>
     public Task<bool> SetCancelledAsync(string taskId, CancellationToken cancellationToken = default) {
         // Guarded in the WHERE (terminal-excluded): a row comes back only when a live task actually
-        // transitions (true); terminal and missing both yield no row (false). No existence probe needed.
+        // transitions (true); terminal and missing both yield no row (false).
         const string sql = """
         UPDATE mcp_tasks
         SET json = json_merge_patch(json, $patch)
         WHERE task_id = $task_id
-          AND json_extract_string(json, '$.status') NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled)
+          AND json_extract_string(json, '$.status') NOT IN ('completed', 'failed', 'cancelled')
         RETURNING task_id;
         """;
 
         var transitioned = Execute(command => {
             command.CommandText = sql;
-            BindGuard(command, taskId);
+            // BindGuard(command, taskId);
+            Bind(command, "task_id", taskId);
             Bind(command, "patch", BuildPatch(McpTaskStatus.Cancelled).ToJsonString());
             using var reader = command.ExecuteReader();
             return reader.Read();
@@ -181,8 +178,10 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         IDictionary<string, InputRequest> inputRequests,
         CancellationToken cancellationToken = default
     ) =>
-        // Add inputRequests as a real object so json_merge_patch merges it recursively — concurrent calls accumulate keys.
-        ApplyOrThrow(taskId, McpTaskStatus.InputRequired, patch => patch["inputRequests"] = JsonNode.Parse(SerializeInputRequests(inputRequests)));
+        // Add inputRequests as a real object so json_merge_patch merge
+        // s it recursively — concurrent calls accumulate keys.
+        ApplyOrThrow(taskId, McpTaskStatus.InputRequired,
+            patch => patch["inputRequests"] = JsonNode.Parse(SerializeInputRequests(inputRequests)));
 
     /// <inheritdoc/>
     public Task ResolveInputRequestsAsync(
@@ -195,7 +194,7 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         // resolved (raise events). Deletes the satisfied keys and flips back to Working once none remain.
         const string sql = """
         UPDATE mcp_tasks
-        SET json = CASE WHEN json_extract_string(json, '$.status') NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled)
+        SET json = CASE WHEN json_extract_string(json, '$.status') NOT IN ('completed', 'failed', 'cancelled')
                         THEN json_merge_patch(
                                  json_merge_patch(json, json_object('inputRequests', CAST($deletes AS JSON), 'lastUpdatedAt', $now)),
                                  CASE WHEN len(json_keys(json_merge_patch(json, json_object('inputRequests', CAST($deletes AS JSON))), '$.inputRequests')) = 0
@@ -210,10 +209,11 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
         // inside a RETURNING clause, so the terminal check lives in C#. null => the task is missing.
         var status = Execute<string?>(command => {
             command.CommandText = sql;
-            BindGuard(command, taskId);
-            Bind(command, "working", StatusWire(McpTaskStatus.Working));
+            // BindGuard(command, taskId);
+            Bind(command, "task_id", taskId);
+            Bind(command, "working", TaskStatusWire(McpTaskStatus.Working));
             Bind(command, "deletes", NullPatch(inputResponses.Keys));
-            Bind(command, "now", Now());
+            Bind(command, "now", NowWire());
             using var reader = command.ExecuteReader();
             return reader.Read() ? reader.GetString(0) : null;
         });
@@ -223,9 +223,9 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
         // A live task ends non-terminal after resolve; a terminal one was left untouched. Only the former
         // notifies listeners.
-        var resolvedLiveTask = status != StatusWire(McpTaskStatus.Completed)
-                            && status != StatusWire(McpTaskStatus.Failed)
-                            && status != StatusWire(McpTaskStatus.Cancelled);
+        var resolvedLiveTask = status != TaskStatusWire(McpTaskStatus.Completed)
+                            && status != TaskStatusWire(McpTaskStatus.Failed)
+                            && status != TaskStatusWire(McpTaskStatus.Cancelled);
 
         if (resolvedLiveTask)
             foreach (var kvp in inputResponses)
@@ -237,6 +237,17 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
                     });
 
         return Task.CompletedTask;
+        
+        // A merge-patch fragment that deletes each satisfied request key (RFC 7386: a null value removes the
+        // member). Keys are request ids; embedded via CAST(… AS JSON) as a real object.
+        static string NullPatch(IEnumerable<string> keys) {
+            var deletes = new JsonObject();
+
+            foreach (var key in keys)
+                deletes[key] = null;
+
+            return deletes.ToJsonString();
+        }
     }
 
     /// <inheritdoc/>
@@ -251,7 +262,7 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     Task ApplyOrThrow(string taskId, McpTaskStatus status, Action<JsonObject> body) {
         const string sql = """
         UPDATE mcp_tasks
-        SET json = CASE WHEN json_extract_string(json, '$.status') NOT IN ($terminal_completed, $terminal_failed, $terminal_cancelled)
+        SET json = CASE WHEN json_extract_string(json, '$.status') NOT IN ('completed', 'failed', 'cancelled')
                         THEN json_merge_patch(json, $patch)
                         ELSE json END
         WHERE task_id = $task_id
@@ -260,7 +271,8 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 
         var exists = Execute(command => {
             command.CommandText = sql;
-            BindGuard(command, taskId);
+            // BindGuard(command, taskId);
+            Bind(command, "task_id", taskId);
             Bind(command, "patch", BuildPatch(status, body).ToJsonString());
             using var reader = command.ExecuteReader();
             return reader.Read();
@@ -277,7 +289,10 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     // (JsonValue.Create) — opaque, so DuckDB never re-serializes them and they round-trip byte-for-byte;
     // inputRequests goes in as a real object that json_merge_patch merges recursively.
     JsonObject BuildPatch(McpTaskStatus status, Action<JsonObject>? body = null) {
-        var patch = new JsonObject { ["status"] = StatusWire(status), ["lastUpdatedAt"] = Now() };
+        var patch = new JsonObject {
+            ["status"] = TaskStatusWire(status), 
+            ["lastUpdatedAt"] = NowWire()
+        };
         body?.Invoke(patch);
         return patch;
     }
@@ -285,35 +300,24 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
     static InvalidOperationException NotFound(string taskId) =>
         new($"Task '{taskId}' not found.");
 
-    // Binds the terminal-status guard shared by every transition, all from the enum so the WHERE clause
-    // carries no status literals.
-    void BindGuard(DbCommand command, string taskId) {
-        Bind(command, "task_id", taskId);
-        Bind(command, "terminal_completed", StatusWire(McpTaskStatus.Completed));
-        Bind(command, "terminal_failed",    StatusWire(McpTaskStatus.Failed));
-        Bind(command, "terminal_cancelled", StatusWire(McpTaskStatus.Cancelled));
-    }
+    // // Binds the terminal-status guard shared by every transition, all from the enum so the WHERE clause
+    // // carries no status literals.
+    // static void BindGuard(DbCommand command, string taskId) {
+    //     Bind(command, "task_id", taskId);
+    //     Bind(command, "terminal_completed", TaskStatusWire(McpTaskStatus.Completed));
+    //     Bind(command, "terminal_failed",    TaskStatusWire(McpTaskStatus.Failed));
+    //     Bind(command, "terminal_cancelled", TaskStatusWire(McpTaskStatus.Cancelled));
+    // }
 
     static void Bind(DbCommand command, string name, object? value) =>
         command.Parameters.Add(new DuckDBParameter(name, value ?? DBNull.Value));
 
     // ISO-8601 round-trippable text; System.Text.Json parses it back to DateTimeOffset on read.
-    string Now() => _time.GetUtcNow().ToString("O");
-
-    // A merge-patch fragment that deletes each satisfied request key (RFC 7386: a null value removes the
-    // member). Keys are request ids; embedded via CAST(… AS JSON) as a real object.
-    static string NullPatch(IEnumerable<string> keys) {
-        var deletes = new JsonObject();
-
-        foreach (var key in keys)
-            deletes[key] = null;
-
-        return deletes.ToJsonString();
-    }
+    string NowWire() => _time.GetUtcNow().ToString("O");
 
     // The SEP-2663 wire names the enum declares via [JsonStringEnumMemberName]; these are exactly the
     // values the source-generated document carries in "$.status", so guard predicates match.
-    static string StatusWire(McpTaskStatus status) =>
+    static string TaskStatusWire(McpTaskStatus status) =>
         status switch {
             McpTaskStatus.Working       => "working",
             McpTaskStatus.InputRequired => "input_required",
@@ -323,13 +327,14 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
             _                           => throw new ArgumentOutOfRangeException(nameof(status), status, "Unknown task status.")
         };
 
-    static string Serialize(McpTaskInfo info) =>
-        JsonSerializer.Serialize(info, JsonMcpTaskContext.Default.McpTaskInfo);
+    static string Serialize(McpTaskInfo info) {
+        return JsonSerializer.Serialize(info, Mcp.McpTaskStoreSerializerContext.Default.McpTaskInfo);
+    }
 
     // Deserializes the structural fields; result/error are overridden by the caller from json_extract_string
     // (they are stored as opaque strings, so the value here is ignored).
     static McpTaskInfo Deserialize(string json) {
-        var info = JsonSerializer.Deserialize(json, JsonMcpTaskContext.Default.McpTaskInfo)!;
+        var info = JsonSerializer.Deserialize(json, Mcp.McpTaskStoreSerializerContext.Default.McpTaskInfo)!;
         // A fully-resolved request set can serialize back as an empty object; surface "no pending
         // requests" as null, matching the other stores' read contract.
         return info.InputRequests is { Count: 0 } ? info with { InputRequests = null } : info;
@@ -347,9 +352,18 @@ public sealed class DuckDBMcpTaskStore : IMcpTaskStore, IDisposable {
 // Source-generated (AOT-safe) contract for the whole task document. The MCP SDK registers the input-request
 // map but not McpTaskInfo itself, so this store owns the context. CamelCase + string enums reproduce the
 // SDK's wire shape (status carries the SEP-2663 names).
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    UseStringEnumConverter = true,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-[JsonSerializable(typeof(McpTaskInfo))]
-partial class JsonMcpTaskContext : JsonSerializerContext;
+
+static class Resilience {
+    public static RetryStrategyOptions DefaultRetryOptions => new() {
+        ShouldHandle     = args => ValueTask.FromResult(args.Outcome.Exception is DuckDBException { ErrorType: DuckDBErrorType.Transaction }),
+        MaxRetryAttempts = 10,
+        Delay            = TimeSpan.FromMilliseconds(10),
+        MaxDelay         = TimeSpan.FromMilliseconds(250),
+        BackoffType      = DelayBackoffType.Exponential,
+        UseJitter        = true
+    };
+    
+    public static ResiliencePipelineBuilder GetDefaultPipelineBuilder() =>
+        new ResiliencePipelineBuilder()
+            .AddRetry(DefaultRetryOptions);
+}
