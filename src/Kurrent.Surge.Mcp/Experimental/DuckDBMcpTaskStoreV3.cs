@@ -85,6 +85,13 @@ public sealed class DuckDBMcpTaskStoreV3 : IMcpTaskStore, IDisposable {
             input_requests_json JSON
         );
         """;
+    
+    const string SchemaSql2 = """
+        CREATE TABLE IF NOT EXISTS mcp_tasks (
+            task_id VARCHAR   NOT NULL PRIMARY KEY,
+            json         JSON
+        );
+        """;
 
     /// <inheritdoc/>
     public Task<McpTaskInfo> CreateTaskAsync(CancellationToken cancellationToken = default) {

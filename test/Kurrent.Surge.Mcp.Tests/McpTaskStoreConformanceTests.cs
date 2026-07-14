@@ -37,6 +37,9 @@ public sealed class McpTaskStoreConformanceTests : IDisposable {
         yield return () => (cs, time) => new DuckDBMcpTaskStore(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
         yield return () => (cs, time) => new DuckDBMcpTaskStoreV2(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
         yield return () => (cs, time) => new QuackMcpTaskStore(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
+        yield return () => (cs, time) => new JsonMcpTaskStore(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
+        yield return () => (cs, time) => new JsonMcpTaskStoreV2(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
+        yield return () => (cs, time) => new JsonMcpTaskStoreV3(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
         yield return () => (cs, time) => new DuckDBMcpTaskStoreV3(cs, timeProvider: time, pipelineBuilder: new ResiliencePipelineBuilder());
     }
 

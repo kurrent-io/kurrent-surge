@@ -29,8 +29,7 @@ namespace Kurrent.Surge.Mcp;
 /// data sources. The <see cref="InputResponseReceived"/> event is in-process.
 /// </para>
 /// </remarks>
-[PublicAPI]
-public sealed class QuackMcpTaskStore : IMcpTaskStore, IDisposable {
+sealed class QuackMcpTaskStore : IMcpTaskStore, IDisposable {
     readonly DuckDBConnectionPool     _pool;   // concurrent reads
     readonly DuckDBAdvancedConnection _writer; // dedicated, serialized writer (not from the pool)
     readonly SemaphoreSlim            _writeLock = new(1, 1);
@@ -122,7 +121,6 @@ public sealed class QuackMcpTaskStore : IMcpTaskStore, IDisposable {
     /// <inheritdoc/>
     public Task<McpTaskInfo?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         var info = ExecuteRead(conn => conn.GetTask(taskId));
-
         return Task.FromResult(info);
     }
 
