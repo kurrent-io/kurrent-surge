@@ -35,6 +35,7 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" Version="10.4.0" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
@@ -43,6 +44,9 @@
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Telemetry.Abstractions" Version="10.7.0" />
+    <!-- MCP task-store adapters. Kurrent.Surge.Mcp (2.0 face) uses this central version;
+         Kurrent.Surge.Mcp.Legacy pins the stable 1.4.1 contract via VersionOverride. -->
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.0.0-preview.2" />
     <PackageVersion Include="NJsonSchema" Version="11.6.1" />
     <PackageVersion Include="NodaTime" Version="3.3.0" />
     <PackageVersion Include="NodaTime.Serialization.Protobuf" Version="2.0.2" />

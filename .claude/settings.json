@@ -1,4 +1,24 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(./**/*.key)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*credential*)",
+      "Read(./**/*password*)",
+      "Read(./**/*secret*)",
+      "Read(./**/*token*.json)",
+      "Read(./**/launchSettings.json)",
+      "Read(./**/secrets.json)",
+      "Read(./**/secrets/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./appsettings.*.Local.json)",
+      "Read(./appsettings.Development.json)",
+      "Read(./secrets.json)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -17,6 +37,6 @@
     "symlinkDirectories": [
       "docs/node_modules"
     ],
-    "baseRef": "fresh"
+    "baseRef": "head"
   }
 }

@@ -536,6 +536,10 @@ test-results/
 wip/
 .wip/
 
+# DuckDB
+*.duckdb
+*.db
+
 ### Project-specific ###
 # every commit of these must be intentional (git add -f)
 

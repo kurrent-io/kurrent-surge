@@ -73,4 +73,9 @@
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
+
+  <Folder Name="/Mcp/">
+    <Project Path="src/Kurrent.Surge.Mcp/Kurrent.Surge.Mcp.csproj" />
+    <Project Path="test/Kurrent.Surge.Mcp.Tests/Kurrent.Surge.Mcp.Tests.csproj" />
+  </Folder>
 </Solution>
