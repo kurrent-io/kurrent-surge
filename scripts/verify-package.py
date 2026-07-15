@@ -83,6 +83,7 @@ class CsprojReference:
     vendor: bool = False
     bundle: bool = False
     analyzer: bool = False
+    packed_analyzer: bool = False
     private_assets: bool = False
 
 
@@ -106,6 +107,10 @@ class CsprojContract:
     @property
     def analyzer_projects(self):
         return [r for r in self.refs if r.kind == "project" and r.analyzer]
+
+    @property
+    def packed_analyzer_projects(self):
+        return [r for r in self.refs if r.kind == "project" and r.packed_analyzer]
 
 
 def _strip_ns(tag: str) -> str:
@@ -200,6 +205,7 @@ def parse_csproj(path: Path) -> CsprojContract:
                 csproj_path=proj_path,
                 bundle=_flag(elem, "Bundle"),
                 analyzer=_flag(elem, "Analyzer"),
+                packed_analyzer=_flag(elem, "PackedAnalyzer"),
                 private_assets=_private_assets_all(elem),
             ))
 
@@ -665,6 +671,25 @@ def run_csproj_checks(
             r.bad(f"analyzer project '{ap.identity}' assembly leaked into package", forbidden)
         else:
             r.ok(f"analyzer project '{ap.identity}' assembly correctly absent from package")
+
+    # ---- Packed analyzers (PackedAnalyzer="true") ----
+    # A project that packs a source generator must SHIP it under analyzers/dotnet/cs/ so the generator
+    # runs in consumer compilations (analyzers don't flow transitively through a plain dependency edge).
+    # The generator's Include is typically an MSBuild item (e.g. @(PackedAnalyzerProject)), so it can't
+    # be resolved to a single assembly name statically — assert the payload folder is populated rather
+    # than matching each generator by name.
+    if contract.packed_analyzer_projects:
+        analyzer_dlls = [e for e in pkg.entries
+                         if e.lower().startswith("analyzers/dotnet/cs/") and e.lower().endswith(".dll")]
+        if analyzer_dlls:
+            r.ok(f"packed analyzer(s) shipped under analyzers/dotnet/cs/ ({len(analyzer_dlls)} dll(s))")
+            for dll in analyzer_dlls:
+                r.note(f"  {dll}")
+        else:
+            r.bad(
+                "csproj declares a PackedAnalyzer=\"true\" reference but the package ships no "
+                "analyzers/dotnet/cs/*.dll — the generator will not run in consumers"
+            )
 
     # ---- Normal package references must be declared as deps ----
     for np in contract.normal_packages:

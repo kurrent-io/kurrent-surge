@@ -1,4 +1,3 @@
-using Kurrent.Testkit.Datasets;
 using Kurrent.Testkit.Datasets.HomeAutomation;
 using Kurrent.Testkit.Datasets.HomeAutomation.Contracts.Events;
 using Kurrent.Testkit.Datasets.HomeAutomation.Model;

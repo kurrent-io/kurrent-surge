@@ -1,4 +1,4 @@
-using Kurrent.Client;
+using Kurrent.Surge.Client;
 using Transfermarkt.Domain.Events;
 using Transfermarkt.Domain.Model;
 

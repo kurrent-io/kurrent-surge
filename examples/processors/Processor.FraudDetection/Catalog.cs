@@ -1,6 +1,4 @@
-using Kurrent.Client;
-using Kurrent.Client.Schema;
-using Kurrent.Schema.Catalogs;
+using Kurrent.Surge.Schema.Catalogs;
 using Processor.FraudDetection.Events;
 
 namespace Processor.FraudDetection;

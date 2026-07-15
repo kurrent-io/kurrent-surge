@@ -9,8 +9,9 @@ body:
       label: Target package
       description: Which package would this affect? (optional)
       options:
-        - Kurrent.Client
-        - Kurrent.Streaming
+        - Kurrent.Surge
+        - Kurrent.Surge.Core
+        - Kurrent.Surge.Schema.Catalogs
         - Not sure / cross-cutting
     validations:
       required: false

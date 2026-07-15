@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ARTIFACTS_DIR="$REPO_ROOT/.artifacts/benchmarks"
-PROJECT="$REPO_ROOT/perf/Kurrent.Client.Benchmarks/Kurrent.Client.Benchmarks.csproj"
+PROJECT="$REPO_ROOT/perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj"
 
 mkdir -p "$ARTIFACTS_DIR"
 

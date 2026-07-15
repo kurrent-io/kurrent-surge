@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
+    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
+  </ItemGroup>
+
+<ItemGroup>
+    <Using Include="FakeItEasy" />
+    <Using Include="TUnit" />
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Testkit.TUnit" />
+    <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+    <Using Include="Kurrent.Surge.Testkit" />
+    <Using Include="Kurrent.Surge.Client" />
+    <Using Include="Kurrent.Surge.Tests.EventuallyDefaults" Static="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.NET.Data.Full" />
+    <PackageReference Include="FakeItEasy" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="NodaTime.Testing" />
+    <PackageReference Include="R3" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Integration\Streams\Append\AppendRecords\" />
+    <Folder Include="Integration\Streams\Append\AppendToStream\" />
+  </ItemGroup>
+</Project>

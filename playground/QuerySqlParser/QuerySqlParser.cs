@@ -1,6 +1,6 @@
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Client.Queries;
+namespace Kurrent.Surge.Client.Queries;
 
 /// <summary>
 /// Parses <c>SELECT proj_list FROM kdb.records [WHERE expr] [LIMIT n]</c> into a <see cref="ParsedQuery"/>.

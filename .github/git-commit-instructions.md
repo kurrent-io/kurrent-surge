@@ -53,41 +53,48 @@ Breaking changes correlate with MAJOR version bumps in SemVer. Always mark them 
 
 ## Scope
 
-Optional contextual information in parentheses after the type. Must be lowercase when provided.
-Use dot notation for module-level precision within a package: `type(package.module):`.
+Optional, lowercase, in parentheses after the type. A scope names a **logical area of the SDK, not a
+package** — the same area spans both the `Kurrent.Surge.Core` contracts and the `Kurrent.Surge`
+implementation. Use dot notation for module-level precision: `type(area.module):`.
 
-### Package scopes
+### Areas
 
-| Scope        | Area                                |
-|--------------|-------------------------------------|
-| `client`     | Kurrent.Client package              |
-| `streaming`  | Kurrent.Streaming package           |
-| `variant`    | Variant discriminated union library |
-| `testing`    | Shared test infrastructure          |
+| Scope       | Logical area (spans contracts + implementation)                                               |
+|-------------|-----------------------------------------------------------------------------------------------|
+| `client`    | gRPC client surface — streams, registry, connectors, indexes, admin, legacy transport         |
+| `streaming` | stream processing — processors, drones, data sources, checkpointing, partitioning, projectors |
+| `schema`    | message catalogs, naming, resolution, and serialization                                       |
+| `core`      | shared foundation used by both client and streaming — records, positions, errors, base options, diagnostics |
+| `variant`   | Variant discriminated-union library and its source generator                                  |
+| `testing`   | shared test infrastructure — testkit, Aspire host, datasets                                   |
 
-### Client module scopes
+### Module sub-scopes
 
-Use `client.module` when the change is scoped to a specific module within the client package.
+Use `area.module` when a change is confined to one module within an area.
 
-| Scope               | Area                                         |
-|---------------------|----------------------------------------------|
-| `client.streams`    | Stream read, write, and manage operations    |
-| `client.registry`   | Schema registry                              |
-| `client.connectors` | Connector management                         |
-| `client.legacy`     | V1 legacy gRPC compatibility layer           |
-| `client.schema`     | Schema system, serializers, and type mappers |
-| `client.config`     | Client configuration and options             |
+| Scope                     | Area                                       |
+|---------------------------|--------------------------------------------|
+| `client.streams`          | Stream read, write, and manage operations  |
+| `client.registry`         | Schema registry                            |
+| `client.connectors`       | Connector management                       |
+| `client.indexes`          | Secondary indexes                          |
+| `client.admin`            | Server administration (scavenge, etc.)     |
+| `client.legacy`           | V1 legacy gRPC compatibility layer         |
+| `client.config`           | Client configuration and options           |
+| `streaming.processors`    | Processor/drone runtime and data sources   |
+| `streaming.projectors`    | Projections and projection stores          |
+| `streaming.checkpointing` | Checkpoint stores and position tracking    |
+| `streaming.partitioning`  | Partition assignment and distribution      |
 
 ### Examples
 
 ```
 feat(client.streams): added bidirectional read support
-fix(client.connectors): corrected timeout on status polling
+fix(streaming.checkpointing): corrected offset drift on rebalance
+refactor(core): moved shared options onto the contract layer
+perf(schema): reduced allocations in the message resolver
 refactor(client.legacy): extracted shared retry logic
-feat(streaming): added dead-letter queue for failed records
-fix(streaming): corrected offset drift on partition rebalance
-test(testing): added new read test for empty stream
-perf(client.schema): reduced allocations in type mapper lookup
+test(testing): added empty-stream read test
 docs(client.registry): documented schema evolution rules
 deps(variant): bumped source generator dependencies
 ```

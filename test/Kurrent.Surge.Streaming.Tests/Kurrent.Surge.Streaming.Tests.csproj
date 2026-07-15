@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
+    <ProjectReference Include="..\..\src\Variant\Variant.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Testkit.TUnit" />
+    <Using Include="Kurrent.Surge.Testkit" />
+    <Using Include="TUnit" />
+    <Using Include="TUnit.Core.Executors" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

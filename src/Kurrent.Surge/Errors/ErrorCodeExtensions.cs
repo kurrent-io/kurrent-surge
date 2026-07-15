@@ -1,0 +1,13 @@
+using Google.Rpc;
+using Kurrent.GoogleRpc;
+
+namespace Kurrent.Surge.Client.Errors;
+
+[PublicAPI]
+public static class ErrorCodeExtensions {
+    extension(ErrorCode errorCode) {
+        public bool MatchesRpcStatusReason(Status status, ErrorInfo? errorInfo = null) =>
+            errorCode.Value.Equals(errorInfo?.Reason ?? "", StringComparison.OrdinalIgnoreCase) ||
+            status.GetGrpcStatusCode().ToString().Underscore().ToUpperInvariant().Equals(errorCode.Value, StringComparison.OrdinalIgnoreCase);
+    }
+}

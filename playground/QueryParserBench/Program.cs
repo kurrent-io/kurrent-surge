@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
-using Kurrent.Client.Queries;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client.Queries;
+using Kurrent.Surge.Client.Streams;
 using SqlParser;
 using SqlParser.Dialects;
 

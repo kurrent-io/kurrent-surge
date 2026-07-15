@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Kurrent.Streaming;
+using Kurrent.Surge.Streaming;
 using Microsoft.Extensions.Logging;
 using Processor.ClickstreamSessions.Events;
 

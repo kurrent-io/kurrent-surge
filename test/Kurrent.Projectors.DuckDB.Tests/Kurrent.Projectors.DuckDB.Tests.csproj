@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Projectors.DuckDB\Kurrent.Projectors.DuckDB.csproj" />
-    <ProjectReference Include="..\Kurrent.Sdk.Testkit\Kurrent.Sdk.Testkit.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Kurrent.Testkit" />
     <Using Include="Kurrent.Testkit.TUnit" />
-    <Using Include="Kurrent.Sdk.Testkit" />
+    <Using Include="Kurrent.Surge.Testkit" />
     <Using Include="TUnit" />
     <Using Include="TUnit.Core.Executors" />
   </ItemGroup>

@@ -1,0 +1,55 @@
+using BenchmarkDotNet.Attributes;
+using Benchmarks.Infrastructure;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
+using TUnit.Core.Interfaces;
+
+namespace Benchmarks;
+
+/// <summary>
+/// Benchmarks for reading from $all log with different filter configurations.
+/// </summary>
+[Config(typeof(BenchmarkConfig))]
+public class ReadLogBenchmarks {
+    ClientBenchmarkFixture _fixture = null!;
+
+    [Params(100, 1000, 5000, 10000)]
+    public int MessageCount { get; set; }
+
+    [Params(true, false)]
+    public bool SkipDecoding { get; set; }
+
+    [Params(ReadDirection.Forwards, ReadDirection.Backwards)]
+    public ReadDirection Direction { get; set; }
+
+    [GlobalSetup]
+    public async Task Setup() {
+        _fixture = new ClientBenchmarkFixture();
+        await _fixture.As<IAsyncInitializer>().InitializeAsync();
+        _ = await _fixture.SeedStream(MessageCount);
+    }
+
+    [Benchmark(Description = "Read $all with limit")]
+    public async Task<int> read_log() {
+        var options = new ReadRecordsOptions {
+            Start        = Direction == ReadDirection.Forwards ? LogPosition.Earliest : LogPosition.Latest,
+            Limit        = MessageCount,
+            Direction    = Direction,
+            SkipDecoding = SkipDecoding
+        };
+        var count = 0;
+
+        await foreach (var _ in _fixture.Client.Streams.ReadRecords(options).ConfigureAwait(false)) {
+            count++;
+            if (count >= MessageCount)
+                break;
+        }
+
+        return count;
+    }
+
+    [GlobalCleanup]
+    public async Task Cleanup() {
+        await _fixture.As<IAsyncDisposable>().DisposeAsync();
+    }
+}

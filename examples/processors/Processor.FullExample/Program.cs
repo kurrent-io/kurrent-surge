@@ -1,7 +1,11 @@
-using Kurrent.Client;
-using Kurrent.Client.Streams;
+using System;
+using System.Collections.Generic;
 using Kurrent.Processors.Configuration;
-using Kurrent.Streaming;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;
@@ -99,8 +103,8 @@ try {
             """;
         cmd.Parameters.AddWithValue(season);
 
-        var results = new List<object>();
-        await using var reader = await cmd.ExecuteReaderAsync();
+        var             results = new List<object>();
+        await using var reader  = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync()) {
             results.Add(new {
                 club_id        = reader.GetString(0),

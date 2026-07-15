@@ -1,5 +1,5 @@
-using Kurrent.Client;
-using Kurrent.Client.Streams;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
 using Registry.OrderManagement.Events;
 
 namespace Registry.OrderManagement;

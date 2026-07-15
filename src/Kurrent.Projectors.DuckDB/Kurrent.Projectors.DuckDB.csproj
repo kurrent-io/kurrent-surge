@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Kurrent.Streaming\Kurrent.Streaming.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge\Kurrent.Surge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

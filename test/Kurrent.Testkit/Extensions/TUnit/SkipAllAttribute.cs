@@ -10,7 +10,7 @@ namespace Kurrent.Testkit.TUnit;
 /// [assembly: SkipAll(typeof(StreamReadTests), "Blocked by DEV-1234")]
 ///
 /// // Skip all test classes under a namespace prefix
-/// [assembly: SkipAll("Kurrent.Client.Tests.Integration.Streams", "Server upgrade in progress")]
+/// [assembly: SkipAll("Kurrent.Surge.Tests.Integration.Streams", "Server upgrade in progress")]
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
