@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Cli\Kurrent.Surge.Cli.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Surge.AI.HuggingFace" />
+    <Using Include="Kurrent.Surge.Cli" />
+    <Using Include="System.CommandLine" />
+    <Using Include="Spectre.Console" />
+    <Using Include="Spectre.Console.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Spectre.Console.Testing" />
+  </ItemGroup>
+</Project>

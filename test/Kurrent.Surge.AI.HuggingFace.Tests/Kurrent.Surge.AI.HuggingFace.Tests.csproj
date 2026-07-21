@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.AI.HuggingFace\Kurrent.Surge.AI.HuggingFace.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Surge.AI.HuggingFace" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+</Project>

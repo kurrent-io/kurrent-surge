@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Kurrent.Surge.AI.HuggingFace</RootNamespace>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support — kept identical to V1 so the two are comparable on the AOT axis. -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Downloader" />
+    <!-- Downloader 5.9.4 requires Microsoft.Extensions.Logging.Abstractions >= 10.0.8, above the centrally
+         pinned 10.0.1 — VersionOverride resolves the downgrade without touching Directory.Packages.props.   VersionOverride="10.0.10" -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kurrent.Surge.AI.HuggingFace.Tests" />
+  </ItemGroup>
+</Project>

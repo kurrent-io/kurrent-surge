@@ -53,6 +53,12 @@
     <File Path="nuget.config" />
     <File Path="wrangler.toml" />
   </Folder>
+  <Folder Name="/AI/">
+    <Project Path="src/Kurrent.Surge.AI.HuggingFace/Kurrent.Surge.AI.HuggingFace.csproj" />
+    <Project Path="test/Kurrent.Surge.AI.HuggingFace.Tests/Kurrent.Surge.AI.HuggingFace.Tests.csproj" />
+    <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
+    <Project Path="test/Kurrent.Surge.Cli.Tests/Kurrent.Surge.Cli.Tests.csproj" />
+  </Folder>
   <Folder Name="/Benchmarks/">
     <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
   </Folder>
