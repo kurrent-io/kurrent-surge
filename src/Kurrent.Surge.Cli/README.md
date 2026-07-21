@@ -1,8 +1,10 @@
 # Kurrent.Surge.Cli
 
-`surge` — the Kurrent Surge command-line tool. The first vertical is `huggingface`: Hugging Face model
-acquisition over [`Kurrent.Surge.AI.HuggingFace`](https://github.com/kurrent-io/kurrent-sdk-dotnet). Inspect a
-model's planned bundle, download it with resume + integrity checking, or just ask where the local cache lives.
+`surge` is the Kurrent Surge command-line tool. Its first vertical is `huggingface`: Hugging Face model
+acquisition over [`Kurrent.Surge.AI.HuggingFace`](https://github.com/kurrent-io/kurrent-sdk-dotnet).
+
+Inspect a model's planned bundle, download it with resume and integrity checking, and manage the local
+model cache — all from the terminal.
 
 ## Installation
 
@@ -10,48 +12,101 @@ model's planned bundle, download it with resume + integrity checking, or just as
 dotnet tool install -g Kurrent.Surge.Cli
 ```
 
-### Supported Frameworks
+Requires the .NET 10 runtime.
 
-- .NET 10.0
+## Models
 
-## Usage
+Operations on Hugging Face models: inspect, download, and remove from the local cache.
+
+### `models inspect`
+
+Lists a model's planned bundle — weights, tokenizer, and config companions — without downloading anything.
+Pass `--json` to get the same answer as machine-readable JSON on stdout.
 
 ```shell
-# List a model's planned bundle (weights + tokenizer + config) without downloading it.
 surge huggingface models inspect https://huggingface.co/Xenova/all-MiniLM-L6-v2/blob/main/onnx/model_quantized.onnx
 
-# Same, as machine-readable JSON.
 surge huggingface models inspect <url> --json
+```
 
-# Download the bundle, with a live per-file progress display.
+### `models download`
+
+Inspects the model, then downloads its full bundle with per-file progress bars. Files already cached and
+intact are skipped; `--force` re-downloads them anyway. `--quiet` drops the progress UI and prints a single
+summary line — the right mode for CI.
+
+```shell
 surge huggingface models download <url>
 
-# Download quietly — one summary line, no progress UI. Useful in CI/CD.
 surge huggingface models download <url> --quiet --force
+```
 
-# Clear one cached model (every revision) by the exact repo id `cache list` prints. No prompt, no
-# --yes — naming the model is the confirmation. Only touches the local cache, never the Hub.
+### `models clear`
+
+Clears one cached model — every cached revision — identified by the exact repo id that `cache list` prints.
+There is no prompt: naming the model is the confirmation. This only touches the local cache; the Hub is
+never contacted.
+
+```shell
 surge huggingface models clear Xenova/all-MiniLM-L6-v2
+```
 
-# Print the resolved local cache root — the bare `cache` invocation, no subcommand.
+## Cache
+
+Operations on the local model cache as a whole.
+
+### `cache`
+
+The bare invocation prints the resolved cache root and nothing else. The output is plain stdout, safe for
+shell substitution.
+
+```shell
 surge huggingface cache
+```
 
-# List every model cached locally, with per-snapshot file counts and sizes.
+### `cache list`
+
+Lists every model cached locally, with per-snapshot file counts and sizes.
+
+```shell
 surge huggingface cache list
+```
 
-# Delete every cached model. Interactive terminals get a confirmation prompt; everywhere else (CI)
-# needs --yes, or the command refuses and exits 1 without deleting anything.
+### `cache clear`
+
+Deletes every cached model. Interactive terminals get a confirmation prompt showing the count, total size,
+and cache root. Non-interactive contexts (CI) must pass `--yes`, otherwise the command refuses and exits 1
+without deleting anything.
+
+```shell
 surge huggingface cache clear --yes
+```
 
-# Print the CPU arch tags this host supports, best-first (avx512_vnni / avx512 / avx2 / arm64).
+## Probe
+
+Prints the CPU architecture tags this host supports, best-first (`avx512_vnni`, `avx512`, `avx2`, `arm64`).
+Use it to pick the right quantized ONNX variant for the machine.
+
+```shell
 surge huggingface probe
 ```
 
-`--token` (falls back to the `HF_TOKEN` environment variable) and `--cache-dir` (falls back to
-`HF_HUB_CACHE`, else `~/.cache/huggingface/hub` — the same shared cache the `hf` CLI and Python
-tooling use) are available on every command that talks to the Hub or the cache. `cache clear` /
-`models clear` therefore manage that shared cache by default (only `models--*` entries — see the
-library's cache-behavior docs).
+## Authentication
+
+Commands that talk to the Hub accept `--token`. When the option is absent, the `HF_TOKEN` environment
+variable is used automatically. Public models need no token at all.
+
+## Cache location
+
+Every cache-touching command accepts `--cache-dir`. When the option is absent, the root resolves exactly
+like the official Hugging Face tooling:
+
+1. `HF_HUB_CACHE` environment variable
+2. `~/.cache/huggingface/hub`
+
+That default is the same shared cache the `hf` CLI and the Python libraries use, so models downloaded by
+either side are visible to both. `cache clear` and `models clear` therefore manage that shared cache — they
+only ever touch `models--*` entries, never datasets, spaces, or unrelated files.
 
 ## Links
 

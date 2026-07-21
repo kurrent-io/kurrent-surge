@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Kurrent.Surge.Cli.Infrastructure;
 
 namespace Kurrent.Surge.Cli;
 
@@ -19,7 +20,7 @@ static class InspectCommand {
             urlArgument, jsonOption, tokenOption, cacheDirOption
         };
 
-        command.SetAction((result, ct) => CliHelpers.ExecuteAsync(errorConsole, async () => {
+        command.SetAction((result, ct) => errorConsole.ExecuteAsync(async () => {
             var hub = new HuggingFaceHub(
                 new HubOptions { Token = result.GetValue(tokenOption), CacheDirectory = result.GetValue(cacheDirOption) });
 
@@ -49,7 +50,7 @@ static class InspectCommand {
 
     static void WriteTable(IAnsiConsole console, ModelBundle bundle) {
         console.MarkupLineInterpolated(
-            $"[bold]{bundle.Reference.Repo}@{bundle.Reference.Revision}[/] — {bundle.Reference.Kind}, {bundle.Files.Count} files, {CliHelpers.Humanize(bundle.TotalBytes)}, cached: {(bundle.Cached ? "yes" : "no")}");
+            $"[bold]{bundle.Reference.Repo}@{bundle.Reference.Revision}[/] — {bundle.Reference.Kind}, {bundle.Files.Count} files, {bundle.TotalBytes.Humanize()}, cached: {(bundle.Cached ? "yes" : "no")}");
 
         var table = new Table().AddColumn("File").AddColumn("Size").AddColumn("SHA-256").AddColumn("Cached");
 
@@ -57,9 +58,22 @@ static class InspectCommand {
             var cached = File.Exists(file.LocalPath) && new FileInfo(file.LocalPath).Length == file.Size;
             var sha    = file.Sha256 is { Length: >= 8 } s ? s[..8] : "—";
 
-            table.AddRow(Markup.Escape(file.RepoPath), CliHelpers.Humanize(file.Size), sha, cached ? "[green]✓[/]" : "[red]✗[/]");
+            table.AddRow(Markup.Escape(file.RepoPath), file.Size.Humanize(), sha, cached ? "[green]✓[/]" : "[red]✗[/]");
         }
 
         console.Write(table);
     }
 }
+
+// The --json shape for `inspect`: { repo, revision, kind, url, cached, totalBytes, files: [{ repoPath, localPath, size, sha256 }] }
+sealed record InspectJsonResult(
+    string Repo,
+    string Revision,
+    string Kind,
+    string Url,
+    bool Cached,
+    long TotalBytes,
+    IReadOnlyList<InspectJsonFile> Files
+);
+
+sealed record InspectJsonFile(string RepoPath, string LocalPath, long Size, string? Sha256);

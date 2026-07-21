@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Kurrent.Surge.Cli.Infrastructure;
 
 namespace Kurrent.Surge.Cli;
 
@@ -20,7 +21,7 @@ static class DownloadCommand {
             urlArgument, forceOption, quietOption, tokenOption, cacheDirOption
         };
 
-        command.SetAction((result, ct) => CliHelpers.ExecuteAsync(errorConsole, async () => {
+        command.SetAction((result, ct) => errorConsole.ExecuteAsync(async () => {
             var force = result.GetValue(forceOption);
             var quiet = result.GetValue(quietOption);
 
@@ -43,7 +44,7 @@ static class DownloadCommand {
             stopwatch.Stop();
 
             console.MarkupLineInterpolated(
-                $"Downloaded {bundle.Files.Count} files, {CliHelpers.Humanize(bundle.TotalBytes)}, in {stopwatch.Elapsed.TotalSeconds:0.#}s");
+                $"Downloaded {bundle.Files.Count} files, {bundle.TotalBytes.Humanize()}, in {stopwatch.Elapsed.TotalSeconds:0.#}s");
 
             return 0;
         }));

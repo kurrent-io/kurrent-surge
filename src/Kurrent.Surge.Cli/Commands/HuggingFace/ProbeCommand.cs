@@ -1,10 +1,12 @@
+using Kurrent.Surge.Cli.Infrastructure;
+
 namespace Kurrent.Surge.Cli;
 
 static class ProbeCommand {
     public static Command Build(IAnsiConsole console, IAnsiConsole errorConsole) {
         var command = new Command("probe", "Prints the CPU arch tags this host supports, best-first.");
 
-        command.SetAction((_, _) => CliHelpers.ExecuteAsync(errorConsole, () => {
+        command.SetAction((_, _) => errorConsole.ExecuteAsync(() => {
             var tags = HardwareProbe.PreferredArchTags();
 
             if (tags.Count == 0) {

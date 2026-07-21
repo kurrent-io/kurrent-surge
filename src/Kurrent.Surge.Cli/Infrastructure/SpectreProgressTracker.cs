@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Cli;
+namespace Kurrent.Surge.Cli.Infrastructure;
 
 /// <summary>
 /// Renders per-file download progress as a Spectre <see cref="ProgressTask"/> — a new task appears when a

@@ -1,3 +1,5 @@
+using Kurrent.Surge.Cli.Infrastructure;
+
 namespace Kurrent.Surge.Cli;
 
 static class ModelsCommand {
@@ -15,7 +17,7 @@ static class ModelsCommand {
 
         // No confirmation prompt and no --yes here (unlike `cache clear`): naming the exact model IS the
         // confirmation (the docker-rm convention) — `cache clear` keeps its prompt because it is indiscriminate.
-        clearCommand.SetAction((result, _) => CliHelpers.ExecuteAsync(errorConsole, () => {
+        clearCommand.SetAction((result, _) => errorConsole.ExecuteAsync(() => {
             var repo   = result.GetValue(repoArgument)!;
             var hub    = new HuggingFaceHub(new HubOptions { CacheDirectory = result.GetValue(cacheDirOption) });
             var models = hub.ListCachedModels().Where(m => string.Equals(m.Repo, repo, StringComparison.Ordinal)).ToList();
@@ -31,14 +33,14 @@ static class ModelsCommand {
                 .GroupBy(m => Directory.GetParent(Directory.GetParent(m.Path)!.FullName)!.FullName)
                 .ToList();
 
-            var (_, freedBytes, failures) = CliHelpers.DeleteModelDirectories(byDirectory);
+            var (_, freedBytes, failures) = CacheCommand.DeleteModelDirectories(byDirectory);
 
             if (failures.Count > 0) {
-                CliHelpers.ReportFailures(errorConsole, failures);
+                CacheCommand.ReportFailures(errorConsole, failures);
                 return Task.FromResult(1);
             }
 
-            console.MarkupLineInterpolated($"Removed [bold]{Markup.Escape(repo)}[/] — {models.Count} snapshot(s), freed {CliHelpers.Humanize(freedBytes)}.");
+            console.MarkupLineInterpolated($"Removed [bold]{Markup.Escape(repo)}[/] — {models.Count} snapshot(s), freed {freedBytes.Humanize()}.");
 
             return Task.FromResult(0);
         }));
