@@ -1,6 +1,7 @@
-namespace Kurrent.Surge.Cli.Infrastructure;
+namespace Kurrent.Surge.AI.HuggingFace;
 
-static class ByteSizeExtensions {
+/// <summary>Human-friendly rendering for the byte counts this package's types report.</summary>
+public static class ByteSizeExtensions {
     extension(long bytes) {
         /// <summary>Renders this byte count as a human-friendly size, e.g. <c>3.14 MB</c>.</summary>
         public string Humanize() {

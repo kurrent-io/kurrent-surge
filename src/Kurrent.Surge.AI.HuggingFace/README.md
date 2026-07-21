@@ -27,7 +27,7 @@ using Kurrent.Surge.AI.HuggingFace;
 var bundle = await HuggingFaceHub.InspectAsync(
     "https://huggingface.co/Xenova/all-MiniLM-L6-v2/blob/main/onnx/model_quantized.onnx");
 
-Console.WriteLine($"{bundle.Files.Count} files, {bundle.TotalBytes} bytes, cached: {bundle.Cached}");
+Console.WriteLine($"{bundle.Files.Count} files, {bundle.TotalBytes.Humanize()}, cached: {bundle.Cached}");
 
 // Inspect + download in one call. Already-valid cached files are skipped.
 var downloaded = await HuggingFaceHub.DownloadAsync(url);
@@ -49,7 +49,7 @@ Every planned file carries its final on-disk location:
 
 ```csharp
 foreach (var file in bundle.Files)
-    Console.WriteLine($"{file.RepoPath} -> {file.LocalPath} ({file.Size} bytes)");
+    Console.WriteLine($"{file.RepoPath} -> {file.LocalPath} ({file.Size.Humanize()})");
 ```
 
 ## Model references
@@ -258,6 +258,7 @@ which is the intended pattern for custom sinks.
 | `ModelBundle` / `ModelFile` | the planned download set and its cache/download logic |
 | `IModelLayout` + `OnnxLayout` / `GgufLayout` / `SafetensorsLayout` | per-format bundle planning |
 | `IProgressTracker` / `LoggerProgressTracker` | pluggable download progress |
+| `ByteSizeExtensions` | `bytes.Humanize()` — human-friendly sizes for the byte counts above |
 | `HardwareProbe` | per-CPU variant tag detection, no policy |
 
 Native-AOT-clean throughout — BCL + `Downloader` + `Microsoft.Extensions.Logging.Abstractions` only.
