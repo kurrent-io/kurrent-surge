@@ -87,10 +87,12 @@ public class MessageProcessor : IRecordProcessor {
     }
 
     /// <summary>
-    /// Returns <c>true</c> if a handler is registered for the record's decoded message type.
+    /// Returns <c>true</c> if a handler is registered for the record's decoded message type, or a
+    /// fallback is registered — a fallback takes everything a typed handler does not, so nothing is
+    /// skipped once one is set.
     /// </summary>
     public bool CanProcess(Record record) =>
-        record.IsDecoded && Handlers.ContainsKey(record.ValueType);
+        _fallback is not null || (record.IsDecoded && Handlers.ContainsKey(record.ValueType));
 
     ValueTask IRecordProcessor.ProcessRecord(ProcessRecordContext context) {
         return context.Record.IsDecoded && Handlers.TryGetValue(context.Record.ValueType, out var handler)

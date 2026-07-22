@@ -34,6 +34,20 @@ public interface IRecordProcessor : IProcessor {
     /// Context containing the record and cancellation token.
     /// </param>
     ValueTask ProcessRecord(ProcessRecordContext context);
+
+    /// <summary>
+    /// Called before dispatch to ask whether this processor has anything that will handle the
+    /// record. Returning <c>false</c> means the record is never passed to
+    /// <see cref="ProcessRecord"/>. Defaults to <c>true</c> — handle everything.
+    /// </summary>
+    /// <remarks>
+    /// Override this when the processor handles only a subset of what it receives, so the records
+    /// it ignores are reported rather than silently consumed. A skipped record still advances the
+    /// checkpoint frontier: were it otherwise, a stream of unhandled types would never commit and
+    /// the processor would replay it forever. Called on every record — keep it cheap and free of
+    /// side effects.
+    /// </remarks>
+    bool CanProcess(Record record) => true;
 }
 
 public record DroneContext {

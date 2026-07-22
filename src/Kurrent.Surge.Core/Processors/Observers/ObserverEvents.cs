@@ -57,9 +57,9 @@ public readonly record struct ProcessorStateChanged(
 /// Event raised when a record is bypassed without being dispatched to the handler.
 /// </summary>
 /// <remarks>
-/// Raised for every record left undispatched when a handler requests a stop part-way through a
-/// batch: the records reached the dispatcher but never the handler, nothing claims them, and a
-/// resuming run redelivers them.
+/// Raised when <see cref="IRecordProcessor.CanProcess"/> returns <c>false</c> — the processor has
+/// no handler for the record's message type, so it is never dispatched. The record still advances
+/// the checkpoint frontier; this event is what keeps that from being silent.
 /// </remarks>
 [PublicAPI]
 public readonly record struct RecordSkipped(

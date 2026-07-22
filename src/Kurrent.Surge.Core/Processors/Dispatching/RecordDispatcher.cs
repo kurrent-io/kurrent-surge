@@ -18,26 +18,36 @@ sealed class RecordDispatcher(
     TimeProvider timeProvider
 ) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
-        for (var i = 0; i < batch.Count; i++) {
-            var result = await DispatchRecord(context, batch[i]).ConfigureAwait(false);
-
-            if (!result.ShouldStop)
-                continue;
+        foreach (var record in batch) {
+            var result = await DispatchRecord(context, record).ConfigureAwait(false);
 
             // A stop skips the remaining records in this batch — they were delivered to the dispatcher
             // but never to the handler, so nothing claims them and a resuming run redelivers them.
-            // Report each one: silently dropping records the caller believes were delivered is exactly
-            // the blind spot the seam exists to close.
-            for (var skipped = i + 1; skipped < batch.Count; skipped++)
-                Observers.RecordSkipped(new(Info, batch[skipped], TimeProvider.GetUtcNow()));
-
-            return result;
+            if (result.ShouldStop)
+                return result;
         }
 
         return RecordProcessingResult.Continue;
     }
 
     async ValueTask<RecordProcessingResult> DispatchRecord(DroneContext context, Record record) {
+        // Ask before dispatching: a processor that handles only some message types reports the rest
+        // instead of consuming them silently. No handler runs and no processing span opens.
+        if (!processor.CanProcess(record)) {
+            Observers.RecordSkipped(new(Info, record, TimeProvider.GetUtcNow()));
+
+            // Throughput counts what was consumed, so a skipped record counts here; the
+            // records_processed metric rides on RecordCompleted and therefore does not.
+            Progress.CountThroughput(record);
+
+            // Advance the frontier past it, or a stream of unhandled types never commits and the
+            // processor replays it forever. Nothing claimed the record, so this is the framework's call.
+            if (AutoTrack)
+                Track(record.Position);
+
+            return RecordProcessingResult.Continue;
+        }
+
         // Ready carries the live record: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
         Observers.RecordReady(new(Info, record, TimeProvider.GetUtcNow()));
