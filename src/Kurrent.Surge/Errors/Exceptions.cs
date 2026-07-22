@@ -79,6 +79,12 @@ static class ExceptionExtensions {
                 Message = rex.Message
             };
 
+            // Dispatch through the table first: one lookup on the error code, rather than asking each
+            // candidate type in turn. The per-type parsers below stay until the exception types drop
+            // their generated From methods; while both exist, the table is the one that answers.
+            if (KurrentRpcErrorMapper.TryMap(status, errorInfo, out var mapped))
+                return mapped;
+
             // try to parse using the provided parsers, then server parsers, and finally
             // fall back to the original exception. Generic gRPC status codes are deliberately
             // NOT translated: a raw RpcException is the ecosystem-standard transport-failure
