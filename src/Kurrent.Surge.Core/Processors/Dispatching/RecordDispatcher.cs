@@ -16,15 +16,22 @@ sealed class RecordDispatcher(
     ObserverDispatcher observers,
     ProcessorOptions options,
     TimeProvider timeProvider
-) : ProcessorDispatcher(processor, checkpointer, progress, observers, options) {
+) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
-        foreach (var record in batch) {
-            var result = await DispatchRecord(context, record).ConfigureAwait(false);
+        for (var i = 0; i < batch.Count; i++) {
+            var result = await DispatchRecord(context, batch[i]).ConfigureAwait(false);
+
+            if (!result.ShouldStop)
+                continue;
 
             // A stop skips the remaining records in this batch — they were delivered to the dispatcher
             // but never to the handler, so nothing claims them and a resuming run redelivers them.
-            if (result.ShouldStop)
-                return result;
+            // Report each one: silently dropping records the caller believes were delivered is exactly
+            // the blind spot the seam exists to close.
+            for (var skipped = i + 1; skipped < batch.Count; skipped++)
+                Observers.RecordSkipped(new(Info, batch[skipped], TimeProvider.GetUtcNow()));
+
+            return result;
         }
 
         return RecordProcessingResult.Continue;
@@ -33,13 +40,13 @@ sealed class RecordDispatcher(
     async ValueTask<RecordProcessingResult> DispatchRecord(DroneContext context, Record record) {
         // Ready carries the live record: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
-        Observers.RecordReady(new(Info, record, timeProvider.GetUtcNow()));
+        Observers.RecordReady(new(Info, record, TimeProvider.GetUtcNow()));
 
         // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
         // updates the gauges, not just the commit position (see ProcessorDispatcher.Track).
         var ctx = context.ForProcessRecord(Progress.Progress, record, requestTrack: Track);
         
-        var start   = timeProvider.GetTimestamp();
+        var start   = TimeProvider.GetTimestamp();
         var outcome = RecordOutcome.Processed;
 
         Exception? error = null;
@@ -59,7 +66,7 @@ sealed class RecordDispatcher(
         finally {
             // Measured at handler exit, before the bookkeeping below — the manual checkpoint raise awaits
             // a channel write, which is framework time and does not belong in the handler's duration.
-            var elapsed = timeProvider.GetElapsedTime(start);
+            var elapsed = TimeProvider.GetElapsedTime(start);
 
             // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
             // terminal event still fires exactly once and reports the progress as it stands.
@@ -74,7 +81,7 @@ sealed class RecordDispatcher(
                     Track(record.Position);
             }
 
-            Observers.RecordCompleted(new(Info, record, outcome, elapsed, Progress.Progress, timeProvider.GetUtcNow(), error));
+            Observers.RecordCompleted(new(Info, record, outcome, elapsed, Progress.Progress, TimeProvider.GetUtcNow(), error));
         }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown

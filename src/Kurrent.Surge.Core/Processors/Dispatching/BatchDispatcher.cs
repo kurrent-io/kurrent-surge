@@ -16,18 +16,18 @@ sealed class BatchDispatcher(
     ObserverDispatcher observers,
     ProcessorOptions options,
     TimeProvider timeProvider
-) : ProcessorDispatcher(processor, checkpointer, progress, observers, options) {
+) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
     readonly int _maxParallelism = options.MaxParallelism;
 
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
         // Ready carries the live records: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
-        Observers.BatchReady(new(Info, batch, timeProvider.GetUtcNow()));
+        Observers.BatchReady(new(Info, batch, TimeProvider.GetUtcNow()));
 
         // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
         var ctx = context.ForBatch(Progress.Progress, batch, requestTrack: Track);
 
-        var start     = timeProvider.GetTimestamp();
+        var start     = TimeProvider.GetTimestamp();
         var outcome   = RecordOutcome.Processed;
         var processed = 0;
 
@@ -48,7 +48,7 @@ sealed class BatchDispatcher(
         finally {
             // Measured at handler exit: the frontier fold, throughput count and frontier scan below are
             // framework bookkeeping and do not belong in the handler's duration.
-            var elapsed = timeProvider.GetElapsedTime(start);
+            var elapsed = TimeProvider.GetElapsedTime(start);
 
             // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
             // terminal event still fires exactly once with ProcessedCount 0 — the frontier is then whatever
@@ -74,7 +74,7 @@ sealed class BatchDispatcher(
             }
 
             Observers.BatchCompleted(
-                new(Info, batch, outcome, processed, elapsed, Progress.Progress, timeProvider.GetUtcNow(), error));
+                new(Info, batch, outcome, processed, elapsed, Progress.Progress, TimeProvider.GetUtcNow(), error));
         }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown

@@ -21,11 +21,13 @@ abstract class ProcessorDispatcher(
     Checkpointer checkpointer,
     ProgressTracker progress,
     ObserverDispatcher observers,
-    ProcessorOptions options
+    ProcessorOptions options,
+    TimeProvider timeProvider
 ) {
     protected Checkpointer       Checkpointer { get; } = checkpointer;
     protected ProgressTracker    Progress     { get; } = progress;
     protected ObserverDispatcher Observers    { get; } = observers;
+    protected TimeProvider       TimeProvider { get; } = timeProvider;
     protected bool               AutoTrack    { get; } = options.Checkpoint.AutoTrack;
 
     protected ProcessorInfo Info { get; } = new(options.ProcessorId, options.DroneId);

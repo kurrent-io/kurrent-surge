@@ -5,7 +5,6 @@ using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Streaming.Diagnostics;
 using Kurrent.Surge.Streaming.Diagnostics.Metrics;
-using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.Streaming;
 
@@ -275,12 +274,10 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
 
             case RecordOutcome.Failed:
                 activity.SetStatus(ActivityStatusCode.Error, error?.Message);
-
                 if (error is not null) {
                     activity.SetTag("error.type", error.GetType().FullName);
                     activity.AddException(error);
                 }
-
                 break;
 
             case RecordOutcome.Cancelled:

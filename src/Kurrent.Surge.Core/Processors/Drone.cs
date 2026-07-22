@@ -47,17 +47,17 @@ sealed class Drone : IDrone {
         _checkpointer = checkpointer;
         _channel      = channel;
         _streams      = streams;
-        _clock        = new HybridLogicalClock(timeProvider);
+        _clock        = new(timeProvider);
         _timeProvider = timeProvider;
 
-        _progress = new ProgressTracker(timeProvider, options.MaxParallelism);
+        _progress = new(timeProvider, options.MaxParallelism);
 
         var logger = loggerFactory.CreateLogger<Drone>();
 
-        _telemetry = new DroneTelemetry(logger, options.ProcessorId, options.DroneId);
+        _telemetry = new(logger, options.ProcessorId, options.DroneId);
 
-        _observers = new ObserverDispatcher(observers, logger);
-        _info      = new ProcessorInfo(options.ProcessorId, options.DroneId);
+        _observers = new(observers, logger);
+        _info      = new(options.ProcessorId, options.DroneId);
 
         // The composition root: the single point where the processor shape is discriminated. Each
         // dispatcher owns its shape's bookkeeping end-to-end, so the run loop below stays branch-free.
@@ -65,12 +65,10 @@ sealed class Drone : IDrone {
         _dispatcher = processor switch {
             IRecordBatchProcessor bp => new BatchDispatcher(bp, checkpointer, _progress, _observers, options, timeProvider),
             IRecordProcessor rp      => new RecordDispatcher(rp, checkpointer, _progress, _observers, options, timeProvider),
-            _ => throw new ArgumentException(
-                $"Processor must implement {nameof(IRecordProcessor)} or {nameof(IRecordBatchProcessor)}.",
-                nameof(processor))
+            _ => throw new ArgumentException($"Processor must implement {nameof(IRecordProcessor)} or {nameof(IRecordBatchProcessor)}.", nameof(processor))
         };
 
-        DroneContext = new DroneContext {
+        DroneContext = new() {
             ProcessorId = ProcessorId,
             DroneId     = DroneId,
             SessionId   = SessionId.Unset,
@@ -99,7 +97,7 @@ sealed class Drone : IDrone {
         Status = status;
 
         _observers.StateChanged(
-            new ProcessorStateChanged(_info, from, status, _timeProvider.GetUtcNow(), error, sessionId));
+            new(_info, from, status, _timeProvider.GetUtcNow(), error, sessionId));
     }
 
     public DroneProgress Progress => _progress.Progress;
@@ -139,7 +137,7 @@ sealed class Drone : IDrone {
                 snapshot: () => Progress,
                 onSample: (lagBytes, lagSeconds) =>
                     _observers.SourceLagSampled(
-                        new SourceLagSampled(_info, lagBytes, lagSeconds, _timeProvider.GetUtcNow())),
+                        new(_info, lagBytes, lagSeconds, _timeProvider.GetUtcNow())),
                 timeProvider: _timeProvider);
 
             _sourceLagProbe.Start(stoppingToken);
@@ -277,7 +275,7 @@ sealed class Drone : IDrone {
         }
         catch (Exception ex) {
             _observers.CheckpointFailed(
-                new CheckpointFailed(_info, trigger, checkpoint.Id, pending, ex, _timeProvider.GetUtcNow()));
+                new(_info, trigger, checkpoint.Id, pending, ex, _timeProvider.GetUtcNow()));
 
             if (Options.Debug)
                 throw;
@@ -304,13 +302,13 @@ sealed class Drone : IDrone {
             _progress.TrackCheckpoint(checkpoint, positions);
 
             _observers.CheckpointCommitted(
-                new CheckpointCommitted(
+                new(
                     _info, trigger, checkpoint.Id, positions,
                     _timeProvider.GetElapsedTime(start), _timeProvider.GetUtcNow()));
         }
         catch (Exception ex) {
             _observers.CheckpointFailed(
-                new CheckpointFailed(_info, trigger, checkpoint.Id, positions, ex, _timeProvider.GetUtcNow()));
+                new(_info, trigger, checkpoint.Id, positions, ex, _timeProvider.GetUtcNow()));
 
             if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
                 throw;
@@ -335,7 +333,7 @@ sealed class Drone : IDrone {
 
         if ((fatalError is null || isProcessFailure) && _checkpointer.HasPendingPositions) {
             var now = _clock.Now();
-            var checkpoint = new ShutdownCheckpoint(new CheckpointId(now), now.DateTimeOffset);
+            var checkpoint = new ShutdownCheckpoint(new(now), now.DateTimeOffset);
             await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
         }
 
@@ -347,7 +345,7 @@ sealed class Drone : IDrone {
         // AutoTrack off + records dispatched + nothing ever committed ⇒ the subscription replays in full on
         // restart. Warn once, here, at the one moment it is provably true — the final barrier (if any) has
         // already run, so a zero checkpoint count means no progress was persisted. No hot-path cost.
-        if (!Options.Checkpoint.AutoTrack && _progress.TotalRecords > 0 && _progress.TotalCheckpoints == 0)
+        if (!Options.Checkpoint.AutoTrack && _progress is { TotalRecords: > 0, TotalCheckpoints: 0 })
             _telemetry.TrackingDisabledNoProgress();
 
         List<Exception> errors = [];

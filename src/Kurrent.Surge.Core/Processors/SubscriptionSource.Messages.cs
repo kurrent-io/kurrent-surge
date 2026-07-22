@@ -226,10 +226,10 @@ public enum CheckpointTrigger {
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Triggered exactly ONCE per processor lifecycle when the subscription
-    /// finishes processing historical data and transitions to receiving live
-    /// records. Only fires if the subscription started before the stream end
-    /// (i.e., had historical data to process).
+    /// Triggered exactly ONCE per processor lifecycle when the subscription reaches the end of
+    /// its target and transitions to receiving live records. Historical data is not a
+    /// precondition: a subscription that starts at the live edge, with nothing to replay, is
+    /// already at the end and gets the barrier straight away.
     /// </para>
     /// <para>
     /// This ensures that after processing a potentially large historical backlog,

@@ -57,8 +57,9 @@ public readonly record struct ProcessorStateChanged(
 /// Event raised when a record is bypassed without being dispatched to the handler.
 /// </summary>
 /// <remarks>
-/// No pipeline emission exists yet — skipping requires dispatch-level routing, which lands with
-/// the dispatcher consolidation. The shape is defined now so the contract is complete.
+/// Raised for every record left undispatched when a handler requests a stop part-way through a
+/// batch: the records reached the dispatcher but never the handler, nothing claims them, and a
+/// resuming run redelivers them.
 /// </remarks>
 [PublicAPI]
 public readonly record struct RecordSkipped(

@@ -6,15 +6,8 @@ namespace Kurrent.Surge.Streaming;
 /// Dispatches processor lifecycle events to registered observers: synchronously, on the calling
 /// thread, in registration order, with per-observer failure isolation.
 /// </summary>
-sealed partial class ObserverDispatcher {
-    public ObserverDispatcher(IEnumerable<IProcessorObserver> observers, ILogger logger) {
-        // Materialized once — dispatch is a hot-path indexed loop with no enumerator allocation.
-        _observers = observers as IProcessorObserver[] ?? observers.ToArray();
-        _logger    = logger;
-    }
-
-    readonly IProcessorObserver[] _observers;
-    readonly ILogger              _logger;
+sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observers, ILogger logger) {
+    readonly IProcessorObserver[] _observers = observers as IProcessorObserver[] ?? observers.ToArray();
 
     public void StateChanged(in ProcessorStateChanged evt) {
         foreach (var observer in _observers) {
