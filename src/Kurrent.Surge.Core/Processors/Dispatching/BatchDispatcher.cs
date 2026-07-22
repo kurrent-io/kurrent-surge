@@ -33,6 +33,10 @@ sealed class BatchDispatcher(
             throw DroneException.ProcessBatchFailed(ex);
         }
 
+        // Stop the clock here, not at scope.Complete: the frontier fold, throughput count and frontier
+        // scan below are framework bookkeeping, not handler time.
+        scope.StopTimer();
+
         // Resolve the committed frontier (the invariant): auto-track the whole-batch frontier (max position
         // per partition) only when AutoTrack is on AND no stop was requested — a stop caps the commit at
         // exactly what the user tracked via ctx.Track. In every other case the commit is the user's tracks.

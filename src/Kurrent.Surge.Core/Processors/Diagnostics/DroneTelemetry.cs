@@ -131,13 +131,29 @@ sealed partial class DroneTelemetry : TelemetrySource {
         readonly long            _startTimestamp;
         readonly Activity?       _activity;
 
-        bool _completed;
+        bool      _completed;
+        TimeSpan? _elapsed;
 
         internal BatchScope(DroneTelemetry? diagnostics, long startTimestamp, Activity? activity) {
             _diagnostics    = diagnostics;
             _startTimestamp = startTimestamp;
             _activity       = activity;
             _completed      = false;
+            _elapsed        = null;
+        }
+
+        /// <summary>
+        /// Snapshots the elapsed time at the instant the handler returned. Call this immediately after
+        /// <c>ProcessBatch</c> so the reported duration measures the handler alone.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Complete"/> runs after the frontier is resolved, so reading the clock there would
+        /// fold the auto-track fold, the throughput count and the frontier scan into the handler's
+        /// duration. Without this call the scope falls back to measuring up to <see cref="Complete"/>.
+        /// </remarks>
+        public void StopTimer() {
+            if (_startTimestamp != 0 && _elapsed is null)
+                _elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
         }
 
         /// <summary>
@@ -153,9 +169,10 @@ sealed partial class DroneTelemetry : TelemetrySource {
             _completed = true;
 
             // Measured from Stopwatch ticks, emitted in seconds (base unit) with sub-ms precision retained.
-            double? durationSeconds = _startTimestamp != 0
-                ? Stopwatch.GetElapsedTime(_startTimestamp).TotalSeconds
-                : null;
+            // Prefer the StopTimer snapshot taken when the handler returned; fall back to measuring up to
+            // here for callers that never call it.
+            double? durationSeconds = _elapsed?.TotalSeconds
+                                   ?? (_startTimestamp != 0 ? Stopwatch.GetElapsedTime(_startTimestamp).TotalSeconds : null);
 
             _diagnostics?.BatchProcessed(totalRecords, processedCount, durationSeconds, uncommittedRecords, uncommittedBytes);
 
@@ -213,13 +230,29 @@ sealed partial class DroneTelemetry : TelemetrySource {
         readonly long            _startTimestamp;
         readonly Activity?       _activity;
 
-        bool _completed;
+        bool      _completed;
+        TimeSpan? _elapsed;
 
         internal RecordScope(DroneTelemetry? diagnostics, long startTimestamp, Activity? activity) {
             _diagnostics    = diagnostics;
             _startTimestamp = startTimestamp;
             _activity       = activity;
             _completed      = false;
+            _elapsed        = null;
+        }
+
+        /// <summary>
+        /// Snapshots the elapsed time at the instant the handler returned. Call this immediately after
+        /// <c>ProcessRecord</c> so the reported duration measures the handler alone.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Complete"/> runs after tracking and the manual-checkpoint raise — the latter awaits a
+        /// channel write — so reading the clock there would fold that work into the handler's duration.
+        /// Without this call the scope falls back to measuring up to <see cref="Complete"/>.
+        /// </remarks>
+        public void StopTimer() {
+            if (_startTimestamp != 0 && _elapsed is null)
+                _elapsed = Stopwatch.GetElapsedTime(_startTimestamp);
         }
 
         /// <summary>
@@ -234,9 +267,10 @@ sealed partial class DroneTelemetry : TelemetrySource {
             _completed = true;
 
             // Measured from Stopwatch ticks, emitted in seconds (base unit) with sub-ms precision retained.
-            double? durationSeconds = _startTimestamp != 0
-                ? Stopwatch.GetElapsedTime(_startTimestamp).TotalSeconds
-                : null;
+            // Prefer the StopTimer snapshot taken when the handler returned; fall back to measuring up to
+            // here for callers that never call it.
+            double? durationSeconds = _elapsed?.TotalSeconds
+                                   ?? (_startTimestamp != 0 ? Stopwatch.GetElapsedTime(_startTimestamp).TotalSeconds : null);
 
             _diagnostics?.RecordProcessed(totalRecords, durationSeconds, uncommittedRecords, uncommittedBytes);
 

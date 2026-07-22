@@ -44,6 +44,10 @@ sealed class RecordDispatcher(
             throw DroneException.ProcessRecordFailed(ex);
         }
 
+        // Stop the clock here, not at scope.Complete: everything below — tracking, and the manual
+        // checkpoint raise that awaits a channel write — is framework bookkeeping, not handler time.
+        scope.StopTimer();
+
         // Count every dispatched record toward throughput, independent of tracking mode.
         Progress.CountThroughput(record);
 
