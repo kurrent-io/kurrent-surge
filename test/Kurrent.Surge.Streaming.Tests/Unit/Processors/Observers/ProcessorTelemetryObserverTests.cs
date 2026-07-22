@@ -204,9 +204,9 @@ public class ProcessorTelemetryObserverTests {
         using var probe = new TelemetryProbe(info, listenActivities: false);
 
         // Act
-        probe.Observer.OnStateChanged(new(info, DroneStatus.Unspecified, DroneStatus.Starting, now));
-        probe.Observer.OnStateChanged(new(info, DroneStatus.Starting, DroneStatus.Processing, now, SessionId: sessionId));
-        probe.Observer.OnStateChanged(new(info, DroneStatus.Processing, DroneStatus.Stopped, now));
+        probe.Observer.OnStateChanged(new(info, DroneStatus.Unspecified, DroneStatus.Starting, DroneProgress.Empty, now));
+        probe.Observer.OnStateChanged(new(info, DroneStatus.Starting, DroneStatus.Processing, DroneProgress.Empty, now, SessionId: sessionId));
+        probe.Observer.OnStateChanged(new(info, DroneStatus.Processing, DroneStatus.Stopped, DroneProgress.Empty, now));
 
         // Assert
         var actual = string.Join("|", probe.Logs.Entries.Select(entry => $"{entry.Level}:{entry.Message}"));
@@ -247,7 +247,7 @@ public class ProcessorTelemetryObserverTests {
 
         // Act
         probe.Observer.OnStateChanged(new(
-            info, DroneStatus.Processing, DroneStatus.Error,
+            info, DroneStatus.Processing, DroneStatus.Stopped, DroneProgress.Empty,
             DateTimeOffset.UtcNow, new InvalidOperationException(errorMessage)
         ));
 

@@ -93,13 +93,19 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
                 LogProcessing(evt.Info.DroneId, evt.SessionId);
                 break;
 
-            case DroneStatus.Stopped:
-                LogStopped(evt.Info.DroneId);
+            case DroneStatus.Stopping:
+                var throughput = evt.Progress.Throughput;
+                LogStopping(evt.Info.DroneId, throughput.TotalRecords, throughput.Elapsed, throughput.RecordsPerSecond);
                 break;
 
-            case DroneStatus.Error:
-                LogError(evt.Error, evt.Info.DroneId, evt.Error?.Message ?? "Unknown error");
+            // Stopped is terminal for every outcome; the error, if any, arrives on the transition.
+            case DroneStatus.Stopped when evt.Error is not null:
+                LogError(evt.Error, evt.Info.DroneId, evt.Error.Message);
                 _droneErrors.Add(1, evt.Info.ProcessorId.Value);
+                break;
+
+            case DroneStatus.Stopped:
+                LogStopped(evt.Info.DroneId);
                 break;
         }
 
@@ -298,6 +304,9 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
 
     [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Stopped Gracefully")]
     partial void LogStopped(string droneId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "[{DroneId}] Stopping (records: {TotalRecords}, elapsed: {Elapsed}, rate: {RecordsPerSecond:N0}/s)")]
+    partial void LogStopping(string droneId, long totalRecords, TimeSpan elapsed, double recordsPerSecond);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "[{DroneId}] Error: {Message}")]
     partial void LogError(Exception? ex, string droneId, string message);

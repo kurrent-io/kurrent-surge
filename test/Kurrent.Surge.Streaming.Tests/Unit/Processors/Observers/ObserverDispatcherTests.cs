@@ -15,7 +15,7 @@ public class ObserverDispatcherTests {
     static void DispatchAllEvents(ObserverDispatcher dispatcher, Record record, IReadOnlyList<Record> batch) {
         var now = DateTimeOffset.UtcNow;
 
-        dispatcher.StateChanged(new(Info, DroneStatus.Starting, DroneStatus.Processing, now, SessionId: Guid.NewGuid()));
+        dispatcher.StateChanged(new(Info, DroneStatus.Starting, DroneStatus.Processing, DroneProgress.Empty, now, SessionId: Guid.NewGuid()));
         dispatcher.RecordSkipped(new(Info, record, now));
         dispatcher.RecordReady(new(Info, record, now));
         dispatcher.RecordCompleted(new(Info, record, RecordOutcome.Processed, TimeSpan.Zero, DroneProgress.Empty, now));

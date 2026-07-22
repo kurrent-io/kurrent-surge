@@ -860,7 +860,7 @@ public class DroneIntegrationTests {
             .Throws<AggregateException>();
 
         // Assert — drone went through error path
-        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
     }
 
     #endregion // checkpointing
@@ -923,7 +923,7 @@ public class DroneIntegrationTests {
             .Throws<AggregateException>();
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
     }
 
     #endregion // status

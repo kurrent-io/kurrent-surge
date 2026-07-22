@@ -261,7 +261,7 @@ sealed class ChildDrone : IDrone {
         _telemetry.Stopping(throughput.TotalRecords, throughput.Elapsed, throughput.RecordsPerSecond);
 
         if (fatalError is not null) {
-            Status = DroneStatus.Error;
+            Status = DroneStatus.Stopped;
             _telemetry.Error(fatalError);
         }
         else {

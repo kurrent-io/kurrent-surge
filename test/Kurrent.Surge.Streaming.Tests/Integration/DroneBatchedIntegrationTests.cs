@@ -367,7 +367,7 @@ public class DroneBatchedIntegrationTests {
             .Throws<AggregateException>();
 
         // Assert
-        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Error);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
     }
 
     #endregion // status (more)

@@ -42,12 +42,18 @@ public enum RecordOutcome {
 /// and <see cref="Client.Streams.SessionId.Unset"/> otherwise. A subscription re-session emits a
 /// <c>Processing → Processing</c> transition carrying the new session — reconnects are lifecycle
 /// facts, not a separate event.
+/// <para>
+/// <see cref="Progress"/> is the snapshot as the transition happens; on
+/// <see cref="DroneStatus.Stopping"/> it carries the run's final throughput. Transitions are rare,
+/// so the snapshot costs nothing here — unlike the per-record path.
+/// </para>
 /// </remarks>
 [PublicAPI]
 public readonly record struct ProcessorStateChanged(
     ProcessorInfo  Info,
     DroneStatus    FromStatus,
     DroneStatus    ToStatus,
+    DroneProgress  Progress,
     DateTimeOffset Timestamp,
     Exception?     Error     = null,
     SessionId      SessionId = default

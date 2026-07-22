@@ -97,7 +97,7 @@ sealed class Drone : IDrone {
         Status = status;
 
         _observers.StateChanged(
-            new(_info, from, status, _timeProvider.GetUtcNow(), error, sessionId));
+            new(_info, from, status, _progress.Progress, _timeProvider.GetUtcNow(), error, sessionId));
     }
 
     public DroneProgress Progress => _progress.Progress;
@@ -232,9 +232,10 @@ sealed class Drone : IDrone {
     
     async ValueTask HandleCheckpoint(Checkpoint checkpoint, Partition[] partitions) {
         var trigger = checkpoint.TriggerKind;
-        var start   = _timeProvider.GetTimestamp();
-        
-        _telemetry.CheckpointInitiated(checkpoint.Id, trigger);
+
+        // Timed from here so CheckpointCommitted.Duration spans the whole barrier — the handler and the
+        // commit. That span is why a separate "initiated" event was never worth carrying.
+        var start = _timeProvider.GetTimestamp();
 
         // Server-emitted log watermarks — FilterCheckpoint and CaughtUpCheckpoint — carry the log
         // position the shared scan has reached over regions with no matching records. The barrier
@@ -337,10 +338,8 @@ sealed class Drone : IDrone {
             await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
         }
 
-        var progress   = Progress;
-        var throughput = progress.Throughput;
-
-        _telemetry.Stopping(throughput.TotalRecords, throughput.Elapsed, throughput.RecordsPerSecond);
+        // The final barrier has run, so this transition carries the run's settled throughput.
+        TransitionTo(DroneStatus.Stopping);
 
         // AutoTrack off + records dispatched + nothing ever committed ⇒ the subscription replays in full on
         // restart. Warn once, here, at the one moment it is provably true — the final barrier (if any) has
@@ -376,7 +375,9 @@ sealed class Drone : IDrone {
                     : "Errors during graceful shutdown",
                 errors).Flatten();
 
-            TransitionTo(DroneStatus.Error, aex);
+            // Stopped either way — the error rides on the transition, matching Surge. Callers tell a
+            // crash from a graceful stop by the presence of ProcessorStateChanged.Error.
+            TransitionTo(DroneStatus.Stopped, aex);
 
             if (fatalError is not null)
                 throw aex;

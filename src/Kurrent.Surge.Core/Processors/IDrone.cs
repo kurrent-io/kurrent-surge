@@ -40,6 +40,12 @@ public interface IDrone {
 /// <summary>
 /// Defines the lifecycle status of a processor drone.
 /// </summary>
+/// <remarks>
+/// Values match the original Surge <c>ProcessorState</c> ordinal for ordinal, so the two are
+/// interchangeable on the wire: <c>Activating</c> is <see cref="Starting"/>, <c>Running</c> is
+/// <see cref="Processing"/>, <c>Deactivating</c> is <see cref="Stopping"/>. Like Surge, a failed run
+/// is <see cref="Stopped"/> carrying an error rather than a status of its own.
+/// </remarks>
 [PublicAPI]
 public enum DroneStatus {
     /// <summary>
@@ -58,12 +64,13 @@ public enum DroneStatus {
     Processing = 2,
 
     /// <summary>
-    /// Terminal status for a clean shutdown or cancellation.
+    /// Shutting down: the final barrier has run and the drone is releasing its resources.
     /// </summary>
-    Stopped = 3,
+    Stopping = 3,
 
     /// <summary>
-    /// Terminal status for an unrecoverable error.
+    /// Terminal status, whether the run ended cleanly, by cancellation, or on an error. Read
+    /// <see cref="ProcessorStateChanged.Error"/> on the transition to tell them apart.
     /// </summary>
-    Error = 4
+    Stopped = 4
 }
