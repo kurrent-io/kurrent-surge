@@ -193,7 +193,7 @@ sealed class ChildDrone : IDrone {
         async ValueTask<bool> HandleRecord(IRecordProcessor processor, Record record) {
             using var scope = _telemetry.TrackRecord();
 
-            var ctx = DroneContext.ForProcessRecord(Progress, record, requestTrack: Track);
+            var ctx = DroneContext.ForProcessRecord(record, requestTrack: Track);
 
             await processor.ProcessRecord(ctx).ConfigureAwait(false);
 
@@ -217,7 +217,7 @@ sealed class ChildDrone : IDrone {
         async ValueTask<bool> HandleBatch(IRecordBatchProcessor processor, RecordBatch batch) {
             using var scope = _telemetry.TrackBatch(batch.Count);
 
-            var ctx = DroneContext.ForBatch(Progress, batch, requestTrack: Track);
+            var ctx = DroneContext.ForBatch(batch, requestTrack: Track);
 
             await processor.ProcessBatch(ctx).ConfigureAwait(false);
 
@@ -256,9 +256,9 @@ sealed class ChildDrone : IDrone {
     }
 
     void Shutdown(Exception? fatalError) {
-        var throughput = Progress.Throughput;
+        var progress = Progress;
 
-        _telemetry.Stopping(throughput.TotalRecords, throughput.Elapsed, throughput.RecordsPerSecond);
+        _telemetry.Stopping(progress.TotalRecords, progress.Elapsed, progress.RecordsPerSecond);
 
         if (fatalError is not null) {
             Status = DroneStatus.Stopped;
@@ -268,6 +268,6 @@ sealed class ChildDrone : IDrone {
             Status = DroneStatus.Stopped;
         }
 
-        _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed);
+        _telemetry.Stopped(progress.TotalRecords, progress.Elapsed);
     }
 }

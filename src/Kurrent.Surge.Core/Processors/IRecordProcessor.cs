@@ -63,26 +63,37 @@ public record DroneContext {
 
     public CancellationToken CancellationToken { get; init; } = CancellationToken.None;
 
-    public ProcessRecordContext ForProcessRecord(DroneProgress progress, Record record, Action<RecordPosition> requestTrack) =>
+    /// <summary>
+    /// Reads the drone's live progress. Nothing is snapshotted until this is called, and the value
+    /// reflects the moment of the call rather than the moment of dispatch — so a handler that tracks
+    /// positions sees its own effect.
+    /// </summary>
+    public DroneProgress Progress => ProgressSource();
+
+    // Supplied by the drone; the same live-view shape as RequestTrack. Defaults to Empty so a
+    // hand-built context stays usable in tests.
+    internal Func<DroneProgress> ProgressSource { get; init; } = static () => DroneProgress.Empty;
+
+    public ProcessRecordContext ForProcessRecord(Record record, Action<RecordPosition> requestTrack) =>
         new(requestTrack) {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
-            Record            = record,
-            Progress          = progress
+            ProgressSource    = ProgressSource,
+            Record            = record
         };
 
-    public BatchContext ForBatch(DroneProgress progress, RecordBatch records, Action<RecordPosition> requestTrack) =>
+    public BatchContext ForBatch(RecordBatch records, Action<RecordPosition> requestTrack) =>
         new(requestTrack) {
             ProcessorId       = ProcessorId,
             DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
-            Records           = records,
-            Progress          = progress
+            ProgressSource    = ProgressSource,
+            Records           = records
         };
 
     public ConnectedContext ForConnected() =>
@@ -91,7 +102,8 @@ public record DroneContext {
             DroneId           = DroneId,
             SessionId         = SessionId,
             Logger            = Logger,
-            CancellationToken = CancellationToken
+            CancellationToken = CancellationToken,
+            ProgressSource    = ProgressSource
         };
 
     public CheckpointContext ForCheckpoint(
@@ -106,6 +118,7 @@ public record DroneContext {
             SessionId         = SessionId,
             Logger            = Logger,
             CancellationToken = CancellationToken,
+            ProgressSource    = ProgressSource,
             Positions         = positions,
             CheckpointId      = checkpoint.Id,
             Trigger           = checkpoint.TriggerKind,
@@ -127,8 +140,7 @@ public record ProcessRecordContext : DroneContext {
     public ProcessRecordContext(Action<RecordPosition> requestTrack) =>
         RequestTrack = requestTrack;
 
-    public required Record        Record   { get; init; }
-    public required DroneProgress Progress { get; init; }
+    public required Record Record { get; init; }
 
     public Action<RecordPosition> RequestTrack { get; init; } = _ => { };
 
@@ -289,178 +301,75 @@ public record CheckpointContext : DroneContext {
 }
 
 /// <summary>
-/// Combined progress information for a processor session.
+/// Progress for a processor session: how much has been handled, how fast, and how much would be
+/// replayed if the process died right now.
 /// </summary>
-/// <param name="Throughput">Throughput and timing metrics.</param>
-/// <param name="Checkpoint">Checkpoint progress information.</param>
-/// <param name="Partitions">Per-partition position progress.</param>
+/// <remarks>
+/// Every member is a value type, so a snapshot costs a copy and never allocates — it is taken on the
+/// per-record path. Per-partition state lives inside the tracker; what surfaces here are the two
+/// aggregates that mean something: the lowest committed position (where a restart resumes from) and
+/// the highest (whose distance from the lowest is commit skew across partitions).
+/// </remarks>
 [PublicAPI]
-public readonly record struct DroneProgress(
-    ThroughputMetrics Throughput,
-    CheckpointProgress Checkpoint,
-    IReadOnlyList<PartitionProgress> Partitions
-) {
-    /// <summary>
-    /// Number of partitions currently assigned.
-    /// </summary>
-    public int PartitionCount => Partitions.Count;
+public readonly record struct DroneProgress {
+    // Required by the position initializers below: Unset is not the default RecordPosition, and a
+    // zeroed struct would read as "committed at position 0" rather than "nothing committed yet".
+    public DroneProgress() { }
 
     /// <summary>
-    /// Records tracked but not yet committed — the reprocess-on-crash window, in records.
-    /// Equivalent to <see cref="CheckpointProgress.RecordsSinceLastCheckpoint"/>.
+    /// Total records dispatched this session, whether or not they were tracked.
     /// </summary>
-    public long UncommittedRecords => Checkpoint.RecordsSinceLastCheckpoint;
+    public long TotalRecords { get; init; }
 
     /// <summary>
-    /// Bytes tracked but not yet committed across all partitions — the reprocess-on-crash window,
-    /// in bytes. The sum of each partition's <see cref="PartitionProgress.UncommittedBytes"/>.
+    /// Average records dispatched per second since the session started.
     /// </summary>
-    public long UncommittedBytes {
-        get {
-            var total = 0L;
-            foreach (var partition in Partitions)
-                total += partition.UncommittedBytes;
-            return total;
-        }
-    }
+    public double RecordsPerSecond { get; init; }
 
     /// <summary>
-    /// Gets progress for a specific partition. Entries are self-describing, so this scans the list.
+    /// When the session started.
     /// </summary>
-    /// <param name="partition">The partition to get progress for.</param>
-    /// <returns>The partition's progress.</returns>
-    /// <exception cref="KeyNotFoundException">If the partition is not being tracked.</exception>
-    public PartitionProgress this[Partition partition] {
-        get {
-            foreach (var p in Partitions)
-                if (p.Partition == partition)
-                    return p;
-
-            throw new KeyNotFoundException($"Partition {partition} is not being tracked.");
-        }
-    }
+    public DateTimeOffset StartedAt { get; init; }
 
     /// <summary>
-    /// Tries to get progress for a specific partition.
+    /// Time elapsed since the session started.
     /// </summary>
-    /// <param name="partition">The partition to get progress for.</param>
-    /// <param name="progress">The partition's progress if found.</param>
-    /// <returns>True if the partition was found; otherwise false.</returns>
-    public bool TryGetPartition(Partition partition, out PartitionProgress progress) {
-        foreach (var p in Partitions)
-            if (p.Partition == partition) {
-                progress = p;
-                return true;
-            }
-
-        progress = PartitionProgress.Empty;
-        return false;
-    }
+    public TimeSpan Elapsed { get; init; }
 
     /// <summary>
-    /// Gets the partition with the lowest checkpoint position.
-    /// Useful for monitoring which partition is furthest behind.
+    /// Event-time of the last dispatched record, or <c>null</c> if none yet. Compared against the
+    /// readable log head to derive how far behind in event-time the processor is running.
     /// </summary>
-    /// <returns>The partition and its progress, or null if no partitions are assigned.</returns>
-    public (Partition Partition, PartitionProgress Progress)? LowestCheckpointPartition {
-        get {
-            if (Partitions.Count == 0)
-                return null;
-
-            var min = Partitions.MinBy(x => x.LastFlushedPosition);
-            return (min.Partition, min);
-        }
-    }
+    public DateTime? LastProcessedAt { get; init; }
 
     /// <summary>
-    /// Empty progress with no records processed and no checkpoints.
+    /// Lowest committed position across owned partitions — the point a restart resumes from, since a
+    /// resuming run is only as durable as its least-advanced partition. <see cref="RecordPosition.Unset"/>
+    /// until the first checkpoint commits.
     /// </summary>
-    public static readonly DroneProgress Empty = new(
-        ThroughputMetrics.Empty,
-        CheckpointProgress.Empty,
-        []
-    );
+    public RecordPosition LowestCommittedPosition { get; init; } = RecordPosition.Unset;
+
+    /// <summary>
+    /// Highest committed position across owned partitions. Its distance from
+    /// <see cref="LowestCommittedPosition"/> is the commit skew — a partition falling behind shows up
+    /// as that gap widening. Equal to the lowest while a single partition is owned.
+    /// </summary>
+    public RecordPosition HighestCommittedPosition { get; init; } = RecordPosition.Unset;
+
+    /// <summary>
+    /// Records dispatched since the last commit — what would be reprocessed if the process died now.
+    /// </summary>
+    public long UncommittedRecords { get; init; }
+
+    /// <summary>
+    /// Bytes tracked but not yet committed — the same replay window in bytes, summed across
+    /// partitions. Log positions are byte offsets, so this is the distance still at risk.
+    /// </summary>
+    public long UncommittedBytes { get; init; }
+
+    /// <summary>
+    /// Empty progress: nothing dispatched, nothing committed.
+    /// </summary>
+    public static readonly DroneProgress Empty = new();
 }
 
-/// <summary>
-/// Position progress for a single partition. Self-describing — carries its own <see cref="Partition"/>,
-/// so a snapshot holds these in a flat list rather than a dictionary keyed by partition.
-/// </summary>
-/// <param name="Partition">The partition this progress belongs to.</param>
-/// <param name="LastTrackedPosition">
-/// The most recent position tracked (processed) but not yet checkpointed.
-/// Returns <see cref="LogPosition.Unset"/> if no positions are pending.
-/// </param>
-/// <param name="LastFlushedPosition">
-/// The most recent position that has been checkpointed (flushed).
-/// Returns <see cref="LogPosition.Unset"/> if no checkpoints have occurred.
-/// </param>
-[PublicAPI]
-public readonly record struct PartitionProgress(
-    Partition      Partition,
-    RecordPosition LastTrackedPosition,
-    RecordPosition LastFlushedPosition
-) {
-    /// <summary>
-    /// Empty partition progress with no positions tracked or flushed.
-    /// </summary>
-    public static readonly PartitionProgress Empty = new(default, RecordPosition.Unset, RecordPosition.Unset);
-
-    /// <summary>
-    /// Bytes tracked but not yet committed for this partition — the replay window. The gap between
-    /// the last tracked and last flushed log position (log positions are byte offsets). Zero when
-    /// nothing is pending or no checkpoint has flushed yet.
-    /// </summary>
-    public long UncommittedBytes {
-        get {
-            var tracked = LastTrackedPosition.LogPosition;
-            var flushed = LastFlushedPosition.LogPosition;
-
-            return tracked != LogPosition.Unset && flushed != LogPosition.Unset && tracked > flushed
-                ? tracked.Value - flushed.Value
-                : 0;
-        }
-    }
-}
-
-/// <summary>
-/// Throughput and timing metrics for a processor session.
-/// </summary>
-/// <param name="TotalRecords">Total number of records processed.</param>
-/// <param name="RecordsPerSecond">Average records processed per second.</param>
-/// <param name="StartedAt">When processing started.</param>
-/// <param name="Elapsed">Total time spent processing.</param>
-/// <param name="LastProcessedAt">Event-time of the last dispatched record, or <c>null</c> if none processed yet.</param>
-[PublicAPI]
-public readonly record struct ThroughputMetrics(
-    long TotalRecords,
-    double RecordsPerSecond,
-    DateTimeOffset StartedAt,
-    TimeSpan Elapsed,
-    DateTime? LastProcessedAt = null
-) {
-    /// <summary>
-    /// Empty metrics with no records processed.
-    /// </summary>
-    public static readonly ThroughputMetrics Empty = new(0, 0, DateTimeOffset.MinValue, TimeSpan.Zero);
-}
-
-/// <summary>
-/// Checkpoint progress information for a processor session.
-/// </summary>
-/// <param name="TotalCheckpoints">Total number of checkpoints completed.</param>
-/// <param name="RecordsSinceLastCheckpoint">Records processed since the last checkpoint.</param>
-/// <param name="LastTrigger">What triggered the last checkpoint.</param>
-/// <param name="LastCheckpointAt">When the last checkpoint completed, or null if none.</param>
-[PublicAPI]
-public readonly record struct CheckpointProgress(
-    long TotalCheckpoints,
-    long RecordsSinceLastCheckpoint,
-    CheckpointTrigger LastTrigger,
-    DateTimeOffset? LastCheckpointAt
-) {
-    /// <summary>
-    /// Empty checkpoint progress with no checkpoints completed.
-    /// </summary>
-    public static readonly CheckpointProgress Empty = new(0, 0, CheckpointTrigger.Unspecified, null);
-}

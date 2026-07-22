@@ -426,7 +426,7 @@ public class DroneLifecycleTests {
 		await Assert.That(filterCheckpoints.Count).IsGreaterThanOrEqualTo(1);
 		await Assert.That(filterCheckpoints[0].ScanPosition).IsNotNull();
 		await Assert.That(filterCheckpoints[0].ScanPosition!.Value.LogPosition).IsEqualTo(watermark);
-		await Assert.That(drone.Progress.Checkpoint.TotalCheckpoints).IsEqualTo(0L);
+		await Assert.That(drone.Progress.LowestCommittedPosition).IsEqualTo(RecordPosition.Unset);
 	}
 
 	[Test]
@@ -461,8 +461,8 @@ public class DroneLifecycleTests {
 		// though the watermark itself carried a non-owned partition.
 		var ownedPartition = Partition.From(0);
 
-		await Assert.That(drone.Progress.Checkpoint.TotalCheckpoints).IsGreaterThanOrEqualTo(1L);
-		await Assert.That(drone.Progress[ownedPartition].LastFlushedPosition.LogPosition).IsEqualTo(watermark);
+		await Assert.That(drone.Progress.LowestCommittedPosition).IsNotEqualTo(RecordPosition.Unset);
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
 	[Test]
@@ -487,8 +487,8 @@ public class DroneLifecycleTests {
 		// Assert — the watermark was auto-folded and committed at the owned partition.
 		var ownedPartition = Partition.From(0);
 
-		await Assert.That(drone.Progress.Checkpoint.TotalCheckpoints).IsGreaterThanOrEqualTo(1L);
-		await Assert.That(drone.Progress[ownedPartition].LastFlushedPosition.LogPosition).IsEqualTo(watermark);
+		await Assert.That(drone.Progress.LowestCommittedPosition).IsNotEqualTo(RecordPosition.Unset);
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
 	#endregion // watermark / OnCheckpoint
@@ -518,7 +518,7 @@ public class DroneLifecycleTests {
 
 		// Assert — the batch was delivered, but nothing tracked, so no checkpoint ever committed
 		await Assert.That(processor.Records.Count).IsEqualTo(records.Length);
-		await Assert.That(drone.Progress.Checkpoint.TotalCheckpoints).IsEqualTo(0L);
+		await Assert.That(drone.Progress.LowestCommittedPosition).IsEqualTo(RecordPosition.Unset);
 	}
 
 	[Test]
@@ -735,7 +735,7 @@ public class DroneLifecycleTests {
 		await drone.RunAsync(ct);
 
 		// Assert — counted every record despite auto-track being off
-		await Assert.That(drone.Progress.Throughput.TotalRecords).IsEqualTo((long)records.Length);
+		await Assert.That(drone.Progress.TotalRecords).IsEqualTo((long)records.Length);
 	}
 
 	[Test]
@@ -759,7 +759,7 @@ public class DroneLifecycleTests {
 		await drone.RunAsync(ct);
 
 		// Assert — counted every record in the batch despite auto-track being off
-		await Assert.That(drone.Progress.Throughput.TotalRecords).IsEqualTo((long)records.Length);
+		await Assert.That(drone.Progress.TotalRecords).IsEqualTo((long)records.Length);
 	}
 
 	[Test]
@@ -775,8 +775,9 @@ public class DroneLifecycleTests {
 		};
 		var committed = RecordPosition.From(LogPosition.From(200), Partition.From(0));
 		var progress  = DroneProgress.Empty with {
-			Throughput = ThroughputMetrics.Empty with { LastProcessedAt = headTime.AddSeconds(-5) },
-			Partitions = [new PartitionProgress(Partition.From(0), committed, committed)]
+			LastProcessedAt          = headTime.AddSeconds(-5),
+			LowestCommittedPosition  = committed,
+			HighestCommittedPosition = committed
 		};
 
 		long?   lagBytes   = null;
@@ -803,78 +804,103 @@ public class DroneLifecycleTests {
 
 	#region ->> uncommitted progress <<-
 
+	// The uncommitted accounting moved into ProgressTracker with the partition slots — DroneProgress
+	// now carries the result rather than deriving it, so these drive the tracker directly.
+	static ProgressTracker NewTracker(int partitionCount = 1) =>
+		new(TimeProvider.System, partitionCount);
+
+	static RecordPosition At(long position, int partition) =>
+		RecordPosition.From(LogPosition.From(position), Partition.From(partition));
+
 	[Test]
 	public async ValueTask uncommitted_reflects_tracked_minus_committed() {
-		// Arrange — one partition tracked at 500, flushed at 200; 7 records since the last checkpoint.
-		var partition = Partition.From(0);
-		var progress  = DroneProgress.Empty with {
-			Checkpoint = CheckpointProgress.Empty with { RecordsSinceLastCheckpoint = 7 },
-			Partitions = [
-				new PartitionProgress(
-					partition,
-					RecordPosition.From(LogPosition.From(500), partition),
-					RecordPosition.From(LogPosition.From(200), partition))
-			]
-		};
+		// Arrange — commit at 200, then dispatch 7 records and track out to 500
+		var tracker = NewTracker();
+		var record  = Records.Generate();
 
-		// Act & Assert — records from RecordsSinceLastCheckpoint; bytes from the per-partition gap.
+		tracker.TrackCheckpoint([At(200, 0)]);
+
+		for (var i = 0; i < 7; i++)
+			tracker.CountThroughput(record);
+
+		tracker.TrackPosition(At(500, 0));
+
+		// Act
+		var progress = tracker.Progress;
+
+		// Assert — records since the commit, bytes from the tracked-to-committed gap
 		await Assert.That(progress.UncommittedRecords).IsEqualTo(7L);
 		await Assert.That(progress.UncommittedBytes).IsEqualTo(300L);
-		await Assert.That(progress[partition].UncommittedBytes).IsEqualTo(300L);
 	}
 
 	[Test]
 	public async ValueTask uncommitted_bytes_sums_across_partitions() {
-		// Arrange — two partitions with gaps 300 (500−200) and 50 (150−100).
-		var p0 = Partition.From(0);
-		var p1 = Partition.From(1);
+		// Arrange — two partitions with gaps 300 (500−200) and 50 (150−100)
+		var tracker = NewTracker(partitionCount: 2);
 
-		var progress = DroneProgress.Empty with {
-			Partitions = [
-				new PartitionProgress(p0, RecordPosition.From(LogPosition.From(500), p0), RecordPosition.From(LogPosition.From(200), p0)),
-				new PartitionProgress(p1, RecordPosition.From(LogPosition.From(150), p1), RecordPosition.From(LogPosition.From(100), p1))
-			]
-		};
+		tracker.TrackCheckpoint([At(200, 0), At(100, 1)]);
+		tracker.TrackPosition(At(500, 0));
+		tracker.TrackPosition(At(150, 1));
 
 		// Act & Assert
-		await Assert.That(progress.UncommittedBytes).IsEqualTo(350L);
+		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(350L);
 	}
 
 	[Test]
-	public async ValueTask uncommitted_bytes_is_zero_before_first_flush() {
-		// Arrange — tracked but never flushed: no committed baseline, so the byte gap is zero.
-		var partition = Partition.From(0);
+	public async ValueTask uncommitted_bytes_is_zero_before_first_commit() {
+		// Arrange — tracked but never committed: no baseline, so nothing is measurably at risk in bytes
+		var tracker = NewTracker();
 
-		var progress = DroneProgress.Empty with {
-			Partitions = [
-				new PartitionProgress(partition, RecordPosition.From(LogPosition.From(500), partition), RecordPosition.Unset)
-			]
-		};
+		tracker.TrackPosition(At(500, 0));
 
 		// Act & Assert
-		await Assert.That(progress.UncommittedBytes).IsEqualTo(0L);
+		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(0L);
 	}
 
 	[Test]
-	public async ValueTask uncommitted_bytes_is_zero_when_flushed_overtakes_tracked() {
-		// Arrange — a committed scan watermark can advance flushed past the last tracked record (the
-		// no-match region folds into the checkpointer, never into per-record tracking). The gap floors
-		// at zero rather than going negative.
-		var partition = Partition.From(0);
+	public async ValueTask uncommitted_bytes_is_zero_when_committed_overtakes_tracked() {
+		// Arrange — a committed scan watermark can advance past the last tracked record (the no-match
+		// region folds into the checkpointer, never into per-record tracking). The gap floors at zero.
+		var tracker = NewTracker();
 
-		var progress = DroneProgress.Empty with {
-			Partitions = [
-				new PartitionProgress(partition, RecordPosition.From(LogPosition.From(200), partition), RecordPosition.From(LogPosition.From(500), partition))
-			]
-		};
+		tracker.TrackPosition(At(200, 0));
+		tracker.TrackCheckpoint([At(500, 0)]);
 
 		// Act & Assert
-		await Assert.That(progress.UncommittedBytes).IsEqualTo(0L);
+		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(0L);
 	}
 
-	#endregion // uncommitted progress
+	[Test]
+	public async ValueTask committed_watermarks_span_the_least_and_most_advanced_partitions() {
+		// Arrange — two partitions committed at different positions. The spread between the watermarks
+		// is the commit skew; the lowest is where a restart resumes from.
+		var tracker = NewTracker(partitionCount: 2);
 
-	#region ->> checkpoint-vs-stop <<-
+		tracker.TrackCheckpoint([At(900, 0), At(300, 1)]);
+
+		// Act
+		var progress = tracker.Progress;
+
+		// Assert
+		await Assert.That(progress.LowestCommittedPosition).IsEqualTo(At(300, 1));
+		await Assert.That(progress.HighestCommittedPosition).IsEqualTo(At(900, 0));
+	}
+
+	[Test]
+	public async ValueTask committed_watermarks_ignore_partitions_that_never_committed() {
+		// Arrange — one of two partitions has committed. An Unset slot must not drag the lowest to zero,
+		// which would read as "durable from the start of the log".
+		var tracker = NewTracker(partitionCount: 2);
+
+		tracker.TrackCheckpoint([At(400, 0)]);
+
+		// Act
+		var progress = tracker.Progress;
+
+		// Assert
+		await Assert.That(progress.LowestCommittedPosition).IsEqualTo(At(400, 0));
+		await Assert.That(progress.HighestCommittedPosition).IsEqualTo(At(400, 0));
+	}
 
 	[Test]
 	[Timeout(15_000)]
@@ -1207,8 +1233,10 @@ public class DroneLifecycleTests {
 		// Act
 		await drone.RunAsync(ct);
 
-		// Assert — the user track advanced per-partition progress (the gauge source), not just the checkpointer
-		await Assert.That(drone.Progress[partition].LastTrackedPosition).IsEqualTo(lastPosition);
+		// Assert — the user's track reached the frontier and committed there. Progress no longer exposes
+		// the tracked position, so this observes the track through the commit it produced: had ctx.Track
+		// not landed, nothing would be pending at shutdown and the watermark would stay Unset.
+		await Assert.That(drone.Progress.LowestCommittedPosition).IsEqualTo(lastPosition);
 	}
 
 	[Test]

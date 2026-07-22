@@ -12,7 +12,7 @@ public record ProjectionContext<TClient>(GetProjectionClient<TClient> GetClient)
     [SetsRequiredMembers]
     public ProjectionContext(ProcessRecordContext source, GetProjectionClient<TClient> getClient) : this(getClient) {
         Record            = source.Record;
-        Progress          = source.Progress;
+        ProgressSource    = source.ProgressSource;
         RequestTrack      = source.RequestTrack;
         ProcessorId       = source.ProcessorId;
         DroneId           = source.DroneId;

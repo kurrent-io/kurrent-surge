@@ -319,7 +319,6 @@ public class SnapshotProjectionsTests {
         processor.ProcessRecord(
             new ProcessRecordContext(_ => { }) {
                 Record            = record,
-                Progress          = DroneProgress.Empty,
                 CancellationToken = ct
             });
 

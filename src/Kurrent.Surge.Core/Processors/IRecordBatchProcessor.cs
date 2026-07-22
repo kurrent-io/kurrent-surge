@@ -53,7 +53,6 @@ public record BatchContext : DroneContext {
         RequestTrack = requestTrack;
 
     public required RecordBatch   Records  { get; init; }
-    public required DroneProgress Progress { get; init; }
 
     internal Action<RecordPosition> RequestTrack { get; init; } = static _ => { };
 

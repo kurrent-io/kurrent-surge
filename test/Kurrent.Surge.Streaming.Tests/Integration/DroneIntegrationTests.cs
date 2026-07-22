@@ -330,7 +330,7 @@ public class DroneIntegrationTests {
             processors.Add(processor);
 
             processor.OnProcessRecord = ctx => {
-                if (ctx.Progress.Throughput.TotalRecords == 10)
+                if (ctx.Progress.TotalRecords == 10)
                     ctx.StopProcessing($"Phase {phase + 1} done after 10 records");
 
                 return ValueTask.CompletedTask;
@@ -454,7 +454,7 @@ public class DroneIntegrationTests {
         // Phase 1: Process first 5 records, stop before tracking the 6th
         var processorOne = new TestableRecordProcessor {
             OnProcessRecord = ctx => {
-                if (ctx.Progress.Throughput.TotalRecords == 5)
+                if (ctx.Progress.TotalRecords == 5)
                     ctx.StopProcessing("Phase 1 done after 5 records");
 
                 return ValueTask.CompletedTask;

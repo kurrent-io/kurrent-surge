@@ -54,7 +54,7 @@ sealed class RecordDispatcher(
 
         // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
         // updates the gauges, not just the commit position (see ProcessorDispatcher.Track).
-        var ctx = context.ForProcessRecord(Progress.Progress, record, requestTrack: Track);
+        var ctx = context.ForProcessRecord(record, requestTrack: Track);
         
         var start   = TimeProvider.GetTimestamp();
         var outcome = RecordOutcome.Processed;

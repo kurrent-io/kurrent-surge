@@ -15,8 +15,7 @@ public class ManualCheckpointingTests {
 	public async ValueTask checkpoint_throws_when_called_twice_in_same_process_record() {
 		// Arrange
 		var ctx = new ProcessRecordContext(_ => { }) {
-			Record   = Records.Generate(),
-			Progress = DroneProgress.Empty
+			Record   = Records.Generate()
 		};
 
 		// Act
@@ -36,7 +35,6 @@ public class ManualCheckpointingTests {
 
 		var ctx = new ProcessRecordContext(_ => { }) {
 			Record            = Records.Generate(),
-			Progress          = DroneProgress.Empty,
 			CancellationToken = cts.Token
 		};
 
@@ -49,8 +47,7 @@ public class ManualCheckpointingTests {
 	public async ValueTask checkpoint_stashes_request_for_drone_to_pick_up() {
 		// Arrange
 		var ctx = new ProcessRecordContext(_ => { }) {
-			Record   = Records.Generate(),
-			Progress = DroneProgress.Empty
+			Record   = Records.Generate()
 		};
 
 		// Act
@@ -70,8 +67,7 @@ public class ManualCheckpointingTests {
 		var expectedPositions = new List<RecordPosition> { record.Position };
 
 		var ctx = new ProcessRecordContext(capturedPositions.Add) {
-			Record   = record,
-			Progress = DroneProgress.Empty
+			Record   = record
 		};
 
 		// Act
@@ -90,8 +86,7 @@ public class ManualCheckpointingTests {
 		var expectedPositions = positions.ToList();
 
 		var ctx = new ProcessRecordContext(capturedPositions.Add) {
-			Record   = Records.Generate(),
-			Progress = DroneProgress.Empty
+			Record   = Records.Generate()
 		};
 
 		// Act

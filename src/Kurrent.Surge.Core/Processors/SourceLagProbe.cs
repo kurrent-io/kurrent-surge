@@ -40,9 +40,12 @@ sealed class SourceLagProbe : IAsyncDisposable {
             var head     = await _readHead(ct).ConfigureAwait(false);
             var progress = _snapshot();
 
-            // Furthest-behind partition: lowest committed (or, lacking a commit, tracked) position.
-            if (LowestProgressed(progress) is not { } floor)
-                return; // no progress yet — no meaningful baseline to measure against
+            // The resume point: the least-advanced partition's committed position. Unset until the
+            // first checkpoint commits, and there is no meaningful baseline before that.
+            var floor = progress.LowestCommittedPosition.LogPosition;
+
+            if (floor == LogPosition.Unset)
+                return;
 
             var headPosition = head.Position.LogPosition;
 
@@ -52,7 +55,7 @@ sealed class SourceLagProbe : IAsyncDisposable {
                 ? headPosition.Value - floor.Value
                 : 0L;
 
-            var lagSeconds = progress.Throughput.LastProcessedAt is { } lastProcessedAt && head.Timestamp > lastProcessedAt
+            var lagSeconds = progress.LastProcessedAt is { } lastProcessedAt && head.Timestamp > lastProcessedAt
                 ? (head.Timestamp - lastProcessedAt).TotalSeconds
                 : 0d;
 
@@ -66,26 +69,6 @@ sealed class SourceLagProbe : IAsyncDisposable {
             // keeps its last value and the next refresh retries.
         }
         
-        
-        // Lowest position across owned partitions — committed if any, else tracked. Skips partitions with
-        // no progress. Phrased across partitions so it stays correct when partitioning lands.
-        static LogPosition? LowestProgressed(DroneProgress progress) {
-            LogPosition? lowest = null;
-
-            foreach (var partition in progress.Partitions) {
-                var position = partition.LastFlushedPosition.LogPosition != LogPosition.Unset
-                    ? partition.LastFlushedPosition.LogPosition
-                    : partition.LastTrackedPosition.LogPosition;
-
-                if (position == LogPosition.Unset)
-                    continue;
-
-                if (lowest is null || position < lowest.Value)
-                    lowest = position;
-            }
-
-            return lowest;
-        }
     }
 
     public ValueTask DisposeAsync() => _timer.DisposeAsync();

@@ -85,7 +85,7 @@ public class DroneDispatchBenchmarks {
 
         await drone.RunAsync(CancellationToken.None).ConfigureAwait(false);
 
-        return drone.Progress.Throughput.TotalRecords;
+        return drone.Progress.TotalRecords;
     }
 }
 

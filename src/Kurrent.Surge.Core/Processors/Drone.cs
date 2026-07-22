@@ -69,10 +69,11 @@ sealed class Drone : IDrone {
         };
 
         DroneContext = new() {
-            ProcessorId = ProcessorId,
-            DroneId     = DroneId,
-            SessionId   = SessionId.Unset,
-            Logger      = logger
+            ProcessorId    = ProcessorId,
+            DroneId        = DroneId,
+            SessionId      = SessionId.Unset,
+            Logger         = logger,
+            ProgressSource = () => _progress.Progress
         };
     }
 
@@ -300,7 +301,7 @@ sealed class Drone : IDrone {
                 .CommitCheckpoint(checkpoint.Id, positions, checkpointToken)
                 .ConfigureAwait(false);
 
-            _progress.TrackCheckpoint(checkpoint, positions);
+            _progress.TrackCheckpoint(positions);
 
             _observers.CheckpointCommitted(
                 new(

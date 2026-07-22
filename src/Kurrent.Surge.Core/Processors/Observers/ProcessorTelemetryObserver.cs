@@ -94,8 +94,8 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
                 break;
 
             case DroneStatus.Stopping:
-                var throughput = evt.Progress.Throughput;
-                LogStopping(evt.Info.DroneId, throughput.TotalRecords, throughput.Elapsed, throughput.RecordsPerSecond);
+                var progress = evt.Progress;
+                LogStopping(evt.Info.DroneId, progress.TotalRecords, progress.Elapsed, progress.RecordsPerSecond);
                 break;
 
             // Stopped is terminal for every outcome; the error, if any, arrives on the transition.

@@ -89,7 +89,7 @@ sealed class RecordProcessorBatchAdapter(
         // per-record context's tracker to the SAME Checkpointer.Track the Drone uses, so the user's
         // ctx.Track() reaches the real tracker immediately. The AutoTrack=false
         // produce-async-then-track-on-ack pattern depends on this being the live tracker, not a copy.
-        var ctx = context.ForProcessRecord(progress.Progress, record, requestTrack: checkpointer.Track);
+        var ctx = context.ForProcessRecord(record, requestTrack: checkpointer.Track);
 
         await inner.ProcessRecord(ctx).ConfigureAwait(false);
 

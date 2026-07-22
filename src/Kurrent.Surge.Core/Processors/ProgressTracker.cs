@@ -27,9 +27,6 @@ sealed class ProgressTracker {
     // to compute source_lag_seconds (how far behind in event-time the drone is).
     DateTime? _lastProcessedAt;
 
-    CheckpointTrigger _lastCheckpointTrigger = CheckpointTrigger.Unspecified;
-    DateTimeOffset?   _lastCheckpointAt;
-
     // One slot per owned partition, index == partition number. Allocated once; mutated in place.
     readonly PartitionProgress[] _partitions;
 
@@ -84,17 +81,15 @@ sealed class ProgressTracker {
     /// Tracks a checkpoint completion with committed positions. Resets the uncommitted-record count and
     /// folds each partition's shrinking byte-gap into the running uncommitted total.
     /// </summary>
-    public void TrackCheckpoint(Checkpoint checkpoint, RecordPosition[] positions) {
+    public void TrackCheckpoint(RecordPosition[] positions) {
         _totalCheckpoints++;
-        _uncommittedRecords    = 0;
-        _lastCheckpointTrigger = checkpoint.TriggerKind;
-        _lastCheckpointAt      = checkpoint.Timestamp;
+        _uncommittedRecords = 0;
 
         foreach (var position in positions) {
             ref var slot = ref _partitions[position.Partition.Value];
 
             var before = slot.UncommittedBytes;
-            slot = slot with { LastFlushedPosition = position };
+            slot = slot with { LastCommittedPosition = position };
             _uncommittedBytes += slot.UncommittedBytes - before;
         }
     }
@@ -106,36 +101,81 @@ sealed class ProgressTracker {
     public long UncommittedBytes   => _uncommittedBytes;
 
     /// <summary>
-    /// On-demand snapshot. Counters are copied off the fields; rate / elapsed are the only computed
-    /// values (they depend on "now"). The partition list is the only allocation, built here on demand.
+    /// On-demand snapshot. Counters are copied off the fields; rate and elapsed are the only computed
+    /// values (they depend on "now"), and the partition slots reduce to the committed watermarks.
+    /// Every member is a value type, so nothing allocates.
     /// </summary>
     public DroneProgress Progress {
         get {
-            var elapsed = _timeProvider.GetElapsedTime(_startTimestamp);
-
+            var elapsed      = _timeProvider.GetElapsedTime(_startTimestamp);
             var totalSeconds = elapsed.TotalSeconds;
 
-            var throughput = new ThroughputMetrics(
-                TotalRecords:     _totalRecords,
-                RecordsPerSecond: totalSeconds > 0 ? _totalRecords / totalSeconds : 0,
-                StartedAt:        _startedAt,
-                Elapsed:          elapsed,
-                LastProcessedAt:  _lastProcessedAt
-            );
+            var (lowest, highest) = CommittedWatermarks();
 
-            var checkpoint = new CheckpointProgress(
-                TotalCheckpoints:           _totalCheckpoints,
-                RecordsSinceLastCheckpoint: _uncommittedRecords,
-                LastTrigger:                _lastCheckpointTrigger,
-                LastCheckpointAt:           _lastCheckpointAt
-            );
+            return new DroneProgress {
+                TotalRecords     = _totalRecords,
+                RecordsPerSecond = totalSeconds > 0 ? _totalRecords / totalSeconds : 0,
+                StartedAt        = _startedAt,
+                Elapsed          = elapsed,
+                LastProcessedAt  = _lastProcessedAt,
 
-            return new DroneProgress(throughput, checkpoint, SnapshotPartitions());
+                LowestCommittedPosition  = lowest,
+                HighestCommittedPosition = highest,
+
+                UncommittedRecords = _uncommittedRecords,
+                UncommittedBytes   = _uncommittedBytes
+            };
         }
     }
 
-    // A frozen copy of every owned partition. The drone owns its partitions from the start, so the
-    // snapshot always carries all of them — idle ones simply hold Unset positions. No active filter,
-    // no scan: one copy of the live slots, built only when a snapshot is requested.
-    IReadOnlyList<PartitionProgress> SnapshotPartitions() => [.._partitions];
+    // Reduce the owned slots to the two aggregates that mean something outside this class: the lowest
+    // committed position (a restart resumes from the least-advanced partition) and the highest (their
+    // distance is commit skew). Partitions that have never committed are skipped — they hold Unset and
+    // would otherwise drag the lowest to zero. A loop over a fixed array of structs; no allocation.
+    (RecordPosition Lowest, RecordPosition Highest) CommittedWatermarks() {
+        var lowest  = RecordPosition.Unset;
+        var highest = RecordPosition.Unset;
+
+        foreach (var partition in _partitions) {
+            var committed = partition.LastCommittedPosition;
+
+            if (committed.LogPosition == LogPosition.Unset)
+                continue;
+
+            if (lowest.LogPosition == LogPosition.Unset || committed.LogPosition < lowest.LogPosition)
+                lowest = committed;
+
+            if (highest.LogPosition == LogPosition.Unset || committed.LogPosition > highest.LogPosition)
+                highest = committed;
+        }
+
+        return (lowest, highest);
+    }
+
+}
+
+/// <summary>
+/// One partition's position state inside <see cref="ProgressTracker"/>. Internal: callers see the
+/// committed watermarks on <see cref="DroneProgress"/>, not the per-partition slots.
+/// </summary>
+readonly record struct PartitionProgress(
+    Partition      Partition,
+    RecordPosition LastTrackedPosition,
+    RecordPosition LastCommittedPosition
+) {
+    /// <summary>
+    /// Bytes tracked but not yet committed for this partition — the gap between the last tracked and
+    /// last committed log position (log positions are byte offsets). Zero when nothing is pending or
+    /// nothing has committed yet.
+    /// </summary>
+    public long UncommittedBytes {
+        get {
+            var tracked   = LastTrackedPosition.LogPosition;
+            var committed = LastCommittedPosition.LogPosition;
+
+            return tracked != LogPosition.Unset && committed != LogPosition.Unset && tracked > committed
+                ? tracked.Value - committed.Value
+                : 0;
+        }
+    }
 }

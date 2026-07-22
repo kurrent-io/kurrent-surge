@@ -25,7 +25,7 @@ sealed class BatchDispatcher(
         Observers.BatchReady(new(Info, batch, TimeProvider.GetUtcNow()));
 
         // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
-        var ctx = context.ForBatch(Progress.Progress, batch, requestTrack: Track);
+        var ctx = context.ForBatch(batch, requestTrack: Track);
 
         var start     = TimeProvider.GetTimestamp();
         var outcome   = RecordOutcome.Processed;

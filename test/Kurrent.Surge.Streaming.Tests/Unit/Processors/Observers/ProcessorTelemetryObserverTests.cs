@@ -21,7 +21,7 @@ public class ProcessorTelemetryObserverTests {
     static ProcessorInfo NewInfo() => new(Faker.Random.AlphaNumeric(10), Faker.Random.AlphaNumeric(10));
 
     static DroneProgress ProgressWithUncommitted(long uncommittedRecords) =>
-        new(ThroughputMetrics.Empty, new CheckpointProgress(0, uncommittedRecords, CheckpointTrigger.Unspecified, null), []);
+        DroneProgress.Empty with { UncommittedRecords = uncommittedRecords };
 
     /// <summary>
     /// Arranges an upstream context the way a real producer would: a live Activity injected into
